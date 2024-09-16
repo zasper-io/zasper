@@ -44,7 +44,7 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	terminal := "bash"
+	terminal := "zsh"
 	log.Debug().Msgf("starting new tty using command '%s' with arguments ['%s']...", terminal, "")
 	cmd := exec.Command(terminal)
 	cmd.Env = os.Environ()

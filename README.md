@@ -13,14 +13,14 @@ Inbuilt concurrency
 
 ## 📷 Screenshots
 
-### Launcher
-![Launcher](./screenshots/launcher.png)
-
 ### Editor
 ![Editor](./screenshots/editor.png)
 
 ### Terminal
 ![Editor](./screenshots/terminal.png)
+
+### Launcher
+![Launcher](./screenshots/launcher.png) 
 
 ## ⚡️ Quick start
 
