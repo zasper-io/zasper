@@ -1,5 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap");
 
+$fileBrowserItemHeight: 28px;
+
 body {
     font-family: "Ubuntu", sans-serif;
     font-size: 14px;
@@ -270,9 +272,9 @@ a {
             }
 
             .file-list li a {
-                height: 35px;
+                height: $fileBrowserItemHeight;
                 font-size: 14px;
-                line-height: 35px;
+                line-height: $fileBrowserItemHeight;
                 background: #fff;
                 border-radius: 5px;
                 width: 100%;

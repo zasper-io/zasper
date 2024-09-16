@@ -13,10 +13,10 @@ type ContentManager struct {
 	Name string
 }
 
-func GetContent(path string, contentType string, format string, hash int) models.ContentModel {
-	log.Info().Msgf("getting content for path : %s", path)
+func GetContent(relativePath string, contentType string, format string, hash int) models.ContentModel {
+	log.Info().Msgf("getting content for path : %s", relativePath)
 	// get path info
-	info, err := os.Lstat(path)
+	info, err := os.Lstat(relativePath)
 
 	if err != nil {
 		panic(err)
@@ -24,10 +24,10 @@ func GetContent(path string, contentType string, format string, hash int) models
 	model := models.ContentModel{}
 	log.Info().Msgf("%t", info.IsDir())
 	if info.IsDir() {
-		model = getDirectoryModel(path)
+		model = getDirectoryModel(relativePath)
 		// fmt.Println(model)
 	} else {
-		model = getFileModelWithContent(path)
+		model = getFileModelWithContent(relativePath)
 	}
 
 	return model
@@ -37,8 +37,9 @@ func getNotebookModel(path string) models.ContentModel {
 	return models.ContentModel{}
 }
 
-func getDirectoryModel(path string) models.ContentModel {
-	abspath := GetOSPath(path)
+func getDirectoryModel(relativePath string) models.ContentModel {
+	log.Info().Msgf("relative path %s", relativePath)
+	abspath := GetOSPath(relativePath)
 
 	info, err := os.Lstat(abspath)
 	if err != nil {
@@ -47,7 +48,7 @@ func getDirectoryModel(path string) models.ContentModel {
 
 	output := models.ContentModel{
 		ContentType:   "directory",
-		Name:          path,
+		Name:          relativePath,
 		Path:          abspath,
 		Last_modified: info.ModTime().GoString(),
 	}
@@ -64,7 +65,7 @@ func getDirectoryModel(path string) models.ContentModel {
 	listOfContents := []models.ContentModel{}
 	for _, v := range files {
 
-		listOfContents = append(listOfContents, getFileModel(abspath, v.Name()))
+		listOfContents = append(listOfContents, getFileModel(abspath, relativePath, v.Name()))
 
 	}
 	output.Content = listOfContents
@@ -72,10 +73,14 @@ func getDirectoryModel(path string) models.ContentModel {
 	return output
 }
 
-func getFileModel(abspath, path string) models.ContentModel {
+func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 
 	// fmt.Println(path)
-	os_path := filepath.Join(abspath, path)
+	// check
+	// os_path := GetOSPath(relativePath)
+	log.Info().Msgf("abs  path %s", abspath)
+	log.Info().Msgf("relative  path %s", relativePath)
+	os_path := filepath.Join(abspath, fileName)
 
 	info, err := os.Lstat(os_path)
 
@@ -85,6 +90,11 @@ func getFileModel(abspath, path string) models.ContentModel {
 	contentType := "file"
 	if info.IsDir() {
 		contentType = "directory"
+	}
+
+	path := relativePath + "/" + fileName
+	if relativePath == "." {
+		path = fileName
 	}
 
 	output := models.ContentModel{

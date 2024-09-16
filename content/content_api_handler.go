@@ -31,11 +31,11 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	path := body.Path
-	if path == "" {
-		path = "."
+	relativePath := body.Path
+	if relativePath == "" {
+		relativePath = "."
 	}
-	log.Print("path :", path)
+	log.Print("path :", relativePath)
 
 	contentType := req.URL.Query().Get("type")
 	format := req.URL.Query().Get("format")
@@ -62,7 +62,7 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 		hash = 0
 	}
 
-	contentModel := GetContent(path, contentType, format, hash)
+	contentModel := GetContent(relativePath, contentType, format, hash)
 	// fmt.Println(contentModel)
 
 	w.Header().Set("Content-Type", "application/json")
