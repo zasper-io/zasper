@@ -1,0 +1,248 @@
+
+@media (min-width: 1700px){
+	.container{
+	    max-width: 1637px;
+	}
+}
+
+
+@media (max-width: 1700px) {
+	#header-home {
+	    min-height: 900px;
+	    background: transparent linear-gradient(119deg, #FFFFFF 0%, #D6D4E0 100%) 0% 0% no-repeat;
+	    height: 100vh;
+	}
+	.header-bottom-image img {
+	    width: 100%;
+	    margin-bottom: -65px;
+	}
+	.login-section {
+	    margin-top: 60px;
+	    padding-bottom: 60px;
+	}
+	.dashboard-content-features {
+	    width: 32%;
+	    padding: 35px 40px 26px;
+	}
+	.login-signup-wraper {
+	    width: 90%;
+	}
+	.login-section .col-12:after {
+	    height: 100px;
+	}
+	.pricing-options-top h1 {
+	    font-size: 50px;
+	}
+	span.payment-sign {
+	    font-size: 30px;
+	    top: -15px;
+	    right: -10px;
+	}
+	span.paymet-for-time {
+	    font-size: 25px;
+	    left: -15px;
+	}
+	.pricing-option-features li {
+	    font-size: 16px;
+	    line-height: 28px;
+	}
+	.pricing-option-features > div {
+	    margin-top: 25px;
+	    margin-bottom: 25px;
+	}
+	section#pricing-sec {
+	    padding: 70px 0px;
+	    padding-bottom: 100px;
+	}
+	.enterprise-header-content .font-h1 {
+	    font-size: 55px !important;
+	}
+	.owl-carousel .owl-item img {
+	    display: block;
+	    width: 110%;
+	}
+	.what-we-items {
+	    width: 32.2%;
+	    padding: 50px 24px;
+	}
+	.public-profile-right-content  .input-group {
+	    width: 70%;
+	}
+	.card-wraper > div {
+	    min-width: 300px;
+	}
+	.card-wraper {
+	    flex-wrap: wrap;
+	}
+	.projects-item {
+	    width: 28%;
+	}
+
+	.solution-product-item {
+	    width: 24%;
+	    padding: 30px 20px;
+	}
+	.platform-product-item {
+	    width: 32%;
+	    padding: 30px 20px;
+	}
+}
+
+@media (max-width: 1399.98px) {
+	.font-h3 {
+	    font-size: 38px !important;
+	}
+	.font-h1 {
+	    font-size: 60px !important;
+	}
+	.font-h2 {
+	    font-size: 50px !important;
+	}
+	.font-p {
+	    font-size: 16px !important;
+	}
+	.font-h4 {
+	    font-size: 35px !important;
+	}
+	.font-h2 {
+	    font-size: 42px !important;
+	}
+	.font-h5 {
+	    font-size: 18px !important;
+	}
+	
+
+}
+@media (max-width: 1290px) {
+	.current-plan-wraper {
+	    flex-wrap: wrap;
+	}
+	.current-plan-left {
+	    width: 100%;
+	    min-width: 100%;
+	}
+	.billing-invoice-wraper > div h5 {
+	    padding-right: 7px;
+	}
+	.billing-invoice-wraper > div {
+	    display: flex;
+	    justify-content: space-between;
+	    border-radius: 5px;
+	    width: 990px;
+	}
+	.billing-invoice-wraper {
+	    width: 100%;
+	    overflow: auto;
+	}
+	.current-plan-item {
+	    width: 32%;
+	    margin-top: 35px;
+	}
+	.billing-invoice-load-more {
+	    text-align: center;
+	    width: 100% !important;
+	}
+	.solution-product-item {
+	    width: 32%;
+	}
+}
+
+@media (max-width: 1199.98px) {
+	.header-text {
+	    margin-top: 0;
+	}
+	.header-content .row {
+	    align-items: center;
+	}
+	.font-h1 {
+	    font-size: 50px !important;
+	}
+	.font-h2 {
+	    font-size: 38px !important;
+	}
+	.font-h3 {
+	    font-size: 32px !important;
+	}
+	.font-h4 {
+	    font-size: 28px !important;
+	}
+}
+
+@media (max-width: 991.98px) {
+	nav.navbar.navbar-expand-lg .container {
+	    position: relative;
+	}
+	.menu-right-btn {
+	    position: absolute;
+	    right: 80px;
+	    width: auto;
+	    top: 10px;
+	}
+	.navbar-collapse button.colse-btn {
+	    display: block;
+	    position: absolute;
+	    right: 25px;
+	    top: 15px;
+	    background: transparent;
+	    border: none;
+	    padding: 0;
+	    font-size: 24px;
+	    color: #281964;
+	}
+	div#offcanvasMenu {
+	    min-height: 100vh;
+	    background: transparent linear-gradient(119deg, #FFFFFF 0%, #D6D4E0 100%) 0% 0% no-repeat padding-box;
+	    border: none !important;
+	}
+	a.nav-link {
+	    font-size: 20px;
+	    text-align: center;
+	    margin-top: 10px;
+	    margin-bottom: 10px;
+	    font-weight: 400;
+	}
+	button.navbar-toggler {
+	    border: none;
+	    font-size: 35px;
+	    padding: 0;
+	    color: #583bd8;
+	}
+	
+}
+
+@media (max-width: 767.98px) {
+
+
+}
+
+@media (max-width: 575.98px) {
+	.font-h1 {
+	    font-size: 40px !important;
+	}
+	
+	
+
+}
+@media (max-width: 500px) {
+	
+}
+@media (max-width: 400px) {
+	
+	.jupyter-tab-form {
+	    background: #F7F7F7;
+	    padding: 15px 10px;
+	    margin-top: 30px;
+	}
+	.data-pipelines-items {
+	    margin-right: 0px;
+	}
+	.platform-product-item {
+	    width: 100%;
+	}
+	.platform-product-content h2 {
+	    font-size: 19px;
+	}
+	.product-section {
+    	padding: 20px 0;
+	}
+}

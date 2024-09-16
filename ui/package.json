@@ -1,0 +1,100 @@
+{
+  "name": "zasper",
+  "author": "prasunanand",
+  "description": "IDE",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": "./",
+  "main": "./public/electron.js",
+  "dependencies": {
+    "@codemirror/lang-python": "6.0.0",
+    "@uiw/react-codemirror": "4.22.2",
+    "bootstrap": "^5.1.3",
+    "concurrently": "^7.2.0",
+    "deepdash": "4.5.1",
+    "dompurify": "^2.3.10",
+    "electron-is-dev": "^2.0.0",
+    "html-react-parser": "^3.0.1",
+    "html-to-react": "^1.5.0",
+    "jotai": "1.7.2",
+    "monaco-editor": "^0.33.0",
+    "react": "18.3.1",
+    "react-bootstrap": "^2.4.0",
+    "react-cookie": "4.1.1",
+    "react-dom": "18.3.1",
+    "react-icons-kit": "^1.3.1",
+    "react-images-uploading": "3.1.7",
+    "react-login-github": "1.0.8",
+    "react-markdown": "^9.0.1",
+    "react-resizable-panels": "^2.1.2",
+    "react-router-dom": "^6.2.1",
+    "react-scripts": "^5.0.1",
+    "react-spinners": "^0.13.6",
+    "react-terminal": "1.3.0",
+    "react-toastify": "8.0.0",
+    "rehype-raw": "^7.0.0",
+    "typescript": "^4.9.5",
+    "wait-on": "^7.2.0",
+    "web-vitals": "^2.1.2",
+    "websocket": "1.0.34",
+    "xterm": "5.1.0",
+    "xterm-addon-attach": "^0.8.0",
+    "xterm-addon-fit": "0.7.0",
+    "xterm-addon-web-links": "^0.9.0"
+  },
+  "devDependencies": {
+    "@types/dompurify": "^2.4.0",
+    "electron": "^30.1.0",
+    "electron-builder": "^24.13.3",
+    "sass": "^1.77.8"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "electron-dev": "concurrently \"BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-package": "./node_modules/.bin/electron-builder -m  -c.extraMetadata.main=build/electron.js",
+    "preelectron-package": "npm run build"
+  },
+  "build": {
+    "appId": "io.zasper.prasunanand.zasper",
+    "files": [
+      "build/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "public"
+    },
+    "win": {
+      "icon": "build/favicon.ico"
+    },
+    "mac": {
+      "icon": "build/logo512.png",
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "deb"
+    }
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      "last 1 electron version",
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 electron version",
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
