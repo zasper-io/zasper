@@ -49,7 +49,7 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 	output := models.ContentModel{
 		ContentType:   "directory",
 		Name:          relativePath,
-		Path:          abspath,
+		Path:          relativePath,
 		Last_modified: info.ModTime().GoString(),
 	}
 	// fmt.Println(path)
