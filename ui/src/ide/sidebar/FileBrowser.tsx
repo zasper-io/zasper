@@ -138,7 +138,7 @@ export default function FileBrowser({ sendDataToParent }) {
 }
 
 function FileItem({directoryRightClickHandler, handleFileClick, content}){
-    return <li><a onContextMenu={(e) => directoryRightClickHandler(e, "hi")} onClick={() => handleFileClick(content.path, content.type)}><img src="./images/editor/py-icon.svg" alt="" /> {content.name}</a></li>
+    return <li className='fileItem'><a onContextMenu={(e) => directoryRightClickHandler(e, "hi")} onClick={() => handleFileClick(content.path, content.type)}><img src="./images/editor/py-icon.svg" alt="" /> {content.name}</a></li>
 }
 
 function DirectoryItem({directoryRightClickHandler, data, sendDataToParent}){
@@ -169,7 +169,7 @@ function DirectoryItem({directoryRightClickHandler, data, sendDataToParent}){
     }, [])
 
     return (
-        <li>
+        <li className='fileItem'>
             <a onContextMenu={(e) => directoryRightClickHandler(e, "hi")} onClick={() => handleDirectoryClick(content.path, content.type)}>
                 <img src="./images/editor/directory.svg" alt="" /> 
                 {content.name}
