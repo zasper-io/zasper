@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import "./Launcher.css"
+import "./Launcher.scss"
 import { BaseApiUrl } from '../config';
 
-export default function LauncherTab(props) {
+export default function Launcher(props) {
 
     interface IKernelspec {
         name: string,

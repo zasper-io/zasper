@@ -7,7 +7,12 @@
   "homepage": "./",
   "main": "./public/electron.js",
   "dependencies": {
+    "@codemirror/lang-go": "^6.0.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/lang-less": "^6.0.2",
     "@codemirror/lang-python": "6.0.0",
+    "@codemirror/lang-sass": "^6.0.2",
     "@uiw/react-codemirror": "4.22.2",
     "bootstrap": "^5.1.3",
     "concurrently": "^7.2.0",

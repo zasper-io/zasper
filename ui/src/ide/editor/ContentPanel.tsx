@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import SuperTab from './SuperTab';
+import Editor from './Editor';
 
 export default function ContentPanel(props) {
 
@@ -34,7 +34,7 @@ export default function ContentPanel(props) {
     return (
             <div className="tabContent">
                 {Object.keys(props.tabs).map((key, index) => (
-                    <SuperTab key={index} data={props.tabs[key]} sendDataToParent={props.sendDataToParent} />
+                    <Editor key={index} data={props.tabs[key]} sendDataToParent={props.sendDataToParent} />
                 ))}
             </div>
     )

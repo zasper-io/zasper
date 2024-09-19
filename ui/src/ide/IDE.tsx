@@ -10,12 +10,14 @@ import "./IDE.scss"
 import ContentPanel from './editor/ContentPanel';
 import TabIndex from './tabs/TabIndex';
 import Topbar from './topbar/Topbar';
+import getFileExtension from './utils';
 
 interface Ifile {
     type: string,
     path: string,
     name: string,
     display: string
+    extension: string | null
     load_required: boolean
 }
 
@@ -29,6 +31,7 @@ function Lab() {
         path: "none",
         name: "Launcher",
         display: "d-block",
+        extension: "txt",
         load_required : false
     }
 
@@ -46,6 +49,7 @@ function Lab() {
                 type: type,
                 path: "none",
                 name: name,
+                extension: getFileExtension(name),
                 display: "d-block",
                 load_required: true
             }

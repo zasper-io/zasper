@@ -9,13 +9,13 @@ import { v4 as uuidv4 } from 'uuid';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw'
 
-import './NbFileTab.scss'
+import './NotebookEditor.scss'
 
 
 import { w3cwebsocket as W3CWebSocket } from "websocket";
 
 
-export default function NbFileTab(props) {
+export default function NotebookEditor(props) {
     interface ICell {
         execution_count: number,
         source: string

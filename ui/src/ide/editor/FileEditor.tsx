@@ -3,11 +3,16 @@ import React, { useEffect, useState } from 'react';
 
 import CodeMirror from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
+import {html} from '@codemirror/lang-html'
+import { go } from '@codemirror/lang-go';
+import { less } from '@codemirror/lang-less';
+import { sass } from '@codemirror/lang-sass';
+import {javascript} from '@codemirror/lang-javascript';
 import { BaseApiUrl } from '../config';
 
-import "./FileTab.scss"
+import "./FileEditor.scss"
 
-export default function FileTab(props) {
+export default function FileEditor(props) {
     const [fileContents, setFileContents] = useState("");
 
     const FetchFileData = async (path) => {
@@ -66,6 +71,32 @@ export default function FileTab(props) {
         });
     }
 
+    const getExtensionToLoad = () => {
+        switch(props.data.extension){
+            case "go":
+            case "mod":
+                return go()
+            case "python":
+                return python()
+            case "js":
+                return javascript()
+            case "ts":
+                return javascript({jsx: false, typescript: true})
+            case "tsx":
+                return javascript({jsx: true, typescript: true})
+            case "jsx":
+                return javascript({jsx: false, typescript: false})
+            case "html":
+                return html();
+            case "css":
+                return less();
+            case "sass":
+            case "scss":
+                return sass();
+        }
+        return go()
+    }
+
     return (
         <div className="tab-content">
             <div className={props.data.display}>
@@ -74,7 +105,7 @@ export default function FileTab(props) {
                         value={fileContents}
                         minHeight='100%'
                         width='100%'
-                        extensions={[python()]}
+                        extensions={[getExtensionToLoad()]}
                         onChange={(fileContents) => {
                             setFileContents(fileContents);
                         }}
