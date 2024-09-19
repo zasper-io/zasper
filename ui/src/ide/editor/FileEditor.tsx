@@ -109,6 +109,15 @@ export default function FileEditor(props) {
                         onChange={(fileContents) => {
                             setFileContents(fileContents);
                         }}
+                        basicSetup = {{
+                            bracketMatching: true,
+                            highlightActiveLineGutter: true,
+                            autocompletion: true,
+                            lintKeymap: true,
+                            completionKeymap: true,
+                            tabSize: 4
+                        }}
+                        
                     />
                 </div>
             </div>
