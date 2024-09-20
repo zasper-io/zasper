@@ -9,10 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type ContentManager struct {
-	Name string
-}
-
 func GetContent(relativePath string, contentType string, format string, hash int) models.ContentModel {
 	log.Info().Msgf("getting content for path : %s", relativePath)
 	// get path info

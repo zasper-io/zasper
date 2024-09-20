@@ -75,6 +75,7 @@ func main() {
 	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")
 
 	apiRouter.HandleFunc("/contents", content.ContentAPIHandler).Methods("POST")
+	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")
 
 	apiRouter.HandleFunc("/contents/{path}", content.ContentRenameAPIHandler).Methods("PATCH")
 	apiRouter.HandleFunc("/contents/{path}", content.ContentDeleteAPIHandler).Methods("DELETE")
@@ -112,7 +113,6 @@ func main() {
 
 		AllowedHeaders: []string{
 			"*", //or you can your header key values which you are using in your application
-
 		},
 	})
 	spa := spaHandler{staticPath: "./ui/build", indexPath: "index.html"}

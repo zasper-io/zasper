@@ -31,6 +31,14 @@ a {
     color: #583bd8;
 }
 
+.terminalArea{
+    height: calc(100vh - 100px);
+    width: 100%;
+    padding-top: 10px;
+    padding-left: 10px;
+    background-color: #392e6b;
+}
+
 .theme-btn:hover {
     background-color: #6f57da;
     color: #fff;

@@ -103,7 +103,7 @@ export default function TerminalTab(props) {
 
         <div className="tab-content">
             <div className={props.data.display}>
-                <div ref={terminalRef} style={{ height: '100vh', width: '100%' }}></div>
+                <div ref={terminalRef} className='terminalArea'></div>
             </div>
 
         </div>

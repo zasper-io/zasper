@@ -12,17 +12,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type ContentRequestBody struct {
-	Path string `json:"path"`
-}
-
 func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
-	// vars := mux.Vars(req)
-	// path, ok := vars["path"]
-	// if !ok {
-	// 	path = "."
-	// }
-
+	log.Info().Msg("POST request received")
 	var body ContentRequestBody
 	err := json.NewDecoder(req.Body).Decode(&body)
 	log.Info().Msgf("%s", body)
@@ -63,16 +54,17 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	contentModel := GetContent(relativePath, contentType, format, hash)
-	// fmt.Println(contentModel)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(contentModel)
 }
 
-type ContentPayload struct {
-	Extension   string `json:"ext"`
-	ContentType string `json:"type"`
+func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
+	log.Info().Msg("PUT request received")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
 }
 
 func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
