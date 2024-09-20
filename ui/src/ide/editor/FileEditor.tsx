@@ -8,6 +8,8 @@ import { go } from '@codemirror/lang-go';
 import { less } from '@codemirror/lang-less';
 import { sass } from '@codemirror/lang-sass';
 import {javascript} from '@codemirror/lang-javascript';
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { languages } from '@codemirror/language-data';
 import { BaseApiUrl } from '../config';
 
 import "./FileEditor.scss"
@@ -93,6 +95,9 @@ export default function FileEditor(props) {
             case "sass":
             case "scss":
                 return sass();
+            case "md":
+            case "markdown":
+                return markdown({ base: markdownLanguage, codeLanguages: languages });
         }
         return go()
     }
@@ -114,6 +119,7 @@ export default function FileEditor(props) {
                             highlightActiveLineGutter: true,
                             autocompletion: true,
                             lintKeymap: true,
+                            foldGutter: true,
                             completionKeymap: true,
                             tabSize: 4
                         }}
