@@ -57,7 +57,7 @@ export default function FileEditor(props) {
 
     useEffect(() => {
         if(props.data.load_required == true) {
-            FetchFileData(props.data.name);
+            FetchFileData(props.data.path);
         }
     }, [])
 

@@ -41,13 +41,13 @@ function Lab() {
 
     const [dataFromChild, setDataFromChild] = useState<IfileDict>(ksfileDict);
 
-    function handleDataFromChild(name, type) {
+    function handleDataFromChild(name: string, path: string, type: string) {
         console.log(name, type);
         if(dataFromChild[name] === undefined){
             
             const fileData: Ifile = {
                 type: type,
-                path: "none",
+                path: path,
                 name: name,
                 extension: getFileExtension(name),
                 display: "d-block",

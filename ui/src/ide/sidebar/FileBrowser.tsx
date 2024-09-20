@@ -31,7 +31,7 @@ export default function FileBrowser({ sendDataToParent }) {
     const [cwd, setCwd] = useState<String>("");
 
 
-    const directoryRightClickHandler = (e, hey) => {
+    const directoryRightClickHandler = (e) => {
         e.preventDefault(); // prevent the default behaviour when right clicked
         console.log("Right Click");
 
@@ -59,8 +59,8 @@ export default function FileBrowser({ sendDataToParent }) {
         setContents(resJson['content']);
     };
 
-    const handleFileClick = async (path: string, type: string) => {
-        sendDataToParent(path, type);
+    const handleFileClick = async (name: string, path: string, type: string) => {
+        sendDataToParent(name, path, type);
     };
 
     const showNewFileDialog = () => {
@@ -138,14 +138,21 @@ export default function FileBrowser({ sendDataToParent }) {
 }
 
 function FileItem({directoryRightClickHandler, handleFileClick, content}){
-    return <li className='fileItem'><a onContextMenu={(e) => directoryRightClickHandler(e, "hi")} onClick={() => handleFileClick(content.path, content.type)}><img src="./images/editor/py-icon.svg" alt="" /> {content.name}</a></li>
+    return (
+        <li className='fileItem'>
+            <a onContextMenu={(e) => directoryRightClickHandler(e)} onClick={() => handleFileClick(content.name, content.path, content.type)}>
+                <img src="./images/editor/py-icon.svg" alt="" /> 
+                {content.name}
+            </a>
+        </li>
+    )
 }
 
 function DirectoryItem({directoryRightClickHandler, data, sendDataToParent}){
     const [content, setContent] = useState<IContent>(data);
 
-    const handleFileClick = async (path: string, type: string) => {
-        sendDataToParent(path, type);
+    const handleFileClick = async (name: string, path: string, type: string) => {
+        sendDataToParent(name, path, type);
     };
 
 
@@ -158,7 +165,7 @@ function DirectoryItem({directoryRightClickHandler, data, sendDataToParent}){
             })
         });
         const resJson = await res.json();
-        console.log(resJson)
+        console.log("important =>" ,resJson)
         setContent(resJson);
     };
 
@@ -170,7 +177,7 @@ function DirectoryItem({directoryRightClickHandler, data, sendDataToParent}){
 
     return (
         <li className='fileItem'>
-            <a onContextMenu={(e) => directoryRightClickHandler(e, "hi")} onClick={() => handleDirectoryClick(content.path, content.type)}>
+            <a onContextMenu={(e) => directoryRightClickHandler(e)} onClick={() => handleDirectoryClick(content.path, content.type)}>
                 <img src="./images/editor/directory.svg" alt="" /> 
                 {content.name}
             </a>
