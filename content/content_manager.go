@@ -242,3 +242,14 @@ func GetOSPath(path string) string {
 	abspath := filepath.Join(wdpath, path)
 	return abspath
 }
+
+// save content
+
+func UpdateContent(path, ftype, format, content string) error {
+	err := os.WriteFile(path, []byte(content), 0644)
+	if err != nil {
+		log.Error().Err(err).Msg("")
+		return err
+	}
+	return nil
+}

@@ -20,12 +20,13 @@ import "./FileEditor.scss"
 export default function FileEditor(props) {
     const [fileContents, setFileContents] = useState("");
 
-    const handleCmdEnter =  React.useCallback((view) => { 
-		console.log('Saving file with content');
+    const handleCmdEnter = () => { 
+		console.log('Saving file');
         
         const res = fetch(BaseApiUrl + "/api/contents", {
             method: 'PUT',
             body: JSON.stringify({
+                path : props.data.path,
                 content: fileContents,
                 type: 'file',
                 format: 'text'
@@ -33,7 +34,7 @@ export default function FileEditor(props) {
         });
         
 		return true; 
-	}, []); 
+	}; 
 
     const customKeymap = keymap.of([ 
 		{ 

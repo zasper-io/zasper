@@ -61,7 +61,19 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
+
 	log.Info().Msg("PUT request received")
+
+	var body ContentUpdateRequest
+	err := json.NewDecoder(req.Body).Decode(&body)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	UpdateContent(body.Path, body.Type, body.Format, body.Content)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
@@ -76,10 +88,6 @@ func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(data)
-}
-
-type RenameContentPayload struct {
-	Path string `json:"path"`
 }
 
 func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
