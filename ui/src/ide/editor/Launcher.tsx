@@ -23,7 +23,7 @@ export default function Launcher(props) {
 
     const openTerminal = async() => {
         console.log("open terminal");
-        props.sendDataToParent("Terminal 1", "terminal")
+        props.sendDataToParent("","Terminal 1", "terminal")
     }
 
     useEffect(() => {
