@@ -5,6 +5,7 @@ const NavigationPanel = () => {
 
     const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
     const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false);
+    const [contextPath, setContextPath] = useState<string>("");
 
     const menuBarClickHandler = (e) => {
         e.preventDefault(); // prevent the default behaviour when right clicked
@@ -67,6 +68,7 @@ const NavigationPanel = () => {
                     xPos={menuPosition.xPos}
                     yPos={menuPosition.yPos}
                     items={menuItems}
+                    path={contextPath}
                     onClose={handleCloseMenu}
                     />
                 )}

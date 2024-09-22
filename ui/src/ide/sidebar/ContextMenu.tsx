@@ -4,7 +4,7 @@ import './ContextMenu.scss'; // Optional: for styling
 
 interface MenuItem {
   label: string;
-  action: () => void;
+  action: (path: string) => void;
 }
 
 interface ContextMenuProps {
@@ -12,11 +12,12 @@ interface ContextMenuProps {
   yPos: number;
   items: MenuItem[];
   onClose: () => void;
+  path: string
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose }) => {
-  const handleClick = (action: () => void) => {
-    action();
+const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, path }) => {
+  const handleClick = (action: (path) => void) => {
+    action(path);
     onClose();
   };
 

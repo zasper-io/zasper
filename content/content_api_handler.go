@@ -76,6 +76,24 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+}
+
+func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
+	log.Info().Msg("DELETE request received")
+
+	var body ContentRequestBody
+	err := json.NewDecoder(req.Body).Decode(&body)
+
+	log.Info().Msgf("%s", body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	deleteFile(body.Path)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
 }
 
@@ -102,18 +120,6 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 	_ = json.NewDecoder(req.Body).Decode(&renameContentPayload)
 
 	renameFile(oldPath, renameContentPayload.Path)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-}
-
-func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
-	log.Info().Msg("Delete request received")
-	vars := mux.Vars(req)
-	path := vars["path"]
-	log.Info().Msgf("path : %s", path)
-
-	deleteFile(path)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

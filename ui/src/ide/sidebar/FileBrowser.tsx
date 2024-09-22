@@ -13,12 +13,14 @@ export default function FileBrowser({ sendDataToParent }) {
 
     const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
     const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false);
+    const [contextPath, setContextPath] = useState<string>("");
   
-    const handleRightClick = (event: React.MouseEvent) => {
-      event.preventDefault();
-      setMenuPosition({ xPos: event.pageX, yPos: event.pageY });
-      setIsMenuVisible(true);
-    };
+    // const handleRightClick = (event: React.MouseEvent, path:string) => {
+    //   event.preventDefault();
+    //   setMenuPosition({ xPos: event.pageX, yPos: event.pageY });
+    //   setContextPath(path)
+    //   setIsMenuVisible(true);
+    // };
   
     const handleCloseMenu = () => {
       setIsMenuVisible(false);
@@ -31,18 +33,19 @@ export default function FileBrowser({ sendDataToParent }) {
     const [cwd, setCwd] = useState<String>("");
 
 
-    const directoryRightClickHandler = (e) => {
+    const directoryRightClickHandler = (e, path: string) => {
         e.preventDefault(); // prevent the default behaviour when right clicked
         console.log("Right Click");
 
         setMenuPosition({ xPos: e.pageX, yPos: e.pageY });
+        setContextPath(path);
         setIsMenuVisible(true);
     }
 
 
     const menuItems = [
-        { label: 'Rename', action: () => alert('Rename') },
-        { label: 'Delete', action: () => alert('Delete') },
+        { label: 'Rename', action: (contextPath: string) => alert('Rename' + contextPath) },
+        { label: 'Delete', action: (contextPath: string) => deleteFile(contextPath) },
     ];
 
 
@@ -91,6 +94,18 @@ export default function FileBrowser({ sendDataToParent }) {
         FetchData();
     }
 
+    const deleteFile = async (path: string) => {
+
+        console.log('Deleting file');
+        
+        const res = await fetch(BaseApiUrl + "/api/contents", {
+            method: 'DELETE',
+            body: JSON.stringify({
+                path : path
+            })
+        });
+    }
+
     useEffect(() => {
         FetchData();
     }, [cwd])
@@ -129,6 +144,7 @@ export default function FileBrowser({ sendDataToParent }) {
                     xPos={menuPosition.xPos}
                     yPos={menuPosition.yPos}
                     items={menuItems}
+                    path={contextPath}
                     onClose={handleCloseMenu}
                     />
                 )}
@@ -140,7 +156,7 @@ export default function FileBrowser({ sendDataToParent }) {
 function FileItem({directoryRightClickHandler, handleFileClick, content}){
     return (
         <li className='fileItem'>
-            <a onContextMenu={(e) => directoryRightClickHandler(e)} onClick={() => handleFileClick(content.name, content.path, content.type)}>
+            <a onContextMenu={(e) => directoryRightClickHandler(e, content.path)} onClick={() => handleFileClick(content.name, content.path, content.type)}>
                 <img src="./images/editor/py-icon.svg" alt="" /> 
                 {content.name}
             </a>
@@ -177,7 +193,7 @@ function DirectoryItem({directoryRightClickHandler, data, sendDataToParent}){
 
     return (
         <li className='fileItem'>
-            <a onContextMenu={(e) => directoryRightClickHandler(e)} onClick={() => handleDirectoryClick(content.path, content.type)}>
+            <a onContextMenu={(e) => directoryRightClickHandler(e, content.path)} onClick={() => handleDirectoryClick(content.path, content.type)}>
                 <img src="./images/editor/directory.svg" alt="" /> 
                 {content.name}
             </a>

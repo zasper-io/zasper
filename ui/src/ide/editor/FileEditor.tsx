@@ -79,26 +79,6 @@ export default function FileEditor(props) {
         });
     }
 
-    const onSave = async () => {
-        let path = "abc.py";
-        alert("Saving file")
-        const res = await fetch(BaseApiUrl + "/api/contents/abc.py", {
-            method: 'PUT',
-            body: JSON.stringify({
-                content: fileContents,
-                type: 'file',
-                format: 'text'
-            })
-        });
-    }
-
-    const deleteFile = async () => {
-        let path = "abc.py";
-        const res = await fetch(BaseApiUrl + "/api/contents/untitled1", {
-            method: 'DELETE'
-        });
-    }
-
     const getExtensionToLoad = () => {
         switch(props.data.extension){
             case "go":

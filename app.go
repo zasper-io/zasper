@@ -78,7 +78,7 @@ func main() {
 	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")
 
 	apiRouter.HandleFunc("/contents/{path}", content.ContentRenameAPIHandler).Methods("PATCH")
-	apiRouter.HandleFunc("/contents/{path}", content.ContentDeleteAPIHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
 
 	// kernelspecs
 	apiRouter.HandleFunc("/kernelspecs", kernelspec.KernelspecAPIHandler).Methods("GET")
