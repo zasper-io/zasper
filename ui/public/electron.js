@@ -1,4 +1,4 @@
-const { app, BrowserWindow, protocol } = require('electron')
+const { app, ipcMain, BrowserWindow, protocol, dialog } = require('electron')
 const path = require('path')
 const url = require('url')
 const { exec } = require('child_process')
@@ -10,9 +10,10 @@ function createWindow () {
     height: 600,
     // Set the path of an additional "preload" script that can be used to
     // communicate between the node-land and the browser-land.
+
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
-    }
+    },
   })
 
   const appURL = app.isPackaged
@@ -70,8 +71,29 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
     }
+
+    
   })
 })
+
+ipcMain.handle('dialog:openDirectory', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+  });
+  return result.filePaths;
+});
+
+ipcMain.handle('runCommand', async (event, directory) => {
+  const command = `ls "${directory}"`; // Change for your OS if needed
+
+  exec(command, { cwd: directory }, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error: ${stderr}`);
+      return;
+    }
+    console.log(`Output: ${stdout}`);
+  });
+});
 
 // Quit when all windows are closed, except on macOS.
 // There, it's common for applications and their menu bar to stay active until
