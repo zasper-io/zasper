@@ -10,10 +10,8 @@ import { sass } from '@codemirror/lang-sass';
 import {javascript} from '@codemirror/lang-javascript';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { EditorView, keymap } from '@codemirror/view'; 
+import { keymap } from '@codemirror/view'; 
 import { BaseApiUrl } from '../config';
-import { Prec } from "@codemirror/state";
-import { searchKeymap } from '@codemirror/search';
 
 import "./FileEditor.scss"
 
@@ -23,7 +21,7 @@ export default function FileEditor(props) {
     const handleCmdEnter = () => { 
 		console.log('Saving file');
         
-        const res = fetch(BaseApiUrl + "/api/contents", {
+        fetch(BaseApiUrl + "/api/contents", {
             method: 'PUT',
             body: JSON.stringify({
                 path : props.data.path,
@@ -61,23 +59,6 @@ export default function FileEditor(props) {
             FetchFileData(props.data.path);
         }
     }, [])
-
-
-    const createNewFile = async () => {
-        const res = await fetch(BaseApiUrl + "/api/contents/", {
-            method: 'POST'
-        });
-    }
-
-    const renameFile = async () => {
-        let path = "abc.py";
-        const res = await fetch(BaseApiUrl + "/api/contents/untitled", {
-            method: 'PATCH',
-            body: JSON.stringify({
-                path: 'abc.py'
-            })
-        });
-    }
 
     const getExtensionToLoad = () => {
         switch(props.data.extension){

@@ -23,7 +23,7 @@ export default function Launcher(props) {
 
     const openTerminal = async() => {
         console.log("open terminal");
-        props.sendDataToParent("","Terminal 1", "terminal")
+        props.sendDataToParent("Terminal 1", "Terminal 1", "terminal")
     }
 
     useEffect(() => {
@@ -39,7 +39,7 @@ export default function Launcher(props) {
                         Object.keys(kernelspecs).map((key, index) => ( 
                         <div className='launcher-icon' key={index}>
                             <h6> {key}</h6>
-                            <img src={`${kernelspecs[key]["resources"]["logo-64x64"]}`}/>
+                            <img src={`${kernelspecs[key]["resources"]["logo-64x64"]}`}  alt="logo"/>
                         </div> 
                         ))
                     }
@@ -47,7 +47,7 @@ export default function Launcher(props) {
                     <h2>Terminal</h2>
                     <div className='launcher-icon' onClick={openTerminal}>
                         <h6>New Terminal</h6>    
-                        <img className="terminalIconImage" src="./images/terminal.png"/>
+                        <img className="terminalIconImage" src="./images/terminal.png"  alt="terminal"/>
                     </div>
                 </div>
                 

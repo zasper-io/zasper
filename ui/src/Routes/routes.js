@@ -4,12 +4,12 @@ import {
   Routes,
 } from "react-router-dom";
 import React from 'react';
-import Lab from "../ide/IDE";
+import IDE from "../ide/IDE";
 
 const routes = [
   {
     path: "/",
-    component: Lab,
+    component: IDE,
     protected: false
   },
 ];

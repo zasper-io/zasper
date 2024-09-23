@@ -1,8 +1,10 @@
 
 import NavigationPanel from './NavigationPanel';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useAtom } from 'jotai';
+
 
 import FileBrowser from './sidebar/FileBrowser';
 import "./IDE.scss"
@@ -11,6 +13,8 @@ import ContentPanel from './editor/ContentPanel';
 import TabIndex from './tabs/TabIndex';
 import Topbar from './topbar/Topbar';
 import getFileExtension from './utils';
+import { settingsAtom } from '../store/Settings';
+import SettingsPanel from './settings/SettingsPanel';
 
 interface Ifile {
     type: string,
@@ -21,11 +25,42 @@ interface Ifile {
     load_required: boolean
 }
 
+
 interface IfileDict{
     [id:string]: Ifile
 }
 
-function Lab() {
+
+interface INav{
+    name: string,
+    display: string
+}
+
+interface INavDict {
+    [id:string]: INav
+}
+
+function IDE() {
+
+    const [settings, setSettings] = useAtom(settingsAtom);
+
+    
+
+    const fileBroser:INav = {
+        name: 'fileBrowser',
+        display : 'd-block'
+    }
+
+    const settingsPanel:INav = {
+        name: 'settingsPanel',
+        display : 'd-none'
+    }
+
+    const navStateDict: INavDict = {
+        'fileBrowser': fileBroser,
+        'settingsPanel': settingsPanel
+    }
+
     const ksfile: Ifile = {
         type: "launcher",
         path: "none",
@@ -40,6 +75,17 @@ function Lab() {
     }
 
     const [dataFromChild, setDataFromChild] = useState<IfileDict>(ksfileDict);
+    const [navState, setNavState] = useState<INavDict>(navStateDict)
+
+    function handleNavigationPanel(name: string){
+        console.log(name);
+        let updatedNavState: INavDict =  Object.assign({}, navState)
+        for(let key in updatedNavState){
+            updatedNavState[key]['display'] = 'd-none';
+        }
+        updatedNavState[name]['display'] = 'd-block';
+        setNavState(updatedNavState)
+    }
 
     function handleDataFromChild(name: string, path: string, type: string) {
         console.log(name, type);
@@ -79,7 +125,7 @@ function Lab() {
         let updatedDataFromChild: IfileDict =  Object.assign({}, dataFromChild)
         delete updatedDataFromChild[key]
         setDataFromChild(updatedDataFromChild)
-        console.log(dataFromChild)
+        console.log(updatedDataFromChild)
     }
     
     return (
@@ -92,8 +138,9 @@ function Lab() {
                         <PanelGroup direction="horizontal">
                             <Panel defaultSize={20} minSize={20}>
                                 <div className="navigation">
-                                    <NavigationPanel />
-                                    <FileBrowser sendDataToParent={handleDataFromChild}/>
+                                    <NavigationPanel handleNavigationPanel={handleNavigationPanel} />
+                                    <FileBrowser sendDataToParent={handleDataFromChild} display={navState['fileBrowser']['display']}/>
+                                    <SettingsPanel sendDataToParent={handleDataFromChild} display={navState['settingsPanel']['display']}/>
                                 </div>
                             </Panel>
                             <PanelResizeHandle />
@@ -107,7 +154,7 @@ function Lab() {
                 </Panel>
                 <Panel maxSize={2}>
                     <div className='statusBar'>
-                        Spaces: 4   UTF-8
+                        Spaces: {settings.tabSize}  UTF-8
                     </div>ß
                 </Panel>
             </PanelGroup>
@@ -117,4 +164,4 @@ function Lab() {
     )
 }
 
-export default Lab;
+export default IDE;

@@ -9,7 +9,7 @@ interface IContent {
     content: IContent[]
 }
 
-export default function FileBrowser({ sendDataToParent }) {
+export default function FileBrowser({ sendDataToParent, display }) {
 
     const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
     const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false);
@@ -94,6 +94,17 @@ export default function FileBrowser({ sendDataToParent }) {
         FetchData();
     }
 
+
+    const renameFile = async (oldPath: string, newPath: string) => {
+        const res = await fetch(BaseApiUrl + "/api/contents/untitled", {
+            method: 'PATCH',
+            body: JSON.stringify({
+                old_path: oldPath,
+                new_path: newPath
+            })
+        });
+    }
+
     const deleteFile = async (path: string) => {
 
         console.log('Deleting file');
@@ -111,43 +122,46 @@ export default function FileBrowser({ sendDataToParent }) {
     }, [cwd])
 
     return (
-        <div className="nav-content">
-            <div className="content-head">
-                <h6>{cwd}</h6>
-                <h6>Files</h6>
-                <div>
-                    <button className='editor-button' onClick={createNewFile}><img src="./images/editor/feather-file-plus.svg" alt="" /></button>
-                    <button className='editor-button' onClick={createNewDirectory}><img src="./images/editor/feather-folder-plus.svg" alt="" /></button>
+
+        <div className={display}>
+            <div className="nav-content">
+                <div className="content-head">
+                    <h6>{cwd}</h6>
+                    <h6>Files</h6>
+                    <div>
+                        <button className='editor-button' onClick={createNewFile}><img src="./images/editor/feather-file-plus.svg" alt="" /></button>
+                        <button className='editor-button' onClick={createNewDirectory}><img src="./images/editor/feather-folder-plus.svg" alt="" /></button>
+                    </div>
                 </div>
-            </div>
-            <div className="content-inner">
-                <ul className="file-list list-unstyled">
-                    {contents.map((content, index) => {
-                        if (content.type === "directory") {
-                            return <DirectoryItem key={index} 
-                            directoryRightClickHandler={directoryRightClickHandler}
-                            data = {content}
-                            sendDataToParent={sendDataToParent}/>
-                        } else {
-                            return <FileItem key={index} 
-                            directoryRightClickHandler={directoryRightClickHandler}
-                            handleFileClick = {handleFileClick}
-                            content = {content}/>
+                <div className="content-inner">
+                    <ul className="file-list list-unstyled">
+                        {contents.map((content, index) => {
+                            if (content.type === "directory") {
+                                return <DirectoryItem key={index} 
+                                directoryRightClickHandler={directoryRightClickHandler}
+                                data = {content}
+                                sendDataToParent={sendDataToParent}/>
+                            } else {
+                                return <FileItem key={index} 
+                                directoryRightClickHandler={directoryRightClickHandler}
+                                handleFileClick = {handleFileClick}
+                                content = {content}/>
+                            }
                         }
-                    }
+                        )}
+                    </ul>
+                </div>
+                <div>
+                    {isMenuVisible && menuPosition && (
+                        <ContextMenu
+                        xPos={menuPosition.xPos}
+                        yPos={menuPosition.yPos}
+                        items={menuItems}
+                        path={contextPath}
+                        onClose={handleCloseMenu}
+                        />
                     )}
-                </ul>
-            </div>
-            <div>
-                {isMenuVisible && menuPosition && (
-                    <ContextMenu
-                    xPos={menuPosition.xPos}
-                    yPos={menuPosition.yPos}
-                    items={menuItems}
-                    path={contextPath}
-                    onClose={handleCloseMenu}
-                    />
-                )}
+                </div>
             </div>
         </div>
     )
