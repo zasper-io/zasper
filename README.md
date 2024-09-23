@@ -76,8 +76,18 @@ go run .
 ```
 
 
-
 Go to `http://localhost:8888`
+
+# Contributing
+
+You can contribute in multiple ways:
+* Documentation
+* Bug Filing
+* Submitting PRs or reviewing them
+
+# Code of Conduct
+
+See [Code of conduct](./CODE_OF_CONDUCT.md)
 
 # Copyright
 
