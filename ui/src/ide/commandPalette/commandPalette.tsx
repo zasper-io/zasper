@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 
-export default function CommandPalette(props) {
-    return (
-        <div className="nav-content">
-            CommandPalette
-        </div>
-    )
+export default function CommandPalette (props) {
+  return (
+    <div className='nav-content'>
+      CommandPalette
+    </div>
+  )
 }

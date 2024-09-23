@@ -1,43 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import Editor from './Editor';
+import React, { useEffect, useState } from 'react'
+import Editor from './Editor'
 
-export default function ContentPanel(props) {
+export default function ContentPanel (props) {
+  const handleKeyPress = () => {
+    alert('Detected Shift+Enter')
+    // if (e.key === 'Enter' && e.shiftKey) {
 
+    //     return CodeMirror.Pass;
+    // }
+  }
 
-    const handleKeyPress = () => {
-        alert("Detected Shift+Enter");
-        // if (e.key === 'Enter' && e.shiftKey) {
+  const onChange = React.useCallback((value, viewUpdate) => {
+    console.log('value:', value)
+  }, [])
 
-        //     return CodeMirror.Pass;
-        // }
-    }
+  const tabToggle = () => {
+  }
 
-    const onChange = React.useCallback((value, viewUpdate) => {
-        console.log('value:', value);
-    }, []);
+  const closeTab = () => {
+    alert('Tab close')
+  }
 
-    const tabToggle = () => {
-    }
+  useEffect(() => {
+    // listContents();
+  }, [])
 
-    const closeTab = () => {
-        alert("Tab close");
-    }
-
-
-
-    useEffect(() => {
-        // listContents();
-    }, [])
-
-
-
-    return (
-            <div className="tabContent">
-                {Object.keys(props.tabs).map((key, index) => (
-                    <Editor key={index} data={props.tabs[key]} sendDataToParent={props.sendDataToParent} />
-                ))}
-            </div>
-    )
-
+  return (
+    <div className='tabContent'>
+      {Object.keys(props.tabs).map((key, index) => (
+        <Editor key={index} data={props.tabs[key]} sendDataToParent={props.sendDataToParent} />
+      ))}
+    </div>
+  )
 }
-

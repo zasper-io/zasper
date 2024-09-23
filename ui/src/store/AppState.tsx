@@ -1,44 +1,43 @@
 import { atom } from 'jotai'
 
-export const userLoggedInAtom = atom(false);
+export const userLoggedInAtom = atom(false)
 
 export const userDetails = atom({
-    userName: 'Prasun',
-});
+  userName: 'Prasun'
+})
 interface IProject {
-    _id: string,
-    name: string,
-    total: number,
-    running: number,
-    completed: number,
-    last_activity: string
+  _id: string
+  name: string
+  total: number
+  running: number
+  completed: number
+  last_activity: string
 }
 
-export const projectsAtom = atom<IProject[]>([]);
+export const projectsAtom = atom<IProject[]>([])
 
-export const secretsAtom = atom<string[]>([]);
+export const secretsAtom = atom<string[]>([])
 
-interface IUser{
-    name: string,
-    email: string,
-    role: string,
-    _id: string
+interface IUser {
+  name: string
+  email: string
+  role: string
+  _id: string
 }
-export const usersAtom = atom<IUser[]>([]);
+export const usersAtom = atom<IUser[]>([])
 
-
-interface Key{
-    name: string,
-    added_on: string,
-    _id: string,
-    value: string
+interface Key {
+  name: string
+  added_on: string
+  _id: string
+  value: string
 }
-export const keysAtom = atom<Key[]>([]);
+export const keysAtom = atom<Key[]>([])
 
 interface ITeam {
-    name: string,
-    _id: string
+  name: string
+  _id: string
 }
-export const teamsAtom = atom<ITeam[]>([]);
+export const teamsAtom = atom<ITeam[]>([])
 
-export const teamMembersAtom = atom([]);
+export const teamMembersAtom = atom([])

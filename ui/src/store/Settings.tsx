@@ -1,9 +1,8 @@
-import { atom } from 'jotai';
+import { atom } from 'jotai'
 
 export const settingsAtom = atom({
-    theme: 'light',
-    language: 'en',
-    notificationsEnabled: true,
-    tabSize: '4'
-});
-
+  theme: 'light',
+  language: 'en',
+  notificationsEnabled: true,
+  tabSize: '4'
+})
