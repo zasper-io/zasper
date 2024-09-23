@@ -17,7 +17,9 @@ func GetContent(relativePath string, contentType string, format string, hash int
 	if err != nil {
 		panic(err)
 	}
-	model := models.ContentModel{}
+
+	var model models.ContentModel
+
 	log.Info().Msgf("%t", info.IsDir())
 	if info.IsDir() {
 		model = getDirectoryModel(relativePath)
@@ -131,6 +133,22 @@ func read_file(path string) string {
 	return string(file)
 }
 
+func CreateContent(payload ContentPayload) models.ContentModel {
+	if payload.ContentType == "directory" {
+		return newDirectory(payload)
+	}
+	return newUntitled(payload)
+}
+
+func newDirectory(payload ContentPayload) models.ContentModel {
+
+	model := models.ContentModel{}
+	model.ContentType = payload.ContentType
+
+	return model
+
+}
+
 func newUntitled(payload ContentPayload) models.ContentModel {
 
 	model := models.ContentModel{}
@@ -163,11 +181,18 @@ func createNewFile(model models.ContentModel) error {
 	return nil
 }
 
-func createDirectory(path string) int {
-	return 1
+func CreateDirectory(dirPath string) error {
+	err := os.Mkdir(dirPath, 0755) // 0755 is the permission mode
+	if err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("directory already exists: %s", dirPath)
+		}
+		return fmt.Errorf("error creating directory: %w", err)
+	}
+	return nil
 }
 
-func renameFile(oldName, newName string) error {
+func rename(oldName, newName string) error {
 	err := os.Rename(GetOSPath(oldName), GetOSPath(newName))
 	if err != nil {
 		return err

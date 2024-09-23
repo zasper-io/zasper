@@ -119,7 +119,7 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var renameContentPayload RenameContentPayload
 	_ = json.NewDecoder(req.Body).Decode(&renameContentPayload)
 
-	renameFile(oldPath, renameContentPayload.Path)
+	rename(oldPath, renameContentPayload.Path)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
