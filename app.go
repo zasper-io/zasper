@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	glog "log"
 
 	"net/http"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"zasper_go/websocket"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -52,6 +52,7 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	cwd := flag.String("cwd", ".", "base directory of project")
+	port := flag.String("port", ":8888", "port to start the server on")
 
 	flag.Parse()
 
@@ -61,7 +62,6 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	port := ":8888"
 
 	core.Zasper = core.SetUpZasper(*cwd)
 	core.ZasperSession = core.SetUpActiveSessions()
@@ -99,7 +99,7 @@ func main() {
 	apiRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)
 	apiRouter.HandleFunc("/terminals/{terminalId}", websocket.HandleTerminalWebSocket)
 
-	log.Print("Zasper Server started! Listening on port", port)
+	glog.Print("Zasper Server started! Listening on port", *port)
 
 	//cors optionsGoes Below
 	corsOpts := cors.New(cors.Options{
@@ -121,5 +121,5 @@ func main() {
 	spa := spaHandler{staticPath: "./ui/build", indexPath: "index.html"}
 	router.PathPrefix("/").Handler(spa)
 
-	log.Print(http.ListenAndServe(port, corsOpts.Handler(router)))
+	glog.Fatal(http.ListenAndServe(*port, corsOpts.Handler(router)))
 }

@@ -36,14 +36,17 @@ Zasper comes in two flavours:
 Go to project home and start the server
 
 ```bash
-go run .
+go build -o ui/public/zasper app.go
 ```
 
 Go to `ui` and run the app in dev mode
 
 ```
-npm run electron-dev
+npm run electron-dev       # dev-mode
+
+npm run electron-package   # prod-mode
 ```
+
 
 
 ### Webapp
