@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+
 	"net/http"
 	"os"
 	"path/filepath"
@@ -49,18 +50,20 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	debug := flag.Bool("debug", false, "sets log level to debug")
+	// debug := flag.Bool("debug", false, "sets log level to debug")
+	cwd := flag.String("cwd", ".", "base directory of project")
 
 	flag.Parse()
+
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if *debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
+	// if *debug {
+	// 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	// }
 
 	router := mux.NewRouter()
 	port := ":8888"
 
-	core.Zasper = core.SetUpZasper()
+	core.Zasper = core.SetUpZasper(*cwd)
 	core.ZasperSession = core.SetUpActiveSessions()
 	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
 	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()

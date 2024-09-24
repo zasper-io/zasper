@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"zasper_go/core"
 	"zasper_go/models"
 
 	"github.com/rs/zerolog/log"
@@ -12,7 +13,8 @@ import (
 func GetContent(relativePath string, contentType string, format string, hash int) models.ContentModel {
 	log.Info().Msgf("getting content for path : %s", relativePath)
 	// get path info
-	info, err := os.Lstat(relativePath)
+	osPath := GetOSPath(relativePath)
+	info, err := os.Lstat(osPath)
 
 	if err != nil {
 		panic(err)
@@ -107,8 +109,9 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 
 func getFileModelWithContent(path string) models.ContentModel {
 	// fmt.Println(path)
+	osPath := GetOSPath(path)
 
-	info, err := os.Lstat(path)
+	info, err := os.Lstat(osPath)
 
 	if err != nil {
 		panic(err)
@@ -117,7 +120,7 @@ func getFileModelWithContent(path string) models.ContentModel {
 	output := models.ContentModel{
 		Name:          info.Name(),
 		Path:          path,
-		Content:       read_file(path),
+		Content:       read_file(osPath),
 		Last_modified: info.ModTime().GoString(),
 		Size:          info.Size()}
 	return output
@@ -259,12 +262,12 @@ func GetOSPath(path string) string {
 	// ------
 	// 404: if path is outside root
 
-	wdpath, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
+	// wdpath, err := os.Getwd()
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	abspath := filepath.Join(wdpath, path)
+	abspath := filepath.Join(core.Zasper.HomeDir, path)
 	return abspath
 }
 
