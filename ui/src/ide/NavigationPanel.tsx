@@ -15,29 +15,21 @@ const NavigationPanel = ({ handleNavigationPanel }) => {
   }
 
   const menuItems = [
-    { label: 'File', action: () => alert('File') },
+    { label: 'Open Project', action: () => handleSelectDirectory() },
     { label: 'Edit', action: () => alert('Edit') }
   ]
 
-  const showGitPanel = () => {
-    console.log('showGit Panel')
-  }
+  const [directory, setDirectory] = useState('');
+  const [output, setOutput] = useState('');
 
-  const showDebugPanel = () => {
-    console.log('showDebug Panel')
-  }
-
-  const showSecretsPanel = () => {
-    console.log('showSecrets Panel')
-  }
-
-  const showSettingsPanel = () => {
-    console.log('showSettings Panel')
-  }
-
-  const showDatabasePanel = () => {
-    console.log('showDatabase Panel')
-  }
+  const handleSelectDirectory = async () => {
+    const result = await window.api.openDirectory();
+    if (result.length > 0) {
+      setDirectory(result[0]);
+      await window.api.runCommand(result[0]);
+      setOutput(`Selected Directory: ${result[0]}`);
+    }
+  };
 
   const changeActiveKey = () => {
     // setActiveTab('demo');
@@ -51,12 +43,12 @@ const NavigationPanel = ({ handleNavigationPanel }) => {
     <div className='navigation-list'>
       <button className='editor-button nav-link' onClick={(e) => menuBarClickHandler(e)}><img src='./images/editor/menu-bar.svg' alt='' /></button>
       <button className='editor-button nav-link active' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-file-text.svg' alt='' /></button>
-      <button className='editor-button nav-link' onClick={showGitPanel}><img src='./images/editor/metro-flow-branch.svg' alt='' /></button>
+      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/metro-flow-branch.svg' alt='' /></button>
       <button className='editor-button nav-link'><img src='./images/editor/feather-box.svg' alt='' /></button>
-      <button className='editor-button nav-link' onClick={showDebugPanel}><img src='./images/editor/feather-play-circle.svg' alt='' /></button>
-      <button className='editor-button nav-link' onClick={showSecretsPanel}><img src='./images/editor/feather-lock.svg' alt='' /></button>
+      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-play-circle.svg' alt='' /></button>
+      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-lock.svg' alt='' /></button>
       <button className='editor-button nav-link' onClick={() => handleNavigationPanel('settingsPanel')}><img src='./images/editor/feather-settings.svg' alt='' /></button>
-      <button className='editor-button nav-link' onClick={showDatabasePanel}><img src='./images/editor/feather-database.svg' alt='' /></button>
+      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-database.svg' alt='' /></button>
       <button className='editor-button nav-link'><img src='./images/editor/ionic-ios-checkmark-circle-outline.svg' alt='' /></button>
       <button className='editor-button mt-auto help-icon'><i className='fas fa-question-circle' /></button>
 

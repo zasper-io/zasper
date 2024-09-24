@@ -50,17 +50,17 @@ function setupLocalFilesNormalizerProxy () {
 // is ready to create the browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  exec('zasper_go', (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error starting gobackend: ${error.message}`)
-      return
-    }
-    if (stderr) {
-      console.error(`stderr: ${stderr}`)
-      return
-    }
-    console.log(`stdout: ${stdout}`)
-  })
+  // exec('zasper_go', (error, stdout, stderr) => {
+  //   if (error) {
+  //     console.error(`Error starting gobackend: ${error.message}`)
+  //     return
+  //   }
+  //   if (stderr) {
+  //     console.error(`stderr: ${stderr}`)
+  //     return
+  //   }
+  //   console.log(`stdout: ${stdout}`)
+  // })
 
   createWindow()
   setupLocalFilesNormalizerProxy()
@@ -84,7 +84,7 @@ ipcMain.handle('dialog:openDirectory', async () => {
 });
 
 ipcMain.handle('runCommand', async (event, directory) => {
-  const command = `ls "${directory}"`; // Change for your OS if needed
+  const command = `zasper_go --cwd "${directory}"`; // Change for your OS if needed
 
   exec(command, { cwd: directory }, (error, stdout, stderr) => {
     if (error) {
