@@ -1,6 +1,6 @@
 # Zasper
 
-An opensource Data Science workbench for the cloud.
+Frontend code
 
 
 ### Start Zasper UI server

@@ -5,6 +5,18 @@
     ⚡ High Performance IDE 🚀 Powered by AI 🐥  Inspired by Jupyter
 </p>
 
+<p align=center>
+  <a href="https://github.com/zasper-io/zasper" target="_blank">
+      <img src="https://img.shields.io/github/last-commit/zasper-io/zasper" alt="Last Commit">
+  </a>
+  <a href="https://github.com/zasper-io/zasper/stargazers" target="_blank">
+      <img src="https://img.shields.io/github/stars/zasper-io/zasper" alt="GitHub Stars">
+  </a>
+  <a href="https://github.com/zasper-io/zasper/issues" target="_blank">
+      <img src="https://img.shields.io/github/issues/zasper-io/zasper" alt="GitHub Issues">
+  </a>
+  <a href="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml" target="_blank"><img alt="Github CD status" src="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml/badge.svg"></a>
+</p>
 
 # Why Go ?
 
