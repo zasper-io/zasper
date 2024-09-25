@@ -1,7 +1,13 @@
 const { app, ipcMain, BrowserWindow, protocol, dialog } = require('electron')
 const path = require('path')
 const url = require('url')
-const { exec } = require('child_process')
+const { exec, execFile } = require('child_process')
+
+var log  = require('electron-log')
+
+// Optional, initialize the logger for any renderer process
+log.transports.file.level = 'silly'
+
 
 // Create the native browser window.
 function createWindow () {
@@ -26,54 +32,41 @@ function createWindow () {
   mainWindow.loadURL(appURL)
 
   // Automatically open Chrome's DevTools in development mode.
-  // if (!app.isPackaged) {
-  mainWindow.webContents.openDevTools()
-  // }
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools()
+  }
 }
 
-// Setup a local proxy to adjust the paths of requested files when loading
-// them from the local production bundle (e.g.: local fonts, etc...).
-function setupLocalFilesNormalizerProxy () {
-  protocol.registerHttpProtocol(
-    'file',
-    (request, callback) => {
-      const url = request.url.substr(8)
-      callback({ path: path.normalize(`${__dirname}/${url}`) })
-    },
-    (error) => {
-      if (error) console.error('Failed to register protocol')
-    }
-  )
-}
+
 
 // This method will be called when Electron has finished its initialization and
 // is ready to create the browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  exec(path.join(__dirname, 'zasper'), (error, stdout, stderr) => {
+  execFile(path.join(__dirname, 'zasper'), (error, stdout, stderr) => {
     if (error) {
-      console.error(`Error starting gobackend: ${error.message}`)
+      log.error(`Error starting gobackend: ${error.message}`)
       return
     }
     if (stderr) {
-      console.error(`stderr: ${stderr}`)
+      log.error(`stderr: ${stderr}`)
       return
     }
-    console.log(`stdout: ${stdout}`)
+    log.info(`stdout: ${stdout}`)
   })
-
-  createWindow()
-  setupLocalFilesNormalizerProxy()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+      log.info("Window created!")
     }
 
     
   })
+
+  createWindow()
 })
 
 ipcMain.handle('dialog:openDirectory', async () => {
@@ -87,7 +80,7 @@ ipcMain.handle('runCommand', async (event, directory) => {
   // Note : windows may vary
   const command = `${path.join(__dirname, 'zasper')} --cwd "${directory}"`;
 
-  exec(command, { cwd: directory }, (error, stdout, stderr) => {
+  execFile(command, { cwd: directory }, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${stderr}`);
       return;

@@ -81,6 +81,17 @@ go run .
 
 Go to `http://localhost:8888`
 
+
+# Logging
+
+By default, the application writes logs to the following locations:
+
+```bash
+on Linux: ~/.config/zasper/logs/main.log
+on macOS: ~/Library/Logs/zasper/main.log
+on Windows: %USERPROFILE%\AppData\Roaming\zasper\logs\main.log
+```
+
 # Contributing
 
 You can contribute in multiple ways:
