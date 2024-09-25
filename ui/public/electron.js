@@ -1,6 +1,7 @@
 const { app, ipcMain, BrowserWindow, protocol, dialog } = require('electron')
 const path = require('path')
 const url = require('url')
+const os = require('os');
 const { exec, execFile } = require('child_process')
 
 var log  = require('electron-log')
@@ -11,9 +12,22 @@ log.transports.file.level = 'silly'
 
 // Create the native browser window.
 function createWindow () {
+  execFile(path.join(__dirname, 'zasper'), { cwd: os.homedir() }, (error, stdout, stderr) => {
+    if (error) {
+      log.error(`Error starting gobackend: ${error.message}`)
+      return
+    }
+    if (stderr) {
+      log.error(`stderr: ${stderr}`)
+      return
+    }
+    log.info(`stdout: ${stdout}`)
+  })
+
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1350,
+    height: 900,
+    show: false,
     // Set the path of an additional "preload" script that can be used to
     // communicate between the node-land and the browser-land.
 
@@ -21,6 +35,23 @@ function createWindow () {
       preload: path.join(__dirname, 'preload.js')
     },
   })
+
+  // and load the index.html of the app.
+  var loaderScreen = new BrowserWindow({ 
+    width: 700, 
+    height: 400, 
+    transparent: true, 
+    frame: false, 
+    alwaysOnTop: true 
+  });
+  
+  loaderScreen.loadFile(path.join(__dirname, 'loadscreen.html'));
+  loaderScreen.center();
+  setTimeout(function () {
+    loaderScreen.close();
+    mainWindow.center();
+    mainWindow.show();
+  }, 5000);
 
   const appURL = app.isPackaged
     ? url.format({
@@ -33,6 +64,7 @@ function createWindow () {
 
   // Automatically open Chrome's DevTools in development mode.
   if (!app.isPackaged) {
+    // loaderScreen.webContents.openDevTools()
     mainWindow.webContents.openDevTools()
   }
 }
@@ -43,17 +75,6 @@ function createWindow () {
 // is ready to create the browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  execFile(path.join(__dirname, 'zasper'), (error, stdout, stderr) => {
-    if (error) {
-      log.error(`Error starting gobackend: ${error.message}`)
-      return
-    }
-    if (stderr) {
-      log.error(`stderr: ${stderr}`)
-      return
-    }
-    log.info(`stdout: ${stdout}`)
-  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
