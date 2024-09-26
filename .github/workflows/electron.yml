@@ -37,17 +37,14 @@ jobs:
       - name: Install dependencies
         run: cd ui && npm install
 
-      - name: Build Electron app
-        run: npm run build
-
       - name: Package Electron app
-        run: npm run electron-package
+        run: cd ui && npm run electron-package
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: zasper-0.1.0-arm64.dmg
-          path: dist
+          path: ui/dist
 
       - name: Create Release Asset
         if: github.event_name == 'release'
