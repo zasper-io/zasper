@@ -17,7 +17,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.20' # Change to your required Go version
+          go-version: '1.23' # Change to your required Go version
 
       - name: Install ZeroMQ
         run: |
