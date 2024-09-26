@@ -1,8 +1,10 @@
 name: Build and Release Electron App 
 
 on:
-  release:
-    types: [created]
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -11,6 +13,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Update and install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzmq3-dev
+          # Verify installation
+          dpkg -s libzmq3-dev
+
+      - name: Build
+        run: go build -o ui/public/zasper app.go
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -29,8 +46,8 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: electron-app
-          path: path/to/your/output/files # Update this to the path where your packaged app is located
+          name: zasper-0.1.0-arm64.dmg
+          path: dist
 
       - name: Create Release Asset
         if: github.event_name == 'release'
@@ -44,3 +61,4 @@ jobs:
                -H "Content-Type: application/zip" \
                --data-binary "@path/to/your/output/files/your-app.zip" \
                "$upload_url?name=your-app.zip"
+               
