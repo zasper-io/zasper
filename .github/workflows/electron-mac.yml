@@ -5,10 +5,14 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    
 
 jobs:
   build:
     runs-on: macos-latest
+
+    env:
+      CI: false
 
     steps:
       - name: Checkout code
