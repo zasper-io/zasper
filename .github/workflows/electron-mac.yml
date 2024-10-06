@@ -46,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: zasper-0.1.0-arm64.dmg
-          path: ui/dist
+          path: ui/dist/zasper-0.1.0-arm64.dmg
 
       - name: Create Release Asset
         if: github.event_name == 'release'

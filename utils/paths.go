@@ -25,6 +25,7 @@ func GetJupyterPath() []string {
 	paths = append(paths, "/home/prasun/.local/jupyter")
 	paths = append(paths, "/usr/local/share/jupyter")
 	paths = append(paths, "/home/prasun/.local/share/jupyter/") // todo : check
+	paths = append(paths, "/Users/prasunanand/Library/Python/3.9/share/jupyter")
 	return paths
 }
 
