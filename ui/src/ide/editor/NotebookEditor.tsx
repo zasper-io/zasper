@@ -12,6 +12,7 @@ import rehypeRaw from 'rehype-raw'
 import './NotebookEditor.scss'
 
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
+import { BaseApiUrl } from '../config'
 
 export default function NotebookEditor (props) {
   interface ICell {
@@ -38,7 +39,7 @@ export default function NotebookEditor (props) {
   const [session, setSession] = useState<ISession>({ id: '' })
 
   const FetchFileData = async (path) => {
-    const res = await fetch('http://localhost:8888/api/contents/' + path)
+    const res = await fetch(BaseApiUrl + '/api/contents/' + path)
     const resJson = await res.json()
     setFileContents(resJson.content)
     console.log(resJson.content)
@@ -92,7 +93,7 @@ export default function NotebookEditor (props) {
 
   const listAllKernelSpecs = () => {
     // Simple GET request using fetch
-    fetch('http://localhost:8888/api/kernelspecs')
+    fetch(BaseApiUrl + '/api/kernelspecs')
       .then(async response => await response.json())
       .then(
         (data) => {
@@ -108,7 +109,7 @@ export default function NotebookEditor (props) {
 
   const listKernels = () => {
     // Simple GET request using fetch
-    fetch('http://localhost:8888/api/kernels')
+    fetch(BaseApiUrl + 'http://localhost:8888/api/kernels')
       .then(async response => await response.json())
       .then(
         (data) => {
@@ -129,7 +130,7 @@ export default function NotebookEditor (props) {
     // Simple GET request using fetch
     console.log('Starting a kernel')
     if (kernel.name === '') {
-      fetch('http://localhost:8888/api/kernels', {
+      fetch(BaseApiUrl + '/api/kernels', {
         method: 'POST'
       })
         .then(async response => await response.json())
@@ -152,7 +153,7 @@ export default function NotebookEditor (props) {
 
   const listAllSessions = () => {
     // Simple GET request using fetch
-    fetch('http://localhost:8888/api/sessions')
+    fetch(BaseApiUrl + '/api/sessions')
       .then(async response => await response.json())
       .then(
         (data) => {
@@ -182,7 +183,7 @@ export default function NotebookEditor (props) {
     console.log('Starting a session')
     if (session.id === '') {
       if (kernel != null) {
-        fetch('http://localhost:8888/api/sessions', {
+        fetch(BaseApiUrl + '/api/sessions', {
           method: 'POST',
           body: JSON.stringify({
             path: 'Untitled1.ipynb',

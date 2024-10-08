@@ -13,6 +13,7 @@ import (
 	"zasper_go/kernel"
 
 	"github.com/pebbe/zmq4"
+	"golang.org/x/exp/rand"
 )
 
 type KernelWebSocketConnection struct {
@@ -240,8 +241,8 @@ func connect_shell(cinfo kernel.Connection) *zmq4.Socket {
 	url := makeURL(channel, cinfo.ShellPort)
 
 	socket, _ := zmq4.NewSocket(zmq4.DEALER)
+	set_id(socket)
 	socket.Connect(url)
-
 	return socket
 
 }
@@ -253,9 +254,14 @@ func connect_control(cinfo kernel.Connection) *zmq4.Socket {
 	url := makeURL(channel, cinfo.ControlPort)
 
 	socket, _ := zmq4.NewSocket(zmq4.DEALER)
+	set_id(socket)
 	socket.Connect(url)
 	return socket
 
+}
+func set_id(soc *zmq4.Socket) {
+	identity := fmt.Sprintf("%04X-%04X", rand.Intn(0x10000), rand.Intn(0x10000))
+	soc.SetIdentity(identity)
 }
 
 // cst["iopub"] = zmq4.Sub
@@ -277,6 +283,7 @@ func connect_stdin(cinfo kernel.Connection) *zmq4.Socket {
 	channel := "stdin"
 	url := makeURL(channel, cinfo.StdinPort)
 	socket, _ := zmq4.NewSocket(zmq4.DEALER)
+	set_id(socket)
 	socket.Connect(url)
 	return socket
 

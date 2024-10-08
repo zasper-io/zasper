@@ -87,7 +87,11 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 	if err != nil {
 		panic(err)
 	}
+	extension := filepath.Ext(fileName)
 	contentType := "file"
+	if extension == ".ipynb" {
+		contentType = "notebook"
+	}
 	if info.IsDir() {
 		contentType = "directory"
 	}
