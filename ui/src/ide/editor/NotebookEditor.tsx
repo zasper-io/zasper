@@ -38,16 +38,23 @@ export default function NotebookEditor (props) {
   }
   const [session, setSession] = useState<ISession>({ id: '' })
 
+
   const FetchFileData = async (path) => {
-    const res = await fetch(BaseApiUrl + '/api/contents/' + path)
+    const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
+      method: 'POST',
+
+      body: JSON.stringify({
+        path
+      })
+    })
     const resJson = await res.json()
     setFileContents(resJson.content)
-    console.log(resJson.content)
+    // console.log(resJson['content']);
   }
 
   useEffect(() => {
     if (props.data.load_required == true) {
-      FetchFileData(props.data.name)
+      FetchFileData(props.data.path)
     }
     // startASession()
     // listKernels();
@@ -398,7 +405,7 @@ function Cell (props) {
   const cell = props.cell
   if (cell.cell_type === 'markdown') {
     return (
-      <Markdown rehypePlugins={[rehypeRaw]}>{cell.source}</Markdown>
+      <Markdown rehypePlugins={[rehypeRaw]}>{cell.source[0]}</Markdown>
     )
   }
   return (
@@ -407,7 +414,7 @@ function Cell (props) {
       <div className='serial-no'>[{cell.execution_count}]:</div>
       <div className='inner-content'>
         <CodeMirror
-          value={cell.source}
+          value={cell.source[0]}
           height='auto'
           width='100%'
           extensions={[python()]}

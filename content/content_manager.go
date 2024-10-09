@@ -1,6 +1,7 @@
 package content
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,14 +28,55 @@ func GetContent(relativePath string, contentType string, format string, hash int
 		model = getDirectoryModel(relativePath)
 		// fmt.Println(model)
 	} else {
-		model = getFileModelWithContent(relativePath)
+		if contentType == "notebook" {
+			model = getNotebookModel(relativePath)
+		} else {
+			model = getFileModelWithContent(relativePath)
+		}
+
 	}
 
 	return model
 }
 
 func getNotebookModel(path string) models.ContentModel {
-	return models.ContentModel{}
+	log.Info().Msg("Notebook model")
+
+	// fmt.Println(path)
+	osPath := GetOSPath(path)
+
+	info, err := os.Lstat(osPath)
+
+	if err != nil {
+		panic(err)
+	}
+
+	content := read_file(osPath)
+
+	as_version := 4
+	capture_validation_error := false
+
+	nb := nbformatReads(
+		content,
+		as_version,
+		capture_validation_error,
+	)
+	fmt.Println(nb)
+
+	output := models.ContentModel{
+		Name:          info.Name(),
+		Path:          path,
+		Content:       nb,
+		Last_modified: info.ModTime().GoString(),
+		Size:          info.Size()}
+	return output
+}
+
+func nbformatReads(data string, version int, capture_validation_error bool) map[string]interface{} {
+	output := make(map[string]interface{})
+	_ = json.Unmarshal([]byte(data), &output)
+
+	return output
 }
 
 func getDirectoryModel(relativePath string) models.ContentModel {
