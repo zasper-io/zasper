@@ -61,7 +61,6 @@ func getNotebookModel(path string) models.ContentModel {
 		as_version,
 		capture_validation_error,
 	)
-	fmt.Println(nb)
 
 	output := models.ContentModel{
 		Name:          info.Name(),
@@ -72,11 +71,14 @@ func getNotebookModel(path string) models.ContentModel {
 	return output
 }
 
-func nbformatReads(data string, version int, capture_validation_error bool) map[string]interface{} {
-	output := make(map[string]interface{})
-	_ = json.Unmarshal([]byte(data), &output)
+func nbformatReads(data string, version int, capture_validation_error bool) Notebook {
+	// output := make(map[string]interface{})
+	var nb Notebook
+	_ = json.Unmarshal([]byte(data), &nb)
+	rejoinLines(&nb)
+	stripTransient(&nb)
 
-	return output
+	return nb
 }
 
 func getDirectoryModel(relativePath string) models.ContentModel {

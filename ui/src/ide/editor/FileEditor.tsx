@@ -42,7 +42,7 @@ export default function FileEditor (props) {
   ])
 
   const FetchFileData = async (path) => {
-    const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
+    const res = await fetch(BaseApiUrl + '/api/contents?type=file&hash=0', {
       method: 'POST',
 
       body: JSON.stringify({
