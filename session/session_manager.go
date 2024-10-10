@@ -30,7 +30,7 @@ func CreateSession(req models.SessionModel) models.SessionModel {
 		log.Info().Msg("session exists")
 	} else {
 		kernelId := startKernelForSession(req.Path, req.Name)
-		log.Info().Msgf("started kernel with id %d", kernelId)
+		log.Info().Msgf("started kernel with id %s", kernelId)
 		// pendingSessions.update()
 		session = models.SessionModel{
 			Id:          session_id,
