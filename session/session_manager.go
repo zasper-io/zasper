@@ -2,7 +2,6 @@ package session
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"time"
 	"zasper_go/content"
@@ -11,6 +10,7 @@ import (
 	"zasper_go/models"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 func ListSessions() map[string]models.SessionModel {
@@ -24,13 +24,13 @@ func CreateSession(req models.SessionModel) models.SessionModel {
 	session_id := uuid.New().String()
 	var session models.SessionModel
 	session, ok := core.ZasperSession[req.Id]
+	log.Info().Msg("creating session")
 	if ok {
 		//do something here
-		log.Println("session exists")
+		log.Info().Msg("session exists")
 	} else {
 		kernelId := startKernelForSession(req.Path, req.Name)
-
-		log.Println(kernelId)
+		log.Info().Msgf("started kernel with id %d", kernelId)
 		// pendingSessions.update()
 		session = models.SessionModel{
 			Id:          session_id,
@@ -58,7 +58,7 @@ func startKernelForSession(path string, name string) string {
 	kernel_path := content.GetKernelPath(path)
 	fmt.Println(kernel_path)
 	env := getKernelEnv(path, name)
-	log.Println("starting kernel")
+	log.Info().Msg("starting kernel")
 	kernelId := kernel.MappingKMStartKernel(path, name, env)
 	return kernelId
 }

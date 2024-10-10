@@ -3,6 +3,8 @@ package kernel
 import (
 	"zasper_go/kernelspec"
 	"zasper_go/launcher"
+
+	"github.com/rs/zerolog/log"
 )
 
 type KernelConnectionInfo map[string]interface{}
@@ -26,6 +28,7 @@ func hasProcess() {
 func (provisioner *LocalProvisioner) launchKernel(kernelCmd []string, kw map[string]interface{}) KernelConnectionInfo {
 	process := launcher.LaunchKernel(kernelCmd, kw)
 	provisioner.Pid = process.Pid
+	log.Info().Msgf("kernel launched with pid: %d", process.Pid)
 	return provisioner.ConnectionInfo
 }
 
