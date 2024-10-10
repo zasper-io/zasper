@@ -15,6 +15,18 @@ type ContentModel struct {
 	Hash_algorithm string      `json:"hash_algorithm"`
 }
 
+// sort interface
+type ByContentTypeAndName []ContentModel
+
+func (a ByContentTypeAndName) Len() int      { return len(a) }
+func (a ByContentTypeAndName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (c ByContentTypeAndName) Less(i, j int) bool {
+	if c[i].ContentType != c[j].ContentType {
+		return c[i].ContentType == "directory"
+	}
+	return c[i].Name < c[j].Name
+}
+
 // Name() string       // base name of the file
 // 	Size() int64        // length in bytes for regular files; system-dependent for others
 // 	Mode() FileMode     // file mode bits

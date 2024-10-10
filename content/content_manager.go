@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"zasper_go/core"
 	"zasper_go/models"
 
@@ -112,8 +113,8 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 		listOfContents = append(listOfContents, getFileModel(abspath, relativePath, v.Name()))
 
 	}
+	sort.Sort(models.ByContentTypeAndName(listOfContents))
 	output.Content = listOfContents
-
 	return output
 }
 

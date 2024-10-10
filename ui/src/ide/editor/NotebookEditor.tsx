@@ -14,6 +14,8 @@ import './NotebookEditor.scss'
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../config'
 
+const devMode = false
+
 export default function NotebookEditor (props) {
   interface ICell {
     execution_count: number
@@ -35,8 +37,9 @@ export default function NotebookEditor (props) {
 
   interface ISession {
     id: string
+    kernel: IKernel
   }
-  const [session, setSession] = useState<ISession>({ id: '' })
+  const [session, setSession] = useState<ISession>({ id: '', kernel: {id: '', name: ''} })
 
 
   const FetchFileData = async (path) => {
@@ -123,7 +126,7 @@ export default function NotebookEditor (props) {
           console.log('kernels running')
           console.log(data)
           if (data.lenghth = 0) {
-            startAKernel()
+            
           }
         },
         (error) => {
@@ -131,31 +134,6 @@ export default function NotebookEditor (props) {
         }
 
       )
-  }
-
-  const startAKernel = () => {
-    // Simple GET request using fetch
-    console.log('Starting a kernel')
-    if (kernel.name === '') {
-      fetch(BaseApiUrl + '/api/kernels', {
-        method: 'POST'
-      })
-        .then(async response => await response.json())
-        .then(
-          (data) => {
-            console.log('kernels running')
-            console.log(data)
-            setKernel(data)
-          },
-          (error) => {
-            console.log('error')
-          }
-
-        )
-    } else {
-      console.log('All ready started a kernel')
-      console.log(kernel)
-    }
   }
 
   const listAllSessions = () => {
@@ -222,7 +200,7 @@ export default function NotebookEditor (props) {
   }
 
   const startWebSocket = () => {
-    const client1 = new W3CWebSocket('ws://localhost:8888/api/kernels/' + kernel.id + '/channels?session_id=' + session.id)
+    const client1 = new W3CWebSocket('ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id)
     // var client1 = new W3CWebSocket("ws://localhost:8888/ws");
 
     client1.onopen = () => {
@@ -378,16 +356,16 @@ export default function NotebookEditor (props) {
           <div className='ms-auto'>Python [conda env:default]*</div>
         </div>
         <ToastContainer />
-        <div>
+        {devMode && <div>
           <button type='button' onClick={saveFile}>Save file</button>
           <button type='button' onClick={listKernels}>ListKernels</button>
-          <button type='button' onClick={startAKernel}>StartAKernel</button>
           <button type='button' onClick={startASession}>StartASession</button>
           <button type='button' onClick={listAllSessions}>ListAllSessions</button>
           <button type='button'>Button2</button>
           <button type='button' onClick={startWebSocket}>StartWebSocket</button>
           <button type='button' onClick={sendAMessage}>SendAMessage</button>
         </div>
+        }
         <div className='editor-body'>
           {
                     fileContents.cells.map((cell, index) =>
@@ -422,9 +400,9 @@ function Cell (props) {
             cell.source = value
           }}
         />
-        <div>
+        {devMode && <div>
           <button type='button' onClick={() => props.submitCell(cell.source)}> Run</button>
-        </div>
+        </div>}
 
         <div className='inner-text'>
           {props.generateOutput(cell)}
