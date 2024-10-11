@@ -10,7 +10,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/go-zeromq/zmq4"
+	"github.com/pebbe/zmq4"
 	"golang.org/x/exp/rand"
 )
 
@@ -21,7 +21,7 @@ type KernelManager struct {
 	AttemptedStart bool
 	Ready          bool
 	KernelName     string
-	ControlSocket  zmq4.Socket
+	ControlSocket  *zmq4.Socket
 	CachePorts     bool
 	Provisioner    LocalProvisioner
 	Kernelspec     string
@@ -139,7 +139,7 @@ func (km *KernelManager) formatKernelCmd() []string {
 **********************************************************************
 *********************************************************************/
 
-var ChannelSocketTypes map[string]zmq4.SocketType
+var ChannelSocketTypes map[string]zmq4.Type
 
 func (km *KernelManager) makeURL(channel string) string {
 	ip := km.ConnectionInfo.IP
@@ -151,37 +151,37 @@ func (km *KernelManager) makeURL(channel string) string {
 	return fmt.Sprintf("%s://%s-%d", km.ConnectionInfo.Transport, ip, port)
 }
 
-func SetUpChannelSocketTypes() map[string]zmq4.SocketType {
-	cst := make(map[string]zmq4.SocketType)
-	cst["hb"] = zmq4.Req
-	cst["iopub"] = zmq4.Sub
-	cst["shell"] = zmq4.Dealer
-	cst["stdin"] = zmq4.Dealer
-	cst["control"] = zmq4.Dealer
+func SetUpChannelSocketTypes() map[string]zmq4.Type {
+	cst := make(map[string]zmq4.Type)
+	cst["hb"] = zmq4.REQ
+	cst["iopub"] = zmq4.SUB
+	cst["shell"] = zmq4.DEALER
+	cst["stdin"] = zmq4.DEALER
+	cst["control"] = zmq4.DEALER
 
 	return cst
 }
 
-func (km *KernelManager) connectControlSocket() zmq4.Socket {
+func (km *KernelManager) connectControlSocket() *zmq4.Socket {
 	channel := "control"
 	url := km.makeURL(channel)
 	log.Info().Msgf("url is ====> %s", url)
 	log.Info().Msgf("channel is ====> %s", channel)
 
-	socket := zmq4.NewDealer(km.ConnectionInfo.Context)
+	socket, _ := zmq4.NewSocket(zmq4.DEALER)
 
-	// err := socket.Dial(url)
+	socket.Connect(url)
 	return socket
 
 }
 
-func (km *KernelManager) connectHbSocket() zmq4.Socket {
+func (km *KernelManager) connectHbSocket() *zmq4.Socket {
 	channel := "control"
 	url := km.makeURL(channel)
 	log.Info().Msgf("url is ====> %s", url)
 	log.Info().Msgf("channel is ====> %s", channel)
 
-	socket := zmq4.NewReq(km.ConnectionInfo.Context)
+	socket, _ := zmq4.NewSocket(zmq4.REQ)
 
 	return socket
 

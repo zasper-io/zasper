@@ -1,7 +1,6 @@
 package content
 
 import (
-	"log"
 	"strings"
 )
 
@@ -38,9 +37,7 @@ func rejoinLines(nb *Notebook) {
 		if cell.Source != nil {
 			sourceList := cell.Source
 			// if sourceList, ok := cell.Source.([]string); ok {
-			// 	log.Println("list found")
 			cell.Source[0] = strings.Join(sourceList, "")
-			log.Println(cell.Source)
 			// }
 		}
 
