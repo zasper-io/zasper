@@ -217,7 +217,7 @@ func deserializeBinaryMessage(bmsg []byte) (map[string]interface{}, error) {
 }
 
 func registerWebSocketSession(sessionId string) {
-	log.Info().Msgf("registering a new session: ", sessionId)
+	log.Info().Msgf("registering a new session: %s", sessionId)
 }
 
 func makeURL(channel string, port int) string {

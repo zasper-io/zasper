@@ -32,3 +32,4 @@ ui/dist
 zasper_go
 examples
 ui/public/zasper
+kernelConnection.json

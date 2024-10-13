@@ -2,8 +2,6 @@ package kernel
 
 import (
 	"time"
-
-	"github.com/rs/zerolog/log"
 )
 
 type MessageHeader struct {
@@ -59,6 +57,5 @@ func (ks *KernelSession) createMsg(msgType string,
 	// msg.ParentHeader = parent
 	msg.Content = "{}"
 	msg.Metadata = "{}"
-	log.Info().Msgf("new message is %s", msg)
 	return msg
 }

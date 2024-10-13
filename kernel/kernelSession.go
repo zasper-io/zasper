@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"hash"
 	"os"
 
@@ -142,9 +141,9 @@ func (ks *KernelSession) Send(
 	tracker, _ = stream.SendMessage(toSend)
 
 	if ks.Debug {
-		fmt.Printf("Message: %s\n", msg)
-		fmt.Printf("ToSend: %s\n", toSend)
-		fmt.Printf("Buffers: %s\n", buffers)
+		log.Info().Msgf("Message: %s\n", msg.MsgId)
+		log.Info().Msgf("ToSend: %s\n", toSend)
+		log.Info().Msgf("Buffers: %s\n", buffers)
 	}
 
 	msg.Tracker = tracker
