@@ -26,7 +26,7 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}) *os.Process {
 	// return process
 	// }
 
-	cmd := exec.Command("/usr/bin/python3", "-m", "ipykernel_launcher", "-f", "kernelConnection.json")
+	cmd := exec.Command("/usr/bin/python3", "-m", "ipykernel_launcher", "-f", "kernelConnection.json") //  "--debug"
 
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()
@@ -74,12 +74,12 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}) *os.Process {
 	// }
 
 	// Defer the process closure to ensure it is killed when the main program exits
-	defer func() {
-		if cmd.Process != nil {
-			fmt.Printf("Killing process with PID: %d\n", cmd.Process.Pid)
-			cmd.Process.Kill() // Kill the process when the program exits
-		}
-	}()
+	// defer func() {
+	// 	if cmd.Process != nil {
+	// 		fmt.Printf("Killing process with PID: %d\n", cmd.Process.Pid)
+	// 		cmd.Process.Kill() // Kill the process when the program exits
+	// 	}
+	// }()
 	fmt.Println("Process started successfully")
 	return cmd.Process
 }

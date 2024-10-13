@@ -199,7 +199,7 @@ func findAvailablePort() (int, error) {
 
 	// Start with a random port number or a specific range if needed.
 	for {
-		port := rand.Intn(4001)
+		port := rand.Intn(1000) + 5000
 		if portExists(port) {
 			continue
 		}

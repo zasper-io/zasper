@@ -8,9 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 	"zasper_go/kernel"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/pebbe/zmq4"
 	"golang.org/x/exp/rand"
@@ -39,10 +40,10 @@ func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
 	registerWebSocketSession(sessionId)
 	km := kwsConn.KernelManager
 	if km.Ready {
-		log.Println("===========Kernel is ready=============")
-		log.Println(km.Session.Key)
+		log.Info().Msg("===========Kernel is ready=============")
+		log.Info().Msgf("%s", km.Session.Key)
 	} else {
-		log.Println("===========Kernel is not ready============")
+		log.Info().Msg("===========Kernel is not ready============")
 	}
 	// raise timeout error
 	kwsConn.Session = km.Session
@@ -51,13 +52,13 @@ func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
 }
 
 func (kwsConn *KernelWebSocketConnection) connect() {
-	log.Println("notifying connection")
+	log.Info().Msg("notifying connection")
 	kernel.NotifyConnect()
 
-	log.Println("creating stream")
+	log.Info().Msg("creating stream")
 	kwsConn.createStream()
 
-	log.Println("Nudging the kernel")
+	log.Info().Msg("Nudging the kernel")
 	kwsConn.nudge()
 }
 
@@ -68,8 +69,8 @@ func (kwsConn *KernelWebSocketConnection) createStream() {
 
 	cinfo := kwsConn.KernelManager.ConnectionInfo
 	kwsConn.Channels["iopub"] = connect_iopub(cinfo)
-	kwsConn.Channels["shell"] = connect_shell(cinfo)
-	kwsConn.Channels["control"] = connect_control(cinfo)
+	// kwsConn.Channels["shell"] = connect_shell(cinfo)
+	// kwsConn.Channels["control"] = connect_control(cinfo)
 	kwsConn.Channels["stdin"] = connect_stdin(cinfo)
 	kwsConn.Channels["hb"] = connect_hb(cinfo)
 }
@@ -86,48 +87,43 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 		sockets are fully connected, and kernel is responsive.
 		Keeps retrying kernel_info_request until these are both received.
 	*/
-	transient_shell_channel := connect_hb(kwsConn.KernelManager.ConnectionInfo)
+	transient_shell_channel := connect_shell(kwsConn.KernelManager.ConnectionInfo)
+	transient_control_channel := connect_control(kwsConn.KernelManager.ConnectionInfo)
 	// shell returns info future
-	count := 0
+	// Create a Poller
+	poller := zmq4.NewPoller()
+	poller.Add(transient_shell_channel, zmq4.POLLIN)
+	poller.Add(transient_control_channel, zmq4.POLLIN)
+
+	kwsConn.Session.SendStreamMsg(transient_control_channel, "kernel_info_request")
+	kwsConn.Session.SendStreamMsg(transient_shell_channel, "kernel_info_request")
+
 	for {
-
-		kwsConn.Session.SendStreamMsg(transient_shell_channel, "kernelInfoRequest")
-
-		// Create a Poller
-		poller := zmq4.NewPoller()
-		poller.Add(transient_shell_channel, zmq4.POLLIN)
-
-		// Poll with a timeout (e.g., 5 seconds)
-		events, err := poller.Poll(5 * time.Second)
+		// Poll the sockets with a timeout of 1 second
+		sockets, err := poller.Poll(1 * time.Second)
 		if err != nil {
-			fmt.Println("Error during polling:", err)
-			return
+			log.Info().Msgf("%s", err)
 		}
 
-		// Check if the DEALER socket is ready for reading
-		for _, event := range events {
-			if event.Socket == transient_shell_channel {
-				// Receive the response
-				response, err := transient_shell_channel.Recv(0)
-				if err != nil {
-					fmt.Println("Error receiving message:", err)
-					return
-				}
-				fmt.Printf("Received response: %s\n", response)
-				return
+		// Check which sockets have events
+		for _, socket := range sockets {
+			switch s := socket.Socket; s {
+			case transient_shell_channel:
+				msg, _ := s.Recv(0)
+				fmt.Printf("Received from Shell socket: %s\n", msg)
+
+			case transient_control_channel:
+				msg, _ := s.Recv(0)
+				fmt.Printf("Received from Control socket: %s\n", msg)
 			}
 		}
-
-		// If no events occurred within the timeout period
-		fmt.Println("No response received within the timeout period trial count:", count)
-
-		count++
 	}
+
 }
 
 func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int, ws_msg []byte) {
 	msg, _ := deserializeBinaryMessage(ws_msg)
-	log.Println(msg)
+	log.Info().Msgf("%s", msg)
 }
 
 type Msg struct {
@@ -221,12 +217,11 @@ func deserializeBinaryMessage(bmsg []byte) (map[string]interface{}, error) {
 }
 
 func registerWebSocketSession(sessionId string) {
-	log.Println("registering a new session: ", sessionId)
+	log.Info().Msgf("registering a new session: ", sessionId)
 }
 
 func makeURL(channel string, port int) string {
 	ip := "127.0.0.1"
-	// port := 1 // TODO getPort
 	Transport := "tcp"
 	if Transport == "tcp" {
 		return fmt.Sprintf("tcp://%s:%d", ip, port)
@@ -234,27 +229,22 @@ func makeURL(channel string, port int) string {
 	return fmt.Sprintf("%s://%s-%d", Transport, ip, port)
 }
 
-// cst["shell"] = zmq4.Dealer
-// "shell_port": 3503,
 func connect_shell(cinfo kernel.Connection) *zmq4.Socket {
 	channel := "shell"
 	url := makeURL(channel, cinfo.ShellPort)
 
 	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	set_id(socket)
+	// set_id(socket)
 	socket.Connect(url)
 	return socket
 
 }
 
-// cst["control"] = zmq4.Dealer
-// "control_port": 4714,
 func connect_control(cinfo kernel.Connection) *zmq4.Socket {
 	channel := "control"
 	url := makeURL(channel, cinfo.ControlPort)
 
 	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	set_id(socket)
 	socket.Connect(url)
 	return socket
 
@@ -264,37 +254,32 @@ func set_id(soc *zmq4.Socket) {
 	soc.SetIdentity(identity)
 }
 
-// cst["iopub"] = zmq4.Sub
-// "iopub_port": 1206,
 func connect_iopub(cinfo kernel.Connection) *zmq4.Socket {
 	channel := "iopub"
 	url := makeURL(channel, cinfo.IopubPort)
 
 	socket, _ := zmq4.NewSocket(zmq4.SUB)
+	// srt subscription filter
+	socket.SetSubscribe("")
 	socket.Connect(url)
 
 	return socket
 
 }
 
-// cst["stdin"] = zmq4.Dealer
-// "stdin_port": 3266,
 func connect_stdin(cinfo kernel.Connection) *zmq4.Socket {
 	channel := "stdin"
 	url := makeURL(channel, cinfo.StdinPort)
+	fmt.Println(url)
 	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	set_id(socket)
 	socket.Connect(url)
 	return socket
 
 }
 
-// cst["hb"] = zmq4.Req
-// "hb_port": 4283,
 func connect_hb(cinfo kernel.Connection) *zmq4.Socket {
 	channel := "hb"
 	url := makeURL(channel, cinfo.HbPort)
-
 	socket, _ := zmq4.NewSocket(zmq4.REQ)
 	socket.Connect(url)
 	return socket
@@ -312,7 +297,7 @@ func listenForMessages(socket *zmq4.Socket, callback MessageCallback) {
 	for {
 		msg, err := socket.Recv(0)
 		if err != nil {
-			log.Println("Error receiving message:", err)
+			log.Info().Msgf("Error receiving message: %s", err)
 			continue
 		}
 		callback(msg)

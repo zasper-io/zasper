@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { python } from '@codemirror/lang-python'
 import { toast, ToastContainer } from 'react-toastify'
-import { ReactTerminal } from 'react-terminal'
 import { v4 as uuidv4 } from 'uuid'
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
@@ -14,7 +13,7 @@ import './NotebookEditor.scss'
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../config'
 
-const devMode = false
+const debugMode = true
 
 export default function NotebookEditor (props) {
   interface ICell {
@@ -356,7 +355,7 @@ export default function NotebookEditor (props) {
           <div className='ms-auto'>Python [conda env:default]*</div>
         </div>
         <ToastContainer />
-        {devMode && <div>
+        {debugMode && <div>
           <button type='button' onClick={saveFile}>Save file</button>
           <button type='button' onClick={listKernels}>ListKernels</button>
           <button type='button' onClick={startASession}>StartASession</button>
@@ -400,7 +399,7 @@ function Cell (props) {
             cell.source = value
           }}
         />
-        {devMode && <div>
+        {debugMode && <div>
           <button type='button' onClick={() => props.submitCell(cell.source)}> Run</button>
         </div>}
 
