@@ -4,7 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
+	"strconv"
+
+	xrand "golang.org/x/exp/rand"
 
 	"github.com/rs/zerolog/log"
 )
@@ -33,4 +37,56 @@ func newIDBytes() []byte {
 	// newIDBytes returns newID as ASCII bytes.
 	id := newID()
 	return []byte(id)
+}
+
+/*********************************************************************
+**********************************************************************
+***                           PORT CACHING                         ***
+**********************************************************************
+*********************************************************************/
+
+var currentlyUsedPorts []int
+
+func findAvailablePort() (int, error) {
+
+	// Start with a random port number or a specific range if needed.
+	for {
+		port := xrand.Intn(1000) + 5000
+		if portExists(port) {
+			continue
+		}
+		log.Info().Msgf("check port %d", port)
+		l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+		if err == nil {
+			currentlyUsedPorts = append(currentlyUsedPorts, port)
+			l.Close()
+			return port, nil
+		}
+	}
+}
+
+func portExists(portNum int) bool {
+	// Iterate over the list of ports
+	for _, port := range currentlyUsedPorts {
+		// Only add the port to the result if it is not the one to remove
+		if port == portNum {
+			return true
+		}
+	}
+	return false
+}
+
+func removePort(portToRemove int) {
+	// Create a new slice to hold the ports after removal
+	var result []int
+
+	// Iterate over the list of ports
+	for _, port := range currentlyUsedPorts {
+		// Only add the port to the result if it is not the one to remove
+		if port != portToRemove {
+			result = append(result, port)
+		}
+	}
+
+	currentlyUsedPorts = result
 }

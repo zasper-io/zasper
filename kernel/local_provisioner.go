@@ -21,19 +21,9 @@ type LocalProvisioner struct {
 	PortsCached    bool
 }
 
-func hasProcess() {
-
-}
-
 func (provisioner *LocalProvisioner) launchKernel(kernelCmd []string, kw map[string]interface{}) KernelConnectionInfo {
 	process := launcher.LaunchKernel(kernelCmd, kw)
 	provisioner.Pid = process.Pid
 	log.Info().Msgf("kernel launched with pid: %d", process.Pid)
 	return provisioner.ConnectionInfo
 }
-
-// func (provisioner *LocalProvisioner) launchKernel(kernelCmd []string, kw map[string]interface{}) KernelConnectionInfo {
-// 	pid := launcher.LaunchKernel(kernelCmd, kw)
-// 	provisioner.Pid = pid
-// 	return provisioner.ConnectionInfo
-// }

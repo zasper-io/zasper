@@ -87,8 +87,8 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 		sockets are fully connected, and kernel is responsive.
 		Keeps retrying kernel_info_request until these are both received.
 	*/
-	transient_shell_channel := connect_shell(kwsConn.KernelManager.ConnectionInfo)
-	transient_control_channel := connect_control(kwsConn.KernelManager.ConnectionInfo)
+	transient_shell_channel := connectShell(kwsConn.KernelManager.ConnectionInfo)
+	transient_control_channel := connectControl(kwsConn.KernelManager.ConnectionInfo)
 	// shell returns info future
 	// Create a Poller
 	poller := zmq4.NewPoller()
@@ -229,7 +229,7 @@ func makeURL(channel string, port int) string {
 	return fmt.Sprintf("%s://%s-%d", Transport, ip, port)
 }
 
-func connect_shell(cinfo kernel.Connection) *zmq4.Socket {
+func connectShell(cinfo kernel.Connection) *zmq4.Socket {
 	channel := "shell"
 	url := makeURL(channel, cinfo.ShellPort)
 
@@ -240,15 +240,15 @@ func connect_shell(cinfo kernel.Connection) *zmq4.Socket {
 
 }
 
-func connect_control(cinfo kernel.Connection) *zmq4.Socket {
+func connectControl(cinfo kernel.Connection) *zmq4.Socket {
 	channel := "control"
 	url := makeURL(channel, cinfo.ControlPort)
 
 	socket, _ := zmq4.NewSocket(zmq4.DEALER)
 	socket.Connect(url)
 	return socket
-
 }
+
 func set_id(soc *zmq4.Socket) {
 	identity := fmt.Sprintf("%04X-%04X", rand.Intn(0x10000), rand.Intn(0x10000))
 	soc.SetIdentity(identity)

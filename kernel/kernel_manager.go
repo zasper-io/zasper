@@ -2,16 +2,13 @@ package kernel
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"slices"
-	"strconv"
 	"zasper_go/kernelspec"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/pebbe/zmq4"
-	"golang.org/x/exp/rand"
 )
 
 type KernelManager struct {
@@ -185,56 +182,4 @@ func (km *KernelManager) connectHbSocket() *zmq4.Socket {
 
 	return socket
 
-}
-
-/*********************************************************************
-**********************************************************************
-***                           PORT CACHING                         ***
-**********************************************************************
-*********************************************************************/
-
-var currentlyUsedPorts []int
-
-func findAvailablePort() (int, error) {
-
-	// Start with a random port number or a specific range if needed.
-	for {
-		port := rand.Intn(1000) + 5000
-		if portExists(port) {
-			continue
-		}
-		log.Info().Msgf("check port %d", port)
-		l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
-		if err == nil {
-			currentlyUsedPorts = append(currentlyUsedPorts, port)
-			l.Close()
-			return port, nil
-		}
-	}
-}
-
-func portExists(portNum int) bool {
-	// Iterate over the list of ports
-	for _, port := range currentlyUsedPorts {
-		// Only add the port to the result if it is not the one to remove
-		if port == portNum {
-			return true
-		}
-	}
-	return false
-}
-
-func removePort(portToRemove int) {
-	// Create a new slice to hold the ports after removal
-	var result []int
-
-	// Iterate over the list of ports
-	for _, port := range currentlyUsedPorts {
-		// Only add the port to the result if it is not the one to remove
-		if port != portToRemove {
-			result = append(result, port)
-		}
-	}
-
-	currentlyUsedPorts = result
 }

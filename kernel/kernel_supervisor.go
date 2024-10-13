@@ -9,6 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
+var ZasperPendingKernels map[string]KernelManager
+var ZasperActiveKernels map[string]KernelManager
+
+func SetUpStateKernels() map[string]KernelManager {
+	return make(map[string]KernelManager)
+}
+
 func listKernels() []models.KernelModel {
 	kernelIds := listKernelIds()
 
@@ -40,16 +47,17 @@ func listKernelIds() []string {
 	return keys
 }
 
-func MappingKMStartKernel(kernelPath string, kernelName string, env map[string]string) string {
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
+func StartKernelManager(kernelPath string, kernelName string, env map[string]string) string {
 	kernelId := uuid.New().String()
 
-	multiKMStartKernel(kernelName, kernelId)
+	km, kernel_name, kernel_id := createKernelManager(kernelName, kernelId)
+	log.Println(km, kernel_name, kernel_id)
 
-	// wait
-	finishKernelStart(&wg)
+	km.StartKernel(kernelName)
+
+	// task := addKernelWhenReady()
+	ZasperActiveKernels[kernelId] = km
+
 	return kernelId
 }
 
@@ -59,18 +67,6 @@ func finishKernelStart(wg *sync.WaitGroup) {
 
 func CwdForPath(path string) string {
 	return path
-}
-
-func multiKMStartKernel(kernelName string, kernelId string) string {
-	log.Println("in multikm start kernel")
-	km, kernel_name, kernel_id := createKernelManager(kernelName, kernelId)
-	log.Println(km, kernel_name, kernel_id)
-
-	km.StartKernel(kernelName)
-
-	// task := addKernelWhenReady()
-	ZasperActiveKernels[kernelId] = km
-	return kernel_id
 }
 
 func createKernelManager(kernelName string, kernelId string) (KernelManager, string, string) {

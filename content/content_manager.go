@@ -119,12 +119,9 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 }
 
 func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
+	// log.Info().Msgf("abs  path %s", abspath)
+	// log.Info().Msgf("relative  path %s", relativePath)
 
-	// fmt.Println(path)
-	// check
-	// os_path := GetOSPath(relativePath)
-	log.Info().Msgf("abs  path %s", abspath)
-	log.Info().Msgf("relative  path %s", relativePath)
 	os_path := filepath.Join(abspath, fileName)
 
 	info, err := os.Lstat(os_path)

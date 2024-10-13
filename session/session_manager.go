@@ -59,7 +59,7 @@ func startKernelForSession(path string, name string) string {
 	fmt.Println(kernel_path)
 	env := getKernelEnv(path, name)
 	log.Info().Msg("starting kernel")
-	kernelId := kernel.MappingKMStartKernel(path, name, env)
+	kernelId := kernel.StartKernelManager(path, name, env)
 	return kernelId
 }
 
