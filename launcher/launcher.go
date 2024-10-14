@@ -9,22 +9,6 @@ import (
 )
 
 func LaunchKernel(kernelCmd []string, kw map[string]interface{}) *os.Process {
-	// args := []string{}
-	// cmd := strings.Join(kernelCmd, " ")
-	// cmd := "/usr/bin/python3 -m http.server"
-	// args := strings.Split(cmd, " ")
-	// procAttr := new(os.ProcAttr)
-	// procAttr.Files = []*os.File{os.Stdin, os.Stdout, os.Stderr}
-	// process, err := os.StartProcess(cmd, args, procAttr)
-	// // process, err := os.StartProcess(cmd, args, procAttr)
-
-	// if err != nil {
-	// 	log.Printf("ERROR Unable to run %s: %s\n", cmd, err.Error())
-	// } else {
-	// 	log.Printf("%s running as pid %d\n", cmd, process.Pid)
-	// }
-	// return process
-	// }
 
 	cmd := exec.Command("/usr/bin/python3", "-m", "ipykernel_launcher", "-f", "kernelConnection.json") //  "--debug"
 

@@ -54,9 +54,6 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 
 	// handle websocket messages
 
-	// TODO  TODO   TODO  TODO   TODO  TODO   TODO  TODO   TODO  TODO
-	// TODO  TODO   TODO  TODO   TODO  TODO   TODO  TODO   TODO  TODO
-
 	kernelConnection := KernelWebSocketConnection{
 		KernelManager: kernelManager,
 		Channels:      make(map[string]*zmq4.Socket),

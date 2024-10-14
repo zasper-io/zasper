@@ -40,7 +40,11 @@ func getSession() KernelSession {
 func (ks *KernelSession) setKey(value string) {
 	ks.Key = value
 	ks.Auth = newAuth(value)
+}
 
+func (ks *KernelSession) Unpack(data interface{}) interface{} {
+	// Implement the unpack logic
+	return data
 }
 
 func newAuth(key string) hash.Hash {

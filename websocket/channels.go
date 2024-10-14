@@ -34,6 +34,11 @@ type KernelWebSocketConnection struct {
 	IOPubDataExceeded    int
 	IOPubWindowByteQueue []interface{}
 	KernelInfoChannel    zmq4.Socket
+	Subprotocol          string
+}
+
+func (kwsConn *KernelWebSocketConnection) getAllowedMessageTypes() []string {
+	return make([]string, 0)
 }
 
 func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
@@ -121,10 +126,97 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 
 }
 
-func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int, ws_msg []byte) {
-	msg, _ := deserializeBinaryMessage(ws_msg)
-	log.Info().Msgf("%s", msg)
+func deserializeMsgFromWsV1([]byte) (string, []interface{}) {
+	return "msg", make([]interface{}, 0)
 }
+
+func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int, incomingMsg []byte) {
+	// msg, _ := deserializeBinaryMessage(ws_msg)
+	// log.Info().Msgf("%s", msg)
+
+	wsMsg := incomingMsg
+	// h.mu.Lock()
+	// defer h.mu.Unlock()
+
+	if len(kwsConn.Channels) == 0 {
+		log.Printf("Received message on closed websocket: %v", wsMsg)
+		return
+	}
+
+	var msg Message
+	// var msgList []interface{}
+	// msgList = make([]interface{}, 0)
+	var channel string
+
+	if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
+		// channel, msgList = deserializeMsgFromWsV1(wsMsg)
+		msg = Message{
+			Header: nil,
+		}
+	} else {
+		// if isBinary(wsMsg) { // Implement your binary check
+		// 	msg = deserializeBinaryMessage([]byte(wsMsg))
+		// } else {
+		if err := json.Unmarshal([]byte(wsMsg), &msg); err != nil {
+			log.Info().Msgf("Error unmarshalling message:", err)
+			return
+		}
+
+		// msgList = []interface{}{}
+		channel = msg.Header["channel"].(string)
+		delete(msg.Header, "channel")
+	}
+
+	if channel == "" {
+		log.Printf("No channel specified, assuming shell: %v", msg)
+		channel = "shell"
+	}
+
+	if _, ok := kwsConn.Channels[channel]; !ok {
+		log.Printf("No such channel: %v", channel)
+		return
+	}
+
+	allowedMsgTypes := kwsConn.getAllowedMessageTypes()
+	ignoreMsg := false
+
+	if len(allowedMsgTypes) > 0 {
+		// msg.Header = kwsConn.GetPart("header", msg.Header, msgList)
+		if msg.Header == nil {
+			log.Info().Msg("Header is nil")
+			return
+		}
+		// if !contains(allowedMsgTypes, msg.Header["msg_type"].(string)) {
+		// 	log.Printf("Received message of type \"%s\", which is not allowed. Ignoring.", msg.Header["msg_type"])
+		// 	ignoreMsg = true
+		// }
+	}
+
+	if !ignoreMsg {
+		stream := kwsConn.Channels[channel]
+		fmt.Print(stream)
+		if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
+			// kwsConn.Session.SendRaw(stream, msgList)
+		} else {
+			// kwsConn.Session.Send(stream, msg)
+		}
+	}
+}
+
+// func (kwsConn *KernelWebSocketConnection) GetPart(field string, value map[string]interface{}, msgList []interface{}) interface{} {
+// 	// Check if the value is nil
+// 	if value == nil {
+// 		field2idx := map[string]int{
+// 			"header":        0,
+// 			"parent_header": 1,
+// 			"content":       3,
+// 		}
+// 		if idx, ok := field2idx[field]; ok && idx < len(msgList) {
+// 			value = kwsConn.Session.Unpack(msgList[idx])
+// 		}
+// 	}
+// 	return value
+// }
 
 type Msg struct {
 	Header       string
