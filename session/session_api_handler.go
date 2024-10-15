@@ -3,7 +3,8 @@ package session
 import (
 	"encoding/json"
 	"net/http"
-	"zasper_go/models"
+
+	"github.com/zasper-io/zasper/models"
 )
 
 func SessionApiHandler(w http.ResponseWriter, req *http.Request) {

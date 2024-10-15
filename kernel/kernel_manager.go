@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"zasper_go/kernelspec"
+
+	"github.com/zasper-io/zasper/kernelspec"
 
 	"github.com/rs/zerolog/log"
 

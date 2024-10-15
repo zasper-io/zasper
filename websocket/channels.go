@@ -9,7 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"zasper_go/kernel"
+
+	"github.com/zasper-io/zasper/kernel"
 
 	"github.com/rs/zerolog/log"
 

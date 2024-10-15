@@ -7,13 +7,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"zasper_go/content"
-	"zasper_go/core"
-	"zasper_go/health"
-	"zasper_go/kernel"
-	"zasper_go/kernelspec"
-	"zasper_go/session"
-	"zasper_go/websocket"
+
+	"github.com/zasper-io/zasper/content"
+	"github.com/zasper-io/zasper/core"
+	"github.com/zasper-io/zasper/health"
+	"github.com/zasper-io/zasper/kernel"
+	"github.com/zasper-io/zasper/kernelspec"
+	"github.com/zasper-io/zasper/session"
+	"github.com/zasper-io/zasper/websocket"
 
 	"github.com/rs/zerolog"
 

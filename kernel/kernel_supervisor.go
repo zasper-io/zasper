@@ -4,7 +4,8 @@ import (
 	"log"
 	"path/filepath"
 	"sync"
-	"zasper_go/models"
+
+	"github.com/zasper-io/zasper/models"
 
 	"github.com/google/uuid"
 )

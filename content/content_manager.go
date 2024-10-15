@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"zasper_go/core"
-	"zasper_go/models"
+
+	"github.com/zasper-io/zasper/core"
+	"github.com/zasper-io/zasper/models"
 
 	"github.com/rs/zerolog/log"
 )

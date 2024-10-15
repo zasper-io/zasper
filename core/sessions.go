@@ -1,6 +1,6 @@
 package core
 
-import "zasper_go/models"
+import "github.com/zasper-io/zasper/models"
 
 var ZasperSession map[string]models.SessionModel
 

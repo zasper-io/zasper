@@ -1,7 +1,7 @@
 package core
 
 import (
-	"zasper_go/utils"
+	"github.com/zasper-io/zasper/utils"
 )
 
 var Zasper Application

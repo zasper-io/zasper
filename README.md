@@ -45,6 +45,20 @@ Zasper comes in two flavours:
 
 #### Start the backend
 
+
+#### Install zeromq
+On debian
+```bash
+sudo apt-get install libzmq3-dev
+```
+
+On mac
+```zsh
+brew install pkg-config
+brew install zeromq
+```
+
+
 Go to project home and start the server
 
 ```bash
@@ -89,7 +103,6 @@ Go to project home and start the server
 ```bash
 go run .
 ```
-
 
 Go to `http://localhost:8888`
 

@@ -7,7 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"zasper_go/core"
+
+	"github.com/zasper-io/zasper/core"
 )
 
 type KernelspecResponse struct {

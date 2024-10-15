@@ -1,4 +1,4 @@
-module zasper_go
+module github.com/zasper-io/zasper
 
 go 1.23
 

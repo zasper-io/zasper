@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 	"time"
-	"zasper_go/content"
-	"zasper_go/core"
-	"zasper_go/kernel"
-	"zasper_go/models"
+
+	"github.com/zasper-io/zasper/content"
+	"github.com/zasper-io/zasper/core"
+	"github.com/zasper-io/zasper/kernel"
+	"github.com/zasper-io/zasper/models"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"zasper_go/core"
-	"zasper_go/kernel"
+
+	"github.com/zasper-io/zasper/core"
+	"github.com/zasper-io/zasper/kernel"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
