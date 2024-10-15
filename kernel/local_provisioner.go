@@ -1,8 +1,8 @@
 package kernel
 
 import (
+	"github.com/zasper-io/zasper/kernel/launcher"
 	"github.com/zasper-io/zasper/kernelspec"
-	"github.com/zasper-io/zasper/launcher"
 
 	"github.com/rs/zerolog/log"
 )
