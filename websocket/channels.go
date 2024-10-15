@@ -160,7 +160,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 		// 	msg = deserializeBinaryMessage([]byte(wsMsg))
 		// } else {
 		if err := json.Unmarshal([]byte(wsMsg), &msg); err != nil {
-			log.Info().Msgf("Error unmarshalling message:", err)
+			log.Info().Msgf("Error unmarshalling message: %s", err)
 			return
 		}
 
