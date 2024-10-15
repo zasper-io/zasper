@@ -10,9 +10,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zasper-io/zasper/kernel"
-
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/kernel"
 
 	"github.com/pebbe/zmq4"
 	"golang.org/x/exp/rand"
@@ -95,6 +94,8 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 		sockets are fully connected, and kernel is responsive.
 		Keeps retrying kernel_info_request until these are both received.
 	*/
+
+	kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
 	transient_shell_channel := connectShell(kwsConn.KernelManager.ConnectionInfo)
 	transient_control_channel := connectControl(kwsConn.KernelManager.ConnectionInfo)
 	// shell returns info future
@@ -103,8 +104,8 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	poller.Add(transient_shell_channel, zmq4.POLLIN)
 	poller.Add(transient_control_channel, zmq4.POLLIN)
 
-	kwsConn.Session.SendStreamMsg(transient_control_channel, "kernel_info_request")
-	kwsConn.Session.SendStreamMsg(transient_shell_channel, "kernel_info_request")
+	kwsConn.Session.SendStreamMsg(transient_control_channel, kernelInfoRequest)
+	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest)
 
 	for {
 		// Poll the sockets with a timeout of 1 second
@@ -146,16 +147,14 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 		return
 	}
 
-	var msg Message
+	var msg kernel.Message
 	// var msgList []interface{}
 	// msgList = make([]interface{}, 0)
 	var channel string
 
 	if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
 		// channel, msgList = deserializeMsgFromWsV1(wsMsg)
-		msg = Message{
-			Header: nil,
-		}
+		msg = kernel.Message{}
 	} else {
 		// if isBinary(wsMsg) { // Implement your binary check
 		// 	msg = deserializeBinaryMessage([]byte(wsMsg))
@@ -166,8 +165,8 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 		}
 
 		// msgList = []interface{}{}
-		channel = msg.Header["channel"].(string)
-		delete(msg.Header, "channel")
+		// channel = msg.Header["channel"].(string)
+		// delete(msg.Header, "channel")
 	}
 
 	if channel == "" {
@@ -185,7 +184,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 
 	if len(allowedMsgTypes) > 0 {
 		// msg.Header = kwsConn.GetPart("header", msg.Header, msgList)
-		if msg.Header == nil {
+		if (msg.Header == kernel.MessageHeader{}) {
 			log.Info().Msg("Header is nil")
 			return
 		}
@@ -240,7 +239,7 @@ func feedIdentities(msgList interface{}, copy bool) ([][]byte, interface{}, erro
 			}
 		}
 	} else {
-		msgListPtr, ok := msgList.([]*Message)
+		msgListPtr, ok := msgList.([]*kernel.Message)
 		if !ok {
 			return nil, nil, errors.New("msgList should be a list of Message")
 		}
@@ -442,17 +441,6 @@ func listenForMessages(socket *zmq4.Socket, callback MessageCallback) {
 		}
 		callback(msg)
 	}
-}
-
-// Define the structure of the message
-type Message struct {
-	Header       map[string]interface{} `json:"header"`
-	MsgID        string                 `json:"msg_id"`
-	MsgType      string                 `json:"msg_type"`
-	ParentHeader map[string]interface{} `json:"parent_header"`
-	Metadata     map[string]interface{} `json:"metadata"`
-	Content      interface{}            `json:"content"`
-	Buffers      [][]byte               `json:"buffers"`
 }
 
 // Function to sign the message parts

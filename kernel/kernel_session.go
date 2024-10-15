@@ -59,16 +59,29 @@ func json_packer(obj interface{}) []byte {
 	return val
 }
 
-func (ks *KernelSession) SendStreamMsg(stream *zmq4.Socket, msg interface{}) {
-	var content map[string]interface{}
+func (ks *KernelSession) SendStreamMsg(stream *zmq4.Socket, msg Message) Message {
 	var ident [][]byte
-	var parent MessageHeader
-	var buffers []byte
-	track := true
-	var header MessageHeader
-	var metadata map[string]interface{}
-	ks.Send(stream, msg, content, parent, ident, buffers, track, header, metadata)
+	if ks.CheckPid && os.Getpid() != ks.Pid {
+		log.Info().Msgf("WARNING: attempted to send message from fork %+v", msg)
+	}
+	toSend := ks.serialize(msg, ident)
+	var tracker int
+	tracker, _ = stream.SendMessage(toSend)
+	msg.Tracker = tracker
+	return msg
 }
+
+// [
+//	b"u-u-i-d",  # zmq identity(ies)
+//	b"<IDS|MSG>",  # delimiter
+//	b"baddad42",  # HMAC signature
+//	b"{header}",  # serialized header dict
+//	b"{parent_header}",  # serialized parent header dict
+//	b"{metadata}",  # serialized metadata dict
+//	b"{content}",  # serialized content dict
+//	b"\xf0\x9f\x90\xb1"  # extra raw data buffer(s)
+//	# ...
+// ]
 
 func (ks *KernelSession) Send(
 	stream *zmq4.Socket,

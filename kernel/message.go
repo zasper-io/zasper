@@ -4,14 +4,27 @@ import (
 	"time"
 )
 
-type MessageHeader struct {
-	MsgID    string    `json:"msg_id"`
-	MsgType  string    `json:"msg_type"`
-	Username string    `json:"username"`
-	Session  string    `json:"session"`
-	Date     time.Time `json:"date"`
-	Version  string    `json:"version"`
-}
+type (
+	MessageHeader struct {
+		MsgID    string    `json:"msg_id"`
+		MsgType  string    `json:"msg_type"`
+		Username string    `json:"username"`
+		Session  string    `json:"session"`
+		Date     time.Time `json:"date"`
+		Version  string    `json:"version"`
+	}
+
+	Message struct {
+		Header       MessageHeader `json:"header"`
+		ParentHeader MessageHeader `json:"parent_header"`
+		MsgId        string        `json:"msg_id"`
+		MsgType      string        `json:"msg_type"`
+		Content      interface{}   `json:"content"`
+		Buffers      []byte        `json:"buffers"`
+		Metadata     string        `json:"metadata"`
+		Tracker      int           `json:"tracker"`
+	}
+)
 
 func (ks *KernelSession) newMsgHeader(msgType string, userName string, session string) MessageHeader {
 	return MessageHeader{
@@ -24,17 +37,6 @@ func (ks *KernelSession) newMsgHeader(msgType string, userName string, session s
 	}
 }
 
-type Message struct {
-	Header       MessageHeader `json:"header"`
-	ParentHeader MessageHeader `json:"parent_header"`
-	MsgId        string        `json:"msg_id"`
-	MsgType      string        `json:"msg_type"`
-	Content      interface{}   `json:"content"`
-	Buffers      []byte        `json:"buffers"`
-	Metadata     string        `json:"metadata"`
-	Tracker      int           `json:"tracker"`
-}
-
 func (ks *KernelSession) createMsg(msgType string,
 	content interface{},
 	parent MessageHeader,
@@ -43,19 +45,24 @@ func (ks *KernelSession) createMsg(msgType string,
 
 	msg := Message{}
 	// expect header is not provided
-	if header == (MessageHeader{}) {
-		// log.Println("new header created")
-		msg.Header = ks.newMsgHeader(msgType, getUsername(), ks.Key)
-	} else {
-		// log.Println("new header is NOT created")
-		msg.Header = header
-	}
-
-	// log.Println(nheader)
 
 	msg.MsgId = msg.Header.MsgID
 	// msg.ParentHeader = parent
 	msg.Content = "{}"
 	msg.Metadata = "{}"
 	return msg
+}
+
+func (ks *KernelSession) MessageFromString(value string) Message {
+	msg := Message{}
+	msg.Header = ks.newMsgHeader(value, getUsername(), ks.Key)
+	msg.MsgId = msg.Header.MsgID
+	msg.Content = "{}"
+	msg.Metadata = "{}"
+
+	return msg
+}
+
+func (ks *KernelSession) MessageFromDict(value map[string]interface{}) Message {
+	return Message{}
 }
