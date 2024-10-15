@@ -96,6 +96,7 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	*/
 
 	kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
+	kernelInfoRequest2 := kwsConn.Session.MessageFromString("kernel_info_request")
 	transient_shell_channel := connectShell(kwsConn.KernelManager.ConnectionInfo)
 	transient_control_channel := connectControl(kwsConn.KernelManager.ConnectionInfo)
 	// shell returns info future
@@ -105,7 +106,7 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	poller.Add(transient_control_channel, zmq4.POLLIN)
 
 	kwsConn.Session.SendStreamMsg(transient_control_channel, kernelInfoRequest)
-	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest)
+	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest2)
 
 	for {
 		// Poll the sockets with a timeout of 1 second

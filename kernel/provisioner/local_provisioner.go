@@ -1,4 +1,4 @@
-package kernel
+package provisioner
 
 import (
 	"github.com/zasper-io/zasper/kernel/launcher"
@@ -21,7 +21,7 @@ type LocalProvisioner struct {
 	PortsCached    bool
 }
 
-func (provisioner *LocalProvisioner) launchKernel(kernelCmd []string, kw map[string]interface{}) KernelConnectionInfo {
+func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[string]interface{}) KernelConnectionInfo {
 	process := launcher.LaunchKernel(kernelCmd, kw)
 	provisioner.Pid = process.Pid
 	log.Info().Msgf("kernel launched with pid: %d", process.Pid)

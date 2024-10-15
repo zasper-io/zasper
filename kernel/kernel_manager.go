@@ -5,6 +5,7 @@ import (
 	"os"
 	"slices"
 
+	"github.com/zasper-io/zasper/kernel/provisioner"
 	"github.com/zasper-io/zasper/kernelspec"
 
 	"github.com/rs/zerolog/log"
@@ -21,7 +22,7 @@ type KernelManager struct {
 	KernelName     string
 	ControlSocket  *zmq4.Socket
 	CachePorts     bool
-	Provisioner    LocalProvisioner
+	Provisioner    provisioner.LocalProvisioner
 	Kernelspec     string
 
 	LastActivity   string
@@ -65,7 +66,7 @@ func (km *KernelManager) getKernelspec() kernelspec.KernelSpecJsonData {
 func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[string]interface{}) {
 	km.ShuttingDown = false
 
-	km.Provisioner = LocalProvisioner{
+	km.Provisioner = provisioner.LocalProvisioner{
 		KernelId:    km.KernelId,
 		Kernelspec:  km.getKernelspec(),
 		PortsCached: false,
@@ -95,7 +96,7 @@ func (km *KernelManager) asyncLaunchKernel(kernelCmd []string, kw map[string]int
 	log.Info().Msgf("kw : %s", kw)
 	log.Info().Msgf("cmd : %s", kernelCmd)
 
-	ConnectionInfo := km.Provisioner.launchKernel(kernelCmd, kw)
+	ConnectionInfo := km.Provisioner.LaunchKernel(kernelCmd, kw)
 	log.Info().Msgf("connectionInfo: %s", ConnectionInfo)
 }
 
