@@ -17,6 +17,8 @@ import (
 	"golang.org/x/exp/rand"
 )
 
+const DELIM = "<IDS|MSG>"
+
 type KernelWebSocketConnection struct {
 	KernelManager        kernel.KernelManager
 	LimitRate            bool
@@ -203,20 +205,65 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 	}
 }
 
-// func (kwsConn *KernelWebSocketConnection) GetPart(field string, value map[string]interface{}, msgList []interface{}) interface{} {
-// 	// Check if the value is nil
-// 	if value == nil {
-// 		field2idx := map[string]int{
-// 			"header":        0,
-// 			"parent_header": 1,
-// 			"content":       3,
-// 		}
-// 		if idx, ok := field2idx[field]; ok && idx < len(msgList) {
-// 			value = kwsConn.Session.Unpack(msgList[idx])
-// 		}
-// 	}
-// 	return value
-// }
+func (kwsConn *KernelWebSocketConnection) GetPart(field string, value map[string]interface{}, msgList []interface{}) interface{} {
+	// Check if the value is nil
+	if value == nil {
+		field2idx := map[string]int{
+			"header":        0,
+			"parent_header": 1,
+			"content":       3,
+		}
+		if idx, ok := field2idx[field]; ok && idx < len(msgList) {
+			// value = kwsConn.Session.Unpack(msgList[idx])
+		}
+	}
+	return value
+}
+
+func feedIdentities(msgList interface{}, copy bool) ([][]byte, interface{}, error) {
+
+	var idents [][]byte
+	var remaining interface{}
+
+	if copy {
+		bytesList, ok := msgList.([][]byte)
+		if !ok {
+			return nil, nil, errors.New("msgList should be a list of bytes")
+		}
+
+		for i, msg := range bytesList {
+			if string(msg) == DELIM { // Assuming DELIM is a byte
+				idents = bytesList[:i]
+				remaining = bytesList[i+1:]
+				return idents, remaining, nil
+			}
+		}
+	} else {
+		msgListPtr, ok := msgList.([]*Message)
+		if !ok {
+			return nil, nil, errors.New("msgList should be a list of Message")
+		}
+		fmt.Println(msgListPtr)
+
+		// for i, msg := range msgListPtr {
+		// 	if msg0[] == DELIM { // Assuming DELIM is a byte
+		// 		idents = make([][]byte, i)
+		// 		for j := 0; j < i; j++ {
+		// 			idents[j] = msgListPtr[j].Bytes
+		// 		}
+		// 		remaining = msgListPtr[i+1:]
+		// 		return idents, remaining, nil
+		// 	}
+		// }
+	}
+
+	return nil, nil, errors.New("DELIM not in msgList")
+}
+
+func (kwsConn *KernelWebSocketConnection) handleOutgoingMessage(stream string, outgoing_msg [](interface{})) {
+	msg_list := outgoing_msg
+	fmt.Println(msg_list)
+}
 
 type Msg struct {
 	Header       string
@@ -405,76 +452,6 @@ type Message struct {
 	Metadata     map[string]interface{} `json:"metadata"`
 	Content      interface{}            `json:"content"`
 	Buffers      [][]byte               `json:"buffers"`
-}
-
-// Deserialize function
-func deserialize(
-	msgList [][]byte, // List of byte slices
-	content bool,
-	copy bool,
-	authKey []byte,
-	digestHistory map[string]struct{}, // Keep track of used signatures
-) (Message, error) {
-	minLen := 5
-	var message Message
-
-	// Handle signature verification if authKey is provided
-	if authKey != nil {
-		signature := msgList[0]
-		if len(signature) == 0 {
-			return message, errors.New("unsigned message")
-		}
-		if _, found := digestHistory[string(signature)]; found {
-			return message, errors.New("duplicate signature")
-		}
-
-		// Calculate expected signature
-		check := sign(msgList[1:5], authKey)
-		if !hmac.Equal(signature, check) {
-			return message, fmt.Errorf("invalid signature: %x", signature)
-		}
-
-		// Add signature to digest history
-		digestHistory[string(signature)] = struct{}{}
-	}
-
-	if len(msgList) < minLen {
-		return message, fmt.Errorf("malformed message, must have at least %d elements", minLen)
-	}
-
-	// Unmarshal JSON from the message parts
-	if err := json.Unmarshal(msgList[1], &message.Header); err != nil {
-		return message, fmt.Errorf("error unmarshalling header: %w", err)
-	}
-	message.MsgID = message.Header["msg_id"].(string)
-	message.MsgType = message.Header["msg_type"].(string)
-
-	if err := json.Unmarshal(msgList[2], &message.ParentHeader); err != nil {
-		return message, fmt.Errorf("error unmarshalling parent header: %w", err)
-	}
-
-	if err := json.Unmarshal(msgList[3], &message.Metadata); err != nil {
-		return message, fmt.Errorf("error unmarshalling metadata: %w", err)
-	}
-
-	if content {
-		if err := json.Unmarshal(msgList[4], &message.Content); err != nil {
-			return message, fmt.Errorf("error unmarshalling content: %w", err)
-		}
-	} else {
-		message.Content = msgList[4]
-	}
-
-	// Handle buffers
-	message.Buffers = msgList[5:]
-
-	// Debug print
-	fmt.Printf("Message: %+v\n", message)
-
-	// Adapt to the current version (implement as needed)
-	// message = adapt(message)
-
-	return message, nil
 }
 
 // Function to sign the message parts

@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"hash"
 	"os"
 
@@ -42,9 +44,10 @@ func (ks *KernelSession) setKey(value string) {
 	ks.Auth = newAuth(value)
 }
 
-func (ks *KernelSession) Unpack(data interface{}) interface{} {
+func (ks *KernelSession) Unpack(data []interface{}) interface{} {
 	// Implement the unpack logic
-	return data
+	data2 := "abc"
+	return data2
 }
 
 func newAuth(key string) hash.Hash {
@@ -188,4 +191,74 @@ func (ks *KernelSession) sign(msg_list [][]byte) string {
 		hash.Write(msg)
 	}
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+// Deserialize function
+func (ks *KernelSession) deserialize(
+	msgList [][]byte, // List of byte slices
+	content bool,
+	copy bool,
+	authKey []byte,
+	digestHistory map[string]struct{}, // Keep track of used signatures
+) (Message, error) {
+	minLen := 5
+	var message Message
+
+	// Handle signature verification if authKey is provided
+	if authKey != nil {
+		signature := msgList[0]
+		if len(signature) == 0 {
+			return message, errors.New("unsigned message")
+		}
+		if _, found := digestHistory[string(signature)]; found {
+			return message, errors.New("duplicate signature")
+		}
+
+		// Calculate expected signature
+		check := ks.sign(msgList[1:5])
+		if !hmac.Equal(signature, []byte(check)) {
+			return message, fmt.Errorf("invalid signature: %x", signature)
+		}
+
+		// Add signature to digest history
+		digestHistory[string(signature)] = struct{}{}
+	}
+
+	if len(msgList) < minLen {
+		return message, fmt.Errorf("malformed message, must have at least %d elements", minLen)
+	}
+
+	// Unmarshal JSON from the message parts
+	if err := json.Unmarshal(msgList[1], &message.Header); err != nil {
+		return message, fmt.Errorf("error unmarshalling header: %w", err)
+	}
+	message.MsgId = message.Header.MsgID
+	message.MsgType = message.Header.MsgType
+
+	if err := json.Unmarshal(msgList[2], &message.ParentHeader); err != nil {
+		return message, fmt.Errorf("error unmarshalling parent header: %w", err)
+	}
+
+	if err := json.Unmarshal(msgList[3], &message.Metadata); err != nil {
+		return message, fmt.Errorf("error unmarshalling metadata: %w", err)
+	}
+
+	if content {
+		if err := json.Unmarshal(msgList[4], &message.Content); err != nil {
+			return message, fmt.Errorf("error unmarshalling content: %w", err)
+		}
+	} else {
+		message.Content = msgList[4]
+	}
+
+	// Handle buffers
+	// message.Buffers = msgList[5:]
+
+	// Debug print
+	fmt.Printf("Message: %+v\n", message)
+
+	// Adapt to the current version (implement as needed)
+	// message = adapt(message)
+
+	return message, nil
 }
