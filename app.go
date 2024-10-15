@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	glog "log"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"net/http"
 	"os"
@@ -50,6 +55,7 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)
 }
 func main() {
+
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	cwd := flag.String("cwd", ".", "base directory of project")
@@ -122,5 +128,30 @@ func main() {
 	spa := spaHandler{staticPath: "./ui/build", indexPath: "index.html"}
 	router.PathPrefix("/").Handler(spa)
 
-	glog.Fatal(http.ListenAndServe(*port, corsOpts.Handler(router)))
+	// Channel for graceful shutdown
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := http.ListenAndServe(*port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("ListenAndServe(): %s\n", err)
+		}
+	}()
+
+	<-stop
+	fmt.Println("Shutting down server...")
+
+	// Cleanup function
+	cleanup()
+
+	// Shutdown the server gracefully
+	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	fmt.Println("Server exiting")
+}
+
+// cleanup performs cleanup operations
+func cleanup() {
+	fmt.Println("Performing cleanup...")
+	kernel.Cleanup()
 }

@@ -1,9 +1,12 @@
 package kernel
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 
 	"github.com/zasper-io/zasper/models"
 
@@ -15,6 +18,37 @@ var ZasperActiveKernels map[string]KernelManager
 
 func SetUpStateKernels() map[string]KernelManager {
 	return make(map[string]KernelManager)
+}
+
+func Cleanup() {
+	for _, km := range ZasperActiveKernels {
+		killKernel(km.Provisioner.Pid)
+	}
+}
+
+func killKernel(pid int) {
+
+	// Get the process by PID
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		fmt.Printf("Error finding process: %v\n", err)
+		return
+	}
+
+	// Attempt to kill the process
+	err = process.Kill()
+	if err != nil {
+		if err == syscall.ESRCH {
+			fmt.Println("No such process.")
+		} else if err == syscall.EPERM {
+			fmt.Println("Permission denied.")
+		} else {
+			fmt.Printf("Error killing process: %v\n", err)
+		}
+		return
+	}
+
+	fmt.Printf("Process %d killed successfully.\n", pid)
 }
 
 func listKernels() []models.KernelModel {
