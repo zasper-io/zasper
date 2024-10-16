@@ -2,8 +2,6 @@ package websocket
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -14,7 +12,6 @@ import (
 	"github.com/zasper-io/zasper/kernel"
 
 	"github.com/pebbe/zmq4"
-	"golang.org/x/exp/rand"
 )
 
 const DELIM = "<IDS|MSG>"
@@ -47,7 +44,6 @@ func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
 	registerWebSocketSession(sessionId)
 	km := kwsConn.KernelManager
 	if km.Ready {
-		log.Info().Msg("===========Kernel is ready=============")
 		log.Info().Msgf("%s", km.Session.Key)
 	} else {
 		log.Info().Msg("===========Kernel is not ready============")
@@ -75,15 +71,13 @@ func (kwsConn *KernelWebSocketConnection) createStream() {
 	// not sure about hb
 
 	cinfo := kwsConn.KernelManager.ConnectionInfo
-	kwsConn.Channels["iopub"] = connect_iopub(cinfo)
-	// kwsConn.Channels["shell"] = connect_shell(cinfo)
-	// kwsConn.Channels["control"] = connect_control(cinfo)
-	kwsConn.Channels["stdin"] = connect_stdin(cinfo)
-	kwsConn.Channels["hb"] = connect_hb(cinfo)
+	kwsConn.Channels["iopub"] = cinfo.ConnectIopub()
+	// kwsConn.Channels["shell"] = cinfo.ConnectShell()
+	// kwsConn.Channels["control"] = cinfo.ConnectControl()
+	kwsConn.Channels["stdin"] = cinfo.ConnectStdin()
+	kwsConn.Channels["hb"] = cinfo.ConnectHb()
 }
 
-// cst["hb"] = zmq4.Req
-// "hb_port": 4283,
 func (kwsConn *KernelWebSocketConnection) nudge() {
 
 	/*
@@ -97,8 +91,8 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 
 	kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
 	kernelInfoRequest2 := kwsConn.Session.MessageFromString("kernel_info_request")
-	transient_shell_channel := connectShell(kwsConn.KernelManager.ConnectionInfo)
-	transient_control_channel := connectControl(kwsConn.KernelManager.ConnectionInfo)
+	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell()
+	transient_control_channel := kwsConn.KernelManager.ConnectionInfo.ConnectControl()
 	// shell returns info future
 	// Create a Poller
 	poller := zmq4.NewPoller()
@@ -369,64 +363,7 @@ func makeURL(channel string, port int) string {
 	return fmt.Sprintf("%s://%s-%d", Transport, ip, port)
 }
 
-func connectShell(cinfo kernel.Connection) *zmq4.Socket {
-	channel := "shell"
-	url := makeURL(channel, cinfo.ShellPort)
-
-	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	// set_id(socket)
-	socket.Connect(url)
-	return socket
-
-}
-
-func connectControl(cinfo kernel.Connection) *zmq4.Socket {
-	channel := "control"
-	url := makeURL(channel, cinfo.ControlPort)
-
-	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	socket.Connect(url)
-	return socket
-}
-
-func set_id(soc *zmq4.Socket) {
-	identity := fmt.Sprintf("%04X-%04X", rand.Intn(0x10000), rand.Intn(0x10000))
-	soc.SetIdentity(identity)
-}
-
-func connect_iopub(cinfo kernel.Connection) *zmq4.Socket {
-	channel := "iopub"
-	url := makeURL(channel, cinfo.IopubPort)
-
-	socket, _ := zmq4.NewSocket(zmq4.SUB)
-	// srt subscription filter
-	socket.SetSubscribe("")
-	socket.Connect(url)
-
-	return socket
-
-}
-
-func connect_stdin(cinfo kernel.Connection) *zmq4.Socket {
-	channel := "stdin"
-	url := makeURL(channel, cinfo.StdinPort)
-	fmt.Println(url)
-	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	socket.Connect(url)
-	return socket
-
-}
-
-func connect_hb(cinfo kernel.Connection) *zmq4.Socket {
-	channel := "hb"
-	url := makeURL(channel, cinfo.HbPort)
-	socket, _ := zmq4.NewSocket(zmq4.REQ)
-	socket.Connect(url)
-	return socket
-
-}
-
-// Define a callback type
+// Define a callback type => Use when we switch to Reactive pattern
 type MessageCallback func(string)
 
 // Function to handle incoming messages and call the callback
@@ -442,13 +379,4 @@ func listenForMessages(socket *zmq4.Socket, callback MessageCallback) {
 		}
 		callback(msg)
 	}
-}
-
-// Function to sign the message parts
-func sign(parts [][]byte, key []byte) []byte {
-	h := hmac.New(sha256.New, key)
-	for _, part := range parts {
-		h.Write(part)
-	}
-	return h.Sum(nil)
 }

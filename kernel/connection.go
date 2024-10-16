@@ -7,7 +7,9 @@ import (
 
 	"os"
 
+	"github.com/pebbe/zmq4"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/rand"
 )
 
 // connectionFileMixin
@@ -74,4 +76,75 @@ func (km *KernelManager) writeConnectionFile(connectionFile string) error {
 	}
 
 	return nil
+}
+
+/*********************************************************************
+**********************************************************************
+***                  Create Connected Sockets                      ***
+**********************************************************************
+*********************************************************************/
+
+func (conn *Connection) makeURL(channel string, port int) string {
+
+	if conn.Transport == "tcp" {
+		return fmt.Sprintf("tcp://%s:%d", conn.IP, port)
+	}
+	return fmt.Sprintf("%s://%s-%d", conn.Transport, conn.IP, port)
+}
+
+func (conn *Connection) ConnectShell() *zmq4.Socket {
+	channel := "shell"
+	url := conn.makeURL(channel, conn.ShellPort)
+
+	socket, _ := zmq4.NewSocket(zmq4.DEALER)
+	// set_id(socket)
+	socket.Connect(url)
+	return socket
+
+}
+
+func (conn *Connection) ConnectControl() *zmq4.Socket {
+	channel := "control"
+	url := conn.makeURL(channel, conn.ControlPort)
+
+	socket, _ := zmq4.NewSocket(zmq4.DEALER)
+	socket.Connect(url)
+	return socket
+}
+
+func set_id(soc *zmq4.Socket) {
+	identity := fmt.Sprintf("%04X-%04X", rand.Intn(0x10000), rand.Intn(0x10000))
+	soc.SetIdentity(identity)
+}
+
+func (conn *Connection) ConnectIopub() *zmq4.Socket {
+	channel := "iopub"
+	url := conn.makeURL(channel, conn.IopubPort)
+
+	socket, _ := zmq4.NewSocket(zmq4.SUB)
+	// srt subscription filter
+	socket.SetSubscribe("")
+	socket.Connect(url)
+
+	return socket
+
+}
+
+func (conn *Connection) ConnectStdin() *zmq4.Socket {
+	channel := "stdin"
+	url := conn.makeURL(channel, conn.StdinPort)
+	fmt.Println(url)
+	socket, _ := zmq4.NewSocket(zmq4.DEALER)
+	socket.Connect(url)
+	return socket
+
+}
+
+func (conn *Connection) ConnectHb() *zmq4.Socket {
+	channel := "hb"
+	url := conn.makeURL(channel, conn.HbPort)
+	socket, _ := zmq4.NewSocket(zmq4.REQ)
+	socket.Connect(url)
+	return socket
+
 }
