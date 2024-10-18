@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/pebbe/zmq4"
 	"github.com/zasper-io/zasper/models"
 
 	"github.com/google/uuid"
@@ -49,6 +50,18 @@ func killKernel(pid int) {
 	}
 
 	fmt.Printf("Process %d killed successfully.\n", pid)
+}
+
+func NotifyDisconnect(kernelId string) {
+
+}
+
+func RemoveRestartCallback() {
+
+}
+
+func StartBuffering(kernelId, sessionKey string, channels map[string]*zmq4.Socket) {
+
 }
 
 func listKernels() []models.KernelModel {

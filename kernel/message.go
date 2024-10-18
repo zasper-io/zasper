@@ -21,7 +21,7 @@ type (
 		MsgType      string        `json:"msg_type"`
 		Content      interface{}   `json:"content"`
 		Buffers      []byte        `json:"buffers"`
-		Metadata     string        `json:"metadata"`
+		Metadata     interface{}   `json:"metadata"`
 		Tracker      int           `json:"tracker"`
 	}
 )

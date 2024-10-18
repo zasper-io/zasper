@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/kernel"
 
@@ -17,13 +18,16 @@ import (
 const DELIM = "<IDS|MSG>"
 
 type KernelWebSocketConnection struct {
+	Conn                 *websocket.Conn
+	send                 chan []byte
+	KernelId             string
 	KernelManager        kernel.KernelManager
 	LimitRate            bool
 	IOpubMsgRateLimit    int
 	IOpubDataRateLimit   int
 	RateLimitWindow      int
 	Context              context.Context
-	OpenSessions         []string
+	OpenSessions         map[string]kernel.KernelSession
 	OpenSockets          []string
 	Channels             map[string]*zmq4.Socket
 	Session              kernel.KernelSession
@@ -38,6 +42,10 @@ type KernelWebSocketConnection struct {
 
 func (kwsConn *KernelWebSocketConnection) getAllowedMessageTypes() []string {
 	return make([]string, 0)
+}
+
+func (kwsConn *KernelWebSocketConnection) writeMessage(msg interface{}, binary bool) {
+	// Implement message writing logic (send over websocket)
 }
 
 func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
@@ -63,6 +71,11 @@ func (kwsConn *KernelWebSocketConnection) connect() {
 
 	log.Info().Msg("Nudging the kernel")
 	kwsConn.nudge()
+
+	// subscribe
+
+	// add connection to registry
+
 }
 
 func (kwsConn *KernelWebSocketConnection) createStream() {
@@ -72,8 +85,8 @@ func (kwsConn *KernelWebSocketConnection) createStream() {
 
 	cinfo := kwsConn.KernelManager.ConnectionInfo
 	kwsConn.Channels["iopub"] = cinfo.ConnectIopub()
-	// kwsConn.Channels["shell"] = cinfo.ConnectShell()
-	// kwsConn.Channels["control"] = cinfo.ConnectControl()
+	kwsConn.Channels["shell"] = cinfo.ConnectShell()
+	kwsConn.Channels["control"] = cinfo.ConnectControl()
 	kwsConn.Channels["stdin"] = cinfo.ConnectStdin()
 	kwsConn.Channels["hb"] = cinfo.ConnectHb()
 }
@@ -91,38 +104,60 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 
 	kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
 	kernelInfoRequest2 := kwsConn.Session.MessageFromString("kernel_info_request")
+
 	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell()
 	transient_control_channel := kwsConn.KernelManager.ConnectionInfo.ConnectControl()
+
+	iopub_channel := kwsConn.Channels["iopub"]
 	// shell returns info future
 	// Create a Poller
 	poller := zmq4.NewPoller()
 	poller.Add(transient_shell_channel, zmq4.POLLIN)
 	poller.Add(transient_control_channel, zmq4.POLLIN)
+	poller.Add(iopub_channel, zmq4.POLLIN)
 
 	kwsConn.Session.SendStreamMsg(transient_control_channel, kernelInfoRequest)
 	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest2)
 
+	infoFuture := false
+	shellFuture := false
+	controlFuture := false
+
 	for {
+		if infoFuture && shellFuture && controlFuture {
+			break
+		}
 		// Poll the sockets with a timeout of 1 second
-		sockets, err := poller.Poll(1 * time.Second)
+		sockets, err := poller.Poll(3 * time.Second)
 		if err != nil {
 			log.Info().Msgf("%s", err)
 		}
 
 		// Check which sockets have events
 		for _, socket := range sockets {
+			if socket.Socket == nil {
+				continue
+			}
+			fmt.Print("Polling .....")
 			switch s := socket.Socket; s {
 			case transient_shell_channel:
 				msg, _ := s.Recv(0)
 				fmt.Printf("Received from Shell socket: %s\n", msg)
-
+				shellFuture = true
 			case transient_control_channel:
 				msg, _ := s.Recv(0)
 				fmt.Printf("Received from Control socket: %s\n", msg)
+				controlFuture = true
+			case iopub_channel:
+				msg, _ := s.Recv(0)
+				fmt.Printf("Received from IoPub socket: %s\n", msg)
+				infoFuture = true
 			}
 		}
+
 	}
 
+	fmt.Print("Nudge successful")
 }
 
 func deserializeMsgFromWsV1([]byte) (string, []interface{}) {
@@ -158,6 +193,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 			log.Info().Msgf("Error unmarshalling message: %s", err)
 			return
 		}
+		fmt.Println("msg is =>", msg)
 
 		// msgList = []interface{}{}
 		// channel = msg.Header["channel"].(string)
@@ -350,17 +386,102 @@ func deserializeBinaryMessage(bmsg []byte) (map[string]interface{}, error) {
 	return msg, nil
 }
 
+func (kwsConn *KernelWebSocketConnection) Disconnect() {
+	log.Printf("WebSocket closed %s", kwsConn.Session.Key)
+
+	// Unregister if this session key corresponds to the current websocket handler
+	// if kwsConn.OpenSessions[kwsConn.Session.Key] == kwsConn {
+	// 	delete(kwsConn.OpenSessions, kwsConn.Session.Key)
+	// }
+
+	if _, exists := kernel.ZasperActiveKernels[kwsConn.KernelId]; exists {
+		kernel.NotifyDisconnect(kwsConn.KernelId)
+		// kernel.RemoveRestartCallback(kwsConn.KernelId, kwsConn.onKernelRestarted)
+		// kernel.RemoveRestartCallback(kwsConn.KernelId, kwsConn.onRestartFailed, "dead")
+
+		// Start buffering if this was the last connection
+		// if connections, exists := kernel.ZasperActiveKernels[kwsConn.KernelId]; exists && connections == 0 {
+		// 	kernel.StartBuffering(kwsConn.KernelId, kwsConn.Session.Key, kwsConn.Channels)
+		// 	// Assuming _openSockets is a global or package-level variable
+		// 	removeOpenSocket(kwsConn)
+		// 	// kwsConn.closeFuture.Done()
+		// 	return
+		// }
+	}
+
+	// Handle closing streams
+	// for _, stream := range kwsConn.Channels {
+	// 	if stream != nil && !stream.IsClosed() {
+	// 		// stream.OnRecv(nil)
+	// 		stream.Close()
+	// 	}
+	// }
+
+	// Clear the channels
+	kwsConn.Channels = make(map[string]*zmq4.Socket)
+	// Attempt to remove from open sockets
+	removeOpenSocket(kwsConn)
+	// kwsConn.closeFuture.Done()
+}
+
+func removeOpenSocket(kwsConn *KernelWebSocketConnection) {
+	panic("unimplemented")
+}
+
+func (kwsConn *KernelWebSocketConnection) onZMQReply(stream map[string]*zmq4.Socket, msgList []kernel.Message) {
+	// Check if the stream is closed
+	// if stream.IsClosed() {
+	// 	fmt.Println("ZMQ message arrived on closed channel")
+	// 	kwsConn.Disconnect()
+	// 	return
+	// }
+
+	// channel := kwsConn.Channels // Assuming it's assigned earlier
+
+	// var binMsg []byte
+	// var err error
+
+	// if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
+	// 	binMsg, err = serializeMsgToWSV1(msgList, channel)
+	// 	if err == nil {
+	// 		kwsConn.WriteMessage(binMsg, true)
+	// 	}
+	// } else {
+	// 	msg, err := channel.ReserializeReply(msgList)
+	// 	if err != nil {
+	// 		log.Printf("Malformed message: %v", msgList)
+	// 	} else {
+	// 		err = channel.WriteMessage(msg, isBinary(msg))
+	// 		if err != nil {
+	// 			fmt.Println(err)
+	// 		}
+	// 	}
+	// }
+}
+
 func registerWebSocketSession(sessionId string) {
 	log.Info().Msgf("registering a new session: %s", sessionId)
 }
 
-func makeURL(channel string, port int) string {
-	ip := "127.0.0.1"
-	Transport := "tcp"
-	if Transport == "tcp" {
-		return fmt.Sprintf("tcp://%s:%d", ip, port)
+func (kwsConn KernelWebSocketConnection) writeStderr(errorMessage string, parentHeader interface{}) {
+	// Write a message to stderr
+	log.Printf("Warning: %s", errorMessage)
+
+	// errMsg := kwsConn.Session.msg("stream", map[string]interface{}{
+	// 	"text": errorMessage + "\n",
+	// 	"name": "stderr",
+	// }, parentHeader)
+	errMsg := make(map[string]string)
+
+	if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
+		// binMsg := serializeMsgToWSV1(errMsg, "iopub", kwsConn.Session.pack)
+		binMsg := ""
+		kwsConn.writeMessage(binMsg, true)
+	} else {
+		errMsg["channel"] = "iopub"
+		msgBytes, _ := json.Marshal(errMsg) // Handle error in production code
+		kwsConn.writeMessage(string(msgBytes), false)
 	}
-	return fmt.Sprintf("%s://%s-%d", Transport, ip, port)
 }
 
 // Define a callback type => Use when we switch to Reactive pattern
