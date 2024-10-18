@@ -19,7 +19,7 @@ const DELIM = "<IDS|MSG>"
 
 type KernelWebSocketConnection struct {
 	Conn                 *websocket.Conn
-	send                 chan []byte
+	Send                 chan []byte
 	KernelId             string
 	KernelManager        kernel.KernelManager
 	LimitRate            bool
@@ -44,8 +44,30 @@ func (kwsConn *KernelWebSocketConnection) getAllowedMessageTypes() []string {
 	return make([]string, 0)
 }
 
-func (kwsConn *KernelWebSocketConnection) writeMessage(msg interface{}, binary bool) {
-	// Implement message writing logic (send over websocket)
+func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, binary bool
+	iopub_channel := kwsConn.Channels["iopub"]
+
+	poller := zmq4.NewPoller()
+	poller.Add(iopub_channel, zmq4.POLLIN)
+
+	for {
+		// Poll the sockets with a timeout of 1 second
+		sockets, err := poller.Poll(1 * time.Second)
+		if err != nil {
+			log.Info().Msgf("%s", err)
+		}
+
+		// Check which sockets have events
+		for _, socket := range sockets {
+			switch s := socket.Socket; s {
+
+			case iopub_channel:
+				msg, _ := s.Recv(0)
+				kwsConn.Send <- []byte(msg)
+			}
+		}
+
+	}
 }
 
 func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
@@ -73,7 +95,7 @@ func (kwsConn *KernelWebSocketConnection) connect() {
 	kwsConn.nudge()
 
 	// subscribe
-
+	go kwsConn.writeMessage()
 	// add connection to registry
 
 }
@@ -151,12 +173,14 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 			case iopub_channel:
 				msg, _ := s.Recv(0)
 				fmt.Printf("Received from IoPub socket: %s\n", msg)
+				// kwsConn.send <- []byte(msg)
 				infoFuture = true
 			}
 		}
 
 	}
-
+	transient_control_channel.Close()
+	transient_shell_channel.Close()
 	fmt.Print("Nudge successful")
 }
 
@@ -194,6 +218,9 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 			return
 		}
 		fmt.Println("msg is =>", msg)
+		kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
+
+		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], kernelInfoRequest)
 
 		// msgList = []interface{}{}
 		// channel = msg.Header["channel"].(string)
@@ -227,7 +254,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 
 	if !ignoreMsg {
 		stream := kwsConn.Channels[channel]
-		fmt.Print(stream)
+		fmt.Printf("stream", stream)
 		if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
 			// kwsConn.Session.SendRaw(stream, msgList)
 		} else {
@@ -475,12 +502,12 @@ func (kwsConn KernelWebSocketConnection) writeStderr(errorMessage string, parent
 
 	if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
 		// binMsg := serializeMsgToWSV1(errMsg, "iopub", kwsConn.Session.pack)
-		binMsg := ""
-		kwsConn.writeMessage(binMsg, true)
+		// binMsg := ""
+		// kwsConn.writeMessage(binMsg, true)
 	} else {
 		errMsg["channel"] = "iopub"
-		msgBytes, _ := json.Marshal(errMsg) // Handle error in production code
-		kwsConn.writeMessage(string(msgBytes), false)
+		// msgBytes, _ := json.Marshal(errMsg) // Handle error in production code
+		// kwsConn.writeMessage(string(msgBytes), false)
 	}
 }
 

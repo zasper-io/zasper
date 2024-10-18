@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -67,6 +66,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		KernelManager: kernelManager,
 		Channels:      make(map[string]*zmq4.Socket),
 		Conn:          conn,
+		Send:          make(chan []byte),
 	}
 
 	log.Println("preparing kernel connection")
@@ -79,16 +79,8 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	clients[&kernelConnection] = true
 	clientsMu.Unlock()
 
-	// go handleMessages(&kernelConnection)
-	// defer func() {
-	// 	clientsMu.Lock()
-	// 	delete(clients, &kernelConnection)
-	// 	clientsMu.Unlock()
-	// 	conn.Close()
-	// }()
-
 	go kernelConnection.readMessages()
-	// go kernelConnection.writeMessages()
+	go kernelConnection.writeMessages()
 }
 
 func (kwsConn *KernelWebSocketConnection) readMessages() {
@@ -103,30 +95,21 @@ func (kwsConn *KernelWebSocketConnection) readMessages() {
 			log.Println(err)
 			return
 		}
-		fmt.Printf("Received message: %s\n", data)
-
 		log.Println("message type =>", messageType)
-		log.Println("data receieved =>", data)
 		kwsConn.handleIncomingMessage(messageType, data)
-
-		// echo the message to the client
-		if err := kwsConn.Conn.WriteMessage(messageType, data); err != nil {
-			log.Println(err)
-			return
-		}
 		// broadcast <- message // Send message to broadcast channel
 	}
 }
 
-func (c *KernelWebSocketConnection) writeMessages() {
-	defer c.Conn.Close()
+func (kwsConn *KernelWebSocketConnection) writeMessages() {
+	defer kwsConn.Conn.Close()
 	for {
-		message, ok := <-c.send
+		message, ok := <-kwsConn.Send
 		if !ok {
-			c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+			kwsConn.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 			return
 		}
-		if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+		if err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 			log.Println("Error writing message:", err)
 			return
 		}
@@ -139,9 +122,9 @@ func handleMessages() {
 		// Send message to all connected clients
 		for client := range clients {
 			select {
-			case client.send <- message:
+			case client.Send <- message:
 			default:
-				close(client.send)
+				close(client.Send)
 				delete(clients, client)
 			}
 		}
