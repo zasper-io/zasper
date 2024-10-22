@@ -7,6 +7,7 @@ import { toast, ToastContainer } from 'react-toastify'
 import { v4 as uuidv4 } from 'uuid'
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
+import 'react-toastify/dist/ReactToastify.css';
 
 import './NotebookEditor.scss'
 
@@ -290,6 +291,7 @@ export default function NotebookEditor (props) {
       parent_header: {}
     })
     console.log('Sending message', message)
+    toast("sent a message")
     client.send(message)
   }
 
@@ -353,14 +355,14 @@ export default function NotebookEditor (props) {
           <button type='button' className='editor-button'><i className='fas fa-redo' /></button>
           <button type='button' className='editor-button'><i className='fas fa-forward' /></button>
           <div className='ms-auto'>Python [conda env:default]*</div>
+          <ToastContainer />
         </div>
-        <ToastContainer />
+        
         {debugMode && <div>
           <button type='button' onClick={saveFile}>Save file</button>
           <button type='button' onClick={listKernels}>ListKernels</button>
           <button type='button' onClick={startASession}>StartASession</button>
           <button type='button' onClick={listAllSessions}>ListAllSessions</button>
-          <button type='button'>Button2</button>
           <button type='button' onClick={startWebSocket}>StartWebSocket</button>
           <button type='button' onClick={sendAMessage}>SendAMessage</button>
         </div>

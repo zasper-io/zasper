@@ -254,7 +254,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 
 	if !ignoreMsg {
 		stream := kwsConn.Channels[channel]
-		fmt.Printf("stream", stream)
+		fmt.Print("stream", stream)
 		if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
 			// kwsConn.Session.SendRaw(stream, msgList)
 		} else {
