@@ -12,3 +12,14 @@
     color: #747474;
     font-size: 17px;
 }
+
+.cellOptions{
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    padding: 18px 18px 13px 18px;
+    border: 1px solid #cccccc;
+    color: #acacac;
+    height: 20px;
+    float: right;
+}

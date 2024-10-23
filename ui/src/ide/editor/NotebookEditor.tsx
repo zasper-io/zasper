@@ -263,36 +263,15 @@ export default function NotebookEditor (props) {
     return today.toISOString()
   }
 
-  const sendAMessage = () => {
-    const message = JSON.stringify({
-      buffers: [],
-      channel: 'shell',
-      content: {
-        silent: false,
-        store_history: true,
-        user_expressions: {},
-        allow_stdin: true,
-        stop_on_error: true,
-        code: '1200*3600'
-      },
-      header: {
-        date: getTimeStamp(),
-        msg_id: uuidv4(),
-        msg_type: 'execute_request',
-        session: session.id,
-        username: '',
-        version: '5.2'
-      },
-      metadata: {
-        deletedCells: [],
-        recordTiming: false,
-        cellId: '1cb16896-03e7-480c-aa2b-f1ba6bb1b56d'
-      },
-      parent_header: {}
-    })
-    console.log('Sending message', message)
-    toast("sent a message")
-    client.send(message)
+  const createExecuteRequestMsg = (code: string) => {
+    return {
+      silent: false,
+      store_history: true,
+      user_expressions: {},
+      allow_stdin: true,
+      stop_on_error: true,
+      code: code
+    }
   }
 
   const submitCell = (source: string) => {
@@ -300,14 +279,7 @@ export default function NotebookEditor (props) {
     const message = JSON.stringify({
       buffers: [],
       channel: 'shell',
-      content: {
-        silent: false,
-        store_history: true,
-        user_expressions: {},
-        allow_stdin: true,
-        stop_on_error: true,
-        code: source
-      },
+      content: createExecuteRequestMsg(source),
       header: {
         date: getTimeStamp(),
         msg_id: uuidv4(),
@@ -344,67 +316,87 @@ export default function NotebookEditor (props) {
   return (
     <div className='tab-content'>
       <div className={props.data.display} id='profile' role='tabpanel' aria-labelledby='profile-tab'>
-        <div className='text-editor-tool'>
-          <button type='button' className='editor-button' onClick={saveFile}><i className='fas fa-save' /></button>
-          <button type='button' className='editor-button'><i className='fas fa-cut' /></button>
-          <button type='button' className='editor-button'><i className='fas fa-copy' /></button>
-          <button type='button' className='editor-button'><i className='fas fa-plus' /></button>
-          <button type='button' className='editor-button'><i className='fas fa-check-square' /></button>
-          <button type='button' className='editor-button'><i className='fas fa-play' /></button>
-          <button type='button' className='editor-button'><i className='fas fa-square' /></button>
-          <button type='button' className='editor-button'><i className='fas fa-redo' /></button>
-          <button type='button' className='editor-button'><i className='fas fa-forward' /></button>
-          <div className='ms-auto'>Python [conda env:default]*</div>
-          <ToastContainer />
-        </div>
+      <NbButtons/>
         
-        {debugMode && <div>
-          <button type='button' onClick={saveFile}>Save file</button>
-          <button type='button' onClick={listKernels}>ListKernels</button>
-          <button type='button' onClick={startASession}>StartASession</button>
-          <button type='button' onClick={listAllSessions}>ListAllSessions</button>
-          <button type='button' onClick={startWebSocket}>StartWebSocket</button>
-          <button type='button' onClick={sendAMessage}>SendAMessage</button>
-        </div>
-        }
-        <div className='editor-body'>
-          {
-                    fileContents.cells.map((cell, index) =>
-                      <Cell key={index} cell={cell} generateOutput={generateOutput} />
-                    )
-                }
-
-        </div>
+      {debugMode && <div>
+        <button type='button' onClick={saveFile}>Save file</button>
+        <button type='button' onClick={listKernels}>ListKernels</button>
+        <button type='button' onClick={startASession}>StartASession</button>
+        <button type='button' onClick={listAllSessions}>ListAllSessions</button>
+        <button type='button' onClick={startWebSocket}>StartWebSocket</button>
       </div>
+      }
+      <div className='editor-body'>
+        {
+          fileContents.cells.map((cell, index) =>
+            <Cell key={index} cell={cell} generateOutput={generateOutput} submitCell={submitCell} />
+          )
+        }
+      </div>
+    </div>
+  </div>
+  )
+}
+
+function NbButtons(){
+  return (
+    <div className='text-editor-tool'>
+      <button type='button' className='editor-button'><i className='fas fa-save' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-cut' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-copy' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-plus' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-check-square' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-play' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-square' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-redo' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-forward' /></button>
+      
+      <div className='ms-auto'>Python [conda env:default]*</div>
+      <ToastContainer />
+    </div>
+  )
+}
+
+function CellButtons(props){
+  return (
+    <div className='cellOptions'>
+      <button type='button' className='editor-button' onClick={() => props.submitCell(props.code)}><i className='fas fa-play' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-square' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-redo' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-cut' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-copy' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-plus' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-check-square' /></button>
+      <button type='button' className='editor-button'><i className='fas fa-forward' /></button>
+      <ToastContainer />
     </div>
   )
 }
 
 function Cell (props) {
   const cell = props.cell
+  const [fileContents, setFileContents] = useState(cell.source[0])
   if (cell.cell_type === 'markdown') {
     return (
-      <Markdown rehypePlugins={[rehypeRaw]}>{cell.source[0]}</Markdown>
+      <Markdown rehypePlugins={[rehypeRaw]}>{fileContents}</Markdown>
     )
   }
+
   return (
     <div className='single-line'>
 
       <div className='serial-no'>[{cell.execution_count}]:</div>
       <div className='inner-content'>
+      <CellButtons code={fileContents} submitCell={props.submitCell}/>
         <CodeMirror
-          value={cell.source[0]}
+          value={fileContents}
           height='auto'
           width='100%'
           extensions={[python()]}
           onChange={(value) => {
-            cell.source = value
+            setFileContents(value)
           }}
         />
-        {debugMode && <div>
-          <button type='button' onClick={() => props.submitCell(cell.source)}> Run</button>
-        </div>}
-
         <div className='inner-text'>
           {props.generateOutput(cell)}
         </div>
