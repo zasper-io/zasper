@@ -145,7 +145,7 @@ export default function NotebookEditor (props) {
           console.log('data')
           console.log(data)
           if (data.lenghth === 0) {
-            startASession()
+            startASession(props.name, props.path, props.type)
           }
         },
         (error) => {
@@ -155,27 +155,19 @@ export default function NotebookEditor (props) {
       )
   }
 
-  const startASession = () => {
+  const startASession = (path, name, type) => {
     // Simple GET request using fetch
-    const a = {
-      path: 'Untitled1.ipynb',
-      name: 'Untitled1.ipynb',
-      type: 'notebook',
-      kernel,
-      notebook: { path: 'Untitled1.ipynb', name: 'Untitled1.ipynb' }
-    }
-    console.log(a)
     console.log('Starting a session')
     if (session.id === '') {
       if (kernel != null) {
         fetch(BaseApiUrl + '/api/sessions', {
           method: 'POST',
           body: JSON.stringify({
-            path: 'Untitled1.ipynb',
-            name: 'Untitled1.ipynb',
-            type: 'notebook',
+            path: path,
+            name: name,
+            type: type,
             kernel,
-            notebook: { path: 'Untitled1.ipynb', name: 'Untitled1.ipynb' }
+            notebook: { path: path, name: name }
           })
 
         })
@@ -201,29 +193,28 @@ export default function NotebookEditor (props) {
 
   const startWebSocket = () => {
     const client1 = new W3CWebSocket('ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id)
-    // var client1 = new W3CWebSocket("ws://localhost:8888/ws");
 
     client1.onopen = () => {
       console.log('WebSocket Client Connected')
     }
     client1.onmessage = (message) => {
-      message = JSON.parse(message.data)
-      if (message.channel === 'iopub') {
-        console.log('IOPub => ', message)
-        if (message.msg_type === 'execute_result') {
-          console.log(message.content.data)
-          toast(message.content.data['text/plain'])
-          toast(message.content.data['text/html'])
-        }
-        if (message.msg_type === 'stream') {
-          console.log(message.content.text)
-          toast(message.content.text)
-          toast(message.content.text)
-        }
-      }
-      if (message.channel === 'shell') {
-        console.log('Shell => ', message)
-      }
+      // message = JSON.parse(message.data)
+      // if (message.channel === 'iopub') {
+      //   console.log('IOPub => ', message)
+      //   if (message.msg_type === 'execute_result') {
+      //     console.log(message.content.data)
+      //     toast(message.content.data['text/plain'])
+      //     toast(message.content.data['text/html'])
+      //   }
+      //   if (message.msg_type === 'stream') {
+      //     console.log(message.content.text)
+      //     toast(message.content.text)
+      //     toast(message.content.text)
+      //   }
+      // }
+      // if (message.channel === 'shell') {
+      //   console.log('Shell => ', message)
+      // }
     }
     client1.onclose = () => {
       console.log('disconnected')
@@ -285,7 +276,7 @@ export default function NotebookEditor (props) {
         msg_id: uuidv4(),
         msg_type: 'execute_request',
         session: session.id,
-        username: '',
+        username: 'prasunanand',
         version: '5.2'
       },
       metadata: {
@@ -321,7 +312,7 @@ export default function NotebookEditor (props) {
       {debugMode && <div>
         <button type='button' onClick={saveFile}>Save file</button>
         <button type='button' onClick={listKernels}>ListKernels</button>
-        <button type='button' onClick={startASession}>StartASession</button>
+        <button type='button' onClick={()=>startASession(props.data.name, props.data.path, props.data.type)}>StartASession</button>
         <button type='button' onClick={listAllSessions}>ListAllSessions</button>
         <button type='button' onClick={startWebSocket}>StartWebSocket</button>
       </div>

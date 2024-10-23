@@ -218,9 +218,9 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 			return
 		}
 		fmt.Println("msg is =>", msg)
-		kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
+		// kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
 
-		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], kernelInfoRequest)
+		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
 
 		// msgList = []interface{}{}
 		// channel = msg.Header["channel"].(string)

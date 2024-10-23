@@ -186,7 +186,7 @@ func (ks *KernelSession) serialize(msg Message, ident [][]byte) [][]byte {
 		json_packer(msg.Header),
 		json_packer("{}"),
 		json_packer(msg.Metadata),
-		[]byte("{}"), // []byte("kernel_info_request"),
+		json_packer(msg.Content), // []byte("kernel_info_request"),
 	}
 	to_send := [][]byte{}
 	// log.Info().Msgf("real message is %s", realMessage)
