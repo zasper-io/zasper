@@ -76,7 +76,7 @@ func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
 	if km.Ready {
 		log.Info().Msgf("%s", km.Session.Key)
 	} else {
-		log.Info().Msg("===========Kernel is not ready============")
+		log.Info().Msg("Kernel is not ready")
 	}
 	// raise timeout error
 	kwsConn.Session = km.Session
@@ -218,7 +218,6 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 			return
 		}
 		fmt.Println("msg is =>", msg)
-		// kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
 
 		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
 

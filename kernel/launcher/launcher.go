@@ -1,11 +1,11 @@
 package launcher
 
 import (
-	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
+
+	"github.com/rs/zerolog/log"
 )
 
 func LaunchKernel(kernelCmd []string, kw map[string]interface{}) *os.Process {
@@ -15,55 +15,43 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}) *os.Process {
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		log.Fatalf("Error creating stdin pipe: %v", err)
+		log.Fatal().Msgf("Error creating stdin pipe: %v", err)
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatalf("Error creating stdout pipe: %v", err)
+		log.Fatal().Msgf("Error creating stdout pipe: %v", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		log.Fatalf("Error creating stderr pipe: %v", err)
+		log.Fatal().Msgf("Error creating stderr pipe: %v", err)
 	}
 
 	// Start the command
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("Error starting command: %v", err)
+		log.Fatal().Msgf("Error starting command: %v", err)
 	}
 
 	// Send input to the process
 	go func() {
 		defer stdin.Close()
 		if _, err := stdin.Write([]byte("input data\n")); err != nil {
-			log.Fatalf("Error writing to stdin: %v", err)
+			log.Fatal().Msgf("Error writing to stdin: %v", err)
 		}
 	}()
 
 	// Capture stdout and stderr
 	go func() {
 		if _, err := io.Copy(os.Stdout, stdout); err != nil {
-			log.Fatalf("Error copying stdout: %v", err)
+			log.Fatal().Msgf("Error copying stdout: %v", err)
 		}
 	}()
 
 	go func() {
 		if _, err := io.Copy(os.Stderr, stderr); err != nil {
-			log.Fatalf("Error copying stderr: %v", err)
+			log.Fatal().Msgf("Error copying stderr: %v", err)
 		}
 	}()
 
-	// Wait for the command to complete
-	// if err := cmd.Wait(); err != nil {
-	// 	log.Fatalf("Command finished with error: %v", err)
-	// }
-
-	// Defer the process closure to ensure it is killed when the main program exits
-	// defer func() {
-	// 	if cmd.Process != nil {
-	// 		fmt.Printf("Killing process with PID: %d\n", cmd.Process.Pid)
-	// 		cmd.Process.Kill() // Kill the process when the program exits
-	// 	}
-	// }()
-	fmt.Println("Process started successfully")
+	log.Info().Msg("Process started successfully")
 	return cmd.Process
 }

@@ -13,7 +13,6 @@ import (
 )
 
 func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
-	log.Info().Msg("POST request received")
 	var body ContentRequestBody
 	err := json.NewDecoder(req.Body).Decode(&body)
 	log.Info().Msgf("%s", body)
@@ -61,9 +60,6 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
-
-	log.Info().Msg("PUT request received")
-
 	var body ContentUpdateRequest
 	err := json.NewDecoder(req.Body).Decode(&body)
 
@@ -79,8 +75,6 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
-	log.Info().Msg("DELETE request received")
-
 	var body ContentRequestBody
 	err := json.NewDecoder(req.Body).Decode(&body)
 
@@ -98,8 +92,6 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
-	log.Info().Msg("Post request received")
-
 	var contentPayload ContentPayload
 	_ = json.NewDecoder(req.Body).Decode(&contentPayload)
 	data := newUntitled(contentPayload)
@@ -109,8 +101,6 @@ func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
-	log.Info().Msg("Patch request received")
-
 	vars := mux.Vars(req)
 	oldPath := vars["path"]
 

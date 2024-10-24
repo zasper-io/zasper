@@ -28,7 +28,6 @@ func GetContent(relativePath string, contentType string, format string, hash int
 	log.Info().Msgf("%t", info.IsDir())
 	if info.IsDir() {
 		model = getDirectoryModel(relativePath)
-		// fmt.Println(model)
 	} else {
 		if contentType == "notebook" {
 			model = getNotebookModel(relativePath)
@@ -263,21 +262,6 @@ func GetKernelPath(path string) int {
 }
 
 func dirExists(path string) bool {
-	// Does the API-style path refer to an extant directory?
-
-	// API-style wrapper for os.path.isdir
-
-	// Parameters
-	// ----------
-	// path : str
-	// The path to check. This is an API path (`/` separated,
-	// relative to root_dir).
-
-	// Returns
-	// -------
-	// exists : bool
-	// Whether the path is indeed a directory.
-	//
 	path = filepath.Clean(path)
 	os_path := GetOSPath(path)
 	return IsDir(os_path)
@@ -293,27 +277,6 @@ func IsDir(path string) bool {
 }
 
 func GetOSPath(path string) string {
-	// Given an API path, return its file system path.
-
-	// Parameters
-	// ----------
-	// path : str
-	// The relative API path to the named file.
-
-	// Returns
-	// -------
-	// path : str
-	// Native, absolute OS path to for a file.
-
-	// Raises
-	// ------
-	// 404: if path is outside root
-
-	// wdpath, err := os.Getwd()
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	abspath := filepath.Join(core.Zasper.HomeDir, path)
 	return abspath
 }
