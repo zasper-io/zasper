@@ -15,7 +15,7 @@ import './NotebookEditor.scss'
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../config'
 
-const debugMode = true
+const debugMode = false
 
 export default function NotebookEditor (props) {
   interface ICell {
@@ -486,7 +486,9 @@ function Cell (props) {
   const [fileContents, setFileContents] = useState(cell.source[0])
   if (cell.cell_type === 'markdown') {
     return (
-      <Markdown rehypePlugins={[rehypeRaw]}>{fileContents}</Markdown>
+      <div tabIndex={props.index}  className='activeCell'>
+        <Markdown rehypePlugins={[rehypeRaw]}>{fileContents}</Markdown>
+      </div>
     )
   }
 
@@ -504,7 +506,7 @@ function Cell (props) {
   ])
 
   return (
-    <div className='single-line'>
+    <div tabIndex={props.index} className='single-line activeCell'>
 
       <div className='serial-no'>[{cell.execution_count}]:</div>
       <div className='inner-content'>

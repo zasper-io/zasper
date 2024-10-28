@@ -21,16 +21,6 @@ button {
     display: block !important;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p {
-    margin-bottom: 0px;
-}
-
 .font-h1 {
     font-size: 76px !important;
 }
