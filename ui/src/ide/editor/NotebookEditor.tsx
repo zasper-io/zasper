@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 
 import CodeMirror from '@uiw/react-codemirror'
 import { python } from '@codemirror/lang-python'
@@ -58,7 +58,9 @@ export default function NotebookEditor (props) {
                                                     nbformat_minor:0,
                                                     metadata: {}
                                                   })
-  const [blankCell, setBlankCell] = useState<ICell>({ execution_count: 0, source: '' })
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
+
 
   const [client, setClient] = useState<IClient>({ send: () => { } })
 
@@ -396,6 +398,24 @@ export default function NotebookEditor (props) {
     console.log("ReExecute Notebook")
   }
 
+  const handleKeyDown = (event) => {
+    if (event.key === 'ArrowDown') {
+      setFocusedIndex((prev) => {
+        const newIndex = Math.min(prev + 1, notebook.cells.length - 1);
+        divRefs.current[newIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return newIndex;
+      });
+      event.preventDefault();
+    } else if (event.key === 'ArrowUp') {
+      setFocusedIndex((prev) => {
+        const newIndex = Math.max(prev - 1, 0);
+        divRefs.current[newIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return newIndex;
+      });
+      event.preventDefault();
+    }
+  };
+
 
 
   return (
@@ -433,6 +453,10 @@ export default function NotebookEditor (props) {
                   prevCell={prevCell}
                   nextCell={nextCell}
                   deleteCell={deleteCell}
+                  focusedIndex = {focusedIndex}
+                  setFocusedIndex={setFocusedIndex}
+                  handleKeyDown={handleKeyDown}
+                  divRefs={divRefs}
             />
           )
         }
@@ -486,7 +510,9 @@ function Cell (props) {
   const [fileContents, setFileContents] = useState(cell.source[0])
   if (cell.cell_type === 'markdown') {
     return (
-      <div tabIndex={props.index}  className='activeCell'>
+      <div tabIndex={props.index}  className={props.index === props.focusedIndex ? 'activeCell': ''} 
+      ref={(el) => (props.divRefs.current[props.index] = el)}
+      onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
         <Markdown rehypePlugins={[rehypeRaw]}>{fileContents}</Markdown>
       </div>
     )
@@ -506,7 +532,11 @@ function Cell (props) {
   ])
 
   return (
-    <div tabIndex={props.index} className='single-line activeCell'>
+    <div tabIndex={props.index} 
+        className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'} 
+        onKeyDown={props.handleKeyDown} 
+        ref={(el) => (props.divRefs.current[props.index] = el)}
+        onFocus={() => props.setFocusedIndex(props.index)}>
 
       <div className='serial-no'>[{cell.execution_count}]:</div>
       <div className='inner-content'>
