@@ -1,13 +1,13 @@
 
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 
-import CodeMirror from '@uiw/react-codemirror'
+import CodeMirror, {ReactCodeMirrorRef} from '@uiw/react-codemirror'
 import { python } from '@codemirror/lang-python'
 import { toast, ToastContainer } from 'react-toastify'
 import { v4 as uuidv4 } from 'uuid'
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
-import { keymap } from '@codemirror/view'
+import { keymap, ViewUpdate } from '@codemirror/view'
 import 'react-toastify/dist/ReactToastify.css';
 
 import './NotebookEditor.scss'
@@ -16,6 +16,12 @@ import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../config'
 
 const debugMode = false
+
+interface CodeMirrorRef {
+  editor: {
+    focus: () => void;
+  };
+}
 
 export default function NotebookEditor (props) {
   interface ICell {
@@ -60,6 +66,7 @@ export default function NotebookEditor (props) {
                                                   })
   const [focusedIndex, setFocusedIndex] = useState(0);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
+  const codeMirrorRefs = useRef<CodeMirrorRef[]>([]); 
 
 
   const [client, setClient] = useState<IClient>({ send: () => { } })
@@ -97,6 +104,10 @@ export default function NotebookEditor (props) {
       // listKernels();
       // listAllSessions();
     }
+     // Focus the CodeMirror editor when the index changes
+    // if (codeMirrorRefs.current[focusedIndex]) {
+    //   codeMirrorRefs.current[focusedIndex].editor.focus();
+    // }
    
   }, [])
 
@@ -457,6 +468,7 @@ export default function NotebookEditor (props) {
                   setFocusedIndex={setFocusedIndex}
                   handleKeyDown={handleKeyDown}
                   divRefs={divRefs}
+                  codeMirrorRefs={codeMirrorRefs}
             />
           )
         }
@@ -506,8 +518,32 @@ function CellButtons(props){
 }
 
 function Cell (props) {
+  const codeMirrorRef = useRef<any>(null); 
   const cell = props.cell
   const [fileContents, setFileContents] = useState(cell.source[0])
+  const[cursorPosition, setCursorPosition] = useState(0)
+  const[totalLines, setTotalLines] = useState(0)
+
+  const onChange = useCallback((value, viewUpdate) => {
+    console.log('val:', value);
+    setFileContents(value)
+
+  }, []);
+
+  const onUpdate =  useCallback(( viewUpdate: ViewUpdate) => {
+    if(viewUpdate){
+      const { state } = viewUpdate;
+      const cursor = state.selection.main.from; // or state.selection.main.to for the end position
+      const line = state.doc.lineAt(cursor).number;
+        
+      const totalLines = state.doc.lines;
+      setCursorPosition(line)
+      setTotalLines(totalLines)
+
+    }
+
+  }, []);
+
   if (cell.cell_type === 'markdown') {
     return (
       <div tabIndex={props.index}  className={props.index === props.focusedIndex ? 'activeCell': ''} 
@@ -531,10 +567,22 @@ function Cell (props) {
     }
   ])
 
+  const handleKeyDownCM = (event) => {
+    if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
+      props.handleKeyDown({key:"ArrowDown", preventDefault: ()=>{}})
+      event.preventDefault();
+    } else if (event.key === 'ArrowUp'  && cursorPosition ===  1) {
+      props.handleKeyDown({key:"ArrowUp", preventDefault: ()=>{}})
+      event.preventDefault();
+    }
+  };
+
+
+  
+
   return (
     <div tabIndex={props.index} 
-        className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'} 
-        onKeyDown={props.handleKeyDown} 
+        className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'}  
         ref={(el) => (props.divRefs.current[props.index] = el)}
         onFocus={() => props.setFocusedIndex(props.index)}>
 
@@ -553,9 +601,10 @@ function Cell (props) {
           height='auto'
           width='100%'
           extensions={[python()]}
-          onChange={(value) => {
-            setFileContents(value)
-          }}
+          autoFocus={props.index === props.focusedIndex ? true: false} 
+          onChange={onChange}
+          onUpdate={onUpdate}
+          onKeyDown={handleKeyDownCM}
         />
         <div className='inner-text'>
           {props.generateOutput(cell)}

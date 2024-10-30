@@ -31,12 +31,8 @@
 }
 
 .activeCell{
-    border: 2px solid #acacac;
+    border: 2px solid #4a2ccf;
     border-radius: 4px;
     margin-bottom: 20px;
     padding: 20px;
-}
-
-.activeCell:focus{
-    border: 2px solid #4a2ccf;
 }
