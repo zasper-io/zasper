@@ -313,7 +313,6 @@ export default function NotebookEditor (props) {
   }
 
   const submitCell = (source: string) => {
-    toast(source)
     const message = JSON.stringify({
       buffers: [],
       channel: 'shell',
@@ -497,7 +496,6 @@ function NbButtons(props){
       </select>
       
       <div className='ms-auto'>Python [conda env:default]*</div>
-      <ToastContainer />
     </div>
   )
 }
@@ -512,7 +510,6 @@ function CellButtons(props){
       <button type='button' className='editor-button' onClick={() => props.addCellUp()}><i className='fas fa-plus' /></button>
       <button type='button' className='editor-button' onClick={() => props.addCellDown()}><i className='fas fa-plus' /></button>
       <button type='button' className='editor-button' onClick={() => props.deleteCell(props.index)}><i className='fas fa-trash' /></button>
-      <ToastContainer />
     </div>
   )
 }
@@ -556,13 +553,13 @@ function Cell (props) {
 
   const handleCmdEnter = () => {
     console.log(alert("running the code"))
-
+    props.submitCell(fileContents)
     return true
   }
 
   const customKeymap = keymap.of([
     {
-      key: 'Mod-s',
+      key: 'Shift-Enter',
       run: handleCmdEnter
     }
   ])
@@ -600,7 +597,7 @@ function Cell (props) {
           value={fileContents}
           height='auto'
           width='100%'
-          extensions={[python()]}
+          extensions={[python(),customKeymap]}
           autoFocus={props.index === props.focusedIndex ? true: false} 
           onChange={onChange}
           onUpdate={onUpdate}
