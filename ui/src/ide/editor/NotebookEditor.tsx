@@ -1,9 +1,8 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 
-import CodeMirror, {ReactCodeMirrorRef} from '@uiw/react-codemirror'
+import CodeMirror from '@uiw/react-codemirror'
 import { python } from '@codemirror/lang-python'
-import { toast, ToastContainer } from 'react-toastify'
 import { v4 as uuidv4 } from 'uuid'
 import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
@@ -25,6 +24,7 @@ interface CodeMirrorRef {
 
 export default function NotebookEditor (props) {
   interface ICell {
+    cell_type: CellType
     execution_count: number
     source: string
   }
@@ -94,7 +94,7 @@ export default function NotebookEditor (props) {
     })
     const resJson = await res.json()
     setNotebook(resJson.content)
-    console.log(resJson['content']);
+    console.log("notebook => ", notebook);
   }
 
   useEffect(() => {
@@ -352,16 +352,23 @@ export default function NotebookEditor (props) {
 
   const addCellUp = async () =>{
     console.log("add cell Up");
-    notebook.cells.push({
+    const updatedNotebook = Object.assign({}, notebook)
+    updatedNotebook.cells.push({
       execution_count: 0,
-      source: ""})
+      source: "",
+      cell_type: "raw"
+    })
+    setNotebook(updatedNotebook)
+
   }
 
   const addCellDown = async () =>{
     console.log("add cell Down");
     notebook.cells.push({
       execution_count: 0,
-      source: ""})
+      source: "",
+      cell_type: "raw"
+    })
   }
 
   const deleteCell = async (index: number) =>{
@@ -406,6 +413,7 @@ export default function NotebookEditor (props) {
   }
   const reExecuteNotebook =  () => {
     console.log("ReExecute Notebook")
+    console.log("notebook => ", notebook)
   }
 
   const handleKeyDown = (event) => {
@@ -440,6 +448,8 @@ export default function NotebookEditor (props) {
                 stopKernel={stopKernel}
                 restartKernel={restartKernel}
                 reExecuteNotebook={reExecuteNotebook}
+                focusedIndex = {focusedIndex}
+                notebook = {notebook}
       />
         
       {debugMode && <div>
@@ -451,7 +461,7 @@ export default function NotebookEditor (props) {
       </div>
       }
       <div className='editor-body'>
-        {
+        { notebook.cells.length > 0 &&
           notebook.cells.map((cell, index) =>
             <Cell key={index} 
                   index={index} 
@@ -478,6 +488,24 @@ export default function NotebookEditor (props) {
 }
 
 function NbButtons(props){
+
+  const options = [
+
+    { label: 'Code', value: 'code' },
+ 
+    { label: 'Markdown', value: 'markdown' },
+ 
+    { label: 'Raw', value: 'raw' },
+ 
+  ];
+
+  const handleChange = (event) => {
+
+    // setValue(event.target.value);
+ 
+  };
+  // const [value, setValue] = useState(props.notebook.cells[props.focusedIndex].cell_type)
+
   return (
     <div className='text-editor-tool'>
       <button type='button' className='editor-button' onClick={() => props.saveNotebook()}><i className='fas fa-save' /></button>
@@ -489,12 +517,12 @@ function NbButtons(props){
       <button type='button' className='editor-button' onClick={() => props.stopKernel()}><i className='fas fa-square' /></button>
       <button type='button' className='editor-button' onClick={() => props.restartKernel()}><i className='fas fa-redo' /></button>
       <button type='button' className='editor-button' onClick={() => props.reExecuteNotebook()}><i className='fas fa-forward' /></button>
-      <select className="form-select editor-select" aria-label="Default select example">
-        <option selected>Code</option>
-        <option value="1">Markdown</option>
-        <option value="2">Raw</option>
+      <select className="form-select editor-select" value={props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type} onChange={handleChange}>
+        {options.map((option) => (
+          <option value={option.value}>{option.label}</option>
+        ))}
       </select>
-      
+      {props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type}
       <div className='ms-auto'>Python [conda env:default]*</div>
     </div>
   )
@@ -515,22 +543,21 @@ function CellButtons(props){
 }
 
 function Cell (props) {
-  const codeMirrorRef = useRef<any>(null); 
   const cell = props.cell
-  const [fileContents, setFileContents] = useState(cell.source[0])
+  const [cellContents, setCellContents] = useState(cell.source[0])
   const[cursorPosition, setCursorPosition] = useState(0)
   const[totalLines, setTotalLines] = useState(0)
 
   const onChange = useCallback((value, viewUpdate) => {
     console.log('val:', value);
-    setFileContents(value)
+    setCellContents(value)
 
   }, []);
 
   const onUpdate =  useCallback(( viewUpdate: ViewUpdate) => {
     if(viewUpdate){
       const { state } = viewUpdate;
-      const cursor = state.selection.main.from; // or state.selection.main.to for the end position
+      const cursor = state.selection.main.from;
       const line = state.doc.lineAt(cursor).number;
         
       const totalLines = state.doc.lines;
@@ -543,17 +570,28 @@ function Cell (props) {
 
   if (cell.cell_type === 'markdown') {
     return (
-      <div tabIndex={props.index}  className={props.index === props.focusedIndex ? 'activeCell': ''} 
+      <div tabIndex={props.index}  className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'} 
       ref={(el) => (props.divRefs.current[props.index] = el)}
       onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
-        <Markdown rehypePlugins={[rehypeRaw]}>{fileContents}</Markdown>
+        <div className='serial-no'>[{cell.execution_count}]:</div>
+        <div className='inner-content'>
+          <CellButtons index={props.index} 
+                    code={cellContents} 
+                    submitCell={props.submitCell} 
+                    addCellUp={props.addCellUp} 
+                    addCellDown={props.addCellDown} 
+                    deleteCell={props.deleteCell} 
+                    nextCell={props.nextCell} 
+                    prevCell={props.prevCell}/>
+          <Markdown rehypePlugins={[rehypeRaw]}>{cellContents}</Markdown>
+          </div>
       </div>
     )
   }
 
   const handleCmdEnter = () => {
     console.log(alert("running the code"))
-    props.submitCell(fileContents)
+    props.submitCell(cellContents)
     return true
   }
 
@@ -586,7 +624,7 @@ function Cell (props) {
       <div className='serial-no'>[{cell.execution_count}]:</div>
       <div className='inner-content'>
       <CellButtons index={props.index} 
-                  code={fileContents} 
+                  code={cellContents} 
                   submitCell={props.submitCell} 
                   addCellUp={props.addCellUp} 
                   addCellDown={props.addCellDown} 
@@ -594,7 +632,7 @@ function Cell (props) {
                   nextCell={props.nextCell} 
                   prevCell={props.prevCell}/>
         <CodeMirror
-          value={fileContents}
+          value={cellContents}
           height='auto'
           width='100%'
           extensions={[python(),customKeymap]}
@@ -602,6 +640,16 @@ function Cell (props) {
           onChange={onChange}
           onUpdate={onUpdate}
           onKeyDown={handleKeyDownCM}
+          basicSetup={{
+            lineNumbers: false,
+            bracketMatching: true,
+            highlightActiveLineGutter: true,
+            autocompletion: true,
+            lintKeymap: true,
+            foldGutter: true,
+            completionKeymap: true,
+            tabSize: 4
+          }}
         />
         <div className='inner-text'>
           {props.generateOutput(cell)}
