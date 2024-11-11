@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { BaseApiUrl } from '../config'
 import ContextMenu from './ContextMenu'
+import getFileExtension from '../utils'
 
 interface IContent {
   type: string
@@ -168,10 +169,44 @@ export default function FileBrowser ({ sendDataToParent, display }) {
 }
 
 function FileItem ({ directoryRightClickHandler, handleFileClick, content }) {
+  const getIconToLoad = () => {
+    const extension = getFileExtension(content.name)
+    switch (extension) {
+      case 'go':
+      case 'mod':
+        return "./images/editor/go-icon.svg"
+      case 'py':
+      case 'ipynb':
+        return "./images/editor/py-icon.svg"
+      case 'js':
+        return "./images/editor/js-icon.svg"
+      case 'json':
+        return "./images/editor/json-icon.svg"
+      case 'ts':
+        return "./images/editor/ts-icon.svg"
+      case 'tsx':
+      case 'jsx':
+        return "./images/editor/react-icon.svg"
+      case 'html':
+        return "./images/editor/html-icon.svg"
+      case 'css':
+        return "./images/editor/go-icon.svg"
+      case 'sass':
+      case 'scss':
+        return "./images/editor/go-icon.svg"
+      case 'md':
+      case 'markdown':
+        return "./images/editor/md-icon.svg"
+      case 'gitignore':
+        return "./images/editor/git-icon.svg"
+    }
+    return "./images/editor/go-icon.svg"
+  }
+
   return (
     <li className='fileItem'>
       <a onContextMenu={(e) => directoryRightClickHandler(e, content.path)} onClick={() => handleFileClick(content.name, content.path, content.type)}>
-        <img src='./images/editor/py-icon.svg' alt='' />
+        <img src={getIconToLoad()} alt='' />
         {content.name}
       </a>
     </li>
