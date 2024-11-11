@@ -7,7 +7,7 @@ body {
     font-size: 14px;
     font-weight: 400;
     line-height: 24px;
-    background-color: #f3f2f6;
+    background-color: #e4e4e5;
     position: relative;
 }
 
@@ -453,13 +453,14 @@ a {
 }
 
 .nav-link {
-    background: transparent linear-gradient(180deg, #ffffff 0%, #e6e6e6 100%) 0%
-    0% no-repeat;
-    font-weight: 500;
+    // background: transparent linear-gradient(180deg, #ffffff 0%, #e6e6e6 100%) 0%
+    // 0% no-repeat;
+    background: #553b9e;
+    font-weight: 400;
     border: 1px solid #e6e6e6;
-    border-radius: 10px 10px 0px 0px;
+    border-radius: 2px 10px 0px 0px;
     padding: 6px 8px;
-    color: #747474;
+    color: #ffffff;
     box-sizing: border-box;
 
     i {
@@ -468,12 +469,16 @@ a {
         font-size: 12px;
     }
 }
+.nav-link:hover{
+    color: #ffffff;
+    background: #7651db;
+}
 
 
 .nav-link.active {
     box-shadow: 4px -2px 3px #00000014;
-    background: #fff;
-    border-color: #fff;
+    color: #ffffff;
+    background: #7651db;
 }
 
 .tabContent {

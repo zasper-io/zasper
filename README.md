@@ -34,6 +34,9 @@ Inbuilt concurrency
 ### Launcher
 ![Launcher](./screenshots/launcher.png) 
 
+### Jupyter Notebook
+![Notebook](./screenshots/notebook.png) 
+
 ## ⚡️ Quick start
 
 Zasper comes in two flavours:
@@ -42,8 +45,6 @@ Zasper comes in two flavours:
 2. Web App
 
 ### Electron App
-
-#### Start the backend
 
 
 #### Install zeromq
@@ -97,6 +98,8 @@ brew install zeromq
 ```
 
 #### Start the backend
+
+Install zeromq.
 
 Go to project home and start the server
 

@@ -24,7 +24,7 @@ func SetUpZasper(cwd string) Application {
 	application := Application{
 		BaseUrl:           "https://zasper.io",
 		HomeDir:           cwd,
-		StaticUrl:         "/images",
+		StaticUrl:         "./images",
 		JupyterConfigDir:  utils.GetJupyterConfigDir(),
 		JupyterDataDir:    utils.GetJupyterDataDir(),
 		JupyterRuntimeDir: utils.GetJupyterRuntimeDir(),
