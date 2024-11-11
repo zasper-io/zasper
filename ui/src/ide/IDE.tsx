@@ -147,8 +147,8 @@ function IDE () {
         </Panel>
         <Panel maxSize={2}>
           <div className='statusBar'>
-            Spaces: {settings.tabSize}  UTF-8
-          </div>ß
+            Spaces: {settings.tabSize} | {settings.encoding} | {settings.language} | Ln {settings.activeLine}, Col {settings.activeColumn}
+          </div>
         </Panel>
       </PanelGroup>
 

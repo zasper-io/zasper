@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 
 import FileEditor from './FileEditor'
 import Launcher from './Launcher'
-import NotebookEditor from './NotebookEditor'
+import NotebookEditor from './notebook/NotebookEditor'
 import TerminalTab from '../terminal/Terminal'
 
 export default function Editor (props) {

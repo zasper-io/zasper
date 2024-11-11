@@ -12,7 +12,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './NotebookEditor.scss'
 
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
-import { BaseApiUrl } from '../config'
+import { BaseApiUrl } from '../../config'
 
 const debugMode = false
 
@@ -489,6 +489,8 @@ export default function NotebookEditor (props) {
 
 function NbButtons(props){
 
+  const [kernelName, setKernelName] = useState("Python [conda env:default]*")
+
   const options = [
 
     { label: 'Code', value: 'code' },
@@ -523,7 +525,8 @@ function NbButtons(props){
         ))}
       </select>
       {props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type}
-      <div className='ms-auto'>Python [conda env:default]*</div>
+      <div className='ms-auto'>{kernelName}</div>
+      <div className="kStatus">idle</div>
     </div>
   )
 }
@@ -568,6 +571,29 @@ function Cell (props) {
 
   }, []);
 
+  const handleKeyDownCM = (event) => {
+    if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
+      props.handleKeyDown({key:"ArrowDown", preventDefault: ()=>{}})
+      event.preventDefault();
+    } else if (event.key === 'ArrowUp'  && cursorPosition ===  1) {
+      props.handleKeyDown({key:"ArrowUp", preventDefault: ()=>{}})
+      event.preventDefault();
+    }
+  };
+
+  const handleCmdEnter = () => {
+    console.log(alert("running the code"))
+    props.submitCell(cellContents)
+    return true
+  }
+
+  const customKeymap = keymap.of([
+    {
+      key: 'Shift-Enter',
+      run: handleCmdEnter
+    }
+  ])
+
   if (cell.cell_type === 'markdown') {
     return (
       <div tabIndex={props.index}  className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'} 
@@ -584,35 +610,31 @@ function Cell (props) {
                     nextCell={props.nextCell} 
                     prevCell={props.prevCell}/>
           <Markdown rehypePlugins={[rehypeRaw]}>{cellContents}</Markdown>
+          <CodeMirror
+            value={cellContents}
+            height='auto'
+            width='100%'
+            extensions={[python(),customKeymap]}
+            autoFocus={props.index === props.focusedIndex ? true: false} 
+            onChange={onChange}
+            onUpdate={onUpdate}
+            onKeyDown={handleKeyDownCM}
+            basicSetup={{
+              lineNumbers: false,
+              bracketMatching: true,
+              highlightActiveLineGutter: true,
+              autocompletion: true,
+              lintKeymap: true,
+              foldGutter: true,
+              completionKeymap: true,
+              tabSize: 4
+            }}
+          />
+          
           </div>
       </div>
     )
   }
-
-  const handleCmdEnter = () => {
-    console.log(alert("running the code"))
-    props.submitCell(cellContents)
-    return true
-  }
-
-  const customKeymap = keymap.of([
-    {
-      key: 'Shift-Enter',
-      run: handleCmdEnter
-    }
-  ])
-
-  const handleKeyDownCM = (event) => {
-    if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
-      props.handleKeyDown({key:"ArrowDown", preventDefault: ()=>{}})
-      event.preventDefault();
-    } else if (event.key === 'ArrowUp'  && cursorPosition ===  1) {
-      props.handleKeyDown({key:"ArrowUp", preventDefault: ()=>{}})
-      event.preventDefault();
-    }
-  };
-
-
   
 
   return (
