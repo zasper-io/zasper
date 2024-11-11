@@ -15,7 +15,7 @@ export default function Topbar (props) {
           <div className='col-9'>
             <div className='searchArea'>
               <div className='search-wraper'>
-                <input type='text' name='search' placeholder='Type your search here' />
+                <input type='text' name='search' placeholder='Search' />
                 <img src='./images/icons/search.svg' alt='#' />
               </div>    
             </div>
