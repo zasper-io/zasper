@@ -27,6 +27,7 @@ interface CodeMirrorRef {
 export default function NotebookEditor (props) {
   interface ICell {
     cell_type: CellType
+    id: string
     execution_count: number
     source: string
   }
@@ -95,8 +96,11 @@ export default function NotebookEditor (props) {
       })
     })
     const resJson = await res.json()
+    resJson.content.cells.forEach(cell => {
+      cell.id = uuidv4(); // Add UUID to each cell object
+    });
     setNotebook(resJson.content)
-    console.log("notebook => ", notebook);
+    console.log("notebook => ", resJson);
   }
 
   useEffect(() => {
@@ -314,14 +318,14 @@ export default function NotebookEditor (props) {
     }
   }
 
-  const submitCell = (source: string) => {
+  const submitCell = (source: string, cellId: string) => {
     const message = JSON.stringify({
       buffers: [],
       channel: 'shell',
       content: createExecuteRequestMsg(source),
       header: {
         date: getTimeStamp(),
-        msg_id: uuidv4(),
+        msg_id: cellId,
         msg_type: 'execute_request',
         session: session.id,
         username: 'prasunanand',
@@ -358,7 +362,8 @@ export default function NotebookEditor (props) {
     updatedNotebook.cells.push({
       execution_count: 0,
       source: "",
-      cell_type: "raw"
+      cell_type: "raw",
+      id: uuidv4()
     })
     setNotebook(updatedNotebook)
 
@@ -369,7 +374,8 @@ export default function NotebookEditor (props) {
     notebook.cells.push({
       execution_count: 0,
       source: "",
-      cell_type: "raw"
+      cell_type: "raw",
+      id: uuidv4()
     })
   }
 
@@ -536,7 +542,7 @@ function NbButtons(props){
 function CellButtons(props){
   return (
     <div className='cellOptions'>
-      <button type='button' className='editor-button' onClick={() => props.submitCell(props.code)}><i className='fas fa-play' /></button>
+      <button type='button' className='editor-button' onClick={() => props.submitCell(props.code, props.cellId)}><i className='fas fa-play' /></button>
       <button type='button' className='editor-button' onClick={() => props.copyCell(props.index)}><i className='fas fa-copy' /></button>
       <button type='button' className='editor-button' onClick={() => props.nextCell(props.index)}><i className='fas fa-forward' /></button>
       <button type='button' className='editor-button' onClick={() => props.prevCell(props.index)}><i className='fas fa-backward' /></button>
@@ -606,8 +612,8 @@ function Cell (props) {
           {props.index === props.focusedIndex ?  
             <>
               <CellButtons index={props.index} 
-                      code={cellContents} 
-                      submitCell={props.submitCell} 
+                      cellId={cell.id}
+                      code={cellContents}
                       addCellUp={props.addCellUp} 
                       addCellDown={props.addCellDown} 
                       deleteCell={props.deleteCell} 
@@ -653,14 +659,17 @@ function Cell (props) {
 
       <div className='serial-no'>[{cell.execution_count}]:</div>
       <div className='inner-content'>
+      {props.index === props.focusedIndex ?  
       <CellButtons index={props.index} 
-                  code={cellContents} 
+                  code={cellContents}
+                  cellId={cell.id} 
                   submitCell={props.submitCell} 
                   addCellUp={props.addCellUp} 
                   addCellDown={props.addCellDown} 
                   deleteCell={props.deleteCell} 
                   nextCell={props.nextCell} 
-                  prevCell={props.prevCell}/>
+                  prevCell={props.prevCell}/> : <></>
+      }
         <CodeMirror
           value={cellContents}
           height='auto'
