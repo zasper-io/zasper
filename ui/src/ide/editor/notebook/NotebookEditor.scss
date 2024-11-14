@@ -16,14 +16,13 @@
 .cellOptions{
     display: flex;
     align-items: center;
-    gap: 32px;
+    gap: 20px;
     padding: 18px 18px 13px 18px;
     border: 1px solid #cccccc;
-    border-bottom: none;
-    background: aliceblue;
-    color: #acacac;
+    color: #837ca4;
     height: 20px;
     float: right;
+    border-radius: 4px;
 }
 
 .editor-select{

@@ -8,6 +8,10 @@ import Markdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import { keymap, ViewUpdate } from '@codemirror/view'
 import 'react-toastify/dist/ReactToastify.css';
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { languages } from '@codemirror/language-data'
+import 'codemirror/lib/codemirror.css';
+import 'codemirror/mode/javascript/javascript.css';
 
 import './NotebookEditor.scss'
 
@@ -599,37 +603,43 @@ function Cell (props) {
       <div tabIndex={props.index}  className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'} 
       ref={(el) => (props.divRefs.current[props.index] = el)}
       onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
-        <div className='serial-no'>[{cell.execution_count}]:</div>
         <div className='inner-content'>
-          <CellButtons index={props.index} 
-                    code={cellContents} 
-                    submitCell={props.submitCell} 
-                    addCellUp={props.addCellUp} 
-                    addCellDown={props.addCellDown} 
-                    deleteCell={props.deleteCell} 
-                    nextCell={props.nextCell} 
-                    prevCell={props.prevCell}/>
-          <Markdown rehypePlugins={[rehypeRaw]}>{cellContents}</Markdown>
-          <CodeMirror
-            value={cellContents}
-            height='auto'
-            width='100%'
-            extensions={[python(),customKeymap]}
-            autoFocus={props.index === props.focusedIndex ? true: false} 
-            onChange={onChange}
-            onUpdate={onUpdate}
-            onKeyDown={handleKeyDownCM}
-            basicSetup={{
-              lineNumbers: false,
-              bracketMatching: true,
-              highlightActiveLineGutter: true,
-              autocompletion: true,
-              lintKeymap: true,
-              foldGutter: true,
-              completionKeymap: true,
-              tabSize: 4
-            }}
-          />
+          
+          {props.index === props.focusedIndex ?  
+            <>
+              <CellButtons index={props.index} 
+                      code={cellContents} 
+                      submitCell={props.submitCell} 
+                      addCellUp={props.addCellUp} 
+                      addCellDown={props.addCellDown} 
+                      deleteCell={props.deleteCell} 
+                      nextCell={props.nextCell} 
+                      prevCell={props.prevCell}/>
+              <CodeMirror
+                value={cellContents}
+                height='auto'
+                width='100%'
+                extensions={[markdown({ base: markdownLanguage, codeLanguages: languages }),customKeymap]}
+                autoFocus={props.index === props.focusedIndex ? true: false} 
+                onChange={onChange}
+                onUpdate={onUpdate}
+                onKeyDown={handleKeyDownCM}
+                basicSetup={{
+                  lineNumbers: false,
+                  bracketMatching: true,
+                  highlightActiveLineGutter: true,
+                  autocompletion: true,
+                  lintKeymap: true,
+                  foldGutter: true,
+                  completionKeymap: true,
+                  tabSize: 4
+                }}
+                
+              /> 
+            </>
+            :
+            <Markdown rehypePlugins={[rehypeRaw]}>{cellContents}</Markdown> 
+        }
           
           </div>
       </div>
