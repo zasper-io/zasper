@@ -10,8 +10,6 @@ import { keymap, ViewUpdate } from '@codemirror/view'
 import 'react-toastify/dist/ReactToastify.css';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/mode/javascript/javascript.css';
 
 import './NotebookEditor.scss'
 
