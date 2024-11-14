@@ -132,11 +132,12 @@ type Notebook struct {
 
 // Cell struct for handling individual cells in a notebook
 type Cell struct {
-	Source      []string                          `json:"source"`
-	CellType    string                            `json:"cell_type"`
-	Attachments map[string]map[string]interface{} `json:"attachments"`
-	Outputs     []Output                          `json:"outputs"`
-	Metadata    map[string]interface{}            `json:"metadata"`
+	Source         []string                          `json:"source"`
+	ExecutionCount int                               `json:"execution_count"`
+	CellType       string                            `json:"cell_type"`
+	Attachments    map[string]map[string]interface{} `json:"attachments"`
+	Outputs        []Output                          `json:"outputs"`
+	Metadata       map[string]interface{}            `json:"metadata"`
 }
 
 // Output struct for handling cell outputs

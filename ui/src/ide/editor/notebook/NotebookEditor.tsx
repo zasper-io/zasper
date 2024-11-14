@@ -541,14 +541,16 @@ function NbButtons(props){
 
 function CellButtons(props){
   return (
-    <div className='cellOptions'>
-      <button type='button' className='editor-button' onClick={() => props.submitCell(props.code, props.cellId)}><i className='fas fa-play' /></button>
-      <button type='button' className='editor-button' onClick={() => props.copyCell(props.index)}><i className='fas fa-copy' /></button>
-      <button type='button' className='editor-button' onClick={() => props.nextCell(props.index)}><i className='fas fa-forward' /></button>
-      <button type='button' className='editor-button' onClick={() => props.prevCell(props.index)}><i className='fas fa-backward' /></button>
-      <button type='button' className='editor-button' onClick={() => props.addCellUp()}><i className='fas fa-plus' /></button>
-      <button type='button' className='editor-button' onClick={() => props.addCellDown()}><i className='fas fa-plus' /></button>
-      <button type='button' className='editor-button' onClick={() => props.deleteCell(props.index)}><i className='fas fa-trash' /></button>
+    <div className='cellOptionsDiv'>
+      <div className='cellOptions'>
+        <button type='button' className='editor-button' onClick={() => props.submitCell(props.code, props.cellId)}><i className='fas fa-play' /></button>
+        <button type='button' className='editor-button' onClick={() => props.copyCell(props.index)}><i className='fas fa-copy' /></button>
+        <button type='button' className='editor-button' onClick={() => props.nextCell(props.index)}><i className='fas fa-forward' /></button>
+        <button type='button' className='editor-button' onClick={() => props.prevCell(props.index)}><i className='fas fa-backward' /></button>
+        <button type='button' className='editor-button' onClick={() => props.addCellUp()}><i className='fas fa-plus' /></button>
+        <button type='button' className='editor-button' onClick={() => props.addCellDown()}><i className='fas fa-plus' /></button>
+        <button type='button' className='editor-button' onClick={() => props.deleteCell(props.index)}><i className='fas fa-trash' /></button>
+      </div>
     </div>
   )
 }
@@ -590,7 +592,6 @@ function Cell (props) {
   };
 
   const handleCmdEnter = () => {
-    console.log(alert("running the code"))
     props.submitCell(cellContents)
     return true
   }
@@ -607,46 +608,50 @@ function Cell (props) {
       <div tabIndex={props.index}  className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'} 
       ref={(el) => (props.divRefs.current[props.index] = el)}
       onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
-        <div className='inner-content'>
+        
           
           {props.index === props.focusedIndex ?  
             <>
-              <CellButtons index={props.index} 
-                      cellId={cell.id}
-                      code={cellContents}
-                      addCellUp={props.addCellUp} 
-                      addCellDown={props.addCellDown} 
-                      deleteCell={props.deleteCell} 
-                      nextCell={props.nextCell} 
-                      prevCell={props.prevCell}/>
-              <CodeMirror
-                value={cellContents}
-                height='auto'
-                width='100%'
-                extensions={[markdown({ base: markdownLanguage, codeLanguages: languages }),customKeymap]}
-                autoFocus={props.index === props.focusedIndex ? true: false} 
-                onChange={onChange}
-                onUpdate={onUpdate}
-                onKeyDown={handleKeyDownCM}
-                basicSetup={{
-                  lineNumbers: false,
-                  bracketMatching: true,
-                  highlightActiveLineGutter: true,
-                  autocompletion: true,
-                  lintKeymap: true,
-                  foldGutter: true,
-                  completionKeymap: true,
-                  tabSize: 4
-                }}
-                
-              /> 
+              
+                <CellButtons index={props.index} 
+                        cellId={cell.id}
+                        code={cellContents}
+                        addCellUp={props.addCellUp} 
+                        addCellDown={props.addCellDown} 
+                        deleteCell={props.deleteCell} 
+                        nextCell={props.nextCell} 
+                        prevCell={props.prevCell}/>
+                <div className='inner-content'>
+                  <div className='cellEditor'>
+                    <CodeMirror
+                      value={cellContents}
+                      height='auto'
+                      width='100%'
+                      extensions={[markdown({ base: markdownLanguage, codeLanguages: languages }),customKeymap]}
+                      autoFocus={props.index === props.focusedIndex ? true: false} 
+                      onChange={onChange}
+                      onUpdate={onUpdate}
+                      onKeyDown={handleKeyDownCM}
+                      basicSetup={{
+                        lineNumbers: false,
+                        bracketMatching: true,
+                        highlightActiveLineGutter: true,
+                        autocompletion: true,
+                        lintKeymap: true,
+                        foldGutter: true,
+                        completionKeymap: true,
+                        tabSize: 4
+                      }}
+                    />
+                  </div>
+                </div>
             </>
             :
             <Markdown rehypePlugins={[rehypeRaw]}>{cellContents}</Markdown> 
         }
           
           </div>
-      </div>
+      
     )
   }
   
@@ -656,9 +661,6 @@ function Cell (props) {
         className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'}  
         ref={(el) => (props.divRefs.current[props.index] = el)}
         onFocus={() => props.setFocusedIndex(props.index)}>
-
-      <div className='serial-no'>[{cell.execution_count}]:</div>
-      <div className='inner-content'>
       {props.index === props.focusedIndex ?  
       <CellButtons index={props.index} 
                   code={cellContents}
@@ -670,30 +672,36 @@ function Cell (props) {
                   nextCell={props.nextCell} 
                   prevCell={props.prevCell}/> : <></>
       }
-        <CodeMirror
-          value={cellContents}
-          height='auto'
-          width='100%'
-          extensions={[python(),customKeymap]}
-          autoFocus={props.index === props.focusedIndex ? true: false} 
-          onChange={onChange}
-          onUpdate={onUpdate}
-          onKeyDown={handleKeyDownCM}
-          basicSetup={{
-            lineNumbers: false,
-            bracketMatching: true,
-            highlightActiveLineGutter: true,
-            autocompletion: true,
-            lintKeymap: true,
-            foldGutter: true,
-            completionKeymap: true,
-            tabSize: 4
-          }}
-        />
-        <div className='inner-text'>
-          {props.generateOutput(cell)}
+
+      
+      <div className='inner-content'>
+        <div className='serial-no'>[{cell.execution_count}]:</div>  
+        <div className='cellEditor'>
+          <CodeMirror
+            value={cellContents}
+            height='auto'
+            width='100%'
+            extensions={[python(),customKeymap]}
+            autoFocus={props.index === props.focusedIndex ? true: false} 
+            onChange={onChange}
+            onUpdate={onUpdate}
+            onKeyDown={handleKeyDownCM}
+            basicSetup={{
+              lineNumbers: false,
+              bracketMatching: true,
+              highlightActiveLineGutter: true,
+              autocompletion: true,
+              lintKeymap: true,
+              foldGutter: true,
+              completionKeymap: true,
+              tabSize: 4
+            }}
+          />
         </div>
       </div>
+      <div className='inner-text'>
+          {props.generateOutput(cell)}
+        </div>
     </div>
   )
 }
