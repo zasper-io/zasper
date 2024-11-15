@@ -10,11 +10,13 @@ import { keymap, ViewUpdate } from '@codemirror/view'
 import 'react-toastify/dist/ReactToastify.css';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
+import { toast, ToastContainer } from 'react-toastify';
 
 import './NotebookEditor.scss'
 
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../../config'
+import { data } from '@remix-run/router/dist/utils'
 
 const debugMode = true
 
@@ -30,6 +32,7 @@ export default function NotebookEditor (props) {
     id: string
     execution_count: number
     source: string
+    outputs: any
   }
   interface INotebookModel {
     cells: Array<ICell>
@@ -184,44 +187,7 @@ export default function NotebookEditor (props) {
 
       )
   }
-
-  const listKernels = () => {
-    // Simple GET request using fetch
-    fetch(BaseApiUrl + 'http://localhost:8888/api/kernels')
-      .then(async response => await response.json())
-      .then(
-        (data) => {
-          console.log('kernels running')
-          console.log(data)
-          if (data.lenghth = 0) {
-            
-          }
-        },
-        (error) => {
-          console.log('error')
-        }
-
-      )
-  }
-
-  const listAllSessions = () => {
-    // Simple GET request using fetch
-    fetch(BaseApiUrl + '/api/sessions')
-      .then(async response => await response.json())
-      .then(
-        (data) => {
-          console.log('data')
-          console.log(data)
-          if (data.lenghth === 0) {
-            startASession(props.name, props.path, props.type)
-          }
-        },
-        (error) => {
-          console.log('error')
-        }
-
-      )
-  }
+ 
 
   const startASession = (path, name, type) => {
     // Simple GET request using fetch
@@ -268,12 +234,18 @@ export default function NotebookEditor (props) {
     client1.onmessage = (message) => {
       message = JSON.parse(message.data)
       console.log(message)
+      if(message.hasOwnProperty("data")){
+        notebook.current.cells[focusedIndex].outputs[0].data['text/plain'] = message.data['text/plain']
+        // toast(message.data["text/plain"]);
+      }
+
       if (message.channel === 'iopub') {
         console.log('IOPub => ', message)
         if (message.msg_type === 'execute_result') {
           console.log(message.content.data)
           console.log(message.content.data['text/plain'])
           console.log(message.content.data['text/html'])
+         
         }
         if (message.msg_type === 'stream') {
           console.log(message.content.text)
@@ -379,7 +351,8 @@ export default function NotebookEditor (props) {
       execution_count: 0,
       source: "",
       cell_type: "raw",
-      id: uuidv4()
+      id: uuidv4(),
+      outputs: ""
     })
 
   }
@@ -390,7 +363,8 @@ export default function NotebookEditor (props) {
       execution_count: 0,
       source: "",
       cell_type: "raw",
-      id: uuidv4()
+      id: uuidv4(),
+      outputs: ""
     })
   }
 
@@ -479,19 +453,17 @@ export default function NotebookEditor (props) {
         
       {debugMode && <div>
         <button type='button' onClick={saveFile}>Save file</button>
-        <button type='button' onClick={listKernels}>ListKernels</button>
         <button type='button' onClick={()=>startASession(props.data.name, props.data.path, props.data.type)}>StartASession</button>
-        <button type='button' onClick={listAllSessions}>ListAllSessions</button>
         <button type='button' onClick={startWebSocket}>StartWebSocket</button>
       </div>
       }
       <div className='editor-body'>
         { notebook.current ?
           notebook.current.cells.map((cell, index) =>
-            <Cell key={index} 
+            <Cell key={cell.id} 
                   index={index} 
                   cell={cell} 
-                  ref = {(el) => notebook.current.cells[index] = el} 
+                  ref = {(el: any) => notebook.current.cells[index] = el} 
                   generateOutput={generateOutput} 
                   submitCell={submitCell} 
                   addCellUp={addCellUp} 
@@ -555,6 +527,7 @@ function NbButtons(props){
       {props.notebook.current.cells.length > 0 && props.notebook.current.cells[props.focusedIndex].cell_type}
       <div className='ms-auto'>{kernelName}</div>
       <div className="kStatus">idle</div>
+      <ToastContainer />
     </div>
   )
 }
@@ -575,7 +548,7 @@ function CellButtons(props){
   )
 }
 
-function Cell (props) {
+const Cell = React.forwardRef((props: any, ref) => {
   const cell = props.cell
   const [cellContents, setCellContents] = useState(cell.source[0])
   const[cursorPosition, setCursorPosition] = useState(0)
@@ -724,4 +697,4 @@ function Cell (props) {
         </div>
     </div>
   )
-}
+})
