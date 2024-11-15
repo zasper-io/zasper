@@ -16,7 +16,7 @@ import './NotebookEditor.scss'
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../../config'
 
-const debugMode = false
+const debugMode = true
 
 interface CodeMirrorRef {
   editor: {
@@ -267,23 +267,24 @@ export default function NotebookEditor (props) {
       console.log('WebSocket Client Connected')
     }
     client1.onmessage = (message) => {
-      // message = JSON.parse(message.data)
-      // if (message.channel === 'iopub') {
-      //   console.log('IOPub => ', message)
-      //   if (message.msg_type === 'execute_result') {
-      //     console.log(message.content.data)
-      //     toast(message.content.data['text/plain'])
-      //     toast(message.content.data['text/html'])
-      //   }
-      //   if (message.msg_type === 'stream') {
-      //     console.log(message.content.text)
-      //     toast(message.content.text)
-      //     toast(message.content.text)
-      //   }
-      // }
-      // if (message.channel === 'shell') {
-      //   console.log('Shell => ', message)
-      // }
+      message = JSON.parse(message.data)
+      console.log(message)
+      if (message.channel === 'iopub') {
+        console.log('IOPub => ', message)
+        if (message.msg_type === 'execute_result') {
+          console.log(message.content.data)
+          console.log(message.content.data['text/plain'])
+          console.log(message.content.data['text/html'])
+        }
+        if (message.msg_type === 'stream') {
+          console.log(message.content.text)
+          console.log(message.content.text)
+          console.log(message.content.text)
+        }
+      }
+      if (message.channel === 'shell') {
+        console.log('Shell => ', message)
+      }
     }
     client1.onclose = () => {
       console.log('disconnected')

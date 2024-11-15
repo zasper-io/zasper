@@ -44,6 +44,12 @@ func (kwsConn *KernelWebSocketConnection) getAllowedMessageTypes() []string {
 	return make([]string, 0)
 }
 
+// IsJSON checks if the given byte slice is valid JSON
+func IsJSON(data []byte) bool {
+	var js json.RawMessage
+	return json.Unmarshal(data, &js) == nil
+}
+
 func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, binary bool
 	iopub_channel := kwsConn.Channels["iopub"]
 
@@ -63,7 +69,10 @@ func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, bi
 
 			case iopub_channel:
 				msg, _ := s.Recv(0)
-				kwsConn.Send <- []byte(msg)
+				if IsJSON([]byte(msg)) {
+					kwsConn.Send <- []byte(msg)
+				}
+
 			}
 		}
 
