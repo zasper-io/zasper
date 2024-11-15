@@ -61,12 +61,15 @@ export default function NotebookEditor (props) {
   type CellType = 'code' | 'markdown' | 'raw' | string;
   
 
-  const [notebook, setNotebook] = useState<INotebookModel>({ 
+  const notebook = useRef<INotebookModel>(
+    { 
                                                     cells: [], 
                                                     nbformat:0, 
                                                     nbformat_minor:0,
                                                     metadata: {}
                                                   })
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
   const [focusedIndex, setFocusedIndex] = useState(0);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
   const codeMirrorRefs = useRef<CodeMirrorRef[]>([]); 
@@ -88,19 +91,32 @@ export default function NotebookEditor (props) {
 
 
   const FetchFileData = async (path) => {
-    const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
-      method: 'POST',
+    try{
+      const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
+        method: 'POST',
 
-      body: JSON.stringify({
-        path
+        body: JSON.stringify({
+          path
+        })
       })
-    })
-    const resJson = await res.json()
-    resJson.content.cells.forEach(cell => {
-      cell.id = uuidv4(); // Add UUID to each cell object
-    });
-    setNotebook(resJson.content)
-    console.log("notebook => ", resJson);
+      if (!res.ok) {
+        throw new Error('Failed to fetch data');
+      }
+      const resJson = await res.json()
+      resJson.content.cells.forEach(cell => {
+        cell.id = uuidv4(); // Add UUID to each cell object
+      });
+      notebook.current = resJson.content
+      console.log("notebook => ", notebook);
+      setLoading(false);
+    } catch (err: unknown) {
+      if (err instanceof Error) {  // Narrow the type of err
+        setError(err.message);  // Access err.message safely
+      } else {
+        setError('An unknown error occurred');
+      }
+      setLoading(false);  // Ensure loading is set to false
+    }
   }
 
   useEffect(() => {
@@ -359,19 +375,18 @@ export default function NotebookEditor (props) {
   const addCellUp = async () =>{
     console.log("add cell Up");
     const updatedNotebook = Object.assign({}, notebook)
-    updatedNotebook.cells.push({
+    notebook.current.cells.push({
       execution_count: 0,
       source: "",
       cell_type: "raw",
       id: uuidv4()
     })
-    setNotebook(updatedNotebook)
 
   }
 
   const addCellDown = async () =>{
     console.log("add cell Down");
-    notebook.cells.push({
+    notebook.current.cells.push({
       execution_count: 0,
       source: "",
       cell_type: "raw",
@@ -381,7 +396,7 @@ export default function NotebookEditor (props) {
 
   const deleteCell = async (index: number) =>{
     console.log("delete cell at index => " + index)
-    notebook.cells.pop()
+    notebook.current.cells.pop()
   }
 
   const nextCell = async (index: number) =>{
@@ -427,7 +442,7 @@ export default function NotebookEditor (props) {
   const handleKeyDown = (event) => {
     if (event.key === 'ArrowDown') {
       setFocusedIndex((prev) => {
-        const newIndex = Math.min(prev + 1, notebook.cells.length - 1);
+        const newIndex = Math.min(prev + 1, notebook.current.cells.length - 1);
         divRefs.current[newIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return newIndex;
       });
@@ -442,6 +457,8 @@ export default function NotebookEditor (props) {
     }
   };
 
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error}</p>;
 
 
   return (
@@ -469,11 +486,12 @@ export default function NotebookEditor (props) {
       </div>
       }
       <div className='editor-body'>
-        { notebook.cells.length > 0 &&
-          notebook.cells.map((cell, index) =>
+        { notebook.current ?
+          notebook.current.cells.map((cell, index) =>
             <Cell key={index} 
                   index={index} 
                   cell={cell} 
+                  ref = {(el) => notebook.current.cells[index] = el} 
                   generateOutput={generateOutput} 
                   submitCell={submitCell} 
                   addCellUp={addCellUp} 
@@ -488,6 +506,8 @@ export default function NotebookEditor (props) {
                   codeMirrorRefs={codeMirrorRefs}
             />
           )
+          : (
+            <p>No data available</p>)
         }
       </div>
     </div>
@@ -527,12 +547,12 @@ function NbButtons(props){
       <button type='button' className='editor-button' onClick={() => props.stopKernel()}><i className='fas fa-square' /></button>
       <button type='button' className='editor-button' onClick={() => props.restartKernel()}><i className='fas fa-redo' /></button>
       <button type='button' className='editor-button' onClick={() => props.reExecuteNotebook()}><i className='fas fa-forward' /></button>
-      <select className="form-select editor-select" value={props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type} onChange={handleChange}>
-        {options.map((option) => (
-          <option value={option.value}>{option.label}</option>
+      <select className="form-select editor-select" value={props.notebook.current.cells.length > 0 && props.notebook.current.cells[props.focusedIndex].cell_type} onChange={handleChange}>
+        {options.map((option, index) => (
+          <option key={index} value={option.value}>{option.label}</option>
         ))}
       </select>
-      {props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type}
+      {props.notebook.current.cells.length > 0 && props.notebook.current.cells[props.focusedIndex].cell_type}
       <div className='ms-auto'>{kernelName}</div>
       <div className="kStatus">idle</div>
     </div>
