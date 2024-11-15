@@ -661,17 +661,17 @@ function Cell (props) {
         className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'}  
         ref={(el) => (props.divRefs.current[props.index] = el)}
         onFocus={() => props.setFocusedIndex(props.index)}>
-      {props.index === props.focusedIndex ?  
-      <CellButtons index={props.index} 
-                  code={cellContents}
-                  cellId={cell.id} 
-                  submitCell={props.submitCell} 
-                  addCellUp={props.addCellUp} 
-                  addCellDown={props.addCellDown} 
-                  deleteCell={props.deleteCell} 
-                  nextCell={props.nextCell} 
-                  prevCell={props.prevCell}/> : <></>
-      }
+        {props.index === props.focusedIndex ?  
+        <CellButtons index={props.index} 
+                    code={cellContents}
+                    cellId={cell.id} 
+                    submitCell={props.submitCell} 
+                    addCellUp={props.addCellUp} 
+                    addCellDown={props.addCellDown} 
+                    deleteCell={props.deleteCell} 
+                    nextCell={props.nextCell} 
+                    prevCell={props.prevCell}/> : <></>
+        }
 
       
       <div className='inner-content'>
