@@ -126,10 +126,6 @@ export default function NotebookEditor (props) {
       // listKernels();
       // listAllSessions();
     }
-     // Focus the CodeMirror editor when the index changes
-    // if (codeMirrorRefs.current[focusedIndex]) {
-    //   codeMirrorRefs.current[focusedIndex].editor.focus();
-    // }
    
   }, [])
 
@@ -137,12 +133,15 @@ export default function NotebookEditor (props) {
     if ('outputs' in data) {
       if (typeof (data.outputs[0]) !== 'undefined') {
         // console.log(data.outputs[0]);
-        if (data.outputs[0].hasOwnProperty('text')) {
-          return <pre>{data.outputs[0].text}</pre>
+        if (data.outputs[0].hasOwnProperty('text') ) {
+          if(data.outputs[0].text){
+            return <pre>{data.outputs[0].text}</pre>
+          }
+          
         }
         if (data.outputs[0].hasOwnProperty('data')) {
           if (data.outputs[0].data.hasOwnProperty('text/html')) {
-
+            
           }
           if (data.outputs[0].data.hasOwnProperty('image/png')) {
             const blob = 'data:image/png;base64,' + (data.outputs[0].data['image/png'])
