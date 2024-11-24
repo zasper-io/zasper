@@ -182,17 +182,11 @@ func findKernelSpecs() map[string]string {
 
 func getKernelDirs() []string {
 	dirs := core.Zasper.JupyterPath
-	ipythonDir := getIpythonDir()
-	dirs = append(dirs, ipythonDir)
 	kernel_dirs := []string{}
 	for _, v := range dirs {
 		kernel_dirs = append(kernel_dirs, filepath.Join(v, "kernels"))
 	}
 	return kernel_dirs
-}
-
-func getIpythonDir() string {
-	return "/home/prasun/.ipython"
 }
 
 func listKernelsIn(kernelDir string) map[string]string {
@@ -201,6 +195,7 @@ func listKernelsIn(kernelDir string) map[string]string {
 		log.Println("No kernels found in", kernelDir)
 		return nil
 	}
+	log.Println("kernels found in", kernelDir)
 	files, err := dir.Readdir(0)
 	if err != nil {
 		fmt.Println(err)

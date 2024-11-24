@@ -18,7 +18,7 @@ import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../../config'
 import { data } from '@remix-run/router/dist/utils'
 
-const debugMode = true
+const debugMode = false
 
 interface CodeMirrorRef {
   editor: {
