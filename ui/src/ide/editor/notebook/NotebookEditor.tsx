@@ -20,6 +20,8 @@ import { data } from '@remix-run/router/dist/utils'
 import NbButtons from './NbButtons'
 import CellButtons from './CellButtons'
 import Cell from './Cell'
+import { useAtom } from 'jotai';
+import { themeAtom } from '../../../store/Settings';
 
 const debugMode = false
 
@@ -79,6 +81,7 @@ export default function NotebookEditor (props) {
   const [focusedIndex, setFocusedIndex] = useState(0);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
   const codeMirrorRefs = useRef<CodeMirrorRef[]>([]); 
+  const [theme, setTheme] = useAtom(themeAtom)
 
 
   const [client, setClient] = useState<IClient>({ send: () => { } })
@@ -426,7 +429,7 @@ export default function NotebookEditor (props) {
         <button type='button' onClick={startWebSocket}>StartWebSocket</button>
       </div>
       }
-      <div className='editor-body'>
+      <div className={theme === 'light'? 'editor-body light': 'editor-body dark'}>
         { notebook.current ?
           notebook.current.cells.map((cell, index) =>
             <Cell key={cell.id} 

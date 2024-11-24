@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react'
 
 import CodeMirror from '@uiw/react-codemirror'
+import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
+import { darcula } from '@uiw/codemirror-theme-darcula';
 import { python } from '@codemirror/lang-python'
 import { html } from '@codemirror/lang-html'
 import { go } from '@codemirror/lang-go'
@@ -14,9 +16,12 @@ import { keymap } from '@codemirror/view'
 import { BaseApiUrl } from '../config'
 
 import './FileEditor.scss'
+import { themeAtom } from '../../store/Settings'
+import { useAtom } from 'jotai'
 
 export default function FileEditor (props) {
   const [fileContents, setFileContents] = useState('')
+  const [theme, setTheme] = useAtom(themeAtom)
 
   const handleCmdEnter = () => {
     console.log('Saving file')
@@ -95,12 +100,14 @@ export default function FileEditor (props) {
         <div className='editor-body2'>
           <CodeMirror
             value={fileContents}
+            theme={theme=='light'? githubLight: githubDark}
             minHeight='100%'
             width='100%'
             extensions={[getExtensionToLoad(), customKeymap]}
             onChange={(fileContents) => {
               setFileContents(fileContents)
             }}
+
             basicSetup={{
               bracketMatching: true,
               highlightActiveLineGutter: true,

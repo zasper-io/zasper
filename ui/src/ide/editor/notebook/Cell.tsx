@@ -2,14 +2,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
+import { darcula } from '@uiw/codemirror-theme-darcula';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import CellButtons from './CellButtons';
 import { languages } from '@codemirror/language-data';
+import { useAtom } from 'jotai';
+import { themeAtom } from '../../../store/Settings';
 
 const Cell = React.forwardRef((props: any, ref) => {
     const cell = props.cell
+    const [theme, setTheme] = useAtom(themeAtom)
     const [cellContents, setCellContents] = useState(cell.source[0])
     const[cursorPosition, setCursorPosition] = useState(0)
     const[totalLines, setTotalLines] = useState(0)
@@ -113,6 +118,7 @@ const Cell = React.forwardRef((props: any, ref) => {
                   <div className='inner-content'>
                     <div className='cellEditor'>
                       <CodeMirror
+                        theme={theme=='light'? githubLight: githubDark}
                         value={cellContents}
                         height='auto'
                         width='100%'
@@ -167,6 +173,7 @@ const Cell = React.forwardRef((props: any, ref) => {
           <div className='serial-no'>[{cell.execution_count}]:</div>  
           <div className='cellEditor'>
             <CodeMirror
+              theme={theme=='light'? githubLight: githubDark}
               value={cellContents}
               height='auto'
               width='100%'

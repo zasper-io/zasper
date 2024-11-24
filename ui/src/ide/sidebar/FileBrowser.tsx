@@ -3,6 +3,7 @@ import { BaseApiUrl } from '../config';
 import ContextMenu from './ContextMenu';
 import getFileExtension from '../utils';
 
+
 interface IContent {
   type: string;
   path: string;
@@ -18,6 +19,7 @@ interface FileBrowserProps {
 export default function FileBrowser({ sendDataToParent, display }: FileBrowserProps) {
   const [contents, setContents] = useState<IContent[]>([]);
   const [cwd, setCwd] = useState<string>('');
+  const [fileContents, setFileContents] = useState('')
 
   const FetchData = async () => {
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {

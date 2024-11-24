@@ -9,3 +9,6 @@ export const settingsAtom = atom({
   notificationsEnabled: true,
   tabSize: '4'
 })
+
+
+export const themeAtom = atom('light')

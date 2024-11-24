@@ -12,7 +12,7 @@ import ContentPanel from './editor/ContentPanel'
 import TabIndex from './tabs/TabIndex'
 import Topbar from './topbar/Topbar'
 import getFileExtension from './utils'
-import { settingsAtom } from '../store/Settings'
+import { settingsAtom, themeAtom } from '../store/Settings'
 import SettingsPanel from './settings/SettingsPanel'
 
 interface Ifile {
@@ -39,6 +39,7 @@ interface INavDict {
 
 function IDE () {
   const [settings, setSettings] = useAtom(settingsAtom)
+  const [theme, setTheme] = useAtom(themeAtom)
 
   const fileBroser: INav = {
     name: 'fileBrowser',
@@ -122,7 +123,7 @@ function IDE () {
   }
 
   return (
-    <div className='editor'>
+    <div className={theme === 'light'? 'editor themeLight': 'editor themeDark'}>
       <PanelGroup direction='vertical'>
         <Panel defaultSize={5}>
           <Topbar />
@@ -140,7 +141,7 @@ function IDE () {
             <Panel defaultSize={80} minSize={50}>
               <div className='main-content'>
                 <TabIndex tabs={dataFromChild} sendDataToParent={handleDataFromChild} sendCloseSignalToParent={handlCloseTabSignal} />
-                <ContentPanel tabs={dataFromChild} sendDataToParent={handleDataFromChild} />
+                <ContentPanel tabs={dataFromChild} sendDataToParent={handleDataFromChild} theme={theme}/>
               </div>
             </Panel>
           </PanelGroup>

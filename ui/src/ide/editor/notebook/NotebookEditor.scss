@@ -38,8 +38,9 @@
     border-radius: 4px;
 }
 
- .editor-body {
-    color: #000;
+
+
+.editor-body {
     padding: 28px 18px;
     padding-right: 30px;
     height: calc(100vh - 199px);
@@ -81,6 +82,16 @@
     }
 }
 
+.light{
+    color: #000000;
+}
+
+.dark{
+    color: #d7d7d7;
+    background-color: #1e1e1e;
+}
+
+
 .editor-body::-webkit-scrollbar {
     width: 7px;
 }
@@ -104,7 +115,5 @@
 }
 
 .cm-editor {
-    background: #ffffff;
     border: 1px solid #d3d3d3;
-    
 }

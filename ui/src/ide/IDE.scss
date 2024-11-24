@@ -56,10 +56,42 @@ a {
     color: #ffffff;
 }
 
+.themeLight{
+    .topBar{
+        background-color: #473990;
+    }
+    .navigation{
+        background: #ffffff;
+    }
+    .navigation-list{
+        background: #f3f1fd;
+    }
+}
+
+.themeDark{
+    .topBar{
+        background-color: #000000;
+    }
+
+    .navigation{
+        background-color: #272727;
+    }
+
+    .navigation-list{
+        background: #272727;
+    }
+    .nav-link{
+        background-color: #272727;
+    }
+    .navigation .nav-content .content-inner .file-list li a {
+        background-color: #272727;
+        color: #fff;
+    }
+}
+
 .topBar {
     width: 100%;
     height: 100%;
-    background-color: #473990;
     color: #ffffff;
     padding: 2px 40px;
 
@@ -197,14 +229,12 @@ a {
     height: 100%;
     float: left;
     display: inline-flex;
-    background: #ffffff;
     box-shadow: 0px 3px 20px #0000001c;
     border-radius: 2px;
     width: 100%;
 
     .navigation-list {
         border-right: 1px solid #e0dceb;
-        background: #f3f1fd;
         padding: 9px;
         display: flex;
         flex-direction: column;

@@ -8,7 +8,7 @@ import TerminalTab from '../terminal/Terminal'
 
 export default function Editor (props) {
   if (props.data.type === 'launcher') {
-    return <Launcher data={props.data} sendDataToParent={props.sendDataToParent} />
+    return <Launcher data={props.data} sendDataToParent={props.sendDataToParent}/>
   }
   if (props.data.type === 'file') {
     return <FileEditor data={props.data} />
