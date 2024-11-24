@@ -37,6 +37,9 @@ Inbuilt concurrency
 ### Jupyter Notebook
 ![Notebook](./screenshots/notebook.png) 
 
+### Dark Mode
+![Dark mode](./screenshots/dark.png) 
+
 ## ⚡️ Quick start
 
 Zasper comes in two flavours:
