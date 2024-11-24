@@ -185,7 +185,7 @@ const DirectoryItem = ({data, sendDataToParent }) => {
             autoFocus
           />
         ) : (
-          <span onClick={() => setIsEditing(true)}>{text}</span>
+          <span>{text}</span>
         )}
       </a>
       {isMenuVisible && menuPosition && (

@@ -17,6 +17,9 @@ import './NotebookEditor.scss'
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../../config'
 import { data } from '@remix-run/router/dist/utils'
+import NbButtons from './NbButtons'
+import CellButtons from './CellButtons'
+import Cell from './Cell'
 
 const debugMode = false
 
@@ -132,41 +135,7 @@ export default function NotebookEditor (props) {
    
   }, [])
 
-  const generateOutput = (data) => {
-    if ('outputs' in data) {
-      if (typeof (data.outputs[0]) !== 'undefined') {
-        // console.log(data.outputs[0]);
-        if (data.outputs[0].hasOwnProperty('text') ) {
-          if(data.outputs[0].text){
-            return <pre>{data.outputs[0].text}</pre>
-          }
-          
-        }
-        if (data.outputs[0].hasOwnProperty('data')) {
-          if (data.outputs[0].data.hasOwnProperty('text/html')) {
-            
-          }
-          if (data.outputs[0].data.hasOwnProperty('image/png')) {
-            const blob = 'data:image/png;base64,' + (data.outputs[0].data['image/png'])
-            return (
-              <div>
-                <img src={blob} />
-              </div>
-            )
-          }
-          return (
 
-            <div>
-              <pre>{data.outputs[0].data['text/plain']}</pre>
-              <div dangerouslySetInnerHTML={{ __html: data.outputs[0].data['text/html'] }} />
-            </div>
-          )
-        }
-      }
-
-      return JSON.stringify(data.outputs[0])
-    }
-  }
 
   interface IClient {
     send: any
@@ -464,7 +433,6 @@ export default function NotebookEditor (props) {
                   index={index} 
                   cell={cell} 
                   ref = {(el: any) => notebook.current.cells[index] = el} 
-                  generateOutput={generateOutput} 
                   submitCell={submitCell} 
                   addCellUp={addCellUp} 
                   addCellDown={addCellDown} 
@@ -486,215 +454,3 @@ export default function NotebookEditor (props) {
   </div>
   )
 }
-
-function NbButtons(props){
-
-  const [kernelName, setKernelName] = useState("Python [conda env:default]*")
-
-  const options = [
-
-    { label: 'Code', value: 'code' },
- 
-    { label: 'Markdown', value: 'markdown' },
- 
-    { label: 'Raw', value: 'raw' },
- 
-  ];
-
-  const handleChange = (event) => {
-
-    // setValue(event.target.value);
- 
-  };
-  // const [value, setValue] = useState(props.notebook.cells[props.focusedIndex].cell_type)
-
-  return (
-    <div className='text-editor-tool'>
-      <button type='button' className='editor-button' onClick={() => props.saveNotebook()}><i className='fas fa-save' /></button>
-      <button type='button' className='editor-button' onClick={() => props.addCell(props.index)}><i className='fas fa-plus' /></button>
-      <button type='button' className='editor-button' onClick={() => props.cutCell(props.index)}><i className='fas fa-cut' /></button>
-      <button type='button' className='editor-button' onClick={() => props.copyCell(props.index)}><i className='fas fa-copy' /></button>
-      <button type='button' className='editor-button' onClick={() => props.pasteCell(props.index)}><i className='fas fa-paste' /></button>
-      <button type='button' className='editor-button' onClick={() => props.submitCell(props.index)}><i className='fas fa-play' /></button>
-      <button type='button' className='editor-button' onClick={() => props.stopKernel()}><i className='fas fa-square' /></button>
-      <button type='button' className='editor-button' onClick={() => props.restartKernel()}><i className='fas fa-redo' /></button>
-      <button type='button' className='editor-button' onClick={() => props.reExecuteNotebook()}><i className='fas fa-forward' /></button>
-      <select className="form-select editor-select" value={props.notebook.current.cells.length > 0 && props.notebook.current.cells[props.focusedIndex].cell_type} onChange={handleChange}>
-        {options.map((option, index) => (
-          <option key={index} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-      {props.notebook.current.cells.length > 0 && props.notebook.current.cells[props.focusedIndex].cell_type}
-      <div className='ms-auto'>{kernelName}</div>
-      <div className="kStatus">idle</div>
-      <ToastContainer />
-    </div>
-  )
-}
-
-function CellButtons(props){
-  return (
-    <div className='cellOptionsDiv'>
-      <div className='cellOptions'>
-        <button type='button' className='editor-button' onClick={() => props.submitCell(props.code, props.cellId)}><i className='fas fa-play' /></button>
-        <button type='button' className='editor-button' onClick={() => props.copyCell(props.index)}><i className='fas fa-copy' /></button>
-        <button type='button' className='editor-button' onClick={() => props.nextCell(props.index)}><i className='fas fa-forward' /></button>
-        <button type='button' className='editor-button' onClick={() => props.prevCell(props.index)}><i className='fas fa-backward' /></button>
-        <button type='button' className='editor-button' onClick={() => props.addCellUp()}><i className='fas fa-plus' /></button>
-        <button type='button' className='editor-button' onClick={() => props.addCellDown()}><i className='fas fa-plus' /></button>
-        <button type='button' className='editor-button' onClick={() => props.deleteCell(props.index)}><i className='fas fa-trash' /></button>
-      </div>
-    </div>
-  )
-}
-
-const Cell = React.forwardRef((props: any, ref) => {
-  const cell = props.cell
-  const [cellContents, setCellContents] = useState(cell.source[0])
-  const[cursorPosition, setCursorPosition] = useState(0)
-  const[totalLines, setTotalLines] = useState(0)
-
-  const onChange = useCallback((value, viewUpdate) => {
-    console.log('val:', value);
-    setCellContents(value)
-
-  }, []);
-
-  const onUpdate =  useCallback(( viewUpdate: ViewUpdate) => {
-    if(viewUpdate){
-      const { state } = viewUpdate;
-      const cursor = state.selection.main.from;
-      const line = state.doc.lineAt(cursor).number;
-        
-      const totalLines = state.doc.lines;
-      setCursorPosition(line)
-      setTotalLines(totalLines)
-
-    }
-
-  }, []);
-
-  const handleKeyDownCM = (event) => {
-    if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
-      props.handleKeyDown({key:"ArrowDown", preventDefault: ()=>{}})
-      event.preventDefault();
-    } else if (event.key === 'ArrowUp'  && cursorPosition ===  1) {
-      props.handleKeyDown({key:"ArrowUp", preventDefault: ()=>{}})
-      event.preventDefault();
-    }
-  };
-
-  const handleCmdEnter = () => {
-    props.submitCell(cellContents)
-    return true
-  }
-
-  const customKeymap = keymap.of([
-    {
-      key: 'Shift-Enter',
-      run: handleCmdEnter
-    }
-  ])
-
-  if (cell.cell_type === 'markdown') {
-    return (
-      <div tabIndex={props.index}  className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'} 
-      ref={(el) => (props.divRefs.current[props.index] = el)}
-      onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
-        
-          
-          {props.index === props.focusedIndex ?  
-            <>
-              
-                <CellButtons index={props.index} 
-                        cellId={cell.id}
-                        code={cellContents}
-                        addCellUp={props.addCellUp} 
-                        addCellDown={props.addCellDown} 
-                        deleteCell={props.deleteCell} 
-                        nextCell={props.nextCell} 
-                        prevCell={props.prevCell}/>
-                <div className='inner-content'>
-                  <div className='cellEditor'>
-                    <CodeMirror
-                      value={cellContents}
-                      height='auto'
-                      width='100%'
-                      extensions={[markdown({ base: markdownLanguage, codeLanguages: languages }),customKeymap]}
-                      autoFocus={props.index === props.focusedIndex ? true: false} 
-                      onChange={onChange}
-                      onUpdate={onUpdate}
-                      onKeyDown={handleKeyDownCM}
-                      basicSetup={{
-                        lineNumbers: false,
-                        bracketMatching: true,
-                        highlightActiveLineGutter: true,
-                        autocompletion: true,
-                        lintKeymap: true,
-                        foldGutter: true,
-                        completionKeymap: true,
-                        tabSize: 4
-                      }}
-                    />
-                  </div>
-                </div>
-            </>
-            :
-            <Markdown rehypePlugins={[rehypeRaw]}>{cellContents}</Markdown> 
-        }
-          
-          </div>
-      
-    )
-  }
-  
-
-  return (
-    <div tabIndex={props.index} 
-        className={props.index === props.focusedIndex ? 'single-line activeCell': 'single-line'}  
-        ref={(el) => (props.divRefs.current[props.index] = el)}
-        onFocus={() => props.setFocusedIndex(props.index)}>
-        {props.index === props.focusedIndex ?  
-        <CellButtons index={props.index} 
-                    code={cellContents}
-                    cellId={cell.id} 
-                    submitCell={props.submitCell} 
-                    addCellUp={props.addCellUp} 
-                    addCellDown={props.addCellDown} 
-                    deleteCell={props.deleteCell} 
-                    nextCell={props.nextCell} 
-                    prevCell={props.prevCell}/> : <></>
-        }
-
-      
-      <div className='inner-content'>
-        <div className='serial-no'>[{cell.execution_count}]:</div>  
-        <div className='cellEditor'>
-          <CodeMirror
-            value={cellContents}
-            height='auto'
-            width='100%'
-            extensions={[python(),customKeymap]}
-            autoFocus={props.index === props.focusedIndex ? true: false} 
-            onChange={onChange}
-            onUpdate={onUpdate}
-            onKeyDown={handleKeyDownCM}
-            basicSetup={{
-              lineNumbers: false,
-              bracketMatching: true,
-              highlightActiveLineGutter: true,
-              autocompletion: true,
-              lintKeymap: true,
-              foldGutter: true,
-              completionKeymap: true,
-              tabSize: 4
-            }}
-          />
-        </div>
-      </div>
-      <div className='inner-text'>
-          {props.generateOutput(cell)}
-        </div>
-    </div>
-  )
-})
