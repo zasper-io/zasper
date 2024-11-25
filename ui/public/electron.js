@@ -32,18 +32,18 @@ const isApiServerReady = (port, callback) => {
 };
 
 const startApiServer = () => {
-  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: os.homedir() });
+  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: os.homedir(), shell: '/bin/zsh' });
 
   apiProcess.stdout.on("data", (data) => {
-    console.log(`API Server: ${data}`);
+    log.info(`API Server: ${data}`);
   });
 
   apiProcess.stderr.on("data", (data) => {
-    console.error(`API Server Error: ${data}`);
+    log.info(`API Server Error: ${data}`);
   });
 
   apiProcess.on("close", (code) => {
-    console.log(`API Server exited with code ${code}`);
+    log.info(`API Server exited with code ${code}`);
   });
 };
 

@@ -45,9 +45,12 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 
 	terminal := "zsh"
+	args := []string{"-l"}
 	log.Debug().Msgf("starting new tty using command '%s' with arguments ['%s']...", terminal, "")
-	cmd := exec.Command(terminal)
+	cmd := exec.Command(terminal, args...)
 	cmd.Env = os.Environ()
+	// cmd.Env = append(cmd.Env, "TERM_PROGRAM=Apple_Terminal")
+	cmd.Env = append(cmd.Env, "TERM=xterm-256color")
 	tty, err := pty.Start(cmd)
 
 	if err != nil {
