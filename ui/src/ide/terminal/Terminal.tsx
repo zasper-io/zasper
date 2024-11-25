@@ -6,8 +6,13 @@ import { WebLinksAddon } from 'xterm-addon-web-links'
 
 import 'xterm/css/xterm.css'
 import { BaseApiUrl, BaseWebSocketUrl } from '../config'
+import { useAtom } from 'jotai'
+import { themeAtom } from '../../store/Settings'
 
 export default function TerminalTab (props) {
+
+  const [theme, setTheme] = useAtom(themeAtom)
+  
   interface IClient {
     send: any
   }
@@ -53,11 +58,11 @@ export default function TerminalTab (props) {
 
   useEffect(() => {
     if (terminalRef.current == null) return
-
+    const xtemBackground = theme === 'light' ? '#392e6b' : '#2b2a2a' 
     // Initialize the terminal
     const terminal = new XTerm({
       theme: {
-        background: '#392e6b'
+        background: xtemBackground
       },
       fontFamily: 'Monospace'
     })
