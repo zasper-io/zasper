@@ -84,14 +84,6 @@ export default function TerminalTab (props) {
       }
     }
 
-    // socketRef.current.onmessage = (event: MessageEvent) => {
-    //     terminal.write(event.data);
-    // };
-
-    // terminal.onData((data: string) => {
-    //     socketRef.current?.send(data);
-    // });
-
     return () => {
       // Clean up on component unmount
       socketRef.current?.close()

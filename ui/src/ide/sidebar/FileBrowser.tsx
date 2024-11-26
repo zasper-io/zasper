@@ -102,6 +102,7 @@ const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileC
     const iconMap: { [key: string]: string } = {
       go: './images/editor/go-icon.svg',
       mod: './images/editor/go-icon.svg',
+      sum: './images/editor/go-icon.svg',
       py: './images/editor/py-icon.svg',
       ipynb: './images/editor/py-icon.svg',
       js: './images/editor/js-icon.svg',
@@ -150,15 +151,16 @@ const DirectoryItem = ({data, sendDataToParent }) => {
   const [text, setText] = useState(data.name);
   const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleDirectoryClick = async (path: string) => {
+    setIsCollapsed(!isCollapsed)
     console.log("handleDirectoryClick")
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
       method: 'POST',
       body: JSON.stringify({ path }),
     });
     const resJson = await res.json();
-    // sendDataToParent(resJson.name, resJson.path, resJson.type);
     setContent(resJson)
   };
 
@@ -201,7 +203,7 @@ const DirectoryItem = ({data, sendDataToParent }) => {
       )}
       <ul>
         <ul className='file-list list-unstyled'>
-          {content.content !== null &&  content.content.map((content, index) => (
+          {isCollapsed && content.content !== null &&  content.content.map((content, index) => (
             content.type === 'directory' ? (
               <DirectoryItem key={index} 
                               sendDataToParent={sendDataToParent}
