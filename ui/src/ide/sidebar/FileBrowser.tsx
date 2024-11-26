@@ -96,6 +96,20 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
 const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileClick: (name: string, path: string, type: string) => void }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(content.name);
+  const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
+
+  const menuItems = [
+    { 
+      label: 'Rename', 
+      action: (path: string) => { 
+        // e.stopPropagation(); // Stop the click event from propagating
+        setIsEditing(true); 
+      } 
+    },
+    // { label: 'Delete', action: async () => await deleteFile(data.path) }
+  ];
+  
 
   const getIconToLoad = () => {
     const extension = getFileExtension(content.name);
@@ -121,11 +135,23 @@ const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileC
     return extension != null ? iconMap[extension] : './images/editor/go-icon.svg';
   };
 
+  const handleRightClick = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+    setMenuPosition({ xPos: e.pageX, yPos: e.pageY });
+    setIsMenuVisible(true);
+  };
+
+  const handleClick = (name: string, path: string, type:string) => {
+    if (!isMenuVisible) {
+      handleFileClick(name, path, type)
+    }
+  }
+
   return (
     <li className='fileItem'>
       <a
-        onClick={() => handleFileClick(content.name, content.path, content.type)}
-        onContextMenu={(e) => e.preventDefault()}
+        onClick={() => handleClick(content.name, content.path, content.type)}
+        onContextMenu={(e) => handleRightClick(e, content.path)}
       >
         <img src={getIconToLoad()} alt='' />
         {isEditing ? (
@@ -140,6 +166,15 @@ const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileC
         ) : (
           <span onClick={() => setIsEditing(true)}>{text}</span>
         )}
+        {isMenuVisible && menuPosition && (
+        <ContextMenu
+          xPos={menuPosition.xPos}
+          yPos={menuPosition.yPos}
+          items={menuItems}
+          path={content.path}
+          onClose={() => setIsMenuVisible(false)}
+        />
+      )}
       </a>
     </li>
   );
