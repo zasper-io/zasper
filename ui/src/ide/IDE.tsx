@@ -133,8 +133,10 @@ function IDE () {
             <Panel defaultSize={20} minSize={20}>
               <div className='navigation'>
                 <NavigationPanel handleNavigationPanel={handleNavigationPanel} />
-                <FileBrowser sendDataToParent={handleDataFromChild} display={navState.fileBrowser.display} />
-                <SettingsPanel sendDataToParent={handleDataFromChild} display={navState.settingsPanel.display} />
+                <div className='sideBar'>
+                  <FileBrowser sendDataToParent={handleDataFromChild} display={navState.fileBrowser.display} />
+                  <SettingsPanel sendDataToParent={handleDataFromChild} display={navState.settingsPanel.display} />
+                </div>
               </div>
             </Panel>
             <PanelResizeHandle />

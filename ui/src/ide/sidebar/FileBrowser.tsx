@@ -213,7 +213,7 @@ const DirectoryItem = ({data, sendDataToParent }) => {
   return (
     <li className='fileItem'>
       <a onContextMenu={(e) => handleRightClick(e, data.path)} onClick={() => handleDirectoryClick(data.path)}>
-        <img src='./images/editor/directory.svg' alt='' />
+        <img className='directoryIcon' src='./images/editor/directory.svg' alt='' />
         {isEditing ? (
           <input
             type='text'

@@ -31,7 +31,7 @@ export default function Launcher (props) {
 
     <div className={props.data.display}>
       <div className='LauncherArea'>
-        <h2>Notebook</h2>
+        <h2 className='launchItem'>Notebook</h2>
         {
                         Object.keys(kernelspecs).map((key, index) => (
                           <div className='launcher-icon' key={index}>
@@ -41,7 +41,7 @@ export default function Launcher (props) {
                         ))
                     }
         <hr />
-        <h2>Terminal</h2>
+        <h2 className='launchItem'>Terminal</h2>
         <div className='launcher-icon' onClick={openTerminal}>
           <h6>New Terminal</h6>
           <img className='terminalIconImage' src='./images/terminal.png' alt='terminal' />

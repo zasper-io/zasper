@@ -116,6 +116,16 @@ a {
     .terminalArea{
         background-color: #2b2a2a;
     }
+    .launchItem{
+        color: #fff;
+    }
+    .launcher-icon{
+        background-color:  #272727;
+        color: #fff;
+    }
+    .directoryIcon{
+        fill: #fff;
+    }
 }
 
 .topBar {
@@ -300,6 +310,11 @@ a {
                   brightness(83%) contrast(104%);
             }
         }
+
+       
+    }
+    .sideBar{
+        width: 100%;
     }
 
     .nav-content {
