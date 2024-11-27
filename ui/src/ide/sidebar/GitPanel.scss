@@ -1,0 +1,37 @@
+.graph-container {
+    position: relative;
+    width: 100%;
+  }
+  
+  .commit-node {
+    height: 40px;
+    background-color: #5f568f;
+    color: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    margin-bottom: 10px;
+  }
+  
+  .commit-message {
+  }
+  
+  .commit-hash {
+    font-size: 12px;
+  }
+  
+  .commit-node.main {
+    background-color: #3498db;
+  }
+  
+  .commit-node.feature-xyz {
+    background-color: #f39c12;
+  }
+  
+  .connection-line {
+    background-color: #999;
+    z-index: 0;
+    height: 2px;
+    transform-origin: top left;
+  }
+  

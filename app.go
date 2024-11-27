@@ -15,6 +15,7 @@ import (
 
 	"github.com/zasper-io/zasper/content"
 	"github.com/zasper-io/zasper/core"
+	"github.com/zasper-io/zasper/gitclient"
 	"github.com/zasper-io/zasper/health"
 	"github.com/zasper-io/zasper/kernel"
 	"github.com/zasper-io/zasper/kernelspec"
@@ -83,6 +84,8 @@ func main() {
 
 	// contents
 	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")
+
+	apiRouter.HandleFunc("/commit-graph", gitclient.CommitGraphHandler).Methods("GET")
 
 	apiRouter.HandleFunc("/contents", content.ContentAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")

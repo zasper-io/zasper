@@ -43,7 +43,7 @@ const NavigationPanel = ({ handleNavigationPanel }) => {
     <div className='navigation-list'>
       <button className='editor-button nav-link' onClick={(e) => menuBarClickHandler(e)}><img src='./images/editor/menu-bar.svg' alt='' /></button>
       <button className='editor-button nav-link active' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-file-text.svg' alt='' /></button>
-      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/metro-flow-branch.svg' alt='' /></button>
+      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('gitPanel')}><img src='./images/editor/metro-flow-branch.svg' alt='' /></button>
       <button className='editor-button nav-link'><img src='./images/editor/feather-box.svg' alt='' /></button>
       <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-play-circle.svg' alt='' /></button>
       <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-lock.svg' alt='' /></button>

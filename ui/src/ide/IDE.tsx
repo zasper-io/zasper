@@ -14,6 +14,7 @@ import Topbar from './topbar/Topbar'
 import getFileExtension from './utils'
 import { settingsAtom, themeAtom } from '../store/Settings'
 import SettingsPanel from './settings/SettingsPanel'
+import GitPanel from './sidebar/GitPanel'
 
 interface Ifile {
   type: string
@@ -41,7 +42,7 @@ function IDE () {
   const [settings, setSettings] = useAtom(settingsAtom)
   const [theme, setTheme] = useAtom(themeAtom)
 
-  const fileBroser: INav = {
+  const fileBrowser: INav = {
     name: 'fileBrowser',
     display: 'd-block'
   }
@@ -51,9 +52,16 @@ function IDE () {
     display: 'd-none'
   }
 
+  const gitPanel: INav = {
+    name: 'gitPanel',
+    display: 'd-none'
+  }
+
   const navStateDict: INavDict = {
-    fileBrowser: fileBroser,
-    settingsPanel
+    fileBrowser: fileBrowser,
+    settingsPanel: settingsPanel,
+    gitPanel: gitPanel
+
   }
 
   const ksfile: Ifile = {
@@ -136,6 +144,7 @@ function IDE () {
                 <div className='sideBar'>
                   <FileBrowser sendDataToParent={handleDataFromChild} display={navState.fileBrowser.display} />
                   <SettingsPanel sendDataToParent={handleDataFromChild} display={navState.settingsPanel.display} />
+                  <GitPanel sendDataToParent={handleDataFromChild} display={navState.gitPanel.display}/>
                 </div>
               </div>
             </Panel>
