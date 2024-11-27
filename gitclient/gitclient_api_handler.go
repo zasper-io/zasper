@@ -127,6 +127,66 @@ func commitSpecificFiles(repoPath string, files []string, message string) error 
 	return nil
 }
 
+// Function to push changes to remote
+func pushChanges(repoPath string) error {
+	// Open the git repository
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return err
+	}
+
+	// Get the remote (assuming "origin" as the remote name)
+	remote, err := repo.Remote("origin")
+	if err != nil {
+		return fmt.Errorf("failed to get remote: %v", err)
+	}
+
+	// Push changes to the remote repository
+	err = remote.Push(&git.PushOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to push changes: %v", err)
+	}
+
+	return nil
+}
+
+// API handler to commit and optionally push changes
+func CommitAndMaybePushHandler(w http.ResponseWriter, r *http.Request) {
+	repoPath := "/Users/prasunanand/dev/zasper" // todo - get from config
+	var requestData struct {
+		Message string   `json:"message"`
+		Files   []string `json:"files"`
+		Push    bool     `json:"push"` // Add a flag to determine whether to push
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&requestData)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Commit the changes
+	err = commitSpecificFiles(repoPath, requestData.Files, requestData.Message)
+	if err != nil {
+		http.Error(w, "Failed to commit selected files", http.StatusInternalServerError)
+		return
+	}
+
+	// If 'push' is true, push the changes
+	if requestData.Push {
+		err = pushChanges(repoPath)
+		if err != nil {
+			http.Error(w, "Failed to push changes", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Changes committed and pushed successfully"))
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Changes committed successfully"))
+	}
+}
+
 func CommitGraphHandler(w http.ResponseWriter, r *http.Request) {
 	repoPath := "/Users/prasunanand/dev/zasper" // todo - get from config
 
@@ -153,27 +213,4 @@ func GetUncommittedFilesHandler(w http.ResponseWriter, r *http.Request) {
 	// Return the list as a JSON response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(uncommittedFiles)
-}
-
-func CommitSpecificFilesHandler(w http.ResponseWriter, r *http.Request) {
-	repoPath := "/Users/prasunanand/dev/zasper" // todo - get from config
-	var requestData struct {
-		Message string   `json:"message"`
-		Files   []string `json:"files"`
-	}
-
-	err := json.NewDecoder(r.Body).Decode(&requestData)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	err = commitSpecificFiles(repoPath, requestData.Files, requestData.Message)
-	if err != nil {
-		http.Error(w, "Failed to commit selected files", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Selected files committed successfully"))
 }

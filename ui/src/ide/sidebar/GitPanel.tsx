@@ -17,84 +17,100 @@ export default function GitPanel (props) {
   )
 }
 
-
 function GitCommit() {
   const [files, setFiles] = useState<string[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]); 
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [commitMessage, setCommitMessage] = useState<string>('');
-
+  // State for push option
+  const [pushAfterCommit, setPushAfterCommit] = useState<boolean>(false); 
 
   useEffect(() => {
     // Fetch uncommitted files from the server
     fetch('http://localhost:8888/api/uncommitted-files')
-      .then(response => response.json())
-      .then(data => setFiles(data))
-      .catch(error => console.error('Error fetching files:', error));
+      .then((response) => response.json())
+      .then((data) => setFiles(data))
+      .catch((error) => {
+        console.error('Error fetching files:', error);
+        setFiles([]);
+      });
   }, []);
 
-  // Handle checkbox change
-  const handleCheckboxChange = (file) => {
-    setSelectedFiles(prevSelectedFiles => {
+  const handleCheckboxChange = (file: string) => {
+    setSelectedFiles((prevSelectedFiles) => {
       if (prevSelectedFiles.includes(file)) {
-        return prevSelectedFiles.filter(f => f !== file); // Deselect file
+        return prevSelectedFiles.filter((f) => f !== file); // Deselect file
       } else {
         return [...prevSelectedFiles, file]; // Select file
       }
     });
   };
 
-  // Handle commit
   const handleCommit = () => {
     if (selectedFiles.length === 0) {
-      alert("Please select at least one file to commit.");
+      alert('Please select at least one file to commit.');
       return;
     }
 
     const payload = {
       message: commitMessage,
-      files: selectedFiles
+      files: selectedFiles,
+      push: pushAfterCommit, // Include the push option in the payload
     };
 
-    fetch('http://localhost:8888/api/commit-changes', {
+    fetch('http://localhost:8888/api/commit-and-maybe-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-      .then(response => response.text())
-      .then(message => alert(message))
-      .catch(error => console.error('Error committing changes:', error));
+      .then((response) => response.text())
+      .then((message) => alert(message))
+      .catch((error) => console.error('Error committing changes:', error));
   };
 
   return (
     <div>
-      <h1>Uncommitted Files</h1>
-      <ul>
-        {files.map((file, index) => (
-          <li key={index}>
-            <input
-              type="checkbox"
-              id={file}
-              value={file}
-              onChange={() => handleCheckboxChange(file)}
-            />
-            <label htmlFor={file}>{file}</label>
-          </li>
-        ))}
-      </ul>
+      <h3>Uncommitted Files</h3>
+      {files && files.length > 0 ? (
+        <ul>
+          {files.map((file, index) => (
+            <li key={index}>
+              <input
+                type="checkbox"
+                id={file}
+                value={file}
+                onChange={() => handleCheckboxChange(file)}
+              />
+              <label htmlFor={file}>{file}</label>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No uncommitted files found.</p>
+      )}
 
-      <h2>Commit Message</h2>
+      <h4>Commit Message</h4>
       <input
         type="text"
         value={commitMessage}
-        onChange={e => setCommitMessage(e.target.value)}
+        onChange={(e) => setCommitMessage(e.target.value)}
         placeholder="Enter commit message"
       />
 
-      <button onClick={handleCommit}>Commit Selected Files</button>
+      <div>
+        <label>
+          <input
+            type="checkbox"
+            checked={pushAfterCommit}
+            onChange={() => setPushAfterCommit(!pushAfterCommit)} // Toggle the push option
+          />
+          Push after commit
+        </label>
+      </div>
+
+      <button onClick={handleCommit}>Commit {pushAfterCommit ? 'and Push' : ''} </button>
     </div>
   );
 }
-
 
 
 const CommitGraphContainer: React.FC = () => {
