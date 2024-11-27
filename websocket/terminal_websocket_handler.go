@@ -10,13 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog/log"
 )
 
-const DefaultConnectionErrorLimit = 10
+const (
+	DefaultConnectionErrorLimit = 10
+	MaxBufferSizeBytes          = 512
+	KeepAlivePingTimeout        = 20 * time.Second
+)
 
 type TTYSize struct {
 	Cols uint16 `json:"cols"`
@@ -33,163 +36,192 @@ var WebsocketMessageType = map[int]string{
 	websocket.PongMessage:   "pong",
 }
 
+// HandleTerminalWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
 func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
-
-	connectionErrorLimit := DefaultConnectionErrorLimit
-	maxBufferSizeBytes := 512
-
 	connection, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
-		log.Warn().Msgf("failed to upgrade connection: %s", err)
+		log.Warn().Err(err).Msg("Failed to upgrade connection")
 		return
 	}
+	defer connection.Close()
 
-	terminal := "zsh"
-	args := []string{"-l"}
-	log.Debug().Msgf("starting new tty using command '%s' with arguments ['%s']...", terminal, "")
-	cmd := exec.Command(terminal, args...)
-	cmd.Env = os.Environ()
-	// cmd.Env = append(cmd.Env, "TERM_PROGRAM=Apple_Terminal")
-	cmd.Env = append(cmd.Env, "TERM=xterm-256color")
-	tty, err := pty.Start(cmd)
-
+	tty, cmd, err := startTTY()
 	if err != nil {
-		message := fmt.Sprintf("failed to start tty: %s", err)
-		log.Warn().Msg(message)
-		connection.WriteMessage(websocket.TextMessage, []byte(message))
+		sendErrorMessage(connection, fmt.Sprintf("failed to start tty: %s", err))
 		return
 	}
-	defer func() {
-		log.Info().Msg("gracefully stopping spawned tty...")
-		if err := cmd.Process.Kill(); err != nil {
-			log.Warn().Msgf("failed to kill process: %s", err)
-		}
-		if _, err := cmd.Process.Wait(); err != nil {
-			log.Warn().Msgf("failed to wait for process to exit: %s", err)
-		}
-		if err := tty.Close(); err != nil {
-			log.Warn().Msgf("failed to close spawned tty gracefully: %s", err)
-		}
-		if err := connection.Close(); err != nil {
-			log.Warn().Msgf("failed to close webscoket connection: %s", err)
-		}
-	}()
+	defer cleanupTTY(cmd, tty, connection)
 
-	var connectionClosed bool
 	var waiter sync.WaitGroup
 	waiter.Add(1)
 
-	// this is a keep-alive loop that ensures connection does not hang-up itself
 	lastPongTime := time.Now()
-	keepalivePingTimeout := 20 * time.Second
-	connection.SetPongHandler(func(msg string) error {
-		lastPongTime = time.Now()
-		return nil
-	})
-	go func() {
-		for {
-			if err := connection.WriteMessage(websocket.PingMessage, []byte("keepalive")); err != nil {
-				log.Warn().Msg("failed to write ping message")
-				return
-			}
-			time.Sleep(keepalivePingTimeout / 2)
-			if time.Now().Sub(lastPongTime) > keepalivePingTimeout {
-				log.Warn().Msg("failed to get response from ping, triggering disconnect now...")
-				waiter.Done()
-				return
-			}
-			log.Debug().Msg("received response from ping successfully")
-		}
-	}()
+	setupKeepAlive(connection, &lastPongTime, &waiter)
 
-	// tty >> xterm.js
-	go func() {
-		errorCounter := 0
-		for {
-			// consider the connection closed/errored out so that the socket handler
-			// can be terminated - this frees up memory so the service doesn't get
-			// overloaded
-			if errorCounter > connectionErrorLimit {
-				waiter.Done()
-				break
-			}
-			buffer := make([]byte, maxBufferSizeBytes)
-			readLength, err := tty.Read(buffer)
-			if err != nil {
-				log.Warn().Msgf("failed to read from tty: %s", err)
-				if err := connection.WriteMessage(websocket.TextMessage, []byte("bye!")); err != nil {
-					log.Warn().Msgf("failed to send termination message from tty to xterm.js: %s", err)
-				}
-				waiter.Done()
-				return
-			}
-			if err := connection.WriteMessage(websocket.BinaryMessage, buffer[:readLength]); err != nil {
-				log.Warn().Msgf("failed to send %v bytes from tty to xterm.js", readLength)
-				errorCounter++
-				continue
-			}
-			log.Trace().Msgf("sent message of size %v bytes from tty to xterm.js", readLength)
-			errorCounter = 0
-		}
-	}()
+	// Terminal output to WebSocket
+	go readFromTTY(tty, connection, &waiter)
 
-	// tty << xterm.js
-	go func() {
-		for {
-			// data processing
-			messageType, data, err := connection.ReadMessage()
-			if err != nil {
-				if !connectionClosed {
-					log.Warn().Msgf("failed to get next reader: %s", err)
-				}
-				return
-			}
-			dataLength := len(data)
-			dataBuffer := bytes.Trim(data, "\x00")
-			dataType, ok := WebsocketMessageType[messageType]
-			if !ok {
-				dataType = "uunknown"
-			}
-			log.Info().Msgf("received %s (type: %v) message of size %v byte(s) from xterm.js with key sequence: %v", dataType, messageType, dataLength, dataBuffer)
-
-			// process
-			if dataLength == -1 { // invalid
-				log.Warn().Msgf("failed to get the correct number of bytes read, ignoring message")
-				continue
-			}
-
-			// handle resizing
-			if messageType == websocket.BinaryMessage {
-				if dataBuffer[0] == 1 {
-					ttySize := &TTYSize{}
-					resizeMessage := bytes.Trim(dataBuffer[1:], " \n\r\t\x00\x01")
-					if err := json.Unmarshal(resizeMessage, ttySize); err != nil {
-						log.Warn().Msgf("failed to unmarshal received resize message '%s': %s", string(resizeMessage), err)
-						continue
-					}
-					log.Info().Msgf("resizing tty to use %v rows and %v columns...", ttySize.Rows, ttySize.Cols)
-					if err := pty.Setsize(tty, &pty.Winsize{
-						Rows: ttySize.Rows,
-						Cols: ttySize.Cols,
-					}); err != nil {
-						log.Warn().Msgf("failed to resize tty, error: %s", err)
-					}
-					continue
-				}
-			}
-
-			// write to tty
-			bytesWritten, err := tty.Write(dataBuffer)
-			if err != nil {
-				log.Warn().Msg(fmt.Sprintf("failed to write %v bytes to tty: %s", len(dataBuffer), err))
-				continue
-			}
-			log.Trace().Msgf("%v bytes written to tty...", bytesWritten)
-		}
-	}()
+	// WebSocket input to terminal
+	go writeToTTY(connection, tty)
 
 	waiter.Wait()
-	log.Info().Msg("closing connection...")
-	connectionClosed = true
+	log.Info().Msg("Closing connection...")
+}
 
+// startTTY starts a new terminal session.
+func startTTY() (*os.File, *exec.Cmd, error) {
+	terminal := "zsh"
+	args := []string{"-l"}
+	log.Debug().Msgf("Starting new TTY using command '%s' with arguments ['%s']...", terminal, args)
+
+	cmd := exec.Command(terminal, args...)
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
+	tty, err := pty.Start(cmd)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to start TTY: %w", err)
+	}
+
+	return tty, cmd, nil
+}
+
+// cleanupTTY gracefully stops the terminal and closes the connection.
+func cleanupTTY(cmd *exec.Cmd, tty *os.File, connection *websocket.Conn) {
+	log.Info().Msg("Gracefully stopping spawned TTY...")
+
+	if err := cmd.Process.Kill(); err != nil {
+		log.Warn().Err(err).Msg("Failed to kill process")
+	}
+	if _, err := cmd.Process.Wait(); err != nil {
+		log.Warn().Err(err).Msg("Failed to wait for process to exit")
+	}
+	if err := tty.Close(); err != nil {
+		log.Warn().Err(err).Msg("Failed to close spawned TTY gracefully")
+	}
+	if err := connection.Close(); err != nil {
+		log.Warn().Err(err).Msg("Failed to close WebSocket connection")
+	}
+}
+
+// sendErrorMessage sends an error message over WebSocket.
+func sendErrorMessage(connection *websocket.Conn, message string) {
+	log.Warn().Msg(message)
+	if err := connection.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+		log.Warn().Err(err).Msg("Failed to send error message over WebSocket")
+	}
+}
+
+// setupKeepAlive sets up the ping/pong keep-alive mechanism for the WebSocket connection.
+func setupKeepAlive(connection *websocket.Conn, lastPongTime *time.Time, waiter *sync.WaitGroup) {
+	connection.SetPongHandler(func(msg string) error {
+		*lastPongTime = time.Now()
+		return nil
+	})
+
+	go func() {
+		defer waiter.Done()
+		for {
+			if err := connection.WriteMessage(websocket.PingMessage, []byte("keepalive")); err != nil {
+				log.Warn().Err(err).Msg("Failed to write ping message")
+				return
+			}
+			time.Sleep(KeepAlivePingTimeout / 2)
+			if time.Since(*lastPongTime) > KeepAlivePingTimeout {
+				log.Warn().Msg("Failed to get response from ping, triggering disconnect")
+				return
+			}
+			log.Debug().Msg("Received response from ping successfully")
+		}
+	}()
+}
+
+// readFromTTY reads output from the TTY and sends it to the WebSocket connection.
+func readFromTTY(tty *os.File, connection *websocket.Conn, waiter *sync.WaitGroup) {
+	defer waiter.Done()
+	errorCounter := 0
+
+	for {
+		if errorCounter > DefaultConnectionErrorLimit {
+			break
+		}
+		buffer := make([]byte, MaxBufferSizeBytes)
+		readLength, err := tty.Read(buffer)
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed to read from TTY")
+			sendErrorMessage(connection, "Bye!")
+			return
+		}
+
+		if err := connection.WriteMessage(websocket.BinaryMessage, buffer[:readLength]); err != nil {
+			log.Warn().Err(err).Msgf("Failed to send %d bytes from TTY to WebSocket", readLength)
+			errorCounter++
+			continue
+		}
+
+		log.Trace().Msgf("Sent message of size %d bytes from TTY to WebSocket", readLength)
+		errorCounter = 0
+	}
+}
+
+// writeToTTY writes incoming WebSocket messages to the TTY.
+func writeToTTY(connection *websocket.Conn, tty *os.File) {
+	for {
+		messageType, data, err := connection.ReadMessage()
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed to read WebSocket message")
+			return
+		}
+
+		dataLength := len(data)
+		dataBuffer := bytes.Trim(data, "\x00")
+
+		dataType := getMessageType(messageType)
+		log.Info().Msgf("Received %s (type: %v) message of size %v byte(s)", dataType, messageType, dataLength)
+
+		if messageType == websocket.BinaryMessage {
+			handleResizeMessage(dataBuffer, tty)
+		}
+
+		if err := writeDataToTTY(dataBuffer, tty); err != nil {
+			log.Warn().Err(err).Msg("Failed to write data to TTY")
+		}
+	}
+}
+
+// getMessageType returns a string representation of the WebSocket message type.
+func getMessageType(messageType int) string {
+	if dataType, ok := WebsocketMessageType[messageType]; ok {
+		return dataType
+	}
+	return "unknown"
+}
+
+// handleResizeMessage processes the terminal resize message and resizes the TTY accordingly.
+func handleResizeMessage(dataBuffer []byte, tty *os.File) {
+	if dataBuffer[0] == 1 {
+		ttySize := &TTYSize{}
+		resizeMessage := bytes.Trim(dataBuffer[1:], " \n\r\t\x00\x01")
+		if err := json.Unmarshal(resizeMessage, ttySize); err != nil {
+			log.Warn().Err(err).Msgf("Failed to unmarshal resize message: %s", string(resizeMessage))
+			return
+		}
+
+		log.Info().Msgf("Resizing TTY to %d rows and %d columns", ttySize.Rows, ttySize.Cols)
+		if err := pty.Setsize(tty, &pty.Winsize{
+			Rows: ttySize.Rows,
+			Cols: ttySize.Cols,
+		}); err != nil {
+			log.Warn().Err(err).Msg("Failed to resize TTY")
+		}
+	}
+}
+
+// writeDataToTTY writes the data to the TTY and logs the operation.
+func writeDataToTTY(data []byte, tty *os.File) error {
+	bytesWritten, err := tty.Write(data)
+	if err != nil {
+		return fmt.Errorf("failed to write %d bytes to TTY: %w", len(data), err)
+	}
+	log.Trace().Msgf("%d bytes written to TTY", bytesWritten)
+	return nil
 }
