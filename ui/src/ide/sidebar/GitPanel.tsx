@@ -24,8 +24,9 @@ function GitCommit() {
   // State for push option
   const [pushAfterCommit, setPushAfterCommit] = useState<boolean>(false); 
 
-  useEffect(() => {
-    // Fetch uncommitted files from the server
+
+   // Function to fetch the list of uncommitted files
+  const fetchFiles = () => {
     fetch('http://localhost:8888/api/uncommitted-files')
       .then((response) => response.json())
       .then((data) => setFiles(data))
@@ -33,6 +34,11 @@ function GitCommit() {
         console.error('Error fetching files:', error);
         setFiles([]);
       });
+  };
+
+  useEffect(() => {
+    // Initial fetch when component mounts
+    fetchFiles();
   }, []);
 
   const handleCheckboxChange = (file: string) => {
@@ -63,8 +69,15 @@ function GitCommit() {
       body: JSON.stringify(payload),
     })
       .then((response) => response.text())
-      .then((message) => alert(message))
-      .catch((error) => console.error('Error committing changes:', error));
+      .then((message) => {
+        alert(message);
+        // After commit (and push), re-fetch the list of uncommitted files
+        fetchFiles();
+      })
+      .catch((error) => {
+        console.error('Error committing changes:', error);
+        alert('An error occurred while committing changes.');
+      });
   };
 
   return (
