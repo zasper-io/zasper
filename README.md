@@ -37,6 +37,9 @@ Inbuilt concurrency
 ### Jupyter Notebook
 ![Notebook](./screenshots/notebook.png) 
 
+### Version Control
+![Version Control](./screenshots/git.png) 
+
 ### Dark Mode
 ![Dark mode](./screenshots/dark.png) 
 
