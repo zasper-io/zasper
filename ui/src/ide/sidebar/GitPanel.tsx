@@ -10,11 +10,92 @@ export default function GitPanel (props) {
         <h6>Source Control Graph</h6>
       </div>
       <div className='content-inner'>
+        <GitCommit/>
         <CommitGraphContainer></CommitGraphContainer>
       </div>
     </div>
   )
 }
+
+
+function GitCommit() {
+  const [files, setFiles] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]); 
+  const [commitMessage, setCommitMessage] = useState<string>('');
+
+
+  useEffect(() => {
+    // Fetch uncommitted files from the server
+    fetch('http://localhost:8888/api/uncommitted-files')
+      .then(response => response.json())
+      .then(data => setFiles(data))
+      .catch(error => console.error('Error fetching files:', error));
+  }, []);
+
+  // Handle checkbox change
+  const handleCheckboxChange = (file) => {
+    setSelectedFiles(prevSelectedFiles => {
+      if (prevSelectedFiles.includes(file)) {
+        return prevSelectedFiles.filter(f => f !== file); // Deselect file
+      } else {
+        return [...prevSelectedFiles, file]; // Select file
+      }
+    });
+  };
+
+  // Handle commit
+  const handleCommit = () => {
+    if (selectedFiles.length === 0) {
+      alert("Please select at least one file to commit.");
+      return;
+    }
+
+    const payload = {
+      message: commitMessage,
+      files: selectedFiles
+    };
+
+    fetch('http://localhost:8888/api/commit-changes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(response => response.text())
+      .then(message => alert(message))
+      .catch(error => console.error('Error committing changes:', error));
+  };
+
+  return (
+    <div>
+      <h1>Uncommitted Files</h1>
+      <ul>
+        {files.map((file, index) => (
+          <li key={index}>
+            <input
+              type="checkbox"
+              id={file}
+              value={file}
+              onChange={() => handleCheckboxChange(file)}
+            />
+            <label htmlFor={file}>{file}</label>
+          </li>
+        ))}
+      </ul>
+
+      <h2>Commit Message</h2>
+      <input
+        type="text"
+        value={commitMessage}
+        onChange={e => setCommitMessage(e.target.value)}
+        placeholder="Enter commit message"
+      />
+
+      <button onClick={handleCommit}>Commit Selected Files</button>
+    </div>
+  );
+}
+
+
 
 const CommitGraphContainer: React.FC = () => {
   const [commitData, setCommitData] = useState<Commit[] | null>(null);
