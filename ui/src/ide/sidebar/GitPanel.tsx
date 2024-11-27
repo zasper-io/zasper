@@ -81,7 +81,7 @@ function GitCommit() {
   };
 
   return (
-    <div className="container mt-5">
+    <div className="container">
       <h3>Uncommitted Files</h3>
       {files && files.length > 0 ? (
         <ul className="list-group mb-4">

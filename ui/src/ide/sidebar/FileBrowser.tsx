@@ -58,8 +58,7 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
     <div className={display}>
       <div className='nav-content'>
         <div className='content-head'>
-          <h6>{cwd}</h6>
-          <h6>Files</h6>
+          <div>File Explorer</div>
           <div>
             <button className='editor-button' onClick={createNewFile}>
               <img src='./images/editor/feather-file-plus.svg' alt='' />
