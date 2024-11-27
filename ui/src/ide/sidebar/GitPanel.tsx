@@ -68,19 +68,22 @@ function GitCommit() {
   };
 
   return (
-    <div>
+    <div className="container mt-5">
       <h3>Uncommitted Files</h3>
       {files && files.length > 0 ? (
-        <ul>
+        <ul className="list-group mb-4">
           {files.map((file, index) => (
-            <li key={index}>
-              <input
-                type="checkbox"
-                id={file}
-                value={file}
-                onChange={() => handleCheckboxChange(file)}
-              />
-              <label htmlFor={file}>{file}</label>
+            <li key={index} className="list-group-item">
+              <div className="form-check">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id={file}
+                  value={file}
+                  onChange={() => handleCheckboxChange(file)}
+                />
+                <label htmlFor={file} className="form-check-label">{file}</label>
+              </div>
             </li>
           ))}
         </ul>
@@ -90,6 +93,7 @@ function GitCommit() {
 
       <h4>Commit Message</h4>
       <input
+        className="form-control"
         type="text"
         value={commitMessage}
         onChange={(e) => setCommitMessage(e.target.value)}
@@ -97,12 +101,13 @@ function GitCommit() {
       />
 
       <div>
-        <label>
           <input
+            className="form-check-input"
             type="checkbox"
             checked={pushAfterCommit}
             onChange={() => setPushAfterCommit(!pushAfterCommit)} // Toggle the push option
           />
+          <label className="form-check-label">
           Push after commit
         </label>
       </div>
