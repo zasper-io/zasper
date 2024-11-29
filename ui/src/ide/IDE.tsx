@@ -1,24 +1,24 @@
+import React, { useState } from 'react';
+import { useAtom } from 'jotai';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { settingsAtom, themeAtom } from '../store/Settings';
 
-import NavigationPanel from './NavigationPanel'
+import NavigationPanel from './NavigationPanel';
+import FileBrowser from './sidebar/FileBrowser';
+import ContentPanel from './editor/ContentPanel';
+import TabIndex from './tabs/TabIndex';
+import Topbar from './topbar/Topbar';
+import GitPanel from './sidebar/GitPanel';
+import JupyterInfoPanel from './sidebar/JupyterInfoPanel';
+import SettingsPanel from './sidebar/SettingsPanel';
+import DebugPanel from './sidebar/DebugPanel';
+import DatabasePanel from './sidebar/DatabasePanel';
+import SecretsPanel from './sidebar/SecretsPanel';
+import StatusBar from './statusBar/StatusBar';
 
-import React, { useState } from 'react'
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
-import { useAtom } from 'jotai'
+import getFileExtension from './utils';
 
-import FileBrowser from './sidebar/FileBrowser'
 import './IDE.scss'
-
-import ContentPanel from './editor/ContentPanel'
-import TabIndex from './tabs/TabIndex'
-import Topbar from './topbar/Topbar'
-import getFileExtension from './utils'
-import { settingsAtom, themeAtom } from '../store/Settings'
-import GitPanel from './sidebar/GitPanel'
-import JupyterInfoPanel from './sidebar/JupyterInfoPanel'
-import SettingsPanel from './sidebar/SettingsPanel'
-import DebugPanel from './sidebar/DebugPanel'
-import DatabasePanel from './sidebar/DatabasePanel'
-import SecretsPanel from './sidebar/SecretsPanel'
 
 interface Ifile {
   type: string
@@ -43,7 +43,6 @@ interface INavDict {
 }
 
 function IDE () {
-  const [settings, setSettings] = useAtom(settingsAtom)
   const [theme, setTheme] = useAtom(themeAtom)
 
   const defaultNavState: INavDict = {
@@ -121,7 +120,7 @@ function IDE () {
         <Panel defaultSize={5}>
           <Topbar />
         </Panel>
-        <Panel defaultSize={93} maxSize={93}>
+        <Panel defaultSize={92.5} maxSize={93}>
           <PanelGroup direction='horizontal'>
             <Panel defaultSize={20} minSize={20}>
               <div className='navigation'>
@@ -146,10 +145,8 @@ function IDE () {
             </Panel>
           </PanelGroup>
         </Panel>
-        <Panel maxSize={2}>
-          <div className='statusBar'>
-            Spaces: {settings.tabSize} | {settings.encoding} | {settings.language} | Ln {settings.activeLine}, Col {settings.activeColumn}
-          </div>
+        <Panel maxSize={2.5}>
+          <StatusBar/>
         </Panel>
       </PanelGroup>
 
