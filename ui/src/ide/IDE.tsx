@@ -55,8 +55,6 @@ function IDE () {
     secretsPanel: { name: 'secretsPanel', display: 'd-none' },
   };
 
-
-
   const defaultFileState: IfileDict = {
     Launcher: {
       type: 'launcher',
@@ -67,6 +65,8 @@ function IDE () {
       load_required: false,
     },
   };
+
+ 
 
   const [dataFromChild, setDataFromChild] = useState<IfileDict>(defaultFileState)
   const [navState, setNavState] = useState<INavDict>(defaultNavState)
