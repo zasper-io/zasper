@@ -10,7 +10,6 @@ export default function SettingsPanel ({ sendDataToParent, display }) {
   }
 
   return (
-
     <div className={display}>
       <div className='nav-content'>
         <div className='content-head'>

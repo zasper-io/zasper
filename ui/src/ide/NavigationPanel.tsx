@@ -45,10 +45,10 @@ const NavigationPanel = ({ handleNavigationPanel }) => {
       <button className='editor-button nav-link active' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-file-text.svg' alt='' /></button>
       <button className='editor-button nav-link' onClick={() => handleNavigationPanel('gitPanel')}><img src='./images/editor/metro-flow-branch.svg' alt='' /></button>
       <button className='editor-button nav-link' onClick={() => handleNavigationPanel('jupyterInfoPanel')}><img src='./images/editor/feather-box.svg' alt='' /></button>
-      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-play-circle.svg' alt='' /></button>
-      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-lock.svg' alt='' /></button>
+      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('debugPanel')}><img src='./images/editor/feather-play-circle.svg' alt='' /></button>
+      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('secretsPanel')}><img src='./images/editor/feather-lock.svg' alt='' /></button>
       <button className='editor-button nav-link' onClick={() => handleNavigationPanel('settingsPanel')}><img src='./images/editor/feather-settings.svg' alt='' /></button>
-      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('fileBrowser')}><img src='./images/editor/feather-database.svg' alt='' /></button>
+      <button className='editor-button nav-link' onClick={() => handleNavigationPanel('databasePanel')}><img src='./images/editor/feather-database.svg' alt='' /></button>
       <button className='editor-button nav-link'><img src='./images/editor/ionic-ios-checkmark-circle-outline.svg' alt='' /></button>
       <button className='editor-button mt-auto help-icon'><i className='fas fa-question-circle' /></button>
 

@@ -13,9 +13,12 @@ import TabIndex from './tabs/TabIndex'
 import Topbar from './topbar/Topbar'
 import getFileExtension from './utils'
 import { settingsAtom, themeAtom } from '../store/Settings'
-import SettingsPanel from './settings/SettingsPanel'
 import GitPanel from './sidebar/GitPanel'
 import JupyterInfoPanel from './sidebar/JupyterInfoPanel'
+import SettingsPanel from './sidebar/SettingsPanel'
+import DebugPanel from './sidebar/DebugPanel'
+import DatabasePanel from './sidebar/DatabasePanel'
+import SecretsPanel from './sidebar/SecretsPanel'
 
 interface Ifile {
   type: string
@@ -43,91 +46,66 @@ function IDE () {
   const [settings, setSettings] = useAtom(settingsAtom)
   const [theme, setTheme] = useAtom(themeAtom)
 
-  const fileBrowser: INav = {
-    name: 'fileBrowser',
-    display: 'd-block'
-  }
+  const defaultNavState: INavDict = {
+    fileBrowser: { name: 'fileBrowser', display: 'd-block' },
+    settingsPanel: { name: 'settingsPanel', display: 'd-none' },
+    gitPanel: { name: 'gitPanel', display: 'd-none' },
+    jupyterInfoPanel: { name: 'jupyterInfoPanel', display: 'd-none' },
+    debugPanel: { name: 'debugPanel', display: 'd-none' },
+    databasePanel: { name: 'databasePanel', display: 'd-none' },
+    secretsPanel: { name: 'secretsPanel', display: 'd-none' },
+  };
 
-  const settingsPanel: INav = {
-    name: 'settingsPanel',
-    display: 'd-none'
-  }
 
-  const gitPanel: INav = {
-    name: 'gitPanel',
-    display: 'd-none'
-  }
 
-  const jupyterInfoPanel: INav = {
-    name: 'jupyterInfoPanel',
-    display: 'd-none'
-  }
+  const defaultFileState: IfileDict = {
+    Launcher: {
+      type: 'launcher',
+      path: 'none',
+      name: 'Launcher',
+      display: 'd-block',
+      extension: 'txt',
+      load_required: false,
+    },
+  };
 
-  const navStateDict: INavDict = {
-    fileBrowser: fileBrowser,
-    settingsPanel: settingsPanel,
-    gitPanel: gitPanel,
-    jupyterInfoPanel: jupyterInfoPanel
-  }
+  const [dataFromChild, setDataFromChild] = useState<IfileDict>(defaultFileState)
+  const [navState, setNavState] = useState<INavDict>(defaultNavState)
 
-  const ksfile: Ifile = {
-    type: 'launcher',
-    path: 'none',
-    name: 'Launcher',
-    display: 'd-block',
-    extension: 'txt',
-    load_required: false
-  }
+  const handleNavigationPanel = (name: string) => {
+    const updatedNavState = Object.fromEntries(
+      Object.keys(navState).map(key => [
+        key, 
+        { ...navState[key], display: key === name ? 'd-block' : 'd-none' }
+      ])
+    );
+    setNavState(updatedNavState);
+  };
 
-  const ksfileDict: IfileDict = {
-    Launcher: ksfile
-  }
+  const handleDataFromChild = (name: string, path: string, type: string) => {
+    const updatedDataFromChild = { ...dataFromChild };
+    const fileData: Ifile = {
+      type,
+      path,
+      name,
+      extension: getFileExtension(name),
+      display: 'd-block',
+      load_required: true,
+    };
 
-  const [dataFromChild, setDataFromChild] = useState<IfileDict>(ksfileDict)
-  const [navState, setNavState] = useState<INavDict>(navStateDict)
-
-  function handleNavigationPanel (name: string) {
-    console.log(name)
-    const updatedNavState: INavDict = Object.assign({}, navState)
-    for (const key in updatedNavState) {
-      updatedNavState[key].display = 'd-none'
-    }
-    
-    updatedNavState[name].display = 'd-block'
-    setNavState(updatedNavState)
-  }
-
-  function handleDataFromChild (name: string, path: string, type: string) {
-    console.log(name, type)
-    if (dataFromChild[name] === undefined) {
-      const fileData: Ifile = {
-        type,
-        path,
-        name,
-        extension: getFileExtension(name),
-        display: 'd-block',
-        load_required: true
-      }
-
-      const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild)
-      for (const key in updatedDataFromChild) {
-        updatedDataFromChild[key].display = 'd-none'
-        updatedDataFromChild[key].load_required = false
-      }
-      updatedDataFromChild[name.toString()] = fileData
-      console.log(updatedDataFromChild)
-      setDataFromChild(updatedDataFromChild)
+    // Update or add new file entry
+    if (updatedDataFromChild[name]) {
+      updatedDataFromChild[name] = { ...updatedDataFromChild[name], display: 'd-block' };
     } else {
-      const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild)
-      for (const key in updatedDataFromChild) {
-        updatedDataFromChild[key].display = 'd-none'
-        updatedDataFromChild[key].load_required = false
-      }
-      updatedDataFromChild[name].display = 'd-block'
-      setDataFromChild(updatedDataFromChild)
+      // Close all files before showing the new one
+      Object.keys(updatedDataFromChild).forEach(key => {
+        updatedDataFromChild[key] = { ...updatedDataFromChild[key], display: 'd-none', load_required: false };
+      });
+      updatedDataFromChild[name] = fileData;
     }
-    console.log('state: ', dataFromChild)
-  }
+
+    setDataFromChild(updatedDataFromChild);
+  };
 
   function handlCloseTabSignal (key) {
     console.log('closing key', key)
@@ -153,6 +131,9 @@ function IDE () {
                   <SettingsPanel sendDataToParent={handleDataFromChild} display={navState.settingsPanel.display} />
                   <JupyterInfoPanel sendDataToParent={handleDataFromChild} display={navState.jupyterInfoPanel.display}/>
                   <GitPanel sendDataToParent={handleDataFromChild} display={navState.gitPanel.display}/>
+                  <DebugPanel sendDataToParent={handleDataFromChild} display={navState.debugPanel.display}/>
+                  <DatabasePanel sendDataToParent={handleDataFromChild} display={navState.databasePanel.display}/>
+                  <SecretsPanel sendDataToParent={handleDataFromChild} display={navState.secretsPanel.display}/>
                 </div>
               </div>
             </Panel>
