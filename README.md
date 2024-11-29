@@ -18,9 +18,17 @@
   <a href="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml" target="_blank"><img alt="Github CD status" src="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml/badge.svg"></a>
 </p>
 
-# Why Go ?
+# Why I built Zasper ?
 
-Inbuilt concurrency
+A lot of properietary JupyterLab - like frontend software (Databricks Notebooks, Deepnote Notebooks)  are there in the market. But none of them are free and opensource. Also most of them force you to use them in the cloud. Even the modest personal computers these days have atleast 8 GBs of RAM, 8 core CPU and a descent GPU with 4 GB RAM. Hence, I decided to build this. 
+
+Originally I wrote https://github.com/zasper-io/zasper_py(now in Private mode) to build a new frontend around Jupyter. During the process I realized, Go is the ideal choice to rebuild the Jupyter project. Go has excellent support for REST, RPC, WS protocols. Concurrency and Performance are the areas where Go shines.
+
+Go's Concurrency: Better suited for applications requiring both concurrency and parallelism, as it leverages multiple cores effectively. It's easier to handle blocking operations without freezing the system.
+
+Python's Event Loop: Ideal for I/O-bound applications that need to handle a lot of asynchronous tasks without blocking. However, it struggles with CPU-bound tasks and lacks native parallelism unless additional worker threads are used.
+
+Hence the Go version of Zasper was born! Currently Zasper is supported on Linux and Mac. 
 
 
 ## 📷 Screenshots
@@ -39,6 +47,9 @@ Inbuilt concurrency
 
 ### Version Control
 ![Version Control](./screenshots/git.png) 
+
+### Command Palette
+![Command Palette](./screenshots/commandPalette.png)
 
 ### Dark Mode
 ![Dark mode](./screenshots/dark.png) 
@@ -140,6 +151,12 @@ You can contribute in multiple ways:
 # Code of Conduct
 
 See [Code of conduct](./CODE_OF_CONDUCT.md)
+
+# TODOs
+
+* Design a Plugin System
+* Implement Language Server Protocol (LSP)
+* Implement Linters and Compilers
 
 # Copyright
 
