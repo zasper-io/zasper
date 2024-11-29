@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { BaseApiUrl } from '../config'
 
 import './GitPanel.scss' 
 
-export default function GitPanel (props) {
+export default function GitPanel ({ sendDataToParent, display }) {
   return (
+    <div className={display}>
     <div className='nav-content'>
       <div className='content-head'>
         <h6>Source Control Graph</h6>
@@ -13,6 +15,7 @@ export default function GitPanel (props) {
         <GitCommit/>
         <CommitGraphContainer></CommitGraphContainer>
       </div>
+    </div>
     </div>
   )
 }
@@ -27,7 +30,7 @@ function GitCommit() {
 
    // Function to fetch the list of uncommitted files
   const fetchFiles = () => {
-    fetch('http://localhost:8888/api/uncommitted-files')
+    fetch(BaseApiUrl + '/api/uncommitted-files')
       .then((response) => response.json())
       .then((data) => setFiles(data))
       .catch((error) => {
@@ -63,7 +66,7 @@ function GitCommit() {
       push: pushAfterCommit, // Include the push option in the payload
     };
 
-    fetch('http://localhost:8888/api/commit-and-maybe-push', {
+    fetch(BaseApiUrl + '/api/commit-and-maybe-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -139,7 +142,7 @@ const CommitGraphContainer: React.FC = () => {
   useEffect(() => {
     const fetchCommitData = async () => {
       try {
-        const response = await fetch('http://localhost:8888/api/commit-graph');
+        const response = await fetch(BaseApiUrl + '/api/commit-graph');
         if (!response.ok) {
           throw new Error('Failed to fetch commits');
         }

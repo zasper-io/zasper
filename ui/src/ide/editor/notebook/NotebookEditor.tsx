@@ -1,24 +1,14 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 
-import CodeMirror from '@uiw/react-codemirror'
-import { python } from '@codemirror/lang-python'
 import { v4 as uuidv4 } from 'uuid'
-import Markdown from 'react-markdown'
-import rehypeRaw from 'rehype-raw'
-import { keymap, ViewUpdate } from '@codemirror/view'
 import 'react-toastify/dist/ReactToastify.css';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { languages } from '@codemirror/language-data'
-import { toast, ToastContainer } from 'react-toastify';
 
 import './NotebookEditor.scss'
 
 import { w3cwebsocket as W3CWebSocket } from 'websocket'
 import { BaseApiUrl } from '../../config'
-import { data } from '@remix-run/router/dist/utils'
 import NbButtons from './NbButtons'
-import CellButtons from './CellButtons'
 import Cell from './Cell'
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';

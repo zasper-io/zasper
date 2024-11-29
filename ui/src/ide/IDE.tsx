@@ -15,6 +15,7 @@ import getFileExtension from './utils'
 import { settingsAtom, themeAtom } from '../store/Settings'
 import SettingsPanel from './settings/SettingsPanel'
 import GitPanel from './sidebar/GitPanel'
+import JupyterInfoPanel from './sidebar/JupyterInfoPanel'
 
 interface Ifile {
   type: string
@@ -57,11 +58,16 @@ function IDE () {
     display: 'd-none'
   }
 
+  const jupyterInfoPanel: INav = {
+    name: 'jupyterInfoPanel',
+    display: 'd-none'
+  }
+
   const navStateDict: INavDict = {
     fileBrowser: fileBrowser,
     settingsPanel: settingsPanel,
-    gitPanel: gitPanel
-
+    gitPanel: gitPanel,
+    jupyterInfoPanel: jupyterInfoPanel
   }
 
   const ksfile: Ifile = {
@@ -86,6 +92,7 @@ function IDE () {
     for (const key in updatedNavState) {
       updatedNavState[key].display = 'd-none'
     }
+    
     updatedNavState[name].display = 'd-block'
     setNavState(updatedNavState)
   }
@@ -144,6 +151,7 @@ function IDE () {
                 <div className='sideBar'>
                   <FileBrowser sendDataToParent={handleDataFromChild} display={navState.fileBrowser.display} />
                   <SettingsPanel sendDataToParent={handleDataFromChild} display={navState.settingsPanel.display} />
+                  <JupyterInfoPanel sendDataToParent={handleDataFromChild} display={navState.jupyterInfoPanel.display}/>
                   <GitPanel sendDataToParent={handleDataFromChild} display={navState.gitPanel.display}/>
                 </div>
               </div>
