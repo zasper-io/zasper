@@ -62,12 +62,12 @@ export default function Topbar (props) {
             </div>
             <div>
              {showCommandPalette && (
-            <CommandPalette
-              commands={commands}
-              onClose={() => setShowCommandPalette(false)}
-            />
-        )}
-    </div>
+                <CommandPalette
+                  commands={commands}
+                  onClose={() => setShowCommandPalette(false)}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

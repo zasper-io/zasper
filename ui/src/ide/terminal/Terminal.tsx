@@ -94,7 +94,7 @@ export default function TerminalTab (props) {
   return (
 
     <div className='tab-content'>
-      <div className={props.data.display}>
+      <div className={props.data.active? 'd-block':'d-none'}>
         <div ref={terminalRef} className='terminalArea' />
       </div>
 

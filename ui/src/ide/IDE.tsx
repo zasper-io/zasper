@@ -24,7 +24,7 @@ interface Ifile {
   type: string
   path: string
   name: string
-  display: string
+  active: boolean
   extension: string | null
   load_required: boolean
 }
@@ -60,13 +60,13 @@ function IDE () {
       type: 'launcher',
       path: 'none',
       name: 'Launcher',
-      display: 'd-block',
+      active: true,
       extension: 'txt',
       load_required: false,
     },
   };
 
- 
+  const [prevActiveTab, setPrevActiveTab] = useState("launcher")
 
   const [dataFromChild, setDataFromChild] = useState<IfileDict>(defaultFileState)
   const [navState, setNavState] = useState<INavDict>(defaultNavState)
@@ -88,18 +88,16 @@ function IDE () {
       path,
       name,
       extension: getFileExtension(name),
-      display: 'd-block',
+      active: true,
       load_required: true,
     };
 
-    // Update or add new file entry
+    Object.keys(updatedDataFromChild).forEach(key => {
+      updatedDataFromChild[key] = { ...updatedDataFromChild[key], active: false, load_required: false };
+    });
     if (updatedDataFromChild[name]) {
-      updatedDataFromChild[name] = { ...updatedDataFromChild[name], display: 'd-block' };
+      updatedDataFromChild[name] = { ...updatedDataFromChild[name], active: true };
     } else {
-      // Close all files before showing the new one
-      Object.keys(updatedDataFromChild).forEach(key => {
-        updatedDataFromChild[key] = { ...updatedDataFromChild[key], display: 'd-none', load_required: false };
-      });
       updatedDataFromChild[name] = fileData;
     }
 

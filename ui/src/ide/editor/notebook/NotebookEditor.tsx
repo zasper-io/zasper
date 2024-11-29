@@ -396,7 +396,7 @@ export default function NotebookEditor (props) {
 
   return (
     <div className='tab-content'>
-      <div className={props.data.display} id='profile' role='tabpanel' aria-labelledby='profile-tab'>
+      <div className={props.data.active? 'd-block':'d-none'} id='profile' role='tabpanel' aria-labelledby='profile-tab'>
       <NbButtons saveNotebook={saveNotebook}
                 addCell={addCell}
                 cutCell={cutCell}

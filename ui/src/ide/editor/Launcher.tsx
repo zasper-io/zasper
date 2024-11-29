@@ -8,7 +8,7 @@ import { kernelspecsAtom } from '../../store/AppState';
 
 interface LauncherProps {
   data: {
-    display: string;
+    active: boolean;
   };
   sendDataToParent: (name: string, label: string, type: string) => void;
 }
@@ -39,7 +39,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   }, [setKernelspecs]);
 
   return (
-    <div className={data.display}>
+    <div className={data.active? 'd-block':'d-none'}>
       <div className="LauncherArea">
         <h2 className="launchItem">Notebook</h2>
         {Object.keys(kernelspecs).length > 0 ? (
