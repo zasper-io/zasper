@@ -121,9 +121,6 @@ export default function NotebookEditor (props) {
   useEffect(() => {
     if (props.data.load_required == true) {
       FetchFileData(props.data.path)
-      // startASession(props.name, props.path, props.type)
-      // listKernels();
-      // listAllSessions();
     }
    
   }, [])
@@ -393,8 +390,8 @@ export default function NotebookEditor (props) {
     }
   };
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error}</p>;
+  // if (loading) return <p>Loading...</p>;
+  // if (error) return <p>Error: {error}</p>;
 
 
   return (

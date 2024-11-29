@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import CommandPalette from '../commandPalette/CommandPalette';
 import './TopBar.scss'
+import CommandPalette from '../command/CommandPalette';
 
 export default function Topbar (props) {
   
