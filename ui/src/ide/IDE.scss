@@ -38,6 +38,12 @@ a {
     padding-left: 10px;
 }
 
+.imageArea{
+    height: calc(100vh - 100px);
+    width: 100%;
+    padding: 50px
+}
+
 .theme-btn:hover {
     background-color: #6f57da;
     color: #fff;

@@ -163,7 +163,7 @@ const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileC
             autoFocus
           />
         ) : (
-          <span onClick={() => setIsEditing(true)}>{text}</span>
+          <span>{text}</span>
         )}
         {isMenuVisible && menuPosition && (
         <ContextMenu

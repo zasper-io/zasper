@@ -1,6 +1,7 @@
 package content
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -166,11 +167,25 @@ func getFileModelWithContent(path string) models.ContentModel {
 	output := models.ContentModel{
 		Name:          info.Name(),
 		Path:          path,
-		Content:       read_file(osPath),
+		Content:       read_file2(osPath, info.Name()),
 		Last_modified: info.ModTime().GoString(),
 		Size:          info.Size()}
 	return output
 
+}
+
+func read_file2(path string, fileName string) string {
+	extension := filepath.Ext(fileName)
+	log.Info().Msgf("reading path extension: %s", extension)
+	log.Info().Msgf("reading path: %s", path)
+	file, err := os.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	if extension == ".png" {
+		return "data:image/png;base64," + base64.StdEncoding.EncodeToString(file)
+	}
+	return string(file)
 }
 
 func read_file(path string) string {
