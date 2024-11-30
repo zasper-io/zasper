@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import CodeMirror from '@uiw/react-codemirror'
 import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
@@ -12,12 +12,18 @@ import { sass } from '@codemirror/lang-sass'
 import { javascript } from '@codemirror/lang-javascript'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
-import { keymap } from '@codemirror/view'
+import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
 import { BaseApiUrl } from '../config'
 
 import './FileEditor.scss'
 import { themeAtom } from '../../store/Settings'
 import { useAtom } from 'jotai'
+import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '../../store/AppState';
+
+// Define the types for the editor reference
+interface CodeMirrorEditor extends EditorView {
+  getCursor(): { line: number; ch: number }; // Type for getCursor()
+}
 
 export default function FileEditor (props) {
   const [fileContents, setFileContents] = useState('')
@@ -93,6 +99,27 @@ export default function FileEditor (props) {
     }
     return go()
   }
+  const [linePosition, setLinePosition] = useAtom(linePositionAtom)
+  const [columnPosition, setColumnPosition] = useAtom(columnPositionAtom)
+  const [indentationSize, setIndentationSize] = useAtom(indentationSizeAtom)
+
+  const editorRef = useRef<EditorView | null>(null);
+
+  const onUpdate =  useCallback(( viewUpdate: ViewUpdate) => {
+    if(viewUpdate){
+      const { state } = viewUpdate;
+      const position = state.selection.main.head;  
+
+      // Get the line and column based on the absolute position
+      const line = state.doc.lineAt(position);  // Get the line info for the cursor position
+      const column = position - line.from;  // Calculate the column as an offset from line start
+      setLinePosition(line.number)
+      setColumnPosition(column)
+
+    }
+
+  }, []);
+
 
   return (
     <div className='tab-content'>
@@ -107,6 +134,7 @@ export default function FileEditor (props) {
             onChange={(fileContents) => {
               setFileContents(fileContents)
             }}
+            onUpdate={onUpdate}
 
             basicSetup={{
               bracketMatching: true,
@@ -115,7 +143,7 @@ export default function FileEditor (props) {
               lintKeymap: true,
               foldGutter: true,
               completionKeymap: true,
-              tabSize: 4
+              tabSize:indentationSize
             }}
           />
         </div>

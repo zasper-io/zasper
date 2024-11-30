@@ -19,6 +19,7 @@ import StatusBar from './statusBar/StatusBar';
 import getFileExtension from './utils';
 
 import './IDE.scss'
+import { languageModeAtom } from '../store/AppState';
 
 interface Ifile {
   type: string
@@ -43,7 +44,8 @@ interface INavDict {
 }
 
 function IDE () {
-  const [theme, setTheme] = useAtom(themeAtom)
+  const [theme] = useAtom(themeAtom)
+  const [languageMode, setLanguageMode] = useAtom(languageModeAtom)
 
   const defaultNavState: INavDict = {
     fileBrowser: { name: 'fileBrowser', display: 'd-block' },
@@ -100,6 +102,10 @@ function IDE () {
     } else {
       updatedDataFromChild[name] = fileData;
     }
+    if(updatedDataFromChild[name].extension){
+      setLanguageMode( updatedDataFromChild[name].extension)
+    }
+    
 
     setDataFromChild(updatedDataFromChild);
   };

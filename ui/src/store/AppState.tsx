@@ -15,3 +15,22 @@ export interface IKernelspecsState {
 }
 
 export const kernelspecsAtom = atom<IKernelspecsState>({})
+
+
+// left statusBar
+export const branchNameAtom = atom<string>("")
+export const errorsCountAtom = atom<string>("")
+export const warningsCountAtom = atom<string>("")
+
+// right statusBar
+
+export const linePositionAtom = atom<number>(0)
+export const columnPositionAtom = atom<number>(0)
+export const encodingAtom = atom<string>("UTF-8")
+export const eolSequenceAtom = atom<string>("LF")
+export const languageModeAtom = atom<string | null>("Launcher")
+export const indentationModeAtom = atom<string>("Spaces")
+export const indentationSizeAtom = atom<number>(2)
+export const zoomScaleAtom = atom<number>(1)
+
+
