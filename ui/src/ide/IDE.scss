@@ -351,7 +351,6 @@ a {
 
         .content-inner {
             width: 100%;
-            padding-left: 9px;
             padding-right: 17px;
             padding-top: 13px;
             height: calc(100vh - 50px);
@@ -371,6 +370,10 @@ a {
                 color: #583bd8;
                 font-weight: 700;
                 line-height: 18px;
+            }
+
+            .file-list{
+                padding-left: 1rem; 
             }
 
             .file-list li a {
@@ -425,6 +428,7 @@ a {
 .navigation .nav-content .content-inner:hover {
     overflow-y: scroll;
 }
+
 
 
 .main-content {

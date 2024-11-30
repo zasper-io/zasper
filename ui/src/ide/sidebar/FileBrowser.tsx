@@ -120,6 +120,7 @@ const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileC
       ipynb: './images/editor/py-icon.svg',
       js: './images/editor/js-icon.svg',
       json: './images/editor/json-icon.svg',
+      png: './images/editor/image-icon.svg',
       ts: './images/editor/ts-icon.svg',
       tsx: './images/editor/react-icon.svg',
       jsx: './images/editor/react-icon.svg',
@@ -127,6 +128,7 @@ const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileC
       css: './images/editor/go-icon.svg',
       sass: './images/editor/go-icon.svg',
       scss: './images/editor/go-icon.svg',
+      svg: './images/editor/image-icon.svg',
       md: './images/editor/md-icon.svg',
       markdown: './images/editor/md-icon.svg',
       gitignore: './images/editor/git-icon.svg',
@@ -235,7 +237,6 @@ const DirectoryItem = ({data, sendDataToParent }) => {
           onClose={() => setIsMenuVisible(false)}
         />
       )}
-      <ul>
         <ul className='file-list list-unstyled'>
           {isCollapsed && content.content !== null &&  content.content.map((content, index) => (
             content.type === 'directory' ? (
@@ -247,7 +248,6 @@ const DirectoryItem = ({data, sendDataToParent }) => {
             )
           ))}
         </ul>
-      </ul>
     </li>
   );
 };
