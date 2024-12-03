@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/zasper-io/zasper/core"
 )
 
 type Commit struct {
@@ -17,142 +16,67 @@ type Commit struct {
 	Parents []string `json:"parents"` // Store the hashes of parent commits
 }
 
-func getCommitGraph(repoPath string) ([]Commit, error) {
-	// Open existing git repository
-	repo, err := git.PlainOpen(repoPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the HEAD reference to start from the latest commit
-	ref, err := repo.Head()
-	if err != nil {
-		return nil, err
-	}
-
-	// Traverse through the commit history
-	commitIter, err := repo.Log(&git.LogOptions{From: ref.Hash()})
-	if err != nil {
-		return nil, err
-	}
-
-	var commits []Commit
-	err = commitIter.ForEach(func(c *object.Commit) error {
-		// commit data (hash, message, author, date, parents)
-		parents := make([]string, len(c.ParentHashes))
-		for i, parentHash := range c.ParentHashes {
-			parents[i] = parentHash.String()
-		}
-
-		commit := Commit{
-			Hash:    c.Hash.String(),
-			Message: c.Message,
-			Author:  c.Author.Name,
-			Date:    c.Author.When.String(),
-			Parents: parents,
-		}
-
-		commits = append(commits, commit)
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return commits, nil
+// Response structure to return as JSON
+type BranchResponse struct {
+	Branch string `json:"branch"`
 }
 
-// Function to get a list of uncommitted files
-func getUncommittedFiles(repoPath string) ([]string, error) {
-	// Open the git repository
-	repo, err := git.PlainOpen(repoPath)
+func BranchHandler(w http.ResponseWriter, r *http.Request) {
+	repoPath := core.Zasper.HomeDir
+	// Get the current active branch
+	branch, err := getCurrentBranch(repoPath)
 	if err != nil {
-		return nil, err
+		http.Error(w, fmt.Sprintf("Error getting current branch: %v", err), http.StatusInternalServerError)
+		return
 	}
 
-	// Get the current working tree
-	w, err := repo.Worktree()
+	// Create a response struct
+	response := BranchResponse{
+		Branch: branch,
+	}
+
+	// Set the response header to indicate JSON content
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// Encode the response struct as JSON and write it to the response
+	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
-		return nil, err
+		http.Error(w, fmt.Sprintf("Error encoding JSON: %v", err), http.StatusInternalServerError)
 	}
-
-	// Get the status of the files in the repository
-	status, err := w.Status()
-	if err != nil {
-		return nil, err
-	}
-
-	// Collect the list of modified or untracked files
-	var uncommittedFiles []string
-	for file, state := range status {
-		if state.Worktree != git.Unmodified { // Filter out unmodified files
-			uncommittedFiles = append(uncommittedFiles, file)
-		}
-	}
-
-	return uncommittedFiles, nil
 }
 
-// Function to commit specific files
-func commitSpecificFiles(repoPath string, files []string, message string) error {
-	// Open the git repository
-	repo, err := git.PlainOpen(repoPath)
+func CommitGraphHandler(w http.ResponseWriter, r *http.Request) {
+	repoPath := core.Zasper.HomeDir
+
+	commits, err := getCommitGraph(repoPath)
 	if err != nil {
-		return err
+		http.Error(w, fmt.Sprintf("Error fetching commit graph: %v", err), http.StatusInternalServerError)
+		return
 	}
 
-	// Get the current working tree
-	w, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-
-	// Add the selected files
-	for _, file := range files {
-		_, err = w.Add(file)
-		if err != nil {
-			return fmt.Errorf("failed to add file %s: %v", file, err)
-		}
-	}
-
-	// Commit the changes
-	_, err = w.Commit(message, &git.CommitOptions{
-		All: true,
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(commits)
 }
 
-// Function to push changes to remote
-func pushChanges(repoPath string) error {
-	// Open the git repository
-	repo, err := git.PlainOpen(repoPath)
+func GetUncommittedFilesHandler(w http.ResponseWriter, r *http.Request) {
+
+	repoPath := core.Zasper.HomeDir
+	// Get uncommitted files
+	uncommittedFiles, err := getUncommittedFiles(repoPath)
 	if err != nil {
-		return err
+		http.Error(w, "Failed to get uncommitted files", http.StatusInternalServerError)
+		return
 	}
 
-	// Get the remote (assuming "origin" as the remote name)
-	remote, err := repo.Remote("origin")
-	if err != nil {
-		return fmt.Errorf("failed to get remote: %v", err)
-	}
-
-	// Push changes to the remote repository
-	err = remote.Push(&git.PushOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to push changes: %v", err)
-	}
-
-	return nil
+	// Return the list as a JSON response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(uncommittedFiles)
 }
 
 // API handler to commit and optionally push changes
 func CommitAndMaybePushHandler(w http.ResponseWriter, r *http.Request) {
-	repoPath := "/Users/prasunanand/dev/zasper" // todo - get from config
+	repoPath := core.Zasper.HomeDir
 	var requestData struct {
 		Message string   `json:"message"`
 		Files   []string `json:"files"`
@@ -185,32 +109,4 @@ func CommitAndMaybePushHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Changes committed successfully"))
 	}
-}
-
-func CommitGraphHandler(w http.ResponseWriter, r *http.Request) {
-	repoPath := "/Users/prasunanand/dev/zasper" // todo - get from config
-
-	commits, err := getCommitGraph(repoPath)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error fetching commit graph: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(commits)
-}
-
-func GetUncommittedFilesHandler(w http.ResponseWriter, r *http.Request) {
-
-	repoPath := "/Users/prasunanand/dev/zasper" // todo - get from config
-	// Get uncommitted files
-	uncommittedFiles, err := getUncommittedFiles(repoPath)
-	if err != nil {
-		http.Error(w, "Failed to get uncommitted files", http.StatusInternalServerError)
-		return
-	}
-
-	// Return the list as a JSON response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(uncommittedFiles)
 }

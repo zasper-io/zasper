@@ -88,6 +88,7 @@ func main() {
 	apiRouter.HandleFunc("/commit-graph", gitclient.CommitGraphHandler).Methods("GET")
 	apiRouter.HandleFunc("/uncommitted-files", gitclient.GetUncommittedFilesHandler).Methods("GET")
 	apiRouter.HandleFunc("/commit-and-maybe-push", gitclient.CommitAndMaybePushHandler).Methods("POST")
+	apiRouter.HandleFunc("/current-branch", gitclient.BranchHandler).Methods("GET")
 
 	apiRouter.HandleFunc("/contents", content.ContentAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")

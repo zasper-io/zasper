@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 
 import { useAtom } from 'jotai';
 
 import './StatusBar.scss'
-import { columnPositionAtom, encodingAtom, eolSequenceAtom, indentationModeAtom, indentationSizeAtom, languageModeAtom, linePositionAtom } from '../../store/AppState';
+import { branchNameAtom, columnPositionAtom, encodingAtom, eolSequenceAtom, indentationModeAtom, indentationSizeAtom, languageModeAtom, linePositionAtom } from '../../store/AppState';
+import { BaseApiUrl } from '../config';
 
 export default function StatusBar () {
 
@@ -15,12 +16,24 @@ export default function StatusBar () {
     const [columnPosition] = useAtom(columnPositionAtom)
     const [encoding] = useAtom(encodingAtom)
     const [eolSequence] = useAtom(eolSequenceAtom)
+    const [branchName, setBranchName] = useAtom(branchNameAtom)
+
+    const FetchBranchData = async () => {
+        const res = await fetch(BaseApiUrl + '/api/current-branch');
+        const resJson = await res.json();
+        console.log(resJson)
+        setBranchName(resJson.branch);
+    };
+    
+    useEffect(() => {
+        FetchBranchData();
+    }, []);
 
     
     return (
     <div className='statusBar'>
         <div className='leftStatus'>
-            master
+            {branchName}
         </div>
         <div className='rightStatus'>
             <span className='statusItem'>Ln {linePosition}, Col {columnPosition}</span>
