@@ -15,9 +15,9 @@ export default function TabIndex (props) {
   return (
 
     <div className='tabHeader'>
-      <ul className='nav-item nav'>
+      <ul className='nav'>
         {Object.keys(tabs).map((key, index) =>
-          <li key={index} className='nav-item' role='presentation'>
+          <li key={index} className='nav-item tab-item' role='presentation'>
             <button type='button' className={tabs[key].active? 'nav-link active': 'nav-link'}  onClick={async () => await handleTabClick(tabs[key].name)}>
               {tabs[key].name}
               <span className='editor-button'>

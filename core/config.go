@@ -15,6 +15,7 @@ type Application struct {
 	JupyterRuntimeDir string
 	JupyterPath       []string
 	JupyterConfigPath string
+	ProjectName       string
 }
 
 func SetUpZasper(cwd string) Application {
@@ -23,6 +24,7 @@ func SetUpZasper(cwd string) Application {
 	}
 	application := Application{
 		BaseUrl:           "https://zasper.io",
+		ProjectName:       utils.GetProjectName(cwd),
 		HomeDir:           cwd,
 		StaticUrl:         "./images",
 		JupyterConfigDir:  utils.GetJupyterConfigDir(),

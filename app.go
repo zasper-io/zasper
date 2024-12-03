@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	glog "log"
@@ -56,6 +57,24 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// otherwise, use http.FileServer to serve the static file
 	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)
 }
+
+// Response structure to return as JSON
+type InfoResponse struct {
+	ProjectName string `json:"project"`
+}
+
+func InfoHandler(w http.ResponseWriter, r *http.Request) {
+	response := InfoResponse{
+		ProjectName: core.Zasper.ProjectName,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(response)
+
+}
+
 func main() {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -82,6 +101,8 @@ func main() {
 	// API routes
 	apiRouter := router.PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/health", health.HealthCheckHandler).Methods("GET")
+
+	apiRouter.HandleFunc("/info", InfoHandler).Methods("GET")
 
 	// contents
 	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")

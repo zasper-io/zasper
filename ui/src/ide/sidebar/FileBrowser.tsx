@@ -20,6 +20,7 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
   const [contents, setContents] = useState<IContent[]>([]);
   const [cwd, setCwd] = useState<string>('');
   const [fileContents, setFileContents] = useState('')
+  const [projectName, setProjectName] = useState('')
 
   const FetchData = async () => {
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
@@ -28,6 +29,11 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
     });
     const resJson = await res.json();
     setContents(resJson.content);
+
+    const res2 = await fetch(BaseApiUrl + '/api/info');
+    const resJson2 = await res2.json();
+    setProjectName(resJson2.project.toUpperCase());
+    
   };
 
   const handleFileClick = (name: string, path: string, type: string) => {
@@ -58,8 +64,19 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
     <div className={display}>
       <div className='nav-content'>
         <div className='content-head'>
-          <div>File Explorer</div>
+          <div>FILE EXPLORER</div>
           <div>
+            <button className='editor-button' onClick={createNewFile}>
+              <img src='./images/editor/feather-file-plus.svg' alt='' />
+            </button>
+            <button className='editor-button' onClick={createNewDirectory}>
+              <img src='./images/editor/feather-folder-plus.svg' alt='' />
+            </button>
+          </div>
+        </div>
+        <div className='projectName'>
+          <div>{projectName}</div>
+          <div className='projectButtons'>
             <button className='editor-button' onClick={createNewFile}>
               <img src='./images/editor/feather-file-plus.svg' alt='' />
             </button>

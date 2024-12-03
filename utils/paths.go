@@ -13,6 +13,12 @@ func GetHomeDir() string {
 	return dir
 }
 
+func GetProjectName(absPath string) string {
+	// Get the last part of the path (i.e., the project name)
+	projectName := filepath.Base(absPath)
+	return projectName
+}
+
 func GetJupyterConfigDir() string {
 	return ""
 }
