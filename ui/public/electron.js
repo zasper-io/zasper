@@ -8,6 +8,7 @@ const http = require("http");
 var log = require("electron-log");
 
 var apiProcess;
+var mainWindow;
 
 // Optional, initialize the logger for any renderer process
 log.transports.file.level = "silly";
@@ -80,7 +81,7 @@ const startApp = () => {
 
 // Create the native browser window.
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1350,
     height: 900,
     center: true,
@@ -128,16 +129,24 @@ ipcMain.handle("dialog:openDirectory", async () => {
 });
 
 ipcMain.handle("runCommand", async (event, directory) => {
-  // Note : windows may vary
-  const command = `${path.join(__dirname, "zasper")} --cwd "${directory}"`;
+  if (apiProcess) {
+    apiProcess.kill();
+  }
+  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: directory, shell: '/bin/zsh' });
 
-  execFile(command, { cwd: directory }, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error: ${stderr}`);
-      return;
-    }
-    console.log(`Output: ${stdout}`);
+  apiProcess.stdout.on("data", (data) => {
+    log.info(`API Server: ${data}`);
   });
+
+  apiProcess.stderr.on("data", (data) => {
+    log.info(`API Server Error: ${data}`);
+  });
+
+  apiProcess.on("close", (code) => {
+    log.info(`API Server exited with code ${code}`);
+  });
+  
+  mainWindow.reload();
 });
 
 app.on("before-quit", () => {
