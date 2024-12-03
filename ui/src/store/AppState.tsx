@@ -31,6 +31,6 @@ export const eolSequenceAtom = atom<string>("LF")
 export const languageModeAtom = atom<string | null>("Launcher")
 export const indentationModeAtom = atom<string>("Spaces")
 export const indentationSizeAtom = atom<number>(2)
-export const zoomScaleAtom = atom<number>(1)
+export const fontSizeAtom = atom<number>(16)
 
 

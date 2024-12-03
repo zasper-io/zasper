@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { settingsAtom, themeAtom } from '../store/Settings';
@@ -19,7 +19,7 @@ import StatusBar from './statusBar/StatusBar';
 import getFileExtension from './utils';
 
 import './IDE.scss'
-import { languageModeAtom } from '../store/AppState';
+import { fontSizeAtom, languageModeAtom } from '../store/AppState';
 
 interface Ifile {
   type: string
@@ -118,6 +118,43 @@ function IDE () {
     console.log(updatedDataFromChild)
   }
 
+  const [fontSize, setFontSize] = useAtom(fontSizeAtom); // Initial font size
+
+  // Helper function to handle keydown events
+  const handleKeyDown = (event) => {
+    if (event.metaKey) {
+      if (event.key === '+' || event.key === '=') {
+        // Increase font size
+        setFontSize((prevFontSize) => {
+          const newSize = Math.min(prevFontSize + 2, 24);
+          return newSize;
+        });
+        
+      } else if (event.key === '-') {
+        // Decrease font size
+        setFontSize((prevFontSize) => {
+          const newSize = Math.max(prevFontSize - 2, 8);
+          return newSize;
+        });
+      }
+      event.preventDefault();
+    }
+  };
+
+  useEffect(() => {
+    // Listen to the keydown event
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Clean up the event listener on component unmount
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const getFontClass = (fontSize: number) => {
+    return "zfont-" + fontSize
+  }
+
   return (
     <div className={theme === 'light'? 'editor themeLight': 'editor themeDark'}>
       <PanelGroup direction='vertical'>
@@ -142,7 +179,7 @@ function IDE () {
             </Panel>
             <PanelResizeHandle />
             <Panel defaultSize={80} minSize={50}>
-              <div className='main-content'>
+              <div className={"main-content " + getFontClass(fontSize)}>
                 <TabIndex tabs={dataFromChild} sendDataToParent={handleDataFromChild} sendCloseSignalToParent={handlCloseTabSignal} />
                 <ContentPanel tabs={dataFromChild} sendDataToParent={handleDataFromChild} theme={theme}/>
               </div>
