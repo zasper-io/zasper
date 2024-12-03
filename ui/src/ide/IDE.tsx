@@ -159,7 +159,7 @@ function IDE () {
     <div className={theme === 'light'? 'editor themeLight': 'editor themeDark'}>
       <PanelGroup direction='vertical'>
         <Panel defaultSize={5}>
-          <Topbar />
+          <Topbar sendDataToParent={handleDataFromChild}/>
         </Panel>
         <Panel defaultSize={92.5} maxSize={93}>
           <PanelGroup direction='horizontal'>

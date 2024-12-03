@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import './TopBar.scss'
 import CommandPalette from '../command/CommandPalette';
+import FileAutocomplete from '../command/FileAutoComplete';
 
 export default function Topbar (props) {
   
   const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
+  const [showFileAutocomplete, setShowFileAutocomplete] = useState<boolean>(false);
 
   const commands = [
     {
@@ -30,12 +32,19 @@ export default function Topbar (props) {
     setShowCommandPalette(!showCommandPalette);
   };
 
+  const toggleFileAutoComplete = () => {
+    setShowFileAutocomplete(!showFileAutocomplete);
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.shiftKey && event.key === 'P') {
         toggleCommandPalette();  // Open the command palette when the shortcut is pressed
+      } else  if (event.ctrlKey && event.shiftKey && event.key === 'O') {
+        toggleFileAutoComplete();  // Open the command palette when the shortcut is pressed
       } else if (event.key === 'Escape') {
         setShowCommandPalette(false);  // Close palette with Escape key
+        setShowFileAutocomplete(false)
       }
     };
 
@@ -65,6 +74,13 @@ export default function Topbar (props) {
                 <CommandPalette
                   commands={commands}
                   onClose={() => setShowCommandPalette(false)}
+                />
+              )}
+              {showFileAutocomplete && (
+                <FileAutocomplete
+                  sendDataToParent={props.sendDataToParent}
+                  onClose={() => setShowFileAutocomplete(false)
+                }
                 />
               )}
             </div>

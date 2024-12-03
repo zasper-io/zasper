@@ -68,4 +68,6 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ commands, onClose }) =>
   );
 };
 
+
+
 export default CommandPalette;

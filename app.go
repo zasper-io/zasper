@@ -19,6 +19,7 @@ import (
 	"github.com/zasper-io/zasper/health"
 	"github.com/zasper-io/zasper/kernel"
 	"github.com/zasper-io/zasper/kernelspec"
+	"github.com/zasper-io/zasper/search"
 	"github.com/zasper-io/zasper/session"
 	"github.com/zasper-io/zasper/websocket"
 
@@ -84,17 +85,20 @@ func main() {
 
 	// contents
 	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")
-
-	apiRouter.HandleFunc("/commit-graph", gitclient.CommitGraphHandler).Methods("GET")
-	apiRouter.HandleFunc("/uncommitted-files", gitclient.GetUncommittedFilesHandler).Methods("GET")
-	apiRouter.HandleFunc("/commit-and-maybe-push", gitclient.CommitAndMaybePushHandler).Methods("POST")
-	apiRouter.HandleFunc("/current-branch", gitclient.BranchHandler).Methods("GET")
-
 	apiRouter.HandleFunc("/contents", content.ContentAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")
 
 	apiRouter.HandleFunc("/contents/{path}", content.ContentRenameAPIHandler).Methods("PATCH")
 	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
+
+	// search
+	apiRouter.HandleFunc("/files", search.GetFileSuggestions).Methods("GET")
+
+	// git
+	apiRouter.HandleFunc("/commit-graph", gitclient.CommitGraphHandler).Methods("GET")
+	apiRouter.HandleFunc("/uncommitted-files", gitclient.GetUncommittedFilesHandler).Methods("GET")
+	apiRouter.HandleFunc("/commit-and-maybe-push", gitclient.CommitAndMaybePushHandler).Methods("POST")
+	apiRouter.HandleFunc("/current-branch", gitclient.BranchHandler).Methods("GET")
 
 	// kernelspecs
 	apiRouter.HandleFunc("/kernelspecs", kernelspec.KernelspecAPIHandler).Methods("GET")
