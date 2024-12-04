@@ -1,6 +1,6 @@
 import { atom } from 'jotai'
 
-// Define the interface for kernelspec
+// Define the interface for kernelspec and kernel
 export interface IKernelspec {
   name: string;
   spec: string;
@@ -9,12 +9,33 @@ export interface IKernelspec {
   };
 }
 
-// Define the structure of the kernelspecs state
+export interface IKernel {
+  name: string
+  id: string
+}
+
+export interface ITerminal {
+  name: string
+  id: string
+}
+
+
+// Define the structure of the kernelspecs and kernels state
 export interface IKernelspecsState {
   [key: string]: IKernelspec;
 }
 
+export interface IKernelsState {
+  [key: string]: IKernel;
+}
+
+export interface ITerminalsState {
+  [key: string]: ITerminal;
+}
+
 export const kernelspecsAtom = atom<IKernelspecsState>({})
+export const kernelsAtom = atom<IKernelsState>({})
+export const terminalsAtom = atom<ITerminalsState>({})
 
 
 // left statusBar

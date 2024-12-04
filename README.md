@@ -18,6 +18,9 @@
   <a href="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml" target="_blank"><img alt="Github CD status" src="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml/badge.svg"></a>
 </p>
 
+
+![Editor](./screenshots/intro.gif)
+
 # Why I built Zasper ?
 
 A lot of properietary JupyterLab - like frontend software (Databricks Notebooks, Deepnote Notebooks)  are there in the market. But none of them are free and opensource. Also most of them force you to use them in the cloud. Even the modest personal computers these days have atleast 8 GBs of RAM, 8 core CPU and a descent GPU with 4 GB RAM. Hence, I decided to build this. 

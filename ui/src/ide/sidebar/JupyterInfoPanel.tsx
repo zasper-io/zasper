@@ -1,36 +1,62 @@
 
 import { useAtom } from 'jotai';
-import React, { useState, useEffect, useRef } from 'react';
-import { kernelspecsAtom } from '../../store/AppState';
+import React from 'react';
+import { kernelsAtom, kernelspecsAtom, terminalsAtom } from '../../store/AppState';
+import './JupyterInfoPanel.scss'
 
-export default function JupyterInfoPanel ({ sendDataToParent, display }) {
+export default function JupyterInfoPanel({ sendDataToParent, display }) {
 
-  const [kernelspecs, setKernelspecs] = useAtom(kernelspecsAtom);
+  const [kernelspecs] = useAtom(kernelspecsAtom);
+  const [kernels] = useAtom(kernelsAtom);
+  const [terminals] = useAtom(terminalsAtom);
 
   return (
     <div className={display}>
       <div className='nav-content'>
         <div className='content-head'>
-          <h6>Jupyter Info</h6>
+          <div>JUPYTER INFO</div>
         </div>
-        <div className='content-inner'>
-          <h6>Kernelspecs</h6>
+
+        <div className='projectName'>
+          <div>Kernelspecs</div>
+        </div>
+        <div className='jupyter-info-commit-content'>
           <ul className='file-list list-unstyled'>
             {Object.keys(kernelspecs).length > 0 ? (
               Object.keys(kernelspecs).map((key) => (
                 <li className='fileItem' key={key}>{kernelspecs[key].name}</li>
               ))
             ) : (
-              <p>No kernels available.</p>
+              <p>No kernelspecs available.</p>
             )}
           </ul>
-          <h6>Kernels</h6>
+        </div>
+        <div className='projectName'>
+          <div>Kernels</div>
+        </div>
+        <div className='jupyter-info-commit-content'>
           <ul className='file-list list-unstyled'>
-            <li className='fileItem'>Kernels</li>
+            {Object.keys(kernels).length > 0 ? (
+              Object.keys(kernels).map((key) => (
+                <li className='fileItem' key={key}>{kernels[key].name}</li>
+              ))
+            ) : (
+              <p>No kernels running.</p>
+            )}
           </ul>
-          <h6>Terminals</h6>
+        </div>
+        <div className='projectName'>
+          <div>Terminals</div>
+        </div>
+        <div className='jupyter-info-commit-content'>
           <ul className='file-list list-unstyled'>
-            <li className='fileItem'>Terminals</li>
+            {Object.keys(terminals).length > 0 ? (
+              Object.keys(terminals).map((key) => (
+                <li className='fileItem' key={key}>{terminals[key].name}</li>
+              ))
+            ) : (
+              <p>No terminals running.</p>
+            )}
           </ul>
         </div>
       </div>

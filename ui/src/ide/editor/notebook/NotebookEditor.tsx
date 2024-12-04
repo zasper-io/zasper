@@ -12,6 +12,7 @@ import NbButtons from './NbButtons'
 import Cell from './Cell'
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
+import { IKernel } from '../../../store/AppState';
 
 const debugMode = false
 
@@ -76,10 +77,7 @@ export default function NotebookEditor (props) {
 
   const [client, setClient] = useState<IClient>({ send: () => { } })
 
-  interface IKernel {
-    name: string
-    id: string
-  }
+
   const [kernel, setKernel] = useState<IKernel>({ name: '', id: '' })
 
   interface ISession {
