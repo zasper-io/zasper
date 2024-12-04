@@ -35,3 +35,25 @@
     transform-origin: top left;
   }
   
+  .git-commit-content{
+    width: 100%;
+    padding: 10px;
+    height: 45vh;
+    overflow: hidden;
+    overflow-y: scroll;
+  }
+
+  .gitbutton{
+    font-weight: 400;
+    border: 1px solid #e6e6e6;
+    border-radius: 4px;
+    padding: 6px 18px;
+    color: #ffffff;
+    box-sizing: border-box;
+    background: #5f568f;
+    box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  }
+
+  .gitbutton:hover{
+    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  }

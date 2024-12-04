@@ -2,20 +2,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BaseApiUrl } from '../config'
 
-import './GitPanel.scss' 
+import './GitPanel.scss'
 
-export default function GitPanel ({ sendDataToParent, display }) {
+export default function GitPanel({ sendDataToParent, display }) {
   return (
     <div className={display}>
-    <div className='nav-content'>
-      <div className='content-head'>
-        <h6>Source Control Graph</h6>
+      <div className='nav-content'>
+        <div className='content-head'>
+          <div>SOURCE CONTROL</div>
+        </div>
+        <GitCommit />
+        <CommitGraphContainer />
       </div>
-      <div className='content-inner'>
-        <GitCommit/>
-        <CommitGraphContainer></CommitGraphContainer>
-      </div>
-    </div>
     </div>
   )
 }
@@ -25,10 +23,10 @@ function GitCommit() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [commitMessage, setCommitMessage] = useState<string>('');
   // State for push option
-  const [pushAfterCommit, setPushAfterCommit] = useState<boolean>(false); 
+  const [pushAfterCommit, setPushAfterCommit] = useState<boolean>(false);
 
 
-   // Function to fetch the list of uncommitted files
+  // Function to fetch the list of uncommitted files
   const fetchFiles = () => {
     fetch(BaseApiUrl + '/api/uncommitted-files')
       .then((response) => response.json())
@@ -84,52 +82,60 @@ function GitCommit() {
   };
 
   return (
-    <div className="container">
-      <h3>Uncommitted Files</h3>
-      {files && files.length > 0 ? (
-        <ul className="list-group mb-4">
-          {files.map((file, index) => (
-            <li key={index} className="list-group-item">
-              <div className="form-check">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id={file}
-                  value={file}
-                  onChange={() => handleCheckboxChange(file)}
-                />
-                <label htmlFor={file} className="form-check-label">{file}</label>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>No uncommitted files found.</p>
-      )}
-
-      <h4>Commit Message</h4>
-      <input
-        className="form-control"
-        type="text"
-        value={commitMessage}
-        onChange={(e) => setCommitMessage(e.target.value)}
-        placeholder="Enter commit message"
-      />
-
-      <div>
-          <input
-            className="form-check-input"
-            type="checkbox"
-            checked={pushAfterCommit}
-            onChange={() => setPushAfterCommit(!pushAfterCommit)} // Toggle the push option
-          />
-          <label className="form-check-label">
-          Push after commit
-        </label>
+    <>
+      <div className='projectName'>
+        <div>VERSION CONTROL</div>
       </div>
+      <div className='git-commit-content'>
+        <div>
+          <h6>Uncommitted Files</h6>
+          {files && files.length > 0 ? (
+            <ul className='file-list list-unstyled'>
+              {files.map((file, index) => (
+                <li key={index} className="list-group-item">
+                  <div className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id={file}
+                      value={file}
+                      onChange={() => handleCheckboxChange(file)}
+                    />
+                    <label htmlFor={file} className="form-check-label">{file}</label>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No uncommitted files found.</p>
+          )}
 
-      <button onClick={handleCommit}>Commit {pushAfterCommit ? 'and Push' : ''} </button>
-    </div>
+          <h4>Commit Message</h4>
+          <input
+            className="command-palette-input"
+            type="text"
+            value={commitMessage}
+            onChange={(e) => setCommitMessage(e.target.value)}
+            placeholder="Enter commit message"
+          />
+
+          <div className='form-check'>
+            <input
+              className="form-check-input"
+              type="checkbox"
+              checked={pushAfterCommit}
+              onChange={() => setPushAfterCommit(!pushAfterCommit)} // Toggle the push option
+            />
+            <label className="form-check-label">
+              Push after commit
+            </label>
+          </div>
+
+          <button className="gitbutton" onClick={handleCommit}>Commit {pushAfterCommit ? 'and Push' : ''} </button>
+        </div>
+      </div>
+    </>
+
   );
 }
 
@@ -233,34 +239,42 @@ const CommitGraph: React.FC<{ data: Commit[] }> = ({ data }) => {
   }, [data]);
 
   return (
-    <div className="graph-container">
-      {commitNodes.map(node => (
-        <div
-          key={node.id}
-          className={`commit-node ${node.commit.branch}`}
-          style={{ left: `${node.x}px`, top: `${node.y}px` }}
-        >
-          <span className="commit-message">{node.commit.message} -- {node.commit.author}</span>
-          {/* <span className="commit-hash">{node.commit.hash}</span> */}
+    <>
+      <div className='projectName'>
+        <div>SOURCE CONTROL GRAPH</div>
+      </div>
+      <div className='git-commit-content'>
+        <div className="graph-container">
+          {commitNodes.map(node => (
+            <div
+              key={node.id}
+              className={`commit-node ${node.commit.branch}`}
+              style={{ left: `${node.x}px`, top: `${node.y}px` }}
+            >
+              <span className="commit-message">{node.commit.message} -- {node.commit.author}</span>
+              {/* <span className="commit-hash">{node.commit.hash}</span> */}
+            </div>
+          ))}
+          {/* Lines to connect parent-child relationships */}
+          {/* {commitNodes.map(node =>
+          node.children.map(child => (
+            <div
+              key={`${node.id}-${child.id}`}
+              className="connection-line"
+              style={{
+                left: `${node.x + 20}px`,
+                top: `${node.y + 40}px`,
+                width: `${Math.abs(node.x - child.x)}px`,
+                height: `${Math.abs(node.y - child.y)}px`,
+                transformOrigin: 'top left',
+              }}
+              />
+            ))
+          )} */}
         </div>
-      ))}
+      </div>
 
-      {/* Lines to connect parent-child relationships */}
-      {/* {commitNodes.map(node =>
-        node.children.map(child => (
-          <div
-            key={`${node.id}-${child.id}`}
-            className="connection-line"
-            style={{
-              left: `${node.x + 20}px`,
-              top: `${node.y + 40}px`,
-              width: `${Math.abs(node.x - child.x)}px`,
-              height: `${Math.abs(node.y - child.y)}px`,
-              transformOrigin: 'top left',
-            }}
-          />
-        ))
-      )} */}
-    </div>
+    </>
+
   );
 };
