@@ -18,8 +18,9 @@
   <a href="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml" target="_blank"><img alt="Github CD status" src="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml/badge.svg"></a>
 </p>
 
-
-![Editor](./screenshots/intro.gif)
+<p align=center>
+  <img src="./screenshots/intro.gif"/>
+</p>
 
 # Why I built Zasper ?
 
