@@ -38,7 +38,9 @@ export default function JupyterInfoPanel({ sendDataToParent, display }) {
           <ul className='file-list list-unstyled'>
             {Object.keys(kernels).length > 0 ? (
               Object.keys(kernels).map((key) => (
-                <li className='fileItem' key={key}>{kernels[key].name}</li>
+                <li className='fileItem' key={key}>{kernels[key].id} | 
+                {kernels[key].name}
+                </li>
               ))
             ) : (
               <p>No kernels running.</p>

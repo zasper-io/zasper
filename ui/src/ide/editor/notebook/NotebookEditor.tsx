@@ -12,9 +12,9 @@ import NbButtons from './NbButtons'
 import Cell from './Cell'
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
-import { IKernel } from '../../../store/AppState';
+import { IKernel, kernelsAtom } from '../../../store/AppState';
 
-const debugMode = false
+const debugMode = true
 
 interface CodeMirrorRef {
   editor: {
@@ -77,8 +77,10 @@ export default function NotebookEditor (props) {
 
   const [client, setClient] = useState<IClient>({ send: () => { } })
 
+  const [kernelName, setKernelName] = useState<string>("")
 
-  const [kernel, setKernel] = useState<IKernel>({ name: '', id: '' })
+
+  const [kernelMap, setKernelMap] = useAtom(kernelsAtom)
 
   interface ISession {
     id: string
@@ -119,6 +121,7 @@ export default function NotebookEditor (props) {
   useEffect(() => {
     if (props.data.load_required == true) {
       FetchFileData(props.data.path)
+      startASession(props.data.path, props.data.name, props.data.type)
     }
    
   }, [])
@@ -150,14 +153,13 @@ export default function NotebookEditor (props) {
     // Simple GET request using fetch
     console.log('Starting a session')
     if (session.id === '') {
-      if (kernel != null) {
+      if (kernelMap != null) {
         fetch(BaseApiUrl + '/api/sessions', {
           method: 'POST',
           body: JSON.stringify({
             path: path,
             name: name,
             type: type,
-            kernel,
             notebook: { path: path, name: name }
           })
 
@@ -168,6 +170,11 @@ export default function NotebookEditor (props) {
               console.log('sessions running')
               console.log(data)
               setSession(data)
+              let updatedKernel = kernelMap
+              updatedKernel[data.kernel.id] = data.kernel
+              console.log(updatedKernel)
+              setKernelMap(updatedKernel)
+              
             },
             (error) => {
               console.log('error')
@@ -180,6 +187,7 @@ export default function NotebookEditor (props) {
     } else {
       console.log(session)
     }
+    startWebSocket()
   }
 
   const startWebSocket = () => {
@@ -191,10 +199,23 @@ export default function NotebookEditor (props) {
     client1.onmessage = (message) => {
       message = JSON.parse(message.data)
       console.log(message)
-      if(message.hasOwnProperty("data")){
-        notebook.current.cells[focusedIndex].outputs[0].data['text/plain'] = message.data['text/plain']
-        // toast(message.data["text/plain"]);
-      }
+      console.log("focuseIndex", focusedIndex)
+      
+      notebook.current.cells.forEach(cell => {
+        if (cell.id === message.msg_id){
+          if(message.hasOwnProperty("data")){
+          // console.log("id matched", cell.id)
+            cell.outputs = [""]
+            cell.outputs[0] = message.data
+          }
+          if(message.hasOwnProperty("traceback")){
+            // console.log("id matched", cell.id)
+              cell.outputs = [""]
+              cell.outputs[0] = message.traceback
+            }
+        }
+      });
+      
 
       if (message.channel === 'iopub') {
         console.log('IOPub => ', message)
@@ -406,6 +427,7 @@ export default function NotebookEditor (props) {
                 reExecuteNotebook={reExecuteNotebook}
                 focusedIndex = {focusedIndex}
                 notebook = {notebook}
+                kernelName = {kernelName}
       />
         
       {debugMode && <div>

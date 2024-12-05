@@ -1,8 +1,7 @@
 import React, {useState} from 'react';
 
 function NbButtons(props){
-    const [kernelName, setKernelName] = useState("Python [conda env:default]*")
-
+    
     const options = [
         { label: 'Code', value: 'code' },
         { label: 'Markdown', value: 'markdown' },
@@ -11,6 +10,7 @@ function NbButtons(props){
   
     return (
       <div className='text-editor-tool'>
+        <h1>{props.focusedIndex}</h1>
         <button type='button' className='editor-button' onClick={() => props.saveNotebook()}><i className='fas fa-save' /></button>
         <button type='button' className='editor-button' onClick={() => props.addCell(props.index)}><i className='fas fa-plus' /></button>
         <button type='button' className='editor-button' onClick={() => props.cutCell(props.index)}><i className='fas fa-cut' /></button>
@@ -26,7 +26,7 @@ function NbButtons(props){
             ))}
         </select>
         {props.notebook.current.cells.length > 0 && props.notebook.current.cells[props.focusedIndex].cell_type}
-        <div className='ms-auto'>{kernelName}</div>
+        <div className='ms-auto'>{props.kernelName}</div>
         <div className="kStatus">idle</div>
       </div>
     )
