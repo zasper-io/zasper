@@ -134,7 +134,8 @@ export default function FileEditor (props) {
             theme={theme=='light'? githubLight: githubDark}
             minHeight='100%'
             width='100%'
-            extensions={[getExtensionToLoad(), customKeymap, linter(jsonParseLinter())]}
+            extensions={[getExtensionToLoad(), customKeymap]}
+            // , linter(jsonParseLinter())
             // linter(esLint(new eslint.Linter(), config)),
             onChange={(fileContents) => {
               setFileContents(fileContents)
