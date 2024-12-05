@@ -98,7 +98,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     height: 100vh;
     background-color: #000000;
     .main-content{
-        background-color: #000000;
+        background-color: #3e3e3e;
     }
     .topBar{
         background-color: #000000;
@@ -107,7 +107,10 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     .navigation{
         background-color: #272727;
     }
-
+    .navigation .navigation-list .nav-link {
+        background-color: #dddddd;
+    }
+    
     .navigation-list{
         background: #272727;
     }
@@ -117,6 +120,13 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     .nav-link{
         background-color: #272727;
     }
+
+    .nav-link.active {
+        color: #ffffff;
+        font-weight: 400;
+        background: #746b8d;
+    }
+    
     .navigation .nav-content .content-inner .file-list li a {
         background-color: #272727;
         color: #fff;
@@ -143,6 +153,9 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     }
     .directoryIcon{
         fill: #fff;
+    }
+    .inner-text {
+        background: #353535;
     }
 }
 

@@ -3,13 +3,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import CodeMirror from '@uiw/react-codemirror'
 import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
+import { linter } from '@codemirror/lint';
 import { darcula } from '@uiw/codemirror-theme-darcula';
 import { python } from '@codemirror/lang-python'
 import { html } from '@codemirror/lang-html'
 import { go } from '@codemirror/lang-go'
 import { less } from '@codemirror/lang-less'
 import { sass } from '@codemirror/lang-sass'
-import { javascript } from '@codemirror/lang-javascript'
+import { json, jsonParseLinter } from '@codemirror/lang-json'
+import { javascript, esLint } from '@codemirror/lang-javascript'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
@@ -80,6 +82,8 @@ export default function FileEditor (props) {
         return python()
       case 'js':
         return javascript()
+      case 'json':
+        return json()
       case 'ts':
         return javascript({ jsx: false, typescript: true })
       case 'tsx':
@@ -130,7 +134,8 @@ export default function FileEditor (props) {
             theme={theme=='light'? githubLight: githubDark}
             minHeight='100%'
             width='100%'
-            extensions={[getExtensionToLoad(), customKeymap]}
+            extensions={[getExtensionToLoad(), customKeymap, linter(jsonParseLinter())]}
+            // linter(esLint(new eslint.Linter(), config)),
             onChange={(fileContents) => {
               setFileContents(fileContents)
             }}

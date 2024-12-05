@@ -16,6 +16,7 @@
     "@codemirror/lang-python": "6.0.0",
     "@codemirror/lang-sass": "^6.0.2",
     "@codemirror/language-data": "^6.5.1",
+    "@codemirror/lint": "^6.8.4",
     "@codemirror/view": "^6.33.0",
     "@uiw/codemirror-theme-darcula": "^4.23.6",
     "@uiw/codemirror-theme-github": "^4.23.6",
