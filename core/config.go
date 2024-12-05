@@ -1,6 +1,8 @@
 package core
 
 import (
+	"runtime"
+
 	"github.com/zasper-io/zasper/utils"
 )
 
@@ -16,6 +18,7 @@ type Application struct {
 	JupyterPath       []string
 	JupyterConfigPath string
 	ProjectName       string
+	OSName            string
 }
 
 func SetUpZasper(cwd string) Application {
@@ -27,6 +30,7 @@ func SetUpZasper(cwd string) Application {
 		ProjectName:       utils.GetProjectName(cwd),
 		HomeDir:           cwd,
 		StaticUrl:         "./images",
+		OSName:            runtime.GOOS,
 		JupyterConfigDir:  utils.GetJupyterConfigDir(),
 		JupyterDataDir:    utils.GetJupyterDataDir(),
 		JupyterRuntimeDir: utils.GetJupyterRuntimeDir(),

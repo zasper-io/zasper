@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '../config';
 import { atom, useAtom } from 'jotai';
-import { kernelspecsAtom } from '../../store/AppState';
+import { kernelspecsAtom, terminalsCountAtom, terminalsAtom } from '../../store/AppState';
 
 
 
@@ -15,6 +15,8 @@ interface LauncherProps {
 
 const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   const [kernelspecs, setKernelspecs] = useAtom(kernelspecsAtom);
+  const [terminalCount, setTerminalCount] = useAtom(terminalsCountAtom);
+  const [terminals, setTerminals] = useAtom(terminalsAtom)
 
   // Fetch kernelspecs from the API
   const fetchData = async () => {
@@ -30,7 +32,12 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   // Handle opening a new terminal
   const openTerminal = () => {
     console.log('Open terminal');
-    sendDataToParent('Terminal 1', 'Terminal 1', 'terminal');
+    const terminalName = "Terminal "+ (terminalCount + 1)
+    sendDataToParent(terminalName, terminalName, 'terminal');
+    setTerminalCount(terminalCount + 1)
+    var updatedterminals = { ...terminals };
+    updatedterminals[terminalName] = {id: terminalName, name : terminalName}
+    setTerminals(updatedterminals)
   };
 
   // Fetch kernelspecs on component mount

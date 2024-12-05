@@ -13,6 +13,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/core"
 )
 
 const (
@@ -36,6 +37,20 @@ var WebsocketMessageType = map[int]string{
 	websocket.PongMessage:   "pong",
 }
 
+// Global map to store active terminal sessions.
+var terminalSessions = make(map[string]*TerminalSession)
+
+// Unique session ID generator.
+func generateSessionID() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano()) // Using Unix time as a unique ID
+}
+
+// TerminalSession struct holds the terminal and related processes.
+type TerminalSession struct {
+	TTY *os.File
+	Cmd *exec.Cmd
+}
+
 // HandleTerminalWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
 func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	connection, err := upgrader.Upgrade(w, req, nil)
@@ -45,24 +60,32 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 	defer connection.Close()
 
+	// Generate a unique session ID for each WebSocket connection
+	sessionID := generateSessionID()
+
+	// Start a new TTY session
 	tty, cmd, err := startTTY()
 	if err != nil {
 		sendErrorMessage(connection, fmt.Sprintf("failed to start tty: %s", err))
 		return
 	}
-	defer cleanupTTY(cmd, tty, connection)
+
+	// Store the session in the global map
+	terminalSessions[sessionID] = &TerminalSession{TTY: tty, Cmd: cmd}
+
+	defer cleanupTTY(sessionID, tty, cmd, connection)
 
 	var waiter sync.WaitGroup
-	waiter.Add(1)
+	waiter.Add(2)
 
 	lastPongTime := time.Now()
 	setupKeepAlive(connection, &lastPongTime, &waiter)
 
 	// Terminal output to WebSocket
-	go readFromTTY(tty, connection, &waiter)
+	go readFromTTY(sessionID, tty, connection, &waiter)
 
 	// WebSocket input to terminal
-	go writeToTTY(connection, tty)
+	go writeToTTY(sessionID, connection, tty)
 
 	waiter.Wait()
 	log.Info().Msg("Closing connection...")
@@ -70,7 +93,23 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 
 // startTTY starts a new terminal session.
 func startTTY() (*os.File, *exec.Cmd, error) {
+
 	terminal := "zsh"
+	osystem := core.Zasper.OSName
+
+	switch osystem {
+	case "windows":
+		terminal = "bash"
+	case "linux":
+		terminal = "bash"
+	case "freebsd":
+		terminal = "bash"
+	case "android":
+		terminal = "bash"
+	default:
+		terminal = "zsh"
+	}
+
 	args := []string{"-l"}
 	log.Debug().Msgf("Starting new TTY using command '%s' with arguments ['%s']...", terminal, args)
 
@@ -86,8 +125,11 @@ func startTTY() (*os.File, *exec.Cmd, error) {
 }
 
 // cleanupTTY gracefully stops the terminal and closes the connection.
-func cleanupTTY(cmd *exec.Cmd, tty *os.File, connection *websocket.Conn) {
+func cleanupTTY(sessionID string, tty *os.File, cmd *exec.Cmd, connection *websocket.Conn) {
 	log.Info().Msg("Gracefully stopping spawned TTY...")
+
+	// Remove the session from the global map
+	delete(terminalSessions, sessionID)
 
 	if err := cmd.Process.Kill(); err != nil {
 		log.Warn().Err(err).Msg("Failed to kill process")
@@ -136,7 +178,7 @@ func setupKeepAlive(connection *websocket.Conn, lastPongTime *time.Time, waiter 
 }
 
 // readFromTTY reads output from the TTY and sends it to the WebSocket connection.
-func readFromTTY(tty *os.File, connection *websocket.Conn, waiter *sync.WaitGroup) {
+func readFromTTY(sessionID string, tty *os.File, connection *websocket.Conn, waiter *sync.WaitGroup) {
 	defer waiter.Done()
 	errorCounter := 0
 
@@ -147,9 +189,10 @@ func readFromTTY(tty *os.File, connection *websocket.Conn, waiter *sync.WaitGrou
 		buffer := make([]byte, MaxBufferSizeBytes)
 		readLength, err := tty.Read(buffer)
 		if err != nil {
+			// If the terminal process is closed or error occurs, handle it
 			log.Warn().Err(err).Msg("Failed to read from TTY")
 			sendErrorMessage(connection, "Bye!")
-			return
+			break
 		}
 
 		if err := connection.WriteMessage(websocket.BinaryMessage, buffer[:readLength]); err != nil {
@@ -164,7 +207,7 @@ func readFromTTY(tty *os.File, connection *websocket.Conn, waiter *sync.WaitGrou
 }
 
 // writeToTTY writes incoming WebSocket messages to the TTY.
-func writeToTTY(connection *websocket.Conn, tty *os.File) {
+func writeToTTY(sessionID string, connection *websocket.Conn, tty *os.File) {
 	for {
 		messageType, data, err := connection.ReadMessage()
 		if err != nil {

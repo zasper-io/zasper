@@ -19,7 +19,7 @@ import StatusBar from './statusBar/StatusBar';
 import getFileExtension from './utils';
 
 import './IDE.scss'
-import { fontSizeAtom, languageModeAtom } from '../store/AppState';
+import { fontSizeAtom, languageModeAtom, terminalsAtom } from '../store/AppState';
 
 interface Ifile {
   type: string
@@ -46,6 +46,7 @@ interface INavDict {
 function IDE () {
   const [theme] = useAtom(themeAtom)
   const [languageMode, setLanguageMode] = useAtom(languageModeAtom)
+  const [terminals, setTerminals] = useAtom(terminalsAtom)
 
   const defaultNavState: INavDict = {
     fileBrowser: { name: 'fileBrowser', display: 'd-block' },
@@ -116,6 +117,10 @@ function IDE () {
     delete updatedDataFromChild[key]
     setDataFromChild(updatedDataFromChild)
     console.log(updatedDataFromChild)
+
+    var updatedterminals = { ...terminals };
+    delete updatedterminals[key] 
+    setTerminals(updatedterminals)
   }
 
   const [fontSize, setFontSize] = useAtom(fontSizeAtom); // Initial font size
