@@ -1,20 +1,17 @@
-
-import React, { useEffect, useState, useRef, useCallback } from 'react'
-
-import { v4 as uuidv4 } from 'uuid'
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import 'react-toastify/dist/ReactToastify.css';
+import './NotebookEditor.scss';
 
-import './NotebookEditor.scss'
-
-import { w3cwebsocket as W3CWebSocket } from 'websocket'
-import { BaseApiUrl } from '../../config'
-import NbButtons from './NbButtons'
-import Cell from './Cell'
+import { w3cwebsocket as W3CWebSocket } from 'websocket';
+import { BaseApiUrl } from '../../config';
+import NbButtons from './NbButtons';
+import Cell from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom } from '../../../store/AppState';
 
-const debugMode = true
+const debugMode = true;
 
 interface CodeMirrorRef {
   editor: {
@@ -22,22 +19,22 @@ interface CodeMirrorRef {
   };
 }
 
-export default function NotebookEditor (props) {
+export default function NotebookEditor(props) {
   interface ICell {
-    cell_type: CellType
-    id: string
-    execution_count: number
-    source: string
-    outputs: any
-    reload: boolean
-  }
-  interface INotebookModel {
-    cells: Array<ICell>
-    nbformat: number
-    nbformat_minor: number
-    metadata: INotebookMetadata
+    cell_type: CellType;
+    id: string;
+    execution_count: number;
+    source: string;
+    outputs: any;
+    reload: boolean;
   }
 
+  interface INotebookModel {
+    cells: Array<ICell>;
+    nbformat: number;
+    nbformat_minor: number;
+    metadata: INotebookMetadata;
+  }
 
   interface INotebookMetadata {
     kernelspec?: IKernelspecMetadata;
@@ -45,7 +42,7 @@ export default function NotebookEditor (props) {
     orig_nbformat?: number;
   }
 
-  interface IKernelspecMetadata{
+  interface IKernelspecMetadata {
     name: string;
     display_name: string;
   }
@@ -59,253 +56,144 @@ export default function NotebookEditor (props) {
   }
 
   type CellType = 'code' | 'markdown' | 'raw' | string;
-  
 
-  const [notebook,setNotebook] = useState<INotebookModel>(
-    { 
-                                                    cells: [], 
-                                                    nbformat:0, 
-                                                    nbformat_minor:0,
-                                                    metadata: {}
-                                                  })
+  const [notebook, setNotebook] = useState<INotebookModel>({
+    cells: [],
+    nbformat: 0,
+    nbformat_minor: 0,
+    metadata: {},
+  });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
   const codeMirrorRefs = useRef<CodeMirrorRef[]>([]); 
-  const [theme, setTheme] = useAtom(themeAtom)
+  const [theme] = useAtom(themeAtom);
+  const [client, setClient] = useState<IClient>({ send: () => {} });
+  const [kernelName, setKernelName] = useState<string>('');
+  const [kernelMap, setKernelMap] = useAtom(kernelsAtom);
+  const [session, setSession] = useState<ISession>({ id: '', kernel: { id: '', name: '' } });
 
-
-  const [client, setClient] = useState<IClient>({ send: () => { } })
-
-  const [kernelName, setKernelName] = useState<string>("")
-
-
-  const [kernelMap, setKernelMap] = useAtom(kernelsAtom)
+  interface IClient {
+    send: any;
+  }
 
   interface ISession {
-    id: string
-    kernel: IKernel
+    id: string;
+    kernel: IKernel;
   }
-  const [session, setSession] = useState<ISession>({ id: '', kernel: {id: '', name: ''} })
 
-
-  const FetchFileData = async (path) => {
-    try{
+  const FetchFileData = async (path: string) => {
+    try {
       const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
         method: 'POST',
+        body: JSON.stringify({ path }),
+      });
 
-        body: JSON.stringify({
-          path
-        })
-      })
       if (!res.ok) {
         throw new Error('Failed to fetch data');
       }
-      const resJson = await res.json()
-      resJson.content.cells.forEach(cell => {
+
+      const resJson = await res.json();
+      resJson.content.cells.forEach((cell) => {
         cell.id = uuidv4(); // Add UUID to each cell object
-        cell.reload=false
+        cell.reload = false;
       });
-      setNotebook(resJson.content)
-      console.log("notebook => ", notebook);
+
+      setNotebook(resJson.content);
       setLoading(false);
     } catch (err: unknown) {
-      if (err instanceof Error) {  // Narrow the type of err
-        setError(err.message);  // Access err.message safely
-      } else {
-        setError('An unknown error occurred');
-      }
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
       setLoading(false);  // Ensure loading is set to false
     }
-  }
+  };
 
   useEffect(() => {
-    if (props.data.load_required == true) {
-      FetchFileData(props.data.path)
-      startASession(props.data.path, props.data.name, props.data.type)
-
-      const client1 = new W3CWebSocket('ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id)
-
-      client1.onopen = () => {
-        console.log('WebSocket Client Connected')
-      }
-      client1.onmessage = (message) => {
-        message = JSON.parse(message.data)
-        // console.log(message)
-        
-        if(message.msg_type === 'execute_request'){
-          updateNotebook(message)
-        }
-      }
-      client1.onclose = () => {
-        console.log('disconnected')
-      }
-      setClient(client1)
+    if (props.data.load_required === true) {
+      FetchFileData(props.data.path);
+      startASession(props.data.path, props.data.name, props.data.type);
     }
-   
-  }, [])
-
-
-
-  interface IClient {
-    send: any
-  }
-
-  const listAllKernelSpecs = () => {
-    // Simple GET request using fetch
-    fetch(BaseApiUrl + '/api/kernelspecs')
-      .then(async response => await response.json())
-      .then(
-        (data) => {
-          console.log('data')
-          console.log(data)
-        },
-        (error) => {
-          console.log('error')
-        }
-
-      )
-  }
- 
-
-  const startASession = (path, name, type) => {
-    // Simple GET request using fetch
-    console.log('Starting a session')
-    if (session.id === '') {
-      if (kernelMap != null) {
-        fetch(BaseApiUrl + '/api/sessions', {
-          method: 'POST',
-          body: JSON.stringify({
-            path: path,
-            name: name,
-            type: type,
-            notebook: { path: path, name: name }
-          })
-
-        })
-          .then(async response => await response.json())
-          .then(
-            (data) => {
-              console.log('sessions running')
-              console.log(data)
-              setSession(data)
-              let updatedKernel = kernelMap
-              updatedKernel[data.kernel.id] = data.kernel
-              console.log(updatedKernel)
-              setKernelMap(updatedKernel)
-              
-            },
-            (error) => {
-              console.log('error')
-            }
-
-          )
-          // .then(
-          //   () => startWebSocket()
-          // )
-      } else {
-        console.log('No kernel running. Start a kernel first!')
-      }
-    } else {
-      console.log(session)
-    }
-    
-  }
-
-  const updateNotebook = (message) => {
-    
-    if(message.hasOwnProperty("data")){
-      notebook.cells.forEach(cell => {
-        if (cell.id === message.msg_id){
-          
-          if(message.hasOwnProperty("data")){
-            cell.outputs = [""]
-            cell.outputs[0] = message.data
-          }
-          if(message.hasOwnProperty("traceback")){
-              cell.outputs = [""]
-              cell.outputs[0] = message.traceback
-          }
-          cell.execution_count = message.execution_count;
-          console.log("done")
-          // cell.key = uuidv4()
-          // setFocusedIndex(focusedIndex +1)
-        }
-      })
-  }
-  }
+  }, [props.data]);
 
   const startWebSocket = () => {
-    const client1 = new W3CWebSocket('ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id)
+    const client1 = new W3CWebSocket(
+      'ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
+    );
 
     client1.onopen = () => {
-      console.log('WebSocket Client Connected')
-    }
+      console.log('WebSocket Client Connected');
+    };
+
     client1.onmessage = (message) => {
-      message = JSON.parse(message.data)
-      // console.log(message)
-      
-      if(message.msg_type === 'execute_request'){
-        updateNotebook(message)
+      message = JSON.parse(message.data);
+      if (message.msg_type === 'execute_request') {
+        updateNotebook(message);
       }
-    }
+    };
+
     client1.onclose = () => {
-      console.log('disconnected')
+      console.log('disconnected');
+    };
+
+    setClient(client1);
+  };
+
+  const startASession = (path: string, name: string, type: string) => {
+    if (!session.id && kernelMap) {
+      fetch(BaseApiUrl + '/api/sessions', {
+        method: 'POST',
+        body: JSON.stringify({
+          path,
+          name,
+          type,
+          notebook: { path, name },
+        }),
+      })
+        .then(async (response) => await response.json())
+        .then((data) => {
+          setSession(data);
+          const updatedKernel = { ...kernelMap, [data.kernel.id]: data.kernel };
+          setKernelMap(updatedKernel);
+        })
+        .catch((error) => console.log('error', error));
     }
-    setClient(client1)
-  }
-  interface IHeader {
-    msg_id: string // typically UUID, must be unique per message
-    session: string // typically UUID, should be unique per session
-    username: string
-    // ISO 8601 timestamp for when the message is created
-    date: string
-    //  All recognized message type strings are listed below.
-    msg_type: string
-    // the message protocol version
-    version: string
-  }
+  };
 
-  interface IMetadata {
+  const updateNotebook = (message: any) => {
+    if (message.hasOwnProperty('data')) {
+      setNotebook((prevNotebook) => {
+        const updatedCells = prevNotebook.cells.map((cell) => {
+          if (cell.id === message.msg_id) {
+            const updatedCell = { ...cell };
+            if (message.hasOwnProperty('data')) {
+              updatedCell.outputs = [message.data];
+            }
+            if (message.hasOwnProperty('traceback')) {
+              updatedCell.outputs = [message.traceback];
+            }
+            updatedCell.execution_count = message.execution_count;
+            return updatedCell;
+          }
+          return cell;
+        });
 
-  }
-
-  interface IContent {
-
-  }
-
-  interface Imessage {
-    header: IHeader
-    parent_header: IHeader
-    metadata: IMetadata
-    content: IContent
-    buffers: string[]
-  }
-
-  const getTimeStamp = () => {
-    const today = new Date()
-    return today.toISOString()
-  }
-
-  const createExecuteRequestMsg = (code: string) => {
-    return {
-      silent: false,
-      store_history: true,
-      user_expressions: {},
-      allow_stdin: true,
-      stop_on_error: true,
-      code: code
+        return { ...prevNotebook, cells: updatedCells };
+      });
     }
-  }
+  };
 
   const submitCell = (source: string, cellId: string) => {
-    notebook.cells.forEach(cell => {
-      if (cell.id === cellId){
-        cell.execution_count = -1;
-        
-      }
+    setNotebook((prevNotebook) => {
+      const updatedCells = prevNotebook.cells.map((cell) => {
+        if (cell.id === cellId) {
+          return { ...cell, execution_count: -1 };
+        }
+        return cell;
+      });
+
+      return { ...prevNotebook, cells: updatedCells };
     });
+
     const message = JSON.stringify({
       buffers: [],
       channel: 'shell',
@@ -316,105 +204,74 @@ export default function NotebookEditor (props) {
         msg_type: 'execute_request',
         session: session.id,
         username: 'prasunanand',
-        version: '5.2'
+        version: '5.2',
       },
       metadata: {
         deletedCells: [],
         recordTiming: false,
-        cellId: '1cb16896-03e7-480c-aa2b-f1ba6bb1b56d'
+        cellId: '1cb16896-03e7-480c-aa2b-f1ba6bb1b56d',
       },
-      parent_header: {}
-    })
-    console.log('Sending message', message)
-    client.send(message)
-  }
+      parent_header: {},
+    });
 
-  const saveFile = async () => {
-    const path = 'demo.ipynb'
-    console.log(notebook)
-    alert('Saving file')
-    const res = await fetch('http://localhost:8888/api/contents/demo.ipynb', {
-      method: 'PUT',
-      body: JSON.stringify({
-        content: JSON.stringify(notebook),
-        type: 'file',
-        format: 'text'
-      })
-    })
-  }
+    client.send(message);
+  };
 
-  const addCellUp = async () =>{
-    console.log("add cell Up");
-    const updatedNotebook = Object.assign({}, notebook)
-    notebook.cells.push({
-      execution_count: 0,
-      source: "",
-      cell_type: "raw",
-      id: uuidv4(),
-      reload: false,
-      outputs: ""
-    })
+  const createExecuteRequestMsg = (code: string) => {
+    return {
+      silent: false,
+      store_history: true,
+      user_expressions: {},
+      allow_stdin: true,
+      stop_on_error: true,
+      code,
+    };
+  };
 
-  }
+  const getTimeStamp = () => new Date().toISOString();
 
-  const addCellDown = async () =>{
-    console.log("add cell Down");
-    notebook.cells.push({
-      execution_count: 0,
-      source: "",
-      cell_type: "raw",
-      id: uuidv4(),
-      reload: false,
-      outputs: ""
-    })
-  }
+  const addCellUp = () => {
+    setNotebook((prevNotebook) => ({
+      ...prevNotebook,
+      cells: [
+        ...prevNotebook.cells,
+        {
+          execution_count: 0,
+          source: '',
+          cell_type: 'raw',
+          id: uuidv4(),
+          reload: false,
+          outputs: '',
+        },
+      ],
+    }));
+  };
 
-  const deleteCell = async (index: number) =>{
-    console.log("delete cell at index => " + index)
-    notebook.cells.pop()
-  }
+  const addCellDown = () => {
+    setNotebook((prevNotebook) => ({
+      ...prevNotebook,
+      cells: [
+        ...prevNotebook.cells,
+        {
+          execution_count: 0,
+          source: '',
+          cell_type: 'raw',
+          id: uuidv4(),
+          reload: false,
+          outputs: '',
+        },
+      ],
+    }));
+  };
 
-  const nextCell = async (index: number) =>{
-    console.log("moving to next index => " + (index + 1 ))
-  }
+  const deleteCell = (index: number) => {
+    setNotebook((prevNotebook) => {
+      const updatedCells = prevNotebook.cells.filter((_, i) => i !== index);
+      return { ...prevNotebook, cells: updatedCells };
+    });
+  };
 
-  const prevCell = async (index: number) =>{
-    console.log("moving to prev index => " + (index - 1 ))
-  }
-
-
-  // Notebook level
-
-  let index=0
-
-  const saveNotebook =  () => {
-    console.log("saving notebook!")
-  }
-  const addCell =  () => {
-    console.log("add cell at index => " + index)
-  }
-  const cutCell =  () => {
-    console.log("cut cell at index => " + index)
-  }
-  const copyCell =  () => {
-    console.log("copy cell at index => " + index)
-  }
-  const pasteCell =  () => {
-    console.log("Paste cell at index => " + index)
-  }
-
-  const stopKernel =  () => {
-    console.log("Stop Kernel")
-  }
-  const restartKernel =  () => {
-    console.log("Restart kernel")
-  }
-  const reExecuteNotebook =  () => {
-    console.log("ReExecute Notebook")
-    console.log("notebook => ", notebook)
-  }
-
-  const handleKeyDown = (event) => {
+  const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown') {
       setFocusedIndex((prev) => {
         const newIndex = Math.min(prev + 1, notebook.cells.length - 1);
@@ -432,58 +289,59 @@ export default function NotebookEditor (props) {
     }
   };
 
-  // if (loading) return <p>Loading...</p>;
-  // if (error) return <p>Error: {error}</p>;
-
-
   return (
-    <div className='tab-content'>
-      <div className={props.data.active? 'd-block':'d-none'} id='profile' role='tabpanel' aria-labelledby='profile-tab'>
-      { notebook.cells && <NbButtons saveNotebook={saveNotebook}
-                addCell={addCell}
-                cutCell={cutCell}
-                copyCell={copyCell}
-                pasteCell={pasteCell}
+    <div className="tab-content">
+      <div className={props.data.active ? 'd-block' : 'd-none'} id="profile" role="tabpanel" aria-labelledby="profile-tab">
+        <NbButtons
+          saveNotebook={() => console.log('saving notebook')}
+          addCell={addCellUp}
+          cutCell={() => console.log('cut cell')}
+          copyCell={() => console.log('copy cell')}
+          pasteCell={() => console.log('paste cell')}
+          submitCell={submitCell}
+          stopKernel={() => console.log('stop kernel')}
+          restartKernel={() => console.log('restart kernel')}
+          reExecuteNotebook={() => console.log('reexecute notebook')}
+          focusedIndex={focusedIndex}
+          notebook={notebook}
+          kernelName={kernelName}
+        />
+        {debugMode && (
+          <div>
+            <button type="button" onClick={() => console.log("saving file")}>
+              Save file
+            </button>
+            <button type="button" onClick={() => startASession(props.data.path, props.data.name, props.data.type)}>
+              StartASession
+            </button>
+            <button type="button" onClick={startWebSocket}>
+              StartWebSocket
+            </button>
+          </div>
+        )}
+        <div className={theme === 'light' ? 'editor-body light' : 'editor-body dark'}>
+          {notebook.cells &&
+            notebook.cells.map((cell, index) => (
+              <Cell
+                key={cell.id}
+                index={index}
+                cell={cell}
                 submitCell={submitCell}
-                stopKernel={stopKernel}
-                restartKernel={restartKernel}
-                reExecuteNotebook={reExecuteNotebook}
-                focusedIndex = {focusedIndex}
-                notebook = {notebook}
-                kernelName = {kernelName}
-      />}
-        
-      {debugMode && <div>
-        <button type='button' onClick={saveFile}>Save file</button>
-        <button type='button' onClick={()=>startASession(props.data.name, props.data.path, props.data.type)}>StartASession</button>
-        <button type='button' onClick={startWebSocket}>StartWebSocket</button>
-      </div>
-      }
-      <div className={theme === 'light'? 'editor-body light': 'editor-body dark'}>
-        { notebook.cells ?
-          notebook.cells.map((cell, index) =>
-            <Cell key={cell.id} 
-                  index={index} 
-                  cell={cell} 
-                  submitCell={submitCell} 
-                  addCellUp={addCellUp} 
-                  addCellDown={addCellDown} 
-                  prevCell={prevCell}
-                  nextCell={nextCell}
-                  deleteCell={deleteCell}
-                  focusedIndex = {focusedIndex}
-                  setFocusedIndex={setFocusedIndex}
-                  handleKeyDown={handleKeyDown}
-                  divRefs={divRefs}
-                  execution_count={cell.execution_count}
-                  codeMirrorRefs={codeMirrorRefs}
-            />
-          )
-          : (
-            <p>No data available</p>)
-        }
+                addCellUp={addCellUp}
+                addCellDown={addCellDown}
+                prevCell={() => console.log('prev cell')}
+                nextCell={() => console.log('next cell')}
+                deleteCell={deleteCell}
+                focusedIndex={focusedIndex}
+                setFocusedIndex={setFocusedIndex}
+                handleKeyDown={handleKeyDown}
+                divRefs={divRefs}
+                execution_count={cell.execution_count}
+                codeMirrorRefs={codeMirrorRefs}
+              />
+            ))}
+        </div>
       </div>
     </div>
-  </div>
-  )
+  );
 }
