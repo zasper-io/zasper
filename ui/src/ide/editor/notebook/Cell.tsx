@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useImperativeHandle } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
@@ -24,6 +24,17 @@ const Cell = React.forwardRef((props: any, ref) => {
     setCellContents(value)
 
   }, []);
+
+
+  const [executionCount, setExecutionCount] = useState(props.execution_count);
+
+  // Update internal state when the prop changes
+  useEffect(() => {
+    console.log("rerendered ", props.index )
+    if (props.execution_count !== executionCount) {
+      setExecutionCount(props.execution_count); // Trigger a rerender when prop changes
+    }
+  }, [props.execution_count]);
 
   const onUpdate = useCallback((viewUpdate: ViewUpdate) => {
     if (viewUpdate) {
@@ -53,7 +64,9 @@ const Cell = React.forwardRef((props: any, ref) => {
 
 
   const handleCmdEnter = () => {
-    props.submitCell(cellContents)
+    console.log(cellContents, props.cell.id)
+    props.submitCell(cellContents, props.cell.id)
+    props.handleKeyDown({ key: "ArrowDown", preventDefault: () => { } })
     return true
   }
 
@@ -85,7 +98,7 @@ const Cell = React.forwardRef((props: any, ref) => {
             <div className='inner-content'>
               <div className='cellEditor'>
                 <CodeMirror
-                  theme={theme == 'light' ? githubLight : githubDark}
+                  theme={theme === 'light' ? githubLight : githubDark}
                   value={cellContents}
                   height='auto'
                   width='100%'
@@ -137,10 +150,10 @@ const Cell = React.forwardRef((props: any, ref) => {
 
 
       <div className='inner-content'>
-        <div className='serial-no'>[{cell.execution_count}]:</div>
+        <div className='serial-no'>[{executionCount}]:</div>
         <div className='cellEditor'>
           <CodeMirror
-            theme={theme == 'light' ? githubLight : githubDark}
+            theme={theme === 'light' ? githubLight : githubDark}
             value={cellContents}
             height='auto'
             width='100%'

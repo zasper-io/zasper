@@ -29,6 +29,7 @@ export default function NotebookEditor (props) {
     execution_count: number
     source: string
     outputs: any
+    reload: boolean
   }
   interface INotebookModel {
     cells: Array<ICell>
@@ -60,7 +61,7 @@ export default function NotebookEditor (props) {
   type CellType = 'code' | 'markdown' | 'raw' | string;
   
 
-  const notebook = useRef<INotebookModel>(
+  const [notebook,setNotebook] = useState<INotebookModel>(
     { 
                                                     cells: [], 
                                                     nbformat:0, 
@@ -104,8 +105,9 @@ export default function NotebookEditor (props) {
       const resJson = await res.json()
       resJson.content.cells.forEach(cell => {
         cell.id = uuidv4(); // Add UUID to each cell object
+        cell.reload=false
       });
-      notebook.current = resJson.content
+      setNotebook(resJson.content)
       console.log("notebook => ", notebook);
       setLoading(false);
     } catch (err: unknown) {
@@ -122,6 +124,24 @@ export default function NotebookEditor (props) {
     if (props.data.load_required == true) {
       FetchFileData(props.data.path)
       startASession(props.data.path, props.data.name, props.data.type)
+
+      const client1 = new W3CWebSocket('ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id)
+
+      client1.onopen = () => {
+        console.log('WebSocket Client Connected')
+      }
+      client1.onmessage = (message) => {
+        message = JSON.parse(message.data)
+        // console.log(message)
+        
+        if(message.msg_type === 'execute_request'){
+          updateNotebook(message)
+        }
+      }
+      client1.onclose = () => {
+        console.log('disconnected')
+      }
+      setClient(client1)
     }
    
   }, [])
@@ -181,13 +201,39 @@ export default function NotebookEditor (props) {
             }
 
           )
+          // .then(
+          //   () => startWebSocket()
+          // )
       } else {
         console.log('No kernel running. Start a kernel first!')
       }
     } else {
       console.log(session)
     }
-    startWebSocket()
+    
+  }
+
+  const updateNotebook = (message) => {
+    
+    if(message.hasOwnProperty("data")){
+      notebook.cells.forEach(cell => {
+        if (cell.id === message.msg_id){
+          
+          if(message.hasOwnProperty("data")){
+            cell.outputs = [""]
+            cell.outputs[0] = message.data
+          }
+          if(message.hasOwnProperty("traceback")){
+              cell.outputs = [""]
+              cell.outputs[0] = message.traceback
+          }
+          cell.execution_count = message.execution_count;
+          console.log("done")
+          // cell.key = uuidv4()
+          // setFocusedIndex(focusedIndex +1)
+        }
+      })
+  }
   }
 
   const startWebSocket = () => {
@@ -198,41 +244,10 @@ export default function NotebookEditor (props) {
     }
     client1.onmessage = (message) => {
       message = JSON.parse(message.data)
-      console.log(message)
-      console.log("focuseIndex", focusedIndex)
+      // console.log(message)
       
-      notebook.current.cells.forEach(cell => {
-        if (cell.id === message.msg_id){
-          if(message.hasOwnProperty("data")){
-          // console.log("id matched", cell.id)
-            cell.outputs = [""]
-            cell.outputs[0] = message.data
-          }
-          if(message.hasOwnProperty("traceback")){
-            // console.log("id matched", cell.id)
-              cell.outputs = [""]
-              cell.outputs[0] = message.traceback
-            }
-        }
-      });
-      
-
-      if (message.channel === 'iopub') {
-        console.log('IOPub => ', message)
-        if (message.msg_type === 'execute_result') {
-          console.log(message.content.data)
-          console.log(message.content.data['text/plain'])
-          console.log(message.content.data['text/html'])
-         
-        }
-        if (message.msg_type === 'stream') {
-          console.log(message.content.text)
-          console.log(message.content.text)
-          console.log(message.content.text)
-        }
-      }
-      if (message.channel === 'shell') {
-        console.log('Shell => ', message)
+      if(message.msg_type === 'execute_request'){
+        updateNotebook(message)
       }
     }
     client1.onclose = () => {
@@ -285,6 +300,12 @@ export default function NotebookEditor (props) {
   }
 
   const submitCell = (source: string, cellId: string) => {
+    notebook.cells.forEach(cell => {
+      if (cell.id === cellId){
+        cell.execution_count = -1;
+        
+      }
+    });
     const message = JSON.stringify({
       buffers: [],
       channel: 'shell',
@@ -325,11 +346,12 @@ export default function NotebookEditor (props) {
   const addCellUp = async () =>{
     console.log("add cell Up");
     const updatedNotebook = Object.assign({}, notebook)
-    notebook.current.cells.push({
+    notebook.cells.push({
       execution_count: 0,
       source: "",
       cell_type: "raw",
       id: uuidv4(),
+      reload: false,
       outputs: ""
     })
 
@@ -337,18 +359,19 @@ export default function NotebookEditor (props) {
 
   const addCellDown = async () =>{
     console.log("add cell Down");
-    notebook.current.cells.push({
+    notebook.cells.push({
       execution_count: 0,
       source: "",
       cell_type: "raw",
       id: uuidv4(),
+      reload: false,
       outputs: ""
     })
   }
 
   const deleteCell = async (index: number) =>{
     console.log("delete cell at index => " + index)
-    notebook.current.cells.pop()
+    notebook.cells.pop()
   }
 
   const nextCell = async (index: number) =>{
@@ -394,7 +417,7 @@ export default function NotebookEditor (props) {
   const handleKeyDown = (event) => {
     if (event.key === 'ArrowDown') {
       setFocusedIndex((prev) => {
-        const newIndex = Math.min(prev + 1, notebook.current.cells.length - 1);
+        const newIndex = Math.min(prev + 1, notebook.cells.length - 1);
         divRefs.current[newIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return newIndex;
       });
@@ -416,7 +439,7 @@ export default function NotebookEditor (props) {
   return (
     <div className='tab-content'>
       <div className={props.data.active? 'd-block':'d-none'} id='profile' role='tabpanel' aria-labelledby='profile-tab'>
-      <NbButtons saveNotebook={saveNotebook}
+      { notebook.cells && <NbButtons saveNotebook={saveNotebook}
                 addCell={addCell}
                 cutCell={cutCell}
                 copyCell={copyCell}
@@ -428,7 +451,7 @@ export default function NotebookEditor (props) {
                 focusedIndex = {focusedIndex}
                 notebook = {notebook}
                 kernelName = {kernelName}
-      />
+      />}
         
       {debugMode && <div>
         <button type='button' onClick={saveFile}>Save file</button>
@@ -437,12 +460,11 @@ export default function NotebookEditor (props) {
       </div>
       }
       <div className={theme === 'light'? 'editor-body light': 'editor-body dark'}>
-        { notebook.current ?
-          notebook.current.cells.map((cell, index) =>
+        { notebook.cells ?
+          notebook.cells.map((cell, index) =>
             <Cell key={cell.id} 
                   index={index} 
                   cell={cell} 
-                  ref = {(el: any) => notebook.current.cells[index] = el} 
                   submitCell={submitCell} 
                   addCellUp={addCellUp} 
                   addCellDown={addCellDown} 
@@ -453,6 +475,7 @@ export default function NotebookEditor (props) {
                   setFocusedIndex={setFocusedIndex}
                   handleKeyDown={handleKeyDown}
                   divRefs={divRefs}
+                  execution_count={cell.execution_count}
                   codeMirrorRefs={codeMirrorRefs}
             />
           )

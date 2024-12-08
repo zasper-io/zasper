@@ -20,12 +20,12 @@ function NbButtons(props){
         <button type='button' className='editor-button' onClick={() => props.stopKernel()}><i className='fas fa-square' /></button>
         <button type='button' className='editor-button' onClick={() => props.restartKernel()}><i className='fas fa-redo' /></button>
         <button type='button' className='editor-button' onClick={() => props.reExecuteNotebook()}><i className='fas fa-forward' /></button>
-        <select className="form-select editor-select" value={props.notebook.current.cells.length > 0 && props.notebook.current.cells[props.focusedIndex].cell_type}>
+        <select className="form-select editor-select" value={props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type}>
             {options.map((option, index) => (
                 <option key={index} value={option.value}>{option.label}</option>
             ))}
         </select>
-        {props.notebook.current.cells.length > 0 && props.notebook.current.cells[props.focusedIndex].cell_type}
+        {props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type}
         <div className='ms-auto'>{props.kernelName}</div>
         <div className="kStatus">idle</div>
       </div>
