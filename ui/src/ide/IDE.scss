@@ -82,6 +82,9 @@ a {
     .terminalArea{
         background-color: #392e6b;
     }
+    .projectName{
+        background-color: #553b9e;
+    }
 }
 
 $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
@@ -156,6 +159,16 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     }
     .inner-text {
         background: #353535;
+    }
+
+    .openCommandPaletteButton{
+        background: #353535;
+    }
+    .command-palette{
+        background: #353535;
+    }
+    .projectName{
+        background-color: #3f3855;
     }
 }
 
@@ -381,7 +394,6 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
             padding-top: 2px;
             padding-left: 1rem;
             color: #fff;
-            background-color: #553b9e;
             font-weight: 400;
             display: flex;
 

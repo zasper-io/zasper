@@ -11,7 +11,7 @@ import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom } from '../../../store/AppState';
 
-const debugMode = true;
+const debugMode = false;
 
 interface CodeMirrorRef {
   editor: {
@@ -72,7 +72,8 @@ export default function NotebookEditor(props) {
   const [client, setClient] = useState<IClient>({ send: () => {} });
   const [kernelName, setKernelName] = useState<string>('');
   const [kernelMap, setKernelMap] = useAtom(kernelsAtom);
-  const [session, setSession] = useState<ISession>({ id: '', kernel: { id: '', name: '' } });
+  const [session, setSession] = useState<ISession | null>();
+  const [kernelStatus, setKernelStatus] = useState("idle")
 
   interface IClient {
     send: any;
@@ -111,35 +112,41 @@ export default function NotebookEditor(props) {
   useEffect(() => {
     if (props.data.load_required === true) {
       FetchFileData(props.data.path);
-      startASession(props.data.path, props.data.name, props.data.type);
+      const session = startASession(props.data.path, props.data.name, props.data.type);
     }
   }, [props.data]);
 
+  useEffect( () => {
+    startWebSocket()
+  }, [session])
+
   const startWebSocket = () => {
-    const client1 = new W3CWebSocket(
-      'ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
-    );
+    if(session){
+      const client1 = new W3CWebSocket(
+        'ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
+      );
 
-    client1.onopen = () => {
-      console.log('WebSocket Client Connected');
-    };
+      client1.onopen = () => {
+        console.log('WebSocket Client Connected');
+      };
 
-    client1.onmessage = (message) => {
-      message = JSON.parse(message.data);
-      if (message.msg_type === 'execute_request') {
-        updateNotebook(message);
-      }
-    };
+      client1.onmessage = (message) => {
+        message = JSON.parse(message.data);
+        if (message.msg_type === 'execute_request') {
+          updateNotebook(message);
+        }
+      };
 
-    client1.onclose = () => {
-      console.log('disconnected');
-    };
+      client1.onclose = () => {
+        console.log('disconnected');
+      };
 
-    setClient(client1);
+      setClient(client1);
+    }
   };
 
-  const startASession = (path: string, name: string, type: string) => {
-    if (!session.id && kernelMap) {
+  const startASession =  async (path: string, name: string, type: string) => {
+    if (!session && kernelMap) {
       fetch(BaseApiUrl + '/api/sessions', {
         method: 'POST',
         body: JSON.stringify({
@@ -160,6 +167,10 @@ export default function NotebookEditor(props) {
   };
 
   const updateNotebook = (message: any) => {
+    console.log(message)
+    if(message.hasOwnProperty('execution_state')){
+      setKernelStatus(message.execution_state)
+    }
     if (message.hasOwnProperty('data')) {
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
@@ -194,27 +205,29 @@ export default function NotebookEditor(props) {
       return { ...prevNotebook, cells: updatedCells };
     });
 
-    const message = JSON.stringify({
-      buffers: [],
-      channel: 'shell',
-      content: createExecuteRequestMsg(source),
-      header: {
-        date: getTimeStamp(),
-        msg_id: cellId,
-        msg_type: 'execute_request',
-        session: session.id,
-        username: 'prasunanand',
-        version: '5.2',
-      },
-      metadata: {
-        deletedCells: [],
-        recordTiming: false,
-        cellId: '1cb16896-03e7-480c-aa2b-f1ba6bb1b56d',
-      },
-      parent_header: {},
-    });
-
-    client.send(message);
+    if(session){
+      const message = JSON.stringify({
+        buffers: [],
+        channel: 'shell',
+        content: createExecuteRequestMsg(source),
+        header: {
+          date: getTimeStamp(),
+          msg_id: cellId,
+          msg_type: 'execute_request',
+          session: session.id,
+          username: 'prasunanand',
+          version: '5.2',
+        },
+        metadata: {
+          deletedCells: [],
+          recordTiming: false,
+          cellId: '1cb16896-03e7-480c-aa2b-f1ba6bb1b56d',
+        },
+        parent_header: {},
+      });
+  
+      client.send(message);
+    }
   };
 
   const createExecuteRequestMsg = (code: string) => {
@@ -305,6 +318,7 @@ export default function NotebookEditor(props) {
           focusedIndex={focusedIndex}
           notebook={notebook}
           kernelName={kernelName}
+          kernelStatus={kernelStatus}
         />
         {debugMode && (
           <div>

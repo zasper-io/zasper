@@ -25,17 +25,6 @@ const Cell = React.forwardRef((props: any, ref) => {
 
   }, []);
 
-
-  const [executionCount, setExecutionCount] = useState(props.execution_count);
-
-  // Update internal state when the prop changes
-  useEffect(() => {
-    console.log("rerendered ", props.index )
-    if (props.execution_count !== executionCount) {
-      setExecutionCount(props.execution_count); // Trigger a rerender when prop changes
-    }
-  }, [props.execution_count]);
-
   const onUpdate = useCallback((viewUpdate: ViewUpdate) => {
     if (viewUpdate) {
       const { state } = viewUpdate;
@@ -150,7 +139,7 @@ const Cell = React.forwardRef((props: any, ref) => {
 
 
       <div className='inner-content'>
-        <div className='serial-no'>[{executionCount}]:</div>
+        <div className='serial-no'>[{props.execution_count}]:</div>
         <div className='cellEditor'>
           <CodeMirror
             theme={theme === 'light' ? githubLight : githubDark}
