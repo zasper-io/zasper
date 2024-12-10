@@ -170,7 +170,7 @@ export default function NotebookEditor(props) {
             if (message.hasOwnProperty('traceback')) {
               var traceback = message.traceback
               const cleanedArray = traceback.map(removeAnsiCodes);
-              updatedCell.outputs = cleanedArray.join('\n');
+              updatedCell.outputs = [cleanedArray.join('\n')];
             }
             updatedCell.execution_count = message.execution_count;
             return updatedCell;

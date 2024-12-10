@@ -247,7 +247,7 @@ const CellOutput = ({data}) => {
         }
       }
       
-      return <pre> {data.outputs[0]}</pre>
+      return <pre>{data.outputs[0]}</pre>
     }
 
     return <p>{JSON.stringify(data.outputs[0])}</p>
