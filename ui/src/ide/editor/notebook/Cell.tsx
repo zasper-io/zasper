@@ -35,7 +35,7 @@ interface ICellProps{
     deleteCell: (index: number) => void;
     focusedIndex: number;
     setFocusedIndex: (index: number) => void;
-    handleKeyDown: (event: React.KeyboardEvent) => void;
+    handleKeyDown: any;
     divRefs: React.RefObject<(HTMLDivElement | null)[]>;
     execution_count: number;
     codeMirrorRefs: CodeMirrorRef;
@@ -47,7 +47,7 @@ interface CodeMirrorRef {
   };
 }
 
-const Cell = React.forwardRef((props: any, ref) => {
+const Cell = React.forwardRef((props: ICellProps, ref) => {
   const cell = props.cell
   const [theme] = useAtom(themeAtom)
   const [cellContents, setCellContents] = useState(cell.source[0])
@@ -101,11 +101,18 @@ const Cell = React.forwardRef((props: any, ref) => {
     }
   ])
 
+  // Make sure divRefs.current is not null before assigning
+  const divRef = (el: HTMLDivElement | null) => {
+    if (props.divRefs.current) {
+      props.divRefs.current[props.index] = el;
+    }
+  };
+
+
   if (cell.cell_type === 'markdown') {
     return (
       <div tabIndex={props.index} className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
-        ref={(el: HTMLDivElement | null) => (props.divRefs.current[props.index] = el)}
-        onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
+        ref={divRef} onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
 
 
         {props.index === props.focusedIndex ?
@@ -158,8 +165,7 @@ const Cell = React.forwardRef((props: any, ref) => {
   return (
     <div tabIndex={props.index}
       className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
-      ref={(el) => (props.divRefs.current[props.index] = el)}
-      onFocus={() => props.setFocusedIndex(props.index)}>
+      ref={divRef} onFocus={() => props.setFocusedIndex(props.index)}>
       {props.index === props.focusedIndex ?
         <CellButtons index={props.index}
           code={cellContents}
