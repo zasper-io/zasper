@@ -69,7 +69,7 @@ const Cell = React.forwardRef((props: any, ref) => {
   if (cell.cell_type === 'markdown') {
     return (
       <div tabIndex={props.index} className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
-        ref={(el) => (props.divRefs.current[props.index] = el)}
+        ref={(el: HTMLDivElement | null) => (props.divRefs.current[props.index] = el)}
         onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
 
 
