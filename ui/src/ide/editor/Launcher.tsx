@@ -32,11 +32,11 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   // Handle opening a new terminal
   const openTerminal = () => {
     console.log('Open terminal');
-    const terminalName = "Terminal "+ (terminalCount + 1)
+    const terminalName = "Terminal " + (terminalCount + 1)
     sendDataToParent(terminalName, terminalName, 'terminal');
     setTerminalCount(terminalCount + 1)
     var updatedterminals = { ...terminals };
-    updatedterminals[terminalName] = {id: terminalName, name : terminalName}
+    updatedterminals[terminalName] = { id: terminalName, name: terminalName }
     setTerminals(updatedterminals)
   };
 
@@ -46,24 +46,30 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   }, [setKernelspecs]);
 
   return (
-    <div className={data.active? 'd-block':'d-none'}>
+    <div className={data.active ? 'd-block' : 'd-none'}>
       <div className="LauncherArea">
-        <h2 className="launchItem">Notebook</h2>
-        {Object.keys(kernelspecs).length > 0 ? (
-          Object.keys(kernelspecs).map((key) => (
-            <div className="launcher-icon" key={key}>
-              <h6>{key}</h6>
-              <img src={kernelspecs[key].resources['logo-64x64']} alt="logo" />
-            </div>
-          ))
-        ) : (
-          <p>No kernels available.</p>
-        )}
-        <hr />
-        <h2 className="launchItem">Terminal</h2>
-        <div className="launcher-icon" onClick={openTerminal}>
-          <h6>New Terminal</h6>
-          <img className="terminalIconImage" src="./images/terminal.png" alt="terminal" />
+        <div className="launcher-title">
+          <h2 className="font-h3 fontw-300">Welcome to <span className="fontw-500">zasper</span></h2>
+        </div>
+        <div className='launchSection'>
+          <h2 className="font-h5 fontw-300">Notebook</h2>
+          {Object.keys(kernelspecs).length > 0 ? (
+            Object.keys(kernelspecs).map((key) => (
+              <div className="launcher-icon" key={key}>
+                <h6>{key}</h6>
+                <img src={kernelspecs[key].resources['logo-64x64']} alt="logo" />
+              </div>
+            ))
+          ) : (
+            <p>No kernels available.</p>
+          )}
+        </div>
+        
+        <div className='launchSection'>
+          <h2 className="font-h5 fontw-300">Terminal</h2>
+          <div className="launcher-icon" onClick={openTerminal}>
+            <img className="terminalIconImage" src="./images/terminal.png" alt="terminal" />
+          </div>
         </div>
       </div>
     </div>

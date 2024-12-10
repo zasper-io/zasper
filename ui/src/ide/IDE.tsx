@@ -114,6 +114,9 @@ function IDE () {
   function handlCloseTabSignal (key) {
     console.log('closing key', key)
     const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild)
+    if ("Launcher" in updatedDataFromChild){
+      updatedDataFromChild["Launcher"]["active"] = true
+    }
     delete updatedDataFromChild[key]
     setDataFromChild(updatedDataFromChild)
     console.log(updatedDataFromChild)
