@@ -54,7 +54,7 @@ export default function NotebookEditor(props) {
   const [error, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
-  const codeMirrorRefs = useRef<CodeMirrorRef[]>([]); 
+  const codeMirrorRefs = useRef<CodeMirrorRef[] | null>([]); 
   const [theme] = useAtom(themeAtom);
   const [client, setClient] = useState<IClient>({ send: () => {} });
   const [kernelName, setKernelName] = useState<string>('');

@@ -38,7 +38,7 @@ interface ICellProps{
     handleKeyDown: any;
     divRefs: React.RefObject<(HTMLDivElement | null)[]>;
     execution_count: number;
-    codeMirrorRefs: CodeMirrorRef;
+    codeMirrorRefs: any;
 }
 
 export interface CodeMirrorRef {
