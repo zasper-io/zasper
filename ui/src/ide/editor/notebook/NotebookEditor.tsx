@@ -6,28 +6,17 @@ import './NotebookEditor.scss';
 import { w3cwebsocket as W3CWebSocket } from 'websocket';
 import { BaseApiUrl } from '../../config';
 import NbButtons from './NbButtons';
-import Cell from './Cell';
+import Cell, { ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom } from '../../../store/AppState';
+import { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 
 const debugMode = false;
 
-interface CodeMirrorRef {
-  editor: {
-    focus: () => void;
-  };
-}
+
 
 export default function NotebookEditor(props) {
-  interface ICell {
-    cell_type: CellType;
-    id: string;
-    execution_count: number;
-    source: string;
-    outputs: any;
-    reload: boolean;
-  }
 
   interface INotebookModel {
     cells: Array<ICell>;
@@ -55,7 +44,6 @@ export default function NotebookEditor(props) {
     pygments_lexer?: string;
   }
 
-  type CellType = 'code' | 'markdown' | 'raw' | string;
 
   const [notebook, setNotebook] = useState<INotebookModel>({
     cells: [],
@@ -66,8 +54,8 @@ export default function NotebookEditor(props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
-  const divRefs = useRef<(HTMLDivElement)[]>([]); // Type the refs
-  const codeMirrorRefs = useRef<CodeMirrorRef[]>([]); 
+  const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
+  const codeMirrorRefs = useRef<ReactCodeMirrorRef[]>([]); 
   const [theme] = useAtom(themeAtom);
   const [client, setClient] = useState<IClient>({ send: () => {} });
   const [kernelName, setKernelName] = useState<string>('');

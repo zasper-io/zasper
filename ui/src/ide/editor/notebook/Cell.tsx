@@ -12,6 +12,41 @@ import { languages } from '@codemirror/language-data';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 
+
+type CellType = 'code' | 'markdown' | 'raw' | string;
+
+export interface ICell {
+  cell_type: CellType;
+  id: string;
+  execution_count: number;
+  source: string;
+  outputs: any;
+  reload: boolean;
+}
+
+interface ICellProps{
+    cell: ICell;
+    index: number;
+    submitCell: (source: string, cellId: string) => void;
+    addCellUp: () => void;
+    addCellDown: () => void;
+    prevCell: () => void;
+    nextCell: () => void;
+    deleteCell: (index: number) => void;
+    focusedIndex: number;
+    setFocusedIndex: (index: number) => void;
+    handleKeyDown: (event: React.KeyboardEvent) => void;
+    divRefs: React.RefObject<(HTMLDivElement | null)[]>;
+    execution_count: number;
+    codeMirrorRefs: CodeMirrorRef;
+}
+
+interface CodeMirrorRef {
+  editor: {
+    focus: () => void;
+  };
+}
+
 const Cell = React.forwardRef((props: any, ref) => {
   const cell = props.cell
   const [theme] = useAtom(themeAtom)
@@ -69,7 +104,7 @@ const Cell = React.forwardRef((props: any, ref) => {
   if (cell.cell_type === 'markdown') {
     return (
       <div tabIndex={props.index} className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
-        ref={(el: HTMLDivElement) => (props.divRefs.current[props.index] = el)}
+        ref={(el: HTMLDivElement | null) => (props.divRefs.current[props.index] = el)}
         onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
 
 
