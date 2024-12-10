@@ -153,11 +153,35 @@ export default function NotebookEditor(props) {
     }
   };
 
+  function removeAnsiCodes(str) {
+    return str.replace(/\u001b\[[0-9;]*m/g, '');
+  }
+
   const updateNotebook = (message: any) => {
     console.log(message)
     if(message.hasOwnProperty('execution_state')){
       setKernelStatus(message.execution_state)
     }
+    if (message.hasOwnProperty('traceback')) {
+      setNotebook((prevNotebook) => {
+        const updatedCells = prevNotebook.cells.map((cell) => {
+          if (cell.id === message.msg_id) {
+            const updatedCell = { ...cell };
+            if (message.hasOwnProperty('traceback')) {
+              var traceback = message.traceback
+              const cleanedArray = traceback.map(removeAnsiCodes);
+              updatedCell.outputs = cleanedArray.join('\n');
+            }
+            updatedCell.execution_count = message.execution_count;
+            return updatedCell;
+          }
+          return cell;
+        });
+
+        return { ...prevNotebook, cells: updatedCells };
+      });
+    }
+
     if (message.hasOwnProperty('data')) {
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
@@ -165,6 +189,27 @@ export default function NotebookEditor(props) {
             const updatedCell = { ...cell };
             if (message.hasOwnProperty('data')) {
               updatedCell.outputs = [message.data];
+            }
+            if (message.hasOwnProperty('traceback')) {
+              updatedCell.outputs = [message.traceback];
+            }
+            updatedCell.execution_count = message.execution_count;
+            return updatedCell;
+          }
+          return cell;
+        });
+
+        return { ...prevNotebook, cells: updatedCells };
+      });
+    }
+
+    if (message.hasOwnProperty('text')) {
+      setNotebook((prevNotebook) => {
+        const updatedCells = prevNotebook.cells.map((cell) => {
+          if (cell.id === message.msg_id) {
+            const updatedCell = { ...cell };
+            if (message.hasOwnProperty('text')) {
+              updatedCell.outputs = [{"text": message.text}];
             }
             if (message.hasOwnProperty('traceback')) {
               updatedCell.outputs = [message.traceback];

@@ -86,7 +86,6 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 
 
   const handleCmdEnter = () => {
-    console.log(cellContents, props.cell.id)
     if(props.cell.cell_type === "code"){
       props.submitCell(cellContents, props.cell.id)
     }
@@ -215,10 +214,11 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 const CellOutput = ({data}) => {
   if ('outputs' in data) {
     if (typeof (data.outputs[0]) !== 'undefined') {
-      // console.log(data.outputs[0]);
       if (data.outputs[0].hasOwnProperty('text')) {
+        
         if (data.outputs[0].text) {
-          return <pre>{data.outputs[0].text}</pre>
+          const datax = ""+data.outputs[0].text
+          return <pre> {datax}</pre>
         }
       }
       if (data.outputs[0].hasOwnProperty('text/plain')) {
@@ -236,16 +236,18 @@ const CellOutput = ({data}) => {
             </div>
           )
         }
-        return (
+        if (data.outputs[0].data.hasOwnProperty('text/plain')) {
+          return (
 
-          <div>
-            <pre>{data.outputs[0].data['text/plain']}</pre>
-            
-            <div dangerouslySetInnerHTML={{ __html: data.outputs[0].data['text/html'] }} />
-          </div>
-        )
+            <div>
+              <pre>{data.outputs[0].data['text/plain']}</pre>
+              <div dangerouslySetInnerHTML={{ __html: data.outputs[0].data['text/html'] }} />
+            </div>
+          )
+        }
       }
       
+      return <pre> {data.outputs[0]}</pre>
     }
 
     return <p>{JSON.stringify(data.outputs[0])}</p>
