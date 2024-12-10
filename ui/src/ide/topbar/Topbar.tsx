@@ -66,7 +66,7 @@ export default function Topbar (props) {
           <div className='col-9'>
             <div className='searchArea'>
               <div className='search-wraper'>
-                <button className='openCommandPaletteButton' onClick={toggleCommandPalette}>Type your search here <img src='./images/icons/search.svg' alt='#' /></button>
+                <button className='openCommandPaletteButton' onClick={toggleFileAutoComplete}>Type your search here <img src='./images/icons/search.svg' alt='#' /></button>
               </div>    
             </div>
             <div>

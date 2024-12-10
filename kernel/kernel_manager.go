@@ -164,8 +164,6 @@ func SetUpChannelSocketTypes() map[string]zmq4.Type {
 func (km *KernelManager) connectControlSocket() *zmq4.Socket {
 	channel := "control"
 	url := km.makeURL(channel)
-	log.Info().Msgf("url is ====> %s", url)
-	log.Info().Msgf("channel is ====> %s", channel)
 
 	socket, _ := zmq4.NewSocket(zmq4.DEALER)
 
@@ -177,11 +175,9 @@ func (km *KernelManager) connectControlSocket() *zmq4.Socket {
 func (km *KernelManager) connectHbSocket() *zmq4.Socket {
 	channel := "control"
 	url := km.makeURL(channel)
-	log.Info().Msgf("url is ====> %s", url)
-	log.Info().Msgf("channel is ====> %s", channel)
 
 	socket, _ := zmq4.NewSocket(zmq4.REQ)
-
+	socket.Connect(url)
 	return socket
 
 }

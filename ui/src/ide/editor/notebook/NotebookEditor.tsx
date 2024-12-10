@@ -114,7 +114,7 @@ export default function NotebookEditor(props) {
       );
 
       client1.onopen = () => {
-        console.log('WebSocket Client Connected');
+        setKernelStatus("connected")
       };
 
       client1.onmessage = (message) => {

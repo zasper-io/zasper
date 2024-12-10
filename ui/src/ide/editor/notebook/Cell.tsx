@@ -55,9 +55,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
   const [totalLines, setTotalLines] = useState(0)
 
   const onChange = useCallback((value, viewUpdate) => {
-    console.log('val:', value);
     setCellContents(value)
-
   }, []);
 
   const onUpdate = useCallback((viewUpdate: ViewUpdate) => {
@@ -89,7 +87,9 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 
   const handleCmdEnter = () => {
     console.log(cellContents, props.cell.id)
-    props.submitCell(cellContents, props.cell.id)
+    if(props.cell.cell_type === "code"){
+      props.submitCell(cellContents, props.cell.id)
+    }
     props.handleKeyDown({ key: "ArrowDown", preventDefault: () => { } })
     return true
   }
@@ -220,13 +220,9 @@ const CellOutput = ({data}) => {
         if (data.outputs[0].text) {
           return <pre>{data.outputs[0].text}</pre>
         }
-
       }
       if (data.outputs[0].hasOwnProperty('text/plain')) {
-        
           return <pre>{data.outputs[0]['text/plain']}</pre>
-        
-
       }
       if (data.outputs[0].hasOwnProperty('data')) {
         if (data.outputs[0].data.hasOwnProperty('text/html')) {
