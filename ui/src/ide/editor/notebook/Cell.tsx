@@ -41,7 +41,7 @@ interface ICellProps{
     codeMirrorRefs: CodeMirrorRef;
 }
 
-interface CodeMirrorRef {
+export interface CodeMirrorRef {
   editor: {
     focus: () => void;
   };

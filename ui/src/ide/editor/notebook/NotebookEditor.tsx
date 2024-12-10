@@ -6,11 +6,10 @@ import './NotebookEditor.scss';
 import { w3cwebsocket as W3CWebSocket } from 'websocket';
 import { BaseApiUrl } from '../../config';
 import NbButtons from './NbButtons';
-import Cell, { ICell } from './Cell';
+import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom } from '../../../store/AppState';
-import { ReactCodeMirrorRef } from '@uiw/react-codemirror';
 
 const debugMode = false;
 
@@ -55,7 +54,7 @@ export default function NotebookEditor(props) {
   const [error, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
-  const codeMirrorRefs = useRef<ReactCodeMirrorRef[]>([]); 
+  const codeMirrorRefs = useRef<CodeMirrorRef[]>([]); 
   const [theme] = useAtom(themeAtom);
   const [client, setClient] = useState<IClient>({ send: () => {} });
   const [kernelName, setKernelName] = useState<string>('');
