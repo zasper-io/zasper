@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-toastify/dist/ReactToastify.css';
 import './NotebookEditor.scss';
@@ -66,7 +66,7 @@ export default function NotebookEditor(props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
-  const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
+  const divRefs = useRef<(HTMLDivElement)[]>([]); // Type the refs
   const codeMirrorRefs = useRef<CodeMirrorRef[]>([]); 
   const [theme] = useAtom(themeAtom);
   const [client, setClient] = useState<IClient>({ send: () => {} });

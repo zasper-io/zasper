@@ -18,8 +18,7 @@ interface FileBrowserProps {
 
 export default function FileBrowser({ sendDataToParent, display }: FileBrowserProps) {
   const [contents, setContents] = useState<IContent[]>([]);
-  const [cwd, setCwd] = useState<string>('');
-  const [fileContents, setFileContents] = useState('')
+  const [cwd] = useState<string>('');
   const [projectName, setProjectName] = useState('')
 
   const FetchData = async () => {
@@ -58,7 +57,7 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
 
   useEffect(() => {
     FetchData();
-  }, [cwd]);
+  }, []);
 
   return (
     <div className={display}>

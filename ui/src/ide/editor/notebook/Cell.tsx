@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect, useImperativeHandle } from 'react';
+import React, { useState, useCallback } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
-import { darcula } from '@uiw/codemirror-theme-darcula';
+// import { darcula } from '@uiw/codemirror-theme-darcula';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -14,7 +14,7 @@ import { themeAtom } from '../../../store/Settings';
 
 const Cell = React.forwardRef((props: any, ref) => {
   const cell = props.cell
-  const [theme, setTheme] = useAtom(themeAtom)
+  const [theme] = useAtom(themeAtom)
   const [cellContents, setCellContents] = useState(cell.source[0])
   const [cursorPosition, setCursorPosition] = useState(0)
   const [totalLines, setTotalLines] = useState(0)
@@ -69,7 +69,7 @@ const Cell = React.forwardRef((props: any, ref) => {
   if (cell.cell_type === 'markdown') {
     return (
       <div tabIndex={props.index} className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
-        ref={(el: HTMLDivElement | null) => (props.divRefs.current[props.index] = el)}
+        ref={(el: HTMLDivElement) => (props.divRefs.current[props.index] = el)}
         onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
 
 
@@ -195,7 +195,7 @@ const CellOutput = ({data}) => {
           const blob = 'data:image/png;base64,' + (data.outputs[0].data['image/png'])
           return (
             <div>
-              <img src={blob} />
+              <img src={blob} alt="image" />
             </div>
           )
         }
