@@ -4,14 +4,10 @@
 package main
 
 import (
-	"embed"
 	"net/http"
 	"os"
 	"path/filepath"
 )
-
-//go:embed ui/build/*
-var staticFiles embed.FS
 
 type spaHandler struct {
 	staticPath string
