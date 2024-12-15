@@ -42,5 +42,5 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSpaHandler() http.Handler {
-	return spaHandler{staticPath: "ui/build", indexPath: "index.html"}
+	return spaHandler{staticPath: "./ui/build", indexPath: "index.html"}
 }
