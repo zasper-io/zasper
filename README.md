@@ -125,8 +125,27 @@ Install zeromq.
 Go to project home and start the server
 
 ```bash
-go run .
+go build -tags webapp
 ```
+This will crate a binary called `zasper`. Now add this binary to your path. 
+
+Run zasper in any directory to see if the installation was done correctly.
+
+```
+prasunanand@Prasuns-Laptop examples % ../zasper -h
+Usage of ../zasper:
+  -cwd string
+    	base directory of project (default ".")
+  -debug
+    	sets log level to debug
+  -port string
+    	port to start the server on (default ":8888")
+```
+
+
+Go to any directory you want to serve and run `zasper`. This starts zasper server in the directory.
+
+
 
 Go to `http://localhost:8888`
 
