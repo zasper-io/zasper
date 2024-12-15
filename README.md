@@ -132,7 +132,7 @@ This will crate a binary called `zasper`. Now add this binary to your path.
 Run zasper in any directory to see if the installation was done correctly.
 
 ```
-prasunanand@Prasuns-Laptop examples % ../zasper -h
+% zasper -h
 Usage of ../zasper:
   -cwd string
     	base directory of project (default ".")
@@ -144,8 +144,18 @@ Usage of ../zasper:
 
 
 Go to any directory you want to serve and run `zasper`. This starts zasper server in the directory.
+```
+% zasper 
+2024/12/15 20:39:12 Zasper Server started! Listening on port:8888
 
+███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ 
+╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
+  ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
+ ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
+███████╗██║  ██║███████║██║     ███████╗██║  ██║
+╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
 
+```
 
 Go to `http://localhost:8888`
 

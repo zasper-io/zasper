@@ -134,6 +134,15 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
+	fmt.Println(`
+███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ 
+╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
+  ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
+ ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
+███████╗██║  ██║███████║██║     ███████╗██║  ██║
+╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝                  
+	`)
+
 	go func() {
 		if err := http.ListenAndServe(*port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {
 			fmt.Printf("ListenAndServe(): %s\n", err)
