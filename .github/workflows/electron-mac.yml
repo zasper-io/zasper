@@ -29,8 +29,8 @@ jobs:
           brew install zeromq
 
       - name: Build
-        run: go build -o ui/public/zasper app.go
-
+        run: go build -o ui/public/zasper
+        
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
