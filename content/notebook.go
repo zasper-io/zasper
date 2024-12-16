@@ -32,13 +32,15 @@ func _rejoinMimeBundle(data map[string]interface{}) map[string]interface{} {
 }
 
 // rejoinLines rejoins multi-line text into strings.
-func rejoinLines(nb *Notebook) {
+func rejoinLines(nb Notebook) OutNotebook {
+	outNb := OutNotebook{
+		Metadata: nb.Metadata,
+	}
 	for _, cell := range nb.Cells {
+		data := ""
 		if cell.Source != nil {
-			sourceList := cell.Source
-			// if sourceList, ok := cell.Source.([]string); ok {
-			cell.Source[0] = strings.Join(sourceList, "")
-			// }
+			sourceList := toStringSlice(cell.Source)
+			data = strings.Join(sourceList, "")
 		}
 
 		for _, attachment := range cell.Attachments {
@@ -57,7 +59,15 @@ func rejoinLines(nb *Notebook) {
 				}
 			}
 		}
+		outNb.Cells = append(outNb.Cells,
+			OutCell{Source: data,
+				CellType:       cell.CellType,
+				ExecutionCount: cell.ExecutionCount,
+				Metadata:       cell.Metadata,
+				Attachments:    cell.Attachments,
+				Outputs:        cell.Outputs})
 	}
+	return outNb
 }
 
 // _splitMimeBundle splits multi-line string fields in a mimebundle.
@@ -130,9 +140,24 @@ type Notebook struct {
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
+// Notebook struct for handling notebook cells
+type OutNotebook struct {
+	Cells    []OutCell              `json:"cells"`
+	Metadata map[string]interface{} `json:"metadata"`
+}
+
 // Cell struct for handling individual cells in a notebook
 type Cell struct {
-	Source         []string                          `json:"source"`
+	Source         []interface{}                     `json:"source"`
+	ExecutionCount int                               `json:"execution_count"`
+	CellType       string                            `json:"cell_type"`
+	Attachments    map[string]map[string]interface{} `json:"attachments"`
+	Outputs        []Output                          `json:"outputs"`
+	Metadata       map[string]interface{}            `json:"metadata"`
+}
+
+type OutCell struct {
+	Source         string                            `json:"source"`
 	ExecutionCount int                               `json:"execution_count"`
 	CellType       string                            `json:"cell_type"`
 	Attachments    map[string]map[string]interface{} `json:"attachments"`

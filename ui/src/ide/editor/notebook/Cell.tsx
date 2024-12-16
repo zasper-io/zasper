@@ -50,7 +50,7 @@ export interface CodeMirrorRef {
 const Cell = React.forwardRef((props: ICellProps, ref) => {
   const cell = props.cell
   const [theme] = useAtom(themeAtom)
-  const [cellContents, setCellContents] = useState(cell.source[0])
+  const [cellContents, setCellContents] = useState(cell.source)
   const [cursorPosition, setCursorPosition] = useState(0)
   const [totalLines, setTotalLines] = useState(0)
 

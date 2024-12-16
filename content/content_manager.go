@@ -73,14 +73,14 @@ func getNotebookModel(path string) models.ContentModel {
 	return output
 }
 
-func nbformatReads(data string, version int, capture_validation_error bool) Notebook {
+func nbformatReads(data string, version int, capture_validation_error bool) OutNotebook {
 	// output := make(map[string]interface{})
 	var nb Notebook
 	_ = json.Unmarshal([]byte(data), &nb)
-	rejoinLines(&nb)
+	output := rejoinLines(nb)
 	stripTransient(&nb)
 
-	return nb
+	return output
 }
 
 func getDirectoryModel(relativePath string) models.ContentModel {
