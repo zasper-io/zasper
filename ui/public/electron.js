@@ -2,13 +2,15 @@ const { app, ipcMain, BrowserWindow, protocol, dialog } = require("electron");
 const path = require("path");
 const url = require("url");
 const os = require("os");
-const { exec, execFile } = require("child_process");
+const { execFile } = require("child_process");
 const http = require("http");
 
 var log = require("electron-log");
 
 var apiProcess;
 var mainWindow;
+var welcomeScreen;
+var welcomeScreenOn = false;
 
 // Optional, initialize the logger for any renderer process
 log.transports.file.level = "silly";
@@ -32,8 +34,8 @@ const isApiServerReady = (port, callback) => {
   req.end();
 };
 
-const startApiServer = () => {
-  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: os.homedir(), shell: '/bin/zsh' });
+const startApiServer = (directory) => {
+  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: directory, shell: '/bin/zsh' });
 
   apiProcess.stdout.on("data", (data) => {
     log.info(`API Server: ${data}`);
@@ -50,33 +52,20 @@ const startApiServer = () => {
 
 const startApp = () => {
   const apiPort = 8888;
-  var loaderScreen = new BrowserWindow({
-    width: 700,
-    height: 400,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
+  welcomeScreen = new BrowserWindow({
+    width: 1050,
+    height: 700,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+    },
   });
 
-  loaderScreen.loadFile(path.join(__dirname, "loadscreen.html"));
-  loaderScreen.center();
-
-  if (!apiProcess) {
-    startApiServer();
+  welcomeScreen.loadFile(path.join(__dirname, "welcome.html"));
+  if (!app.isPackaged) {
+    welcomeScreen.webContents.openDevTools();
   }
-
-  const checkApi = () => {
-    isApiServerReady(apiPort, (isReady) => {
-      if (isReady) {
-        loaderScreen.close();
-        createWindow();
-      } else {
-        setTimeout(checkApi, 1000);
-      }
-    });
-  };
-
-  checkApi();
+  welcomeScreen.center();
+  welcomeScreenOn = true;
 };
 
 // Create the native browser window.
@@ -129,24 +118,28 @@ ipcMain.handle("dialog:openDirectory", async () => {
 });
 
 ipcMain.handle("runCommand", async (event, directory) => {
+  const apiPort = 8888;
   if (apiProcess) {
     apiProcess.kill();
+    mainWindow.close();
   }
-  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: directory, shell: '/bin/zsh' });
+  startApiServer(directory)
 
-  apiProcess.stdout.on("data", (data) => {
-    log.info(`API Server: ${data}`);
-  });
+  const checkApi = () => {
+    isApiServerReady(apiPort, (isReady) => {
+      if (isReady) {
+        if (welcomeScreenOn && welcomeScreen) {
+          welcomeScreenOn = false
+          welcomeScreen.close();
+        }
+        createWindow();
+      } else {
+        setTimeout(checkApi, 1000);
+      }
+    });
+  };
 
-  apiProcess.stderr.on("data", (data) => {
-    log.info(`API Server Error: ${data}`);
-  });
-
-  apiProcess.on("close", (code) => {
-    log.info(`API Server exited with code ${code}`);
-  });
-  
-  mainWindow.reload();
+  checkApi();
 });
 
 app.on("before-quit", () => {
