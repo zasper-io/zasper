@@ -4,7 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './NotebookEditor.scss';
 
 import { w3cwebsocket as W3CWebSocket } from 'websocket';
-import { BaseApiUrl } from '../../config';
+import { BaseApiUrl, BaseWebSocketUrl } from '../../config';
 import NbButtons from './NbButtons';
 import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
@@ -12,8 +12,6 @@ import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
 
 const debugMode = false;
-
-
 
 export default function NotebookEditor(props) {
 
@@ -111,7 +109,7 @@ export default function NotebookEditor(props) {
   const startWebSocket = () => {
     if(session){
       const client1 = new W3CWebSocket(
-        'ws://localhost:8888/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
+        BaseWebSocketUrl + '/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
       );
 
       client1.onopen = () => {
@@ -254,7 +252,7 @@ export default function NotebookEditor(props) {
         metadata: {
           deletedCells: [],
           recordTiming: false,
-          cellId: '1cb16896-03e7-480c-aa2b-f1ba6bb1b56d',
+          cellId: cellId,
         },
         parent_header: {},
       });

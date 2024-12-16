@@ -213,7 +213,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 
 const CellOutput = ({data}) => {
   if ('outputs' in data) {
-    if (typeof (data.outputs[0]) !== 'undefined') {
+    if (data.outputs !== null) {
       if (data.outputs[0].hasOwnProperty('text')) {
         
         if (data.outputs[0].text) {
@@ -250,7 +250,7 @@ const CellOutput = ({data}) => {
       return <pre>{data.outputs[0]}</pre>
     }
 
-    return <p>{JSON.stringify(data.outputs[0])}</p>
+    return <p>{JSON.stringify(data.outputs)}</p>
   }
   return <></>
 }

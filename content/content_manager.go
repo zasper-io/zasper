@@ -77,8 +77,7 @@ func nbformatReads(data string, version int, capture_validation_error bool) OutN
 	// output := make(map[string]interface{})
 	var nb Notebook
 	_ = json.Unmarshal([]byte(data), &nb)
-	output := rejoinLines(nb)
-	stripTransient(&nb)
+	output := parseNotebook(nb)
 
 	return output
 }

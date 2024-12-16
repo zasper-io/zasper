@@ -1,6 +1,7 @@
 package content
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -9,8 +10,15 @@ func _isJSONMime(mime string) bool {
 	return mime == "application/json" || (strings.HasPrefix(mime, "application/") && strings.HasSuffix(mime, "+json"))
 }
 
-func _rejoinMimeBundle(data map[string]interface{}) map[string]interface{} {
+func parseNotebook(nb Notebook) OutNotebook {
+	outNb := rejoinLines(nb)
+	stripTransient(&nb)
+	return outNb
+}
+
+func _rejoinMimeBundle(data map[string]interface{}) map[string]string {
 	// _rejoinMimeBundle rejoins multi-line string fields in a mimebundle.
+	outData := make(map[string]string)
 	for key, value := range data {
 		if !_isJSONMime(key) {
 			if valueList, ok := value.([]interface{}); ok {
@@ -23,12 +31,17 @@ func _rejoinMimeBundle(data map[string]interface{}) map[string]interface{} {
 				}
 				if allStrings {
 					joined := strings.Join(toStringSlice(valueList), "")
-					data[key] = joined
+					outData[key] = joined
 				}
+			} else {
+				outData[key] = fmt.Sprintf("%v", value)
 			}
+		} else {
+			outData[key] = fmt.Sprintf("%v", value)
 		}
+
 	}
-	return data
+	return outData
 }
 
 // rejoinLines rejoins multi-line text into strings.
@@ -38,25 +51,34 @@ func rejoinLines(nb Notebook) OutNotebook {
 	}
 	for _, cell := range nb.Cells {
 		data := ""
+		attachmentData := make(map[string]string)
+		var outputData []OutOutput
 		if cell.Source != nil {
 			sourceList := toStringSlice(cell.Source)
 			data = strings.Join(sourceList, "")
 		}
 
 		for _, attachment := range cell.Attachments {
-			_rejoinMimeBundle(attachment)
+			attachmentData = _rejoinMimeBundle(attachment)
 		}
 
 		if cell.CellType == "code" {
 			for _, output := range cell.Outputs {
+				x := OutOutput{
+					OutputType:     output.OutputType,
+					ExecutionCount: output.ExecutionCount,
+					Metadata:       output.Metadata,
+				}
 				switch output.OutputType {
 				case "execute_result", "display_data":
-					_rejoinMimeBundle(output.Data)
+					x.Data = _rejoinMimeBundle(output.Data)
 				case "stream":
-					if text, ok := output.Text.([]string); ok {
-						output.Text = strings.Join(text, "")
+					if output.Text != nil {
+						text := toStringSlice(output.Text)
+						x.Text = strings.Join(text, "")
 					}
 				}
+				outputData = append(outputData, x)
 			}
 		}
 		outNb.Cells = append(outNb.Cells,
@@ -64,8 +86,9 @@ func rejoinLines(nb Notebook) OutNotebook {
 				CellType:       cell.CellType,
 				ExecutionCount: cell.ExecutionCount,
 				Metadata:       cell.Metadata,
-				Attachments:    cell.Attachments,
-				Outputs:        cell.Outputs})
+				Attachments:    attachmentData,
+				Outputs:        outputData,
+			})
 	}
 	return outNb
 }
@@ -157,17 +180,27 @@ type Cell struct {
 }
 
 type OutCell struct {
-	Source         string                            `json:"source"`
-	ExecutionCount int                               `json:"execution_count"`
-	CellType       string                            `json:"cell_type"`
-	Attachments    map[string]map[string]interface{} `json:"attachments"`
-	Outputs        []Output                          `json:"outputs"`
-	Metadata       map[string]interface{}            `json:"metadata"`
+	Source         string                 `json:"source"`
+	ExecutionCount int                    `json:"execution_count"`
+	CellType       string                 `json:"cell_type"`
+	Attachments    map[string]string      `json:"attachments"`
+	Outputs        []OutOutput            `json:"outputs"`
+	Metadata       map[string]interface{} `json:"metadata"`
 }
 
 // Output struct for handling cell outputs
 type Output struct {
-	OutputType string                 `json:"output_type"`
-	Data       map[string]interface{} `json:"data"`
-	Text       interface{}            `json:"text"`
+	OutputType     string                 `json:"output_type"`
+	ExecutionCount int                    `json:"execution_count"`
+	Data           map[string]interface{} `json:"data"`
+	Text           []interface{}          `json:"text"`
+	Metadata       map[string]interface{} `json:"metadata"`
+}
+
+type OutOutput struct {
+	OutputType     string                 `json:"output_type"`
+	ExecutionCount int                    `json:"execution_count"`
+	Data           map[string]string      `json:"data"`
+	Text           string                 `json:"text"`
+	Metadata       map[string]interface{} `json:"metadata"`
 }
