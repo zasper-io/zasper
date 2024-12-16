@@ -6,11 +6,21 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 )
 
 func GetHomeDir() string {
 	dir, _ := os.Getwd()
 	return dir
+}
+
+func GetUsername() string {
+	// Check if the OS is Windows
+	if runtime.GOOS == "windows" {
+		return os.Getenv("USERNAME") // Windows typically uses "USERNAME"
+	}
+	// For UNIX-like systems (Linux, macOS), use "USER"
+	return os.Getenv("USER")
 }
 
 func GetProjectName(absPath string) string {

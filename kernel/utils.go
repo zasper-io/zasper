@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 
 	xrand "golang.org/x/exp/rand"
@@ -13,12 +14,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func getUsername() string {
-	// note that this may be USER on some UNIX platforms
-	// return os.Getenv("USERNAME")
+func GetUsername() string {
+	// Check if the OS is Windows
+	if runtime.GOOS == "windows" {
+		return os.Getenv("USERNAME") // Windows typically uses "USERNAME"
+	}
+	// For UNIX-like systems (Linux, macOS), use "USER"
 	return os.Getenv("USER")
 }
-
 func newID() string {
 	// newID generates a new random ID as a string.
 	// The ID format is 32 random bytes as hex-encoded text, with chunks separated by '-'.

@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react'
 import './TopBar.scss'
 import CommandPalette from '../command/CommandPalette';
 import FileAutocomplete from '../command/FileAutoComplete';
+import { useAtom } from 'jotai';
+import { userNameAtom } from '../../store/AppState';
 
 export default function Topbar (props) {
   
   const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
   const [showFileAutocomplete, setShowFileAutocomplete] = useState<boolean>(false);
+  const [userName] = useAtom(userNameAtom)
 
   const commands = [
     {
@@ -63,7 +66,7 @@ export default function Topbar (props) {
           <div className='col-3'>
             <img className='logo-white' src='./images/logo-white.svg' alt='#' />
           </div>
-          <div className='col-9'>
+          <div className='col-8'>
             <div className='searchArea'>
               <div className='search-wraper'>
                 <button className='openCommandPaletteButton' onClick={toggleFileAutoComplete}>Type your search here <img src='./images/icons/search.svg' alt='#' /></button>
@@ -83,6 +86,11 @@ export default function Topbar (props) {
                 }
                 />
               )}
+            </div>
+          </div>
+          <div className='col-1'>
+            <div className='userName'>
+              <span>{userName}</span>
             </div>
           </div>
         </div>

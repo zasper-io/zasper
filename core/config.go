@@ -11,6 +11,7 @@ var Zasper Application
 type Application struct {
 	BaseUrl           string
 	StaticUrl         string
+	UserName          string
 	HomeDir           string
 	JupyterConfigDir  string
 	JupyterDataDir    string
@@ -29,6 +30,7 @@ func SetUpZasper(cwd string) Application {
 		BaseUrl:           "https://zasper.io",
 		ProjectName:       utils.GetProjectName(cwd),
 		HomeDir:           cwd,
+		UserName:          utils.GetUsername(),
 		StaticUrl:         "./images",
 		OSName:            runtime.GOOS,
 		JupyterConfigDir:  utils.GetJupyterConfigDir(),

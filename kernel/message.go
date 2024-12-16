@@ -55,7 +55,7 @@ func (ks *KernelSession) createMsg(msgType string,
 
 func (ks *KernelSession) MessageFromString(value string) Message {
 	msg := Message{}
-	msg.Header = ks.newMsgHeader(value, getUsername(), ks.Key)
+	msg.Header = ks.newMsgHeader(value, GetUsername(), ks.Key)
 	msg.MsgId = msg.Header.MsgID
 	msg.Content = "{}"
 	msg.Metadata = "{}"

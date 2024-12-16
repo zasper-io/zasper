@@ -9,7 +9,7 @@ import NbButtons from './NbButtons';
 import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
-import { IKernel, kernelsAtom } from '../../../store/AppState';
+import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
 
 const debugMode = false;
 
@@ -61,6 +61,7 @@ export default function NotebookEditor(props) {
   const [kernelMap, setKernelMap] = useAtom(kernelsAtom);
   const [session, setSession] = useState<ISession | null>();
   const [kernelStatus, setKernelStatus] = useState("idle")
+  const [userName] = useAtom(userNameAtom)
 
   interface IClient {
     send: any;
@@ -247,7 +248,7 @@ export default function NotebookEditor(props) {
           msg_id: cellId,
           msg_type: 'execute_request',
           session: session.id,
-          username: 'prasunanand',
+          username: userName,
           version: '5.2',
         },
         metadata: {
@@ -276,37 +277,45 @@ export default function NotebookEditor(props) {
   const getTimeStamp = () => new Date().toISOString();
 
   const addCellUp = () => {
-    setNotebook((prevNotebook) => ({
-      ...prevNotebook,
-      cells: [
-        ...prevNotebook.cells,
-        {
-          execution_count: 0,
-          source: '',
-          cell_type: 'raw',
-          id: uuidv4(),
-          reload: false,
-          outputs: '',
-        },
-      ],
-    }));
+    setNotebook((prevNotebook) => {
+      const newCell = {
+        execution_count: 0,
+        source: '',
+        cell_type: 'code',
+        id: uuidv4(),
+        reload: false,
+        outputs: '',
+      };
+  
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, focusedIndex),
+        newCell,                                      // The new cell to be inserted
+        ...prevNotebook.cells.slice(focusedIndex),
+      ];
+  
+      return { ...prevNotebook, cells: updatedCells };
+    });
   };
 
   const addCellDown = () => {
-    setNotebook((prevNotebook) => ({
-      ...prevNotebook,
-      cells: [
-        ...prevNotebook.cells,
-        {
-          execution_count: 0,
-          source: '',
-          cell_type: 'raw',
-          id: uuidv4(),
-          reload: false,
-          outputs: '',
-        },
-      ],
-    }));
+    setNotebook((prevNotebook) => {
+      const newCell = {
+        execution_count: 0,
+        source: '',
+        cell_type: 'code',
+        id: uuidv4(),
+        reload: false,
+        outputs: '',
+      };
+  
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, focusedIndex + 1),
+        newCell,
+        ...prevNotebook.cells.slice(focusedIndex + 1),
+      ];
+  
+      return { ...prevNotebook, cells: updatedCells };
+    });
   };
 
   const deleteCell = (index: number) => {

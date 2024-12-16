@@ -37,6 +37,7 @@ export const kernelspecsAtom = atom<IKernelspecsState>({})
 export const kernelsAtom = atom<IKernelsState>({})
 export const terminalsAtom = atom<ITerminalsState>({})
 export const terminalsCountAtom = atom<number>(0)
+export const userNameAtom = atom<string>("")
 
 
 // left statusBar

@@ -32,11 +32,15 @@ import (
 // Response structure to return as JSON
 type InfoResponse struct {
 	ProjectName string `json:"project"`
+	UserName    string `json:"username"`
+	OS          string `json:"os"`
 }
 
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	response := InfoResponse{
 		ProjectName: core.Zasper.ProjectName,
+		UserName:    core.Zasper.UserName,
+		OS:          core.Zasper.OSName,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

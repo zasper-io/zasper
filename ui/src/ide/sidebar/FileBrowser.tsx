@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { BaseApiUrl } from '../config';
 import ContextMenu from './ContextMenu';
 import getFileExtension from '../utils';
+import { useAtom } from 'jotai';
+import { userNameAtom } from '../../store/AppState';
 
 
 interface IContent {
@@ -20,6 +22,7 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
   const [contents, setContents] = useState<IContent[]>([]);
   const [cwd] = useState<string>('');
   const [projectName, setProjectName] = useState('')
+  const [userName, setUserName] = useAtom(userNameAtom)
 
   const FetchData = async () => {
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
@@ -32,6 +35,7 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
     const res2 = await fetch(BaseApiUrl + '/api/info');
     const resJson2 = await res2.json();
     setProjectName(resJson2.project.toUpperCase());
+    setUserName(resJson2.username)
     
   };
 
