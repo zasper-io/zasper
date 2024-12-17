@@ -296,7 +296,7 @@ export default function NotebookEditor(props) {
         cell_type: 'code',
         id: uuidv4(),
         reload: false,
-        outputs: '',
+        outputs: [],
       };
   
       const updatedCells = [
@@ -314,28 +314,99 @@ export default function NotebookEditor(props) {
       const newCell = {
         execution_count: 0,
         source: '',
-        cell_type: 'code',
+        cell_type: 'markdown',
         id: uuidv4(),
         reload: false,
-        outputs: '',
+        outputs: [],
       };
+      // Ensure the focusedIndex is within the bounds of the cells array
+    const index = focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
+      ? focusedIndex + 1
+      : prevNotebook.cells.length;
+
+    const updatedCells = [
+      ...prevNotebook.cells.slice(0, index),  // Cells before the focused index
+      newCell,  // The new cell to add
+      ...prevNotebook.cells.slice(index),  // Cells after the focused index
+    ];
+
+    return { ...prevNotebook, cells: updatedCells };
+    });
+  };
+
+  // const deleteCell = (index: number) => {
+  //   setNotebook((prevNotebook) => {
+  //     const updatedCells = prevNotebook.cells.filter((_, i) => i !== index);
+  //     return { ...prevNotebook, cells: updatedCells };
+  //   });
+  // };
   
+
+  const deleteCell = () => {
+    setNotebook((prevNotebook) => {
+      // Check if focusedIndex is valid to avoid errors (e.g., empty notebook or invalid index)
+      if (focusedIndex < 0 || focusedIndex >= prevNotebook.cells.length) {
+        return prevNotebook; // No change if the index is invalid
+      }
+
       const updatedCells = [
-        ...prevNotebook.cells.slice(0, focusedIndex + 1),
-        newCell,
-        ...prevNotebook.cells.slice(focusedIndex + 1),
+        ...prevNotebook.cells.slice(0, focusedIndex), // Cells before the focused index
+        ...prevNotebook.cells.slice(focusedIndex + 1), // Cells after the focused index
       ];
-  
+
       return { ...prevNotebook, cells: updatedCells };
     });
   };
 
-  const deleteCell = (index: number) => {
+  const [copiedCell, setCopiedCell] = useState<ICell|null>(null);  // To store the copied or cut cell
+const [cutCellIndex, setCutCellIndex] = useState<number|null>(null); // To store the index of the cut cell
+
+// Function to copy the cell at the current focused index
+  const copyCell = () => {
+    setCopiedCell(notebook.cells[focusedIndex]);
+  };
+
+  // Function to cut the cell (copy it and remove from notebook)
+  const cutCell = () => {
+    const cellToCut = notebook.cells[focusedIndex];
+    setCopiedCell(cellToCut); // Copy the cell to allow pasting later
+    setCutCellIndex(focusedIndex); // Store the index of the cut cell
     setNotebook((prevNotebook) => {
-      const updatedCells = prevNotebook.cells.filter((_, i) => i !== index);
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, focusedIndex),
+        ...prevNotebook.cells.slice(focusedIndex + 1),
+      ];
       return { ...prevNotebook, cells: updatedCells };
     });
   };
+
+  // Function to paste the copied or cut cell at the current focused index
+  const pasteCell = () => {
+    if (!copiedCell) return; // No cell to paste
+    
+    setNotebook((prevNotebook) => {
+      const newCell = { ...copiedCell, id: uuidv4() }; // Ensure the pasted cell has a new unique ID
+
+      // Determine the paste index (after focusedIndex or at the end of the notebook)
+      const index = focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
+        ? focusedIndex + 1
+        : prevNotebook.cells.length;
+
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, index),
+        newCell,  // Insert the copied or cut cell
+        ...prevNotebook.cells.slice(index),
+      ];
+
+      return { ...prevNotebook, cells: updatedCells };
+    });
+
+    // If it's a cut, reset cut state after pasting
+    if (cutCellIndex !== null) {
+      setCutCellIndex(null); // Reset cut cell state
+    }
+};
+
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown') {
@@ -376,10 +447,10 @@ export default function NotebookEditor(props) {
       <div className={props.data.active ? 'd-block' : 'd-none'} id="profile" role="tabpanel" aria-labelledby="profile-tab">
         <NbButtons
           saveNotebook={handleCmdEnter}
-          addCell={addCellUp}
-          cutCell={() => console.log('cut cell')}
-          copyCell={() => console.log('copy cell')}
-          pasteCell={() => console.log('paste cell')}
+          addCellDown={addCellDown}
+          cutCell={cutCell}
+          copyCell={copyCell}
+          pasteCell={pasteCell}
           submitCell={submitCell}
           stopKernel={() => console.log('stop kernel')}
           restartKernel={() => console.log('restart kernel')}

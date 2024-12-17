@@ -15,10 +15,10 @@ function NbButtons(props){
     return (
       <div className='text-editor-tool'>
         <button type='button' className='editor-button' onClick={() => props.saveNotebook()}><i className='fas fa-save' /></button>
-        <button type='button' className='editor-button' onClick={() => props.addCell(props.index)}><i className='fas fa-plus' /></button>
-        <button type='button' className='editor-button' onClick={() => props.cutCell(props.index)}><i className='fas fa-cut' /></button>
-        <button type='button' className='editor-button' onClick={() => props.copyCell(props.index)}><i className='fas fa-copy' /></button>
-        <button type='button' className='editor-button' onClick={() => props.pasteCell(props.index)}><i className='fas fa-paste' /></button>
+        <button type='button' className='editor-button' onClick={() => props.addCellDown()}><i className='fas fa-plus' /></button>
+        <button type='button' className='editor-button' onClick={() => props.cutCell()}><i className='fas fa-cut' /></button>
+        <button type='button' className='editor-button' onClick={() => props.copyCell()}><i className='fas fa-copy' /></button>
+        <button type='button' className='editor-button' onClick={() => props.pasteCell()}><i className='fas fa-paste' /></button>
         <button type='button' className='editor-button' onClick={() => props.submitCell(props.index)}><i className='fas fa-play' /></button>
         <button type='button' className='editor-button' onClick={() => props.stopKernel()}><i className='fas fa-square' /></button>
         <button type='button' className='editor-button' onClick={() => props.restartKernel()}><i className='fas fa-redo' /></button>

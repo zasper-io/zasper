@@ -124,6 +124,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
               code={cellContents}
               addCellUp={props.addCellUp}
               addCellDown={props.addCellDown}
+              submitCell={props.submitCell}
               deleteCell={props.deleteCell}
               nextCell={props.nextCell}
               prevCell={props.prevCell} />
