@@ -98,7 +98,7 @@ export default function NotebookEditor(props) {
   useEffect(() => {
     if (props.data.load_required === true) {
       FetchFileData(props.data.path);
-      const session = startASession(props.data.path, props.data.name, props.data.type);
+      // const session = startASession(props.data.path, props.data.name, props.data.type);
     }
   }, [props.data]);
 
@@ -224,6 +224,20 @@ export default function NotebookEditor(props) {
     }
   };
 
+  const updateCellSource = (value: string, cellId: string) => {
+  
+    setNotebook((prevNotebook) => {
+      const updatedCells = prevNotebook.cells.map((cell) => {
+        if (cell.id === cellId) {
+          return { ...cell, source: value };
+        }
+        return cell;
+      });
+
+      return { ...prevNotebook, cells: updatedCells };
+    });
+  }
+
   const submitCell = (source: string, cellId: string) => {
     setNotebook((prevNotebook) => {
       const updatedCells = prevNotebook.cells.map((cell) => {
@@ -341,11 +355,27 @@ export default function NotebookEditor(props) {
     }
   };
 
+  const handleCmdEnter = () => {
+      console.log('Saving notebook')
+  
+      fetch(BaseApiUrl + '/api/contents', {
+        method: 'PUT',
+        body: JSON.stringify({
+          path: props.data.path,
+          content: notebook,
+          type: 'notebook',
+          format: 'json'
+        })
+      })
+  
+      return true
+    }
+
   return (
     <div className="tab-content">
       <div className={props.data.active ? 'd-block' : 'd-none'} id="profile" role="tabpanel" aria-labelledby="profile-tab">
         <NbButtons
-          saveNotebook={() => console.log('saving notebook')}
+          saveNotebook={handleCmdEnter}
           addCell={addCellUp}
           cutCell={() => console.log('cut cell')}
           copyCell={() => console.log('copy cell')}
@@ -391,6 +421,7 @@ export default function NotebookEditor(props) {
                 divRefs={divRefs}
                 execution_count={cell.execution_count}
                 codeMirrorRefs={codeMirrorRefs}
+                updateCellSource={updateCellSource}
               />
             ))}
         </div>

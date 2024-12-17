@@ -68,7 +68,18 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	UpdateContent(body.Path, body.Type, body.Format, body.Content)
+	if body.Type == "notebook" {
+		UpdateNbContent(body.Path, body.Type, body.Format, body.Content)
+	}
+
+	if body.Type == "file" {
+		contentStr, ok := body.Content.(string)
+		if !ok {
+			http.Error(w, "Invalid content type", http.StatusBadRequest)
+			return
+		}
+		UpdateContent(body.Path, body.Type, body.Format, contentStr)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

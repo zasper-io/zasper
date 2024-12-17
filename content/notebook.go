@@ -111,31 +111,62 @@ func _splitMimeBundle(data map[string]interface{}) map[string]interface{} {
 }
 
 // splitLines splits likely multi-line text into lists of strings.
-// func splitLines(nb *Notebook) *Notebook {
-// 	for _, cell := range nb.Cells {
-// 		if source, ok := cell.Source.(string); ok {
-// 			cell.Source = strings.SplitAfter(source, "\n")
-// 		}
+func splitLines(outNb OutNotebook) Notebook {
+	nb := Notebook{
+		Cells:    []Cell{},
+		Metadata: outNb.Metadata,
+	}
+	for _, outCell := range outNb.Cells {
+		// Convert string slice to []interface{}
+		sourceLines := strings.SplitAfter(outCell.Source, "\n")
+		sourceInterface := make([]interface{}, len(sourceLines))
+		for i, v := range sourceLines {
+			sourceInterface[i] = v
+		}
 
-// 		for _, attachment := range cell.Attachments {
-// 			_splitMimeBundle(attachment)
-// 		}
+		// Convert attachments map
+		attachments := make(map[string]map[string]interface{})
+		for k, v := range outCell.Attachments {
+			attachments[k] = map[string]interface{}{"data": v}
+		}
 
-// 		if cell.CellType == "code" {
-// 			for _, output := range cell.Outputs {
-// 				switch output.OutputType {
-// 				case "execute_result", "display_data":
-// 					_splitMimeBundle(output.Data)
-// 				case "stream":
-// 					if text, ok := output.Text.(string); ok {
-// 						output.Text = strings.SplitAfter(text, "\n")
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return nb
-// }
+		// Convert outputs
+		outputs := make([]Output, len(outCell.Outputs))
+		for i, out := range outCell.Outputs {
+			outputs[i] = Output{
+				OutputType:     out.OutputType,
+				ExecutionCount: out.ExecutionCount,
+				Data:           map[string]interface{}{"text": out.Data},
+				Text:           []interface{}{out.Text},
+				Metadata:       out.Metadata,
+			}
+		}
+
+		nb.Cells = append(nb.Cells, Cell{
+			Source:         sourceInterface,
+			CellType:       outCell.CellType,
+			ExecutionCount: outCell.ExecutionCount,
+			Attachments:    attachments,
+			Outputs:        outputs,
+			Metadata:       outCell.Metadata,
+		})
+	}
+
+	// if cell.CellType == "code" {
+	// 	for _, output := range cell.Outputs {
+	// 		switch output.OutputType {
+	// 		case "execute_result", "display_data":
+	// 			_splitMimeBundle(output.Data)
+	// 		case "stream":
+	// 			if text, ok := output.Text.(string); ok {
+	// 				output.Text = strings.SplitAfter(text, "\n")
+	// 			}
+	// 		}
+	// 	}
+	// }
+	return nb
+
+}
 
 // stripTransient removes transient metadata from the notebook.
 func stripTransient(nb *Notebook) *Notebook {

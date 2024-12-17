@@ -39,6 +39,7 @@ interface ICellProps{
     divRefs: React.RefObject<(HTMLDivElement | null)[]>;
     execution_count: number;
     codeMirrorRefs: any;
+    updateCellSource: any;
 }
 
 export interface CodeMirrorRef {
@@ -56,6 +57,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 
   const onChange = useCallback((value, viewUpdate) => {
     setCellContents(value)
+    props.updateCellSource(value, props.cell.id)
   }, []);
 
   const onUpdate = useCallback((viewUpdate: ViewUpdate) => {

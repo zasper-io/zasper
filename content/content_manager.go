@@ -295,7 +295,56 @@ func GetOSPath(path string) string {
 	return abspath
 }
 
-// save content
+func UpdateNbContent(path, ftype, format string, content interface{}) error {
+	var nb OutNotebook
+	log.Info().Msgf("Updating notebook content for path: %s", path)
+
+	// Convert content to JSON if it's a string or []byte, otherwise directly marshal it
+	var contentBytes []byte
+	var err error
+
+	switch v := content.(type) {
+	case string:
+		// If content is a string, assume it's JSON and convert it to []byte
+		contentBytes = []byte(v)
+	case []byte:
+		// If content is already []byte, assume it's JSON
+		contentBytes = v
+	case map[string]interface{}:
+		// If content is already a map, we can directly marshal it into the notebook
+		contentBytes, err = json.Marshal(content)
+		if err != nil {
+			return fmt.Errorf("failed to marshal map content into JSON: %w", err)
+		}
+	default:
+		// If the content is an unsupported type
+		return fmt.Errorf("content is not a valid type (expected string, []byte, or map[string]interface{}), got: %T", content)
+	}
+
+	// Unmarshal the JSON bytes into the Notebook struct
+	if err := json.Unmarshal(contentBytes, &nb); err != nil {
+		return fmt.Errorf("failed to unmarshal content into notebook: %w", err)
+	}
+
+	newNb := splitLines(nb)
+
+	// Marshal the notebook struct back into JSON (to save the updated notebook)
+	nbJSON, err := json.Marshal(newNb)
+	if err != nil {
+		return fmt.Errorf("failed to marshal notebook: %w", err)
+	}
+
+	log.Info().Msgf("nbJSON: %s", string(nbJSON))
+
+	// Write the JSON back to the file
+	if err := os.WriteFile(path, nbJSON, 0644); err != nil {
+		log.Error().Err(err).Msgf("Error updating notebook content for path: %s", path)
+		return fmt.Errorf("error writing notebook to path %s: %w", path, err)
+	}
+
+	log.Info().Msgf("Successfully updated notebook content for path: %s", path)
+	return nil
+}
 
 func UpdateContent(path, ftype, format, content string) error {
 	err := os.WriteFile(path, []byte(content), 0644)
