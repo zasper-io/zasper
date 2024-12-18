@@ -15,7 +15,7 @@ import (
 )
 
 func GetContent(relativePath string, contentType string, format string, hash int) models.ContentModel {
-	log.Info().Msgf("getting content for path : %s", relativePath)
+	log.Debug().Msgf("getting content for path : %s", relativePath)
 	// get path info
 	osPath := GetOSPath(relativePath)
 	info, err := os.Lstat(osPath)
@@ -26,7 +26,7 @@ func GetContent(relativePath string, contentType string, format string, hash int
 
 	var model models.ContentModel
 
-	log.Info().Msgf("%t", info.IsDir())
+	log.Debug().Msgf("Is directory %t", info.IsDir())
 	if info.IsDir() {
 		model = getDirectoryModel(relativePath)
 	} else {
@@ -42,7 +42,6 @@ func GetContent(relativePath string, contentType string, format string, hash int
 }
 
 func getNotebookModel(path string) models.ContentModel {
-	log.Info().Msg("Notebook model")
 
 	// fmt.Println(path)
 	osPath := GetOSPath(path)
@@ -83,7 +82,7 @@ func nbformatReads(data string, version int, capture_validation_error bool) OutN
 }
 
 func getDirectoryModel(relativePath string) models.ContentModel {
-	log.Info().Msgf("relative path %s", relativePath)
+	log.Debug().Msgf("relative path %s", relativePath)
 	abspath := GetOSPath(relativePath)
 
 	info, err := os.Lstat(abspath)
@@ -97,7 +96,6 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 		Path:          relativePath,
 		Last_modified: info.ModTime().GoString(),
 	}
-	// fmt.Println(path)
 
 	dir, err := os.Open(abspath)
 	if err != nil {
@@ -119,8 +117,6 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 }
 
 func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
-	// log.Info().Msgf("abs  path %s", abspath)
-	// log.Info().Msgf("relative  path %s", relativePath)
 
 	os_path := filepath.Join(abspath, fileName)
 
@@ -175,8 +171,8 @@ func getFileModelWithContent(path string) models.ContentModel {
 
 func read_file2(path string, fileName string) string {
 	extension := filepath.Ext(fileName)
-	log.Info().Msgf("reading path extension: %s", extension)
-	log.Info().Msgf("reading path: %s", path)
+	log.Debug().Msgf("reading path extension: %s", extension)
+	log.Debug().Msgf("reading path: %s", path)
 	file, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
@@ -188,7 +184,7 @@ func read_file2(path string, fileName string) string {
 }
 
 func read_file(path string) string {
-	log.Info().Msgf("reading path: %s", path)
+	log.Debug().Msgf("reading path: %s", path)
 	file, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)

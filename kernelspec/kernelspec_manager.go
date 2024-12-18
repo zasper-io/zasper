@@ -3,12 +3,13 @@ package kernelspec
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/zasper-io/zasper/core"
+
+	"github.com/rs/zerolog/log"
 )
 
 type KernelspecResponse struct {
@@ -99,14 +100,14 @@ func fromResourceDir(resourceDir string) KernelSpecJsonData {
 	*/
 
 	kernelFile := filepath.Join(resourceDir, "kernel.json")
-	log.Println("loading file", kernelFile)
+	log.Info().Msgf("loading file %s", kernelFile)
 	byteValue, _ := os.ReadFile(kernelFile)
 
 	var kernelSpecJsonData KernelSpecJsonData
 
 	err := json.Unmarshal(byteValue, &kernelSpecJsonData)
 	if err != nil {
-		log.Println("error encountered")
+		log.Info().Msg("error encountered")
 	}
 	log.Print(kernelSpecJsonData)
 	kernelSpecJsonData.ResourceDir = resourceDir
@@ -192,10 +193,10 @@ func getKernelDirs() []string {
 func listKernelsIn(kernelDir string) map[string]string {
 	dir, err := os.Open(kernelDir)
 	if err != nil {
-		log.Println("No kernels found in", kernelDir)
+		log.Debug().Msgf("No kernels found in %s", kernelDir)
 		return nil
 	}
-	log.Println("kernels found in", kernelDir)
+	log.Info().Msgf("kernels found in %s", kernelDir)
 	files, err := dir.Readdir(0)
 	if err != nil {
 		fmt.Println(err)

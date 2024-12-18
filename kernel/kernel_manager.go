@@ -74,7 +74,7 @@ func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[s
 
 	kw := km.preLaunch()
 	kernelCmd := kw["cmd"].([]string)
-	log.Info().Msgf("kenelName: %s", kernelName)
+	log.Debug().Msgf("kenelName: %s", kernelName)
 	return kernelCmd, kw
 }
 
@@ -92,20 +92,17 @@ func isLocalIP(ip string) bool {
 *********************************************************************/
 
 func (km *KernelManager) asyncLaunchKernel(kernelCmd []string, kw map[string]interface{}) {
-	// log.Info().Msgf("kw : %s", kw)
-	// log.Info().Msgf("cmd : %s", kernelCmd)
-
 	ConnectionInfo := km.Provisioner.LaunchKernel(kernelCmd, kw, km.ConnectionFile)
-	log.Info().Msgf("connectionInfo: %s", ConnectionInfo)
+	log.Debug().Msgf("connectionInfo: %s", ConnectionInfo)
 }
 
 func (km *KernelManager) preLaunch() map[string]interface{} {
 
 	if km.ConnectionInfo.Transport == "tcp" && !isLocalIP(km.ConnectionInfo.IP) {
-		log.Info().Msg("Can only launch a kernel on a local interface.")
+		log.Debug().Msg("Can only launch a kernel on a local interface.")
 	}
-	// log.Info().Msgf("cache ports: %t", km.CachePorts)
-	// log.Info().Msgf("km.Provisioner.PortsCached %t", km.Provisioner.PortsCached)
+	log.Debug().Msgf("cache ports: %t", km.CachePorts)
+	log.Debug().Msgf("km.Provisioner.PortsCached %t", km.Provisioner.PortsCached)
 
 	if km.CachePorts && !km.Provisioner.PortsCached {
 		km.ConnectionInfo.ShellPort, _ = findAvailablePort()
@@ -113,16 +110,15 @@ func (km *KernelManager) preLaunch() map[string]interface{} {
 		km.ConnectionInfo.StdinPort, _ = findAvailablePort()
 		km.ConnectionInfo.HbPort, _ = findAvailablePort()
 		km.ConnectionInfo.ControlPort, _ = findAvailablePort()
-		log.Info().Msgf("connectionInfo : %+v", km.ConnectionInfo)
+		log.Debug().Msgf("connectionInfo : %+v", km.ConnectionInfo)
 	}
-	log.Info().Msgf("km.ConnectionFile : %+v", km.ConnectionFile)
+	log.Debug().Msgf("km.ConnectionFile : %+v", km.ConnectionFile)
 
 	km.writeConnectionFile(km.ConnectionFile)
-	// km.writeConnectionFile("kernelConnection.json")
 
 	kernelCmd := km.formatKernelCmd()
-	log.Info().Msgf("kernel cmd is %s", kernelCmd)
-	// the following one is from super
+	log.Debug().Msgf("kernel cmd is %s", kernelCmd)
+
 	env := make(map[string]interface{})
 	env["cmd"] = kernelCmd
 	env["env"] = os.Environ()

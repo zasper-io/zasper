@@ -95,26 +95,20 @@ func (ks *KernelSession) Send(
 	metadata map[string]interface{},
 ) Message {
 
-	log.Info().Msg("================sending the message===============")
-
 	var msg Message
 	switch v := msgOrType.(type) {
 	case Message:
-		// log.Print("received Message type")
 		msg = v
 		if buffers == nil {
-			// fill the buffer with msg buffers
 			buffers = msg.Buffers
 		}
 	case string:
-		// kernel info request goes
-		// log.Print("received String type")
 		msg = ks.createMsg(v, content, parent, header, metadata)
 	default:
-		log.Info().Msgf("msg_or_type must be of type Message or string, got %T", v)
+		log.Debug().Msgf("msg_or_type must be of type Message or string, got %T", v)
 	}
 
-	log.Info().Msgf("message is %+v", msg)
+	log.Debug().Msgf("message is %+v", msg)
 
 	if ks.CheckPid && os.Getpid() != ks.Pid {
 		log.Info().Msgf("WARNING: attempted to send message from fork %+v", msg)
@@ -161,9 +155,9 @@ func (ks *KernelSession) Send(
 	tracker, _ = stream.SendMessage(toSend)
 
 	if ks.Debug {
-		log.Info().Msgf("Message: %s\n", msg.MsgId)
-		log.Info().Msgf("ToSend: %s\n", toSend)
-		log.Info().Msgf("Buffers: %s\n", buffers)
+		log.Debug().Msgf("Message: %s\n", msg.MsgId)
+		log.Debug().Msgf("ToSend: %s\n", toSend)
+		log.Debug().Msgf("Buffers: %s\n", buffers)
 	}
 
 	msg.Tracker = tracker
@@ -189,12 +183,12 @@ func (ks *KernelSession) serialize(msg Message, ident [][]byte) [][]byte {
 		json_packer(msg.Content), // []byte("kernel_info_request"),
 	}
 	to_send := [][]byte{}
-	// log.Info().Msgf("real message is %s", realMessage)
+	log.Debug().Msgf("real message is %s", realMessage)
 	signature := ks.sign(realMessage)
 	to_send = append(to_send, []byte(DELIM))
 	to_send = append(to_send, []byte(signature))
 	to_send = append(to_send, realMessage...)
-	// log.Info().Msgf("after signing message is %s", realMessage)
+	log.Debug().Msgf("after signing message is %s", realMessage)
 	return to_send
 }
 
@@ -268,7 +262,7 @@ func (ks *KernelSession) deserialize(
 	// message.Buffers = msgList[5:]
 
 	// Debug print
-	fmt.Printf("Message: %+v\n", message)
+	log.Debug().Msgf("Message: %+v\n", message)
 
 	// Adapt to the current version (implement as needed)
 	// message = adapt(message)

@@ -58,7 +58,7 @@ func findAvailablePort() (int, error) {
 		if portExists(port) {
 			continue
 		}
-		// log.Info().Msgf("check port %d", port)
+		log.Debug().Msgf("check port %d", port)
 		l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 		if err == nil {
 			currentlyUsedPorts = append(currentlyUsedPorts, port)

@@ -2,7 +2,6 @@ package kernel
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -12,6 +11,8 @@ import (
 	"github.com/zasper-io/zasper/models"
 
 	"github.com/google/uuid"
+
+	"github.com/rs/zerolog/log"
 )
 
 var ZasperPendingKernels map[string]KernelManager
@@ -99,7 +100,7 @@ func StartKernelManager(kernelPath string, kernelName string, env map[string]str
 	kernelId := uuid.New().String()
 
 	km, kernel_name, kernel_id := createKernelManager(kernelName, kernelId)
-	log.Println(km, kernel_name, kernel_id)
+	log.Debug().Msgf("%v | %v | %v ", km, kernel_name, kernel_id)
 
 	km.StartKernel(kernelName)
 
@@ -130,7 +131,7 @@ func createKernelManager(kernelName string, kernelId string) (KernelManager, str
 	km.ConnectionInfo.Transport = "tcp"
 	km.ConnectionInfo.IP = "127.0.0.1"
 	km.Session = getSession()
-	log.Println("session is", km.Session)
+	log.Info().Msgf("session is %v", km.Session)
 	return km, kernelName, kernelId
 }
 

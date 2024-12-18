@@ -24,6 +24,6 @@ type LocalProvisioner struct {
 func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) KernelConnectionInfo {
 	process := launcher.LaunchKernel(kernelCmd, kw, connFile)
 	provisioner.Pid = process.Pid
-	log.Info().Msgf("kernel launched with pid: %d", process.Pid)
+	log.Debug().Msgf("kernel launched with pid: %d", process.Pid)
 	return provisioner.ConnectionInfo
 }

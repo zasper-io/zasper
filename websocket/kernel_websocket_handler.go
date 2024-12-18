@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"log"
 	"net/http"
 	"sync"
 
@@ -11,6 +10,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/pebbe/zmq4"
+
+	"github.com/rs/zerolog/log"
 )
 
 var upgrader = websocket.Upgrader{
@@ -26,18 +27,18 @@ var (
 )
 
 func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
-	log.Println("receieved kernel connection request")
+	log.Info().Msg("receieved kernel connection request")
 	vars := mux.Vars(req)
 	kernelId := vars["kernelId"]
-	log.Println("kernelName :", kernelId)
+	log.Info().Msgf("kernelName : %s", kernelId)
 
 	sessionId := req.URL.Query().Get("session_id")
-	log.Println("sessionId :", sessionId)
+	log.Info().Msgf("sessionId : %s", sessionId)
 
 	session, ok := core.ZasperSession[sessionId]
-	log.Println("session", session)
+	log.Info().Msgf("session %v", session)
 	if !ok {
-		log.Println("session not found")
+		log.Info().Msg("session not found")
 		http.NotFound(w, req)
 		return
 	}
@@ -45,7 +46,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	kernelManager, ok := kernel.ZasperActiveKernels[kernelId]
 
 	if !ok {
-		log.Println("kernel not found")
+		log.Info().Msg("kernel not found")
 		http.NotFound(w, req)
 		return
 	}
@@ -53,7 +54,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	conn, err := upgrader.Upgrade(w, req, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Info().Msgf("%s", err)
 		return
 	}
 
@@ -69,10 +70,10 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		Send:          make(chan []byte),
 	}
 
-	log.Println("preparing kernel connection")
+	log.Info().Msg("preparing kernel connection")
 	kernelConnection.prepare(sessionId)
 
-	log.Println("connecting kernel")
+	log.Info().Msg("connecting kernel")
 	kernelConnection.connect()
 
 	clientsMu.Lock()
@@ -92,10 +93,10 @@ func (kwsConn *KernelWebSocketConnection) readMessages() {
 	for {
 		messageType, data, err := kwsConn.Conn.ReadMessage()
 		if err != nil {
-			log.Println(err)
+			log.Debug().Msgf("%s", err)
 			return
 		}
-		log.Println("message type =>", messageType)
+		log.Debug().Msgf("message type => %s", messageType)
 		kwsConn.handleIncomingMessage(messageType, data)
 		// broadcast <- message // Send message to broadcast channel
 	}
@@ -110,7 +111,7 @@ func (kwsConn *KernelWebSocketConnection) writeMessages() {
 			return
 		}
 		if err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			log.Println("Error writing message:", err)
+			log.Info().Msgf("Error writing message: %s", err)
 			return
 		}
 	}

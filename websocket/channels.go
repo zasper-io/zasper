@@ -194,20 +194,19 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 			if socket.Socket == nil {
 				continue
 			}
-			fmt.Print("Polling .....")
+			log.Debug().Msgf("Polling .....")
 			switch s := socket.Socket; s {
 			case transient_shell_channel:
 				msg, _ := s.Recv(0)
-				fmt.Printf("Received from Shell socket: %s\n", msg)
+				log.Debug().Msgf("Received from Shell socket: %s\n", msg)
 				shellFuture = true
 			case transient_control_channel:
 				msg, _ := s.Recv(0)
-				fmt.Printf("Received from Control socket: %s\n", msg)
+				log.Debug().Msgf("Received from Control socket: %s\n", msg)
 				controlFuture = true
 			case iopub_channel:
 				msg, _ := s.Recv(0)
-				fmt.Printf("Received from IoPub socket: %s\n", msg)
-				// kwsConn.send <- []byte(msg)
+				log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
 				infoFuture = true
 			}
 		}
@@ -215,7 +214,7 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	}
 	transient_control_channel.Close()
 	transient_shell_channel.Close()
-	fmt.Print("Nudge successful")
+	log.Debug().Msgf("Nudge successful")
 }
 
 func deserializeMsgFromWsV1([]byte) (string, []interface{}) {
@@ -251,7 +250,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 			log.Info().Msgf("Error unmarshalling message: %s", err)
 			return
 		}
-		fmt.Println("msg is =>", msg)
+		log.Debug().Msgf("msg is => %v", msg)
 
 		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
 
@@ -261,12 +260,12 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 	}
 
 	if channel == "" {
-		log.Printf("No channel specified, assuming shell: %v", msg)
+		log.Debug().Msgf("No channel specified, assuming shell: %v", msg)
 		channel = "shell"
 	}
 
 	if _, ok := kwsConn.Channels[channel]; !ok {
-		log.Printf("No such channel: %v", channel)
+		log.Debug().Msgf("No such channel: %v", channel)
 		return
 	}
 
@@ -287,7 +286,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 
 	if !ignoreMsg {
 		stream := kwsConn.Channels[channel]
-		fmt.Print("stream", stream)
+		log.Debug().Msgf("stream %s", stream)
 		if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
 			// kwsConn.Session.SendRaw(stream, msgList)
 		} else {
@@ -486,37 +485,6 @@ func (kwsConn *KernelWebSocketConnection) Disconnect() {
 
 func removeOpenSocket(kwsConn *KernelWebSocketConnection) {
 	panic("unimplemented")
-}
-
-func (kwsConn *KernelWebSocketConnection) onZMQReply(stream map[string]*zmq4.Socket, msgList []kernel.Message) {
-	// Check if the stream is closed
-	// if stream.IsClosed() {
-	// 	fmt.Println("ZMQ message arrived on closed channel")
-	// 	kwsConn.Disconnect()
-	// 	return
-	// }
-
-	// channel := kwsConn.Channels // Assuming it's assigned earlier
-
-	// var binMsg []byte
-	// var err error
-
-	// if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
-	// 	binMsg, err = serializeMsgToWSV1(msgList, channel)
-	// 	if err == nil {
-	// 		kwsConn.WriteMessage(binMsg, true)
-	// 	}
-	// } else {
-	// 	msg, err := channel.ReserializeReply(msgList)
-	// 	if err != nil {
-	// 		log.Printf("Malformed message: %v", msgList)
-	// 	} else {
-	// 		err = channel.WriteMessage(msg, isBinary(msg))
-	// 		if err != nil {
-	// 			fmt.Println(err)
-	// 		}
-	// 	}
-	// }
 }
 
 func registerWebSocketSession(sessionId string) {

@@ -52,6 +52,6 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 		}
 	}()
 
-	log.Info().Msg("Process started successfully")
+	log.Debug().Msg("Process started successfully")
 	return cmd.Process
 }
