@@ -238,6 +238,21 @@ export default function NotebookEditor(props) {
     });
   }
 
+  const changeCellType = (value: string) =>{
+    setNotebook((prevNotebook) => {
+      const updatedCells = prevNotebook.cells.map((cell, idx) => {
+        
+        // If index is provided and valid, update the cell at that index
+        if (idx === focusedIndex) {
+          return { ...cell, cell_type: value };
+        }
+        return cell;
+      });
+  
+      return { ...prevNotebook, cells: updatedCells };
+    });
+  }
+
   const submitCell = (source: string, cellId: string) => {
     setNotebook((prevNotebook) => {
       const updatedCells = prevNotebook.cells.map((cell) => {
@@ -359,7 +374,7 @@ export default function NotebookEditor(props) {
   };
 
   const [copiedCell, setCopiedCell] = useState<ICell|null>(null);  // To store the copied or cut cell
-const [cutCellIndex, setCutCellIndex] = useState<number|null>(null); // To store the index of the cut cell
+  const [cutCellIndex, setCutCellIndex] = useState<number|null>(null); // To store the index of the cut cell
 
 // Function to copy the cell at the current focused index
   const copyCell = () => {
@@ -459,6 +474,7 @@ const [cutCellIndex, setCutCellIndex] = useState<number|null>(null); // To store
           notebook={notebook}
           kernelName={kernelName}
           kernelStatus={kernelStatus}
+          changeCellType={changeCellType}
         />
         {debugMode && (
           <div>
