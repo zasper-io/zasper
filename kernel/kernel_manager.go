@@ -92,11 +92,10 @@ func isLocalIP(ip string) bool {
 *********************************************************************/
 
 func (km *KernelManager) asyncLaunchKernel(kernelCmd []string, kw map[string]interface{}) {
-	// km.Provisioner.launchKernel(kernelCmd)
-	log.Info().Msgf("kw : %s", kw)
-	log.Info().Msgf("cmd : %s", kernelCmd)
+	// log.Info().Msgf("kw : %s", kw)
+	// log.Info().Msgf("cmd : %s", kernelCmd)
 
-	ConnectionInfo := km.Provisioner.LaunchKernel(kernelCmd, kw)
+	ConnectionInfo := km.Provisioner.LaunchKernel(kernelCmd, kw, km.ConnectionFile)
 	log.Info().Msgf("connectionInfo: %s", ConnectionInfo)
 }
 
@@ -105,8 +104,8 @@ func (km *KernelManager) preLaunch() map[string]interface{} {
 	if km.ConnectionInfo.Transport == "tcp" && !isLocalIP(km.ConnectionInfo.IP) {
 		log.Info().Msg("Can only launch a kernel on a local interface.")
 	}
-	log.Info().Msgf("cache ports: %t", km.CachePorts)
-	log.Info().Msgf("km.Provisioner.PortsCached %t", km.Provisioner.PortsCached)
+	// log.Info().Msgf("cache ports: %t", km.CachePorts)
+	// log.Info().Msgf("km.Provisioner.PortsCached %t", km.Provisioner.PortsCached)
 
 	if km.CachePorts && !km.Provisioner.PortsCached {
 		km.ConnectionInfo.ShellPort, _ = findAvailablePort()
@@ -116,7 +115,10 @@ func (km *KernelManager) preLaunch() map[string]interface{} {
 		km.ConnectionInfo.ControlPort, _ = findAvailablePort()
 		log.Info().Msgf("connectionInfo : %+v", km.ConnectionInfo)
 	}
-	km.writeConnectionFile("kernelConnection.json")
+	log.Info().Msgf("km.ConnectionFile : %+v", km.ConnectionFile)
+
+	km.writeConnectionFile(km.ConnectionFile)
+	// km.writeConnectionFile("kernelConnection.json")
 
 	kernelCmd := km.formatKernelCmd()
 	log.Info().Msgf("kernel cmd is %s", kernelCmd)

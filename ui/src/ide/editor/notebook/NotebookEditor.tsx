@@ -98,7 +98,7 @@ export default function NotebookEditor(props) {
   useEffect(() => {
     if (props.data.load_required === true) {
       FetchFileData(props.data.path);
-      // const session = startASession(props.data.path, props.data.name, props.data.type);
+      const session = startASession(props.data.path, props.data.name, props.data.type);
     }
   }, [props.data]);
 

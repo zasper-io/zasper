@@ -21,8 +21,8 @@ type LocalProvisioner struct {
 	PortsCached    bool
 }
 
-func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[string]interface{}) KernelConnectionInfo {
-	process := launcher.LaunchKernel(kernelCmd, kw)
+func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) KernelConnectionInfo {
+	process := launcher.LaunchKernel(kernelCmd, kw, connFile)
 	provisioner.Pid = process.Pid
 	log.Info().Msgf("kernel launched with pid: %d", process.Pid)
 	return provisioner.ConnectionInfo

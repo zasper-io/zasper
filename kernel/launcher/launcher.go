@@ -8,9 +8,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func LaunchKernel(kernelCmd []string, kw map[string]interface{}) *os.Process {
+func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) *os.Process {
 
-	cmd := exec.Command("/usr/bin/python3", "-m", "ipykernel_launcher", "-f", "kernelConnection.json") //  "--debug"
+	cmd := exec.Command("/usr/bin/python3", "-m", "ipykernel_launcher", "-f", connFile) //  "--debug"
 
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()
