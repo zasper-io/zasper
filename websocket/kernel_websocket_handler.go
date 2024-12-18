@@ -96,7 +96,7 @@ func (kwsConn *KernelWebSocketConnection) readMessages() {
 			log.Debug().Msgf("%s", err)
 			return
 		}
-		log.Debug().Msgf("message type => %s", messageType)
+		log.Debug().Msgf("message type => %d", messageType)
 		kwsConn.handleIncomingMessage(messageType, data)
 		// broadcast <- message // Send message to broadcast channel
 	}
