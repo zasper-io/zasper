@@ -197,4 +197,4 @@ Prasun Anand
 
 ## ⚖️ License
 
-Zasper is licensed under BSD 3-Clause License
+Zasper is licensed under AGPL-3.0 license.
