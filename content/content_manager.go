@@ -192,41 +192,50 @@ func read_file(path string) string {
 	return string(file)
 }
 
-func CreateContent(payload ContentPayload) models.ContentModel {
-	if payload.ContentType == "directory" {
-		return newDirectory(payload)
-	}
-	return newUntitled(payload)
-}
-
-func newDirectory(payload ContentPayload) models.ContentModel {
-
-	model := models.ContentModel{}
-	model.ContentType = payload.ContentType
-
-	return model
-
-}
-
-func newUntitled(payload ContentPayload) models.ContentModel {
+func createContent(payload ContentPayload) models.ContentModel {
 
 	model := models.ContentModel{}
 	model.ContentType = payload.ContentType
 
 	if payload.Extension == ".ipynb" {
 		model.ContentType = "notebook"
+		filename := "untitled.ipynb"
+		model.Path = GetOSPath(filename)
+		model.Name = filename
+		newUntitledFile(model)
+	} else if payload.ContentType == "directory" {
+		model.ContentType = "directory"
+		filename := "untitled_directory"
+		model.Path = GetOSPath(filename)
+		model.Name = filename
+		CreateDirectory(model.Path)
 	} else {
 		model.ContentType = "file"
+		filename := "untitled.txt"
+		model.Path = GetOSPath(filename)
+		model.Name = filename
+		newUntitledNotebook(model)
 	}
-	filename := "untitled.txt"
-	model.Path = GetOSPath(filename)
-	model.Name = filename
-	createNewFile(model)
+
 	return model
 
 }
 
-func createNewFile(model models.ContentModel) error {
+func newUntitledFile(model models.ContentModel) error {
+	/*
+		os.O_CREATE: Create the file if it does not exist.
+		os.O_TRUNC: Truncate the file to zero length if it already exists.
+		os.O_RDWR: Open the file for reading and writing.
+	*/
+	file, err := os.OpenFile(model.Path, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close() // Ensure the file is closed when the function exits
+	return nil
+}
+
+func newUntitledNotebook(model models.ContentModel) error {
 	/*
 		os.O_CREATE: Create the file if it does not exist.
 		os.O_TRUNC: Truncate the file to zero length if it already exists.

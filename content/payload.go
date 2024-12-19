@@ -11,7 +11,8 @@ type (
 	}
 
 	RenameContentPayload struct {
-		Path string `json:"path"`
+		OldPath string `json:"old_path"`
+		Path    string `json:"path"`
 	}
 
 	ContentUpdateRequest struct {

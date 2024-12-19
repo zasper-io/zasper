@@ -59,6 +59,9 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
     FetchData();
   };
 
+
+
+
   useEffect(() => {
     FetchData();
   }, []);
@@ -68,14 +71,6 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
       <div className='nav-content'>
         <div className='content-head'>
           <div>FILE EXPLORER</div>
-          <div>
-            <button className='editor-button' onClick={createNewFile}>
-              <img src='./images/editor/feather-file-plus.svg' alt='' />
-            </button>
-            <button className='editor-button' onClick={createNewDirectory}>
-              <img src='./images/editor/feather-folder-plus.svg' alt='' />
-            </button>
-          </div>
         </div>
         <div className='projectName'>
           <div>{projectName}</div>
@@ -93,13 +88,13 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
             {contents.map((content, index) => (
               content.type === 'directory' ? (
                 <DirectoryItem
-                  key={index}
+                  key={content.name}
                   data={content}
                   sendDataToParent={sendDataToParent}
                 />
               ) : (
                 <FileItem
-                  key={index}
+                  key={content.name}
                   content={content}
                   handleFileClick={handleFileClick}
                 />
@@ -112,18 +107,29 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
   );
 }
 
-const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileClick: (name: string, path: string, type: string) => void }) => {
+const FileItem = ({ content, handleFileClick }: { content: IContent; 
+                    handleFileClick: (name: string, path: string, type: string) => void , 
+                    }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(content.name);
   const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
+
+  const renameContent = async () => {
+    setIsEditing(false)
+    await fetch(BaseApiUrl + '/api/contents/rename', {
+      method: 'POST',
+      body: JSON.stringify({ old_path: content.name, new_path: text }),
+    });
+  };
 
   const menuItems = [
     { 
       label: 'Rename', 
       action: (path: string) => { 
         // e.stopPropagation(); // Stop the click event from propagating
-        setIsEditing(true); 
+        setIsEditing(true);
+        
       } 
     },
     // { label: 'Delete', action: async () => await deleteFile(data.path) }
@@ -181,7 +187,7 @@ const FileItem = ({ content, handleFileClick }: { content: IContent; handleFileC
             value={text}
             onChange={(e) => setText(e.target.value)}
             onBlur={() => setIsEditing(false)}
-            onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+            onKeyDown={(e) => e.key === 'Enter' && renameContent()}
             autoFocus
           />
         ) : (
@@ -260,11 +266,11 @@ const DirectoryItem = ({data, sendDataToParent }) => {
         <ul className='file-list list-unstyled'>
           {isCollapsed && content.content !== null &&  content.content.map((content, index) => (
             content.type === 'directory' ? (
-              <DirectoryItem key={index} 
+              <DirectoryItem key={content.name} 
                               sendDataToParent={sendDataToParent}
                               data={content} />
             ) : (
-              <FileItem key={index} content={content} handleFileClick={sendDataToParent} />
+              <FileItem key={content.name} content={content} handleFileClick={sendDataToParent}/>
             )
           ))}
         </ul>

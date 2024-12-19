@@ -84,7 +84,7 @@ func main() {
 	apiRouter.HandleFunc("/contents", content.ContentAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")
 
-	apiRouter.HandleFunc("/contents/{path}", content.ContentRenameAPIHandler).Methods("PATCH")
+	apiRouter.HandleFunc("/contents/rename", content.ContentRenameAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
 
 	// search

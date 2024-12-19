@@ -8,8 +8,6 @@ import (
 	"strconv"
 
 	"github.com/rs/zerolog/log"
-
-	"github.com/gorilla/mux"
 )
 
 func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -105,20 +103,19 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var contentPayload ContentPayload
 	_ = json.NewDecoder(req.Body).Decode(&contentPayload)
-	data := newUntitled(contentPayload)
+	data := createContent(contentPayload)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(data)
 }
 
 func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
-	vars := mux.Vars(req)
-	oldPath := vars["path"]
-
-	log.Info().Msgf("old path : %s", oldPath)
 
 	var renameContentPayload RenameContentPayload
 	_ = json.NewDecoder(req.Body).Decode(&renameContentPayload)
+
+	oldPath := renameContentPayload.OldPath
+	log.Info().Msgf("old path : %s", oldPath)
 
 	rename(oldPath, renameContentPayload.Path)
 
