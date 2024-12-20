@@ -51,7 +51,7 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
   const createNewFile = async () => {
     await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
-      body: JSON.stringify({ parent_dir: "", ext: '.py', type: 'file' }),
+      body: JSON.stringify({ parent_dir: "", type: 'file' }),
     });
     FetchData();
   };
@@ -254,6 +254,7 @@ const DirectoryItem = ({ data, sendDataToParent }) => {
   const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false)
 
   const handleDirectoryClick = async (path: string) => {
     setIsCollapsed(!isCollapsed)
@@ -269,11 +270,11 @@ const DirectoryItem = ({ data, sendDataToParent }) => {
     setContent(resJson)
   };
 
-  const createNewFile = async (path: string) => {
+  const createNewFile = async (path: string, contentType: string) => {
     console.log("add file")
     await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
-      body: JSON.stringify({ parent_dir: path, ext: '.py', type: 'file' }),
+      body: JSON.stringify({ parent_dir: path, type: contentType }),
     });
 
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
@@ -287,11 +288,20 @@ const DirectoryItem = ({ data, sendDataToParent }) => {
     setContent(resJson)
   };
 
+  const deleteContent = async (path) => {
+    await fetch(BaseApiUrl + '/api/contents', {
+      method: 'DELETE',
+      body: JSON.stringify({ path: path }),
+    });
+    setIsDeleted(true)
+  };
+
   const menuItems = [
     { label: 'Rename', action: () => setIsEditing(true) },
-    { label: 'Add file', action: (path: string) => createNewFile(path) },
-    { label: 'Add Notebook', action: (path: string) => console.log("add notebook") },
-    { label: 'Add directory', action: (path: string) => console.log("add directory" + path) }
+    { label: 'Add file', action: (path: string) => createNewFile(path, "file") },
+    { label: 'Add Notebook', action: (path: string) => createNewFile(path, "notebook") },
+    { label: 'Add Folder', action: (path: string) => createNewFile(path, "directory") },
+    { label: 'Delete Folder', action: (path: string) => deleteContent(path) }
   ];
 
   const handleRightClick = (e: React.MouseEvent, path: string) => {
@@ -299,6 +309,10 @@ const DirectoryItem = ({ data, sendDataToParent }) => {
     setMenuPosition({ xPos: e.pageX, yPos: e.pageY });
     setIsMenuVisible(true);
   };
+
+  if(isDeleted){
+    return <></>
+  }
 
   return (
     <li className='fileItem'>

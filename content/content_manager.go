@@ -194,70 +194,114 @@ func read_file(path string) string {
 
 func createContent(payload ContentPayload) models.ContentModel {
 
+	if payload.ContentType == "notebook" {
+		return newUntitledNotebook(payload)
+	} else if payload.ContentType == "directory" {
+		return CreateDirectory(payload)
+	} else {
+		return newUntitledFile(payload)
+	}
+
+}
+
+// Function to check if the file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
+}
+
+// Modify the newUntitledFile function to create untitled-1.txt, untitled-2.txt, etc.
+func newUntitledFile(payload ContentPayload) models.ContentModel {
+
 	model := models.ContentModel{}
 	model.ContentType = payload.ContentType
 
-	if payload.Extension == ".ipynb" {
-		model.ContentType = "notebook"
-		filename := "untitled.ipynb"
-		model.Path = GetOSPath(payload.ParentDir + "/" + filename)
-		model.Name = filename
-		newUntitledFile(model)
-	} else if payload.ContentType == "directory" {
-		model.ContentType = "directory"
-		filename := "untitled_directory"
-		model.Path = GetOSPath(payload.ParentDir + "/" + filename)
-		model.Name = filename
-		CreateDirectory(model.Path)
-	} else {
-		model.ContentType = "file"
-		filename := "untitled.txt"
-		model.Path = GetOSPath(payload.ParentDir + "/" + filename)
-		model.Name = filename
-		newUntitledNotebook(model)
+	filePath := GetOSPath(payload.ParentDir + "/" + "untitled.txt")
+
+	// Check if the file already exists and if so, increment the file number
+	i := 0
+	for fileExists(filePath) {
+		i++
+		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
+		filePath = GetOSPath(payload.ParentDir + "/" + fmt.Sprintf("untitled-%d.txt", i))
 	}
+
+	// Create the file with the unique filename
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	if err != nil {
+		log.Info().Msgf("Error creating file: %s", err)
+	}
+	defer file.Close() // Ensure the file is closed when the function exits
+
+	// Update the model to use the new path and name
+	model.Path = filePath
+	model.Name = filepath.Base(filePath)
 
 	return model
-
 }
 
-func newUntitledFile(model models.ContentModel) error {
+func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 	/*
 		os.O_CREATE: Create the file if it does not exist.
 		os.O_TRUNC: Truncate the file to zero length if it already exists.
 		os.O_RDWR: Open the file for reading and writing.
 	*/
-	file, err := os.OpenFile(model.Path, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	model := models.ContentModel{}
+	model.ContentType = payload.ContentType
+
+	filePath := GetOSPath(payload.ParentDir + "/" + "untitled.ipynb")
+
+	// Check if the file already exists and if so, increment the file number
+	i := 0
+	for fileExists(filePath) {
+		i++
+		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
+		filePath = GetOSPath(payload.ParentDir + "/" + fmt.Sprintf("untitled-%d.ipynb", i))
+	}
+
+	// Create the file with the unique filename
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
 	if err != nil {
-		return err
+		log.Info().Msgf("Error creating file: %s", err)
 	}
 	defer file.Close() // Ensure the file is closed when the function exits
-	return nil
+
+	// Update the model to use the new path and name
+	model.Path = filePath
+	model.Name = filepath.Base(filePath)
+
+	return model
 }
 
-func newUntitledNotebook(model models.ContentModel) error {
-	/*
-		os.O_CREATE: Create the file if it does not exist.
-		os.O_TRUNC: Truncate the file to zero length if it already exists.
-		os.O_RDWR: Open the file for reading and writing.
-	*/
-	file, err := os.OpenFile(model.Path, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+// Function to check if a directory exists
+func directoryExists(path string) bool {
+	info, err := os.Stat(path)
 	if err != nil {
-		return err
+		return false
 	}
-	defer file.Close() // Ensure the file is closed when the function exits
-	return nil
+	return info.IsDir()
 }
 
-func CreateDirectory(dirPath string) error {
-	err := os.Mkdir(dirPath, 0755) // 0755 is the permission mode
-	if err != nil {
-		if os.IsExist(err) {
-			return fmt.Errorf("directory already exists: %s", dirPath)
-		}
-		return fmt.Errorf("error creating directory: %w", err)
+func CreateDirectory(payload ContentPayload) models.ContentModel {
+	model := models.ContentModel{}
+	model.ContentType = payload.ContentType
+	dirName := "untitled-directory"
+	i := 0
+	dirPath := GetOSPath(payload.ParentDir + "/" + dirName)
+	for directoryExists(dirPath) {
+		i++
+		dirPath = GetOSPath(payload.ParentDir + "/" + fmt.Sprintf("%s-%d", dirName, i))
 	}
-	return nil
+
+	// Create the directory with the unique name
+	err := os.MkdirAll(dirPath, 0755)
+	if err != nil {
+		log.Info().Msgf("Error creating directory: %s", err)
+	}
+	model.Path = dirPath
+	model.Name = filepath.Base(dirName)
+
+	return model
 }
 
 func rename(parentDir, oldName, newName string) error {

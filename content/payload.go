@@ -6,7 +6,6 @@ type (
 	}
 
 	ContentPayload struct {
-		Extension   string `json:"ext"`
 		ContentType string `json:"type"`
 		ParentDir   string `json:"parent_dir"`
 	}
