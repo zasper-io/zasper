@@ -193,7 +193,6 @@ func read_file(path string) string {
 }
 
 func createContent(payload ContentPayload) models.ContentModel {
-
 	if payload.ContentType == "notebook" {
 		return newUntitledNotebook(payload)
 	} else if payload.ContentType == "directory" {
@@ -227,7 +226,7 @@ func newUntitledFile(payload ContentPayload) models.ContentModel {
 	}
 
 	// Create the file with the unique filename
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
 	if err != nil {
 		log.Info().Msgf("Error creating file: %s", err)
 	}
@@ -260,7 +259,7 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 	}
 
 	// Create the file with the unique filename
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
 	if err != nil {
 		log.Info().Msgf("Error creating file: %s", err)
 	}

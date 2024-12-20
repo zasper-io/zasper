@@ -121,6 +121,8 @@ const FileItem = (
   const getIconToLoad = (fileName) => {
     const extension = getFileExtension(fileName);
     const iconMap: { [key: string]: string } = {
+      c: './images/editor/c-icon.svg',
+      cpp: './images/editor/cpp-icon.svg',
       go: './images/editor/go-icon.svg',
       mod: './images/editor/go-icon.svg',
       sum: './images/editor/go-icon.svg',
@@ -139,6 +141,7 @@ const FileItem = (
       svg: './images/editor/image-icon.svg',
       md: './images/editor/md-icon.svg',
       markdown: './images/editor/md-icon.svg',
+      txt: './images/editor/txt-icon.svg',
       gitignore: './images/editor/git-icon.svg',
     };
     return extension != null ? iconMap[extension] : './images/editor/go-icon.svg';
@@ -205,6 +208,7 @@ const FileItem = (
   }
 
   const handleClick = (name: string, path: string, type: string) => {
+    console.log(parentDir);
     if (!isMenuVisible) {
       handleFileClick(name, getPath(), type)
     }
@@ -347,7 +351,7 @@ const DirectoryItem = ({ data, sendDataToParent }) => {
               sendDataToParent={sendDataToParent}
               data={content} />
           ) : (
-            <FileItem parentDir={data.name} key={content.id} content={content} handleFileClick={sendDataToParent} />
+            <FileItem parentDir={data.path} key={content.id} content={content} handleFileClick={sendDataToParent} />
           )
         ))}
       </ul>

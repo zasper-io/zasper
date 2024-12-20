@@ -215,8 +215,11 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 })
 
 const CellOutput = ({data}) => {
+  if(!data){
+    return <> </>
+  }
   if ('outputs' in data) {
-    if (data.outputs !== null) {
+    if (data.outputs !== null && data.outputs.length > 0) {
       if (data.outputs[0].hasOwnProperty('text')) {
         
         if (data.outputs[0].text) {
@@ -227,9 +230,9 @@ const CellOutput = ({data}) => {
       if (data.outputs[0].hasOwnProperty('text/plain')) {
           return <pre>{data.outputs[0]['text/plain']}</pre>
       }
-      if (data.outputs[0].hasOwnProperty('data')) {
+      if (data.outputs[0].hasOwnProperty('data') && data.outputs[0].data) {
         if (data.outputs[0].data.hasOwnProperty('text/html')) {
-
+          return <> </>
         }
         if (data.outputs[0].data.hasOwnProperty('image/png')) {
           const blob = 'data:image/png;base64,' + (data.outputs[0].data['image/png'])
@@ -249,8 +252,6 @@ const CellOutput = ({data}) => {
           )
         }
       }
-      
-      return <pre>{data.outputs[0]}</pre>
     }
 
     return <p>{JSON.stringify(data.outputs)}</p>

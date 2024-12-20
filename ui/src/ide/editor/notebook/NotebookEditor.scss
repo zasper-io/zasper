@@ -54,6 +54,9 @@
     .single-line {
         gap: 8px;
         padding: 10px;
+        min-height: 35px;
+        margin: 6px;
+        background: #f8f8f8;
     }
 
     .single-line .inner-content {
