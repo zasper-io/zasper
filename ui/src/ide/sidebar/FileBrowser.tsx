@@ -4,9 +4,11 @@ import ContextMenu from './ContextMenu';
 import getFileExtension from '../utils';
 import { useAtom } from 'jotai';
 import { userNameAtom } from '../../store/AppState';
+import { v4 as uuidv4 } from 'uuid';
 
 
 interface IContent {
+  id: string;
   type: string;
   path: string;
   name: string;
@@ -30,13 +32,16 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
       body: JSON.stringify({ path: cwd }),
     });
     const resJson = await res.json();
+    resJson.content.forEach((item) => {
+        item.id = uuidv4(); 
+    });
     setContents(resJson.content);
 
     const res2 = await fetch(BaseApiUrl + '/api/info');
     const resJson2 = await res2.json();
     setProjectName(resJson2.project.toUpperCase());
     setUserName(resJson2.username)
-    
+
   };
 
   const handleFileClick = (name: string, path: string, type: string) => {
@@ -46,7 +51,7 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
   const createNewFile = async () => {
     await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
-      body: JSON.stringify({ ext: '.py', type: 'file' }),
+      body: JSON.stringify({ parent_dir: "", ext: '.py', type: 'file' }),
     });
     FetchData();
   };
@@ -88,13 +93,14 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
             {contents.map((content, index) => (
               content.type === 'directory' ? (
                 <DirectoryItem
-                  key={content.name}
+                  key={content.id}
                   data={content}
                   sendDataToParent={sendDataToParent}
                 />
               ) : (
                 <FileItem
-                  key={content.name}
+                  parentDir={cwd}
+                  key={content.id}
                   content={content}
                   handleFileClick={handleFileClick}
                 />
@@ -107,37 +113,13 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
   );
 }
 
-const FileItem = ({ content, handleFileClick }: { content: IContent; 
-                    handleFileClick: (name: string, path: string, type: string) => void , 
-                    }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [text, setText] = useState(content.name);
-  const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
-  const [isMenuVisible, setIsMenuVisible] = useState(false);
-
-  const renameContent = async () => {
-    setIsEditing(false)
-    await fetch(BaseApiUrl + '/api/contents/rename', {
-      method: 'POST',
-      body: JSON.stringify({ old_path: content.name, new_path: text }),
-    });
-  };
-
-  const menuItems = [
-    { 
-      label: 'Rename', 
-      action: (path: string) => { 
-        // e.stopPropagation(); // Stop the click event from propagating
-        setIsEditing(true);
-        
-      } 
-    },
-    // { label: 'Delete', action: async () => await deleteFile(data.path) }
-  ];
-  
-
-  const getIconToLoad = () => {
-    const extension = getFileExtension(content.name);
+const FileItem = (
+  { parentDir, content, handleFileClick }: {
+    parentDir: string; content: IContent;
+    handleFileClick: (name: string, path: string, type: string) => void,
+  }) => {
+  const getIconToLoad = (fileName) => {
+    const extension = getFileExtension(fileName);
     const iconMap: { [key: string]: string } = {
       go: './images/editor/go-icon.svg',
       mod: './images/editor/go-icon.svg',
@@ -161,6 +143,52 @@ const FileItem = ({ content, handleFileClick }: { content: IContent;
     };
     return extension != null ? iconMap[extension] : './images/editor/go-icon.svg';
   };
+  const [isEditing, setIsEditing] = useState(false);
+  const [contentName, setContentName] = useState(content.name);
+  const [text, setText] = useState(content.name);
+  const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [icon, setIcon] = useState(getIconToLoad(content.name))
+  const [isDeleted, setIsDeleted] = useState(false)
+
+  const renameContent = async () => {
+    setIsEditing(false)
+    await fetch(BaseApiUrl + '/api/contents/rename', {
+      method: 'POST',
+      body: JSON.stringify({ parent_dir: parentDir, old_name: contentName, new_name: text }),
+    });
+    setContentName(text)
+    setIcon(getIconToLoad(text))
+  };
+
+  const deleteContent = async () => {
+    await fetch(BaseApiUrl + '/api/contents', {
+      method: 'DELETE',
+      body: JSON.stringify({ path: getPath() }),
+    });
+    setIsDeleted(true)
+  };
+
+  const menuItems = [
+    {
+      label: 'Rename',
+      action: (path: string) => {
+        // e.stopPropagation(); // Stop the click event from propagating
+        setIsEditing(true);
+      }
+    },
+    {
+      label: 'Delete',
+      action: (path: string) => {
+        // e.stopPropagation(); // Stop the click event from propagating
+        deleteContent()
+
+      }
+    },
+  ];
+
+
+
 
   const handleRightClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -168,19 +196,31 @@ const FileItem = ({ content, handleFileClick }: { content: IContent;
     setIsMenuVisible(true);
   };
 
-  const handleClick = (name: string, path: string, type:string) => {
-    if (!isMenuVisible) {
-      handleFileClick(name, path, type)
+  const getPath = () =>{
+    if (parentDir === ""){
+      return text
+    }else{
+      return parentDir + "/" + text
     }
+  }
+
+  const handleClick = (name: string, path: string, type: string) => {
+    if (!isMenuVisible) {
+      handleFileClick(name, getPath(), type)
+    }
+  }
+
+  if (isDeleted){
+    return <></>
   }
 
   return (
     <li className='fileItem'>
       <a
-        onClick={() => handleClick(content.name, content.path, content.type)}
+        onClick={() => handleClick(text, content.path, content.type)}
         onContextMenu={(e) => handleRightClick(e, content.path)}
       >
-        <img src={getIconToLoad()} alt='' />
+        <img src={icon} alt='' />
         {isEditing ? (
           <input
             type='text'
@@ -194,20 +234,20 @@ const FileItem = ({ content, handleFileClick }: { content: IContent;
           <span>{text}</span>
         )}
         {isMenuVisible && menuPosition && (
-        <ContextMenu
-          xPos={menuPosition.xPos}
-          yPos={menuPosition.yPos}
-          items={menuItems}
-          path={content.path}
-          onClose={() => setIsMenuVisible(false)}
-        />
-      )}
+          <ContextMenu
+            xPos={menuPosition.xPos}
+            yPos={menuPosition.yPos}
+            items={menuItems}
+            path={content.path}
+            onClose={() => setIsMenuVisible(false)}
+          />
+        )}
       </a>
     </li>
   );
 };
 
-const DirectoryItem = ({data, sendDataToParent }) => {
+const DirectoryItem = ({ data, sendDataToParent }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(data)
   const [text, setText] = useState(data.name);
@@ -223,12 +263,35 @@ const DirectoryItem = ({data, sendDataToParent }) => {
       body: JSON.stringify({ path }),
     });
     const resJson = await res.json();
+    resJson.content.forEach((item) => {
+        item.id = uuidv4(); 
+    });
+    setContent(resJson)
+  };
+
+  const createNewFile = async (path: string) => {
+    console.log("add file")
+    await fetch(BaseApiUrl + '/api/contents/create', {
+      method: 'POST',
+      body: JSON.stringify({ parent_dir: path, ext: '.py', type: 'file' }),
+    });
+
+    const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
+      method: 'POST',
+      body: JSON.stringify({ path }),
+    });
+    const resJson = await res.json();
+    resJson.content.forEach((item) => {
+      item.id = uuidv4(); 
+    });
     setContent(resJson)
   };
 
   const menuItems = [
     { label: 'Rename', action: () => setIsEditing(true) },
-    // { label: 'Delete', action: async () => await deleteFile(data.path) }
+    { label: 'Add file', action: (path: string) => createNewFile(path) },
+    { label: 'Add Notebook', action: (path: string) => console.log("add notebook") },
+    { label: 'Add directory', action: (path: string) => console.log("add directory" + path) }
   ];
 
   const handleRightClick = (e: React.MouseEvent, path: string) => {
@@ -263,17 +326,17 @@ const DirectoryItem = ({data, sendDataToParent }) => {
           onClose={() => setIsMenuVisible(false)}
         />
       )}
-        <ul className='file-list list-unstyled'>
-          {isCollapsed && content.content !== null &&  content.content.map((content, index) => (
-            content.type === 'directory' ? (
-              <DirectoryItem key={content.name} 
-                              sendDataToParent={sendDataToParent}
-                              data={content} />
-            ) : (
-              <FileItem key={content.name} content={content} handleFileClick={sendDataToParent}/>
-            )
-          ))}
-        </ul>
+      <ul className='file-list list-unstyled'>
+        {isCollapsed && content.content !== null && content.content.map((content, index) => (
+          content.type === 'directory' ? (
+            <DirectoryItem key={content.id}
+              sendDataToParent={sendDataToParent}
+              data={content} />
+          ) : (
+            <FileItem parentDir={data.name} key={content.id} content={content} handleFileClick={sendDataToParent} />
+          )
+        ))}
+      </ul>
     </li>
   );
 };

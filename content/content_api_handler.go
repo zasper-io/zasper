@@ -103,6 +103,7 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var contentPayload ContentPayload
 	_ = json.NewDecoder(req.Body).Decode(&contentPayload)
+
 	data := createContent(contentPayload)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -114,10 +115,10 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var renameContentPayload RenameContentPayload
 	_ = json.NewDecoder(req.Body).Decode(&renameContentPayload)
 
-	oldPath := renameContentPayload.OldPath
-	log.Info().Msgf("old path : %s", oldPath)
+	oldName := renameContentPayload.OldName
+	log.Info().Msgf("old path : %s", oldName)
 
-	rename(oldPath, renameContentPayload.Path)
+	rename(renameContentPayload.ParentDir, oldName, renameContentPayload.NewName)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

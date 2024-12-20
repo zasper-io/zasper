@@ -200,19 +200,19 @@ func createContent(payload ContentPayload) models.ContentModel {
 	if payload.Extension == ".ipynb" {
 		model.ContentType = "notebook"
 		filename := "untitled.ipynb"
-		model.Path = GetOSPath(filename)
+		model.Path = GetOSPath(payload.ParentDir + "/" + filename)
 		model.Name = filename
 		newUntitledFile(model)
 	} else if payload.ContentType == "directory" {
 		model.ContentType = "directory"
 		filename := "untitled_directory"
-		model.Path = GetOSPath(filename)
+		model.Path = GetOSPath(payload.ParentDir + "/" + filename)
 		model.Name = filename
 		CreateDirectory(model.Path)
 	} else {
 		model.ContentType = "file"
 		filename := "untitled.txt"
-		model.Path = GetOSPath(filename)
+		model.Path = GetOSPath(payload.ParentDir + "/" + filename)
 		model.Name = filename
 		newUntitledNotebook(model)
 	}
@@ -260,10 +260,10 @@ func CreateDirectory(dirPath string) error {
 	return nil
 }
 
-func rename(oldName, newName string) error {
-	err := os.Rename(GetOSPath(oldName), GetOSPath(newName))
+func rename(parentDir, oldName, newName string) error {
+	err := os.Rename(GetOSPath(parentDir+"/"+oldName), GetOSPath(parentDir+"/"+newName))
 	if err != nil {
-		return err
+		log.Info().Msgf("error is %s", err)
 	}
 	return nil
 }

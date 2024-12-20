@@ -8,11 +8,13 @@ type (
 	ContentPayload struct {
 		Extension   string `json:"ext"`
 		ContentType string `json:"type"`
+		ParentDir   string `json:"parent_dir"`
 	}
 
 	RenameContentPayload struct {
-		OldPath string `json:"old_path"`
-		Path    string `json:"path"`
+		ParentDir string `json:"parent_dir"`
+		OldName   string `json:"old_name"`
+		NewName   string `json:"new_name"`
 	}
 
 	ContentUpdateRequest struct {
