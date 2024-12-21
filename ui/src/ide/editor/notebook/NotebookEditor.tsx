@@ -161,6 +161,21 @@ export default function NotebookEditor(props) {
     if(message.hasOwnProperty('execution_state')){
       setKernelStatus(message.execution_state)
     }
+
+    if (message.hasOwnProperty('execution_count')) {
+      setNotebook((prevNotebook) => {
+        const updatedCells = prevNotebook.cells.map((cell) => {
+          if (cell.id === message.msg_id) {
+            const updatedCell = { ...cell };
+            updatedCell.execution_count = message.execution_count;
+            return updatedCell;
+          }
+          return cell;
+        });
+
+        return { ...prevNotebook, cells: updatedCells };
+      });
+    }
     if (message.hasOwnProperty('traceback')) {
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
@@ -174,7 +189,6 @@ export default function NotebookEditor(props) {
                 traceback: message.traceback
               }];
             }
-            updatedCell.execution_count = message.execution_count;
             return updatedCell;
           }
           return cell;
@@ -195,7 +209,6 @@ export default function NotebookEditor(props) {
             if (message.hasOwnProperty('traceback')) {
               updatedCell.outputs = [message.traceback];
             }
-            updatedCell.execution_count = message.execution_count;
             return updatedCell;
           }
           return cell;
@@ -215,7 +228,6 @@ export default function NotebookEditor(props) {
               const cleanedArray = removeAnsiCodes(traceback);
               updatedCell.outputs = [{"text": cleanedArray}];
             }
-            updatedCell.execution_count = message.execution_count;
             return updatedCell;
           }
           return cell;
