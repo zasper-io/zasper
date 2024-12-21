@@ -29,7 +29,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
   
   const menuItems = [
     { label: 'Open Project', action: handleSelectDirectory },
-    { label: 'Edit', action: () => alert('Edit') }
   ];
 
   // Handle the right-click event to show context menu

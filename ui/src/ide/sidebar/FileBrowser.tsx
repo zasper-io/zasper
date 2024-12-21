@@ -127,7 +127,7 @@ const FileItem = (
       mod: './images/editor/go-icon.svg',
       sum: './images/editor/go-icon.svg',
       py: './images/editor/py-icon.svg',
-      ipynb: './images/editor/py-icon.svg',
+      ipynb: './images/editor/jupyter-icon.svg',
       java: './images/editor/java-icon.svg',
       class: './images/editor/java-icon.svg',
       js: './images/editor/js-icon.svg',

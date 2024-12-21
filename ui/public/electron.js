@@ -7,6 +7,7 @@ const http = require("http");
 
 var log = require("electron-log");
 
+const apiPort = 8048;
 var apiProcess;
 var mainWindow;
 var welcomeScreen;
@@ -51,7 +52,6 @@ const startApiServer = (directory) => {
 };
 
 const startApp = () => {
-  const apiPort = 8888;
   welcomeScreen = new BrowserWindow({
     width: 1050,
     height: 700,
@@ -118,7 +118,6 @@ ipcMain.handle("dialog:openDirectory", async () => {
 });
 
 ipcMain.handle("runCommand", async (event, directory) => {
-  const apiPort = 8888;
   if (apiProcess) {
     apiProcess.kill();
     mainWindow.close();

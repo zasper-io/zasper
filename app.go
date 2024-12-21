@@ -55,7 +55,7 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	cwd := flag.String("cwd", ".", "base directory of project")
-	port := flag.String("port", ":8888", "port to start the server on")
+	port := flag.String("port", ":8048", "port to start the server on")
 
 	flag.Parse()
 
@@ -112,8 +112,6 @@ func main() {
 	apiRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)
 	apiRouter.HandleFunc("/terminals/{terminalId}", websocket.HandleTerminalWebSocket)
 
-	glog.Print("Zasper Server started! Listening on port", *port)
-
 	//cors optionsGoes Below
 	corsOpts := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"}, //you service is available and allowed for this base url
@@ -146,6 +144,10 @@ func main() {
 ███████╗██║  ██║███████║██║     ███████╗██║  ██║
 ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝                  
 	`)
+
+	glog.Println("Zasper Server started! Listening on port", *port)
+	url := "http://localhost" + *port
+	glog.Printf("Visit Zasper webapp on %s", url)
 
 	go func() {
 		if err := http.ListenAndServe(*port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {

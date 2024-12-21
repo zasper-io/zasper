@@ -11,14 +11,14 @@ export default function GitPanel({ sendDataToParent, display }) {
         <div className='content-head'>
           <div>SOURCE CONTROL</div>
         </div>
-        <GitCommit />
+        <GitCommit display={display}/>
         <CommitGraphContainer />
       </div>
     </div>
   )
 }
 
-function GitCommit() {
+function GitCommit( {display} ) {
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [commitMessage, setCommitMessage] = useState<string>('');
@@ -40,7 +40,7 @@ function GitCommit() {
   useEffect(() => {
     // Initial fetch when component mounts
     fetchFiles();
-  }, []);
+  }, [display]);
 
   const handleCheckboxChange = (file: string) => {
     setSelectedFiles((prevSelectedFiles) => {
