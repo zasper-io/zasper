@@ -128,6 +128,8 @@ const FileItem = (
       sum: './images/editor/go-icon.svg',
       py: './images/editor/py-icon.svg',
       ipynb: './images/editor/py-icon.svg',
+      java: './images/editor/java-icon.svg',
+      class: './images/editor/java-icon.svg',
       js: './images/editor/js-icon.svg',
       json: './images/editor/json-icon.svg',
       png: './images/editor/image-icon.svg',
@@ -144,7 +146,8 @@ const FileItem = (
       txt: './images/editor/txt-icon.svg',
       gitignore: './images/editor/git-icon.svg',
     };
-    return extension != null ? iconMap[extension] : './images/editor/go-icon.svg';
+    const icon = extension != null ? iconMap[extension] : './images/editor/unknown-file-icon.svg';
+    return icon!= null ? icon : './images/editor/unknown-file-icon.svg';
   };
   const [isEditing, setIsEditing] = useState(false);
   const [contentName, setContentName] = useState(content.name);

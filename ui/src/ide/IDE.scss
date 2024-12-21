@@ -85,6 +85,8 @@ a {
     .projectName{
         background-color: #553b9e;
     }
+    
+
 }
 
 $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
@@ -169,6 +171,17 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     }
     .projectName{
         background-color: #3f3855;
+    }
+    .LauncherArea {
+        color: #ffffff;
+    }
+
+    .editor-body .single-line {
+        background: #343434;
+    }
+
+    .serial-no {
+        color: #ffffff;
     }
 }
 
