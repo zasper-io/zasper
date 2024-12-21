@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./screenshots/logo.svg" alt="Zasper">
+  <img src="./logo.svg" alt="Zasper">
 </p>
 <p align="center">
     ⚡ High Performance IDE 🚀 Powered by AI 🐥  Inspired by Jupyter
@@ -38,25 +38,27 @@ Hence the Go version of Zasper was born! Currently Zasper is supported on Linux 
 ## 📷 Screenshots
 
 ### Editor
-![Editor](./screenshots/editor.png)
+![Editor](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main//editor.png)
 
 ### Terminal
-![Editor](./screenshots/terminal.png)
+![Editor](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/terminal.png)
 
 ### Launcher
-![Launcher](./screenshots/launcher.png) 
+![Launcher](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/launcher.png) 
 
 ### Jupyter Notebook
-![Notebook](./screenshots/notebook.png) 
+![Notebook](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/notebook.png) 
 
 ### Version Control
-![Version Control](./screenshots/git.png) 
+![Version Control](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/git.png) 
 
 ### Command Palette
-![Command Palette](./screenshots/commandPalette.png)
+![Command Palette](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/commandPalette.png)
 
 ### Dark Mode
-![Dark mode](./screenshots/dark.png) 
+![Dark mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/dark.png) 
+
+![Dark Notebook mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/darkNotebook.png) 
 
 ## ⚡️ Quick start
 
