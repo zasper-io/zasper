@@ -52,13 +52,18 @@ func IsJSON(data []byte) bool {
 
 func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, binary bool
 	iopub_channel := kwsConn.Channels["iopub"]
+	shell_channel := kwsConn.Channels["shell"]
 
 	poller := zmq4.NewPoller()
 	poller.Add(iopub_channel, zmq4.POLLIN)
+	poller.Add(shell_channel, zmq4.POLLIN)
 
 	// Create a variable to accumulate JSON data
 	var jsonResponse map[string]interface{}
 	jsonResponse = make(map[string]interface{})
+
+	var jsonResponseShell map[string]interface{}
+	jsonResponseShell = make(map[string]interface{})
 
 	for {
 		// Poll the sockets with a timeout of 1 second
@@ -67,8 +72,11 @@ func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, bi
 			log.Info().Msgf("%s", err)
 		}
 
-		// Check which sockets have events
 		for _, socket := range sockets {
+			if socket.Socket == nil {
+				continue
+			}
+			log.Debug().Msgf("Polling .....")
 			switch s := socket.Socket; s {
 
 			case iopub_channel:
@@ -87,6 +95,7 @@ func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, bi
 
 				} else {
 					if len(jsonResponse) > 0 {
+						jsonResponse["channel"] = "iopub"
 						jsonData, err := json.Marshal(jsonResponse)
 						if err != nil {
 							log.Info().Msgf("Error marshaling JSON: %s", err)
@@ -94,6 +103,33 @@ func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, bi
 						}
 						kwsConn.Send <- []byte(jsonData)
 						jsonResponse = make(map[string]interface{})
+					}
+
+				}
+			case shell_channel:
+				msg, _ := s.Recv(0)
+				if IsJSON([]byte(msg)) {
+					var msgData map[string]interface{}
+					err := json.Unmarshal([]byte(msg), &msgData)
+					if err != nil {
+						log.Info().Msgf("Error unmarshaling JSON message: %s", err)
+						continue
+					}
+
+					for key, value := range msgData {
+						jsonResponseShell[key] = value
+					}
+
+				} else {
+					if len(jsonResponse) > 0 {
+						jsonResponse["channel"] = "shell"
+						jsonData, err := json.Marshal(jsonResponse)
+						if err != nil {
+							log.Info().Msgf("Error marshaling JSON: %s", err)
+							continue
+						}
+						kwsConn.Send <- []byte(jsonData)
+						jsonResponseShell = make(map[string]interface{})
 					}
 
 				}

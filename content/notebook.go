@@ -68,6 +68,9 @@ func rejoinLines(nb Notebook) OutNotebook {
 					OutputType:     output.OutputType,
 					ExecutionCount: output.ExecutionCount,
 					Metadata:       output.Metadata,
+					Ename:          output.Ename,
+					Evalue:         output.Evalue,
+					Traceback:      output.Traceback,
 				}
 				switch output.OutputType {
 				case "execute_result", "display_data":
@@ -139,6 +142,9 @@ func splitLines(outNb OutNotebook) Notebook {
 				Data:           map[string]interface{}{"text": out.Data},
 				Text:           []interface{}{out.Text},
 				Metadata:       out.Metadata,
+				// Ename:          out.Metadata["ename"].(string),
+				// Evalue:         out.Metadata["evalue"].(string),
+				// Traceback:      toStringSlice(out.Metadata["traceback"].([]interface{})),
 			}
 		}
 
@@ -226,6 +232,10 @@ type Output struct {
 	Data           map[string]interface{} `json:"data"`
 	Text           []interface{}          `json:"text"`
 	Metadata       map[string]interface{} `json:"metadata"`
+	// in case of error traceback
+	Ename     string   `json:"ename"`
+	Evalue    string   `json:"evalue"`
+	Traceback []string `json:"traceback"`
 }
 
 type OutOutput struct {
@@ -234,4 +244,8 @@ type OutOutput struct {
 	Data           map[string]string      `json:"data"`
 	Text           string                 `json:"text"`
 	Metadata       map[string]interface{} `json:"metadata"`
+	// in case of error traceback
+	Ename     string   `json:"ename"`
+	Evalue    string   `json:"evalue"`
+	Traceback []string `json:"traceback"`
 }

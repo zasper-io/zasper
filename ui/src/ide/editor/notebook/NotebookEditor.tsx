@@ -167,9 +167,12 @@ export default function NotebookEditor(props) {
           if (cell.id === message.msg_id) {
             const updatedCell = { ...cell };
             if (message.hasOwnProperty('traceback')) {
-              var traceback = message.traceback
-              const cleanedArray = traceback.map(removeAnsiCodes);
-              updatedCell.outputs = [cleanedArray.join('\n')];
+              updatedCell.outputs = [{
+                output_type: 'error',
+                ename: message.ename,
+                evalue: message.evalue,
+                traceback: message.traceback
+              }];
             }
             updatedCell.execution_count = message.execution_count;
             return updatedCell;
@@ -208,10 +211,9 @@ export default function NotebookEditor(props) {
           if (cell.id === message.msg_id) {
             const updatedCell = { ...cell };
             if (message.hasOwnProperty('text')) {
-              updatedCell.outputs = [{"text": message.text}];
-            }
-            if (message.hasOwnProperty('traceback')) {
-              updatedCell.outputs = [message.traceback];
+              var traceback = message.text
+              const cleanedArray = removeAnsiCodes(traceback);
+              updatedCell.outputs = [{"text": cleanedArray}];
             }
             updatedCell.execution_count = message.execution_count;
             return updatedCell;

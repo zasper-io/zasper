@@ -214,50 +214,73 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
   )
 })
 
-const CellOutput = ({data}) => {
-  if(!data){
-    return <> </>
+const CellOutput = ({ data }) => {
+  if (!data) {
+    return null;
   }
-  if ('outputs' in data) {
-    if (data.outputs !== null && data.outputs.length > 0) {
-      if (data.outputs[0].hasOwnProperty('text')) {
-        
-        if (data.outputs[0].text) {
-          const datax = ""+data.outputs[0].text
-          return <pre> {datax}</pre>
-        }
-      }
-      if (data.outputs[0].hasOwnProperty('text/plain')) {
-          return <pre>{data.outputs[0]['text/plain']}</pre>
-      }
-      if (data.outputs[0].hasOwnProperty('data') && data.outputs[0].data) {
-        if (data.outputs[0].data.hasOwnProperty('text/html')) {
-          return <> </>
-        }
-        if (data.outputs[0].data.hasOwnProperty('image/png')) {
-          const blob = 'data:image/png;base64,' + (data.outputs[0].data['image/png'])
-          return (
-            <div>
-              <img src={blob} alt="image" />
-            </div>
-          )
-        }
-        if (data.outputs[0].data.hasOwnProperty('text/plain')) {
-          return (
 
-            <div>
-              <pre>{data.outputs[0].data['text/plain']}</pre>
-              <div dangerouslySetInnerHTML={{ __html: data.outputs[0].data['text/html'] }} />
-            </div>
-          )
-        }
+  const { outputs } = data;
+  if (outputs && outputs.length > 0) {
+    const output = outputs[0];
+
+    if (output.output_type === 'error') {
+      const { ename, evalue, traceback } = output;
+
+      // Clean up the traceback by removing ANSI escape codes
+      const cleanTraceback = traceback
+        ? traceback.map(line => line.replace(/\u001b\[[0-9;]*m/g, ''))
+        : [];
+
+      return (
+        <div style={{ color: 'red' }}>
+          <h6>{ename}: {evalue}</h6>
+          <pre>{cleanTraceback.join('\n')}</pre>
+        </div>
+      );
+    }
+
+    const { text, 'text/plain': textPlain, data } = output;
+
+    if (text) {
+      return <pre>{String(text.replace(/\u001b\[[0-9;]*m/g, ''))}</pre>;
+    }
+
+    if (textPlain) {
+      return <pre>{textPlain}</pre>;
+    }
+
+    if (data) {
+      const { 'text/html': htmlContent, 'image/png': imageContent, 'text/plain': textPlainData } = data;
+
+      if (htmlContent) {
+        return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
+      }
+
+      if (imageContent) {
+        const blob = `data:image/png;base64,${imageContent}`;
+        return (
+          <div>
+            <img src={blob} alt="image" />
+          </div>
+        );
+      }
+
+      if (textPlainData) {
+        return (
+          <div>
+            <pre>{textPlainData}</pre>
+          </div>
+        );
       }
     }
 
-    return <p>{JSON.stringify(data.outputs)}</p>
+    return <p>{JSON.stringify(output)}</p>;
   }
-  return <></>
-}
+
+  return null; 
+};
+
+
 
 
 export default Cell;
