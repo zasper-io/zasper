@@ -489,6 +489,7 @@ export default function NotebookEditor(props) {
           kernelName={kernelName}
           kernelStatus={kernelStatus}
           changeCellType={changeCellType}
+          startWebSocket={startWebSocket}
         />
         {debugMode && (
           <div>

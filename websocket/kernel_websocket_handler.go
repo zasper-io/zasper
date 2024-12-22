@@ -110,10 +110,12 @@ func (kwsConn *KernelWebSocketConnection) writeMessages() {
 			kwsConn.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 			return
 		}
+		kwsConn.mu.Lock()
 		if err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 			log.Info().Msgf("Error writing message: %s", err)
 			return
 		}
+		kwsConn.mu.Unlock()
 	}
 }
 

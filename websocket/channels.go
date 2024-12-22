@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -38,6 +39,7 @@ type KernelWebSocketConnection struct {
 	IOPubWindowByteQueue []interface{}
 	KernelInfoChannel    zmq4.Socket
 	Subprotocol          string
+	mu                   sync.Mutex
 }
 
 func (kwsConn *KernelWebSocketConnection) getAllowedMessageTypes() []string {
@@ -76,11 +78,11 @@ func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, bi
 			if socket.Socket == nil {
 				continue
 			}
-			log.Debug().Msgf("Polling .....")
 			switch s := socket.Socket; s {
 
 			case iopub_channel:
 				msg, _ := s.Recv(0)
+				log.Info().Msgf("Received from IoPub socket: %s\n", msg)
 				if IsJSON([]byte(msg)) {
 					var msgData map[string]interface{}
 					err := json.Unmarshal([]byte(msg), &msgData)
@@ -91,6 +93,17 @@ func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, bi
 
 					for key, value := range msgData {
 						jsonResponse[key] = value
+					}
+
+					if _, ok := jsonResponse["execution_state"]; ok {
+						jsonResponse["channel"] = "iopub"
+						jsonData, err := json.Marshal(jsonResponse)
+						if err != nil {
+							log.Info().Msgf("Error marshaling JSON: %s", err)
+							continue
+						}
+						kwsConn.Send <- []byte(jsonData)
+						jsonResponse = make(map[string]interface{})
 					}
 
 				} else {

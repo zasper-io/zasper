@@ -125,3 +125,46 @@
     border-radius: 2px;
 }
 
+.kernelStatus{
+    display: inline-block;
+    height: 22px;
+    width: 22px;
+    border-radius: 11px;
+    border: 1px solid #1f1f1f;
+    -webkit-box-shadow: 3px 3px 10px 3px #dddddd;
+    -moz-box-shadow: 3px 3px 10px 3px #dddddd;
+    box-shadow: 3px 3px 10px 3px #dddddd;
+    margin-right: 20px;
+}
+
+
+.ks-idle{
+    background-color: rgb(19, 149, 19);
+}
+
+.ks-busy{
+    background-color: rgb(251, 54, 54);
+}
+
+.ks-connected{
+    background-color:  rgb(19, 149, 19);
+}
+
+.reconnectButton{
+    border: none;
+    width: 22px;
+    height: 22px;
+    -webkit-box-shadow: 3px 3px 10px 3px #dddddd;
+    -moz-box-shadow: 3px 3px 10px 3px #dddddd;
+    box-shadow: 3px 3px 10px 3px #dddddd;
+    border-radius: 10px;
+    padding: 0;
+    padding-inline: 0;
+    padding-block: 0;
+}
+
+.reconnectButton img{
+    width: 22px;
+    height: 22px;
+    margin-top: -10px;
+}

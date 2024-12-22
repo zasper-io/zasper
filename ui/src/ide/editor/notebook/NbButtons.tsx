@@ -25,7 +25,10 @@ function NbButtons(props){
             ))}
         </select>
         <div className='ms-auto'>{props.kernelName}</div>
-        <div className="kStatus">{props.kernelStatus}</div>
+        <div className="kStatus">
+          <span className={`kernelStatus ks-${props.kernelStatus}`}></span>
+          <button className="reconnectButton" onClick={props.startWebSocket}><img src='./images/editor/reconnect-icon.svg' title='Reconnect Kernel'></img></button>
+        </div>
       </div>
     )
   }
