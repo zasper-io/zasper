@@ -72,8 +72,7 @@ func getNotebookModel(path string) models.ContentModel {
 	return output
 }
 
-func nbformatReads(data string, version int, capture_validation_error bool) OutNotebook {
-	// output := make(map[string]interface{})
+func nbformatReads(data string, version int, capture_validation_error bool) NotebookStore {
 	var nb Notebook
 	_ = json.Unmarshal([]byte(data), &nb)
 	output := parseNotebook(nb)
@@ -344,7 +343,7 @@ func GetOSPath(path string) string {
 }
 
 func UpdateNbContent(path, ftype, format string, content interface{}) error {
-	var nb OutNotebook
+	var nb NotebookStore
 	log.Info().Msgf("Updating notebook content for path: %s", path)
 
 	// Convert content to JSON if it's a string or []byte, otherwise directly marshal it

@@ -10,7 +10,7 @@ func _isJSONMime(mime string) bool {
 	return mime == "application/json" || (strings.HasPrefix(mime, "application/") && strings.HasSuffix(mime, "+json"))
 }
 
-func parseNotebook(nb Notebook) OutNotebook {
+func parseNotebook(nb Notebook) NotebookStore {
 	outNb := rejoinLines(nb)
 	stripTransient(&nb)
 	return outNb
@@ -45,26 +45,23 @@ func _rejoinMimeBundle(data map[string]interface{}) map[string]string {
 }
 
 // rejoinLines rejoins multi-line text into strings.
-func rejoinLines(nb Notebook) OutNotebook {
-	outNb := OutNotebook{
+func rejoinLines(nb Notebook) NotebookStore {
+	outNb := NotebookStore{
 		Metadata: nb.Metadata,
 	}
 	for _, cell := range nb.Cells {
 		data := ""
 		attachmentData := make(map[string]string)
-		var outputData []OutOutput
+		var outputData []OutputStore
 		if cell.Source != nil {
-			sourceList := toStringSlice(cell.Source)
-			data = strings.Join(sourceList, "")
+			data = strings.Join(cell.Source, "")
 		}
 
-		for _, attachment := range cell.Attachments {
-			attachmentData = _rejoinMimeBundle(attachment)
-		}
+		attachmentData = _rejoinMimeBundle(cell.Attachments)
 
 		if cell.CellType == "code" {
 			for _, output := range cell.Outputs {
-				x := OutOutput{
+				x := OutputStore{
 					OutputType:     output.OutputType,
 					ExecutionCount: output.ExecutionCount,
 					Metadata:       output.Metadata,
@@ -85,7 +82,7 @@ func rejoinLines(nb Notebook) OutNotebook {
 			}
 		}
 		outNb.Cells = append(outNb.Cells,
-			OutCell{Source: data,
+			CellStore{Source: data,
 				CellType:       cell.CellType,
 				ExecutionCount: cell.ExecutionCount,
 				Metadata:       cell.Metadata,
@@ -114,7 +111,7 @@ func _splitMimeBundle(data map[string]interface{}) map[string]interface{} {
 }
 
 // splitLines splits likely multi-line text into lists of strings.
-func splitLines(outNb OutNotebook) Notebook {
+func splitLines(outNb NotebookStore) Notebook {
 	nb := Notebook{
 		Cells:    []Cell{},
 		Metadata: outNb.Metadata,
@@ -122,15 +119,11 @@ func splitLines(outNb OutNotebook) Notebook {
 	for _, outCell := range outNb.Cells {
 		// Convert string slice to []interface{}
 		sourceLines := strings.SplitAfter(outCell.Source, "\n")
-		sourceInterface := make([]interface{}, len(sourceLines))
-		for i, v := range sourceLines {
-			sourceInterface[i] = v
-		}
 
 		// Convert attachments map
-		attachments := make(map[string]map[string]interface{})
+		attachments := make(map[string]interface{})
 		for k, v := range outCell.Attachments {
-			attachments[k] = map[string]interface{}{"data": v}
+			attachments[k] = map[string]string{"data": v}
 		}
 
 		// Convert outputs
@@ -142,14 +135,14 @@ func splitLines(outNb OutNotebook) Notebook {
 				Data:           map[string]interface{}{"text": out.Data},
 				Text:           []interface{}{out.Text},
 				Metadata:       out.Metadata,
-				// Ename:          out.Metadata["ename"].(string),
-				// Evalue:         out.Metadata["evalue"].(string),
-				// Traceback:      toStringSlice(out.Metadata["traceback"].([]interface{})),
+				Ename:          out.Ename,
+				Evalue:         out.Evalue,
+				Traceback:      out.Traceback,
 			}
 		}
 
 		nb.Cells = append(nb.Cells, Cell{
-			Source:         sourceInterface,
+			Source:         sourceLines,
 			CellType:       outCell.CellType,
 			ExecutionCount: outCell.ExecutionCount,
 			Attachments:    attachments,
@@ -201,27 +194,27 @@ type Notebook struct {
 }
 
 // Notebook struct for handling notebook cells
-type OutNotebook struct {
-	Cells    []OutCell              `json:"cells"`
+type NotebookStore struct {
+	Cells    []CellStore            `json:"cells"`
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
 // Cell struct for handling individual cells in a notebook
 type Cell struct {
-	Source         []interface{}                     `json:"source"`
-	ExecutionCount int                               `json:"execution_count"`
-	CellType       string                            `json:"cell_type"`
-	Attachments    map[string]map[string]interface{} `json:"attachments"`
-	Outputs        []Output                          `json:"outputs"`
-	Metadata       map[string]interface{}            `json:"metadata"`
+	Source         []string               `json:"source"`
+	ExecutionCount int                    `json:"execution_count"`
+	CellType       string                 `json:"cell_type"`
+	Attachments    map[string]interface{} `json:"attachments"`
+	Outputs        []Output               `json:"outputs"`
+	Metadata       map[string]interface{} `json:"metadata"`
 }
 
-type OutCell struct {
+type CellStore struct {
 	Source         string                 `json:"source"`
 	ExecutionCount int                    `json:"execution_count"`
 	CellType       string                 `json:"cell_type"`
 	Attachments    map[string]string      `json:"attachments"`
-	Outputs        []OutOutput            `json:"outputs"`
+	Outputs        []OutputStore          `json:"outputs"`
 	Metadata       map[string]interface{} `json:"metadata"`
 }
 
@@ -238,7 +231,7 @@ type Output struct {
 	Traceback []string `json:"traceback"`
 }
 
-type OutOutput struct {
+type OutputStore struct {
 	OutputType     string                 `json:"output_type"`
 	ExecutionCount int                    `json:"execution_count"`
 	Data           map[string]string      `json:"data"`
