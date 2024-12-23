@@ -72,8 +72,8 @@ func getNotebookModel(path string) models.ContentModel {
 	return output
 }
 
-func nbformatReads(data string, version int, capture_validation_error bool) NotebookStore {
-	var nb Notebook
+func nbformatReads(data string, version int, capture_validation_error bool) Notebook {
+	var nb NotebookDisk
 	_ = json.Unmarshal([]byte(data), &nb)
 	output := parseNotebook(nb)
 
@@ -343,7 +343,7 @@ func GetOSPath(path string) string {
 }
 
 func UpdateNbContent(path, ftype, format string, content interface{}) error {
-	var nb NotebookStore
+	var nb Notebook
 	log.Info().Msgf("Updating notebook content for path: %s", path)
 
 	// Convert content to JSON if it's a string or []byte, otherwise directly marshal it
@@ -373,7 +373,7 @@ func UpdateNbContent(path, ftype, format string, content interface{}) error {
 		return fmt.Errorf("failed to unmarshal content into notebook: %w", err)
 	}
 
-	newNb := splitLines(nb)
+	newNb := convertToNbDisk(nb)
 
 	// Marshal the notebook struct back into JSON (to save the updated notebook)
 	nbJSON, err := json.Marshal(newNb)
