@@ -376,7 +376,7 @@ func UpdateNbContent(path, ftype, format string, content interface{}) error {
 	newNb := convertToNbDisk(nb)
 
 	// Marshal the notebook struct back into JSON (to save the updated notebook)
-	nbJSON, err := json.Marshal(newNb)
+	nbJSON, err := json.MarshalIndent(newNb, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal notebook: %w", err)
 	}

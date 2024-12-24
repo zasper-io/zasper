@@ -204,7 +204,7 @@ export default function NotebookEditor(props) {
           if (cell.id === message.msg_id) {
             const updatedCell = { ...cell };
             if (message.hasOwnProperty('data')) {
-              updatedCell.outputs = [message.data];
+              updatedCell.outputs = [{data: message.data}];
             }
             if (message.hasOwnProperty('traceback')) {
               updatedCell.outputs = [message.traceback];

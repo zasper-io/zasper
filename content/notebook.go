@@ -33,6 +33,7 @@ func _rejoinMimeBundle(data map[string]interface{}) map[string]string {
 					joined := strings.Join(toStringSlice(valueList), "")
 					outData[key] = joined
 				}
+
 			} else {
 				outData[key] = fmt.Sprintf("%v", value)
 			}
@@ -77,6 +78,8 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 					if output.Text != nil {
 						x.Text = strings.Join(output.Text, "")
 					}
+				default:
+					x.Data = _rejoinMimeBundle(output.Data)
 				}
 				outputData = append(outputData, x)
 			}
@@ -94,20 +97,22 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 }
 
 // _splitMimeBundle splits multi-line string fields in a mimebundle.
-func _splitMimeBundle(data map[string]interface{}) map[string]interface{} {
+func _splitMimeBundle(data map[string]string) map[string]interface{} {
+	diskData := make(map[string]interface{})
 	nonTextSplitMimes := map[string]bool{
 		"application/javascript": true,
 		"image/svg+xml":          true,
 	}
 
 	for key, value := range data {
-		if str, ok := value.(string); ok {
-			if strings.HasPrefix(key, "text/") || nonTextSplitMimes[key] {
-				data[key] = strings.SplitAfter(str, "\n")
-			}
+		// if str, ok := value.(string); ok {
+		if strings.HasPrefix(key, "text/") || nonTextSplitMimes[key] {
+			diskData[key] = strings.SplitAfter(value, "\n")
 		}
+		// }
+		diskData[key] = value
 	}
-	return data
+	return diskData
 }
 
 // splitLines splits likely multi-line text into lists of strings.
@@ -132,7 +137,7 @@ func convertToNbDisk(nb Notebook) NotebookDisk {
 			outputsDisk[i] = OutputDisk{
 				OutputType:     out.OutputType,
 				ExecutionCount: out.ExecutionCount,
-				Data:           map[string]interface{}{"text": out.Data},
+				Data:           _splitMimeBundle(out.Data),
 				Text:           strings.SplitAfter(out.Text, "\n"),
 				Metadata:       out.Metadata,
 				Ename:          out.Ename,
