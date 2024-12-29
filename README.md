@@ -68,6 +68,10 @@ Hence the Go version of Zasper was born!
 
 ![Dark Notebook mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/darkNotebook.png) 
 
+## Architecture
+![alt text](./architecture.svg)
+
+
 ## ⚡️ Quick start
 
 Zasper comes in two flavours:
