@@ -18,9 +18,10 @@ interface IContent {
 interface FileBrowserProps {
   sendDataToParent: (name: string, path: string, type: string) => void;
   display: string;
+  reloadCount: number;
 }
 
-export default function FileBrowser({ sendDataToParent, display }: FileBrowserProps) {
+export default function FileBrowser({ sendDataToParent, display, reloadCount }: FileBrowserProps) {
   const [contents, setContents] = useState<IContent[]>([]);
   const [cwd] = useState<string>('');
   const [projectName, setProjectName] = useState('')
@@ -69,7 +70,7 @@ export default function FileBrowser({ sendDataToParent, display }: FileBrowserPr
 
   useEffect(() => {
     FetchData();
-  }, []);
+  }, [reloadCount]);
 
   return (
     <div className={display}>

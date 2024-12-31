@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '../config';
 import { atom, useAtom } from 'jotai';
-import { kernelspecsAtom, terminalsCountAtom, terminalsAtom } from '../../store/AppState';
+import { kernelspecsAtom, terminalsCountAtom, terminalsAtom, fileBrowserReloadCountAtom } from '../../store/AppState';
+import { v4 as uuidv4 } from 'uuid';
 
 
 
@@ -17,6 +18,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   const [kernelspecs, setKernelspecs] = useAtom(kernelspecsAtom);
   const [terminalCount, setTerminalCount] = useAtom(terminalsCountAtom);
   const [terminals, setTerminals] = useAtom(terminalsAtom)
+  const [reloadCount, setReloadCount] = useAtom(fileBrowserReloadCountAtom)
 
   // Fetch kernelspecs from the API
   const fetchData = async () => {
@@ -27,6 +29,19 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
     } catch (error) {
       console.error('Error fetching kernelspecs:', error);
     }
+  };
+
+  const createNewFile = async (path: string, contentType: string) => {
+    console.log("add file")
+    const res = await fetch(BaseApiUrl + '/api/contents/create', {
+      method: 'POST',
+      body: JSON.stringify({ parent_dir: path, type: contentType }),
+    });
+
+    const resJson = await res.json();
+    console.log(resJson)
+    sendDataToParent(resJson.name, resJson.path, 'notebook');
+    setReloadCount(reloadCount + 1);
   };
 
   // Handle opening a new terminal
@@ -55,7 +70,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
           <h2 className="font-h5 fontw-300">Notebook</h2>
           {Object.keys(kernelspecs).length > 0 ? (
             Object.keys(kernelspecs).map((key) => (
-              <div className="launcher-icon" key={key}>
+              <div className="launcher-icon" key={key} onClick={() => createNewFile('/', 'notebook')}>
                 <h6>{key}</h6>
                 <img src={kernelspecs[key].resources['logo-64x64']} alt="logo" />
               </div>

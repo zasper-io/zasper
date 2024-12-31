@@ -19,7 +19,7 @@ import StatusBar from './statusBar/StatusBar';
 import getFileExtension from './utils';
 
 import './IDE.scss'
-import { fontSizeAtom, languageModeAtom, terminalsAtom } from '../store/AppState';
+import { fileBrowserReloadCountAtom, fontSizeAtom, languageModeAtom, terminalsAtom } from '../store/AppState';
 
 interface Ifile {
   type: string
@@ -47,6 +47,7 @@ function IDE () {
   const [theme] = useAtom(themeAtom)
   const [languageMode, setLanguageMode] = useAtom(languageModeAtom)
   const [terminals, setTerminals] = useAtom(terminalsAtom)
+  const [reloadCount] = useAtom(fileBrowserReloadCountAtom)
 
   const defaultNavState: INavDict = {
     fileBrowser: { name: 'fileBrowser', display: 'd-block' },
@@ -175,7 +176,7 @@ function IDE () {
               <div className='navigation'>
                 <NavigationPanel handleNavigationPanel={handleNavigationPanel} />
                 <div className='sideBar'>
-                  <FileBrowser sendDataToParent={handleDataFromChild} display={navState.fileBrowser.display} />
+                  <FileBrowser sendDataToParent={handleDataFromChild} display={navState.fileBrowser.display} reloadCount={reloadCount} />
                   <SettingsPanel sendDataToParent={handleDataFromChild} display={navState.settingsPanel.display} />
                   <JupyterInfoPanel sendDataToParent={handleDataFromChild} display={navState.jupyterInfoPanel.display}/>
                   <GitPanel sendDataToParent={handleDataFromChild} display={navState.gitPanel.display}/>

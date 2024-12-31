@@ -38,6 +38,7 @@ export const kernelsAtom = atom<IKernelsState>({})
 export const terminalsAtom = atom<ITerminalsState>({})
 export const terminalsCountAtom = atom<number>(0)
 export const userNameAtom = atom<string>("")
+export const fileBrowserReloadCountAtom = atom<number>(0)
 
 
 // left statusBar
