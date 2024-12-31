@@ -62,7 +62,7 @@ function IDE () {
   const defaultFileState: IfileDict = {
     Launcher: {
       type: 'launcher',
-      path: 'none',
+      path: 'Launcher',
       name: 'Launcher',
       active: true,
       extension: 'txt',
@@ -99,13 +99,13 @@ function IDE () {
     Object.keys(updatedDataFromChild).forEach(key => {
       updatedDataFromChild[key] = { ...updatedDataFromChild[key], active: false, load_required: false };
     });
-    if (updatedDataFromChild[name]) {
-      updatedDataFromChild[name] = { ...updatedDataFromChild[name], active: true };
+    if (updatedDataFromChild[path]) {
+      updatedDataFromChild[path] = { ...updatedDataFromChild[path], active: true };
     } else {
-      updatedDataFromChild[name] = fileData;
+      updatedDataFromChild[path] = fileData;
     }
-    if(updatedDataFromChild[name].extension){
-      setLanguageMode( updatedDataFromChild[name].extension)
+    if(updatedDataFromChild[path].extension){
+      setLanguageMode( updatedDataFromChild[path].extension)
     }
     
 
