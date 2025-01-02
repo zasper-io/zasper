@@ -11,7 +11,6 @@ require (
 	github.com/pebbe/zmq4 v1.2.11
 	github.com/rs/cors v1.11.0
 	github.com/rs/zerolog v1.33.0
-	golang.org/x/exp v0.0.0-20240716175740-e3f259677ff7
 )
 
 require (
