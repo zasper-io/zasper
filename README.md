@@ -35,7 +35,7 @@ Zasper uses one fourth of RAM and one fourth of CPU used by Jupterlab. While Jup
 
 # Why I built Zasper ?
 
-There are several proprietary JupyterLab-like frontend tools available in the market, such as Databricks Notebooks and Deepnote Notebooks. However, none of them are free or open-source, and most require users to work in the cloud. Even the modest personal computers these days are typically equipped with at least 8 GB of RAM, an 8-core CPU, and a decent 4 GB GPU, I saw an opportunity to create a solution that works seamlessly on local machines. That’s why I decided to build Zasper which can effectively utilize the resources available and guarantee maximum efficiency.
+There are several proprietary JupyterLab-like frontend tools available in the market, such as Databricks Notebooks and Deepnote Notebooks. However, none of them are free or open-source, and most require users to work in the cloud. Even modest personal computers these days are typically equipped with at least 8 GB of RAM, an 8-core CPU, and a decent 4 GB GPU, I saw an opportunity to create a solution that works seamlessly on local machines. That’s why I decided to build Zasper which can effectively utilize the resources available and guarantee maximum efficiency.
 
 Originally I wrote https://github.com/zasper-io/zasper_py (now in Private mode) to build a new frontend around Jupyter. During the process I realized, Go is the ideal choice to rebuild the Jupyter project. Go has excellent support for REST, RPC, WS protocols. Concurrency and Performance are the areas where Go shines.
 
