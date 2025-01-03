@@ -4,12 +4,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	mrand "math/rand/v2"
 	"net"
 	"os"
 	"runtime"
 	"strconv"
-
-	xrand "golang.org/x/exp/rand"
 
 	"github.com/rs/zerolog/log"
 )
@@ -54,7 +53,7 @@ func findAvailablePort() (int, error) {
 
 	// Start with a random port number or a specific range if needed.
 	for {
-		port := xrand.Intn(1000) + 5000
+		port := mrand.IntN(1000) + 5000
 		if portExists(port) {
 			continue
 		}
