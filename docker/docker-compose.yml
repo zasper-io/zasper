@@ -8,4 +8,4 @@ services:
     container_name: zasper
     hostname: zasper
     ports:
-      - "4048"
+      - "8048"
