@@ -1,6 +1,6 @@
 
 services:
-  slurmdbd:
+  zasper:
     image: zasper
     build:
       context: .
