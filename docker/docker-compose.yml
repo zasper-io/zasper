@@ -1,0 +1,11 @@
+
+services:
+  zasper:
+    image: zasper
+    build:
+      context: .
+      dockerfile: Dockerfile 
+    container_name: zasper
+    hostname: zasper
+    ports:
+      - "8048"
