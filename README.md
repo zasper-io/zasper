@@ -72,7 +72,7 @@ Hence the Go version of Zasper was born!
 ![Dark Notebook mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/darkNotebook.png) 
 
 ## Architecture
-![alt text](./architecture.svg)
+![architecture](./architecture.svg)
 
 
 ## ⚡️ Quick start
@@ -210,6 +210,16 @@ Zasper aspires to be a full fledged IDE and the future development will be along
 * Allowing custom data apps support rather than just Jupyter Notebooks. 
 * Easier integration with the existing tools.
 * Zasper Hub for Self Hosted deployment in the cloud.
+
+# 🌐 Community
+
+Join Zasper Community on [Slack](https://zasper.slack.com)
+
+<p align=center>
+  <a href="https://zasper.slack.com" target="_blank">
+      <img height=120px src="./screenshots/slack.svg">
+  </a>
+</p>
 
 # Copyright
 
