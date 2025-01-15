@@ -10,7 +10,15 @@ import (
 
 func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) *os.Process {
 
-	cmd := exec.Command("/usr/bin/python3", "-m", "ipykernel_launcher", "-f", connFile) //  "--debug"
+	for i, arg := range kernelCmd {
+		if arg == "{connection_file}" {
+			kernelCmd[i] = connFile
+		}
+	}
+
+	log.Debug().Msgf("kernelCmd is %v", kernelCmd)
+
+	cmd := exec.Command(kernelCmd[0], kernelCmd[1:]...)
 
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()

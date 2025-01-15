@@ -10,6 +10,7 @@ import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
+import { python } from '@codemirror/lang-python';
 
 const debugMode = false;
 
@@ -139,7 +140,7 @@ export default function NotebookEditor(props) {
           path,
           name,
           type,
-          notebook: { path, name },
+          kernel: { name : "python3" },
         }),
       })
         .then(async (response) => await response.json())

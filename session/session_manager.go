@@ -25,12 +25,12 @@ func CreateSession(req models.SessionModel) models.SessionModel {
 	session_id := uuid.New().String()
 	var session models.SessionModel
 	session, ok := core.ZasperSession[req.Id]
-	log.Info().Msg("creating session")
+	log.Info().Msgf("creating session %s", req.Kernel.Name)
 	if ok {
 		//do something here
 		log.Info().Msg("session exists")
 	} else {
-		kernelId := startKernelForSession(req.Path, req.Name)
+		kernelId := startKernelForSession(req.Path, req.Kernel.Name)
 		log.Info().Msgf("started kernel with id %s", kernelId)
 		// pendingSessions.update()
 		session = models.SessionModel{
@@ -40,7 +40,7 @@ func CreateSession(req models.SessionModel) models.SessionModel {
 			Path:        req.Path,
 			Kernel: models.KernelModel{
 				Id:             kernelId,
-				Name:           req.Name,
+				Name:           req.Kernel.Name,
 				LastActivity:   time.Now().UTC().String(),
 				ExecutionState: "",
 				Connections:    0,

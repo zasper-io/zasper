@@ -83,6 +83,7 @@ func GetJupyterPath() []string {
 	paths = append(paths, "/usr/local/share/jupyter")
 	paths = append(paths, filepath.Join(homeDir, ".local", "share", "jupyter"))
 	paths = append(paths, filepath.Join(homeDir, "Library", "Python", pythonVersion, "share", "jupyter"))
+	paths = append(paths, filepath.Join(homeDir, "Library", "Jupyter"))
 
 	// Return the list of paths
 	return paths

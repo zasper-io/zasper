@@ -120,13 +120,14 @@ func CwdForPath(path string) string {
 
 func createKernelManager(kernelName string, kernelId string) (KernelManager, string, string) {
 	connectionDir := "/tmp/"
-	kernelName = "python3" // note this is default kernel Name
 	connectionFile := filepath.Join(connectionDir, "kernel-"+kernelId[:6]+".json")
 	km := KernelManager{
 		ConnectionFile: filepath.Join(connectionFile),
 		KernelName:     kernelName,
 		KernelId:       kernelId,
 		CachePorts:     true,
+		Kernelspec:     kernelName,
+		// todo find from kernelspec dict
 	}
 	km.ConnectionInfo.Transport = "tcp"
 	km.ConnectionInfo.IP = "127.0.0.1"

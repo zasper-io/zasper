@@ -3,6 +3,7 @@ package kernel
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"slices"
 
 	"github.com/zasper-io/zasper/kernel/provisioner"
@@ -49,7 +50,6 @@ func (km *KernelManager) StartKernel(kernelName string) {
 	km.AttemptedStart = true
 
 	kernelCmd, kw := km.asyncPrestartKernel(kernelName)
-
 	km.asyncLaunchKernel(kernelCmd, kw)
 	km.asyncPostStartKernel(kw)
 }
@@ -71,6 +71,8 @@ func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[s
 		Kernelspec:  km.getKernelspec(),
 		PortsCached: false,
 	}
+
+	log.Debug().Msgf("kernelspec created is: %v", km.Provisioner.Kernelspec)
 
 	kw := km.preLaunch()
 	kernelCmd := kw["cmd"].([]string)
@@ -126,8 +128,24 @@ func (km *KernelManager) preLaunch() map[string]interface{} {
 }
 
 func (km *KernelManager) formatKernelCmd() []string {
+
 	cmd := km.getKernelspec().Argv
+	if cmd[0] == "python3" || cmd[0] == "python" {
+		pythonVersion, _ := getPython()
+		cmd[0] = pythonVersion
+	}
 	return cmd
+}
+
+func getPython() (string, error) {
+	// Try running "python --version" or "python3 --version" depending on system
+	cmd := exec.Command("python", "--version")
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return "python3", err
+	}
+
+	return "python", err
 }
 
 /*********************************************************************
