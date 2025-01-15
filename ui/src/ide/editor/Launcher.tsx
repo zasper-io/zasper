@@ -31,7 +31,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
     }
   };
 
-  const createNewFile = async (path: string, contentType: string) => {
+  const createNewNotebook = async (path: string, contentType: string, kernelSpec: string) => {
     console.log("add file")
     const res = await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
@@ -70,7 +70,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
           <h2 className="font-h5 fontw-300">Notebook</h2>
           {Object.keys(kernelspecs).length > 0 ? (
             Object.keys(kernelspecs).map((key) => (
-              <div className="launcher-icon" key={key} onClick={() => createNewFile('/', 'notebook')}>
+              <div className="launcher-icon" key={key} onClick={() => createNewNotebook('/', 'notebook', key)}>
                 <h6>{key}</h6>
                 <img src={kernelspecs[key].resources['logo-64x64']} alt="logo" />
               </div>

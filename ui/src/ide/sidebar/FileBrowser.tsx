@@ -16,7 +16,7 @@ interface IContent {
 }
 
 interface FileBrowserProps {
-  sendDataToParent: (name: string, path: string, type: string) => void;
+  sendDataToParent: (name: string, path: string, type: string, kernelspec: string) => void;
   display: string;
   reloadCount: number;
 }
@@ -46,7 +46,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
   };
 
   const handleFileClick = (name: string, path: string, type: string) => {
-    sendDataToParent(name, path, type);
+    sendDataToParent(name, path, type, "default");
   };
 
   const createNewFile = async () => {
@@ -117,7 +117,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
 interface IFileItemProps{
   parentDir: string;
   content: IContent;
-  handleFileClick: (name: string, path: string, type: string) => void;
+  handleFileClick: (name: string, path: string, type: string, kernelspec: string) => void;
 }
 
 const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
@@ -217,7 +217,7 @@ const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
   const handleClick = (name: string, path: string, type: string) => {
     console.log(parentDir);
     if (!isMenuVisible) {
-      handleFileClick(name, getPath(), type)
+      handleFileClick(name, getPath(), type, 'default')
     }
   }
 
@@ -260,7 +260,7 @@ const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
 
 interface IDirectoryItemProps{
   data: IContent;
-  sendDataToParent: (name: string, path: string, type: string) => void;
+  sendDataToParent: (name: string, path: string, type: string, kernelspec:string) => void;
 }
 
 const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {

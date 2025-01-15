@@ -56,7 +56,7 @@ export default function NotebookEditor(props) {
   const codeMirrorRefs = useRef<CodeMirrorRef[] | null>([]); 
   const [theme] = useAtom(themeAtom);
   const [client, setClient] = useState<IClient>({ send: () => {} });
-  const [kernelName, setKernelName] = useState<string>('');
+  const [kernelName, setKernelName] = useState<string>(props.data.kernelspec);
   const [kernelMap, setKernelMap] = useAtom(kernelsAtom);
   const [session, setSession] = useState<ISession | null>();
   const [kernelStatus, setKernelStatus] = useState("idle")
@@ -133,6 +133,8 @@ export default function NotebookEditor(props) {
   };
 
   const startASession =  async (path: string, name: string, type: string) => {
+    let kernelspec = "python3";
+
     if (!session && kernelMap) {
       fetch(BaseApiUrl + '/api/sessions', {
         method: 'POST',
@@ -140,7 +142,7 @@ export default function NotebookEditor(props) {
           path,
           name,
           type,
-          kernel: { name : "python3" },
+          kernel: { name : kernelspec },
         }),
       })
         .then(async (response) => await response.json())

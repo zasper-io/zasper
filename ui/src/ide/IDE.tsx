@@ -28,6 +28,7 @@ interface Ifile {
   active: boolean
   extension: string | null
   load_required: boolean
+  kernelspec: string
 }
 
 interface IfileDict {
@@ -67,6 +68,7 @@ function IDE () {
       active: true,
       extension: 'txt',
       load_required: false,
+      kernelspec: 'none'
     },
   };
 
@@ -85,7 +87,7 @@ function IDE () {
     setNavState(updatedNavState);
   };
 
-  const handleDataFromChild = (name: string, path: string, type: string) => {
+  const handleDataFromChild = (name: string, path: string, type: string, kernelspec: string) => {
     const updatedDataFromChild = { ...dataFromChild };
     const fileData: Ifile = {
       type,
@@ -94,6 +96,7 @@ function IDE () {
       extension: getFileExtension(name),
       active: true,
       load_required: true,
+      kernelspec: kernelspec
     };
 
     Object.keys(updatedDataFromChild).forEach(key => {
