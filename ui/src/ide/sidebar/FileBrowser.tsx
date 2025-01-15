@@ -100,8 +100,8 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
                 />
               ) : (
                 <FileItem
+                  key={content.id}  
                   parentDir={cwd}
-                  key={content.id}
                   content={content}
                   handleFileClick={handleFileClick}
                 />
@@ -114,11 +114,14 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
   );
 }
 
-const FileItem = (
-  { parentDir, content, handleFileClick }: {
-    parentDir: string; content: IContent;
-    handleFileClick: (name: string, path: string, type: string) => void,
-  }) => {
+interface IFileItemProps{
+  parentDir: string;
+  content: IContent;
+  handleFileClick: (name: string, path: string, type: string) => void;
+}
+
+const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
+
   const getIconToLoad = (fileName) => {
     const extension = getFileExtension(fileName);
     const iconMap: { [key: string]: string } = {
@@ -255,7 +258,12 @@ const FileItem = (
   );
 };
 
-const DirectoryItem = ({ data, sendDataToParent }) => {
+interface IDirectoryItemProps{
+  data: IContent;
+  sendDataToParent: (name: string, path: string, type: string) => void;
+}
+
+const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(data)
   const [text, setText] = useState(data.name);
