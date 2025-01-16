@@ -101,7 +101,7 @@ brew install zeromq
 Go to project home and start the server
 
 ```bash
-go build -o ui/public/zasper
+go build -tags webapp -o ui/public/zasper
 ```
 
 Go to `ui` and run the app in dev mode

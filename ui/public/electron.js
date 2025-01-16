@@ -80,11 +80,7 @@ function createWindow() {
   });
 
   const appURL = app.isPackaged
-    ? url.format({
-        pathname: path.join(__dirname, "index.html"),
-        protocol: "file:",
-        slashes: true,
-      })
+    ? "http://localhost:8048"
     : "http://localhost:3000";
   mainWindow.loadURL(appURL);
 

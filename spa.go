@@ -14,6 +14,7 @@ type spaHandler struct {
 	indexPath  string
 }
 
+// no longer used, will be helpful in Zasperhub in future when running api only server
 func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Join internally call path.Clean to prevent directory traversal
 	path := filepath.Join(h.staticPath, r.URL.Path)
