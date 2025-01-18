@@ -27,9 +27,6 @@ jobs:
         run: |
           brew update
           brew install zeromq
-
-      - name: Build
-        run: go build -tags webapp -o ui/public/zasper
         
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -38,6 +35,12 @@ jobs:
 
       - name: Install dependencies
         run: cd ui && npm install
+
+      - name: Build Zasper Frontend
+        run: cd ui && npm run build
+
+      - name: Build Zasper Backend
+        run: go build -o ui/public/zasper
 
       - name: Package Electron app
         run: cd ui && npm run electron-package

@@ -27,7 +27,7 @@ Zasper is an IDE designed from the ground up to support massive concurrency. It 
 
 It's perfectly suited for running REPL-style data applications, with Jupyter notebooks being one example.
 
-Currently Zasper is fully supported on Mac with limited support on Linux.
+**Currently Zasper is fully supported on MacOS and Linux.** Windows support is coming soon!
 
 # Benchmarks - 4X Better
 Zasper uses one fourth of RAM and one fourth of CPU used by Jupterlab. While Jupyterlab uses around 104.8 MB of RAM and 0.8 CPUs, Zasper uses 26.7 MB of RAM and 0.2 CPUs.
@@ -91,7 +91,7 @@ On debian
 sudo apt-get install libzmq3-dev
 ```
 
-On mac
+On macOS
 ```zsh
 brew install pkg-config
 brew install zeromq
@@ -101,7 +101,7 @@ brew install zeromq
 Go to project home and start the server
 
 ```bash
-go build -tags webapp -o ui/public/zasper
+go build -o ui/public/zasper
 ```
 
 Go to `ui` and run the app in dev mode
@@ -129,7 +129,7 @@ On debian
 sudo apt-get install libzmq3-dev
 ```
 
-On mac
+On macOS
 ```zsh
 brew install pkg-config
 brew install zeromq
@@ -142,7 +142,7 @@ Install zeromq.
 Go to project home and start the server
 
 ```bash
-go build -tags webapp
+go build
 ```
 This will crate a binary called `zasper`. Now add this binary to your path. 
 
@@ -156,14 +156,14 @@ Usage of ../zasper:
   -debug
     	sets log level to debug
   -port string
-    	port to start the server on (default ":8888")
+    	port to start the server on (default ":8048")
 ```
 
 
 Go to any directory you want to serve and run `zasper`. This starts zasper server in the directory.
 ```
 % zasper 
-2024/12/15 20:39:12 Zasper Server started! Listening on port:8888
+2024/12/15 20:39:12 Zasper Server started! Listening on port:8048
 
 ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ 
 ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
