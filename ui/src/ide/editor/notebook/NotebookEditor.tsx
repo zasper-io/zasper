@@ -99,7 +99,7 @@ export default function NotebookEditor(props) {
   useEffect(() => {
     if (props.data.load_required === true) {
       FetchFileData(props.data.path);
-      const session = startASession(props.data.path, props.data.name, props.data.type);
+      const session = startASession(props.data.path, props.data.name, props.data.type, props.data.kernelspec);
     }
   }, [props.data]);
 
@@ -132,8 +132,8 @@ export default function NotebookEditor(props) {
     }
   };
 
-  const startASession =  async (path: string, name: string, type: string) => {
-    let kernelspec = "python3";
+  const startASession =  async (path: string, name: string, type: string, kernelspec: string) => {
+    // let kernelspec = "python3";
 
     if (!session && kernelMap) {
       fetch(BaseApiUrl + '/api/sessions', {
@@ -499,7 +499,7 @@ export default function NotebookEditor(props) {
             <button type="button" onClick={() => console.log("saving file")}>
               Save file
             </button>
-            <button type="button" onClick={() => startASession(props.data.path, props.data.name, props.data.type)}>
+            <button type="button" onClick={() => startASession(props.data.path, props.data.name, props.data.type, props.data.kernelspec)}>
               StartASession
             </button>
             <button type="button" onClick={startWebSocket}>

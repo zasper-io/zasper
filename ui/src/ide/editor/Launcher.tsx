@@ -11,7 +11,7 @@ interface LauncherProps {
   data: {
     active: boolean;
   };
-  sendDataToParent: (name: string, label: string, type: string) => void;
+  sendDataToParent: (name: string, label: string, type: string, kernelspec: string) => void;
 }
 
 const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
@@ -31,7 +31,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
     }
   };
 
-  const createNewNotebook = async (path: string, contentType: string, kernelSpec: string) => {
+  const createNewNotebook = async (path: string, contentType: string, kernelspec: string) => {
     console.log("add file")
     const res = await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
@@ -40,7 +40,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
 
     const resJson = await res.json();
     console.log(resJson)
-    sendDataToParent(resJson.name, resJson.path, 'notebook');
+    sendDataToParent(resJson.name, resJson.path, 'notebook', kernelspec);
     setReloadCount(reloadCount + 1);
   };
 
@@ -48,7 +48,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   const openTerminal = () => {
     console.log('Open terminal');
     const terminalName = "Terminal " + (terminalCount + 1)
-    sendDataToParent(terminalName, terminalName, 'terminal');
+    sendDataToParent(terminalName, terminalName, 'terminal', '');
     setTerminalCount(terminalCount + 1)
     var updatedterminals = { ...terminals };
     updatedterminals[terminalName] = { id: terminalName, name: terminalName }
@@ -70,7 +70,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
           <h2 className="font-h5 fontw-300">Notebook</h2>
           {Object.keys(kernelspecs).length > 0 ? (
             Object.keys(kernelspecs).map((key) => (
-              <div className="launcher-icon" key={key} onClick={() => createNewNotebook('/', 'notebook', key)}>
+              <div className="launcher-icon" key={key} onClick={() => createNewNotebook('/', 'notebook', kernelspecs[key].name)}>
                 <h6>{key}</h6>
                 <img src={kernelspecs[key].resources['logo-64x64']} alt="logo" />
               </div>
