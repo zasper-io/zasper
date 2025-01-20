@@ -11,6 +11,7 @@ import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
 import { python } from '@codemirror/lang-python';
+import KernelSwitcher from './KernelSwitch';
 
 const debugMode = false;
 
@@ -61,6 +62,12 @@ export default function NotebookEditor(props) {
   const [session, setSession] = useState<ISession | null>();
   const [kernelStatus, setKernelStatus] = useState("idle")
   const [userName] = useAtom(userNameAtom)
+  const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
+
+  const toggleKernelSwitcher = () => {
+    setShowKernelSwitcher(!showKernelSwitcher);
+}
+
 
   interface IClient {
     send: any;
@@ -133,8 +140,9 @@ export default function NotebookEditor(props) {
   };
 
   const startASession =  async (path: string, name: string, type: string, kernelspec: string) => {
-    // let kernelspec = "python3";
-
+    if(kernelspec === 'default'){
+      kernelspec = "python3";
+    }
     if (!session && kernelMap) {
       fetch(BaseApiUrl + '/api/sessions', {
         method: 'POST',
@@ -493,6 +501,7 @@ export default function NotebookEditor(props) {
           kernelStatus={kernelStatus}
           changeCellType={changeCellType}
           startWebSocket={startWebSocket}
+          toggleKernelSwitcher={toggleKernelSwitcher}
         />
         {debugMode && (
           <div>
@@ -507,7 +516,9 @@ export default function NotebookEditor(props) {
             </button>
           </div>
         )}
+       
         <div className={theme === 'light' ? 'editor-body light' : 'editor-body dark'}>
+        {showKernelSwitcher && <KernelSwitcher toggleKernelSwitcher={toggleKernelSwitcher} />}
           {notebook.cells &&
             notebook.cells.map((cell, index) => (
               <Cell
