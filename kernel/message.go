@@ -23,6 +23,7 @@ type (
 		Buffers      []byte        `json:"buffers"`
 		Metadata     interface{}   `json:"metadata"`
 		Tracker      int           `json:"tracker"`
+		Error        error         `json:"error"`
 	}
 )
 

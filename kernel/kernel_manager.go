@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,7 +12,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/pebbe/zmq4"
+	"github.com/go-zeromq/zmq4"
 )
 
 type KernelManager struct {
@@ -21,7 +22,7 @@ type KernelManager struct {
 	AttemptedStart bool
 	Ready          bool
 	KernelName     string
-	ControlSocket  *zmq4.Socket
+	ControlSocket  zmq4.Socket
 	CachePorts     bool
 	Provisioner    provisioner.LocalProvisioner
 	Kernelspec     string
@@ -55,7 +56,7 @@ func (km *KernelManager) StartKernel(kernelName string) {
 }
 
 func (km *KernelManager) asyncPostStartKernel(kw map[string]interface{}) {
-	km.ControlSocket = km.connectControlSocket()
+	// km.ControlSocket = km.connectControlSocket()
 	km.Ready = true
 }
 
@@ -154,7 +155,7 @@ func getPython() (string, error) {
 **********************************************************************
 *********************************************************************/
 
-var ChannelSocketTypes map[string]zmq4.Type
+var ChannelSocketTypes map[string]zmq4.Socket
 
 func (km *KernelManager) makeURL(channel string) string {
 	ip := km.ConnectionInfo.IP
@@ -166,34 +167,36 @@ func (km *KernelManager) makeURL(channel string) string {
 	return fmt.Sprintf("%s://%s-%d", km.ConnectionInfo.Transport, ip, port)
 }
 
-func SetUpChannelSocketTypes() map[string]zmq4.Type {
-	cst := make(map[string]zmq4.Type)
-	cst["hb"] = zmq4.REQ
-	cst["iopub"] = zmq4.SUB
-	cst["shell"] = zmq4.DEALER
-	cst["stdin"] = zmq4.DEALER
-	cst["control"] = zmq4.DEALER
+func SetUpChannelSocketTypes() map[string]zmq4.Socket {
+	cst := make(map[string]zmq4.Socket)
+	// cst["hb"] = zmq4.Socket
+	// cst["iopub"] = zmq4.Socket
+	// cst["shell"] = zmq4.Socket
+	// cst["stdin"] = zmq4.Socket
+	// cst["control"] = zmq4.Socket
 
 	return cst
 }
 
-func (km *KernelManager) connectControlSocket() *zmq4.Socket {
+func (km *KernelManager) connectControlSocket() zmq4.Socket {
+	ctx := context.Background()
 	channel := "control"
 	url := km.makeURL(channel)
 
-	socket, _ := zmq4.NewSocket(zmq4.DEALER)
+	socket := zmq4.NewDealer(ctx)
 
-	socket.Connect(url)
+	socket.Listen(url)
 	return socket
 
 }
 
-func (km *KernelManager) connectHbSocket() *zmq4.Socket {
+func (km *KernelManager) connectHbSocket() zmq4.Socket {
+	ctx := context.Background()
 	channel := "control"
 	url := km.makeURL(channel)
 
-	socket, _ := zmq4.NewSocket(zmq4.REQ)
-	socket.Connect(url)
+	socket := zmq4.NewReq(ctx)
+	socket.Listen(url)
 	return socket
 
 }

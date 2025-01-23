@@ -7,9 +7,9 @@ import (
 	"github.com/zasper-io/zasper/core"
 	"github.com/zasper-io/zasper/kernel"
 
+	"github.com/go-zeromq/zmq4"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/pebbe/zmq4"
 
 	"github.com/rs/zerolog/log"
 )
@@ -65,7 +65,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	kernelConnection := KernelWebSocketConnection{
 		KernelId:      kernelId,
 		KernelManager: kernelManager,
-		Channels:      make(map[string]*zmq4.Socket),
+		Channels:      make(map[string]zmq4.Socket),
 		Conn:          conn,
 		Send:          make(chan []byte),
 	}

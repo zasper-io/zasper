@@ -126,9 +126,9 @@ export default function NotebookEditor(props) {
 
       client1.onmessage = (message) => {
         message = JSON.parse(message.data);
-        if (message.msg_type === 'execute_request') {
-          updateNotebook(message);
-        }
+       
+        updateNotebook(message);
+        
       };
 
       client1.onclose = () => {
@@ -168,17 +168,16 @@ export default function NotebookEditor(props) {
   }
 
   const updateNotebook = (message: any) => {
-    console.log(message)
-    if(message.hasOwnProperty('execution_state')){
-      setKernelStatus(message.execution_state)
+    if(message.header.msg_type === "status"){
+      setKernelStatus(message.content.execution_state)
     }
 
-    if (message.hasOwnProperty('execution_count')) {
+    if (message.header.msg_type === 'execute_input') {     
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
-          if (cell.id === message.msg_id) {
+          if (cell.id === message.parent_header.msg_id) {
             const updatedCell = { ...cell };
-            updatedCell.execution_count = message.execution_count;
+            updatedCell.execution_count = message.content.execution_count;
             return updatedCell;
           }
           return cell;
@@ -187,39 +186,60 @@ export default function NotebookEditor(props) {
         return { ...prevNotebook, cells: updatedCells };
       });
     }
-    if (message.hasOwnProperty('traceback')) {
-      setNotebook((prevNotebook) => {
-        const updatedCells = prevNotebook.cells.map((cell) => {
-          if (cell.id === message.msg_id) {
-            const updatedCell = { ...cell };
-            if (message.hasOwnProperty('traceback')) {
+
+    if(message.header.msg_type === 'error'){
+        setNotebook((prevNotebook) => {
+          const updatedCells = prevNotebook.cells.map((cell) => {
+            if (cell.id === message.parent_header.msg_id) {
+              const updatedCell = { ...cell };
               updatedCell.outputs = [{
                 output_type: 'error',
-                ename: message.ename,
-                evalue: message.evalue,
-                traceback: message.traceback
+                ename: message.content.ename,
+                evalue: message.content.evalue,
+                traceback: message.content.traceback
               }];
+            
+              return updatedCell;
             }
-            return updatedCell;
-          }
-          return cell;
-        });
+            return cell;
+          });
 
-        return { ...prevNotebook, cells: updatedCells };
-      });
+          return { ...prevNotebook, cells: updatedCells };
+        });
+      
     }
 
-    if (message.hasOwnProperty('data')) {
+    if(message.header.msg_type === 'stream'){
+      if (message.content.name === 'stdout') {
+        console.log("stream")
+        setNotebook((prevNotebook) => {
+          const updatedCells = prevNotebook.cells.map((cell) => {
+            if (cell.id === message.parent_header.msg_id) {
+              const updatedCell = { ...cell };
+              // if (message.hasOwnProperty('text')) {
+                var textMessage = message.content.text
+                console.log(textMessage)
+                const cleanedArray = removeAnsiCodes(textMessage);
+                updatedCell.outputs = [{"text": cleanedArray}];
+              // }
+              return updatedCell;
+            }
+            return cell;
+          });
+  
+          return { ...prevNotebook, cells: updatedCells };
+        });
+      }
+    }
+
+    if (message.header.msg_type === 'execute_result') {
+      console.log("execute_result")
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
-          if (cell.id === message.msg_id) {
+          if (cell.id === message.parent_header.msg_id) {
             const updatedCell = { ...cell };
-            if (message.hasOwnProperty('data')) {
-              updatedCell.outputs = [{data: message.data}];
-            }
-            if (message.hasOwnProperty('traceback')) {
-              updatedCell.outputs = [message.traceback];
-            }
+            updatedCell.outputs = [{data: message.content.data}];
+           
             return updatedCell;
           }
           return cell;
@@ -229,16 +249,13 @@ export default function NotebookEditor(props) {
       });
     }
 
-    if (message.hasOwnProperty('text')) {
+    if (message.header.msg_type === 'display_data') {
+      console.log("display_data")
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
-          if (cell.id === message.msg_id) {
+          if (cell.id === message.parent_header.msg_id) {
             const updatedCell = { ...cell };
-            if (message.hasOwnProperty('text')) {
-              var traceback = message.text
-              const cleanedArray = removeAnsiCodes(traceback);
-              updatedCell.outputs = [{"text": cleanedArray}];
-            }
+            updatedCell.outputs = [{data: message.content.data}];
             return updatedCell;
           }
           return cell;
@@ -247,6 +264,8 @@ export default function NotebookEditor(props) {
         return { ...prevNotebook, cells: updatedCells };
       });
     }
+
+    
   };
 
   const updateCellSource = (value: string, cellId: string) => {
@@ -279,6 +298,7 @@ export default function NotebookEditor(props) {
   }
 
   const submitCell = (source: string, cellId: string) => {
+    console.log('submitting cell:',  cellId);
     setNotebook((prevNotebook) => {
       const updatedCells = prevNotebook.cells.map((cell) => {
         if (cell.id === cellId) {

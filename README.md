@@ -88,10 +88,6 @@ Zasper comes in two flavours:
 
 
 #### Install zeromq
-On debian
-```bash
-sudo apt-get install libzmq3-dev
-```
 
 On macOS
 ```zsh
@@ -99,6 +95,11 @@ brew install pkg-config
 brew install zeromq
 ```
 
+Go to `ui` and build the frontend
+```
+npm install
+npm run build
+```
 
 Go to project home and start the server
 
@@ -125,21 +126,8 @@ cd ./ui/
 npm run build
 ```
 
-#### Install zeromq
-On debian
-```bash
-sudo apt-get install libzmq3-dev
-```
-
-On macOS
-```zsh
-brew install pkg-config
-brew install zeromq
-```
-
 #### Start the backend
 
-Install zeromq.
 
 Go to project home and start the server
 

@@ -13,12 +13,13 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/kernel"
 
-	"github.com/pebbe/zmq4"
+	"github.com/go-zeromq/zmq4"
 )
 
 const DELIM = "<IDS|MSG>"
 
 type KernelWebSocketConnection struct {
+	pollingWait          sync.WaitGroup
 	Conn                 *websocket.Conn
 	Send                 chan []byte
 	KernelId             string
@@ -30,7 +31,7 @@ type KernelWebSocketConnection struct {
 	Context              context.Context
 	OpenSessions         map[string]kernel.KernelSession
 	OpenSockets          []string
-	Channels             map[string]*zmq4.Socket
+	Channels             map[string]zmq4.Socket
 	Session              kernel.KernelSession
 	IOPubWindowMsgCount  int
 	IOPubWindowByteCount int
@@ -46,111 +47,72 @@ func (kwsConn *KernelWebSocketConnection) getAllowedMessageTypes() []string {
 	return make([]string, 0)
 }
 
-// IsJSON checks if the given byte slice is valid JSON
-func IsJSON(data []byte) bool {
-	var js json.RawMessage
-	return json.Unmarshal(data, &js) == nil
-}
+func (kwsConn *KernelWebSocketConnection) pollCommonSocket(socket zmq4.Socket, socketName string) {
+	kwsConn.pollingWait.Add(1)
+	go func() {
+		defer func() {
+			log.Debug().Msgf("Polling of %q socket finished.", socketName)
+			kwsConn.pollingWait.Done()
+		}()
+		for {
+			log.Debug().Msgf("Polling of %q socket started.", socketName)
 
-func (kwsConn *KernelWebSocketConnection) writeMessage() { //msg interface{}, binary bool
-	iopub_channel := kwsConn.Channels["iopub"]
-	shell_channel := kwsConn.Channels["shell"]
+			zmsg, err2 := socket.Recv()
+			if err2 != nil {
+				log.Info().Msgf("could not receive message: %v", err2)
+			}
+			log.Printf("[%s] %s\n", zmsg.Frames[0], zmsg.Frames[1])
 
-	poller := zmq4.NewPoller()
-	poller.Add(iopub_channel, zmq4.POLLIN)
-	poller.Add(shell_channel, zmq4.POLLIN)
+			msg := zmsg.Bytes()
+			log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
 
-	// Create a variable to accumulate JSON data
-	var jsonResponse map[string]interface{}
-	jsonResponse = make(map[string]interface{})
+			parts := zmsg.Frames
 
-	var jsonResponseShell map[string]interface{}
-	jsonResponseShell = make(map[string]interface{})
+			kernelResponseMsg := kernel.Message{}
 
-	for {
-		// Poll the sockets with a timeout of 1 second
-		sockets, err := poller.Poll(1 * time.Second)
-		if err != nil {
-			log.Info().Msgf("%s", err)
-		}
+			// Unmarshal contents.
 
-		for _, socket := range sockets {
-			if socket.Socket == nil {
+			i := 0
+
+			for string(parts[i]) != "<IDS|MSG>" {
+				i++
+			}
+
+			var err error
+			err = json.Unmarshal(parts[i+2], &kernelResponseMsg.Header)
+			if err != nil {
+				kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Header: %w", err)
+			}
+			err = json.Unmarshal(parts[i+3], &kernelResponseMsg.ParentHeader)
+			if err != nil {
+				kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.ParentHeader: %w", err)
+
+			}
+			err = json.Unmarshal(parts[i+4], &kernelResponseMsg.Metadata)
+			if err != nil {
+				kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Metadata: %w", err)
+			}
+			err = json.Unmarshal(parts[i+5], &kernelResponseMsg.Content)
+			if err != nil {
+				kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Content: %w", err)
+			}
+
+			jsonBytes, err := json.Marshal(kernelResponseMsg)
+			if err != nil {
+				log.Error().Msgf("Error marshaling message: %v", err)
 				continue
 			}
-			switch s := socket.Socket; s {
+			kwsConn.Send <- jsonBytes
 
-			case iopub_channel:
-				msg, _ := s.Recv(0)
-				log.Info().Msgf("Received from IoPub socket: %s\n", msg)
-				if IsJSON([]byte(msg)) {
-					var msgData map[string]interface{}
-					err := json.Unmarshal([]byte(msg), &msgData)
-					if err != nil {
-						log.Info().Msgf("Error unmarshaling JSON message: %s", err)
-						continue
-					}
-
-					for key, value := range msgData {
-						jsonResponse[key] = value
-					}
-
-					if _, ok := jsonResponse["execution_state"]; ok {
-						jsonResponse["channel"] = "iopub"
-						jsonData, err := json.Marshal(jsonResponse)
-						if err != nil {
-							log.Info().Msgf("Error marshaling JSON: %s", err)
-							continue
-						}
-						kwsConn.Send <- []byte(jsonData)
-						jsonResponse = make(map[string]interface{})
-					}
-
-				} else {
-					if len(jsonResponse) > 0 {
-						jsonResponse["channel"] = "iopub"
-						jsonData, err := json.Marshal(jsonResponse)
-						if err != nil {
-							log.Info().Msgf("Error marshaling JSON: %s", err)
-							continue
-						}
-						kwsConn.Send <- []byte(jsonData)
-						jsonResponse = make(map[string]interface{})
-					}
-
-				}
-			case shell_channel:
-				msg, _ := s.Recv(0)
-				if IsJSON([]byte(msg)) {
-					var msgData map[string]interface{}
-					err := json.Unmarshal([]byte(msg), &msgData)
-					if err != nil {
-						log.Info().Msgf("Error unmarshaling JSON message: %s", err)
-						continue
-					}
-
-					for key, value := range msgData {
-						jsonResponseShell[key] = value
-					}
-
-				} else {
-					if len(jsonResponse) > 0 {
-						jsonResponse["channel"] = "shell"
-						jsonData, err := json.Marshal(jsonResponse)
-						if err != nil {
-							log.Info().Msgf("Error marshaling JSON: %s", err)
-							continue
-						}
-						kwsConn.Send <- []byte(jsonData)
-						jsonResponseShell = make(map[string]interface{})
-					}
-
-				}
-
-			}
 		}
+	}()
+}
 
-	}
+func (kwsConn *KernelWebSocketConnection) startPolling() { //msg interface{}, binary bool
+	iopub_channel := kwsConn.Channels["iopub"]
+	// shell_channel := kwsConn.Channels["shell"]
+
+	kwsConn.pollCommonSocket(iopub_channel, "iopub")
 }
 
 func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
@@ -178,7 +140,7 @@ func (kwsConn *KernelWebSocketConnection) connect() {
 	kwsConn.nudge()
 
 	// subscribe
-	go kwsConn.writeMessage()
+	kwsConn.startPolling()
 	// add connection to registry
 
 }
@@ -213,54 +175,16 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell()
 	transient_control_channel := kwsConn.KernelManager.ConnectionInfo.ConnectControl()
 
-	iopub_channel := kwsConn.Channels["iopub"]
-	// shell returns info future
-	// Create a Poller
-	poller := zmq4.NewPoller()
-	poller.Add(transient_shell_channel, zmq4.POLLIN)
-	poller.Add(transient_control_channel, zmq4.POLLIN)
-	poller.Add(iopub_channel, zmq4.POLLIN)
-
 	kwsConn.Session.SendStreamMsg(transient_control_channel, kernelInfoRequest)
 	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest2)
 
-	infoFuture := false
-	shellFuture := false
-	controlFuture := false
-
-	for {
-		if infoFuture && shellFuture && controlFuture {
-			break
-		}
-		// Poll the sockets with a timeout of 1 second
-		sockets, err := poller.Poll(3 * time.Second)
-		if err != nil {
-			log.Info().Msgf("%s", err)
-		}
-
-		// Check which sockets have events
-		for _, socket := range sockets {
-			if socket.Socket == nil {
-				continue
-			}
-			log.Debug().Msgf("Polling .....")
-			switch s := socket.Socket; s {
-			case transient_shell_channel:
-				msg, _ := s.Recv(0)
-				log.Debug().Msgf("Received from Shell socket: %s\n", msg)
-				shellFuture = true
-			case transient_control_channel:
-				msg, _ := s.Recv(0)
-				log.Debug().Msgf("Received from Control socket: %s\n", msg)
-				controlFuture = true
-			case iopub_channel:
-				msg, _ := s.Recv(0)
-				log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
-				infoFuture = true
-			}
-		}
-
+	msg, err := transient_shell_channel.Recv()
+	if err != nil {
+		log.Info().Msgf("dealer failed to recv message: %v", err)
 	}
+
+	log.Info().Msg(msg.String())
+
 	transient_control_channel.Close()
 	transient_shell_channel.Close()
 	log.Debug().Msgf("Nudge successful")
@@ -271,12 +195,8 @@ func deserializeMsgFromWsV1([]byte) (string, []interface{}) {
 }
 
 func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int, incomingMsg []byte) {
-	// msg, _ := deserializeBinaryMessage(ws_msg)
-	// log.Info().Msgf("%s", msg)
 
 	wsMsg := incomingMsg
-	// h.mu.Lock()
-	// defer h.mu.Unlock()
 
 	if len(kwsConn.Channels) == 0 {
 		log.Printf("Received message on closed websocket: %v", wsMsg)
@@ -286,8 +206,6 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 	var msg kernel.Message
 	// var msgList []interface{}
 	// msgList = make([]interface{}, 0)
-	var channel string
-
 	if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
 		// channel, msgList = deserializeMsgFromWsV1(wsMsg)
 		msg = kernel.Message{}
@@ -302,45 +220,6 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 		log.Debug().Msgf("msg is => %v", msg)
 
 		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
-
-		// msgList = []interface{}{}
-		// channel = msg.Header["channel"].(string)
-		// delete(msg.Header, "channel")
-	}
-
-	if channel == "" {
-		log.Debug().Msgf("No channel specified, assuming shell: %v", msg)
-		channel = "shell"
-	}
-
-	if _, ok := kwsConn.Channels[channel]; !ok {
-		log.Debug().Msgf("No such channel: %v", channel)
-		return
-	}
-
-	allowedMsgTypes := kwsConn.getAllowedMessageTypes()
-	ignoreMsg := false
-
-	if len(allowedMsgTypes) > 0 {
-		// msg.Header = kwsConn.GetPart("header", msg.Header, msgList)
-		if (msg.Header == kernel.MessageHeader{}) {
-			log.Info().Msg("Header is nil")
-			return
-		}
-		// if !contains(allowedMsgTypes, msg.Header["msg_type"].(string)) {
-		// 	log.Printf("Received message of type \"%s\", which is not allowed. Ignoring.", msg.Header["msg_type"])
-		// 	ignoreMsg = true
-		// }
-	}
-
-	if !ignoreMsg {
-		stream := kwsConn.Channels[channel]
-		log.Debug().Msgf("stream %s", stream)
-		if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
-			// kwsConn.Session.SendRaw(stream, msgList)
-		} else {
-			// kwsConn.Session.Send(stream, msg)
-		}
 	}
 }
 
@@ -526,7 +405,7 @@ func (kwsConn *KernelWebSocketConnection) Disconnect() {
 	// }
 
 	// Clear the channels
-	kwsConn.Channels = make(map[string]*zmq4.Socket)
+	kwsConn.Channels = make(map[string]zmq4.Socket)
 	// Attempt to remove from open sockets
 	removeOpenSocket(kwsConn)
 	// kwsConn.closeFuture.Done()
@@ -538,43 +417,4 @@ func removeOpenSocket(kwsConn *KernelWebSocketConnection) {
 
 func registerWebSocketSession(sessionId string) {
 	log.Info().Msgf("registering a new session: %s", sessionId)
-}
-
-func (kwsConn KernelWebSocketConnection) writeStderr(errorMessage string, parentHeader interface{}) {
-	// Write a message to stderr
-	log.Printf("Warning: %s", errorMessage)
-
-	// errMsg := kwsConn.Session.msg("stream", map[string]interface{}{
-	// 	"text": errorMessage + "\n",
-	// 	"name": "stderr",
-	// }, parentHeader)
-	errMsg := make(map[string]string)
-
-	if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
-		// binMsg := serializeMsgToWSV1(errMsg, "iopub", kwsConn.Session.pack)
-		// binMsg := ""
-		// kwsConn.writeMessage(binMsg, true)
-	} else {
-		errMsg["channel"] = "iopub"
-		// msgBytes, _ := json.Marshal(errMsg) // Handle error in production code
-		// kwsConn.writeMessage(string(msgBytes), false)
-	}
-}
-
-// Define a callback type => Use when we switch to Reactive pattern
-type MessageCallback func(string)
-
-// Function to handle incoming messages and call the callback
-func listenForMessages(socket *zmq4.Socket, callback MessageCallback) {
-	// Wait for the listener to be ready (simulate with a delay)
-	fmt.Println("Waiting for socket to start...")
-	time.Sleep(10 * time.Second) // Adjust this based on your needs
-	for {
-		msg, err := socket.Recv(0)
-		if err != nil {
-			log.Info().Msgf("Error receiving message: %s", err)
-			continue
-		}
-		callback(msg)
-	}
 }

@@ -12,7 +12,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/pebbe/zmq4"
+	"github.com/go-zeromq/zmq4"
 )
 
 var ProtocolVersion string
@@ -59,15 +59,18 @@ func json_packer(obj interface{}) []byte {
 	return val
 }
 
-func (ks *KernelSession) SendStreamMsg(stream *zmq4.Socket, msg Message) Message {
+func (ks *KernelSession) SendStreamMsg(stream zmq4.Socket, msg Message) Message {
 	var ident [][]byte
 	if ks.CheckPid && os.Getpid() != ks.Pid {
 		log.Info().Msgf("WARNING: attempted to send message from fork %+v", msg)
 	}
 	toSend := ks.serialize(msg, ident)
-	var tracker int
-	tracker, _ = stream.SendMessage(toSend)
-	msg.Tracker = tracker
+	// var tracker error
+	err := stream.SendMulti(zmq4.NewMsgFrom(toSend...))
+	if err != nil {
+		log.Error().Err(err).Msg("failed to send message")
+	}
+	msg.Tracker = 0 // Set to default value since we're not tracking
 	return msg
 }
 
@@ -84,7 +87,7 @@ func (ks *KernelSession) SendStreamMsg(stream *zmq4.Socket, msg Message) Message
 // ]
 
 func (ks *KernelSession) Send(
-	stream *zmq4.Socket,
+	stream zmq4.Socket,
 	msgOrType interface{},
 	content interface{},
 	parent MessageHeader,
@@ -130,40 +133,19 @@ func (ks *KernelSession) Send(
 	}
 
 	toSend := ks.serialize(msg, ident)
-	// log.Info().Msgf("to send message is %s", toSend)
 
-	// toSend = append(toSend, buffers...)
+	err := stream.SendMulti(zmq4.NewMsgFrom(toSend...))
 
-	// longest := 0
-	// for _, s := range toSend {
-	// 	if len(s) > longest {
-	// 		longest = len(s)
-	// 	}
-	// }
-
-	// copy := longest < ks.CopyThreshold
-
-	var tracker int
-	// if len(buffers) > 0 && track && !copy {
-	// 	// Track message if we are doing zero-copy buffers
-	// 	// This part needs proper implementation for actual tracking
-	// 	tracker, _ = stream.SendBytes(toSend, zmq4.DONTWAIT)
-	// } else {
-	// 	// Use dummy tracker, which will be done immediately
-	// 	stream.SendBytes(toSend, zmq4.DONTWAIT)
-	// }
-	tracker, _ = stream.SendMessage(toSend)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to send message")
+	}
+	msg.Tracker = 0 // Set to default value since we're not tracking
 
 	if ks.Debug {
 		log.Debug().Msgf("Message: %s\n", msg.MsgId)
 		log.Debug().Msgf("ToSend: %s\n", toSend)
 		log.Debug().Msgf("Buffers: %s\n", buffers)
 	}
-
-	msg.Tracker = tracker
-
-	// log.Info().Msgf("The message sent to kernel is %s", toSend)
-	// log.Printf("%+v\n", msg)
 
 	return msg
 }
@@ -258,14 +240,7 @@ func (ks *KernelSession) deserialize(
 		message.Content = msgList[4]
 	}
 
-	// Handle buffers
-	// message.Buffers = msgList[5:]
-
-	// Debug print
 	log.Debug().Msgf("Message: %+v\n", message)
-
-	// Adapt to the current version (implement as needed)
-	// message = adapt(message)
 
 	return message, nil
 }

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/pebbe/zmq4"
+	"github.com/go-zeromq/zmq4"
 	"github.com/zasper-io/zasper/models"
 
 	"github.com/google/uuid"
@@ -61,7 +61,7 @@ func RemoveRestartCallback() {
 
 }
 
-func StartBuffering(kernelId, sessionKey string, channels map[string]*zmq4.Socket) {
+func StartBuffering(kernelId, sessionKey string, channels map[string]zmq4.Socket) {
 
 }
 

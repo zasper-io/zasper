@@ -7,7 +7,7 @@ import (
 
 	"os"
 
-	"github.com/pebbe/zmq4"
+	"github.com/go-zeromq/zmq4"
 	"github.com/rs/zerolog/log"
 )
 
@@ -91,46 +91,55 @@ func (conn *Connection) makeURL(channel string, port int) string {
 	return fmt.Sprintf("%s://%s-%d", conn.Transport, conn.IP, port)
 }
 
-func (conn *Connection) ConnectShell() *zmq4.Socket {
+func (conn *Connection) ConnectShell() zmq4.Socket {
+	ctx := context.Background()
 	channel := "shell"
 	url := conn.makeURL(channel, conn.ShellPort)
-	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	socket.Connect(url)
+	socket := zmq4.NewDealer(ctx)
+	socket.Dial(url)
 	return socket
 
 }
 
-func (conn *Connection) ConnectControl() *zmq4.Socket {
+func (conn *Connection) ConnectControl() zmq4.Socket {
+	ctx := context.Background()
 	channel := "control"
 	url := conn.makeURL(channel, conn.ControlPort)
-	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	socket.Connect(url)
+	socket := zmq4.NewDealer(ctx)
+	socket.Dial(url)
 	return socket
 }
 
-func (conn *Connection) ConnectIopub() *zmq4.Socket {
+func (conn *Connection) ConnectIopub() zmq4.Socket {
+	ctx := context.Background()
 	channel := "iopub"
+
 	url := conn.makeURL(channel, conn.IopubPort)
-	socket, _ := zmq4.NewSocket(zmq4.SUB)
-	socket.SetSubscribe("")
-	socket.Connect(url)
+	socket := zmq4.NewSub(ctx)
+	err := socket.SetOption(zmq4.OptionSubscribe, "")
+	if err != nil {
+		log.Info().Msgf("could not subscribe: %v", err)
+	}
+	socket.Dial(url)
 	return socket
 
 }
 
-func (conn *Connection) ConnectStdin() *zmq4.Socket {
+func (conn *Connection) ConnectStdin() zmq4.Socket {
+	ctx := context.Background()
 	channel := "stdin"
 	url := conn.makeURL(channel, conn.StdinPort)
-	socket, _ := zmq4.NewSocket(zmq4.DEALER)
-	socket.Connect(url)
+	socket := zmq4.NewDealer(ctx)
+	socket.Dial(url)
 	return socket
 
 }
 
-func (conn *Connection) ConnectHb() *zmq4.Socket {
+func (conn *Connection) ConnectHb() zmq4.Socket {
+	ctx := context.Background()
 	channel := "hb"
 	url := conn.makeURL(channel, conn.HbPort)
-	socket, _ := zmq4.NewSocket(zmq4.REQ)
-	socket.Connect(url)
+	socket := zmq4.NewReq(ctx)
+	socket.Dial(url)
 	return socket
 }
