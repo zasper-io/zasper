@@ -1,7 +1,6 @@
 package kernel
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -165,38 +164,4 @@ func (km *KernelManager) makeURL(channel string) string {
 		return fmt.Sprintf("tcp://%s:%d", ip, port)
 	}
 	return fmt.Sprintf("%s://%s-%d", km.ConnectionInfo.Transport, ip, port)
-}
-
-func SetUpChannelSocketTypes() map[string]zmq4.Socket {
-	cst := make(map[string]zmq4.Socket)
-	// cst["hb"] = zmq4.Socket
-	// cst["iopub"] = zmq4.Socket
-	// cst["shell"] = zmq4.Socket
-	// cst["stdin"] = zmq4.Socket
-	// cst["control"] = zmq4.Socket
-
-	return cst
-}
-
-func (km *KernelManager) connectControlSocket() zmq4.Socket {
-	ctx := context.Background()
-	channel := "control"
-	url := km.makeURL(channel)
-
-	socket := zmq4.NewDealer(ctx)
-
-	socket.Listen(url)
-	return socket
-
-}
-
-func (km *KernelManager) connectHbSocket() zmq4.Socket {
-	ctx := context.Background()
-	channel := "control"
-	url := km.makeURL(channel)
-
-	socket := zmq4.NewReq(ctx)
-	socket.Listen(url)
-	return socket
-
 }

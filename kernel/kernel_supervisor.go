@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"syscall"
 
-	"github.com/go-zeromq/zmq4"
 	"github.com/zasper-io/zasper/models"
 
 	"github.com/google/uuid"
@@ -29,7 +27,6 @@ func Cleanup() {
 }
 
 func killKernel(pid int) {
-
 	// Get the process by PID
 	process, err := os.FindProcess(pid)
 	if err != nil {
@@ -53,16 +50,16 @@ func killKernel(pid int) {
 	fmt.Printf("Process %d killed successfully.\n", pid)
 }
 
+func NotifyConnect() {
+}
+
 func NotifyDisconnect(kernelId string) {
-
 }
 
-func RemoveRestartCallback() {
-
-}
-
-func StartBuffering(kernelId, sessionKey string, channels map[string]zmq4.Socket) {
-
+func killKernelById(kernelId string) error {
+	km := ZasperActiveKernels[kernelId]
+	killKernel(km.Provisioner.Pid)
+	return nil
 }
 
 func listKernels() []models.KernelModel {
@@ -104,14 +101,9 @@ func StartKernelManager(kernelPath string, kernelName string, env map[string]str
 
 	km.StartKernel(kernelName)
 
-	// task := addKernelWhenReady()
 	ZasperActiveKernels[kernelId] = km
 
 	return kernelId
-}
-
-func finishKernelStart(wg *sync.WaitGroup) {
-	wg.Done()
 }
 
 func CwdForPath(path string) string {
@@ -134,12 +126,4 @@ func createKernelManager(kernelName string, kernelId string) (KernelManager, str
 	km.Session = getSession()
 	log.Info().Msgf("session is %v", km.Session)
 	return km, kernelName, kernelId
-}
-
-func addKernelWhenReady() {
-
-}
-
-func NotifyConnect() {
-
 }

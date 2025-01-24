@@ -70,7 +70,6 @@ func main() {
 	core.ZasperSession = core.SetUpActiveSessions()
 	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
 	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()
-	kernel.ChannelSocketTypes = kernel.SetUpChannelSocketTypes()
 	kernel.ProtocolVersion = "8.6.2"
 
 	// API routes
@@ -104,6 +103,7 @@ func main() {
 	// kernels
 	apiRouter.HandleFunc("/kernels", kernel.KernelListAPIHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelReadAPIHandler).Methods("GET")
+	apiRouter.HandleFunc("/api/kernels/{kernel_id}", kernel.KernelDeleteAPIHandler).Methods("DELETE")
 
 	// sessions
 	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")
