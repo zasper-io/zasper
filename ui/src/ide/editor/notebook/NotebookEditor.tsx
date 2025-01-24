@@ -163,6 +163,10 @@ export default function NotebookEditor(props) {
     }
   };
 
+  function changeKernel(){
+    console.log("changing kernel")
+  }
+
   function removeAnsiCodes(str) {
     return str.replace(/\u001b\[[0-9;]*m/g, '');
   }
@@ -538,7 +542,7 @@ export default function NotebookEditor(props) {
         )}
        
         <div className={theme === 'light' ? 'editor-body light' : 'editor-body dark'}>
-        {showKernelSwitcher && <KernelSwitcher toggleKernelSwitcher={toggleKernelSwitcher} />}
+        {showKernelSwitcher && <KernelSwitcher kernelName={kernelName} toggleKernelSwitcher={toggleKernelSwitcher}  changeKernel={changeKernel}/>}
           {notebook.cells &&
             notebook.cells.map((cell, index) => (
               <Cell

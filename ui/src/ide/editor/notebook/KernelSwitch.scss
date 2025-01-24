@@ -1,23 +1,39 @@
 .modal-dialog {
     max-width: 95%;
     margin: 1.75rem auto;
-    width: 1090px;
+    width: 600px;
 }
 
 .modal-content {
     border: none;
-    border-radius: 10px;
+    border-radius: 4px;
+    height: 400px;
+}
+
+.modal-head{
+    height: 40px;
+    width: 100%;
+    background-color: #534793;
+    color: #fff;
+    font-weight: 300;
+    padding: 8px;
+    text-align: center;
+    border-radius: 4px 4px 0px 0px;
 }
 
 .modal {
-    background: #00000040;
+    background: rgb(0 0 0 / 50%);
 }
 
 
-button.btn-close {
+.modal-btn-close {
     position: absolute;
     right: 20px;
-    top: 20px;
+    top: 7px;
+    font-size: 20px;
+    background: transparent;
+    border: none;
+    color: #fff
 }
 
 
@@ -65,12 +81,6 @@ button.cancel-btn:hover {
     display: flex;
     justify-content: space-between;
     padding: 22px;
-}
-
-.modal-dialog {
-    max-width: 95%;
-    margin: 1.75rem auto;
-    width: 1090px;
 }
 
 .update-kernel-popup-left {
