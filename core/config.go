@@ -27,7 +27,7 @@ func SetUpZasper(cwd string) Application {
 		cwd = utils.GetHomeDir()
 	}
 	application := Application{
-		BaseUrl:           "https://zasper.io",
+		BaseUrl:           "http://localhost:8048",
 		ProjectName:       utils.GetProjectName(cwd),
 		HomeDir:           cwd,
 		UserName:          utils.GetUsername(),

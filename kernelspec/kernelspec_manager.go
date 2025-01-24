@@ -131,8 +131,7 @@ func getResources(kernelName, resourceDir string) map[string]string {
 	for _, logoFile := range files {
 		fname := filepath.Base(logoFile)
 		noExt := strings.TrimSuffix(fname, filepath.Ext(fname))
-		resources[noExt] = urlPathJoin(core.Zasper.BaseUrl, "kernelspecs", kernelName, fname)
-		resources[noExt] = urlPathJoin(core.Zasper.StaticUrl, "python.png")
+		resources[noExt] = urlPathJoin(core.Zasper.BaseUrl, "api/kernelspecs", kernelName, fname)
 	}
 
 	return resources
@@ -227,4 +226,10 @@ func isKernelDir(path string) bool {
 	_, err = os.Stat(kernelFilePath)
 
 	return err == nil
+}
+
+func getResourceFile(kernelName, resourcePath string) string {
+	// Construct the full path to the resource file
+	resourceDir := findSpecDirectory(kernelName)
+	return filepath.Join(resourceDir, resourcePath)
 }

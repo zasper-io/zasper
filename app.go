@@ -99,6 +99,7 @@ func main() {
 	// kernelspecs
 	apiRouter.HandleFunc("/kernelspecs", kernelspec.KernelspecAPIHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernelspecs/{kernelName}", kernelspec.SingleKernelspecAPIHandler).Methods("GET")
+	apiRouter.HandleFunc("/kernelspecs/{kernel}/{resource}", kernelspec.ServeKernelResource).Methods("GET")
 
 	// kernels
 	apiRouter.HandleFunc("/kernels", kernel.KernelListAPIHandler).Methods("GET")
