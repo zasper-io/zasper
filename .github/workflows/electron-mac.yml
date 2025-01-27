@@ -21,13 +21,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23' # Change to your required Go version
+          go-version: '1.23' 
 
-      - name: Install ZeroMQ
-        run: |
-          brew update
-          brew install zeromq
-        
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
