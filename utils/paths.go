@@ -84,7 +84,7 @@ func GetJupyterPath() []string {
 	paths = append(paths, filepath.Join(homeDir, ".local", "share", "jupyter"))                                                         // Linux
 	paths = append(paths, filepath.Join(homeDir, "Library", "Python", pythonVersion, "share", "jupyter"))                               // macOS
 	paths = append(paths, filepath.Join(homeDir, "Library", "Jupyter"))                                                                 // miniconda
-	paths = append(paths, filepath.Join(homeDir, "Anaconda3", "share", "jupyter"))                                                      // Anaconda
+	paths = append(paths, filepath.Join(homeDir, "anaconda3", "share", "jupyter"))                                                      // Anaconda
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Roaming", "jupyter"))                                                      // Windows
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Programs", "Python", "Python"+pythonVersion, "share", "jupyter")) // Windows
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Continuum", "anaconda3", "share", "jupyter"))                     // Windows
