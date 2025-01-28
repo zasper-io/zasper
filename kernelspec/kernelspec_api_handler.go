@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 )
@@ -24,9 +24,10 @@ func ServeKernelResource(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
 	}
+	ext := filepath.Ext(resourcePath)[1:] // get extension and remove the leading dot
 
-	ext := strings.ToLower(strings.TrimPrefix(resourcePath, "."))
 	var contentType string
+
 	switch ext {
 	case "png":
 		contentType = "image/png"
