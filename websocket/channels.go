@@ -29,6 +29,7 @@ type KernelWebSocketConnection struct {
 	IOpubDataRateLimit   int
 	RateLimitWindow      int
 	Context              context.Context
+	PollingCancel        context.CancelFunc
 	OpenSessions         map[string]kernel.KernelSession
 	OpenSockets          []string
 	Channels             map[string]zmq4.Socket
@@ -47,63 +48,86 @@ func (kwsConn *KernelWebSocketConnection) getAllowedMessageTypes() []string {
 	return make([]string, 0)
 }
 
+func (kwsConn *KernelWebSocketConnection) stopPolling() {
+	// Call the cancel function to stop the polling goroutine
+	kwsConn.mu.Lock()
+	defer kwsConn.mu.Unlock()
+
+	if kwsConn.PollingCancel != nil {
+		kwsConn.PollingCancel()
+		log.Info().Msg("Polling stopped.")
+	} else {
+		log.Warn().Msg("Polling was not started.")
+	}
+}
+
 func (kwsConn *KernelWebSocketConnection) pollCommonSocket(socket zmq4.Socket, socketName string) {
+	kwsConn.mu.Lock()
 	kwsConn.pollingWait.Add(1)
+	kwsConn.mu.Unlock()
 	go func() {
 		defer func() {
 			log.Debug().Msgf("Polling of %q socket finished.", socketName)
+			kwsConn.mu.Lock()
 			kwsConn.pollingWait.Done()
+			kwsConn.mu.Unlock()
 		}()
 		for {
-			log.Debug().Msgf("Polling of %q socket started.", socketName)
+			select {
+			case <-kwsConn.Context.Done(): // Check if context is canceled
+				log.Debug().Msgf("Polling of %q socket canceled.", socketName)
+				return
+			default:
+				log.Debug().Msgf("Polling of %q socket started.", socketName)
 
-			zmsg, err2 := socket.Recv()
-			if err2 != nil {
-				log.Info().Msgf("could not receive message: %v", err2)
+				zmsg, err2 := socket.Recv()
+				if err2 != nil {
+					log.Info().Msgf("could not receive message: %v", err2)
+					continue
+				}
+				log.Printf("[%s] %s\n", zmsg.Frames[0], zmsg.Frames[1])
+
+				msg := zmsg.Bytes()
+				log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
+
+				parts := zmsg.Frames
+
+				kernelResponseMsg := kernel.Message{}
+
+				// Unmarshal contents.
+
+				i := 0
+
+				for string(parts[i]) != "<IDS|MSG>" {
+					i++
+				}
+
+				var err error
+				err = json.Unmarshal(parts[i+2], &kernelResponseMsg.Header)
+				if err != nil {
+					kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Header: %w", err)
+				}
+				err = json.Unmarshal(parts[i+3], &kernelResponseMsg.ParentHeader)
+				if err != nil {
+					kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.ParentHeader: %w", err)
+
+				}
+				err = json.Unmarshal(parts[i+4], &kernelResponseMsg.Metadata)
+				if err != nil {
+					kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Metadata: %w", err)
+				}
+				err = json.Unmarshal(parts[i+5], &kernelResponseMsg.Content)
+				if err != nil {
+					kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Content: %w", err)
+				}
+
+				jsonBytes, err := json.Marshal(kernelResponseMsg)
+				if err != nil {
+					log.Error().Msgf("Error marshaling message: %v", err)
+					continue
+				}
+				kwsConn.Send <- jsonBytes
 			}
-			log.Printf("[%s] %s\n", zmsg.Frames[0], zmsg.Frames[1])
-
-			msg := zmsg.Bytes()
-			log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
-
-			parts := zmsg.Frames
-
-			kernelResponseMsg := kernel.Message{}
-
-			// Unmarshal contents.
-
-			i := 0
-
-			for string(parts[i]) != "<IDS|MSG>" {
-				i++
-			}
-
-			var err error
-			err = json.Unmarshal(parts[i+2], &kernelResponseMsg.Header)
-			if err != nil {
-				kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Header: %w", err)
-			}
-			err = json.Unmarshal(parts[i+3], &kernelResponseMsg.ParentHeader)
-			if err != nil {
-				kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.ParentHeader: %w", err)
-
-			}
-			err = json.Unmarshal(parts[i+4], &kernelResponseMsg.Metadata)
-			if err != nil {
-				kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Metadata: %w", err)
-			}
-			err = json.Unmarshal(parts[i+5], &kernelResponseMsg.Content)
-			if err != nil {
-				kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Content: %w", err)
-			}
-
-			jsonBytes, err := json.Marshal(kernelResponseMsg)
-			if err != nil {
-				log.Error().Msgf("Error marshaling message: %v", err)
-				continue
-			}
-			kwsConn.Send <- jsonBytes
-
 		}
 	}()
 }
@@ -151,11 +175,12 @@ func (kwsConn *KernelWebSocketConnection) createStream() {
 	// not sure about hb
 
 	cinfo := kwsConn.KernelManager.ConnectionInfo
-	kwsConn.Channels["iopub"] = cinfo.ConnectIopub()
-	kwsConn.Channels["shell"] = cinfo.ConnectShell()
-	kwsConn.Channels["control"] = cinfo.ConnectControl()
-	kwsConn.Channels["stdin"] = cinfo.ConnectStdin()
-	kwsConn.Channels["hb"] = cinfo.ConnectHb()
+	context := kwsConn.Context
+	kwsConn.Channels["iopub"] = cinfo.ConnectIopub(context)
+	kwsConn.Channels["shell"] = cinfo.ConnectShell(context)
+	kwsConn.Channels["control"] = cinfo.ConnectControl(context)
+	kwsConn.Channels["stdin"] = cinfo.ConnectStdin(context)
+	kwsConn.Channels["hb"] = cinfo.ConnectHb(context)
 }
 
 func (kwsConn *KernelWebSocketConnection) nudge() {
@@ -172,8 +197,9 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
 	kernelInfoRequest2 := kwsConn.Session.MessageFromString("kernel_info_request")
 
-	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell()
-	transient_control_channel := kwsConn.KernelManager.ConnectionInfo.ConnectControl()
+	context := context.Background()
+	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell(context)
+	transient_control_channel := kwsConn.KernelManager.ConnectionInfo.ConnectControl(context)
 
 	kwsConn.Session.SendStreamMsg(transient_control_channel, kernelInfoRequest)
 	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest2)

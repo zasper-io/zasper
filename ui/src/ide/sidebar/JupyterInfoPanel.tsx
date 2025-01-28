@@ -1,14 +1,34 @@
-
 import { useAtom } from 'jotai';
 import React from 'react';
 import { kernelsAtom, kernelspecsAtom, terminalsAtom } from '../../store/AppState';
 import './JupyterInfoPanel.scss'
+import { BaseApiUrl } from '../config';
 
 export default function JupyterInfoPanel({ sendDataToParent, display }) {
 
   const [kernelspecs] = useAtom(kernelspecsAtom);
   const [kernels] = useAtom(kernelsAtom);
   const [terminals] = useAtom(terminalsAtom);
+
+  function killKernel(id) {
+    fetch(BaseApiUrl + '/api/kernels/' + id, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((response) => {
+        if (response.ok) {
+          console.log('Kernel killed');
+          // sendDataToParentsendDataToParent('kernels');
+        } else {
+          console.log('Failed to kill kernel');
+        }
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+      });
+  }
 
   return (
     <div className={display}>
@@ -38,8 +58,9 @@ export default function JupyterInfoPanel({ sendDataToParent, display }) {
           <ul className='file-list list-unstyled'>
             {Object.keys(kernels).length > 0 ? (
               Object.keys(kernels).map((key) => (
-                <li className='fileItem' key={key}>{kernels[key].id} | 
-                {kernels[key].name}
+                <li className='fileItem' key={key}> 
+                  {kernels[key].name}
+                  <button className='btn btn-danger btn-sm' onClick={() => killKernel( kernels[key].id)}>Kill</button>
                 </li>
               ))
             ) : (

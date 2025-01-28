@@ -91,8 +91,7 @@ func (conn *Connection) makeURL(channel string, port int) string {
 	return fmt.Sprintf("%s://%s-%d", conn.Transport, conn.IP, port)
 }
 
-func (conn *Connection) ConnectShell() zmq4.Socket {
-	ctx := context.Background()
+func (conn *Connection) ConnectShell(ctx context.Context) zmq4.Socket {
 	channel := "shell"
 	url := conn.makeURL(channel, conn.ShellPort)
 	socket := zmq4.NewDealer(ctx)
@@ -101,8 +100,7 @@ func (conn *Connection) ConnectShell() zmq4.Socket {
 
 }
 
-func (conn *Connection) ConnectControl() zmq4.Socket {
-	ctx := context.Background()
+func (conn *Connection) ConnectControl(ctx context.Context) zmq4.Socket {
 	channel := "control"
 	url := conn.makeURL(channel, conn.ControlPort)
 	socket := zmq4.NewDealer(ctx)
@@ -110,8 +108,7 @@ func (conn *Connection) ConnectControl() zmq4.Socket {
 	return socket
 }
 
-func (conn *Connection) ConnectIopub() zmq4.Socket {
-	ctx := context.Background()
+func (conn *Connection) ConnectIopub(ctx context.Context) zmq4.Socket {
 	channel := "iopub"
 
 	url := conn.makeURL(channel, conn.IopubPort)
@@ -125,8 +122,7 @@ func (conn *Connection) ConnectIopub() zmq4.Socket {
 
 }
 
-func (conn *Connection) ConnectStdin() zmq4.Socket {
-	ctx := context.Background()
+func (conn *Connection) ConnectStdin(ctx context.Context) zmq4.Socket {
 	channel := "stdin"
 	url := conn.makeURL(channel, conn.StdinPort)
 	socket := zmq4.NewDealer(ctx)
@@ -135,8 +131,7 @@ func (conn *Connection) ConnectStdin() zmq4.Socket {
 
 }
 
-func (conn *Connection) ConnectHb() zmq4.Socket {
-	ctx := context.Background()
+func (conn *Connection) ConnectHb(ctx context.Context) zmq4.Socket {
 	channel := "hb"
 	url := conn.makeURL(channel, conn.HbPort)
 	socket := zmq4.NewReq(ctx)

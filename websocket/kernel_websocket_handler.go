@@ -1,6 +1,9 @@
 package websocket
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -20,11 +23,45 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-var (
-	clients   = make(map[*KernelWebSocketConnection]bool) // All connected clients
-	clientsMu sync.Mutex                                  // To handle concurrent access to clients
-	broadcast = make(chan []byte)                         // Broadcast channel for messages
-)
+// Response structure for consistent API responses
+type APIResponse struct {
+	Message string `json:"message"`
+}
+
+var clientsMu sync.Mutex // To handle concurrent access to clients
+
+var ZasperActiveKernelConnections map[string]*KernelWebSocketConnection
+
+func SetUpStateKernels() map[string]*KernelWebSocketConnection {
+	return make(map[string]*KernelWebSocketConnection)
+}
+
+// DELETE handler for /api/kernels/{kernel_id}
+func KernelDeleteAPIHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	kernelID := vars["kernel_id"]
+
+	kwsConn := ZasperActiveKernelConnections[kernelID]
+
+	kwsConn.PollingCancel()
+
+	clientsMu.Lock()
+	delete(ZasperActiveKernelConnections, kernelID)
+	clientsMu.Unlock()
+
+	// Try to delete the kernel from "database"
+	err := kernel.KillKernelById(kernelID)
+	if err != nil {
+		// If the kernel is not found, respond with 404
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(APIResponse{Message: err.Error()})
+		return
+	}
+
+	// If deletion is successful, respond with 200 OK
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(APIResponse{Message: fmt.Sprintf("Kernel with ID %s deleted successfully.", kernelID)})
+}
 
 func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	log.Info().Msg("receieved kernel connection request")
@@ -58,9 +95,8 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// defer conn.Close()
-
-	// handle websocket messages
+	// Create a new context for the polling operation
+	ctx, cancel := context.WithCancel(context.Background())
 
 	kernelConnection := KernelWebSocketConnection{
 		KernelId:      kernelId,
@@ -68,6 +104,8 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		Channels:      make(map[string]zmq4.Socket),
 		Conn:          conn,
 		Send:          make(chan []byte),
+		Context:       ctx,
+		PollingCancel: cancel, // Store the cancel function so it can be called later to stop polling
 	}
 
 	log.Info().Msg("preparing kernel connection")
@@ -77,59 +115,64 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	kernelConnection.connect()
 
 	clientsMu.Lock()
-	clients[&kernelConnection] = true
+	ZasperActiveKernelConnections[kernelId] = &kernelConnection
 	clientsMu.Unlock()
 
-	go kernelConnection.readMessages()
-	go kernelConnection.writeMessages()
+	var waiter sync.WaitGroup
+	waiter.Add(2)
+
+	go kernelConnection.readMessagesFromClient(&waiter)
+	go kernelConnection.writeMessages(&waiter)
 }
 
-func (kwsConn *KernelWebSocketConnection) readMessages() {
+func (kwsConn *KernelWebSocketConnection) readMessagesFromClient(waiter *sync.WaitGroup) {
 	defer func() {
+		log.Info().Msg("Closing readMessagesFromClient")
 		kwsConn.Conn.Close()
-		delete(clients, kwsConn)
+		waiter.Done()
 	}()
 
 	for {
-		messageType, data, err := kwsConn.Conn.ReadMessage()
-		if err != nil {
-			log.Debug().Msgf("%s", err)
+		select {
+		case <-kwsConn.Context.Done(): // Check if context is canceled
+			log.Debug().Msgf("Socket closed, Incoming message handler stopped")
 			return
-		}
-		log.Debug().Msgf("message type => %d", messageType)
-		kwsConn.handleIncomingMessage(messageType, data)
-		// broadcast <- message // Send message to broadcast channel
-	}
-}
-
-func (kwsConn *KernelWebSocketConnection) writeMessages() {
-	defer kwsConn.Conn.Close()
-	for {
-		message, ok := <-kwsConn.Send
-		if !ok {
-			kwsConn.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-			return
-		}
-		kwsConn.mu.Lock()
-		if err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			log.Info().Msgf("Error writing message: %s", err)
-			return
-		}
-		kwsConn.mu.Unlock()
-	}
-}
-
-func handleMessages() {
-	for {
-		message := <-broadcast
-		// Send message to all connected clients
-		for client := range clients {
-			select {
-			case client.Send <- message:
-			default:
-				close(client.Send)
-				delete(clients, client)
+		default:
+			messageType, data, err := kwsConn.Conn.ReadMessage()
+			if err != nil {
+				log.Debug().Msgf("%s", err)
+				return
 			}
+			log.Debug().Msgf("message type => %d", messageType)
+			kwsConn.handleIncomingMessage(messageType, data)
+		}
+
+	}
+}
+
+func (kwsConn *KernelWebSocketConnection) writeMessages(waiter *sync.WaitGroup) {
+	defer func() {
+		kwsConn.Conn.Close()
+		waiter.Done()
+	}()
+	for {
+		select {
+		case <-kwsConn.Context.Done(): // Check if context is canceled
+			log.Debug().Msgf("Socket closed, Incoming message handler stopped")
+			return
+		default:
+			message, ok := <-kwsConn.Send
+			if !ok {
+				log.Info().Msg("Send channel closed, closing WebSocket connection")
+				kwsConn.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			kwsConn.mu.Lock()
+			if err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+				log.Info().Msgf("Error writing message: %s", err)
+				return
+			}
+			kwsConn.mu.Unlock()
 		}
 	}
 }

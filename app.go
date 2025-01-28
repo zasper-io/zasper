@@ -70,6 +70,7 @@ func main() {
 	core.ZasperSession = core.SetUpActiveSessions()
 	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
 	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()
+	websocket.ZasperActiveKernelConnections = websocket.SetUpStateKernels()
 	kernel.ProtocolVersion = "8.6.2"
 
 	// API routes
@@ -103,7 +104,6 @@ func main() {
 	// kernels
 	apiRouter.HandleFunc("/kernels", kernel.KernelListAPIHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelReadAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/api/kernels/{kernel_id}", kernel.KernelDeleteAPIHandler).Methods("DELETE")
 
 	// sessions
 	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")
@@ -111,6 +111,7 @@ func main() {
 
 	//web sockets
 	apiRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)
+	apiRouter.HandleFunc("/kernels/{kernel_id}", websocket.KernelDeleteAPIHandler).Methods("DELETE")
 	apiRouter.HandleFunc("/terminals/{terminalId}", websocket.HandleTerminalWebSocket)
 
 	//cors optionsGoes Below

@@ -54,11 +54,14 @@ func NotifyConnect() {
 }
 
 func NotifyDisconnect(kernelId string) {
+
 }
 
-func killKernelById(kernelId string) error {
+func KillKernelById(kernelId string) error {
 	km := ZasperActiveKernels[kernelId]
+	NotifyDisconnect(km.KernelId)
 	killKernel(km.Provisioner.Pid)
+	delete(ZasperActiveKernels, kernelId)
 	return nil
 }
 
