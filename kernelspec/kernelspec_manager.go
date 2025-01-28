@@ -131,7 +131,7 @@ func getResources(kernelName, resourceDir string) map[string]string {
 	for _, logoFile := range files {
 		fname := filepath.Base(logoFile)
 		noExt := strings.TrimSuffix(fname, filepath.Ext(fname))
-		resources[noExt] = urlPathJoin(core.Zasper.BaseUrl, "api/kernelspecs", kernelName, fname)
+		resources[noExt] = urlPathJoin("/api/kernelspecs", kernelName, fname)
 	}
 
 	return resources

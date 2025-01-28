@@ -36,7 +36,7 @@ const isApiServerReady = (port, callback) => {
 };
 
 const startApiServer = (directory) => {
-  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: directory, shell: '/bin/zsh' });
+  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: directory });
 
   apiProcess.stdout.on("data", (data) => {
     log.info(`API Server: ${data}`);

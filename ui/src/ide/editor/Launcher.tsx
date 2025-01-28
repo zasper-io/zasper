@@ -72,7 +72,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
             Object.keys(kernelspecs).map((key) => (
               <div className="launcher-icon" key={key} onClick={() => createNewNotebook('/', 'notebook', kernelspecs[key].name)}>
                 <h6>{key}</h6>
-                <img src={kernelspecs[key].resources['logo-64x64']} alt="logo" />
+                <img src={`${BaseApiUrl}${kernelspecs[key].resources['logo-64x64']}`} alt="logo" />
               </div>
             ))
           ) : (
