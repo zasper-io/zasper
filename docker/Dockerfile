@@ -1,13 +1,10 @@
-FROM ubuntu:noble
+FROM golang:latest
 
 ENV CGO_ENABLED=1\
     GOOS=linux
 
 # Dependencies
-RUN apt-get update && apt-get install -y curl git gcc cpp npm libzmq3-dev pkg-config
-
-# Install go
-RUN curl -LO https://go.dev/dl/go1.23.4.linux-amd64.tar.gz && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz && rm -rf go1.23.4.linux-amd64.tar.gz
+RUN apt-get update && apt-get install -y curl git gcc cpp npm
 
 # Clone zasper repo
 RUN git clone https://github.com/zasper-io/zasper.git 
