@@ -15,6 +15,7 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 			kernelCmd[i] = connFile
 		}
 	}
+	// kernelCmd = append(kernelCmd, "--KernelManager.kernel_id="+kw["kernel_id"].(string))
 
 	log.Debug().Msgf("kernelCmd is %v", kernelCmd)
 

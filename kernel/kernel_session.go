@@ -113,20 +113,9 @@ func (ks *KernelSession) Send(
 
 	log.Debug().Msgf("message is %+v", msg)
 
-	if ks.CheckPid && os.Getpid() != ks.Pid {
-		log.Info().Msgf("WARNING: attempted to send message from fork %+v", msg)
-		return Message{}
-	}
-
 	if buffers == nil {
 		buffers = []byte{}
 	}
-
-	// for idx, buf := range buffers {
-	// 	if len(buf) == 0 {
-	// 		log.Fatal().Msgf("Buffer %d is empty", idx)
-	// 	}
-	// }
 
 	if ks.AdaptVersion != "" {
 		// msg = adapt(msg, s.adaptVersion)
@@ -152,15 +141,11 @@ func (ks *KernelSession) Send(
 
 func (ks *KernelSession) serialize(msg Message, ident [][]byte) [][]byte {
 	DELIM := "<IDS|MSG>"
-	content := msg.Content
-	// log.Println(content)
-	switch content.(type) {
-	case string:
-		log.Info().Msgf("content %s", content)
-	}
+	log.Info().Msgf("message header is %v", msg.Header)
+
 	realMessage := [][]byte{
 		json_packer(msg.Header),
-		json_packer("{}"),
+		json_packer(msg.Header),
 		json_packer(msg.Metadata),
 		json_packer(msg.Content), // []byte("kernel_info_request"),
 	}

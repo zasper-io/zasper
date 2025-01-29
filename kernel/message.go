@@ -2,16 +2,18 @@ package kernel
 
 import (
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type (
 	MessageHeader struct {
-		MsgID    string    `json:"msg_id"`
-		MsgType  string    `json:"msg_type"`
-		Username string    `json:"username"`
-		Session  string    `json:"session"`
-		Date     time.Time `json:"date"`
-		Version  string    `json:"version"`
+		MsgID           string `json:"msg_id"`
+		MsgType         string `json:"msg_type"`
+		Username        string `json:"username"`
+		Session         string `json:"session"`
+		Date            string `json:"date"`
+		ProtocolVersion string `json:"version"`
 	}
 
 	Message struct {
@@ -29,12 +31,12 @@ type (
 
 func (ks *KernelSession) newMsgHeader(msgType string, userName string, session string) MessageHeader {
 	return MessageHeader{
-		MsgID:    newID(),
-		MsgType:  msgType,
-		Username: userName,
-		Session:  ks.Key,
-		Date:     time.Now().UTC(),
-		Version:  ProtocolVersion,
+		MsgID:           newID(),
+		MsgType:         msgType,
+		Username:        userName,
+		Session:         ks.Key,
+		Date:            time.Now().UTC().Format(time.RFC3339),
+		ProtocolVersion: ProtocolVersion,
 	}
 }
 
@@ -57,9 +59,10 @@ func (ks *KernelSession) createMsg(msgType string,
 func (ks *KernelSession) MessageFromString(value string) Message {
 	msg := Message{}
 	msg.Header = ks.newMsgHeader(value, GetUsername(), ks.Key)
+	log.Info().Msgf("message header is %v", msg.Header)
 	msg.MsgId = msg.Header.MsgID
-	msg.Content = "{}"
-	msg.Metadata = "{}"
+	msg.Content = "kernel_info_request"
+	msg.Metadata = make(map[string]interface{})
 
 	return msg
 }

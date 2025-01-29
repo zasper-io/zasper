@@ -71,7 +71,7 @@ func main() {
 	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
 	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()
 	websocket.ZasperActiveKernelConnections = websocket.SetUpStateKernels()
-	kernel.ProtocolVersion = "8.6.2"
+	kernel.ProtocolVersion = "5.3"
 
 	// API routes
 	apiRouter := router.PathPrefix("/api").Subrouter()
