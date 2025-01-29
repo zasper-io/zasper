@@ -27,7 +27,7 @@ Zasper is an IDE designed from the ground up to support massive concurrency. It 
 
 It's perfectly suited for running REPL-style data applications, with Jupyter notebooks being one example.
 
-**Currently Zasper is fully supported on MacOS and Linux.** Windows support is coming soon!
+**Currently Zasper is fully supported on MacOS and Linux.** Currently Windows has limited support!
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=zasper-io/zasper)
 
@@ -46,6 +46,14 @@ Go's Concurrency: Better suited for applications requiring both concurrency and 
 Python's Event Loop: Ideal for I/O-bound applications that need to handle a lot of asynchronous tasks without blocking. However, it struggles with CPU-bound tasks and lacks native parallelism unless additional worker threads are used.
 
 Hence the Go version of Zasper was born!
+
+
+# Jupyter Kernels Supported
+
+* Python Kernels
+* Conda environments
+* Go Kernels ([GoNb](https://github.com/janpfeifer/gonb))
+* More coming soon!
 
 
 ## 📷 Screenshots
