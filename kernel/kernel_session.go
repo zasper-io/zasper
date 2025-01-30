@@ -44,12 +44,6 @@ func (ks *KernelSession) setKey(value string) {
 	ks.Auth = newAuth(value)
 }
 
-func (ks *KernelSession) Unpack(data []interface{}) interface{} {
-	// Implement the unpack logic
-	data2 := "abc"
-	return data2
-}
-
 func newAuth(key string) hash.Hash {
 	return hmac.New(sha256.New, []byte(key))
 }

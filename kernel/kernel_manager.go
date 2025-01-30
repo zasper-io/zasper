@@ -1,7 +1,6 @@
 package kernel
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"slices"
@@ -51,11 +50,6 @@ func (km *KernelManager) StartKernel(kernelName string) {
 
 	kernelCmd, kw := km.asyncPrestartKernel(kernelName)
 	km.asyncLaunchKernel(kernelCmd, kw)
-	km.asyncPostStartKernel(kw)
-}
-
-func (km *KernelManager) asyncPostStartKernel(kw map[string]interface{}) {
-	// km.ControlSocket = km.connectControlSocket()
 	km.Ready = true
 }
 
@@ -146,22 +140,4 @@ func getPython() (string, error) {
 	}
 
 	return "python", err
-}
-
-/*********************************************************************
-**********************************************************************
-***                     CONNECT TO SOCKETS                         ***
-**********************************************************************
-*********************************************************************/
-
-var ChannelSocketTypes map[string]zmq4.Socket
-
-func (km *KernelManager) makeURL(channel string) string {
-	ip := km.ConnectionInfo.IP
-	port := km.ConnectionInfo.ControlPort // TODO getPort
-
-	if km.ConnectionInfo.Transport == "tcp" {
-		return fmt.Sprintf("tcp://%s:%d", ip, port)
-	}
-	return fmt.Sprintf("%s://%s-%d", km.ConnectionInfo.Transport, ip, port)
 }
