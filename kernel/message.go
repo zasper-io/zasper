@@ -29,7 +29,7 @@ type (
 	}
 )
 
-func (ks *KernelSession) newMsgHeader(msgType string, userName string, session string) MessageHeader {
+func (ks *KernelSession) newMsgHeader(msgType string, userName string) MessageHeader {
 	return MessageHeader{
 		MsgID:           newID(),
 		MsgType:         msgType,
@@ -40,25 +40,25 @@ func (ks *KernelSession) newMsgHeader(msgType string, userName string, session s
 	}
 }
 
-func (ks *KernelSession) createMsg(msgType string,
+func (ks *KernelSession) createMsg(
 	content interface{},
 	parent MessageHeader,
 	header MessageHeader,
 	metadata map[string]interface{}) Message {
 
 	msg := Message{}
-	// expect header is not provided
 
 	msg.MsgId = msg.Header.MsgID
-	// msg.ParentHeader = parent
-	msg.Content = "{}"
-	msg.Metadata = "{}"
+	msg.ParentHeader = parent
+	msg.Header = header
+	msg.Content = content
+	msg.Metadata = metadata
 	return msg
 }
 
 func (ks *KernelSession) MessageFromString(value string) Message {
 	msg := Message{}
-	msg.Header = ks.newMsgHeader(value, GetUsername(), ks.Key)
+	msg.Header = ks.newMsgHeader(value, GetUsername())
 	log.Info().Msgf("message header is %v", msg.Header)
 	msg.MsgId = msg.Header.MsgID
 	msg.Content = "kernel_info_request"

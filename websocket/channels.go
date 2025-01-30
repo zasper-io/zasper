@@ -3,7 +3,6 @@ package websocket
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -80,46 +79,7 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 				}
 				log.Printf("[%s] %s\n", zmsg.Frames[0], zmsg.Frames[1])
 
-				msg := zmsg.Bytes()
-				log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
-
-				parts := zmsg.Frames
-
-				kernelResponseMsg := kernel.Message{}
-
-				// Unmarshal contents.
-
-				i := 0
-
-				for string(parts[i]) != "<IDS|MSG>" {
-					i++
-				}
-
-				var err error
-				err = json.Unmarshal(parts[i+2], &kernelResponseMsg.Header)
-				if err != nil {
-					kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Header: %w", err)
-				}
-				err = json.Unmarshal(parts[i+3], &kernelResponseMsg.ParentHeader)
-				if err != nil {
-					kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.ParentHeader: %w", err)
-
-				}
-				err = json.Unmarshal(parts[i+4], &kernelResponseMsg.Metadata)
-				if err != nil {
-					kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Metadata: %w", err)
-				}
-				err = json.Unmarshal(parts[i+5], &kernelResponseMsg.Content)
-				if err != nil {
-					kernelResponseMsg.Error = fmt.Errorf("error decoding ComposedMsg.Content: %w", err)
-				}
-
-				jsonBytes, err := json.Marshal(kernelResponseMsg)
-				if err != nil {
-					log.Error().Msgf("Error marshaling message: %v", err)
-					continue
-				}
-				kwsConn.Send <- jsonBytes
+				kwsConn.Send <- kwsConn.Session.Deserialize(zmsg)
 			}
 		}
 	}()
@@ -196,7 +156,7 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 		log.Info().Msgf("dealer failed to recv message: %v", err)
 	}
 
-	log.Info().Msg(msg.String())
+	log.Info().Msgf("%s", kwsConn.Session.Deserialize(msg))
 
 	transient_control_channel.Close()
 	transient_shell_channel.Close()

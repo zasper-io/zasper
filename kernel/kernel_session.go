@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"hash"
 	"os"
@@ -100,7 +99,7 @@ func (ks *KernelSession) Send(
 			buffers = msg.Buffers
 		}
 	case string:
-		msg = ks.createMsg(v, content, parent, header, metadata)
+		msg = ks.createMsg(content, parent, header, metadata)
 	default:
 		log.Debug().Msgf("msg_or_type must be of type Message or string, got %T", v)
 	}
@@ -161,65 +160,66 @@ func (ks *KernelSession) sign(msg_list [][]byte) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-// Deserialize function
-func (ks *KernelSession) deserialize(
-	msgList [][]byte, // List of byte slices
-	content bool,
-	copy bool,
-	authKey []byte,
-	digestHistory map[string]struct{}, // Keep track of used signatures
-) (Message, error) {
-	minLen := 5
-	var message Message
+func (ks *KernelSession) Deserialize(zmsg zmq4.Msg) []byte {
 
-	// Handle signature verification if authKey is provided
-	if authKey != nil {
-		signature := msgList[0]
-		if len(signature) == 0 {
-			return message, errors.New("unsigned message")
+	msg := zmsg.Bytes()
+	log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
+
+	frames := zmsg.Frames
+
+	kernelResponseMsg := Message{}
+
+	i := 0
+
+	for string(frames[i]) != "<IDS|MSG>" {
+		i++
+	}
+
+	// Validate signature.
+	if len(ks.Key) != 0 {
+		mac := hmac.New(sha256.New, []byte(ks.Key))
+		for _, frame := range frames[i+2 : i+6] {
+			mac.Write(frame)
 		}
-		if _, found := digestHistory[string(signature)]; found {
-			return message, errors.New("duplicate signature")
+		signature := make([]byte, hex.DecodedLen(len(frames[i+1])))
+		_, err := hex.Decode(signature, frames[i+1])
+		if err != nil {
+			kernelResponseMsg.Error = fmt.Errorf("invalid signature: while decoding message")
+			jsonBytes, _ := json.Marshal(kernelResponseMsg)
+			return jsonBytes
 		}
-
-		// Calculate expected signature
-		check := ks.sign(msgList[1:5])
-		if !hmac.Equal(signature, []byte(check)) {
-			return message, fmt.Errorf("invalid signature: %x", signature)
+		if !hmac.Equal(mac.Sum(nil), signature) {
+			kernelResponseMsg.Error = fmt.Errorf("invalid signature: while comparing message")
+			jsonBytes, _ := json.Marshal(kernelResponseMsg)
+			return jsonBytes
 		}
-
-		// Add signature to digest history
-		digestHistory[string(signature)] = struct{}{}
 	}
 
-	if len(msgList) < minLen {
-		return message, fmt.Errorf("malformed message, must have at least %d elements", minLen)
+	// Unmarshal contents.
+	var err error
+	err = json.Unmarshal(frames[i+2], &kernelResponseMsg.Header)
+	if err != nil {
+		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling Header: %w", err)
+	}
+	err = json.Unmarshal(frames[i+3], &kernelResponseMsg.ParentHeader)
+	if err != nil {
+		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling ParentHeader: %w", err)
+
+	}
+	err = json.Unmarshal(frames[i+4], &kernelResponseMsg.Metadata)
+	if err != nil {
+		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling Metadata: %w", err)
+	}
+	err = json.Unmarshal(frames[i+5], &kernelResponseMsg.Content)
+	if err != nil {
+		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling Content: %w", err)
 	}
 
-	// Unmarshal JSON from the message parts
-	if err := json.Unmarshal(msgList[1], &message.Header); err != nil {
-		return message, fmt.Errorf("error unmarshalling header: %w", err)
+	jsonBytes, err := json.Marshal(kernelResponseMsg)
+	if err != nil {
+		log.Error().Msgf("Error marshaling message: %v", err)
+		return nil
 	}
-	message.MsgId = message.Header.MsgID
-	message.MsgType = message.Header.MsgType
+	return jsonBytes
 
-	if err := json.Unmarshal(msgList[2], &message.ParentHeader); err != nil {
-		return message, fmt.Errorf("error unmarshalling parent header: %w", err)
-	}
-
-	if err := json.Unmarshal(msgList[3], &message.Metadata); err != nil {
-		return message, fmt.Errorf("error unmarshalling metadata: %w", err)
-	}
-
-	if content {
-		if err := json.Unmarshal(msgList[4], &message.Content); err != nil {
-			return message, fmt.Errorf("error unmarshalling content: %w", err)
-		}
-	} else {
-		message.Content = msgList[4]
-	}
-
-	log.Debug().Msgf("Message: %+v\n", message)
-
-	return message, nil
 }
