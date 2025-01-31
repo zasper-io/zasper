@@ -14,6 +14,8 @@ function KernelSwitcher(props: ModalProps) {
 
     const [kernelspecs, setKernelspecs] = useAtom<IKernelspecsState>(kernelspecsAtom);
 
+    const [selectedKernel, setSelectedKernel] = useState<string>(props.kernelName);
+
     const handlekernelSave = () => {
         props.toggleKernelSwitcher();
     }
@@ -32,12 +34,12 @@ function KernelSwitcher(props: ModalProps) {
                                 
                                 <p>Current Kernel : {props.kernelName}</p>
                                 <div className="update-kernel-popup-form">
-                                <select onChange={e => props.changeKernel(e.target.value)} className="form-select editor-select" value={props.kernelName}>
+                                <select onChange={e => setSelectedKernel(e.target.value)} className="form-select editor-select" value={selectedKernel}>
                                     {Object.keys(kernelspecs).map((option, index) => (
                                         <option key={index} value={kernelspecs[option].name}>{kernelspecs[option].name}</option>
                                     ))}
                                 </select>
-                                    <button className='gitbutton' onClick={props.changeKernel}>Change Kernel</button>
+                                    <button className='gitbutton' onClick={() => props.changeKernel(selectedKernel)}>Change Kernel</button>
                                 </div>
                             </div>
                         </div>

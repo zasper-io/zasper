@@ -56,9 +56,8 @@ export default function NotebookEditor(props) {
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
   const codeMirrorRefs = useRef<CodeMirrorRef[] | null>([]); 
   const [theme] = useAtom(themeAtom);
-  const [client, setClient] = useState<IClient>({ send: () => {} });
+  const [kernelWebSocketClient, setKernelWebSocketClient] = useState<IKernelWebSocketClient>({ send: () => {} });
   const [kernelName, setKernelName] = useState<string>(props.data.kernelspec);
-  const [kernelMap, setKernelMap] = useAtom(kernelsAtom);
   const [session, setSession] = useState<ISession | null>();
   const [kernelStatus, setKernelStatus] = useState("idle")
   const [userName] = useAtom(userNameAtom)
@@ -69,7 +68,7 @@ export default function NotebookEditor(props) {
 }
 
 
-  interface IClient {
+  interface IKernelWebSocketClient {
     send: any;
   }
 
@@ -111,39 +110,40 @@ export default function NotebookEditor(props) {
   }, [props.data]);
 
   useEffect( () => {
+    console.log("session", session)
     startWebSocket()
   }, [session])
 
   const startWebSocket = () => {
+    console.log("starting websocket")
     if(session){
-      const client1 = new W3CWebSocket(
+      const kernelWebSocketClient = new W3CWebSocket(
         BaseWebSocketUrl + '/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
       );
 
-      client1.onopen = () => {
+      kernelWebSocketClient.onopen = () => {
         setKernelStatus("connected")
       };
 
-      client1.onmessage = (message) => {
+      kernelWebSocketClient.onmessage = (message) => {
         message = JSON.parse(message.data);
-       
         updateNotebook(message);
-        
       };
 
-      client1.onclose = () => {
+      kernelWebSocketClient.onclose = () => {
         console.log('disconnected');
       };
 
-      setClient(client1);
+      setKernelWebSocketClient(kernelWebSocketClient);
     }
   };
 
   const startASession =  async (path: string, name: string, type: string, kernelspec: string) => {
     if(kernelspec === 'default'){
       kernelspec = "python3";
+      setKernelName("python3")
     }
-    if (!session && kernelMap) {
+    // if (!session) {
       fetch(BaseApiUrl + '/api/sessions', {
         method: 'POST',
         body: JSON.stringify({
@@ -156,15 +156,16 @@ export default function NotebookEditor(props) {
         .then(async (response) => await response.json())
         .then((data) => {
           setSession(data);
-          const updatedKernel = { ...kernelMap, [data.kernel.id]: data.kernel };
-          setKernelMap(updatedKernel);
+          console.log('session updated', data);
         })
         .catch((error) => console.log('error', error));
-    }
+    // }
   };
 
-  function changeKernel(){
+  function changeKernel(value: string){
     console.log("changing kernel")
+    setKernelName(value)
+    startASession(props.data.path, props.data.name, props.data.type, value)
   }
 
   function removeAnsiCodes(str) {
@@ -335,7 +336,7 @@ export default function NotebookEditor(props) {
         parent_header: {},
       });
   
-      client.send(message);
+      kernelWebSocketClient.send(message);
     }
   };
 
