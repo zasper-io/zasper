@@ -1,4 +1,4 @@
-package websocket
+package kernel
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	"github.com/zasper-io/zasper/kernel"
 
 	"github.com/go-zeromq/zmq4"
 )
@@ -19,17 +18,17 @@ type KernelWebSocketConnection struct {
 	Conn                 *websocket.Conn
 	Send                 chan []byte
 	KernelId             string
-	KernelManager        kernel.KernelManager
+	KernelManager        KernelManager
 	LimitRate            bool
 	IOpubMsgRateLimit    int
 	IOpubDataRateLimit   int
 	RateLimitWindow      int
 	Context              context.Context
 	PollingCancel        context.CancelFunc
-	OpenSessions         map[string]kernel.KernelSession
+	OpenSessions         map[string]KernelSession
 	OpenSockets          []string
 	Channels             map[string]zmq4.Socket
-	Session              kernel.KernelSession
+	Session              KernelSession
 	IOPubWindowMsgCount  int
 	IOPubWindowByteCount int
 	IOPubMsgsExceeded    int
@@ -92,7 +91,7 @@ func (kwsConn *KernelWebSocketConnection) startPolling() { //msg interface{}, bi
 	kwsConn.pollChannel(iopub_channel, "iopub")
 }
 
-func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
+func (kwsConn *KernelWebSocketConnection) Prepare(sessionId string) {
 	km := kwsConn.KernelManager
 	if km.Ready {
 		log.Info().Msgf("%s", km.Session.Key)
@@ -102,9 +101,9 @@ func (kwsConn *KernelWebSocketConnection) prepare(sessionId string) {
 	kwsConn.Session = km.Session
 }
 
-func (kwsConn *KernelWebSocketConnection) connect() {
+func (kwsConn *KernelWebSocketConnection) Connect() {
 	log.Info().Msg("notifying connection")
-	kernel.NotifyConnect()
+	NotifyConnect()
 
 	log.Info().Msg("creating stream")
 	kwsConn.createStream()
@@ -171,9 +170,9 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 		return
 	}
 
-	var msg kernel.Message
+	var msg Message
 	if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
-		msg = kernel.Message{}
+		msg = Message{}
 	} else {
 		if err := json.Unmarshal([]byte(wsMsg), &msg); err != nil {
 			log.Info().Msgf("Error unmarshalling message: %s", err)
@@ -182,5 +181,57 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int,
 		log.Debug().Msgf("msg is => %v", msg)
 
 		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
+	}
+}
+
+func (kwsConn *KernelWebSocketConnection) ReadMessagesFromClient(waiter *sync.WaitGroup) {
+	defer func() {
+		log.Info().Msg("Closing readMessagesFromClient")
+		kwsConn.Conn.Close()
+		waiter.Done()
+	}()
+
+	for {
+		select {
+		case <-kwsConn.Context.Done(): // Check if context is canceled
+			log.Debug().Msgf("Socket closed, Incoming message handler stopped")
+			return
+		default:
+			messageType, data, err := kwsConn.Conn.ReadMessage()
+			if err != nil {
+				log.Debug().Msgf("%s", err)
+				return
+			}
+			log.Debug().Msgf("message type => %d", messageType)
+			kwsConn.handleIncomingMessage(messageType, data)
+		}
+
+	}
+}
+
+func (kwsConn *KernelWebSocketConnection) WriteMessages(waiter *sync.WaitGroup) {
+	defer func() {
+		kwsConn.Conn.Close()
+		waiter.Done()
+	}()
+	for {
+		select {
+		case <-kwsConn.Context.Done(): // Check if context is canceled
+			log.Debug().Msgf("Socket closed, Incoming message handler stopped")
+			return
+		default:
+			message, ok := <-kwsConn.Send
+			if !ok {
+				log.Info().Msg("Send channel closed, closing WebSocket connection")
+				kwsConn.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			kwsConn.mu.Lock()
+			if err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+				log.Info().Msgf("Error writing message: %s", err)
+				return
+			}
+			kwsConn.mu.Unlock()
+		}
 	}
 }

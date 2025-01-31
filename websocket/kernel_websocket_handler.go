@@ -30,10 +30,10 @@ type APIResponse struct {
 
 var clientsMu sync.Mutex // To handle concurrent access to clients
 
-var ZasperActiveKernelConnections map[string]*KernelWebSocketConnection
+var ZasperActiveKernelConnections map[string]*kernel.KernelWebSocketConnection
 
-func SetUpStateKernels() map[string]*KernelWebSocketConnection {
-	return make(map[string]*KernelWebSocketConnection)
+func SetUpStateKernels() map[string]*kernel.KernelWebSocketConnection {
+	return make(map[string]*kernel.KernelWebSocketConnection)
 }
 
 // DELETE handler for /api/kernels/{kernel_id}
@@ -98,7 +98,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	// Create a new context for the polling operation
 	ctx, cancel := context.WithCancel(context.Background())
 
-	kernelConnection := KernelWebSocketConnection{
+	kernelConnection := kernel.KernelWebSocketConnection{
 		KernelId:      kernelId,
 		KernelManager: kernelManager,
 		Channels:      make(map[string]zmq4.Socket),
@@ -109,10 +109,10 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 
 	log.Info().Msg("preparing kernel connection")
-	kernelConnection.prepare(sessionId)
+	kernelConnection.Prepare(sessionId)
 
 	log.Info().Msg("connecting kernel")
-	kernelConnection.connect()
+	kernelConnection.Connect()
 
 	clientsMu.Lock()
 	ZasperActiveKernelConnections[kernelId] = &kernelConnection
@@ -121,58 +121,6 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	var waiter sync.WaitGroup
 	waiter.Add(2)
 
-	go kernelConnection.readMessagesFromClient(&waiter)
-	go kernelConnection.writeMessages(&waiter)
-}
-
-func (kwsConn *KernelWebSocketConnection) readMessagesFromClient(waiter *sync.WaitGroup) {
-	defer func() {
-		log.Info().Msg("Closing readMessagesFromClient")
-		kwsConn.Conn.Close()
-		waiter.Done()
-	}()
-
-	for {
-		select {
-		case <-kwsConn.Context.Done(): // Check if context is canceled
-			log.Debug().Msgf("Socket closed, Incoming message handler stopped")
-			return
-		default:
-			messageType, data, err := kwsConn.Conn.ReadMessage()
-			if err != nil {
-				log.Debug().Msgf("%s", err)
-				return
-			}
-			log.Debug().Msgf("message type => %d", messageType)
-			kwsConn.handleIncomingMessage(messageType, data)
-		}
-
-	}
-}
-
-func (kwsConn *KernelWebSocketConnection) writeMessages(waiter *sync.WaitGroup) {
-	defer func() {
-		kwsConn.Conn.Close()
-		waiter.Done()
-	}()
-	for {
-		select {
-		case <-kwsConn.Context.Done(): // Check if context is canceled
-			log.Debug().Msgf("Socket closed, Incoming message handler stopped")
-			return
-		default:
-			message, ok := <-kwsConn.Send
-			if !ok {
-				log.Info().Msg("Send channel closed, closing WebSocket connection")
-				kwsConn.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				return
-			}
-			kwsConn.mu.Lock()
-			if err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				log.Info().Msgf("Error writing message: %s", err)
-				return
-			}
-			kwsConn.mu.Unlock()
-		}
-	}
+	go kernelConnection.ReadMessagesFromClient(&waiter)
+	go kernelConnection.WriteMessages(&waiter)
 }
