@@ -79,9 +79,9 @@ export default function NotebookEditor(props) {
 
   const FetchFileData = async (path: string) => {
     try {
-      const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
+      const res = await fetch(BaseApiUrl + '/api/contents', {
         method: 'POST',
-        body: JSON.stringify({ path }),
+        body: JSON.stringify({ path : path, type: 'notebook' }),
       });
 
       if (!res.ok) {

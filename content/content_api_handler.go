@@ -20,14 +20,14 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	relativePath := body.Path
+	contentType := body.Type
+	format := body.Format
+	hash_str := body.Hash
+
 	if relativePath == "" {
 		relativePath = "."
 	}
 	log.Print("path :", relativePath)
-
-	contentType := req.URL.Query().Get("type")
-	format := req.URL.Query().Get("format")
-	hash_str := req.URL.Query().Get("hash")
 
 	allowedTypes := []string{"directory", "file", "notebook"}
 	allowedFormats := []string{"text", "base64"}

@@ -19,14 +19,8 @@ type KernelWebSocketConnection struct {
 	Send                 chan []byte
 	KernelId             string
 	KernelManager        KernelManager
-	LimitRate            bool
-	IOpubMsgRateLimit    int
-	IOpubDataRateLimit   int
-	RateLimitWindow      int
 	Context              context.Context
 	PollingCancel        context.CancelFunc
-	OpenSessions         map[string]KernelSession
-	OpenSockets          []string
 	Channels             map[string]zmq4.Socket
 	Session              KernelSession
 	IOPubWindowMsgCount  int
@@ -89,6 +83,8 @@ func (kwsConn *KernelWebSocketConnection) startPolling() { //msg interface{}, bi
 	// shell_channel := kwsConn.Channels["shell"]
 
 	kwsConn.pollChannel(iopub_channel, "iopub")
+	kwsConn.pollChannel(iopub_channel, "shell")
+	kwsConn.pollChannel(iopub_channel, "control")
 }
 
 func (kwsConn *KernelWebSocketConnection) Prepare(sessionId string) {

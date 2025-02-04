@@ -2,7 +2,10 @@ package content
 
 type (
 	ContentRequestBody struct {
-		Path string `json:"path"`
+		Path   string `json:"path"`
+		Type   string `json:"type"`
+		Hash   string `json:"hash"`
+		Format string `json:"format"`
 	}
 
 	ContentPayload struct {

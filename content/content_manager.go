@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/zasper-io/zasper/core"
 	"github.com/zasper-io/zasper/models"
@@ -67,7 +68,8 @@ func getNotebookModel(path string) models.ContentModel {
 		Name:          info.Name(),
 		Path:          path,
 		Content:       nb,
-		Last_modified: info.ModTime().GoString(),
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
 	return output
 }
@@ -93,7 +95,8 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 		ContentType:   "directory",
 		Name:          relativePath,
 		Path:          relativePath,
-		Last_modified: info.ModTime().GoString(),
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 	}
 
 	dir, err := os.Open(abspath)
@@ -142,7 +145,8 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 		Name:          info.Name(),
 		Path:          path,
 		ContentType:   contentType,
-		Last_modified: info.ModTime().GoString(),
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
 	return output
 
@@ -162,7 +166,8 @@ func getFileModelWithContent(path string) models.ContentModel {
 		Name:          info.Name(),
 		Path:          path,
 		Content:       read_file2(osPath, info.Name()),
-		Last_modified: info.ModTime().GoString(),
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
 	return output
 
