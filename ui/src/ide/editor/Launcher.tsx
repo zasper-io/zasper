@@ -1,11 +1,8 @@
 import React, { useEffect } from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '../config';
-import { atom, useAtom } from 'jotai';
+import { useAtom } from 'jotai';
 import { kernelspecsAtom, terminalsCountAtom, terminalsAtom, fileBrowserReloadCountAtom } from '../../store/AppState';
-import { v4 as uuidv4 } from 'uuid';
-
-
 
 interface LauncherProps {
   data: {

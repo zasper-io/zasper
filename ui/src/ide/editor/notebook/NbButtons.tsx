@@ -27,7 +27,7 @@ function NbButtons(props){
         <div className='ms-auto'><button className='editor-button' onClick={props.toggleKernelSwitcher}>{props.kernelName}</button></div>
         <div className="kStatus">
           <span className={`kernelStatus ks-${props.kernelStatus}`}></span>
-          <button className="reconnectButton" onClick={props.startWebSocket}><img src='./images/editor/reconnect-icon.svg' title='Reconnect Kernel'></img></button>
+          <button className="reconnectButton" onClick={props.startWebSocket}><img src='./images/editor/reconnect-icon.svg' title='Reconnect Kernel' alt="Reconnect"></img></button>
         </div>
       </div>
     )

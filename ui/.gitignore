@@ -26,4 +26,5 @@ yarn-error.log*
 /dist
 npmlist.json
 package-lock.json
+pnpm-lock.yaml
 *.pyc

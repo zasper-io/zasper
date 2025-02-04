@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './KernelSwitch.scss';
 import { useAtom } from 'jotai';
-import { IKernelspec, IKernelspecsState, kernelspecsAtom } from '../../../store/AppState';
+import { IKernelspecsState, kernelspecsAtom } from '../../../store/AppState';
 
 
 interface ModalProps {
@@ -12,13 +12,9 @@ interface ModalProps {
 
 function KernelSwitcher(props: ModalProps) {
 
-    const [kernelspecs, setKernelspecs] = useAtom<IKernelspecsState>(kernelspecsAtom);
+    const [kernelspecs] = useAtom<IKernelspecsState>(kernelspecsAtom);
 
     const [selectedKernel, setSelectedKernel] = useState<string>(props.kernelName);
-
-    const handlekernelSave = () => {
-        props.toggleKernelSwitcher();
-    }
 
     return (
         <div className="modal" id="exampleModal" aria-labelledby="exampleModalLabel" aria-hidden="true">

@@ -115,6 +115,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
 }
 
 interface IFileItemProps{
+  key: string;
   parentDir: string;
   content: IContent;
   handleFileClick: (name: string, path: string, type: string, kernelspec: string) => void;
@@ -259,6 +260,7 @@ const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
 };
 
 interface IDirectoryItemProps{
+  key: string;
   data: IContent;
   sendDataToParent: (name: string, path: string, type: string, kernelspec:string) => void;
 }

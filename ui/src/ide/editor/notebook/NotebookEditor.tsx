@@ -10,7 +10,7 @@ import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
-import { python } from '@codemirror/lang-python';
+// import { python } from '@codemirror/lang-python';
 import KernelSwitcher from './KernelSwitch';
 
 const debugMode = false;
@@ -105,7 +105,7 @@ export default function NotebookEditor(props) {
   useEffect(() => {
     if (props.data.load_required === true) {
       FetchFileData(props.data.path);
-      const session = startASession(props.data.path, props.data.name, props.data.type, props.data.kernelspec);
+      startASession(props.data.path, props.data.name, props.data.type, props.data.kernelspec);
     }
   }, [props.data]);
 
