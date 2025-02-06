@@ -83,17 +83,24 @@ export default function NotebookEditor(props) {
         method: 'POST',
         body: JSON.stringify({ path : path, type: 'notebook' }),
       });
-
       if (!res.ok) {
         throw new Error('Failed to fetch data');
       }
 
       const resJson = await res.json();
+      
+      if (resJson.content.cells === null) {
+        resJson.content.cells = [{
+          execution_count: 0,
+          source: '',
+          cell_type: 'code',
+          outputs: [],
+        }];
+      }
       resJson.content.cells.forEach((cell) => {
         cell.id = uuidv4(); // Add UUID to each cell object
         cell.reload = false;
       });
-
       setNotebook(resJson.content);
       setLoading(false);
     } catch (err: unknown) {
@@ -379,7 +386,7 @@ export default function NotebookEditor(props) {
       const newCell = {
         execution_count: 0,
         source: '',
-        cell_type: 'markdown',
+        cell_type: 'code',
         id: uuidv4(),
         reload: false,
         outputs: [],
