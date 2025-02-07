@@ -32,7 +32,7 @@ It's perfectly suited for running REPL-style data applications, with Jupyter not
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=zasper-io/zasper)
 
 # Benchmarks - 4X Better
-Zasper uses one fourth of RAM and one fourth of CPU used by Jupterlab. While Jupyterlab uses around 104.8 MB of RAM and 0.8 CPUs, Zasper uses 26.7 MB of RAM and 0.2 CPUs.
+Zasper uses one fourth of RAM and one fourth of CPU used by Jupyterlab. While Jupyterlab uses around 104.8 MB of RAM and 0.8 CPUs, Zasper uses 26.7 MB of RAM and 0.2 CPUs.
 
 
 # Why I built Zasper ?
