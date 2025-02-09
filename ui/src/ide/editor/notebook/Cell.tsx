@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import CodeMirror from '@uiw/react-codemirror';
+import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
@@ -135,7 +135,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
                   value={cellContents}
                   height='auto'
                   width='100%'
-                  extensions={[markdown({ base: markdownLanguage, codeLanguages: languages }), customKeymap]}
+                  extensions={[markdown({ base: markdownLanguage, codeLanguages: languages }), [Prec.highest(customKeymap)]]}
                   autoFocus={props.index === props.focusedIndex ? true : false}
                   onChange={onChange}
                   onUpdate={onUpdate}
@@ -189,7 +189,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             value={cellContents}
             height='auto'
             width='100%'
-            extensions={[python(), customKeymap]}
+            extensions={[python(), [Prec.highest(customKeymap)]]}
             autoFocus={props.index === props.focusedIndex ? true : false}
             onChange={onChange}
             onUpdate={onUpdate}

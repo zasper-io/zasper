@@ -10,7 +10,6 @@ import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
-// import { python } from '@codemirror/lang-python';
 import KernelSwitcher from './KernelSwitch';
 
 const debugMode = false;
