@@ -495,6 +495,66 @@ export default function NotebookEditor(props) {
       });
       event.preventDefault();
     }
+
+    // Handle adding cells with shortcuts (A/B for add above/below)
+    if (event.key === 'a' && event.ctrlKey) {
+      addCellUp(); // Ctrl + A -> Add cell above
+      event.preventDefault();
+    } else if (event.key === 'b' && event.ctrlKey) {
+      addCellDown(); // Ctrl + B -> Add cell below
+      event.preventDefault();
+    }
+
+    // Handle deleting a cell (D, D for delete)
+    if (event.key === 'd' && event.ctrlKey && event.shiftKey) {
+      deleteCell(); // Ctrl + Shift + D -> Delete cell
+      event.preventDefault();
+    }
+
+    // Handle copy/cut/paste
+    if (event.key === 'c' && event.ctrlKey) {
+      copyCell(); // Ctrl + C -> Copy cell
+      event.preventDefault();
+    } else if (event.key === 'x' && event.ctrlKey) {
+      cutCell(); // Ctrl + X -> Cut cell
+      event.preventDefault();
+    } else if (event.key === 'v' && event.ctrlKey) {
+      pasteCell(); // Ctrl + V -> Paste cell
+      event.preventDefault();
+    }
+
+     // Handle running a cell with Ctrl + Enter (no move) or Shift + Enter (move to next)
+    if (event.key === 'Enter') {
+      if (event.ctrlKey) {
+        submitCell(notebook.cells[focusedIndex].source, notebook.cells[focusedIndex].id); // Ctrl + Enter -> Run cell
+      } else if (event.shiftKey) {
+        submitCell(notebook.cells[focusedIndex].source, notebook.cells[focusedIndex].id); // Shift + Enter -> Run and move to next
+        setFocusedIndex((prev) => Math.min(prev + 1, notebook.cells.length - 1)); // Move to next cell after running
+      }
+      event.preventDefault();
+    }
+
+    // Handle cell type change (Y for code, M for markdown)
+    if (event.key === 'y' && event.ctrlKey) {
+      changeCellType('code'); // Ctrl + Y -> Change cell to code
+      event.preventDefault();
+    } else if (event.key === 'm' && event.ctrlKey) {
+      changeCellType('markdown'); // Ctrl + M -> Change cell to markdown
+      event.preventDefault();
+    }
+
+    // Handle saving the notebook with Cmd/Ctrl + S
+    if ((event.key === 's' && event.ctrlKey) || (event.key === 's' && event.metaKey)) {
+      handleCmdEnter(); // Ctrl + S (or Cmd + S) -> Save notebook
+      event.preventDefault();
+    }
+
+    // Handle undo (Ctrl + Z)
+    if (event.key === 'z' && event.ctrlKey) {
+      console.log('Undo action'); // Add undo logic here if necessary
+      event.preventDefault();
+    }
+
   };
 
   const handleCmdEnter = () => {
