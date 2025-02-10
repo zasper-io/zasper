@@ -18,8 +18,8 @@
   <a href="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml" target="_blank"><img alt="Github CD status" src="https://github.com/zasper-io/zasper/actions/workflows/gobuild.yml/badge.svg"></a>
 </p>
 
-<p align=center>
-  <img src="./screenshots/intro.gif"/>
+<p align="center">
+    <a href="https://www.youtube.com/watch?v=LvVOkYL_LzQ" target="_blank"><img src="https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/play-demo.png" alt="Zasper Demo"></a>
 </p>
 
 
