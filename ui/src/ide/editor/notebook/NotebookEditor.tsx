@@ -9,7 +9,7 @@ import NbButtons from './NbButtons';
 import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
-import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
+import { IKernel, userNameAtom } from '../../../store/AppState';
 import KernelSwitcher from './KernelSwitch';
 
 const debugMode = false;
@@ -49,8 +49,8 @@ export default function NotebookEditor(props) {
     nbformat_minor: 0,
     metadata: {},
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const [, setLoading] = useState(true);
+  const [, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
   const codeMirrorRefs = useRef<CodeMirrorRef[] | null>([]); 

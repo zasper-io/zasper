@@ -3,7 +3,6 @@ import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
-// import { darcula } from '@uiw/codemirror-theme-darcula';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';

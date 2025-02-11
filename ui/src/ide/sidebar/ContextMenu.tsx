@@ -1,6 +1,5 @@
-// src/ContextMenu.tsx
 import React from 'react'
-import './ContextMenu.scss' // Optional: for styling
+import './ContextMenu.scss'
 
 interface MenuItem {
   label: string

@@ -25,7 +25,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
   const [contents, setContents] = useState<IContent[]>([]);
   const [cwd] = useState<string>('');
   const [projectName, setProjectName] = useState('')
-  const [userName, setUserName] = useAtom(userNameAtom)
+  const [, setUserName] = useAtom(userNameAtom)
 
   const FetchData = async () => {
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {

@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 import CodeMirror from '@uiw/react-codemirror'
 import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
@@ -12,7 +12,7 @@ import { json } from '@codemirror/lang-json'
 import { javascript } from '@codemirror/lang-javascript'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
-import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
+import { keymap, ViewUpdate } from '@codemirror/view'
 import { BaseApiUrl } from '../config'
 
 import './FileEditor.scss'
@@ -96,11 +96,10 @@ export default function FileEditor (props) {
     }
     return go()
   }
-  const [linePosition, setLinePosition] = useAtom(linePositionAtom)
-  const [columnPosition, setColumnPosition] = useAtom(columnPositionAtom)
+  const [, setLinePosition] = useAtom(linePositionAtom)
+  const [, setColumnPosition] = useAtom(columnPositionAtom)
   const [indentationSize] = useAtom(indentationSizeAtom)
 
-  const editorRef = useRef<EditorView | null>(null);
 
   const onUpdate =  useCallback(( viewUpdate: ViewUpdate) => {
     if(viewUpdate){
@@ -124,7 +123,7 @@ export default function FileEditor (props) {
         <div className='editor-body2'>
           <CodeMirror
             value={fileContents}
-            theme={theme=='light'? githubLight: githubDark}
+            theme={theme==='light'? githubLight: githubDark}
             minHeight='100%'
             width='100%'
             extensions={[getExtensionToLoad(), customKeymap]}
