@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import './CommandPalette.scss'
 import { BaseApiUrl } from '../config';
 import { debounce } from 'lodash'; 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { useAtom } from 'jotai'
 import { themeAtom } from '../../store/Settings'
 import './SettingsPanel.scss'

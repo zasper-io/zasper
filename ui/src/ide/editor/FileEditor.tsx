@@ -3,15 +3,13 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import CodeMirror from '@uiw/react-codemirror'
 import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
-import { linter } from '@codemirror/lint';
-import { darcula } from '@uiw/codemirror-theme-darcula';
 import { python } from '@codemirror/lang-python'
 import { html } from '@codemirror/lang-html'
 import { go } from '@codemirror/lang-go'
 import { less } from '@codemirror/lang-less'
 import { sass } from '@codemirror/lang-sass'
-import { json, jsonParseLinter } from '@codemirror/lang-json'
-import { javascript, esLint } from '@codemirror/lang-javascript'
+import { json } from '@codemirror/lang-json'
+import { javascript } from '@codemirror/lang-javascript'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view'
@@ -22,14 +20,9 @@ import { themeAtom } from '../../store/Settings'
 import { useAtom } from 'jotai'
 import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '../../store/AppState';
 
-// Define the types for the editor reference
-interface CodeMirrorEditor extends EditorView {
-  getCursor(): { line: number; ch: number }; // Type for getCursor()
-}
-
 export default function FileEditor (props) {
   const [fileContents, setFileContents] = useState('')
-  const [theme, setTheme] = useAtom(themeAtom)
+  const [theme] = useAtom(themeAtom)
 
   const handleCmdEnter = () => {
     console.log('Saving file')
@@ -68,7 +61,7 @@ export default function FileEditor (props) {
   }
 
   useEffect(() => {
-    if (props.data.load_required == true) {
+    if (props.data.load_required === true) {
       FetchFileData(props.data.path)
     }
   }, [])
@@ -105,7 +98,7 @@ export default function FileEditor (props) {
   }
   const [linePosition, setLinePosition] = useAtom(linePositionAtom)
   const [columnPosition, setColumnPosition] = useAtom(columnPositionAtom)
-  const [indentationSize, setIndentationSize] = useAtom(indentationSizeAtom)
+  const [indentationSize] = useAtom(indentationSizeAtom)
 
   const editorRef = useRef<EditorView | null>(null);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 
 export default function TabIndex (props) {
   const tabs = props.tabs

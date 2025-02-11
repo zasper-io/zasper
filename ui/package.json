@@ -55,10 +55,10 @@
     "websocket": "1.0.34",
     "uuid": "11.0.5",
     "lodash": "^4.17.21",
-    "xterm": "5.1.0",
-    "xterm-addon-attach": "^0.8.0",
-    "xterm-addon-fit": "0.7.0",
-    "xterm-addon-web-links": "^0.9.0"
+    "@xterm/xterm": "5.5.0",
+    "@xterm/addon-attach": "0.11.0",
+    "@xterm/addon-fit": "0.10.0",
+    "@xterm/addon-web-links": "0.11.0"
   },
   "devDependencies": {
     "@types/dompurify": "^2.4.0",

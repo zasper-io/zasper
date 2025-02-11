@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 
 import FileEditor from './FileEditor'
 import Launcher from './Launcher'

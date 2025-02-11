@@ -17,7 +17,7 @@ export default function ImageEditor (props) {
   }
 
   useEffect(() => {
-    if (props.data.load_required == true) {
+    if (props.data.load_required === true) {
       FetchFileData(props.data.path)
     }
   }, [])
