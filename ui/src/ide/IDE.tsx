@@ -46,7 +46,7 @@ interface INavDict {
 
 function IDE () {
   const [theme] = useAtom(themeAtom)
-  const [languageMode, setLanguageMode] = useAtom(languageModeAtom)
+  const [, setLanguageMode] = useAtom(languageModeAtom)
   const [terminals, setTerminals] = useAtom(terminalsAtom)
   const [reloadCount] = useAtom(fileBrowserReloadCountAtom)
 
@@ -173,6 +173,7 @@ function IDE () {
         <Panel defaultSize={5}>
           <Topbar sendDataToParent={handleDataFromChild}/>
         </Panel>
+        <PanelResizeHandle disabled/>
         <Panel defaultSize={92.5} maxSize={93}>
           <PanelGroup direction='horizontal'>
             <Panel defaultSize={20} minSize={20}>
@@ -198,6 +199,7 @@ function IDE () {
             </Panel>
           </PanelGroup>
         </Panel>
+        <PanelResizeHandle disabled />
         <Panel maxSize={2.5}>
           <StatusBar/>
         </Panel>

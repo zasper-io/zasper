@@ -14,7 +14,7 @@ const routes = [
   }
 ]
 
-export default function RouteConfigExample () {
+export default function RouteConfig () {
   return (
     <HashRouter>
       <Routes>

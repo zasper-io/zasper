@@ -110,6 +110,7 @@ export default function NotebookEditor(props) {
 
   useEffect(() => {
     if (props.data.load_required === true) {
+      console.log("called")
       FetchFileData(props.data.path);
       startASession(props.data.path, props.data.name, props.data.type, props.data.kernelspec);
     }
@@ -161,7 +162,7 @@ export default function NotebookEditor(props) {
       })
         .then(async (response) => await response.json())
         .then((data) => {
-          setSession(data);
+          setSession(data);// update session
           console.log('session updated', data);
         })
         .catch((error) => console.log('error', error));
