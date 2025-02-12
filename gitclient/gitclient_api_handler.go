@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/zasper-io/zasper/core"
+	zhttp "github.com/zasper-io/zasper/http"
 )
 
 type Commit struct {
@@ -16,35 +17,15 @@ type Commit struct {
 	Parents []string `json:"parents"` // Store the hashes of parent commits
 }
 
-// Response structure to return as JSON
 type BranchResponse struct {
 	Branch string `json:"branch"`
-}
-
-// ErrorResponse is a structure for returning error messages
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
-}
-
-// Helper function to send error responses
-func sendErrorResponse(w http.ResponseWriter, statusCode int, errorMessage string) {
-	// Set the response header and write the error
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-
-	errorResponse := ErrorResponse{
-		Error:   "Internal Server Error",
-		Message: errorMessage,
-	}
-	json.NewEncoder(w).Encode(errorResponse)
 }
 
 func BranchHandler(w http.ResponseWriter, r *http.Request) {
 	repoPath := core.Zasper.HomeDir
 	branch, err := getCurrentBranch(repoPath)
 	if err != nil {
-		sendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting current branch: %v", err))
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting current branch: %v", err))
 		return
 	}
 
@@ -57,7 +38,7 @@ func BranchHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
-		sendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error encoding JSON: %v", err))
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error encoding JSON: %v", err))
 	}
 }
 
@@ -66,7 +47,7 @@ func CommitGraphHandler(w http.ResponseWriter, r *http.Request) {
 
 	commits, err := getCommitGraph(repoPath)
 	if err != nil {
-		sendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error fetching commit graph: %v", err))
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error fetching commit graph: %v", err))
 		return
 	}
 
@@ -80,7 +61,7 @@ func GetUncommittedFilesHandler(w http.ResponseWriter, r *http.Request) {
 	// Get uncommitted files
 	uncommittedFiles, err := getUncommittedFiles(repoPath)
 	if err != nil {
-		sendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting uncommitted files: %v", err))
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting uncommitted files: %v", err))
 		return
 	}
 
@@ -100,14 +81,14 @@ func CommitAndMaybePushHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil {
-		sendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
 
 	// Commit the changes
 	err = commitSpecificFiles(repoPath, requestData.Files, requestData.Message)
 	if err != nil {
-		sendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Failed to commit selected files: %v", err))
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Failed to commit selected files: %v", err))
 		return
 	}
 
@@ -115,7 +96,7 @@ func CommitAndMaybePushHandler(w http.ResponseWriter, r *http.Request) {
 	if requestData.Push {
 		err = pushChanges(repoPath)
 		if err != nil {
-			sendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Failed to push changes: %v", err))
+			zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Failed to push changes: %v", err))
 			return
 		}
 		w.WriteHeader(http.StatusOK)

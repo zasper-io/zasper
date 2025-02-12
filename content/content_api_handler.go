@@ -2,10 +2,13 @@ package content
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"net/http"
 	"slices"
 	"strconv"
+
+	zhttp "github.com/zasper-io/zasper/http"
 
 	"github.com/rs/zerolog/log"
 )
@@ -62,7 +65,8 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	err := json.NewDecoder(req.Body).Decode(&body)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Error().Err(err).Msg("Error decoding request body")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error updating content: %v", err))
 		return
 	}
 
@@ -73,7 +77,8 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if body.Type == "file" {
 		contentStr, ok := body.Content.(string)
 		if !ok {
-			http.Error(w, "Invalid content type", http.StatusBadRequest)
+			log.Error().Msg("Invalid content type")
+			zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid content type")
 			return
 		}
 		UpdateContent(body.Path, body.Type, body.Format, contentStr)
@@ -89,7 +94,8 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	log.Info().Msgf("%s", body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Error().Err(err).Msg("Error decoding request body")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))
 		return
 	}
 

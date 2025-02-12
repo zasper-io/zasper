@@ -6,21 +6,17 @@ import (
 )
 
 type ErrorResponse struct {
-	Error   bool   `json:"error"`
+	Error   string `json:"error"`
 	Message string `json:"message"`
 }
 
-/*
-HTTP Response handling for errors,
-Returns valid JSON with error type and response code
-*/
-
-func NewErrorResponse(w http.ResponseWriter, statusCode int, response string) {
-	error := ErrorResponse{
-		true,
-		response,
-	}
+func SendErrorResponse(w http.ResponseWriter, statusCode int, errorMessage string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(&error)
+
+	errorResponse := ErrorResponse{
+		Error:   "Internal Server Error",
+		Message: errorMessage,
+	}
+	json.NewEncoder(w).Encode(errorResponse)
 }

@@ -65,18 +65,19 @@ func KillKernelById(kernelId string) error {
 	return nil
 }
 
-func listKernels() []models.KernelModel {
+func listKernels() ([]models.KernelModel, error) {
 	kernelIds := listKernelIds()
 
 	kernels := []models.KernelModel{}
 
 	for _, kernelId := range kernelIds {
-		kernels = append(kernels, getKernel(kernelId))
+		kernel, _ := getKernel(kernelId)
+		kernels = append(kernels, kernel)
 	}
-	return kernels
+	return kernels, nil
 }
 
-func getKernel(kernelId string) models.KernelModel {
+func getKernel(kernelId string) (models.KernelModel, error) {
 	km := ZasperActiveKernels[kernelId]
 	kernel := models.KernelModel{
 		Id:             kernelId,
@@ -85,7 +86,7 @@ func getKernel(kernelId string) models.KernelModel {
 		ExecutionState: km.ExecutionState,
 		Connections:    km.Connections,
 	}
-	return kernel
+	return kernel, nil
 }
 
 func listKernelIds() []string {

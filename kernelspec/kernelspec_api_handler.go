@@ -2,12 +2,14 @@ package kernelspec
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
+
+	zhttp "github.com/zasper-io/zasper/http"
 )
 
 // Handler to serve kernel resources (like logos)
@@ -21,7 +23,8 @@ func ServeKernelResource(w http.ResponseWriter, req *http.Request) {
 
 	resourceData, err := os.ReadFile(fullPath)
 	if err != nil {
-		http.Error(w, "File not found", http.StatusNotFound)
+		log.Error().Msgf("Error reading file: %v", err)
+		zhttp.SendErrorResponse(w, http.StatusNotFound, "File not found")
 		return
 	}
 	ext := filepath.Ext(resourcePath)[1:] // get extension and remove the leading dot
@@ -44,11 +47,9 @@ func ServeKernelResource(w http.ResponseWriter, req *http.Request) {
 }
 
 func SingleKernelspecAPIHandler(w http.ResponseWriter, req *http.Request) {
-	log.Println("Get request received")
 
 	vars := mux.Vars(req)
 	kernelName := vars["kernelName"]
-	log.Println("kernelName :", kernelName)
 
 	kspec := GetKernelSpec(kernelName)
 
