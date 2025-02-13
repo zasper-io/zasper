@@ -68,6 +68,7 @@ func main() {
 
 	core.Zasper = core.SetUpZasper(*cwd)
 	core.ZasperSession = core.SetUpActiveSessions()
+	content.ZasperActiveWatcherConnections = content.SetUpActiveWatcherConnections()
 	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
 	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()
 	websocket.ZasperActiveKernelConnections = websocket.SetUpStateKernels()
@@ -86,6 +87,7 @@ func main() {
 
 	apiRouter.HandleFunc("/contents/rename", content.ContentRenameAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/contents/watch", content.HandleWatchWebSocket).Methods("GET")
 
 	// search
 	apiRouter.HandleFunc("/files", search.GetFileSuggestions).Methods("GET")
