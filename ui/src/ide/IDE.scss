@@ -31,8 +31,17 @@ a {
     color: #583bd8;
 }
 
+.terminalContainer{
+    height: calc(100vh - 110px);
+    background-color: #392e6b;
+    color: #ffffff;
+    padding-bottom: 10px;
+    font-size: 16px;
+    font-weight: 300;
+}
+
 .terminalArea{
-    height: calc(100vh - 100px);
+    height: 100%;
     width: 100%;
     padding-top: 10px;
     padding-left: 10px;

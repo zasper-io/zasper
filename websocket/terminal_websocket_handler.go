@@ -222,7 +222,10 @@ func writeToTTY(sessionID string, connection *websocket.Conn, tty *os.File) {
 		log.Info().Msgf("Received %s (type: %v) message of size %v byte(s)", dataType, messageType, dataLength)
 
 		if messageType == websocket.BinaryMessage {
-			handleResizeMessage(dataBuffer, tty)
+			if dataBuffer[0] == 1 {
+				handleResizeMessage(dataBuffer, tty)
+				continue
+			}
 		}
 
 		if err := writeDataToTTY(dataBuffer, tty); err != nil {
@@ -241,22 +244,22 @@ func getMessageType(messageType int) string {
 
 // handleResizeMessage processes the terminal resize message and resizes the TTY accordingly.
 func handleResizeMessage(dataBuffer []byte, tty *os.File) {
-	if dataBuffer[0] == 1 {
-		ttySize := &TTYSize{}
-		resizeMessage := bytes.Trim(dataBuffer[1:], " \n\r\t\x00\x01")
-		if err := json.Unmarshal(resizeMessage, ttySize); err != nil {
-			log.Warn().Err(err).Msgf("Failed to unmarshal resize message: %s", string(resizeMessage))
-			return
-		}
 
-		log.Info().Msgf("Resizing TTY to %d rows and %d columns", ttySize.Rows, ttySize.Cols)
-		if err := pty.Setsize(tty, &pty.Winsize{
-			Rows: ttySize.Rows,
-			Cols: ttySize.Cols,
-		}); err != nil {
-			log.Warn().Err(err).Msg("Failed to resize TTY")
-		}
+	ttySize := &TTYSize{}
+	resizeMessage := bytes.Trim(dataBuffer[1:], " \n\r\t\x00\x01")
+	if err := json.Unmarshal(resizeMessage, ttySize); err != nil {
+		log.Warn().Err(err).Msgf("Failed to unmarshal resize message: %s", string(resizeMessage))
+		return
 	}
+
+	log.Info().Msgf("Resizing TTY to %d rows and %d columns", ttySize.Rows, ttySize.Cols)
+	if err := pty.Setsize(tty, &pty.Winsize{
+		Rows: ttySize.Rows,
+		Cols: ttySize.Cols,
+	}); err != nil {
+		log.Warn().Err(err).Msg("Failed to resize TTY")
+	}
+
 }
 
 // writeDataToTTY writes the data to the TTY and logs the operation.
