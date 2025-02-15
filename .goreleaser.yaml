@@ -6,7 +6,7 @@ before:
   hooks:
     - go mod tidy
     - npm --prefix ./ui i
-    - npm --prefix ./ui run build
+    - env CI=false npm --prefix ./ui run build
 
 builds:
   - id: zasper
