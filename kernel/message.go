@@ -2,8 +2,6 @@ package kernel
 
 import (
 	"time"
-
-	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -59,11 +57,10 @@ func (ks *KernelSession) createMsg(
 func (ks *KernelSession) MessageFromString(value string) Message {
 	msg := Message{}
 	msg.Header = ks.newMsgHeader(value, GetUsername())
-	log.Info().Msgf("message header is %v", msg.Header)
 	msg.MsgId = msg.Header.MsgID
-	msg.Content = "kernel_info_request"
+	msg.Content = make(map[string]interface{})
 	msg.Metadata = make(map[string]interface{})
-
+	msg.Buffers = []byte{}
 	return msg
 }
 

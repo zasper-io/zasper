@@ -88,7 +88,11 @@ func isLocalIP(ip string) bool {
 *********************************************************************/
 
 func (km *KernelManager) asyncLaunchKernel(kernelCmd []string, kw map[string]interface{}) {
-	ConnectionInfo := km.Provisioner.LaunchKernel(kernelCmd, kw, km.ConnectionFile)
+	ConnectionInfo, err := km.Provisioner.LaunchKernel(kernelCmd, kw, km.ConnectionFile)
+	if err != nil {
+		log.Fatal().Msgf("Error launching kernel: %v", err)
+		return
+	}
 	log.Debug().Msgf("connectionInfo: %s", ConnectionInfo)
 }
 

@@ -314,7 +314,7 @@ export default function NotebookEditor(props) {
     setNotebook((prevNotebook) => {
       const updatedCells = prevNotebook.cells.map((cell) => {
         if (cell.id === cellId) {
-          return { ...cell, execution_count: -1 };
+          return { ...cell, execution_count: -1 , outputs: []};
         }
         return cell;
       });

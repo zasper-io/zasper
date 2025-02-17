@@ -52,8 +52,12 @@ Hence the Go version of Zasper was born!
 
 * Python Kernels
 * Conda environments
+* R kernels [(iR)](https://github.com/IRkernel/IRkernel)
+* Julia Kernels [(iJulia)](https://julialang.github.io/IJulia.jl/stable/)
+* Ruby kernels [(iRuby)](https://github.com/SciRuby/iruby)
+* Javascript kernels [(Deno)](https://docs.deno.com/runtime/reference/cli/jupyter/)
 * Go Kernels ([GoNb](https://github.com/janpfeifer/gonb))
-* More coming soon!
+* Compatible with all Jupyter kernels
 
 
 ## 📷 Screenshots

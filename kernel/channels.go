@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
@@ -107,6 +108,7 @@ func (kwsConn *KernelWebSocketConnection) Connect() {
 	log.Info().Msg("Nudging the kernel")
 	kwsConn.nudge()
 
+	log.Info().Msg("Start polling")
 	// subscribe
 	kwsConn.startPolling()
 }
@@ -126,7 +128,6 @@ func (kwsConn *KernelWebSocketConnection) createStream() {
 }
 
 func (kwsConn *KernelWebSocketConnection) nudge() {
-
 	/*
 		Nudge the zmq connections with kernel_info_requests
 		Returns a Future that will resolve when we have received
@@ -137,23 +138,42 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	*/
 
 	kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
-	kernelInfoRequest2 := kwsConn.Session.MessageFromString("kernel_info_request")
 
 	context := context.Background()
 	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell(context)
-	transient_control_channel := kwsConn.KernelManager.ConnectionInfo.ConnectControl(context)
 
-	kwsConn.Session.SendStreamMsg(transient_control_channel, kernelInfoRequest)
-	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest2)
+	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest)
 
-	msg, err := transient_shell_channel.Recv()
-	if err != nil {
-		log.Info().Msgf("dealer failed to recv message: %v", err)
+	// Set up the timeout duration
+	timeout := time.After(2 * time.Second)
+
+	// Channel to receive message or error
+	result := make(chan struct {
+		msg zmq4.Msg
+		err error
+	}, 1)
+
+	// Run Recv in a goroutine
+	go func() {
+		msg, err := transient_shell_channel.Recv()
+		result <- struct {
+			msg zmq4.Msg
+			err error
+		}{msg, err}
+	}()
+
+	// Use select to either handle the received message or timeout
+	select {
+	case res := <-result:
+		if res.err != nil {
+			log.Info().Msgf("dealer failed to recv message: %v", res.err)
+		} else {
+			log.Info().Msgf("%s", kwsConn.Session.Deserialize(res.msg))
+		}
+	case <-timeout:
+		log.Warn().Msg("Timeout waiting for response from shell channel")
 	}
-
-	log.Info().Msgf("%s", kwsConn.Session.Deserialize(msg))
-
-	transient_control_channel.Close()
+	log.Info().Msg("closing connection")
 	transient_shell_channel.Close()
 	log.Debug().Msgf("Nudge successful")
 }

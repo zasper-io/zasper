@@ -8,14 +8,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) *os.Process {
+func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) (*os.Process, error) {
 
 	for i, arg := range kernelCmd {
 		if arg == "{connection_file}" {
 			kernelCmd[i] = connFile
 		}
 	}
-	// kernelCmd = append(kernelCmd, "--KernelManager.kernel_id="+kw["kernel_id"].(string))
+	// kernelCmd = append(kernelCmd, "--debug")
 
 	log.Debug().Msgf("kernelCmd is %v", kernelCmd)
 
@@ -34,7 +34,6 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 	if err != nil {
 		log.Fatal().Msgf("Error creating stderr pipe: %v", err)
 	}
-
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		log.Fatal().Msgf("Error starting command: %v", err)
@@ -62,5 +61,7 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 	}()
 
 	log.Debug().Msg("Process started successfully")
-	return cmd.Process
+
+	return cmd.Process, nil
+
 }

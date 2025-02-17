@@ -181,7 +181,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 
 
       <div className='inner-content'>
-        <div className='serial-no'>[{props.execution_count}]:</div>
+        {props.execution_count === -1 ? <LoaderSvg /> :  <div className='serial-no'>[{props.execution_count}]:</div>}
         <div className='cellEditor'>
           <CodeMirror
             theme={theme === 'light' ? githubLight : githubDark}
@@ -267,7 +267,7 @@ const CellOutput = ({ data }) => {
       if (textPlainData) {
         return (
           <div>
-            <pre>{textPlainData}</pre>
+            <pre>{String(textPlainData.replace(/\u001b\[[0-9;]*m/g, ''))}</pre>
           </div>
         );
       }
@@ -278,6 +278,21 @@ const CellOutput = ({ data }) => {
 
   return null; 
 };
+
+const LoaderSvg = () => {
+  return (
+    <div className="svgContainer">
+  
+      <svg className="spinner" xmlns="http://www.w3.org/2000/svg" width="50px" height="50px" viewBox="0 0 100 100">
+        <path d="M 50,50 L 33,60.5 a 20 20 -210 1 1 34,0 z" fill="blue">
+          <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="1.2s" repeatCount="indefinite"/>
+        </path>
+          <circle cx="50" cy="50" r="16" fill="#fff"></circle>
+        </svg>
+      
+    </div>
+  )
+}
 
 
 

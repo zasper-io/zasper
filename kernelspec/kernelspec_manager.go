@@ -107,7 +107,7 @@ func fromResourceDir(resourceDir string) KernelSpecJsonData {
 
 	err := json.Unmarshal(byteValue, &kernelSpecJsonData)
 	if err != nil {
-		log.Info().Msg("error encountered")
+		log.Debug().Msg("error encountered")
 	}
 	log.Print(kernelSpecJsonData)
 	kernelSpecJsonData.ResourceDir = resourceDir

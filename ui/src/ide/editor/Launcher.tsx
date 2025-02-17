@@ -51,6 +51,11 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
     setTerminals(updatedterminals)
   };
 
+  const getLogoUrl = (resources) => {
+    const logoPath = resources['logo-svg'] || resources['logo-64x64'] || resources['logo-32x32'];
+    return `${BaseApiUrl}${logoPath}`;
+  };
+
   // Fetch kernelspecs on component mount
   useEffect(() => {
     fetchData();
@@ -67,7 +72,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
           {Object.keys(kernelspecs).length > 0 ? (
             Object.keys(kernelspecs).map((key) => (
               <div className="launcher-icon" key={key} onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}>
-                <img className='resourceLogoImage' src={`${BaseApiUrl}${kernelspecs[key].resources['logo-svg']}`} alt="logo" />
+                <img className='resourceLogoImage' src={getLogoUrl(kernelspecs[key].resources)} alt="logo" />
                 <h6>{key}</h6>
               </div>
             ))

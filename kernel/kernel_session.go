@@ -53,11 +53,10 @@ func json_packer(obj interface{}) []byte {
 }
 
 func (ks *KernelSession) SendStreamMsg(stream zmq4.Socket, msg Message) Message {
-	var ident [][]byte
 	if ks.CheckPid && os.Getpid() != ks.Pid {
 		log.Info().Msgf("WARNING: attempted to send message from fork %+v", msg)
 	}
-	toSend := ks.serialize(msg, ident)
+	toSend := ks.serialize(msg)
 	// var tracker error
 	err := stream.SendMulti(zmq4.NewMsgFrom(toSend...))
 	if err != nil {
@@ -84,7 +83,6 @@ func (ks *KernelSession) Send(
 	msgOrType interface{},
 	content interface{},
 	parent MessageHeader,
-	ident [][]byte,
 	buffers []byte,
 	track bool,
 	header MessageHeader,
@@ -114,7 +112,7 @@ func (ks *KernelSession) Send(
 		// msg = adapt(msg, s.adaptVersion)
 	}
 
-	toSend := ks.serialize(msg, ident)
+	toSend := ks.serialize(msg)
 
 	err := stream.SendMulti(zmq4.NewMsgFrom(toSend...))
 
@@ -132,19 +130,27 @@ func (ks *KernelSession) Send(
 	return msg
 }
 
-func (ks *KernelSession) serialize(msg Message, ident [][]byte) [][]byte {
+// parts[0] = key
+// parts[1] = header
+// parts[2] = parentHeader
+// parts[3] = metadata
+// parts[4] = content
+
+func (ks *KernelSession) serialize(msg Message) [][]byte {
 	DELIM := "<IDS|MSG>"
-	log.Info().Msgf("message header is %v", msg.Header)
+	log.Debug().Msgf("message header is %v", msg.Header)
 
 	realMessage := [][]byte{
 		json_packer(msg.Header),
 		json_packer(msg.Header),
 		json_packer(msg.Metadata),
-		json_packer(msg.Content), // []byte("kernel_info_request"),
+		json_packer(msg.Content),
 	}
 	to_send := [][]byte{}
 	log.Debug().Msgf("real message is %s", realMessage)
 	signature := ks.sign(realMessage)
+
+	log.Debug().Msgf("signature is %s", signature)
 	to_send = append(to_send, []byte(DELIM))
 	to_send = append(to_send, []byte(signature))
 	to_send = append(to_send, realMessage...)
