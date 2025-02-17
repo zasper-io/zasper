@@ -71,12 +71,56 @@ Improving documentation is just as important as improving the code! If you find 
 
 To get started with development, you'll need to set up your local environment.
 
-1. Clone the Repository:
-    ```bash
-    git clone https://github.com/zasper-io/zasper.git
-    ```
-2. Install Dependencies: Follow the instructions in the repository to install dependencies. If there is a requirements.txt, package.json, or other dependency files, run the appropriate package manager command (e.g., npm install, pip install -r requirements.txt).
-3. Run the Application: Follow the relevant instructions to run Zasper locally, whether that's a backend or frontend server.
+### **Clone the Repository**
+    
+```bash
+git clone https://github.com/zasper-io/zasper.git
+```
+
+
+### **Initialize the project**
+
+This command installs all the necessary frontend dependencies (via `npm install`).
+
+```bash
+make init
+```
+
+### 2. **Build the frontend and backend**
+
+This command builds both the frontend (via `npm run build` in the ui directory) and the backend (via `go build` in the root directory).
+
+```bash
+make build
+```
+
+### 3. **Start the web app (development mode)**
+
+This command first builds the frontend and then runs the backend (via `go run .`). The frontend will be built, and the backend will start running.
+
+```bash
+make start
+```
+
+### 4. **Run both frontend and backend in development mode**
+
+This command starts both the frontend and the backend simultaneously in development mode. The frontend runs via npm start and the backend via `go run .`
+
+```bash
+make dev
+```
+This is especially useful when you are working on the project and want to run both the frontend and backend concurrently.
+
+### 5. **Package the Electron app**
+
+This command builds the Electron app and packages it using the `npm run electron-package` script in the `ui` directory. The backend is also compiled with `go build`.
+
+```bash
+make electron-package
+```
+This will create a packaged Electron app inside the `ui/build/dist` directory.
+
+
 
 ### Style Guidelines
 Please follow these code style guidelines when contributing:
