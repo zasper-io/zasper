@@ -64,7 +64,7 @@ export default function FileEditor (props) {
     if (props.data.load_required === true) {
       FetchFileData(props.data.path)
     }
-  }, [[props.data]])
+  }, [props.data])
 
   const getExtensionToLoad = () => {
     switch (props.data.extension) {

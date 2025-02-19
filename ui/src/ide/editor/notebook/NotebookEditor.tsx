@@ -108,21 +108,36 @@ export default function NotebookEditor(props) {
     }
   };
 
+  const handleKeyDownNotebook = (event) => {
+    if (event.key === 'a' && event.ctrlKey) {
+      console.log("called ctrl a")
+      addCellUp(); // Ctrl + A -> Add cell above
+      event.preventDefault();
+    } else if (event.key === 'b' && event.ctrlKey) {
+      addCellDown(); // Ctrl + B -> Add cell below
+      event.preventDefault();
+    }
+
+    // Add more conditions for other keys you need
+  };
+
   useEffect(() => {
     if (props.data.load_required === true) {
-      console.log("called")
       FetchFileData(props.data.path);
       startASession(props.data.path, props.data.name, props.data.type, props.data.kernelspec);
     }
   }, [props.data]);
 
   useEffect( () => {
-    console.log("session", session)
     startWebSocket()
+    window.addEventListener('keydown', handleKeyDownNotebook);
+    return () => {
+      // ensures that event listener is removed when component is unmounted
+      window.removeEventListener('keydown', handleKeyDownNotebook);
+    };
   }, [session])
 
   const startWebSocket = () => {
-    console.log("starting websocket")
     if(session){
       const kernelWebSocketClient = new W3CWebSocket(
         BaseWebSocketUrl + '/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
@@ -223,14 +238,12 @@ export default function NotebookEditor(props) {
 
     if(message.header.msg_type === 'stream'){
       if (message.content.name === 'stdout') {
-        console.log("stream")
         setNotebook((prevNotebook) => {
           const updatedCells = prevNotebook.cells.map((cell) => {
             if (cell.id === message.parent_header.msg_id) {
               const updatedCell = { ...cell };
               // if (message.hasOwnProperty('text')) {
                 var textMessage = message.content.text
-                console.log(textMessage)
                 const cleanedArray = removeAnsiCodes(textMessage);
                 updatedCell.outputs = [{"text": cleanedArray}];
               // }
@@ -310,7 +323,7 @@ export default function NotebookEditor(props) {
   }
 
   const submitCell = (source: string, cellId: string) => {
-    console.log('submitting cell:',  cellId);
+    // console.log('submitting cell:',  cellId);
     setNotebook((prevNotebook) => {
       const updatedCells = prevNotebook.cells.map((cell) => {
         if (cell.id === cellId) {
@@ -497,15 +510,7 @@ export default function NotebookEditor(props) {
       event.preventDefault();
     }
 
-    // Handle adding cells with shortcuts (A/B for add above/below)
-    if (event.key === 'a' && event.ctrlKey) {
-      addCellUp(); // Ctrl + A -> Add cell above
-      event.preventDefault();
-    } else if (event.key === 'b' && event.ctrlKey) {
-      addCellDown(); // Ctrl + B -> Add cell below
-      event.preventDefault();
-    }
-
+    
     // Handle deleting a cell (D, D for delete)
     if (event.key === 'd' && event.ctrlKey && event.shiftKey) {
       deleteCell(); // Ctrl + Shift + D -> Delete cell
@@ -513,16 +518,16 @@ export default function NotebookEditor(props) {
     }
 
     // Handle copy/cut/paste
-    if (event.key === 'c' && event.ctrlKey) {
-      copyCell(); // Ctrl + C -> Copy cell
-      event.preventDefault();
-    } else if (event.key === 'x' && event.ctrlKey) {
-      cutCell(); // Ctrl + X -> Cut cell
-      event.preventDefault();
-    } else if (event.key === 'v' && event.ctrlKey) {
-      pasteCell(); // Ctrl + V -> Paste cell
-      event.preventDefault();
-    }
+    // if (event.key === 'c' && event.ctrlKey) {
+    //   copyCell(); // Ctrl + C -> Copy cell
+    //   event.preventDefault();
+    // } else if (event.key === 'x' && event.ctrlKey) {
+    //   cutCell(); // Ctrl + X -> Cut cell
+    //   event.preventDefault();
+    // } else if (event.key === 'v' && event.ctrlKey) {
+    //   pasteCell(); // Ctrl + V -> Paste cell
+    //   event.preventDefault();
+    // }
 
      // Handle running a cell with Ctrl + Enter (no move) or Shift + Enter (move to next)
     if (event.key === 'Enter') {
