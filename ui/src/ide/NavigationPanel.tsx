@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ContextMenu from './sidebar/ContextMenu';
+import HelpDialog from './Help';
 
 interface NavigationPanelProps {
   handleNavigationPanel: (panelName: string) => void;
@@ -15,6 +16,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
 
   // State to track the active navigation item
   const [activeNavItem, setActiveNavItem] = useState<string>('fileBrowser'); // Default active item
+  const [showHelpDialog, setShowHelpDialog] = useState<boolean>(false);
 
   // Open directory selection dialog
   const handleSelectDirectory = async () => {
@@ -49,6 +51,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
     handleNavigationPanel(panelName); // Call the parent handler
   };
 
+  
+
   // Render navigation buttons
   const renderNavButtons = () => {
     const navItems = [
@@ -72,6 +76,10 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
     ));
   };
 
+  const toggleHelpDialog = () => {
+    setShowHelpDialog(!showHelpDialog);
+  }
+
   return (
     <div className="navigation-list">
       {/* Menu button */}
@@ -91,9 +99,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
       </button>
 
       {/* Help icon button */}
-      <button className="editor-button mt-auto help-icon">
+      <button className="editor-button mt-auto help-icon" onClick={toggleHelpDialog}>
         <i className="fas fa-question-circle" />
       </button>
+
+
+      {showHelpDialog && <HelpDialog toggleHelpDialog={toggleHelpDialog} />}
 
       {/* Context menu */}
       {isMenuVisible && menuPosition && (

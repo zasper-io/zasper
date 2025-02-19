@@ -58,7 +58,6 @@ a {
     color: #fff;
 }
 .editor {
-    border: 2px solid #473990;
     width: 100%;
     height: 100vh;
 }
@@ -91,7 +90,7 @@ a {
     .terminalArea{
         background-color: #392e6b;
     }
-    .projectName{
+    .projectBanner{
         background-color: #553b9e;
     }
     
@@ -178,7 +177,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     .command-palette{
         background: #353535;
     }
-    .projectName{
+    .projectBanner{
         background-color: #3f3855;
     }
     .LauncherArea {
@@ -409,7 +408,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
             }
         }
 
-        .projectName{
+        .projectBanner{
             box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
             width: 100%;
             height: 28px;
@@ -419,13 +418,16 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
             font-weight: 400;
             display: flex;
 
-            div{
+            .projectName{
+                width: 65%;
                 float: left;
                 margin-right: 40px;
             }
 
             .projectButtons{
+                width: 35%;
                 fill: #ffffff;
+                float: right;
             }
             
         }
@@ -606,3 +608,13 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 }
 
 /*# sourceMappingURL=main.css.map */
+
+.help-section{
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    padding-top: 80px;
+    font-size: 16px;
+    font-weight: 300;
+    text-align: center;
+}

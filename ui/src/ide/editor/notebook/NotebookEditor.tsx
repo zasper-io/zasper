@@ -64,7 +64,7 @@ export default function NotebookEditor(props) {
 
   const toggleKernelSwitcher = () => {
     setShowKernelSwitcher(!showKernelSwitcher);
-}
+  }
 
 
   interface IKernelWebSocketClient {

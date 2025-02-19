@@ -78,8 +78,8 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
         <div className='content-head'>
           <div>FILE EXPLORER</div>
         </div>
-        <div className='projectName'>
-          <div>{projectName}</div>
+        <div className='projectBanner'>
+          <div className='projectName'>{projectName}</div>
           <div className='projectButtons'>
             <button className='editor-button' onClick={createNewFile}>
               <img src='./images/editor/feather-file-plus.svg' alt='' />
