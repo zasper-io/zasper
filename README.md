@@ -93,58 +93,23 @@ Hence the Go version of Zasper was born!
 
 Zasper comes in two flavours:
 
-1. Electron App
-2. Web App
-
-### Electron App
+1. Web App
+2. Desktop App
 
 
-Go to `ui` and build the frontend
-```
-npm install
-npm run build
-```
-
-Go to project home and build the backend
-
-```bash
-go build -o ui/build
-```
-
-Go to `ui` and run the app in dev mode
+#### Web App
 
 ```
-npm run electron-dev       # dev-mode
-
-npm run electron-package   # prod-mode
+make webapp-install
 ```
 
-
-
-### Webapp
-
-#### Build the frontend
-
-```bash
-cd ./ui/
-npm run build
-```
-
-#### Start the backend
-
-
-Go to project home and start the server
-
-```bash
-go build
-```
-This will crate a binary called `zasper`. Now add this binary to your path. 
+This will create a binary `zasper` and add it to your go executables directory. Make sure you have go executables on your path. 
 
 Run zasper in any directory to see if the installation was done correctly.
 
 ```
-% zasper -h
-Usage of ../zasper:
+prasunanand@Prasuns-Laptop example % zasper --help
+Usage of zasper:
   -cwd string
     	base directory of project (default ".")
   -debug
@@ -155,21 +120,48 @@ Usage of ../zasper:
 
 
 Go to any directory you want to serve and run `zasper`. This starts zasper server in the directory.
+
 ```
-% zasper 
-2024/12/15 20:39:12 Zasper Server started! Listening on port:8048
+prasunanand@Prasuns-Laptop nbformat_go % zasper
 
 ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ 
 ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
   ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
  ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
 ███████╗██║  ██║███████║██║     ███████╗██║  ██║
-╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
+╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝                  
+	
+2025/02/21 10:19:44 Zasper Server started! Listening on port :8048
+2025/02/21 10:19:44 Visit Zasper webapp on http://localhost:8048
 
 ```
 
-Go to `http://localhost:8888`
+Go to `http://localhost:8048`
 
+
+
+### Desktop App
+
+```
+make electron-package
+```
+
+This creates  `zasper-0.1.0-arm64.dmg`(macOS) and `zasper_0.1.0_arm64.deb`(Debian) installer.
+
+```
+prasunanand@Prasuns-Laptop zasper % ls -l ui/dist 
+total 626360
+-rw-r--r--   1 prasunanand  staff       1713 Feb 21 10:31 builder-debug.yml
+-rw-r--r--   1 prasunanand  staff        353 Feb 21 10:29 builder-effective-config.yaml
+drwxr-xr-x  21 prasunanand  staff        672 Feb 21 10:30 linux-arm64-unpacked
+drwxr-xr-x   3 prasunanand  staff         96 Feb 21 10:29 mac-arm64
+-rw-r--r--@  1 prasunanand  staff  196642562 Feb 21 10:30 zasper-0.1.0-arm64.dmg
+-rw-r--r--   1 prasunanand  staff     204747 Feb 21 10:30 zasper-0.1.0-arm64.dmg.blockmap
+-rw-r--r--   1 prasunanand  staff  119088602 Feb 21 10:31 zasper_0.1.0_arm64.deb
+
+```
+
+Install `zasper-0.1.0-arm64.dmg` to your machine.
 
 ## Logging
 

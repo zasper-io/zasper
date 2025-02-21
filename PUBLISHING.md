@@ -69,27 +69,99 @@ For example:
    npm test
    ```
 
-## Creating a Release
-1. Push Changes and Tags: Push your changes, including tags, to the remote repository.
+### Create a New Tag: 
 
-   ```bash
-   git push origin main
-   git push origin vX.Y.Z
-   ```
-2. Go to GitHub Releases: Visit the Releases section of the Zasper repository.
-3. Create a New Release:
+**For a major version bump (e.g., 1.0.0 to 2.0.0):**
 
-   * Click on "Draft a new release".
-   * In the Tag version field, select or enter the version number (e.g., vX.Y.Z).
-   * Fill out the Release title with something meaningful, such as "Release vX.Y.Z".
-   * In the Release notes section, provide a summary of the changes, bug fixes, new features, and other relevant details. You can copy this from the updated CHANGELOG.md.
+```bash
+make release TYPE=major
+```
 
-4. Publish the Release: Once the release is drafted and the information is correct, click "Publish release".
+**For a minor version bump (e.g., 1.0.0 to 1.1.0):**
 
-## Publishing a Release
-After creating and drafting a release, you may need to publish it to a distribution platform (e.g., npm for JavaScript projects, Docker Hub for Docker images).
+```bash
+make release TYPE=minor
+```
 
-## Publishing to various channels
-TODO
+**For a patch version bump (e.g., 1.0.0 to 1.0.1):**
 
+```bash
+make release TYPE=patch
+```
 
+**For Alpha or Beta Pre-releases:**
+
+You can also specify PRE_RELEASE=alpha or PRE_RELEASE=beta to tag pre-release versions:
+
+**For an alpha version (e.g., 1.0.0-alpha):**
+
+```bash
+make release TYPE=minor PRE_RELEASE=alpha
+```
+
+**For a beta version (e.g., 1.0.0-beta):**
+
+```bash
+make release TYPE=minor PRE_RELEASE=beta
+```
+
+### Show Current Version and Tag:
+
+To see the current version and tag based on version.txt, use:
+
+```bash
+make show-version
+```
+
+Example Outputs:
+**For a patch release:**
+
+```bash
+make release TYPE=patch
+```
+
+```
+Current version: 1.0.0
+New version: 1.0.1
+```
+
+Output:
+```pgsql
+New version: 1.0.1
+```
+
+```
+Version bumped and tagged as v1.0.1
+```
+For an alpha release:
+
+```bash
+make release TYPE=minor PRE_RELEASE=alpha
+```
+
+Current version: 1.0.0
+New version: 1.1.0-alpha
+Output:
+```pgsql
+New version: 1.1.0-alpha
+```
+
+Version bumped and tagged as v1.1.0-alpha
+For a major release:
+
+```bash
+make release TYPE=major
+```
+
+```
+Current version: 1.0.0
+New version: 2.0.0
+```
+
+Output:
+```pgsql
+New version: 2.0.0
+```
+```
+Version bumped and tagged as v2.0.0
+```

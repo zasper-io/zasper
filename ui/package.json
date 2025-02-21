@@ -2,7 +2,7 @@
   "name": "zasper",
   "author": "Prasun Anand <prasun@zasper.io>",
   "description": "IDE",
-  "version": "0.1.0",
+  "version": "0.1.1-alpha",
   "private": true,
   "homepage": "./",
   "main": "./public/electron.js",

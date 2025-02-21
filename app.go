@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
 	glog "log"
 	"os/signal"
 	"syscall"
@@ -65,6 +67,11 @@ func main() {
 	}
 
 	router := mux.NewRouter()
+
+	version, err := ioutil.ReadFile("version.txt")
+	if err != nil {
+		log.Fatalf("Error reading version file: %v", err)
+	}
 
 	core.Zasper = core.SetUpZasper(*cwd)
 	core.ZasperSession = core.SetUpActiveSessions()
@@ -148,7 +155,7 @@ func main() {
 ███████╗██║  ██║███████║██║     ███████╗██║  ██║
 ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝                  
 	`)
-
+	fmt.Printf("Version: %s\n", version)
 	glog.Println("Zasper Server started! Listening on port", *port)
 	url := "http://localhost" + *port
 	glog.Printf("Visit Zasper webapp on %s", url)
