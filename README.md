@@ -199,10 +199,10 @@ Zasper aspires to be a full fledged IDE and the future development will be along
 
 # 🌐 Community
 
-Join Zasper Community on [Slack](https://zasper.slack.com)
+Join Zasper Community on [Slack](https://join.slack.com/t/zasper/shared_invite/zt-30sx3uo8w-w~sw4Kje1aoUjxY5MZ_Fkg)
 
 <p align=center>
-  <a href="https://zasper.slack.com" target="_blank">
+  <a href="https://join.slack.com/t/zasper/shared_invite/zt-30sx3uo8w-w~sw4Kje1aoUjxY5MZ_Fkg" target="_blank">
       <img height=120px src="./screenshots/slack.svg">
   </a>
 </p>
