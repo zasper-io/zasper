@@ -20,16 +20,19 @@ type Application struct {
 	JupyterConfigPath string
 	ProjectName       string
 	OSName            string
+	Version           string
 }
 
-func SetUpZasper(cwd string) Application {
+func SetUpZasper(version string, cwd string) Application {
 	if cwd == "." {
 		cwd = utils.GetHomeDir()
 	}
+
 	application := Application{
 		BaseUrl:           "http://localhost:8048",
 		ProjectName:       utils.GetProjectName(cwd),
 		HomeDir:           cwd,
+		Version:           string(version),
 		UserName:          utils.GetUsername(),
 		StaticUrl:         "./images",
 		OSName:            runtime.GOOS,

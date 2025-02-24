@@ -33,6 +33,7 @@ export interface ITerminalsState {
   [key: string]: ITerminal;
 }
 
+export const zasperVersionAtom = atom<string>("")
 export const kernelspecsAtom = atom<IKernelspecsState>({})
 export const kernelsAtom = atom<IKernelsState>({})
 export const terminalsAtom = atom<ITerminalsState>({})

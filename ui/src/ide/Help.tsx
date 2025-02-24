@@ -1,4 +1,6 @@
 import React from 'react';
+import { zasperVersionAtom } from '../store/AppState';
+import { useAtom } from 'jotai';
 
 
 interface ModalProps {
@@ -7,6 +9,7 @@ interface ModalProps {
 
 function HelpDialog(props: ModalProps) {
 
+    const [zasperVersion] = useAtom(zasperVersionAtom)
 
     return (
         <div className="modal" id="exampleModal" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -19,7 +22,7 @@ function HelpDialog(props: ModalProps) {
                     <div className="modal-body">
                         <div className='help-section'>  
                             <h6>Zasper is a supercharged IDE for Data Science.</h6>
-                            <h6> Version: 0.0.1</h6>
+                            <h6>Version: {zasperVersion}</h6>
                             <h6>Author: Prasun Anand</h6>
                             <a href='https://zasper.io/docs' target='_blank'>Docs</a>
                         </div>

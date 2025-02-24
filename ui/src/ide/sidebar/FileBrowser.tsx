@@ -3,7 +3,7 @@ import { BaseApiUrl } from '../config';
 import ContextMenu from './ContextMenu';
 import getFileExtension from '../utils';
 import { useAtom } from 'jotai';
-import { userNameAtom } from '../../store/AppState';
+import { userNameAtom, zasperVersionAtom } from '../../store/AppState';
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -26,6 +26,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
   const [cwd] = useState<string>('');
   const [projectName, setProjectName] = useState('')
   const [, setUserName] = useAtom(userNameAtom)
+  const [, setVersion] = useAtom(zasperVersionAtom)
 
   const FetchData = async () => {
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
@@ -42,7 +43,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
     const resJson2 = await res2.json();
     setProjectName(resJson2.project.toUpperCase());
     setUserName(resJson2.username)
-
+    setVersion(resJson2.version)
   };
 
   const handleFileClick = (name: string, path: string, type: string) => {

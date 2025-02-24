@@ -1,4 +1,3 @@
-
 # Verion Variables
 VERSION_FILE = version.txt
 TAG_PREFIX = v
@@ -62,10 +61,13 @@ show-version:
 	@echo "Current version: $(CURRENT_VERSION)"
 	@echo "Current tag: $(TAG_PREFIX)$(CURRENT_VERSION)"
 
-# Initialize the project by installing frontend dependencies
+
+VERSION_BUILD_FLAG = "-X main.version=$(CURRENT_VERSION)"
 
 
 .PHONY: init build start dev electron-package webapp-install
+
+# Initialize the project by installing frontend dependencies
 init:
 	@echo "Initializing the project..."
 	cd ui && npm install
@@ -75,7 +77,7 @@ init:
 build: 
 	@echo "Building the frontend and backend..."
 	cd ui && npm run build
-	go build .
+	go build -ldflags $(VERSION_BUILD_FLAG) .
 
 # Default target: run both frontend and backend in development
 dev:
@@ -90,7 +92,7 @@ electron-dev:
 # Package the Electron app
 electron-package:
 	@echo "Packaging the Electron app..."
-	go build -o ./ui/build/zasper
+	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/build/zasper
 	cd ui && npm run electron-package
 
 # Install the web app

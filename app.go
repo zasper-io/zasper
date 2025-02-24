@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
 	glog "log"
 	"os/signal"
 	"syscall"
@@ -26,6 +24,7 @@ import (
 	"github.com/zasper-io/zasper/websocket"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -36,6 +35,7 @@ type InfoResponse struct {
 	ProjectName string `json:"project"`
 	UserName    string `json:"username"`
 	OS          string `json:"os"`
+	Version     string `json:"version"`
 }
 
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +43,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 		ProjectName: core.Zasper.ProjectName,
 		UserName:    core.Zasper.UserName,
 		OS:          core.Zasper.OSName,
+		Version:     core.Zasper.Version,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -51,6 +52,8 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 
 }
+
+var version string
 
 func main() {
 
@@ -66,14 +69,19 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
-	router := mux.NewRouter()
-
-	version, err := ioutil.ReadFile("version.txt")
-	if err != nil {
-		log.Fatalf("Error reading version file: %v", err)
+	if version == "" {
+		data, err := os.ReadFile("version.txt")
+		if err != nil {
+			log.Error().Msgf("Error reading version file: %v", err)
+			version = "unknown"
+		} else {
+			version = string(data)
+		}
 	}
 
-	core.Zasper = core.SetUpZasper(*cwd)
+	router := mux.NewRouter()
+
+	core.Zasper = core.SetUpZasper(version, *cwd)
 	core.ZasperSession = core.SetUpActiveSessions()
 	content.ZasperActiveWatcherConnections = content.SetUpActiveWatcherConnections()
 	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
@@ -155,7 +163,7 @@ func main() {
 ███████╗██║  ██║███████║██║     ███████╗██║  ██║
 ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝                  
 	`)
-	fmt.Printf("Version: %s\n", version)
+	fmt.Printf("Version: %s\n", core.Zasper.Version)
 	glog.Println("Zasper Server started! Listening on port", *port)
 	url := "http://localhost" + *port
 	glog.Printf("Visit Zasper webapp on %s", url)
