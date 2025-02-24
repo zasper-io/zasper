@@ -29,16 +29,13 @@ jobs:
           node-version: '22.7'
 
       - name: Install dependencies
-        run: cd ui && npm install
+        run: make init
 
-      - name: Build Zasper Frontend
-        run: cd ui && npm run build
-
-      - name: Build Zasper Backend
-        run: go build -o ui/public/zasper
+      - name: Build Frontend and Backend
+        run: make build
 
       - name: Package Electron app
-        run: cd ui && npm run electron-package
+        run: make electron-package
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

@@ -17,19 +17,20 @@ jobs:
         with:
           go-version: '1.23'
 
-      - name: Build
-        run: go build -o ui/public/zasper app.go
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.7'
 
-      - name: Install dependencies
-        run: cd ui && npm install
+      - name: Install Dependencies
+        run: make init
+
+      - name: Build Frontend and Backend
+        run: make build
 
       - name: Package Electron app
-        run: cd ui && npm run electron-package
+        run: make electron-package
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
