@@ -56,23 +56,17 @@ export const CommitGraph: React.FC<{ data: Commit[] }> = ({ data }) => {
 
   return (
     <>
-      <div className="projectName">
-        <div>SOURCE CONTROL GRAPH</div>
-      </div>
+      <div className="projectName">SOURCE CONTROL GRAPH</div>
       <div className="git-commit-content">
         <div className="graph-container">
           {commitNodes.map((node, index) => (
-            <div
-              key={node.id}
-              className={`commit-row`}
-              style={{ left: `${node.x}px`, top: `${node.y}px` }}
-            >
+            <div key={node.id} className={`commit-row`}>
               <div className="commit-circle" />
               {index < commitNodes.length - 1 && (
                 <div className="commit-line" />
               )}
               <span className="commit-text">
-                {truncateText(node.commit.message, 75)} -- {node.commit.author}
+                {truncateText(node.commit.message, 50)} -- {node.commit.author}
               </span>
               {/* <span className="commit-hash">{node.commit.hash}</span> */}
             </div>

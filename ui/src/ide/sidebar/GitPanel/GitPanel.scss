@@ -1,111 +1,158 @@
 @use "../../../variables" as *;
 
+.projectName{
+  background-color: $primary-color;
+  padding:0.5rem;
+  color: white;
+}
+
 .graph-container {
-    position: relative;
-    width: 100%;
-  }
-  
-  .commit-node {
-    height: 40px;
-    background-color: $primary-color;
-    color: #fff;
-    padding: 10px;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    margin-bottom: 10px;
-    width: '200px'; 
-  }
-  
-  .commit-message {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .commit-hash {
-    font-size: 12px;
-  }
-  
-  .commit-node.main {
-    background-color: #3498db;
-  }
-  
-  .commit-node.feature-xyz {
-    background-color: #f39c12;
-  }
-  
-  .connection-line {
-    background-color: #999;
-    z-index: 0;
-    height: 2px;
-    transform-origin: top left;
-  }
-  
-  .git-commit-content{
-    width: 100%;
-    padding: 10px;
-    height: 45vh;
-    overflow: hidden;
-    overflow-y: scroll;
-  }
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  background-color: #fff;
+  border-radius: 8px;
+  color: black;
+  position: relative;
+  width: 100%;
+}
 
-  .gitbutton{
-    font-weight: 400;
-    border: 1px solid #e6e6e6;
-    border-radius: 4px;
-    padding: 6px 18px;
-    color: #ffffff;
-    box-sizing: border-box;
-    background: $primary-color;
-    box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
-  }
+.commit-node {
+  height: 40px;
+  background-color: $primary-color;
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  margin-bottom: 10px;
+  width: "200px";
+}
 
-  .gitbutton:hover{
-    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
-  }
+.commit-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-  .content-body{
-    display: flex;
-    flex-direction: column;
-  }
+.commit-hash {
+  font-size: 12px;
+}
 
-  .git-graph-container {
-    position: relative;
-    background-color: #1e1e1e;
-    padding: 16px;
-    border-radius: 8px;
+.commit-node.main {
+  background-color: #3498db;
+}
+
+.commit-node.feature-xyz {
+  background-color: #f39c12;
+}
+
+.connection-line {
+  background-color: #999;
+  z-index: 0;
+  height: 2px;
+  transform-origin: top left;
+}
+
+.git-commit-content {
+  width: 100%;
+  padding: 10px;
+  height: 45vh;
+  overflow: hidden;
+  overflow-y: scroll;
+}
+
+.gitbutton {
+  font-weight: 400;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  padding: 6px 18px;
+  color: #ffffff;
+  box-sizing: border-box;
+  background: $primary-color;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+}
+
+.gitbutton:hover {
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+}
+
+.content-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-graph-container {
+  // position: relative;
+  // background-color: #1e1e1e;
+  // padding: 16px;
+  // border-radius: 8px;
+}
+
+.git-graph-svg {
+  background-color: #fff;
+  border-radius: 8px;
+}
+
+.commit-node {
+  fill: #6a0dad;
+  stroke: #ffffff;
+  font-size: 12px;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.1);
   }
-  
-  .git-graph-svg {
-    background-color: #fff;
-    border-radius: 8px;
-  }
-  
-  .commit-node {
-    fill: #6a0dad;
-    stroke: #ffffff;
-    font-size: 12px;
-    color: white;
-    cursor: pointer;
-    transition: transform 0.2s;
-  
-    &:hover {
-      transform: scale(1.1);
-    }
-  }
-  
-  .commit-edge {
-    stroke: #6a0dad;
-    stroke-width: 2px;
-  }
-  
-  .commit-popup {
-    position: absolute;
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
-    padding: 10px;
-    border-radius: 5px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
-    pointer-events: none;
-  }
-  
+}
+
+.commit-edge {
+  stroke: #6a0dad;
+  stroke-width: 2px;
+}
+
+.commit-popup {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.commit-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.commit-circle {
+  width: 12px;
+  height: 12px;
+  background-color: #6a0dad;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+}
+
+.commit-line {
+  width: 2px;
+  height: 34px;
+  background-color: #6a0dad;
+  position: absolute;
+  left: 5px;
+  top: 12px;
+}
+
+.commit-text {
+  margin-left: 12px;
+  color: black;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  // max-width: 250px;
+}
