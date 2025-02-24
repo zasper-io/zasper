@@ -68,25 +68,8 @@ export const CommitGraph: React.FC<{ data: Commit[] }> = ({ data }) => {
               <span className="commit-text">
                 {truncateText(node.commit.message, 50)} -- {node.commit.author}
               </span>
-              {/* <span className="commit-hash">{node.commit.hash}</span> */}
             </div>
           ))}
-          {/* Lines to connect parent-child relationships */}
-          {/* {commitNodes.map(node =>
-          node.children.map(child => (
-            <div
-              key={`${node.id}-${child.id}`}
-              className="connection-line"
-              style={{
-                left: `${node.x + 20}px`,
-                top: `${node.y + 40}px`,
-                width: `${Math.abs(node.x - child.x)}px`,
-                height: `${Math.abs(node.y - child.y)}px`,
-                transformOrigin: 'top left',
-              }}
-              />
-            ))
-          )} */}
         </div>
       </div>
     </>
