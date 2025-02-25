@@ -1,0 +1,141 @@
+@use "../../../variables" as *;
+
+.projectName {
+  background-color: $primary-color;
+  padding: 0.5rem;
+  color: $white-color;
+}
+
+.graph-container {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  background-color: $white-color;
+  border-radius: 8px;
+  color: $black-color;
+  position: relative;
+  width: 100%;
+}
+
+.commit-node {
+  height: 40px;
+  background-color: $primary-color;
+  color: $white-color;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  margin-bottom: 10px;
+  width: "200px";
+}
+
+.commit-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.commit-hash {
+  font-size: 12px;
+}
+
+.commit-node.main {
+  background-color: #3498db;
+}
+
+.commit-node.feature-xyz {
+  background-color: #f39c12;
+}
+
+.connection-line {
+  background-color: #999;
+  z-index: 0;
+  height: 2px;
+  transform-origin: top left;
+}
+
+.git-commit-content {
+  width: 100%;
+  padding: 10px;
+  height: 45vh;
+  overflow: hidden;
+  overflow-y: scroll;
+}
+
+.gitbutton {
+  font-weight: 400;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  padding: 6px 18px;
+  color: $white-color;
+  box-sizing: border-box;
+  background: $primary-color;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+}
+
+.gitbutton:hover {
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+}
+
+.content-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-graph-svg {
+  background-color: $white-color;
+  border-radius: 8px;
+}
+
+.commit-node {
+  fill: #6a0dad;
+  stroke: $white-color;
+  font-size: 12px;
+  color: $white-color;
+  cursor: pointer;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+.commit-edge {
+  stroke: #6a0dad;
+  stroke-width: 2px;
+}
+
+
+.commit-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.commit-circle {
+  width: 12px;
+  height: 12px;
+  background-color: #6a0dad;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+}
+
+.commit-line {
+  width: 2px;
+  height: 34px;
+  background-color: #6a0dad;
+  position: absolute;
+  left: 5px;
+  top: 12px;
+}
+
+.commit-text {
+  margin-left: 12px;
+  color: $black-color;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
