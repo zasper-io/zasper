@@ -56,7 +56,9 @@ export const CommitGraph: React.FC<{ data: Commit[] }> = ({ data }) => {
 
   return (
     <>
-      <div className="projectName">SOURCE CONTROL GRAPH</div>
+      <div className='projectBanner'>
+        <div className="projectName">SOURCE CONTROL GRAPH</div>
+      </div> 
       <div className="git-commit-content">
         <div className="graph-container">
           {commitNodes.map((node, index) => (

@@ -68,8 +68,10 @@ export function GitCommit({ display }) {
 
   return (
     <>
-      <div className="projectName">
-        <div>VERSION CONTROL</div>
+      <div className='projectBanner'>
+        <div className="projectName">
+          <div>VERSION CONTROL</div>
+        </div>
       </div>
       <div className="git-commit-content">
         <div>

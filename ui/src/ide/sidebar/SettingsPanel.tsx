@@ -18,8 +18,10 @@ export default function SettingsPanel ({ sendDataToParent, display }) {
           <div>SETTINGS</div>
           <div />
         </div>
-        <div className='projectName'>
-          <div>Theme</div>
+        <div className='projectBanner'>
+          <div className='projectName'>
+            <div>Theme</div>
+          </div>
         </div>
         <div className='content-inner'>
           <div className='select'>

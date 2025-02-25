@@ -97,6 +97,17 @@ Zasper comes in two flavours:
 2. Desktop App
 
 
+#### Initializing 
+
+Download `zasper` from Github and initialize the dependencies.
+
+```
+git clone https://github.com/zasper-io/zasper
+cd zasper
+make init
+```
+
+
 #### Web App
 
 ```

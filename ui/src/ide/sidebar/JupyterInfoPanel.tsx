@@ -36,9 +36,10 @@ export default function JupyterInfoPanel({ sendDataToParent, display }) {
         <div className='content-head'>
           <div>JUPYTER INFO</div>
         </div>
-
-        <div className='projectName'>
-          <div>Kernelspecs</div>
+        <div className='projectBanner'>
+          <div className='projectName'>
+            <div>Kernelspecs</div>
+          </div>
         </div>
         <div className='jupyter-info-commit-content'>
           <ul className='file-list list-unstyled'>
@@ -51,8 +52,10 @@ export default function JupyterInfoPanel({ sendDataToParent, display }) {
             )}
           </ul>
         </div>
-        <div className='projectName'>
-          <div>Kernels</div>
+        <div className='projectBanner'>
+          <div className='projectName'>
+            <div>Kernels</div>
+          </div>
         </div>
         <div className='jupyter-info-commit-content'>
           <ul className='file-list list-unstyled'>
@@ -68,8 +71,10 @@ export default function JupyterInfoPanel({ sendDataToParent, display }) {
             )}
           </ul>
         </div>
-        <div className='projectName'>
-          <div>Terminals</div>
+        <div className='projectBanner'>
+          <div className='projectName'>
+            <div>Terminals</div>
+          </div>
         </div>
         <div className='jupyter-info-commit-content'>
           <ul className='file-list list-unstyled'>
