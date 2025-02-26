@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y curl git gcc cpp npm
 RUN git clone https://github.com/zasper-io/zasper.git 
 
 # Build npm stuff 
-RUN cd zasper && cd ui && npm install react-scripts@0.1.0 && npm audit fix --force || true
-RUN cd zasper && cd ui && npm run build
+RUN cd zasper && make init
+RUN  cd zasper && make build
 
 # Build go 
-RUN cd zasper && export PATH=/usr/local/go/bin:$PATH && go build -tags webapp && cp zasper /usr/local/bin
+RUN  cd zasper && make webapp-install
  
 # Install sample python env
 RUN apt-get install -y python3-pip 
@@ -27,4 +27,4 @@ RUN echo "zasper:password" | chpasswd
 # Run app under user zasper
 USER zasper
 WORKDIR /home/zasper
-CMD /usr/local/bin/zasper
+CMD ["zasper"]
