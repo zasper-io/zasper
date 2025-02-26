@@ -98,8 +98,7 @@ electron-package:
 # Install the web app
 webapp-install: build
 	@echo "Installing the web app..."
-	go install .
-
+	go install -ldflags $(VERSION_BUILD_FLAG) .
 
 # Clean up build artifacts
 clean:

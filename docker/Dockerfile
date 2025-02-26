@@ -11,10 +11,9 @@ RUN git clone https://github.com/zasper-io/zasper.git
 
 # Build npm stuff 
 RUN cd zasper && make init
-RUN  cd zasper && make build
 
-# Build go 
-RUN  cd zasper && make webapp-install
+# Build and install zasper 
+RUN cd zasper && make webapp-install
  
 # Install sample python env
 RUN apt-get install -y python3-pip 
