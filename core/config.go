@@ -1,8 +1,12 @@
 package core
 
 import (
+	"encoding/json"
+	"os"
 	"runtime"
+	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/utils"
 )
 
@@ -43,4 +47,98 @@ func SetUpZasper(version string, cwd string) Application {
 		JupyterConfigPath: utils.GetJupyterConfigPath(),
 	}
 	return application
+}
+
+// Config structure to hold configuration values
+type Config struct {
+	TrackingID   string   `json:"tracking_id"`
+	LastProjects []string `json:"last_projects"`
+}
+
+// Function to expand the ~ to home directory path
+func getConfigFilePath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return homeDir + "/.zasper/config.json", nil
+}
+
+// Function to read the config from the file
+func ReadConfig() (*Config, error) {
+	filePath, err := getConfigFilePath()
+	if err != nil {
+		return nil, err
+	}
+
+	// Open the config file
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// If the file doesn't exist, return a default config
+			return &Config{}, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+
+	// Decode the JSON content into the Config struct
+	var config Config
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+// Function to write the config to the file
+func WriteConfig(config *Config) error {
+	filePath, err := getConfigFilePath()
+	if err != nil {
+		return err
+	}
+
+	// Create the directory if it doesn't exist
+	err = os.MkdirAll(filePath[:strings.LastIndex(filePath, "/")], os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	// Open the config file (create if it doesn't exist)
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	log.Info().Msgf("Writing config to %s", filePath)
+
+	// Write the config struct to the file as JSON
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ") // Pretty-print the JSON
+	return encoder.Encode(config)
+}
+
+// Function to add a new project to the list of last 5 projects
+func addProject(projectName string) error {
+	config, err := ReadConfig()
+	if err != nil {
+		return err
+	}
+
+	// Add the new project to the list of last projects
+	config.LastProjects = append(config.LastProjects, projectName)
+
+	// If there are more than 5 projects, keep only the last 5
+	if len(config.LastProjects) > 5 {
+		config.LastProjects = config.LastProjects[len(config.LastProjects)-5:]
+	}
+
+	err = WriteConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/zasper-io/zasper/analytics"
 	"github.com/zasper-io/zasper/content"
 	"github.com/zasper-io/zasper/core"
 	"github.com/zasper-io/zasper/gitclient"
@@ -88,6 +89,7 @@ func main() {
 	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()
 	websocket.ZasperActiveKernelConnections = websocket.SetUpStateKernels()
 	kernel.ProtocolVersion = "5.3"
+	_ = analytics.SetUpPostHogClient()
 
 	// API routes
 	apiRouter := router.PathPrefix("/api").Subrouter()
@@ -150,6 +152,8 @@ func main() {
 	})
 
 	router.PathPrefix("/").Handler(getSpaHandler())
+
+	analytics.TrackEvent("server_started", map[string]interface{}{"source": "web"})
 
 	// Channel for graceful shutdown
 	stop := make(chan os.Signal, 1)
