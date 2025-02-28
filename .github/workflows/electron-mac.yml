@@ -32,10 +32,10 @@ jobs:
         run: make init
 
       - name: Build Frontend and Backend
-        run: make build
+        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make build
 
       - name: Package Electron app
-        run: make electron-package
+        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make electron-package
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
