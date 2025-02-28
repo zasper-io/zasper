@@ -178,7 +178,7 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	log.Debug().Msgf("Nudge successful")
 }
 
-func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(messageType int, incomingMsg []byte) {
+func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []byte) {
 
 	wsMsg := incomingMsg
 	if len(kwsConn.Channels) == 0 {
@@ -219,7 +219,7 @@ func (kwsConn *KernelWebSocketConnection) ReadMessagesFromClient(waiter *sync.Wa
 				return
 			}
 			log.Debug().Msgf("message type => %d", messageType)
-			kwsConn.handleIncomingMessage(messageType, data)
+			kwsConn.handleIncomingMessage(data)
 		}
 
 	}
