@@ -1,0 +1,91 @@
+name: MacOS Build and Release Electron App
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    env:
+      CI: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.7'
+
+      - name: Install dependencies
+        run: make init
+
+      - name: Build Frontend and Backend
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: make build
+
+      - name: Package Electron app
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: make electron-package
+
+      - name: Extract tag name
+        id: extract_tag
+        run: |
+          TAG_NAME=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
+          echo "tag_name=$TAG_NAME" >> $GITHUB_ENV
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zasper-${{ env.tag_name }}-arm64.dmg
+          path: ui/dist/zasper-${{ env.tag_name }}-arm64.dmg
+
+      - name: Create Release Asset
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        run: |
+          TAG_NAME=${{ env.tag_name }}
+
+          # Check if the release already exists
+          release_url="https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME"
+          release_exists=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -s -o /dev/null -w "%{http_code}" $release_url)
+
+          if [ "$release_exists" -ne 200 ]; then
+            echo "Release does not exist, creating a new release..."
+
+            # Create a new release
+            release_response=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                                     -X POST \
+                                     -d "{\"tag_name\":\"$TAG_NAME\", \"name\":\"Release $TAG_NAME\"}" \
+                                     "https://api.github.com/repos/${{ github.repository }}/releases")
+
+            # Extract the upload URL from the release response
+            upload_url=$(echo "$release_response" | jq -r .upload_url | sed 's/{?name,label}//')
+
+            # Path to the artifact to upload
+            ARTIFACT_PATH="ui/dist/zasper-${TAG_NAME}-arm64.dmg"
+
+            # Check if the artifact exists
+            if [ -f "$ARTIFACT_PATH" ]; then
+              # Upload the artifact to the release
+              echo "Uploading artifact..."
+              curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                   -H "Content-Type: application/zip" \
+                   --data-binary "@$ARTIFACT_PATH" \
+                   "$upload_url?name=zasper-${TAG_NAME}-arm64.dmg"
+            else
+              echo "Artifact $ARTIFACT_PATH not found, skipping upload."
+            fi
+          else
+            echo "Release for tag $TAG_NAME already exists, skipping release creation."
+          fi
