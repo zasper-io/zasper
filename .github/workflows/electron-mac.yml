@@ -1,4 +1,4 @@
-name: MacOS Build and Release Electron App
+name: MacOS Build Electron App
 
 on:
   push:
@@ -32,27 +32,15 @@ jobs:
         run: make init
 
       - name: Build Frontend and Backend
-        run: make build
+        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make build
 
       - name: Package Electron app
-        run: make electron-package
+        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make electron-package
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zasper-0.1.0-arm64.dmg
-          path: ui/dist/zasper-0.1.0-arm64.dmg
+          name: zasper-0.1.0-alpha-arm64.dmg
+          path: ui/dist/zasper-0.1.0-alpha-arm64.dmg
 
-      - name: Create Release Asset
-        if: github.event_name == 'release'
-        run: |
-          release_url=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                             -X POST \
-                             -d "{\"tag_name\":\"${{ github.event.release.tag_name }}\"}" \
-                             https://api.github.com/repos/${{ github.repository }}/releases)
-          upload_url=$(echo "$release_url" | jq -r .upload_url | sed 's/{?name,label}//')
-          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Content-Type: application/zip" \
-               --data-binary "@path/to/your/output/files/your-app.zip" \
-               "$upload_url?name=your-app.zip"
                

@@ -192,6 +192,7 @@ func main() {
 
 // cleanup performs cleanup operations
 func cleanup() {
+	analytics.TrackEvent("server_shutdown", map[string]interface{}{"source": "web"})
 	fmt.Println("Performing cleanup...")
 	kernel.Cleanup()
 }
