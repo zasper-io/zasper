@@ -1,21 +1,24 @@
-# Verion Variables
+# Version Variables
 VERSION_FILE = version.txt
 TAG_PREFIX = v
-DEFAULT_VERSION = 0.0.1
+DEFAULT_VERSION = v0.0.1
 MAJOR_BUMP = major
 MINOR_BUMP = minor
 PATCH_BUMP = patch
 ALPHA_SUFFIX = -alpha
 BETA_SUFFIX = -beta
-TAG_REGEX = '^[0-9]\+\.[0-9]\+\.[0-9]\+$$'  # Regex to match semantic version format (X.Y.Z)
+TAG_REGEX = '^v[0-9]\+\.[0-9]\+\.[0-9]\+(-alpha|-beta)?$$'  # Regex to match version format (vX.Y.Z[-alpha/-beta])
 
 # Get the current version from version.txt or set to default if file does not exist
 CURRENT_VERSION = $(shell if [ -f $(VERSION_FILE) ]; then cat $(VERSION_FILE); else echo $(DEFAULT_VERSION); fi)
 
-# Split version into major, minor, patch
-CURRENT_MAJOR = $(word 1, $(subst ., ,$(CURRENT_VERSION)))
-CURRENT_MINOR = $(word 2, $(subst ., ,$(CURRENT_VERSION)))
-CURRENT_PATCH = $(word 3, $(subst ., ,$(CURRENT_VERSION)))
+# Strip the 'v' prefix to get the numeric version
+STRIPPED_VERSION = $(subst v,,$(CURRENT_VERSION))
+
+# Split version into major, minor, patch (after stripping 'v')
+CURRENT_MAJOR = $(word 1, $(subst ., ,$(STRIPPED_VERSION)))
+CURRENT_MINOR = $(word 2, $(subst ., ,$(STRIPPED_VERSION)))
+CURRENT_PATCH = $(word 3, $(subst ., ,$(STRIPPED_VERSION)))
 
 # Targets to bump the version and create a tag
 
@@ -37,6 +40,7 @@ bump-version:
 		echo "Invalid version bump type. Use major, minor, or patch."; \
 		exit 1; \
 	fi; \
+	# Determine the pre-release suffix (alpha, beta, or empty)
 	if [ "$(PRE_RELEASE)" == "alpha" ]; then \
 		NEW_VERSION=$${NEW_MAJOR}.$${NEW_MINOR}.$${NEW_PATCH}$(ALPHA_SUFFIX); \
 	elif [ "$(PRE_RELEASE)" == "beta" ]; then \
@@ -44,23 +48,30 @@ bump-version:
 	else \
 		NEW_VERSION=$${NEW_MAJOR}.$${NEW_MINOR}.$${NEW_PATCH}; \
 	fi; \
-	echo "New version: $${NEW_VERSION}"; \
-	echo $${NEW_VERSION} > $(VERSION_FILE); \
-	git commit -am "Bump version to $${NEW_VERSION}"; \
-	git tag $(TAG_PREFIX)$${NEW_VERSION}; \
-	echo "Version bumped and tagged as $(TAG_PREFIX)$${NEW_VERSION}"; \
+	# Add TAG_PREFIX (e.g., v) to the version
+	VERSION_WITH_PREFIX=$(TAG_PREFIX)$${NEW_VERSION}; \
+	# Display and write the version with prefix to version.txt
+	echo "New version with tag prefix: $${VERSION_WITH_PREFIX}"; \
+	echo $${VERSION_WITH_PREFIX} > $(VERSION_FILE); \
+	# Commit and tag the new version with the prefix
+	git commit -am "Bump version to $${VERSION_WITH_PREFIX}"; \
+	git tag $(VERSION_WITH_PREFIX); \
+	echo "Version bumped and tagged as $${VERSION_WITH_PREFIX}"; \
 	cd ui && node updateVersion.js
 	echo "Version updated in the frontend"
 
-# To create a release (alpha, beta, or final) based on the version bump type
+# Release target to bump version and create a release (alpha, beta, or final)
 release:
+	@echo "Creating release..."
 	$(MAKE) bump-version TYPE=$(TYPE) PRE_RELEASE=$(PRE_RELEASE)
 
 # Print current version and tag it
 show-version:
 	@echo "Current version: $(CURRENT_VERSION)"
-	@echo "Current tag: $(TAG_PREFIX)$(CURRENT_VERSION)"
-
+	@echo "Current tag: $(CURRENT_VERSION)"
+	@echo "Current major: $(CURRENT_MAJOR)"
+	@echo "Current minor: $(CURRENT_MINOR)"
+	@echo "Current patch: $(CURRENT_PATCH)"
 
 VERSION_BUILD_FLAG = "-X main.version=$(CURRENT_VERSION)"
 
