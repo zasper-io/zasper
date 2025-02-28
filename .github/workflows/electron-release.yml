@@ -43,18 +43,24 @@ jobs:
         id: extract_tag
         run: |
           TAG_NAME=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
+          
+          # Remove 'v' prefix from tag name if it exists
+          VERSION=$(echo "$TAG_NAME" | sed 's/^v//')
+
           echo "tag_name=$TAG_NAME" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_ENV
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zasper-${{ env.tag_name }}-arm64.dmg
-          path: ui/dist/zasper-${{ env.tag_name }}-arm64.dmg
+          name: zasper-${{ env.version }}-arm64.dmg
+          path: ui/dist/zasper-${{ env.version }}-arm64.dmg
 
       - name: Create Release Asset
         if: github.event_name == 'push' && github.ref_type == 'tag'
         run: |
           TAG_NAME=${{ env.tag_name }}
+          VERSION=${{ env.version }}
 
           # Check if the release already exists
           release_url="https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME"
@@ -73,7 +79,7 @@ jobs:
             upload_url=$(echo "$release_response" | jq -r .upload_url | sed 's/{?name,label}//')
 
             # Path to the artifact to upload
-            ARTIFACT_PATH="ui/dist/zasper-${TAG_NAME}-arm64.dmg"
+            ARTIFACT_PATH="ui/dist/zasper-${VERSION}-arm64.dmg"
 
             # Check if the artifact exists
             if [ -f "$ARTIFACT_PATH" ]; then
@@ -82,7 +88,7 @@ jobs:
               curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                    -H "Content-Type: application/zip" \
                    --data-binary "@$ARTIFACT_PATH" \
-                   "$upload_url?name=zasper-${TAG_NAME}-arm64.dmg"
+                   "$upload_url?name=zasper-${VERSION}-arm64.dmg"
             else
               echo "Artifact $ARTIFACT_PATH not found, skipping upload."
             fi
