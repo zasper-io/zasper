@@ -1,0 +1,18 @@
+builds:
+  - id: zasper
+    main: ./app.go
+    binary: zasper 
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+    env:
+      - CGO_ENABLED=0
+    # Custom build command
+    build_flags:
+      - -ldflags="-s -w"
+    custom:
+      # Run make build in your build process
+      build: make init && make build
