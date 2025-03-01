@@ -21,4 +21,3 @@ release:
   github:
     owner: prasunanand
     name: zasper
-    draft: false
