@@ -30,7 +30,7 @@ jobs:
           version: latest
           distribution: goreleaser
           workdir: .
-          args: release --rm-dist
+          args: release
 
   build-electron:
     name: Build and Release Electron App
