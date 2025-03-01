@@ -10,7 +10,6 @@ builds:
       - darwin
     goarch:
       - amd64
-      - arm64
     ldflags: "-ldflags '{{.Env.VERSION_BUILD_FLAG}}'"
     hooks:
       pre:
