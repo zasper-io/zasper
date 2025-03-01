@@ -40,6 +40,7 @@ jobs:
   build-electron:
     name: Build and Release Electron App
     runs-on: macos-latest
+    needs: build-go
 
     env:
       CI: false
@@ -87,15 +88,6 @@ jobs:
         with:
           name: zasper-${{ env.version }}-arm64.dmg
           path: ui/dist/zasper-${{ env.version }}-arm64.dmg
-
-  release:
-    name: Create GitHub Release for Electron App
-    runs-on: ubuntu-latest
-    needs: [build-electron, build-go] 
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Extract tag name and version
         run: |
