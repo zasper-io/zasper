@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/zasper-io/zasper/core"
-	"github.com/zasper-io/zasper/kernel"
+	"github.com/zasper-io/zasper/internal/core"
+	"github.com/zasper-io/zasper/internal/kernel"
 
 	"github.com/go-zeromq/zmq4"
 	"github.com/gorilla/mux"

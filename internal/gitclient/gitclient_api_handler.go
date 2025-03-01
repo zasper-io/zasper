@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/zasper-io/zasper/core"
-	zhttp "github.com/zasper-io/zasper/http"
+	"github.com/zasper-io/zasper/internal/core"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 )
 
 type Commit struct {

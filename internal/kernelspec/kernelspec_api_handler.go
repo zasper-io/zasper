@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 
-	zhttp "github.com/zasper-io/zasper/http"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 )
 
 // Handler to serve kernel resources (like logos)

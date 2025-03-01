@@ -5,8 +5,8 @@ import (
 	"os/exec"
 	"slices"
 
-	"github.com/zasper-io/zasper/kernel/provisioner"
-	"github.com/zasper-io/zasper/kernelspec"
+	"github.com/zasper-io/zasper/internal/kernel/provisioner"
+	"github.com/zasper-io/zasper/internal/kernelspec"
 
 	"github.com/rs/zerolog/log"
 

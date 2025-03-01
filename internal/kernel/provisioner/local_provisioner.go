@@ -1,8 +1,8 @@
 package provisioner
 
 import (
-	"github.com/zasper-io/zasper/kernel/launcher"
-	"github.com/zasper-io/zasper/kernelspec"
+	"github.com/zasper-io/zasper/internal/kernel/launcher"
+	"github.com/zasper-io/zasper/internal/kernelspec"
 
 	"github.com/rs/zerolog/log"
 )

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/zasper-io/zasper/models"
+	"github.com/zasper-io/zasper/internal/models"
 )
 
 func SessionApiHandler(w http.ResponseWriter, req *http.Request) {

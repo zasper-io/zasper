@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/rs/zerolog/log"
-	zhttp "github.com/zasper-io/zasper/http"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 
 	"github.com/gorilla/mux"
 )

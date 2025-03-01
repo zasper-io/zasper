@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/zasper-io/zasper/content"
-	"github.com/zasper-io/zasper/core"
-	"github.com/zasper-io/zasper/kernel"
-	"github.com/zasper-io/zasper/models"
+	"github.com/zasper-io/zasper/internal/content"
+	"github.com/zasper-io/zasper/internal/core"
+	"github.com/zasper-io/zasper/internal/kernel"
+	"github.com/zasper-io/zasper/internal/models"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
