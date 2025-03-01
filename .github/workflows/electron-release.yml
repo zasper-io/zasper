@@ -6,63 +6,35 @@ on:
       - '*'
 
 jobs:
-  setup:
-    name: Setup Go and Node.js
-    runs-on: ubuntu-latest
-
-    outputs:
-      go-version: '1.23'
-      node-version: '22.7'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.23'
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.7'
-
   build-go:
     name: Build and Release Go Binary with GoReleaser
     runs-on: ubuntu-latest
-    needs: setup 
-
-    env:
-      CI: false
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v2
         with:
-          go-version: '1.23'
+          go-version: '1.16'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.7'
+      - name: Set VERSION_BUILD_FLAG
+        run: echo "VERSION_BUILD_FLAG=-X main.version=$(git describe --tags)" >> $GITHUB_ENV
 
-      - name: Install GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+      - name: Set POSTHOG_API_KEY
+        run: echo "POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}" >> $GITHUB_ENV
+
+      - name: Build and Release Go Binary with GoReleaser
+        uses: goreleaser/goreleaser-action@v2
         with:
-          version: '~> v2'
-          args: release --clean
-        env:
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          distribution: goreleaser
+          workdir: .
+          args: release --rm-dist
 
   build-electron:
     name: Build and Release Electron App
     runs-on: macos-latest
-    needs: setup  # This job depends on the setup job
 
     env:
       CI: false
@@ -114,7 +86,7 @@ jobs:
   release:
     name: Create GitHub Release for Electron App
     runs-on: ubuntu-latest
-    needs: [build-go, build-electron] 
+    needs: [build-electron] 
 
     steps:
       - name: Checkout code

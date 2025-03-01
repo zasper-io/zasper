@@ -8,12 +8,19 @@ builds:
     goarch:
       - amd64
       - arm64
+    ldflags: "-ldflags '{{.Env.VERSION_BUILD_FLAG}}'"
+build:
+  # Configuration for the build process
+  hooks:
+    pre:
+      # Commands to run before building
+      - make init
+    post:
+      # Commands to run after building
+      - echo "Build completed"
 archives:
   - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
-dockers:
-  - image: "ghcr.io/prasunanand/zasper:{{ .Version }}"
-    dockerfile: Dockerfile
 release:
   github:
     owner: prasunanand
