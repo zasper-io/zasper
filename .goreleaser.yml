@@ -1,0 +1,39 @@
+project_name: zasper
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - npm --prefix ./ui i
+    - env CI=false npm --prefix ./ui run build
+
+builds:
+  - id: zasper
+    env:
+      - CGO_ENABLED=0
+    main: .
+    targets:
+      - darwin_amd64
+      - darwin_arm64
+      - linux_386
+      - linux_amd64
+      - linux_arm64
+      - windows_386
+      - windows_amd64
+      - windows_arm64
+      - android_arm64
+
+archives:
+  - id: archive
+    builds:
+     - zasper
+    files:
+      - LICENSE
+    name_template: >-
+      {{ .ProjectName }}-{{- .Os }}-{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+        
