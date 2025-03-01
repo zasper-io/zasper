@@ -21,16 +21,14 @@ jobs:
       - name: Set VERSION_BUILD_FLAG
         run: echo "VERSION_BUILD_FLAG=-X main.version=$(git describe --tags)" >> $GITHUB_ENV
 
-      - name: Set POSTHOG_API_KEY
-        run: echo "POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}" >> $GITHUB_ENV
-
       - name: Build and Release Go Binary with GoReleaser
         uses: goreleaser/goreleaser-action@v2
-        with:
-          version: latest
-          distribution: goreleaser
-          workdir: .
-          args: release
+
+      - name: Run GoReleaser
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: goreleaser release
 
   build-electron:
     name: Build and Release Electron App
