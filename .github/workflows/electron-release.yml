@@ -22,9 +22,8 @@ jobs:
         run: echo "VERSION_BUILD_FLAG=-X main.version=$(git describe --tags)" >> $GITHUB_ENV
 
       - name: Build and Release Go Binary with GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v6
         with:
-          version: '~> v2'
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
