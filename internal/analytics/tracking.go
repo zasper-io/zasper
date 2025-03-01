@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/posthog/posthog-go"
 	"github.com/rs/zerolog/log"
-	"github.com/zasper-io/zasper/core"
+	"github.com/zasper-io/zasper/internal/core"
 )
 
 const phEndPoint = "https://us.i.posthog.com"

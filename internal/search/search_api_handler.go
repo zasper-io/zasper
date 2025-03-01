@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zasper-io/zasper/core"
-	"github.com/zasper-io/zasper/models"
+	"github.com/zasper-io/zasper/internal/core"
+	"github.com/zasper-io/zasper/internal/models"
 )
 
 // Cache structure with expiration time

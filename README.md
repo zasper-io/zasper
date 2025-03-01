@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.svg" alt="Zasper">
+  <img src="./assets/logo.svg" alt="Zasper">
 </p>
 <p align="center">
     ⚡ High Performance IDE 🚀 Massive concurrency 🐥  Inspired by Jupyter
@@ -86,7 +86,7 @@ Hence the Go version of Zasper was born!
 ![Dark Notebook mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/darkNotebook.png) 
 
 ## Architecture
-![architecture](./architecture.svg)
+![architecture](./assets/architecture.svg)
 
 
 ## ⚡️ Quick start
@@ -214,15 +214,15 @@ Join Zasper Community on [Slack](https://join.slack.com/t/zasper/shared_invite/z
 
 <p align=center>
   <a href="https://join.slack.com/t/zasper/shared_invite/zt-30sx3uo8w-w~sw4Kje1aoUjxY5MZ_Fkg" target="_blank">
-      <img height=120px src="./screenshots/slack.svg">
+      <img height=120px src="./assets/slack.svg">
   </a>
 </p>
 
 # Sponsors
 
-<img height=100px src="./screenshots/foss-united.png">
+<img height=100px src="./assets/foss-united.png">
 
-<img height=40px src="./screenshots/zerodha.png">
+<img height=40px src="./assets/zerodha.png">
 
 # Copyright
 

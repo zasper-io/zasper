@@ -13,7 +13,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	"github.com/zasper-io/zasper/core"
+	"github.com/zasper-io/zasper/internal/core"
 )
 
 type ContentWatchConnection struct {

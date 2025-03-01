@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zasper-io/zasper/core"
+	"github.com/zasper-io/zasper/internal/core"
 
 	"github.com/rs/zerolog/log"
 )

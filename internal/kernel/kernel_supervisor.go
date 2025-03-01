@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/zasper-io/zasper/models"
+	"github.com/zasper-io/zasper/internal/models"
 
 	"github.com/google/uuid"
 

@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strconv"
 
-	zhttp "github.com/zasper-io/zasper/http"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 
 	"github.com/rs/zerolog/log"
 )
