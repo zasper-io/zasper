@@ -23,12 +23,12 @@ jobs:
 
       - name: Build and Release Go Binary with GoReleaser
         uses: goreleaser/goreleaser-action@v2
-
-      - name: Run GoReleaser
+        with:
+          version: '~> v2'
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: goreleaser release --rm-dist
 
   build-electron:
     name: Build and Release Electron App
