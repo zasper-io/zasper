@@ -1,4 +1,7 @@
 version: 2
+before:
+  hooks:
+    - go mod tidy
 builds:
   - main: ./app.go
     goos:
@@ -14,6 +17,8 @@ builds:
         - make init
       post:
         - echo "Build completed"
+checksum:
+  name_template: 'checksums.txt'
 archives:
   - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
