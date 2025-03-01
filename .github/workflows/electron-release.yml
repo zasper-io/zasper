@@ -14,11 +14,6 @@ jobs:
       go-version: '1.23'
       node-version: '22.7'
 
-  build-go:
-    name: Build and Release Go Binary with GoReleaser
-    runs-on: ubuntu-latest
-    needs: setup  # This job depends on the setup job
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,12 +21,19 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ steps.setup.outputs.go-version }}
+          go-version: '1.23'
 
-      - name: Set up Node.js for Electron app
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ steps.setup.outputs.node-version }}
+          node-version: '22.7'
+
+  build-go:
+    name: Build and Release Go Binary with GoReleaser
+    runs-on: ubuntu-latest
+    needs: setup 
+
+    steps:
 
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v2
