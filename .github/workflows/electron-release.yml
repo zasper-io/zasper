@@ -34,9 +34,6 @@ jobs:
     needs: setup  # This job depends on the setup job
 
     steps:
-      - name: Install Go dependencies
-        run: make init
-
       - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
