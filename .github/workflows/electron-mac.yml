@@ -2,9 +2,9 @@ name: MacOS Build Electron App
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main2" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main2" ]
     
 
 jobs:
