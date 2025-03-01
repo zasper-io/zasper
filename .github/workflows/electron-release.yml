@@ -28,7 +28,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: goreleaser release
+        run: goreleaser release --rm-dist
 
   build-electron:
     name: Build and Release Electron App
