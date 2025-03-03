@@ -221,6 +221,7 @@ const CellOutput = ({ data }) => {
   const { outputs } = data;
   if (outputs && outputs.length > 0) {
     const output = outputs[0];
+    // return <p>{JSON.stringify(output)}</p>;
 
     if (output.output_type === 'error') {
       const { ename, evalue, traceback } = output;

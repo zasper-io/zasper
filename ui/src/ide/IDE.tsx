@@ -149,7 +149,6 @@ function IDE () {
           return newSize;
         });
       }
-      event.preventDefault();
     }
   };
 
