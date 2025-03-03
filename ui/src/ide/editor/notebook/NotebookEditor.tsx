@@ -245,7 +245,11 @@ export default function NotebookEditor(props) {
               // if (message.hasOwnProperty('text')) {
                 var textMessage = message.content.text
                 const cleanedArray = removeAnsiCodes(textMessage);
-                updatedCell.outputs = [{"text": cleanedArray}];
+                console.log(updatedCell.outputs)
+                if(updatedCell.outputs.length === 0){
+                  updatedCell.outputs[0] = {'text':  ""}
+                }
+                updatedCell.outputs[0].text += cleanedArray;
               // }
               return updatedCell;
             }
@@ -263,8 +267,11 @@ export default function NotebookEditor(props) {
         const updatedCells = prevNotebook.cells.map((cell) => {
           if (cell.id === message.parent_header.msg_id) {
             const updatedCell = { ...cell };
-            updatedCell.outputs = [{data: message.content.data}];
-           
+            if (updatedCell.outputs.length === 0) {
+              updatedCell.outputs[0] = {data: message.content.data};
+            }else{
+              updatedCell.outputs[0]["data"] = message.content.data;
+            }
             return updatedCell;
           }
           return cell;
