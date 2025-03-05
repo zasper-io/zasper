@@ -52,6 +52,24 @@ func CreateSession(req models.SessionModel) models.SessionModel {
 	return session
 }
 
+func DeleteSession(req models.SessionModel) {
+	/*
+		Deletes a Sesion
+	*/
+	log.Info().Msgf("deleting session %s", req.Id)
+	session, ok := core.ZasperSession[req.Id]
+	if !ok {
+		log.Info().Msg("session does not exist")
+		return
+	}
+	// stop kernel
+	stopKernelForSession(session.Kernel.Id)
+	// delete session
+
+	delete(core.ZasperSession, req.Id)
+	return
+}
+
 func startKernelForSession(path string, name string) string {
 	/*
 		Starts a Jupyter Kernel for a new Sesion
@@ -62,6 +80,13 @@ func startKernelForSession(path string, name string) string {
 	log.Info().Msg("starting kernel")
 	kernelId := kernel.StartKernelManager(path, name, env)
 	return kernelId
+}
+
+func stopKernelForSession(kernelId string) {
+	/*
+		Stops a Jupyter Kernel for a Sesion
+	*/
+	kernel.StopKernelManager(kernelId)
 }
 
 func getKernelEnv(path string, name string) map[string]string {

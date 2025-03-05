@@ -65,3 +65,17 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 	return cmd.Process, nil
 
 }
+
+func ShutdownKernel(pid int) {
+	// Find the process
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		log.Fatal().Msgf("Error finding process: %v", err)
+	}
+
+	// Kill the process
+	if err := process.Kill(); err != nil {
+		log.Fatal().Msgf("Error killing process: %v", err)
+	}
+	log.Info().Msgf("Process %d killed successfully.", pid)
+}

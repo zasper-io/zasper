@@ -20,6 +20,7 @@ import getFileExtension from './utils';
 
 import './IDE.scss'
 import { fileBrowserReloadCountAtom, fontSizeAtom, languageModeAtom, terminalsAtom } from '../store/AppState';
+import { BaseApiUrl } from './config';
 
 interface Ifile {
   type: string
@@ -118,16 +119,26 @@ function IDE () {
   function handlCloseTabSignal (key) {
     console.log('closing key', key)
     const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild)
+    if(updatedDataFromChild[key].type === "notebook"){
+      console.log("notebook close signal")
+    }
+
     if ("Launcher" in updatedDataFromChild){
       updatedDataFromChild["Launcher"]["active"] = true
     }
+    Object.keys(updatedDataFromChild).forEach(key => {
+      updatedDataFromChild[key] = { ...updatedDataFromChild[key], load_required: false };
+    });
     delete updatedDataFromChild[key]
     setDataFromChild(updatedDataFromChild)
     console.log(updatedDataFromChild)
+    
 
     var updatedterminals = { ...terminals };
     delete updatedterminals[key] 
     setTerminals(updatedterminals)
+
+    
   }
 
   const [fontSize, setFontSize] = useAtom(fontSizeAtom); // Initial font size

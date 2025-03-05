@@ -110,6 +110,12 @@ func StartKernelManager(kernelPath string, kernelName string, env map[string]str
 	return kernelId
 }
 
+func StopKernelManager(kernelId string) {
+	km := ZasperActiveKernels[kernelId]
+	km.StopKernel(kernelId)
+	// todo
+}
+
 func CwdForPath(path string) string {
 	return path
 }

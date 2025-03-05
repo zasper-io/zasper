@@ -9,7 +9,7 @@ import NbButtons from './NbButtons';
 import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
-import { IKernel, userNameAtom } from '../../../store/AppState';
+import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
 import KernelSwitcher from './KernelSwitch';
 
 const debugMode = false;
@@ -59,6 +59,7 @@ export default function NotebookEditor(props) {
   const [kernelName, setKernelName] = useState<string>(props.data.kernelspec);
   const [session, setSession] = useState<ISession | null>();
   const [kernelStatus, setKernelStatus] = useState("idle")
+  const [activeKernels, setActiveKernels] = useAtom(kernelsAtom);
   const [userName] = useAtom(userNameAtom)
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
 
@@ -135,7 +136,8 @@ export default function NotebookEditor(props) {
       // ensures that event listener is removed when component is unmounted
       window.removeEventListener('keydown', handleKeyDownNotebook);
     };
-  }, [session])
+  
+  }, [session]);
 
   const startWebSocket = () => {
     if(session){
@@ -179,6 +181,11 @@ export default function NotebookEditor(props) {
         .then((data) => {
           setSession(data);// update session
           console.log('session updated', data);
+          setActiveKernels((prevActiveKernels) => {
+            const updatedKernels = { ...prevActiveKernels };
+            updatedKernels[data.kernel.id] = data.kernel;
+            return updatedKernels
+          });
         })
         .catch((error) => console.log('error', error));
     // }
