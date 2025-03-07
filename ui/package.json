@@ -75,7 +75,9 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "electron-dev": "concurrently \"BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron-package": "electron-builder --mac --linux"
+    "electron-package": "electron-builder --mac --linux",
+    "electron-package-mac": "electron-builder --mac",
+    "electron-package-linux": "electron-builder --linux"
   },
   "build": {
     "appId": "io.zasper.prasunanand.zasper",

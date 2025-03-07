@@ -154,7 +154,11 @@ Go to `http://localhost:8048`
 ### Desktop App
 
 ```
-make electron-package
+make electron-package-mac # on macOS
+```
+
+```
+make electron-package-linux # on Linux
 ```
 
 This creates  `zasper-0.1.0-arm64.dmg`(macOS) and `zasper_0.1.0_arm64.deb`(Debian) installer.
