@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import ContextMenu from './sidebar/ContextMenu';
-import HelpDialog from './Help';
+import ContextMenu from '../ContextMenu';
+import HelpDialog from '../../Help';
+
+import './NavigationPanel.scss';
 
 interface NavigationPanelProps {
   handleNavigationPanel: (panelName: string) => void;
@@ -68,7 +70,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
     return navItems.map(item => (
       <button
         key={item.name}
-        className={`editor-button nav-link ${activeNavItem === item.name ? 'active' : ''}`}
+        className={`navButton ${activeNavItem === item.name ? 'active' : ''}`}
         onClick={() => handleNavItemClick(item.name)} // Set active item and navigate
       >
         <img src={item.icon} alt={item.name} />
@@ -84,7 +86,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
     <div className="navigation-list">
       {/* Menu button */}
       <button
-        className="editor-button nav-link"
+        className="navButton"
         onClick={handleContextMenu}
       >
         <img src="./images/editor/menu-bar.svg" alt="menu" />
@@ -94,12 +96,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
       {renderNavButtons()}
 
       {/* Checkmark button */}
-      <button className="editor-button nav-link">
+      <button className="navButton">
         <img src="./images/editor/ionic-ios-checkmark-circle-outline.svg" alt="checkmark" />
       </button>
 
       {/* Help icon button */}
-      <button className="editor-button mt-auto help-icon" onClick={toggleHelpDialog}>
+      <button className="navButton mt-auto help-icon" onClick={toggleHelpDialog}>
         <i className="fas fa-question-circle" />
       </button>
 

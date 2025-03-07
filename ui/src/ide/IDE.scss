@@ -131,13 +131,14 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
         color: #fff;
     }
     .nav-link{
-        background-color: #272727;
+        background-color: #545454;
+        border: 1px solid #272727;
     }
 
     .nav-link.active {
         color: #ffffff;
         font-weight: 400;
-        background: #746b8d;
+        background: #272727;
     }
     
     .navigation .nav-content .content-inner .file-list li a {
@@ -163,6 +164,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     .launcher-icon{
         background-color:  #272727;
         color: #fff;
+        border: 1px solid #4f4f4f;
     }
     .directoryIcon{
         fill: #fff;
@@ -190,6 +192,49 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 
     .serial-no {
         color: #ffffff;
+    }
+    .launchSection {
+        border-bottom: 1px solid #89888b;
+    }
+    .launcher-title{
+        border-bottom: 1px solid #89888b;
+    }
+    .list-group-item{
+        background-color: #272727;
+        color: #fff;
+    }
+    .graph-container{
+        background-color: #272727;
+        color: #fff;
+    }
+    .commit-text{
+        color: #fff;
+    }
+    .navigation-list {
+        border-right: 1px solid #000;
+    }
+
+    .activeCell{
+        border: 2px solid #767676;
+    }
+
+    .modal-body{
+        background: #272727;
+        color: #fff;
+    }
+    .modal{
+        background: rgba(255, 255, 255, 0.5);
+    }
+    .kernelStatus{
+        box-shadow: 3px 3px 10px 3px #000000;
+    }
+    .reconnectButton{
+        box-shadow:  3px 3px 10px 3px #000000;
+    }
+    .terminalIconImage{
+        svg{
+            fill: #ffffff;
+        }
     }
 }
 
@@ -340,47 +385,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     border-radius: 2px;
     width: 100%;
 
-    .navigation-list {
-        border-right: 1px solid #e0dceb;
-        padding: 9px;
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-        padding-top: 13px;
-
-        .help-icon {
-            text-align: center;
-            font-size: 18px;
-            color: #564d7b;
-        }
-
-        .nav-link {
-            border-radius: 50%;
-            padding: 0;
-            height: 37px;
-            width: 37px;
-            border-radius: 50%;
-            background-color: transparent;
-            line-height: 35px;
-            text-align: center;
-        }
-
-        .nav-link:hover img {
-            filter: invert(30%) sepia(41%) saturate(4131%) hue-rotate(233deg)
-            brightness(83%) contrast(104%);
-        }
-
-        .nav-link.active {
-            background-color: #e7e4f5;
-
-            img {
-                filter: invert(30%) sepia(41%) saturate(4131%) hue-rotate(233deg)
-                  brightness(83%) contrast(104%);
-            }
-        }
-
-       
-    }
+    
     .sideBar{
         width: 100%;
     }
@@ -518,8 +523,8 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 }
 
 .main-content {
-    margin-left: 5px;
-    margin-right: 12px;
+    margin-left: 1px;
+    margin-right: 1px;
     height: calc(100vh - 28px);
     font-weight: 300;
     line-height: 27px;

@@ -3,7 +3,7 @@ import { useAtom } from 'jotai';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { settingsAtom, themeAtom } from '../store/Settings';
 
-import NavigationPanel from './NavigationPanel';
+import NavigationPanel from './sidebar/NavigationPanel/NavigationPanel';
 import FileBrowser from './sidebar/FileBrowser';
 import ContentPanel from './editor/ContentPanel';
 import TabIndex from './tabs/TabIndex';
