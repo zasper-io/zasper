@@ -234,6 +234,10 @@ Zasper aspires to be a full fledged IDE and the future development will be along
 * Easier integration with the existing tools.
 * Zasper Hub for Self Hosted deployment in the cloud.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=zasper-io/zasper&type=Date)](https://star-history.com/#zasper-io/zasper&Date)
+
 # 🌐 Community
 
 Join Zasper Community on [Slack](https://join.slack.com/t/zasper/shared_invite/zt-30sx3uo8w-w~sw4Kje1aoUjxY5MZ_Fkg)
