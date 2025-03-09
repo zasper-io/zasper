@@ -107,7 +107,6 @@ cd zasper
 make init
 ```
 
-
 #### Web App
 
 ```
@@ -177,6 +176,29 @@ drwxr-xr-x   3 prasunanand  staff         96 Feb 21 10:29 mac-arm64
 ```
 
 Install `zasper-0.1.0-arm64.dmg` to your machine.
+
+## Jupyter kernels
+
+Please ensure you have jupyter kernels installed.
+
+```
+prasunanand@Prasuns-Laptop examples % jupyter kernelspec list
+Available kernels:
+  deno          /Users/prasunanand/Library/Jupyter/kernels/deno
+  firstenv      /Users/prasunanand/Library/Jupyter/kernels/firstenv
+  gonb          /Users/prasunanand/Library/Jupyter/kernels/gonb
+  ir            /Users/prasunanand/Library/Jupyter/kernels/ir
+  julia-1.11    /Users/prasunanand/Library/Jupyter/kernels/julia-1.11
+  ruby3         /Users/prasunanand/Library/Jupyter/kernels/ruby3
+  python3       /Users/prasunanand/Library/Python/3.9/share/jupyter/kernels/python3
+```
+The simplest way to install a Python 3 Jupyter kernel is
+
+```
+pip install jupyter
+```
+
+You can install other kernels as well. Just Google it!
 
 ## Logging
 
