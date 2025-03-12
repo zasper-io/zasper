@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import './CommandPalette.scss'
+import './CommandPalette.scss';
 
 interface Command {
   name: string;
@@ -18,7 +18,6 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ commands, onClose }) =>
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  
   useEffect(() => {
     const filtered = commands.filter((command) =>
       command.name.toLowerCase().includes(query.toLowerCase())
@@ -59,15 +58,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ commands, onClose }) =>
               onClose();
             }}
           >
-            <div className='commandName'>{command.name}</div>
-            <div className='commandName'>{command.description}</div>
+            <div className="commandName">{command.name}</div>
+            <div className="commandName">{command.description}</div>
           </li>
         ))}
       </ul>
     </div>
   );
 };
-
-
 
 export default CommandPalette;
