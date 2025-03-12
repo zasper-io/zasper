@@ -1,8 +1,7 @@
-import './App.css'
-import Routes from './Routes/routes'
-import React from 'react'
-import { Provider } from 'jotai'
-
+import './App.css';
+import Routes from './Routes/routes';
+import React from 'react';
+import { Provider } from 'jotai';
 
 declare global {
   interface Window {
@@ -10,12 +9,12 @@ declare global {
   }
 }
 
-function App () {
+function App() {
   return (
     <Provider>
       <Routes />
     </Provider>
-  )
+  );
 }
 
-export default App
+export default App;
