@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 
-import "./GitPanel.scss";
+import './GitPanel.scss';
 
-import { GitCommit } from "./GitCommit";
-import { CommitGraphContainer } from "./CommitGraphContainer";
+import { GitCommit } from './GitCommit';
+import { CommitGraphContainer } from './CommitGraphContainer';
 
 export default function GitPanel({ sendDataToParent, display }) {
   const [isHidden, setIsHidden] = useState<boolean>(false);

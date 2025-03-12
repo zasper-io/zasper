@@ -1,35 +1,34 @@
 .navigation-list {
-    border-right: 1px solid #e0dceb;
-    padding: 9px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding-top: 13px;
+  border-right: 1px solid #e0dceb;
+  padding: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 13px;
 }
 
-.navButton{
-    border: none;
-    border-radius: 50%;
-    padding: 0;
-    height: 37px;
-    width: 37px;
-    border-radius: 50%;
-    background-color: transparent;
-    line-height: 30px;
-    text-align: center;
+.navButton {
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  height: 37px;
+  width: 37px;
+  border-radius: 50%;
+  background-color: transparent;
+  line-height: 30px;
+  text-align: center;
 }
 
 .navButton.active {
-    background-color: #e7e4f5;
+  background-color: #e7e4f5;
 
-    img {
-        filter: invert(30%) sepia(41%) saturate(4131%) hue-rotate(233deg)
-          brightness(83%) contrast(104%);
-    }
+  img {
+    filter: invert(30%) sepia(41%) saturate(4131%) hue-rotate(233deg) brightness(83%) contrast(104%);
+  }
 }
 
 .help-icon {
-    text-align: center;
-    font-size: 18px;
-    color: #564d7b;
+  text-align: center;
+  font-size: 18px;
+  color: #564d7b;
 }

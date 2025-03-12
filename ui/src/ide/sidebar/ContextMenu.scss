@@ -1,22 +1,22 @@
 /* src/ContextMenu.css */
 .context-menu {
-    position: absolute;
-    background: white;
-    border: 1px solid #ccc;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
-    width: 12   0px;
-    border-radius: 5px;
-  }
-  
+  position: absolute;
+  background: white;
+  border: 1px solid #ccc;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  width: 12 0px;
+  border-radius: 5px;
+}
+
 .context-menu-item {
-    padding: 4px 12px;
-    cursor: pointer;
-    color: #473990;
-    font-size: 12px;
-    font-weight: 400;
+  padding: 4px 12px;
+  cursor: pointer;
+  color: #473990;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .context-menu-item:hover {
-    background-color: #f0f0f0;
+  background-color: #f0f0f0;
 }

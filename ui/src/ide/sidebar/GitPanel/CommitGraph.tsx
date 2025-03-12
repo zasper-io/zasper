@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { Commit, CommitNode } from "./types";
-import "./GitPanel.scss";
+import { useEffect, useRef, useState } from 'react';
+import { Commit, CommitNode } from './types';
+import './GitPanel.scss';
 
 export const CommitGraph: React.FC<{ data: Commit[] }> = ({ data }) => {
   const [commitNodes, setCommitNodes] = useState<CommitNode[]>([]);
@@ -49,24 +49,20 @@ export const CommitGraph: React.FC<{ data: Commit[] }> = ({ data }) => {
   }, [data]);
 
   const truncateText = (text: string, maxLength: number) => {
-    return text.length > maxLength
-      ? text.substring(0, maxLength) + "..."
-      : text;
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   };
 
   return (
     <>
-      <div className='projectBanner'>
+      <div className="projectBanner">
         <div className="projectName">SOURCE CONTROL GRAPH</div>
-      </div> 
+      </div>
       <div className="git-commit-content">
         <div className="graph-container">
           {commitNodes.map((node, index) => (
             <div key={node.id} className={`commit-row`}>
               <div className="commit-circle" />
-              {index < commitNodes.length - 1 && (
-                <div className="commit-line" />
-              )}
+              {index < commitNodes.length - 1 && <div className="commit-line" />}
               <span className="commit-text">
                 {truncateText(node.commit.message, 50)} -- {node.commit.author}
               </span>
