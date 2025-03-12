@@ -11,7 +11,6 @@ import { languages } from '@codemirror/language-data';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 
-
 type CellType = 'code' | 'markdown' | 'raw' | string;
 
 export interface ICell {
@@ -23,22 +22,22 @@ export interface ICell {
   reload: boolean;
 }
 
-interface ICellProps{
-    cell: ICell;
-    index: number;
-    submitCell: (source: string, cellId: string) => void;
-    addCellUp: () => void;
-    addCellDown: () => void;
-    prevCell: () => void;
-    nextCell: () => void;
-    deleteCell: (index: number) => void;
-    focusedIndex: number;
-    setFocusedIndex: (index: number) => void;
-    handleKeyDown: any;
-    divRefs: React.RefObject<(HTMLDivElement | null)[]>;
-    execution_count: number;
-    codeMirrorRefs: any;
-    updateCellSource: any;
+interface ICellProps {
+  cell: ICell;
+  index: number;
+  submitCell: (source: string, cellId: string) => void;
+  addCellUp: () => void;
+  addCellDown: () => void;
+  prevCell: () => void;
+  nextCell: () => void;
+  deleteCell: (index: number) => void;
+  focusedIndex: number;
+  setFocusedIndex: (index: number) => void;
+  handleKeyDown: any;
+  divRefs: React.RefObject<(HTMLDivElement | null)[]>;
+  execution_count: number;
+  codeMirrorRefs: any;
+  updateCellSource: any;
 }
 
 export interface CodeMirrorRef {
@@ -48,15 +47,15 @@ export interface CodeMirrorRef {
 }
 
 const Cell = React.forwardRef((props: ICellProps, ref) => {
-  const cell = props.cell
-  const [theme] = useAtom(themeAtom)
-  const [cellContents, setCellContents] = useState(cell.source)
-  const [cursorPosition, setCursorPosition] = useState(0)
-  const [totalLines, setTotalLines] = useState(0)
+  const cell = props.cell;
+  const [theme] = useAtom(themeAtom);
+  const [cellContents, setCellContents] = useState(cell.source);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [totalLines, setTotalLines] = useState(0);
 
   const onChange = useCallback((value, viewUpdate) => {
-    setCellContents(value)
-    props.updateCellSource(value, props.cell.id)
+    setCellContents(value);
+    props.updateCellSource(value, props.cell.id);
   }, []);
 
   const onUpdate = useCallback((viewUpdate: ViewUpdate) => {
@@ -66,40 +65,36 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       const line = state.doc.lineAt(cursor).number;
 
       const totalLines = state.doc.lines;
-      setCursorPosition(line)
-      setTotalLines(totalLines)
-
+      setCursorPosition(line);
+      setTotalLines(totalLines);
     }
     // props.setFocusedIndex(props.index)
-
   }, []);
 
   const handleKeyDownCM = (event) => {
     if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
-      props.handleKeyDown({ key: "ArrowDown", preventDefault: () => { } })
+      props.handleKeyDown({ key: 'ArrowDown', preventDefault: () => {} });
       event.preventDefault();
     } else if (event.key === 'ArrowUp' && cursorPosition === 1) {
-      props.handleKeyDown({ key: "ArrowUp", preventDefault: () => { } })
+      props.handleKeyDown({ key: 'ArrowUp', preventDefault: () => {} });
       event.preventDefault();
     }
   };
 
-
-
   const handleCmdEnter = () => {
-    if(props.cell.cell_type === "code"){
-      props.submitCell(cellContents, props.cell.id)
+    if (props.cell.cell_type === 'code') {
+      props.submitCell(cellContents, props.cell.id);
     }
-    props.handleKeyDown({ key: "ArrowDown", preventDefault: () => { } })
-    return true
-  }
+    props.handleKeyDown({ key: 'ArrowDown', preventDefault: () => {} });
+    return true;
+  };
 
   const customKeymap = keymap.of([
     {
       key: 'Shift-Enter',
-      run: handleCmdEnter
-    }
-  ])
+      run: handleCmdEnter,
+    },
+  ]);
 
   // Make sure divRefs.current is not null before assigning
   const divRef = (el: HTMLDivElement | null) => {
@@ -108,17 +103,19 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
     }
   };
 
-
   if (cell.cell_type === 'markdown') {
     return (
-      <div tabIndex={props.index} className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
-        ref={divRef} onKeyDown={props.handleKeyDown} onFocus={() => props.setFocusedIndex(props.index)}>
-
-
-        {props.index === props.focusedIndex ?
+      <div
+        tabIndex={props.index}
+        className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
+        ref={divRef}
+        onKeyDown={props.handleKeyDown}
+        onFocus={() => props.setFocusedIndex(props.index)}
+      >
+        {props.index === props.focusedIndex ? (
           <>
-
-            <CellButtons index={props.index}
+            <CellButtons
+              index={props.index}
               cellId={cell.id}
               code={cellContents}
               addCellUp={props.addCellUp}
@@ -126,15 +123,19 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
               submitCell={props.submitCell}
               deleteCell={props.deleteCell}
               nextCell={props.nextCell}
-              prevCell={props.prevCell} />
-            <div className='inner-content'>
-              <div className='cellEditor'>
+              prevCell={props.prevCell}
+            />
+            <div className="inner-content">
+              <div className="cellEditor">
                 <CodeMirror
                   theme={theme === 'light' ? githubLight : githubDark}
                   value={cellContents}
-                  height='auto'
-                  width='100%'
-                  extensions={[markdown({ base: markdownLanguage, codeLanguages: languages }), [Prec.highest(customKeymap)]]}
+                  height="auto"
+                  width="100%"
+                  extensions={[
+                    markdown({ base: markdownLanguage, codeLanguages: languages }),
+                    [Prec.highest(customKeymap)],
+                  ]}
                   autoFocus={props.index === props.focusedIndex ? true : false}
                   onChange={onChange}
                   onUpdate={onUpdate}
@@ -147,28 +148,29 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
                     lintKeymap: true,
                     foldGutter: true,
                     completionKeymap: true,
-                    tabSize: 4
+                    tabSize: 4,
                   }}
                 />
               </div>
             </div>
           </>
-          :
+        ) : (
           <Markdown rehypePlugins={[rehypeRaw]}>{cellContents}</Markdown>
-        }
-
+        )}
       </div>
-
-    )
+    );
   }
 
-
   return (
-    <div tabIndex={props.index}
+    <div
+      tabIndex={props.index}
       className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
-      ref={divRef} onFocus={() => props.setFocusedIndex(props.index)}>
-      {props.index === props.focusedIndex ?
-        <CellButtons index={props.index}
+      ref={divRef}
+      onFocus={() => props.setFocusedIndex(props.index)}
+    >
+      {props.index === props.focusedIndex ? (
+        <CellButtons
+          index={props.index}
           code={cellContents}
           cellId={cell.id}
           submitCell={props.submitCell}
@@ -176,18 +178,24 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
           addCellDown={props.addCellDown}
           deleteCell={props.deleteCell}
           nextCell={props.nextCell}
-          prevCell={props.prevCell} /> : <></>
-      }
+          prevCell={props.prevCell}
+        />
+      ) : (
+        <></>
+      )}
 
-
-      <div className='inner-content'>
-        {props.execution_count === -1 ? <LoaderSvg /> :  <div className='serial-no'>[{props.execution_count}]:</div>}
-        <div className='cellEditor'>
+      <div className="inner-content">
+        {props.execution_count === -1 ? (
+          <LoaderSvg />
+        ) : (
+          <div className="serial-no">[{props.execution_count}]:</div>
+        )}
+        <div className="cellEditor">
           <CodeMirror
             theme={theme === 'light' ? githubLight : githubDark}
             value={cellContents}
-            height='auto'
-            width='100%'
+            height="auto"
+            width="100%"
             extensions={[python(), [Prec.highest(customKeymap)]]}
             autoFocus={props.index === props.focusedIndex ? true : false}
             onChange={onChange}
@@ -201,17 +209,17 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
               lintKeymap: true,
               foldGutter: true,
               completionKeymap: true,
-              tabSize: 4
+              tabSize: 4,
             }}
           />
         </div>
       </div>
-      <div className='inner-text'>
-        <CellOutput data={cell}/>
+      <div className="inner-text">
+        <CellOutput data={cell} />
       </div>
     </div>
-  )
-})
+  );
+});
 
 const CellOutput = ({ data }) => {
   if (!data) {
@@ -228,12 +236,14 @@ const CellOutput = ({ data }) => {
 
       // Clean up the traceback by removing ANSI escape codes
       const cleanTraceback = traceback
-        ? traceback.map(line => line.replace(/\u001b\[[0-9;]*m/g, ''))
+        ? traceback.map((line) => line.replace(/\u001b\[[0-9;]*m/g, ''))
         : [];
 
       return (
         <div style={{ color: 'red' }}>
-          <h6>{ename}: {evalue}</h6>
+          <h6>
+            {ename}: {evalue}
+          </h6>
           <pre>{cleanTraceback.join('\n')}</pre>
         </div>
       );
@@ -250,7 +260,11 @@ const CellOutput = ({ data }) => {
     }
 
     if (data) {
-      const { 'text/html': htmlContent, 'image/png': imageContent, 'text/plain': textPlainData } = data;
+      const {
+        'text/html': htmlContent,
+        'image/png': imageContent,
+        'text/plain': textPlainData,
+      } = data;
 
       if (htmlContent) {
         return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
@@ -277,25 +291,33 @@ const CellOutput = ({ data }) => {
     return <p>{JSON.stringify(output)}</p>;
   }
 
-  return null; 
+  return null;
 };
 
 const LoaderSvg = () => {
   return (
     <div className="svgContainer">
-  
-      <svg className="spinner" xmlns="http://www.w3.org/2000/svg" width="50px" height="50px" viewBox="0 0 100 100">
+      <svg
+        className="spinner"
+        xmlns="http://www.w3.org/2000/svg"
+        width="50px"
+        height="50px"
+        viewBox="0 0 100 100"
+      >
         <path d="M 50,50 L 33,60.5 a 20 20 -210 1 1 34,0 z" fill="blue">
-          <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="1.2s" repeatCount="indefinite"/>
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            from="0 50 50"
+            to="360 50 50"
+            dur="1.2s"
+            repeatCount="indefinite"
+          />
         </path>
-          <circle cx="50" cy="50" r="16" fill="#fff"></circle>
-        </svg>
-      
+        <circle cx="50" cy="50" r="16" fill="#fff"></circle>
+      </svg>
     </div>
-  )
-}
-
-
-
+  );
+};
 
 export default Cell;

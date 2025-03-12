@@ -1,34 +1,32 @@
-
 .ToolBarFileFolder {
-    position: absolute;
-    text-align: right;
-    width: 92%;
+  position: absolute;
+  text-align: right;
+  width: 92%;
 }
 
 .ToolBarFileFolder:hover {
-    color: #52678f;
+  color: #52678f;
 }
 
 .floatLeft {
-    padding-left: 4px;
-    width: 100%;
+  padding-left: 4px;
+  width: 100%;
 }
 
 .ToolBar {
-    position: relative;
-    display: flex;
-    z-index: +1;
-    /*border: 1px solid white;*/
-    padding-bottom: 4px;
-    text-align: left;
-
+  position: relative;
+  display: flex;
+  z-index: +1;
+  /*border: 1px solid white;*/
+  padding-bottom: 4px;
+  text-align: left;
 }
 
 .ToolBar i {
-    margin-right: 5px;
-    cursor: pointer;
+  margin-right: 5px;
+  cursor: pointer;
 }
 
 .ToolBar i :hover {
-    color: #1d60e7;
+  color: #1d60e7;
 }

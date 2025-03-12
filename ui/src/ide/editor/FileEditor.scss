@@ -1,20 +1,15 @@
-
-
 .cm-editor {
-    border: none;
+  border: none;
 }
 
-
- /* Remove the border when CodeMirror editor is focused */
-
+/* Remove the border when CodeMirror editor is focused */
 
 .cm-focused {
-    outline: none !important;  /* Remove the default focus outline */
+  outline: none !important; /* Remove the default focus outline */
 }
 
-
 .cm-indent-guide {
-    border-left: 1px solid #151414;  /* Light gray line for indentation guides */
-    margin-left: -1px;            /* Align guide to the left of the code */
-    padding-left: 5px;            /* Optional: space between the guide and code */
+  border-left: 1px solid #151414; /* Light gray line for indentation guides */
+  margin-left: -1px; /* Align guide to the left of the code */
+  padding-left: 5px; /* Optional: space between the guide and code */
 }

@@ -15,7 +15,6 @@ import KernelSwitcher from './KernelSwitch';
 const debugMode = false;
 
 export default function NotebookEditor(props) {
-
   interface INotebookModel {
     cells: Array<ICell>;
     nbformat: number;
@@ -42,7 +41,6 @@ export default function NotebookEditor(props) {
     pygments_lexer?: string;
   }
 
-
   const [notebook, setNotebook] = useState<INotebookModel>({
     cells: [],
     nbformat: 0,
@@ -53,20 +51,21 @@ export default function NotebookEditor(props) {
   const [, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]); // Type the refs
-  const codeMirrorRefs = useRef<CodeMirrorRef[] | null>([]); 
+  const codeMirrorRefs = useRef<CodeMirrorRef[] | null>([]);
   const [theme] = useAtom(themeAtom);
-  const [kernelWebSocketClient, setKernelWebSocketClient] = useState<IKernelWebSocketClient>({ send: () => {} });
+  const [kernelWebSocketClient, setKernelWebSocketClient] = useState<IKernelWebSocketClient>({
+    send: () => {},
+  });
   const [kernelName, setKernelName] = useState<string>(props.data.kernelspec);
   const [session, setSession] = useState<ISession | null>();
-  const [kernelStatus, setKernelStatus] = useState("idle")
+  const [kernelStatus, setKernelStatus] = useState('idle');
   const [activeKernels, setActiveKernels] = useAtom(kernelsAtom);
-  const [userName] = useAtom(userNameAtom)
+  const [userName] = useAtom(userNameAtom);
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
 
   const toggleKernelSwitcher = () => {
     setShowKernelSwitcher(!showKernelSwitcher);
-  }
-
+  };
 
   interface IKernelWebSocketClient {
     send: any;
@@ -81,21 +80,23 @@ export default function NotebookEditor(props) {
     try {
       const res = await fetch(BaseApiUrl + '/api/contents', {
         method: 'POST',
-        body: JSON.stringify({ path : path, type: 'notebook' }),
+        body: JSON.stringify({ path: path, type: 'notebook' }),
       });
       if (!res.ok) {
         throw new Error('Failed to fetch data');
       }
 
       const resJson = await res.json();
-      
+
       if (resJson.content.cells === null) {
-        resJson.content.cells = [{
-          execution_count: 0,
-          source: '',
-          cell_type: 'code',
-          outputs: [],
-        }];
+        resJson.content.cells = [
+          {
+            execution_count: 0,
+            source: '',
+            cell_type: 'code',
+            outputs: [],
+          },
+        ];
       }
       resJson.content.cells.forEach((cell) => {
         cell.id = uuidv4(); // Add UUID to each cell object
@@ -105,13 +106,13 @@ export default function NotebookEditor(props) {
       setLoading(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      setLoading(false);  // Ensure loading is set to false
+      setLoading(false); // Ensure loading is set to false
     }
   };
 
   const handleKeyDownNotebook = (event) => {
     if (event.key === 'a' && event.ctrlKey) {
-      console.log("called ctrl a")
+      console.log('called ctrl a');
       addCellUp(); // Ctrl + A -> Add cell above
       event.preventDefault();
     } else if (event.key === 'b' && event.ctrlKey) {
@@ -129,24 +130,27 @@ export default function NotebookEditor(props) {
     }
   }, [props.data]);
 
-  useEffect( () => {
-    startWebSocket()
+  useEffect(() => {
+    startWebSocket();
     window.addEventListener('keydown', handleKeyDownNotebook);
     return () => {
       // ensures that event listener is removed when component is unmounted
       window.removeEventListener('keydown', handleKeyDownNotebook);
     };
-  
   }, [session]);
 
   const startWebSocket = () => {
-    if(session){
+    if (session) {
       const kernelWebSocketClient = new W3CWebSocket(
-        BaseWebSocketUrl + '/api/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
+        BaseWebSocketUrl +
+          '/api/kernels/' +
+          session.kernel.id +
+          '/channels?session_id=' +
+          session.id
       );
 
       kernelWebSocketClient.onopen = () => {
-        setKernelStatus("connected")
+        setKernelStatus('connected');
       };
 
       kernelWebSocketClient.onmessage = (message) => {
@@ -162,39 +166,39 @@ export default function NotebookEditor(props) {
     }
   };
 
-  const startASession =  async (path: string, name: string, type: string, kernelspec: string) => {
-    if(kernelspec === 'default'){
-      kernelspec = "python3";
-      setKernelName("python3")
+  const startASession = async (path: string, name: string, type: string, kernelspec: string) => {
+    if (kernelspec === 'default') {
+      kernelspec = 'python3';
+      setKernelName('python3');
     }
     // if (!session) {
-      fetch(BaseApiUrl + '/api/sessions', {
-        method: 'POST',
-        body: JSON.stringify({
-          path,
-          name,
-          type,
-          kernel: { name : kernelspec },
-        }),
+    fetch(BaseApiUrl + '/api/sessions', {
+      method: 'POST',
+      body: JSON.stringify({
+        path,
+        name,
+        type,
+        kernel: { name: kernelspec },
+      }),
+    })
+      .then(async (response) => await response.json())
+      .then((data) => {
+        setSession(data); // update session
+        console.log('session updated', data);
+        setActiveKernels((prevActiveKernels) => {
+          const updatedKernels = { ...prevActiveKernels };
+          updatedKernels[data.kernel.id] = data.kernel;
+          return updatedKernels;
+        });
       })
-        .then(async (response) => await response.json())
-        .then((data) => {
-          setSession(data);// update session
-          console.log('session updated', data);
-          setActiveKernels((prevActiveKernels) => {
-            const updatedKernels = { ...prevActiveKernels };
-            updatedKernels[data.kernel.id] = data.kernel;
-            return updatedKernels
-          });
-        })
-        .catch((error) => console.log('error', error));
+      .catch((error) => console.log('error', error));
     // }
   };
 
-  function changeKernel(value: string){
-    console.log("changing kernel")
-    setKernelName(value)
-    startASession(props.data.path, props.data.name, props.data.type, value)
+  function changeKernel(value: string) {
+    console.log('changing kernel');
+    setKernelName(value);
+    startASession(props.data.path, props.data.name, props.data.type, value);
   }
 
   function removeAnsiCodes(str) {
@@ -202,11 +206,11 @@ export default function NotebookEditor(props) {
   }
 
   const updateNotebook = (message: any) => {
-    if(message.header.msg_type === "status"){
-      setKernelStatus(message.content.execution_state)
+    if (message.header.msg_type === 'status') {
+      setKernelStatus(message.content.execution_state);
     }
 
-    if (message.header.msg_type === 'execute_input') {     
+    if (message.header.msg_type === 'execute_input') {
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
           if (cell.id === message.parent_header.msg_id) {
@@ -221,63 +225,64 @@ export default function NotebookEditor(props) {
       });
     }
 
-    if(message.header.msg_type === 'error'){
-        setNotebook((prevNotebook) => {
-          const updatedCells = prevNotebook.cells.map((cell) => {
-            if (cell.id === message.parent_header.msg_id) {
-              const updatedCell = { ...cell };
-              updatedCell.outputs = [{
+    if (message.header.msg_type === 'error') {
+      setNotebook((prevNotebook) => {
+        const updatedCells = prevNotebook.cells.map((cell) => {
+          if (cell.id === message.parent_header.msg_id) {
+            const updatedCell = { ...cell };
+            updatedCell.outputs = [
+              {
                 output_type: 'error',
                 ename: message.content.ename,
                 evalue: message.content.evalue,
-                traceback: message.content.traceback
-              }];
-            
-              return updatedCell;
-            }
-            return cell;
-          });
+                traceback: message.content.traceback,
+              },
+            ];
 
-          return { ...prevNotebook, cells: updatedCells };
+            return updatedCell;
+          }
+          return cell;
         });
-      
+
+        return { ...prevNotebook, cells: updatedCells };
+      });
     }
 
-    if(message.header.msg_type === 'stream'){
+    if (message.header.msg_type === 'stream') {
       if (message.content.name === 'stdout') {
         setNotebook((prevNotebook) => {
           const updatedCells = prevNotebook.cells.map((cell) => {
             if (cell.id === message.parent_header.msg_id) {
               const updatedCell = { ...cell };
               // if (message.hasOwnProperty('text')) {
-                var textMessage = message.content.text
-                const cleanedArray = removeAnsiCodes(textMessage);
-                console.log(updatedCell.outputs)
-                if(updatedCell.outputs.length === 0){
-                  updatedCell.outputs[0] = {'text':  ""}
-                }
-                updatedCell.outputs[0].text += cleanedArray;
+              var textMessage = message.content.text;
+              const cleanedArray = removeAnsiCodes(textMessage);
+              console.log(updatedCell.outputs);
+              if (updatedCell.outputs.length === 0) {
+                updatedCell.outputs[0] = { text: '' };
+              }
+              updatedCell.outputs[0].text += cleanedArray;
               // }
               return updatedCell;
             }
             return cell;
           });
-  
+
           return { ...prevNotebook, cells: updatedCells };
         });
       }
     }
 
     if (message.header.msg_type === 'execute_result') {
-      console.log("execute_result")
+      console.log('execute_result');
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
           if (cell.id === message.parent_header.msg_id) {
             const updatedCell = { ...cell };
             if (updatedCell.outputs.length === 0) {
-              updatedCell.outputs[0] = {data: message.content.data};
-            }else{
-              updatedCell.outputs[0]["data"] = message.content.data;
+              updatedCell.outputs[0] = { data: message.content.data };
+            } else {
+              updatedCell.outputs[0]['data'] = message.content.data;
             }
             return updatedCell;
           }
@@ -289,12 +294,12 @@ export default function NotebookEditor(props) {
     }
 
     if (message.header.msg_type === 'display_data') {
-      console.log("display_data")
+      console.log('display_data');
       setNotebook((prevNotebook) => {
         const updatedCells = prevNotebook.cells.map((cell) => {
           if (cell.id === message.parent_header.msg_id) {
             const updatedCell = { ...cell };
-            updatedCell.outputs = [{data: message.content.data}];
+            updatedCell.outputs = [{ data: message.content.data }];
             return updatedCell;
           }
           return cell;
@@ -303,12 +308,9 @@ export default function NotebookEditor(props) {
         return { ...prevNotebook, cells: updatedCells };
       });
     }
-
-    
   };
 
   const updateCellSource = (value: string, cellId: string) => {
-  
     setNotebook((prevNotebook) => {
       const updatedCells = prevNotebook.cells.map((cell) => {
         if (cell.id === cellId) {
@@ -319,29 +321,28 @@ export default function NotebookEditor(props) {
 
       return { ...prevNotebook, cells: updatedCells };
     });
-  }
+  };
 
-  const changeCellType = (value: string) =>{
+  const changeCellType = (value: string) => {
     setNotebook((prevNotebook) => {
       const updatedCells = prevNotebook.cells.map((cell, idx) => {
-        
         // If index is provided and valid, update the cell at that index
         if (idx === focusedIndex) {
           return { ...cell, cell_type: value };
         }
         return cell;
       });
-  
+
       return { ...prevNotebook, cells: updatedCells };
     });
-  }
+  };
 
   const submitCell = (source: string, cellId: string) => {
     // console.log('submitting cell:',  cellId);
     setNotebook((prevNotebook) => {
       const updatedCells = prevNotebook.cells.map((cell) => {
         if (cell.id === cellId) {
-          return { ...cell, execution_count: -1 , outputs: []};
+          return { ...cell, execution_count: -1, outputs: [] };
         }
         return cell;
       });
@@ -349,7 +350,7 @@ export default function NotebookEditor(props) {
       return { ...prevNotebook, cells: updatedCells };
     });
 
-    if(session){
+    if (session) {
       const message = JSON.stringify({
         buffers: [],
         channel: 'shell',
@@ -369,7 +370,7 @@ export default function NotebookEditor(props) {
         },
         parent_header: {},
       });
-  
+
       kernelWebSocketClient.send(message);
     }
   };
@@ -397,13 +398,13 @@ export default function NotebookEditor(props) {
         reload: false,
         outputs: [],
       };
-  
+
       const updatedCells = [
         ...prevNotebook.cells.slice(0, focusedIndex),
-        newCell,                                      // The new cell to be inserted
+        newCell, // The new cell to be inserted
         ...prevNotebook.cells.slice(focusedIndex),
       ];
-  
+
       return { ...prevNotebook, cells: updatedCells };
     });
   };
@@ -419,17 +420,18 @@ export default function NotebookEditor(props) {
         outputs: [],
       };
       // Ensure the focusedIndex is within the bounds of the cells array
-    const index = focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
-      ? focusedIndex + 1
-      : prevNotebook.cells.length;
+      const index =
+        focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
+          ? focusedIndex + 1
+          : prevNotebook.cells.length;
 
-    const updatedCells = [
-      ...prevNotebook.cells.slice(0, index),  // Cells before the focused index
-      newCell,  // The new cell to add
-      ...prevNotebook.cells.slice(index),  // Cells after the focused index
-    ];
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, index), // Cells before the focused index
+        newCell, // The new cell to add
+        ...prevNotebook.cells.slice(index), // Cells after the focused index
+      ];
 
-    return { ...prevNotebook, cells: updatedCells };
+      return { ...prevNotebook, cells: updatedCells };
     });
   };
 
@@ -439,7 +441,6 @@ export default function NotebookEditor(props) {
   //     return { ...prevNotebook, cells: updatedCells };
   //   });
   // };
-  
 
   const deleteCell = () => {
     setNotebook((prevNotebook) => {
@@ -457,10 +458,10 @@ export default function NotebookEditor(props) {
     });
   };
 
-  const [copiedCell, setCopiedCell] = useState<ICell|null>(null);  // To store the copied or cut cell
-  const [cutCellIndex, setCutCellIndex] = useState<number|null>(null); // To store the index of the cut cell
+  const [copiedCell, setCopiedCell] = useState<ICell | null>(null); // To store the copied or cut cell
+  const [cutCellIndex, setCutCellIndex] = useState<number | null>(null); // To store the index of the cut cell
 
-// Function to copy the cell at the current focused index
+  // Function to copy the cell at the current focused index
   const copyCell = () => {
     setCopiedCell(notebook.cells[focusedIndex]);
   };
@@ -482,18 +483,19 @@ export default function NotebookEditor(props) {
   // Function to paste the copied or cut cell at the current focused index
   const pasteCell = () => {
     if (!copiedCell) return; // No cell to paste
-    
+
     setNotebook((prevNotebook) => {
       const newCell = { ...copiedCell, id: uuidv4() }; // Ensure the pasted cell has a new unique ID
 
       // Determine the paste index (after focusedIndex or at the end of the notebook)
-      const index = focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
-        ? focusedIndex + 1
-        : prevNotebook.cells.length;
+      const index =
+        focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
+          ? focusedIndex + 1
+          : prevNotebook.cells.length;
 
       const updatedCells = [
         ...prevNotebook.cells.slice(0, index),
-        newCell,  // Insert the copied or cut cell
+        newCell, // Insert the copied or cut cell
         ...prevNotebook.cells.slice(index),
       ];
 
@@ -504,8 +506,7 @@ export default function NotebookEditor(props) {
     if (cutCellIndex !== null) {
       setCutCellIndex(null); // Reset cut cell state
     }
-};
-
+  };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown') {
@@ -524,7 +525,6 @@ export default function NotebookEditor(props) {
       event.preventDefault();
     }
 
-    
     // Handle deleting a cell (D, D for delete)
     if (event.key === 'd' && event.ctrlKey && event.shiftKey) {
       deleteCell(); // Ctrl + Shift + D -> Delete cell
@@ -543,7 +543,7 @@ export default function NotebookEditor(props) {
     //   event.preventDefault();
     // }
 
-     // Handle running a cell with Ctrl + Enter (no move) or Shift + Enter (move to next)
+    // Handle running a cell with Ctrl + Enter (no move) or Shift + Enter (move to next)
     if (event.key === 'Enter') {
       if (event.ctrlKey) {
         submitCell(notebook.cells[focusedIndex].source, notebook.cells[focusedIndex].id); // Ctrl + Enter -> Run cell
@@ -574,28 +574,32 @@ export default function NotebookEditor(props) {
       console.log('Undo action'); // Add undo logic here if necessary
       event.preventDefault();
     }
-
   };
 
   const handleCmdEnter = () => {
-      console.log('Saving notebook')
-  
-      fetch(BaseApiUrl + '/api/contents', {
-        method: 'PUT',
-        body: JSON.stringify({
-          path: props.data.path,
-          content: notebook,
-          type: 'notebook',
-          format: 'json'
-        })
-      })
-  
-      return true
-    }
+    console.log('Saving notebook');
+
+    fetch(BaseApiUrl + '/api/contents', {
+      method: 'PUT',
+      body: JSON.stringify({
+        path: props.data.path,
+        content: notebook,
+        type: 'notebook',
+        format: 'json',
+      }),
+    });
+
+    return true;
+  };
 
   return (
     <div className="tab-content">
-      <div className={props.data.active ? 'd-block' : 'd-none'} id="profile" role="tabpanel" aria-labelledby="profile-tab">
+      <div
+        className={props.data.active ? 'd-block' : 'd-none'}
+        id="profile"
+        role="tabpanel"
+        aria-labelledby="profile-tab"
+      >
         <NbButtons
           saveNotebook={handleCmdEnter}
           addCellDown={addCellDown}
@@ -616,10 +620,20 @@ export default function NotebookEditor(props) {
         />
         {debugMode && (
           <div>
-            <button type="button" onClick={() => console.log("saving file")}>
+            <button type="button" onClick={() => console.log('saving file')}>
               Save file
             </button>
-            <button type="button" onClick={() => startASession(props.data.path, props.data.name, props.data.type, props.data.kernelspec)}>
+            <button
+              type="button"
+              onClick={() =>
+                startASession(
+                  props.data.path,
+                  props.data.name,
+                  props.data.type,
+                  props.data.kernelspec
+                )
+              }
+            >
               StartASession
             </button>
             <button type="button" onClick={startWebSocket}>
@@ -627,9 +641,15 @@ export default function NotebookEditor(props) {
             </button>
           </div>
         )}
-       
+
         <div className={theme === 'light' ? 'editor-body light' : 'editor-body dark'}>
-        {showKernelSwitcher && <KernelSwitcher kernelName={kernelName} toggleKernelSwitcher={toggleKernelSwitcher}  changeKernel={changeKernel}/>}
+          {showKernelSwitcher && (
+            <KernelSwitcher
+              kernelName={kernelName}
+              toggleKernelSwitcher={toggleKernelSwitcher}
+              changeKernel={changeKernel}
+            />
+          )}
           {notebook.cells &&
             notebook.cells.map((cell, index) => (
               <Cell

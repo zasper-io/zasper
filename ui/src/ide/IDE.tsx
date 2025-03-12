@@ -18,38 +18,43 @@ import StatusBar from './statusBar/StatusBar';
 
 import getFileExtension from './utils';
 
-import './IDE.scss'
-import { fileBrowserReloadCountAtom, fontSizeAtom, languageModeAtom, terminalsAtom } from '../store/AppState';
+import './IDE.scss';
+import {
+  fileBrowserReloadCountAtom,
+  fontSizeAtom,
+  languageModeAtom,
+  terminalsAtom,
+} from '../store/AppState';
 import { BaseApiUrl } from './config';
 
 interface Ifile {
-  type: string
-  path: string
-  name: string
-  active: boolean
-  extension: string | null
-  load_required: boolean
-  kernelspec: string
+  type: string;
+  path: string;
+  name: string;
+  active: boolean;
+  extension: string | null;
+  load_required: boolean;
+  kernelspec: string;
 }
 
 interface IfileDict {
-  [id: string]: Ifile
+  [id: string]: Ifile;
 }
 
 interface INav {
-  name: string
-  display: string
+  name: string;
+  display: string;
 }
 
 interface INavDict {
-  [id: string]: INav
+  [id: string]: INav;
 }
 
-function IDE () {
-  const [theme] = useAtom(themeAtom)
-  const [, setLanguageMode] = useAtom(languageModeAtom)
-  const [terminals, setTerminals] = useAtom(terminalsAtom)
-  const [reloadCount] = useAtom(fileBrowserReloadCountAtom)
+function IDE() {
+  const [theme] = useAtom(themeAtom);
+  const [, setLanguageMode] = useAtom(languageModeAtom);
+  const [terminals, setTerminals] = useAtom(terminalsAtom);
+  const [reloadCount] = useAtom(fileBrowserReloadCountAtom);
 
   const defaultNavState: INavDict = {
     fileBrowser: { name: 'fileBrowser', display: 'd-block' },
@@ -69,20 +74,20 @@ function IDE () {
       active: true,
       extension: 'txt',
       load_required: false,
-      kernelspec: 'none'
+      kernelspec: 'none',
     },
   };
 
-  const [prevActiveTab, setPrevActiveTab] = useState("launcher")
+  const [prevActiveTab, setPrevActiveTab] = useState('launcher');
 
-  const [dataFromChild, setDataFromChild] = useState<IfileDict>(defaultFileState)
-  const [navState, setNavState] = useState<INavDict>(defaultNavState)
+  const [dataFromChild, setDataFromChild] = useState<IfileDict>(defaultFileState);
+  const [navState, setNavState] = useState<INavDict>(defaultNavState);
 
   const handleNavigationPanel = (name: string) => {
     const updatedNavState = Object.fromEntries(
-      Object.keys(navState).map(key => [
-        key, 
-        { ...navState[key], display: key === name ? 'd-block' : 'd-none' }
+      Object.keys(navState).map((key) => [
+        key,
+        { ...navState[key], display: key === name ? 'd-block' : 'd-none' },
       ])
     );
     setNavState(updatedNavState);
@@ -97,48 +102,48 @@ function IDE () {
       extension: getFileExtension(name),
       active: true,
       load_required: true,
-      kernelspec: kernelspec
+      kernelspec: kernelspec,
     };
 
-    Object.keys(updatedDataFromChild).forEach(key => {
-      updatedDataFromChild[key] = { ...updatedDataFromChild[key], active: false, load_required: false };
+    Object.keys(updatedDataFromChild).forEach((key) => {
+      updatedDataFromChild[key] = {
+        ...updatedDataFromChild[key],
+        active: false,
+        load_required: false,
+      };
     });
     if (updatedDataFromChild[path]) {
       updatedDataFromChild[path] = { ...updatedDataFromChild[path], active: true };
     } else {
       updatedDataFromChild[path] = fileData;
     }
-    if(updatedDataFromChild[path].extension){
-      setLanguageMode( updatedDataFromChild[path].extension)
+    if (updatedDataFromChild[path].extension) {
+      setLanguageMode(updatedDataFromChild[path].extension);
     }
-    
 
     setDataFromChild(updatedDataFromChild);
   };
 
-  function handlCloseTabSignal (key) {
-    console.log('closing key', key)
-    const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild)
-    if(updatedDataFromChild[key].type === "notebook"){
-      console.log("notebook close signal")
+  function handlCloseTabSignal(key) {
+    console.log('closing key', key);
+    const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild);
+    if (updatedDataFromChild[key].type === 'notebook') {
+      console.log('notebook close signal');
     }
 
-    if ("Launcher" in updatedDataFromChild){
-      updatedDataFromChild["Launcher"]["active"] = true
+    if ('Launcher' in updatedDataFromChild) {
+      updatedDataFromChild['Launcher']['active'] = true;
     }
-    Object.keys(updatedDataFromChild).forEach(key => {
+    Object.keys(updatedDataFromChild).forEach((key) => {
       updatedDataFromChild[key] = { ...updatedDataFromChild[key], load_required: false };
     });
-    delete updatedDataFromChild[key]
-    setDataFromChild(updatedDataFromChild)
-    console.log(updatedDataFromChild)
-    
+    delete updatedDataFromChild[key];
+    setDataFromChild(updatedDataFromChild);
+    console.log(updatedDataFromChild);
 
     var updatedterminals = { ...terminals };
-    delete updatedterminals[key] 
-    setTerminals(updatedterminals)
-
-    
+    delete updatedterminals[key];
+    setTerminals(updatedterminals);
   }
 
   const [fontSize, setFontSize] = useAtom(fontSizeAtom); // Initial font size
@@ -152,7 +157,6 @@ function IDE () {
           const newSize = Math.min(prevFontSize + 2, 24);
           return newSize;
         });
-        
       } else if (event.key === '-') {
         // Decrease font size
         setFontSize((prevFontSize) => {
@@ -174,49 +178,78 @@ function IDE () {
   }, []);
 
   const getFontClass = (fontSize: number) => {
-    return "zfont-" + fontSize
-  }
+    return 'zfont-' + fontSize;
+  };
 
   return (
-    <div className={theme === 'light'? 'editor themeLight': 'editor themeDark'}>
-      <PanelGroup direction='vertical'>
+    <div className={theme === 'light' ? 'editor themeLight' : 'editor themeDark'}>
+      <PanelGroup direction="vertical">
         <Panel defaultSize={5}>
-          <Topbar sendDataToParent={handleDataFromChild}/>
+          <Topbar sendDataToParent={handleDataFromChild} />
         </Panel>
-        <PanelResizeHandle disabled/>
+        <PanelResizeHandle disabled />
         <Panel defaultSize={92.5} maxSize={93}>
-          <PanelGroup direction='horizontal'>
+          <PanelGroup direction="horizontal">
             <Panel defaultSize={20} minSize={20}>
-              <div className='navigation'>
+              <div className="navigation">
                 <NavigationPanel handleNavigationPanel={handleNavigationPanel} />
-                <div className='sideBar'>
-                  <FileBrowser sendDataToParent={handleDataFromChild} display={navState.fileBrowser.display} reloadCount={reloadCount} />
-                  <SettingsPanel sendDataToParent={handleDataFromChild} display={navState.settingsPanel.display} />
-                  <JupyterInfoPanel sendDataToParent={handleDataFromChild} display={navState.jupyterInfoPanel.display}/>
-                  <GitPanel sendDataToParent={handleDataFromChild} display={navState.gitPanel.display}/>
-                  <DebugPanel sendDataToParent={handleDataFromChild} display={navState.debugPanel.display}/>
-                  <DatabasePanel sendDataToParent={handleDataFromChild} display={navState.databasePanel.display}/>
-                  <SecretsPanel sendDataToParent={handleDataFromChild} display={navState.secretsPanel.display}/>
+                <div className="sideBar">
+                  <FileBrowser
+                    sendDataToParent={handleDataFromChild}
+                    display={navState.fileBrowser.display}
+                    reloadCount={reloadCount}
+                  />
+                  <SettingsPanel
+                    sendDataToParent={handleDataFromChild}
+                    display={navState.settingsPanel.display}
+                  />
+                  <JupyterInfoPanel
+                    sendDataToParent={handleDataFromChild}
+                    display={navState.jupyterInfoPanel.display}
+                  />
+                  <GitPanel
+                    sendDataToParent={handleDataFromChild}
+                    display={navState.gitPanel.display}
+                  />
+                  <DebugPanel
+                    sendDataToParent={handleDataFromChild}
+                    display={navState.debugPanel.display}
+                  />
+                  <DatabasePanel
+                    sendDataToParent={handleDataFromChild}
+                    display={navState.databasePanel.display}
+                  />
+                  <SecretsPanel
+                    sendDataToParent={handleDataFromChild}
+                    display={navState.secretsPanel.display}
+                  />
                 </div>
               </div>
             </Panel>
             <PanelResizeHandle />
             <Panel defaultSize={80} minSize={50}>
-              <div className={"main-content " + getFontClass(fontSize)}>
-                <TabIndex tabs={dataFromChild} sendDataToParent={handleDataFromChild} sendCloseSignalToParent={handlCloseTabSignal} />
-                <ContentPanel tabs={dataFromChild} sendDataToParent={handleDataFromChild} theme={theme}/>
+              <div className={'main-content ' + getFontClass(fontSize)}>
+                <TabIndex
+                  tabs={dataFromChild}
+                  sendDataToParent={handleDataFromChild}
+                  sendCloseSignalToParent={handlCloseTabSignal}
+                />
+                <ContentPanel
+                  tabs={dataFromChild}
+                  sendDataToParent={handleDataFromChild}
+                  theme={theme}
+                />
               </div>
             </Panel>
           </PanelGroup>
         </Panel>
         <PanelResizeHandle disabled />
         <Panel maxSize={2.5}>
-          <StatusBar/>
+          <StatusBar />
         </Panel>
       </PanelGroup>
-
     </div>
-  )
+  );
 }
 
-export default IDE
+export default IDE;

@@ -2,7 +2,12 @@ import React, { useEffect } from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '../config';
 import { useAtom } from 'jotai';
-import { kernelspecsAtom, terminalsCountAtom, terminalsAtom, fileBrowserReloadCountAtom } from '../../store/AppState';
+import {
+  kernelspecsAtom,
+  terminalsCountAtom,
+  terminalsAtom,
+  fileBrowserReloadCountAtom,
+} from '../../store/AppState';
 import { themeAtom } from '../../store/Settings';
 
 const TerminalIcon = () => {
@@ -10,19 +15,10 @@ const TerminalIcon = () => {
   var fill = theme === 'dark' ? 'white' : 'black';
 
   return (
-    <svg 
-      viewBox="0 0 16 16" 
-      xmlns="http://www.w3.org/2000/svg" 
-      style={{ fill }}
-      height= "64px"
-    >
+    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ fill }} height="64px">
       <g>
-        <path 
-          d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z"
-        />
-        <path 
-          d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"
-        />
+        <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z" />
+        <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z" />
       </g>
     </svg>
   );
@@ -38,9 +34,8 @@ interface LauncherProps {
 const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   const [kernelspecs, setKernelspecs] = useAtom(kernelspecsAtom);
   const [terminalCount, setTerminalCount] = useAtom(terminalsCountAtom);
-  const [terminals, setTerminals] = useAtom(terminalsAtom)
-  const [reloadCount, setReloadCount] = useAtom(fileBrowserReloadCountAtom)
-  
+  const [terminals, setTerminals] = useAtom(terminalsAtom);
+  const [reloadCount, setReloadCount] = useAtom(fileBrowserReloadCountAtom);
 
   // Fetch kernelspecs from the API
   const fetchData = async () => {
@@ -54,7 +49,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   };
 
   const createNewNotebook = async (path: string, contentType: string, kernelspec: string) => {
-    console.log("add file")
+    console.log('add file');
     const res = await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
       body: JSON.stringify({ parent_dir: path, type: contentType }),
@@ -68,12 +63,12 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   // Handle opening a new terminal
   const openTerminal = () => {
     console.log('Open terminal');
-    const terminalName = "Terminal " + (terminalCount + 1)
+    const terminalName = 'Terminal ' + (terminalCount + 1);
     sendDataToParent(terminalName, terminalName, 'terminal', '');
-    setTerminalCount(terminalCount + 1)
+    setTerminalCount(terminalCount + 1);
     var updatedterminals = { ...terminals };
-    updatedterminals[terminalName] = { id: terminalName, name: terminalName }
-    setTerminals(updatedterminals)
+    updatedterminals[terminalName] = { id: terminalName, name: terminalName };
+    setTerminals(updatedterminals);
   };
 
   const getLogoUrl = (resources) => {
@@ -90,14 +85,24 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
     <div className={data.active ? 'd-block' : 'd-none'}>
       <div className="LauncherArea">
         <div className="launcher-title">
-          <h2 className="font-h3 fontw-300">Welcome to <span className="fontw-500">zasper</span></h2>
+          <h2 className="font-h3 fontw-300">
+            Welcome to <span className="fontw-500">zasper</span>
+          </h2>
         </div>
-        <div className='launchSection'>
+        <div className="launchSection">
           <h2 className="font-h5 fontw-300">Notebook</h2>
           {Object.keys(kernelspecs).length > 0 ? (
             Object.keys(kernelspecs).map((key) => (
-              <div className="launcher-icon" key={key} onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}>
-                <img className='resourceLogoImage' src={getLogoUrl(kernelspecs[key].resources)} alt="logo" />
+              <div
+                className="launcher-icon"
+                key={key}
+                onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
+              >
+                <img
+                  className="resourceLogoImage"
+                  src={getLogoUrl(kernelspecs[key].resources)}
+                  alt="logo"
+                />
                 <h6>{key}</h6>
               </div>
             ))
@@ -105,11 +110,11 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
             <p>No kernels available.</p>
           )}
         </div>
-        
-        <div className='launchSection'>
+
+        <div className="launchSection">
           <h2 className="font-h5 fontw-300">Terminal</h2>
           <div className="launcher-icon" onClick={openTerminal}>
-            <TerminalIcon/>
+            <TerminalIcon />
           </div>
         </div>
       </div>
