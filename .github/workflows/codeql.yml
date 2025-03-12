@@ -2,16 +2,16 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main2" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main2" ]
 
 permissions:
   contents: read
 
 jobs:
   analyze:
-    if: "!contains(github.event.commits[0].message, '[noci]')"
+    if: ${{ !contains(github.event.commits[0].message, '[noci]') }}
     timeout-minutes: 30
     name: Analyze
     runs-on: ubuntu-latest
