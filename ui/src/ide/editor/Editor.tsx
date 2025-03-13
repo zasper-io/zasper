@@ -1,27 +1,26 @@
+import React from 'react';
 
-import React from 'react'
+import FileEditor from './FileEditor';
+import Launcher from './Launcher';
+import NotebookEditor from './notebook/NotebookEditor';
+import TerminalTab from '../terminal/Terminal';
+import ImageEditor from './ImageEditor';
 
-import FileEditor from './FileEditor'
-import Launcher from './Launcher'
-import NotebookEditor from './notebook/NotebookEditor'
-import TerminalTab from '../terminal/Terminal'
-import ImageEditor from './ImageEditor'
-
-export default function Editor (props) {
+export default function Editor(props) {
   if (props.data.type === 'launcher') {
-    return <Launcher data={props.data} sendDataToParent={props.sendDataToParent}/>
+    return <Launcher data={props.data} sendDataToParent={props.sendDataToParent} />;
   }
   if (props.data.type === 'file') {
     if (props.data.extension === 'png') {
-      return <ImageEditor data={props.data} />
+      return <ImageEditor data={props.data} />;
     }
-    return <FileEditor data={props.data} />
+    return <FileEditor data={props.data} />;
   }
   if (props.data.type === 'notebook') {
-    return <NotebookEditor data={props.data} />
+    return <NotebookEditor data={props.data} />;
   }
   if (props.data.type === 'terminal') {
-    return <TerminalTab data={props.data} />
+    return <TerminalTab data={props.data} />;
   }
-  return <></>
+  return <></>;
 }

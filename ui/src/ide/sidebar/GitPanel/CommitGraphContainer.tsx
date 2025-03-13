@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { BaseApiUrl } from "../../config";
+import { useEffect, useState } from 'react';
+import { BaseApiUrl } from '../../config';
 
-import { Commit } from "./types";
-import "./GitPanel.scss";
+import { Commit } from './types';
+import './GitPanel.scss';
 
-import { CommitGraph } from "./CommitGraph";
+import { CommitGraph } from './CommitGraph';
 
 export const CommitGraphContainer: React.FC = () => {
   const [commitData, setCommitData] = useState<Commit[] | null>(null);
@@ -16,14 +16,14 @@ export const CommitGraphContainer: React.FC = () => {
   useEffect(() => {
     const fetchCommitData = async () => {
       try {
-        const response = await fetch(BaseApiUrl + "/api/commit-graph");
+        const response = await fetch(BaseApiUrl + '/api/commit-graph');
         if (!response.ok) {
-          throw new Error("Failed to fetch commits");
+          throw new Error('Failed to fetch commits');
         }
         const data = await response.json();
         setCommitData(data);
       } catch (error) {
-        setError("Failed to load commit data");
+        setError('Failed to load commit data');
       } finally {
         setLoading(false);
       }
@@ -40,9 +40,5 @@ export const CommitGraphContainer: React.FC = () => {
     return <div>{error}</div>;
   }
 
-  return commitData ? (
-    <CommitGraph data={commitData} />
-  ) : (
-    <div>No commit data available</div>
-  );
+  return commitData ? <CommitGraph data={commitData} /> : <div>No commit data available</div>;
 };

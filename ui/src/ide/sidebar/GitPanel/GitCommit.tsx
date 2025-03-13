@@ -1,23 +1,23 @@
-import { useEffect, useState } from "react";
-import { BaseApiUrl } from "../../config";
-import "./GitPanel.scss";
+import { useEffect, useState } from 'react';
+import { BaseApiUrl } from '../../config';
+import './GitPanel.scss';
 
 export function GitCommit({ display }) {
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [commitMessage, setCommitMessage] = useState<string>("");
+  const [commitMessage, setCommitMessage] = useState<string>('');
   // State for push option
   const [pushAfterCommit, setPushAfterCommit] = useState<boolean>(false);
 
   // Function to fetch the list of uncommitted files
   const fetchFiles = async () => {
     try {
-      const resp = await fetch(BaseApiUrl + "/api/uncommitted-files");
+      const resp = await fetch(BaseApiUrl + '/api/uncommitted-files');
       const respJSON = await resp.json();
-      console.log("Uncommitted files:", respJSON);
+      console.log('Uncommitted files:', respJSON);
       setFiles(respJSON);
     } catch (error) {
-      console.error("Error fetching files:", error);
+      console.error('Error fetching files:', error);
       setFiles([]);
     }
   };
@@ -39,7 +39,7 @@ export function GitCommit({ display }) {
 
   const handleCommit = () => {
     if (selectedFiles.length === 0) {
-      alert("Please select at least one file to commit.");
+      alert('Please select at least one file to commit.');
       return;
     }
 
@@ -49,9 +49,9 @@ export function GitCommit({ display }) {
       push: pushAfterCommit, // Include the push option in the payload
     };
 
-    fetch(BaseApiUrl + "/api/commit-and-maybe-push", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    fetch(BaseApiUrl + '/api/commit-and-maybe-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
       .then((response) => response.text())
@@ -61,14 +61,14 @@ export function GitCommit({ display }) {
         fetchFiles();
       })
       .catch((error) => {
-        console.error("Error committing changes:", error);
-        alert("An error occurred while committing changes.");
+        console.error('Error committing changes:', error);
+        alert('An error occurred while committing changes.');
       });
   };
 
   return (
     <>
-      <div className='projectBanner'>
+      <div className="projectBanner">
         <div className="projectName">
           <div>VERSION CONTROL</div>
         </div>
@@ -119,7 +119,7 @@ export function GitCommit({ display }) {
           </div>
 
           <button className="gitbutton" onClick={handleCommit}>
-            Commit {pushAfterCommit ? "and Push" : ""}{" "}
+            Commit {pushAfterCommit ? 'and Push' : ''}{' '}
           </button>
         </div>
       </div>

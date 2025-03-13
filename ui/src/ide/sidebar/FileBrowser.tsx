@@ -6,7 +6,6 @@ import { useAtom } from 'jotai';
 import { userNameAtom, zasperVersionAtom } from '../../store/AppState';
 import { v4 as uuidv4 } from 'uuid';
 
-
 interface IContent {
   id: string;
   type: string;
@@ -24,9 +23,9 @@ interface FileBrowserProps {
 export default function FileBrowser({ sendDataToParent, display, reloadCount }: FileBrowserProps) {
   const [contents, setContents] = useState<IContent[]>([]);
   const [cwd] = useState<string>('');
-  const [projectName, setProjectName] = useState('')
-  const [, setUserName] = useAtom(userNameAtom)
-  const [, setVersion] = useAtom(zasperVersionAtom)
+  const [projectName, setProjectName] = useState('');
+  const [, setUserName] = useAtom(userNameAtom);
+  const [, setVersion] = useAtom(zasperVersionAtom);
 
   const FetchData = async () => {
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
@@ -35,25 +34,25 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
     });
     const resJson = await res.json();
     resJson.content.forEach((item) => {
-        item.id = uuidv4(); 
+      item.id = uuidv4();
     });
     setContents(resJson.content);
 
     const res2 = await fetch(BaseApiUrl + '/api/info');
     const resJson2 = await res2.json();
     setProjectName(resJson2.project.toUpperCase());
-    setUserName(resJson2.username)
-    setVersion(resJson2.version)
+    setUserName(resJson2.username);
+    setVersion(resJson2.version);
   };
 
   const handleFileClick = (name: string, path: string, type: string) => {
-    sendDataToParent(name, path, type, "default");
+    sendDataToParent(name, path, type, 'default');
   };
 
   const createNewFile = async () => {
     await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
-      body: JSON.stringify({ parent_dir: "", type: 'file' }),
+      body: JSON.stringify({ parent_dir: '', type: 'file' }),
     });
     FetchData();
   };
@@ -66,33 +65,30 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
     FetchData();
   };
 
-
-
-
   useEffect(() => {
     FetchData();
   }, [reloadCount]);
 
   return (
     <div className={display}>
-      <div className='nav-content'>
-        <div className='content-head'>
+      <div className="nav-content">
+        <div className="content-head">
           <div>FILE EXPLORER</div>
         </div>
-        <div className='projectBanner'>
-          <div className='projectName'>{projectName}</div>
-          <div className='projectButtons'>
-            <button className='editor-button' onClick={createNewFile}>
-              <img src='./images/editor/feather-file-plus.svg' alt='' />
+        <div className="projectBanner">
+          <div className="projectName">{projectName}</div>
+          <div className="projectButtons">
+            <button className="editor-button" onClick={createNewFile}>
+              <img src="./images/editor/feather-file-plus.svg" alt="" />
             </button>
-            <button className='editor-button' onClick={createNewDirectory}>
-              <img src='./images/editor/feather-folder-plus.svg' alt='' />
+            <button className="editor-button" onClick={createNewDirectory}>
+              <img src="./images/editor/feather-folder-plus.svg" alt="" />
             </button>
           </div>
         </div>
-        <div className='content-inner'>
-          <ul className='file-list list-unstyled'>
-            {contents.map((content, index) => (
+        <div className="content-inner">
+          <ul className="file-list list-unstyled">
+            {contents.map((content, index) =>
               content.type === 'directory' ? (
                 <DirectoryItem
                   key={content.id}
@@ -101,13 +97,13 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
                 />
               ) : (
                 <FileItem
-                  key={content.id}  
+                  key={content.id}
                   parentDir={cwd}
                   content={content}
                   handleFileClick={handleFileClick}
                 />
               )
-            ))}
+            )}
           </ul>
         </div>
       </div>
@@ -115,15 +111,14 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
   );
 }
 
-interface IFileItemProps{
+interface IFileItemProps {
   key: string;
   parentDir: string;
   content: IContent;
   handleFileClick: (name: string, path: string, type: string, kernelspec: string) => void;
 }
 
-const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
-
+const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
   const getIconToLoad = (fileName) => {
     const extension = getFileExtension(fileName);
     const iconMap: { [key: string]: string } = {
@@ -153,24 +148,24 @@ const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
       gitignore: './images/editor/git-icon.svg',
     };
     const icon = extension != null ? iconMap[extension] : './images/editor/unknown-file-icon.svg';
-    return icon!= null ? icon : './images/editor/unknown-file-icon.svg';
+    return icon != null ? icon : './images/editor/unknown-file-icon.svg';
   };
   const [isEditing, setIsEditing] = useState(false);
   const [contentName, setContentName] = useState(content.name);
   const [text, setText] = useState(content.name);
   const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
-  const [icon, setIcon] = useState(getIconToLoad(content.name))
-  const [isDeleted, setIsDeleted] = useState(false)
+  const [icon, setIcon] = useState(getIconToLoad(content.name));
+  const [isDeleted, setIsDeleted] = useState(false);
 
   const renameContent = async () => {
-    setIsEditing(false)
+    setIsEditing(false);
     await fetch(BaseApiUrl + '/api/contents/rename', {
       method: 'POST',
       body: JSON.stringify({ parent_dir: parentDir, old_name: contentName, new_name: text }),
     });
-    setContentName(text)
-    setIcon(getIconToLoad(text))
+    setContentName(text);
+    setIcon(getIconToLoad(text));
   };
 
   const deleteContent = async () => {
@@ -178,7 +173,7 @@ const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
       method: 'DELETE',
       body: JSON.stringify({ path: getPath() }),
     });
-    setIsDeleted(true)
+    setIsDeleted(true);
   };
 
   const menuItems = [
@@ -187,20 +182,16 @@ const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
       action: (path: string) => {
         // e.stopPropagation(); // Stop the click event from propagating
         setIsEditing(true);
-      }
+      },
     },
     {
       label: 'Delete',
       action: (path: string) => {
         // e.stopPropagation(); // Stop the click event from propagating
-        deleteContent()
-
-      }
+        deleteContent();
+      },
     },
   ];
-
-
-
 
   const handleRightClick = (e: React.MouseEvent, path: string) => {
     e.preventDefault();
@@ -208,35 +199,35 @@ const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
     setIsMenuVisible(true);
   };
 
-  const getPath = () =>{
-    if (parentDir === ""){
-      return text
-    }else{
-      return parentDir + "/" + text
+  const getPath = () => {
+    if (parentDir === '') {
+      return text;
+    } else {
+      return parentDir + '/' + text;
     }
-  }
+  };
 
   const handleClick = (name: string, path: string, type: string) => {
     console.log(parentDir);
     if (!isMenuVisible) {
-      handleFileClick(name, getPath(), type, 'default')
+      handleFileClick(name, getPath(), type, 'default');
     }
-  }
+  };
 
-  if (isDeleted){
-    return <></>
+  if (isDeleted) {
+    return <></>;
   }
 
   return (
-    <li className='fileItem'>
+    <li className="fileItem">
       <a
         onClick={() => handleClick(text, content.path, content.type)}
         onContextMenu={(e) => handleRightClick(e, content.path)}
       >
-        <img src={icon} alt='' />
+        <img src={icon} alt="" />
         {isEditing ? (
           <input
-            type='text'
+            type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onBlur={() => setIsEditing(false)}
@@ -260,37 +251,37 @@ const FileItem = ({ parentDir, content, handleFileClick}: IFileItemProps) => {
   );
 };
 
-interface IDirectoryItemProps{
+interface IDirectoryItemProps {
   key: string;
   data: IContent;
-  sendDataToParent: (name: string, path: string, type: string, kernelspec:string) => void;
+  sendDataToParent: (name: string, path: string, type: string, kernelspec: string) => void;
 }
 
 const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [content, setContent] = useState(data)
+  const [content, setContent] = useState(data);
   const [text, setText] = useState(data.name);
   const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isDeleted, setIsDeleted] = useState(false)
+  const [isDeleted, setIsDeleted] = useState(false);
 
   const handleDirectoryClick = async (path: string) => {
-    setIsCollapsed(!isCollapsed)
-    console.log("handleDirectoryClick")
+    setIsCollapsed(!isCollapsed);
+    console.log('handleDirectoryClick');
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
       method: 'POST',
       body: JSON.stringify({ path }),
     });
     const resJson = await res.json();
     resJson.content.forEach((item) => {
-        item.id = uuidv4(); 
+      item.id = uuidv4();
     });
-    setContent(resJson)
+    setContent(resJson);
   };
 
   const createNewFile = async (path: string, contentType: string) => {
-    console.log("add file")
+    console.log('add file');
     await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
       body: JSON.stringify({ parent_dir: path, type: contentType }),
@@ -302,9 +293,9 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
     });
     const resJson = await res.json();
     resJson.content.forEach((item) => {
-      item.id = uuidv4(); 
+      item.id = uuidv4();
     });
-    setContent(resJson)
+    setContent(resJson);
   };
 
   const deleteContent = async (path) => {
@@ -312,15 +303,15 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
       method: 'DELETE',
       body: JSON.stringify({ path: path }),
     });
-    setIsDeleted(true)
+    setIsDeleted(true);
   };
 
   const menuItems = [
     { label: 'Rename', action: () => setIsEditing(true) },
-    { label: 'Add file', action: (path: string) => createNewFile(path, "file") },
-    { label: 'Add Notebook', action: (path: string) => createNewFile(path, "notebook") },
-    { label: 'Add Folder', action: (path: string) => createNewFile(path, "directory") },
-    { label: 'Delete Folder', action: (path: string) => deleteContent(path) }
+    { label: 'Add file', action: (path: string) => createNewFile(path, 'file') },
+    { label: 'Add Notebook', action: (path: string) => createNewFile(path, 'notebook') },
+    { label: 'Add Folder', action: (path: string) => createNewFile(path, 'directory') },
+    { label: 'Delete Folder', action: (path: string) => deleteContent(path) },
   ];
 
   const handleRightClick = (e: React.MouseEvent, path: string) => {
@@ -329,17 +320,20 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
     setIsMenuVisible(true);
   };
 
-  if(isDeleted){
-    return <></>
+  if (isDeleted) {
+    return <></>;
   }
 
   return (
-    <li className='fileItem'>
-      <a onContextMenu={(e) => handleRightClick(e, data.path)} onClick={() => handleDirectoryClick(data.path)}>
-        <img className='directoryIcon' src='./images/editor/directory.svg' alt='' />
+    <li className="fileItem">
+      <a
+        onContextMenu={(e) => handleRightClick(e, data.path)}
+        onClick={() => handleDirectoryClick(data.path)}
+      >
+        <img className="directoryIcon" src="./images/editor/directory.svg" alt="" />
         {isEditing ? (
           <input
-            type='text'
+            type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onBlur={() => setIsEditing(false)}
@@ -359,16 +353,21 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
           onClose={() => setIsMenuVisible(false)}
         />
       )}
-      <ul className='file-list list-unstyled'>
-        {isCollapsed && content.content !== null && content.content.map((content, index) => (
-          content.type === 'directory' ? (
-            <DirectoryItem key={content.id}
-              sendDataToParent={sendDataToParent}
-              data={content} />
-          ) : (
-            <FileItem parentDir={data.path} key={content.id} content={content} handleFileClick={sendDataToParent} />
-          )
-        ))}
+      <ul className="file-list list-unstyled">
+        {isCollapsed &&
+          content.content !== null &&
+          content.content.map((content, index) =>
+            content.type === 'directory' ? (
+              <DirectoryItem key={content.id} sendDataToParent={sendDataToParent} data={content} />
+            ) : (
+              <FileItem
+                parentDir={data.path}
+                key={content.id}
+                content={content}
+                handleFileClick={sendDataToParent}
+              />
+            )
+          )}
       </ul>
     </li>
   );

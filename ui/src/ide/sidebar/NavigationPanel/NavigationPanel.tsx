@@ -9,10 +9,10 @@ interface NavigationPanelProps {
 }
 
 const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel }) => {
-  const [menuPosition, setMenuPosition] = useState<{ xPos: number, yPos: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false);
   const [contextPath, setContextPath] = useState<string>('');
-  
+
   const [directory, setDirectory] = useState<string>('');
   const [output, setOutput] = useState<string>('');
 
@@ -30,10 +30,8 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
       setOutput(`Selected Directory: ${selectedDirectory}`);
     }
   };
-  
-  const menuItems = [
-    { label: 'Open Project', action: handleSelectDirectory },
-  ];
+
+  const menuItems = [{ label: 'Open Project', action: handleSelectDirectory }];
 
   // Handle the right-click event to show context menu
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -53,8 +51,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
     handleNavigationPanel(panelName); // Call the parent handler
   };
 
-  
-
   // Render navigation buttons
   const renderNavButtons = () => {
     const navItems = [
@@ -67,7 +63,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
       { name: 'databasePanel', icon: './images/editor/feather-database.svg' },
     ];
 
-    return navItems.map(item => (
+    return navItems.map((item) => (
       <button
         key={item.name}
         className={`navButton ${activeNavItem === item.name ? 'active' : ''}`}
@@ -80,15 +76,12 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
 
   const toggleHelpDialog = () => {
     setShowHelpDialog(!showHelpDialog);
-  }
+  };
 
   return (
     <div className="navigation-list">
       {/* Menu button */}
-      <button
-        className="navButton"
-        onClick={handleContextMenu}
-      >
+      <button className="navButton" onClick={handleContextMenu}>
         <img src="./images/editor/menu-bar.svg" alt="menu" />
       </button>
 
@@ -104,7 +97,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
       <button className="navButton mt-auto help-icon" onClick={toggleHelpDialog}>
         <i className="fas fa-question-circle" />
       </button>
-
 
       {showHelpDialog && <HelpDialog toggleHelpDialog={toggleHelpDialog} />}
 

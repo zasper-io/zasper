@@ -1,0 +1,24 @@
+{
+  "extends": [
+    "react-app",
+    "react-app/jest",
+    "plugin:react/recommended",
+    "plugin:prettier/recommended"
+  ],
+  "plugins": ["react", "prettier"],
+  "rules": {
+    "prettier/prettier": [
+      "error",
+      {
+        "singleQuote": true,
+        "semi": true,
+        "trailingComma": "es5",
+        "printWidth": 100
+      }
+    ],
+    "react/prop-types": "off" ,
+    "react/react-in-jsx-scope": "off",
+    "react/jsx-uses-react": "off",
+    "react/display-name": "off"
+  }
+}
