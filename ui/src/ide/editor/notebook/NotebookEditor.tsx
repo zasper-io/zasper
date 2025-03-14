@@ -11,36 +11,11 @@ import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
 import KernelSwitcher from './KernelSwitch';
+import { INotebookModel } from './types';
 
 const debugMode = false;
 
 export default function NotebookEditor(props) {
-  interface INotebookModel {
-    cells: Array<ICell>;
-    nbformat: number;
-    nbformat_minor: number;
-    metadata: INotebookMetadata;
-  }
-
-  interface INotebookMetadata {
-    kernelspec?: IKernelspecMetadata;
-    language_info?: ILanguageInfoMetadata;
-    orig_nbformat?: number;
-  }
-
-  interface IKernelspecMetadata {
-    name: string;
-    display_name: string;
-  }
-
-  interface ILanguageInfoMetadata {
-    name: string;
-    codemirror_mode?: string;
-    file_extension?: string;
-    mimetype?: string;
-    pygments_lexer?: string;
-  }
-
   const [notebook, setNotebook] = useState<INotebookModel>({
     cells: [],
     nbformat: 0,
@@ -109,6 +84,52 @@ export default function NotebookEditor(props) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
       setLoading(false); // Ensure loading is set to false
     }
+  };
+  const addCellUp = () => {
+    setNotebook((prevNotebook) => {
+      const newCell = {
+        execution_count: 0,
+        source: '',
+        cell_type: 'code',
+        id: uuidv4(),
+        reload: false,
+        outputs: [],
+      };
+
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, focusedIndex),
+        newCell, // The new cell to be inserted
+        ...prevNotebook.cells.slice(focusedIndex),
+      ];
+
+      return { ...prevNotebook, cells: updatedCells };
+    });
+  };
+
+  const addCellDown = () => {
+    setNotebook((prevNotebook) => {
+      const newCell = {
+        execution_count: 0,
+        source: '',
+        cell_type: 'code',
+        id: uuidv4(),
+        reload: false,
+        outputs: [],
+      };
+      // Ensure the focusedIndex is within the bounds of the cells array
+      const index =
+        focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
+          ? focusedIndex + 1
+          : prevNotebook.cells.length;
+
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, index), // Cells before the focused index
+        newCell, // The new cell to add
+        ...prevNotebook.cells.slice(index), // Cells after the focused index
+      ];
+
+      return { ...prevNotebook, cells: updatedCells };
+    });
   };
 
   const handleKeyDownNotebook = (event) => {
@@ -386,53 +407,6 @@ export default function NotebookEditor(props) {
   };
 
   const getTimeStamp = () => new Date().toISOString();
-
-  const addCellUp = () => {
-    setNotebook((prevNotebook) => {
-      const newCell = {
-        execution_count: 0,
-        source: '',
-        cell_type: 'code',
-        id: uuidv4(),
-        reload: false,
-        outputs: [],
-      };
-
-      const updatedCells = [
-        ...prevNotebook.cells.slice(0, focusedIndex),
-        newCell, // The new cell to be inserted
-        ...prevNotebook.cells.slice(focusedIndex),
-      ];
-
-      return { ...prevNotebook, cells: updatedCells };
-    });
-  };
-
-  const addCellDown = () => {
-    setNotebook((prevNotebook) => {
-      const newCell = {
-        execution_count: 0,
-        source: '',
-        cell_type: 'code',
-        id: uuidv4(),
-        reload: false,
-        outputs: [],
-      };
-      // Ensure the focusedIndex is within the bounds of the cells array
-      const index =
-        focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
-          ? focusedIndex + 1
-          : prevNotebook.cells.length;
-
-      const updatedCells = [
-        ...prevNotebook.cells.slice(0, index), // Cells before the focused index
-        newCell, // The new cell to add
-        ...prevNotebook.cells.slice(index), // Cells after the focused index
-      ];
-
-      return { ...prevNotebook, cells: updatedCells };
-    });
-  };
 
   // const deleteCell = (index: number) => {
   //   setNotebook((prevNotebook) => {
