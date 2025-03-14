@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '../config';
 import { useAtom } from 'jotai';
@@ -38,7 +38,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   const [reloadCount, setReloadCount] = useAtom(fileBrowserReloadCountAtom);
 
   // Fetch kernelspecs from the API
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const res = await fetch(`${BaseApiUrl}/api/kernelspecs`);
       const resJson = await res.json();
@@ -46,7 +46,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
     } catch (error) {
       console.error('Error fetching kernelspecs:', error);
     }
-  };
+  }, [setKernelspecs]);
 
   const createNewNotebook = async (path: string, contentType: string, kernelspec: string) => {
     const res = await fetch(BaseApiUrl + '/api/contents/create', {
@@ -77,7 +77,7 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   // Fetch kernelspecs on component mount
   useEffect(() => {
     fetchData();
-  }, [setKernelspecs]);
+  }, [fetchData]);
 
   return (
     <div className={data.active ? 'd-block' : 'd-none'}>

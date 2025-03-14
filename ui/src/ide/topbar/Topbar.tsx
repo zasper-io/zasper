@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './TopBar.scss';
 import CommandPalette from '../command/CommandPalette';
 import FileAutocomplete from '../command/FileAutoComplete';
@@ -29,14 +29,14 @@ export default function Topbar(props) {
     // Add more commands as needed
   ];
 
-  // Toggle the command palette visibility
-  const toggleCommandPalette = () => {
-    setShowCommandPalette(!showCommandPalette);
-  };
+  // Toggle functions wrapped in useCallback
+  const toggleCommandPalette = useCallback(() => {
+    setShowCommandPalette((prev) => !prev);
+  }, []);
 
-  const toggleFileAutoComplete = () => {
-    setShowFileAutocomplete(!showFileAutocomplete);
-  };
+  const toggleFileAutoComplete = useCallback(() => {
+    setShowFileAutocomplete((prev) => !prev);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -55,7 +55,7 @@ export default function Topbar(props) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [toggleCommandPalette, toggleFileAutoComplete]);
 
   return (
     <div className="topBar">

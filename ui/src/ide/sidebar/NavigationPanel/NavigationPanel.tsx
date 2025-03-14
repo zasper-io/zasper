@@ -11,9 +11,12 @@ interface NavigationPanelProps {
 const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel }) => {
   const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [contextPath, setContextPath] = useState<string>('');
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [directory, setDirectory] = useState<string>('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [output, setOutput] = useState<string>('');
 
   // State to track the active navigation item

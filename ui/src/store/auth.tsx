@@ -1,6 +1,4 @@
-import { atom } from 'jotai';
-
-interface state {
+export interface state {
   authorizationToken: string;
   authorizationTokenExpiry: string;
   idToken: string;

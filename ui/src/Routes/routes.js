@@ -1,5 +1,4 @@
 import { HashRouter, Route, Routes } from 'react-router-dom';
-import React from 'react';
 import IDE from '../ide/IDE';
 
 const routes = [
