@@ -35,7 +35,7 @@ jobs:
         run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make build
 
       - name: Package Electron app
-        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make electron-package
+        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make electron-package-mac
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

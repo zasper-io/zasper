@@ -32,10 +32,10 @@ jobs:
         run: make build
 
       - name: Package Electron app
-        run: make electron-package
+        run: make electron-package-linux
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zasper-0.1.0-arm64.dmg
           path: ui/dist
