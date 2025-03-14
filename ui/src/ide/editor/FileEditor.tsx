@@ -24,8 +24,6 @@ export default function FileEditor(props) {
   const [theme] = useAtom(themeAtom);
 
   const handleCmdEnter = () => {
-    console.log('Saving file');
-
     fetch(BaseApiUrl + '/api/contents', {
       method: 'PUT',
       body: JSON.stringify({
@@ -56,7 +54,6 @@ export default function FileEditor(props) {
     });
     const resJson = await res.json();
     setFileContents(resJson.content);
-    // console.log(resJson['content']);
   };
 
   useEffect(() => {

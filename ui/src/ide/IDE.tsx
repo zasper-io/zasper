@@ -125,7 +125,6 @@ function IDE() {
   };
 
   function handlCloseTabSignal(key) {
-    console.log('closing key', key);
     const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild);
     if (updatedDataFromChild[key].type === 'notebook') {
       console.log('notebook close signal');
@@ -139,7 +138,6 @@ function IDE() {
     });
     delete updatedDataFromChild[key];
     setDataFromChild(updatedDataFromChild);
-    console.log(updatedDataFromChild);
 
     var updatedterminals = { ...terminals };
     delete updatedterminals[key];

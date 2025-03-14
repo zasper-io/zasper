@@ -59,7 +59,8 @@ export default function NotebookEditor(props) {
   const [kernelName, setKernelName] = useState<string>(props.data.kernelspec);
   const [session, setSession] = useState<ISession | null>();
   const [kernelStatus, setKernelStatus] = useState('idle');
-  const [activeKernels, setActiveKernels] = useAtom(kernelsAtom);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_, setActiveKernels] = useAtom(kernelsAtom);
   const [userName] = useAtom(userNameAtom);
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
 
@@ -112,7 +113,6 @@ export default function NotebookEditor(props) {
 
   const handleKeyDownNotebook = (event) => {
     if (event.key === 'a' && event.ctrlKey) {
-      console.log('called ctrl a');
       addCellUp(); // Ctrl + A -> Add cell above
       event.preventDefault();
     } else if (event.key === 'b' && event.ctrlKey) {
@@ -202,6 +202,7 @@ export default function NotebookEditor(props) {
   }
 
   function removeAnsiCodes(str) {
+    // eslint-disable-next-line no-control-regex
     return str.replace(/\u001b\[[0-9;]*m/g, '');
   }
 

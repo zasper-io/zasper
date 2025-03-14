@@ -49,7 +49,6 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   };
 
   const createNewNotebook = async (path: string, contentType: string, kernelspec: string) => {
-    console.log('add file');
     const res = await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
       body: JSON.stringify({ parent_dir: path, type: contentType }),
@@ -62,7 +61,6 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
 
   // Handle opening a new terminal
   const openTerminal = () => {
-    console.log('Open terminal');
     const terminalName = 'Terminal ' + (terminalCount + 1);
     sendDataToParent(terminalName, terminalName, 'terminal', '');
     setTerminalCount(terminalCount + 1);
