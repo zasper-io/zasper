@@ -28,7 +28,6 @@ export default function StatusBar() {
   const FetchBranchData = useCallback(async () => {
     const res = await fetch(BaseApiUrl + '/api/current-branch');
     const resJson = await res.json();
-    console.log(resJson);
     setBranchName(resJson.branch);
   }, [setBranchName]);
 
