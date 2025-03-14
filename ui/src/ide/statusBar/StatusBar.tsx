@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 
 import { useAtom } from 'jotai';
 
@@ -25,16 +25,15 @@ export default function StatusBar() {
   const [eolSequence] = useAtom(eolSequenceAtom);
   const [branchName, setBranchName] = useAtom(branchNameAtom);
 
-  const FetchBranchData = async () => {
+  const FetchBranchData = useCallback(async () => {
     const res = await fetch(BaseApiUrl + '/api/current-branch');
     const resJson = await res.json();
-    console.log(resJson);
     setBranchName(resJson.branch);
-  };
+  }, [setBranchName]);
 
   useEffect(() => {
     FetchBranchData();
-  }, []);
+  }, [FetchBranchData]);
 
   return (
     <div className="statusBar">

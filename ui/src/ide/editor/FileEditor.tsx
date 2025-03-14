@@ -24,8 +24,6 @@ export default function FileEditor(props) {
   const [theme] = useAtom(themeAtom);
 
   const handleCmdEnter = () => {
-    console.log('Saving file');
-
     fetch(BaseApiUrl + '/api/contents', {
       method: 'PUT',
       body: JSON.stringify({
@@ -56,7 +54,6 @@ export default function FileEditor(props) {
     });
     const resJson = await res.json();
     setFileContents(resJson.content);
-    // console.log(resJson['content']);
   };
 
   useEffect(() => {
@@ -99,18 +96,21 @@ export default function FileEditor(props) {
   const [, setColumnPosition] = useAtom(columnPositionAtom);
   const [indentationSize] = useAtom(indentationSizeAtom);
 
-  const onUpdate = useCallback((viewUpdate: ViewUpdate) => {
-    if (viewUpdate) {
-      const { state } = viewUpdate;
-      const position = state.selection.main.head;
+  const onUpdate = useCallback(
+    (viewUpdate: ViewUpdate) => {
+      if (viewUpdate) {
+        const { state } = viewUpdate;
+        const position = state.selection.main.head;
 
-      // Get the line and column based on the absolute position
-      const line = state.doc.lineAt(position); // Get the line info for the cursor position
-      const column = position - line.from; // Calculate the column as an offset from line start
-      setLinePosition(line.number);
-      setColumnPosition(column);
-    }
-  }, []);
+        // Get the line and column based on the absolute position
+        const line = state.doc.lineAt(position); // Get the line info for the cursor position
+        const column = position - line.from; // Calculate the column as an offset from line start
+        setLinePosition(line.number);
+        setColumnPosition(column);
+      }
+    },
+    [setColumnPosition, setLinePosition]
+  );
 
   return (
     <div className="tab-content">

@@ -1,5 +1,4 @@
 import { HashRouter, Route, Routes } from 'react-router-dom';
-import React from 'react';
 import IDE from '../ide/IDE';
 
 const routes = [
@@ -12,8 +11,17 @@ const routes = [
 
 export default function RouteConfig() {
   return (
-    <HashRouter>
-      <Routes>
+    <HashRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
+      <Routes
+        future={{
+          v7_relativeSplatPath: true,
+        }}
+      >
         {routes.map((route, i) => {
           return <Route key={i} path={route.path} element={<route.component />} />;
         })}

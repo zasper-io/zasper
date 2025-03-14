@@ -11,8 +11,6 @@ export const CommitGraphContainer: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  console.log({ commitData });
-
   useEffect(() => {
     const fetchCommitData = async () => {
       try {

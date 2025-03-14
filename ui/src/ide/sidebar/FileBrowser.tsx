@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+/* eslint-disable jsx-a11y/anchor-is-valid */
+import React, { useCallback, useEffect, useState } from 'react';
 import { BaseApiUrl } from '../config';
 import ContextMenu from './ContextMenu';
 import getFileExtension from '../utils';
@@ -27,23 +28,31 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
 
-  const FetchData = async () => {
-    const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
-      method: 'POST',
-      body: JSON.stringify({ path: cwd }),
-    });
-    const resJson = await res.json();
-    resJson.content.forEach((item) => {
-      item.id = uuidv4();
-    });
-    setContents(resJson.content);
+  const FetchData = useCallback(async () => {
+    try {
+      const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
+        method: 'POST',
+        body: JSON.stringify({ path: cwd }),
+      });
+      const resJson = await res.json();
 
-    const res2 = await fetch(BaseApiUrl + '/api/info');
-    const resJson2 = await res2.json();
-    setProjectName(resJson2.project.toUpperCase());
-    setUserName(resJson2.username);
-    setVersion(resJson2.version);
-  };
+      const updatedContent = resJson.content.map((item) => ({
+        ...item,
+        id: uuidv4(),
+      }));
+
+      setContents(updatedContent);
+
+      const res2 = await fetch(BaseApiUrl + '/api/info');
+      const resJson2 = await res2.json();
+
+      setProjectName(resJson2.project.toUpperCase());
+      setUserName(resJson2.username);
+      setVersion(resJson2.version);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  }, [cwd, setContents, setProjectName, setUserName, setVersion]);
 
   const handleFileClick = (name: string, path: string, type: string) => {
     sendDataToParent(name, path, type, 'default');
@@ -67,7 +76,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
 
   useEffect(() => {
     FetchData();
-  }, [reloadCount]);
+  }, [FetchData, reloadCount]);
 
   return (
     <div className={display}>
@@ -153,7 +162,10 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [contentName, setContentName] = useState(content.name);
   const [text, setText] = useState(content.name);
-  const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{
+    xPos: number;
+    yPos: number;
+  } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [icon, setIcon] = useState(getIconToLoad(content.name));
   const [isDeleted, setIsDeleted] = useState(false);
@@ -162,7 +174,11 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
     setIsEditing(false);
     await fetch(BaseApiUrl + '/api/contents/rename', {
       method: 'POST',
-      body: JSON.stringify({ parent_dir: parentDir, old_name: contentName, new_name: text }),
+      body: JSON.stringify({
+        parent_dir: parentDir,
+        old_name: contentName,
+        new_name: text,
+      }),
     });
     setContentName(text);
     setIcon(getIconToLoad(text));
@@ -208,7 +224,6 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
   };
 
   const handleClick = (name: string, path: string, type: string) => {
-    console.log(parentDir);
     if (!isMenuVisible) {
       handleFileClick(name, getPath(), type, 'default');
     }
@@ -261,14 +276,16 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(data);
   const [text, setText] = useState(data.name);
-  const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{
+    xPos: number;
+    yPos: number;
+  } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
 
   const handleDirectoryClick = async (path: string) => {
     setIsCollapsed(!isCollapsed);
-    console.log('handleDirectoryClick');
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
       method: 'POST',
       body: JSON.stringify({ path }),
@@ -281,7 +298,6 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
   };
 
   const createNewFile = async (path: string, contentType: string) => {
-    console.log('add file');
     await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
       body: JSON.stringify({ parent_dir: path, type: contentType }),
@@ -308,9 +324,18 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
 
   const menuItems = [
     { label: 'Rename', action: () => setIsEditing(true) },
-    { label: 'Add file', action: (path: string) => createNewFile(path, 'file') },
-    { label: 'Add Notebook', action: (path: string) => createNewFile(path, 'notebook') },
-    { label: 'Add Folder', action: (path: string) => createNewFile(path, 'directory') },
+    {
+      label: 'Add file',
+      action: (path: string) => createNewFile(path, 'file'),
+    },
+    {
+      label: 'Add Notebook',
+      action: (path: string) => createNewFile(path, 'notebook'),
+    },
+    {
+      label: 'Add Folder',
+      action: (path: string) => createNewFile(path, 'directory'),
+    },
     { label: 'Delete Folder', action: (path: string) => deleteContent(path) },
   ];
 

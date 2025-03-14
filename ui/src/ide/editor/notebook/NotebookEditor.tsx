@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-toastify/dist/ReactToastify.css';
 import './NotebookEditor.scss';
@@ -11,36 +11,12 @@ import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
 import KernelSwitcher from './KernelSwitch';
+import { INotebookModel } from './types';
 
 const debugMode = false;
 
 export default function NotebookEditor(props) {
-  interface INotebookModel {
-    cells: Array<ICell>;
-    nbformat: number;
-    nbformat_minor: number;
-    metadata: INotebookMetadata;
-  }
-
-  interface INotebookMetadata {
-    kernelspec?: IKernelspecMetadata;
-    language_info?: ILanguageInfoMetadata;
-    orig_nbformat?: number;
-  }
-
-  interface IKernelspecMetadata {
-    name: string;
-    display_name: string;
-  }
-
-  interface ILanguageInfoMetadata {
-    name: string;
-    codemirror_mode?: string;
-    file_extension?: string;
-    mimetype?: string;
-    pygments_lexer?: string;
-  }
-
+  const { data } = props;
   const [notebook, setNotebook] = useState<INotebookModel>({
     cells: [],
     nbformat: 0,
@@ -56,10 +32,11 @@ export default function NotebookEditor(props) {
   const [kernelWebSocketClient, setKernelWebSocketClient] = useState<IKernelWebSocketClient>({
     send: () => {},
   });
-  const [kernelName, setKernelName] = useState<string>(props.data.kernelspec);
+  const [kernelName, setKernelName] = useState<string>(data.kernelspec);
   const [session, setSession] = useState<ISession | null>();
   const [kernelStatus, setKernelStatus] = useState('idle');
-  const [activeKernels, setActiveKernels] = useAtom(kernelsAtom);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_, setActiveKernels] = useAtom(kernelsAtom);
   const [userName] = useAtom(userNameAtom);
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
 
@@ -109,37 +86,208 @@ export default function NotebookEditor(props) {
       setLoading(false); // Ensure loading is set to false
     }
   };
+  const addCellUp = useCallback(() => {
+    setNotebook((prevNotebook) => {
+      const newCell = {
+        execution_count: 0,
+        source: '',
+        cell_type: 'code',
+        id: uuidv4(),
+        reload: false,
+        outputs: [],
+      };
 
-  const handleKeyDownNotebook = (event) => {
-    if (event.key === 'a' && event.ctrlKey) {
-      console.log('called ctrl a');
-      addCellUp(); // Ctrl + A -> Add cell above
-      event.preventDefault();
-    } else if (event.key === 'b' && event.ctrlKey) {
-      addCellDown(); // Ctrl + B -> Add cell below
-      event.preventDefault();
-    }
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, focusedIndex),
+        newCell, // The new cell to be inserted
+        ...prevNotebook.cells.slice(focusedIndex),
+      ];
 
-    // Add more conditions for other keys you need
-  };
+      return { ...prevNotebook, cells: updatedCells };
+    });
+  }, [focusedIndex]);
+
+  const addCellDown = useCallback(() => {
+    setNotebook((prevNotebook) => {
+      const newCell = {
+        execution_count: 0,
+        source: '',
+        cell_type: 'code',
+        id: uuidv4(),
+        reload: false,
+        outputs: [],
+      };
+      // Ensure the focusedIndex is within the bounds of the cells array
+      const index =
+        focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
+          ? focusedIndex + 1
+          : prevNotebook.cells.length;
+
+      const updatedCells = [
+        ...prevNotebook.cells.slice(0, index), // Cells before the focused index
+        newCell, // The new cell to add
+        ...prevNotebook.cells.slice(index), // Cells after the focused index
+      ];
+
+      return { ...prevNotebook, cells: updatedCells };
+    });
+  }, [focusedIndex]);
+
+  const handleKeyDownNotebook = useCallback(
+    (event) => {
+      if (event.key === 'a' && event.ctrlKey) {
+        addCellUp(); // Ctrl + A -> Add cell above
+        event.preventDefault();
+      } else if (event.key === 'b' && event.ctrlKey) {
+        addCellDown(); // Ctrl + B -> Add cell below
+        event.preventDefault();
+      }
+      // Add more conditions for other keys you need
+    },
+    [addCellUp, addCellDown]
+  );
+
+  const startASession = useCallback(
+    async (path: string, name: string, type: string, kernelspec: string) => {
+      if (kernelspec === 'default') {
+        kernelspec = 'python3';
+        setKernelName('python3');
+      }
+      fetch(BaseApiUrl + '/api/sessions', {
+        method: 'POST',
+        body: JSON.stringify({
+          path,
+          name,
+          type,
+          kernel: { name: kernelspec },
+        }),
+      })
+        .then(async (response) => await response.json())
+        .then((data) => {
+          setSession(data); // update session
+          console.log('session updated', data);
+          setActiveKernels((prevActiveKernels) => {
+            const updatedKernels = { ...prevActiveKernels };
+            updatedKernels[data.kernel.id] = data.kernel;
+            return updatedKernels;
+          });
+        })
+        .catch((error) => console.log('error', error));
+    },
+    [setKernelName, setSession, setActiveKernels]
+  );
 
   useEffect(() => {
-    if (props.data.load_required === true) {
-      FetchFileData(props.data.path);
-      startASession(props.data.path, props.data.name, props.data.type, props.data.kernelspec);
+    if (data.load_required === true) {
+      FetchFileData(data.path);
+      startASession(data.path, data.name, data.type, data.kernelspec);
     }
-  }, [props.data]);
+  }, [data, startASession]);
 
-  useEffect(() => {
-    startWebSocket();
-    window.addEventListener('keydown', handleKeyDownNotebook);
-    return () => {
-      // ensures that event listener is removed when component is unmounted
-      window.removeEventListener('keydown', handleKeyDownNotebook);
-    };
-  }, [session]);
+  const updateNotebook = useCallback(
+    (message: any) => {
+      if (message.header.msg_type === 'status') {
+        setKernelStatus(message.content.execution_state);
+      }
 
-  const startWebSocket = () => {
+      if (message.header.msg_type === 'execute_input') {
+        setNotebook((prevNotebook) => {
+          const updatedCells = prevNotebook.cells.map((cell) => {
+            if (cell.id === message.parent_header.msg_id) {
+              const updatedCell = { ...cell };
+              updatedCell.execution_count = message.content.execution_count;
+              return updatedCell;
+            }
+            return cell;
+          });
+
+          return { ...prevNotebook, cells: updatedCells };
+        });
+      }
+
+      if (message.header.msg_type === 'error') {
+        setNotebook((prevNotebook) => {
+          const updatedCells = prevNotebook.cells.map((cell) => {
+            if (cell.id === message.parent_header.msg_id) {
+              const updatedCell = { ...cell };
+              updatedCell.outputs = [
+                {
+                  output_type: 'error',
+                  ename: message.content.ename,
+                  evalue: message.content.evalue,
+                  traceback: message.content.traceback,
+                },
+              ];
+
+              return updatedCell;
+            }
+            return cell;
+          });
+
+          return { ...prevNotebook, cells: updatedCells };
+        });
+      }
+
+      if (message.header.msg_type === 'stream') {
+        if (message.content.name === 'stdout') {
+          setNotebook((prevNotebook) => {
+            const updatedCells = prevNotebook.cells.map((cell) => {
+              if (cell.id === message.parent_header.msg_id) {
+                const updatedCell = { ...cell };
+                var textMessage = message.content.text;
+                const cleanedArray = removeAnsiCodes(textMessage);
+                if (updatedCell.outputs.length === 0) {
+                  updatedCell.outputs[0] = { text: '' };
+                }
+                updatedCell.outputs[0].text += cleanedArray;
+                return updatedCell;
+              }
+              return cell;
+            });
+
+            return { ...prevNotebook, cells: updatedCells };
+          });
+        }
+      }
+
+      if (message.header.msg_type === 'execute_result') {
+        setNotebook((prevNotebook) => {
+          const updatedCells = prevNotebook.cells.map((cell) => {
+            if (cell.id === message.parent_header.msg_id) {
+              const updatedCell = { ...cell };
+              if (updatedCell.outputs.length === 0) {
+                updatedCell.outputs[0] = { data: message.content.data };
+              } else {
+                updatedCell.outputs[0]['data'] = message.content.data;
+              }
+              return updatedCell;
+            }
+            return cell;
+          });
+
+          return { ...prevNotebook, cells: updatedCells };
+        });
+      }
+
+      if (message.header.msg_type === 'display_data') {
+        setNotebook((prevNotebook) => {
+          const updatedCells = prevNotebook.cells.map((cell) => {
+            if (cell.id === message.parent_header.msg_id) {
+              const updatedCell = { ...cell };
+              updatedCell.outputs = [{ data: message.content.data }];
+              return updatedCell;
+            }
+            return cell;
+          });
+
+          return { ...prevNotebook, cells: updatedCells };
+        });
+      }
+    },
+    [setKernelStatus, setNotebook]
+  );
+
+  const startWebSocket = useCallback(() => {
     if (session) {
       const kernelWebSocketClient = new W3CWebSocket(
         BaseWebSocketUrl +
@@ -164,151 +312,25 @@ export default function NotebookEditor(props) {
 
       setKernelWebSocketClient(kernelWebSocketClient);
     }
-  };
+  }, [session, setKernelStatus, updateNotebook, setKernelWebSocketClient]);
 
-  const startASession = async (path: string, name: string, type: string, kernelspec: string) => {
-    if (kernelspec === 'default') {
-      kernelspec = 'python3';
-      setKernelName('python3');
-    }
-    // if (!session) {
-    fetch(BaseApiUrl + '/api/sessions', {
-      method: 'POST',
-      body: JSON.stringify({
-        path,
-        name,
-        type,
-        kernel: { name: kernelspec },
-      }),
-    })
-      .then(async (response) => await response.json())
-      .then((data) => {
-        setSession(data); // update session
-        console.log('session updated', data);
-        setActiveKernels((prevActiveKernels) => {
-          const updatedKernels = { ...prevActiveKernels };
-          updatedKernels[data.kernel.id] = data.kernel;
-          return updatedKernels;
-        });
-      })
-      .catch((error) => console.log('error', error));
-    // }
-  };
+  useEffect(() => {
+    startWebSocket();
+    window.addEventListener('keydown', handleKeyDownNotebook);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDownNotebook);
+    };
+  }, [session, handleKeyDownNotebook, startWebSocket]);
 
   function changeKernel(value: string) {
-    console.log('changing kernel');
     setKernelName(value);
-    startASession(props.data.path, props.data.name, props.data.type, value);
+    startASession(data.path, data.name, data.type, value);
   }
 
   function removeAnsiCodes(str) {
+    // eslint-disable-next-line no-control-regex
     return str.replace(/\u001b\[[0-9;]*m/g, '');
   }
-
-  const updateNotebook = (message: any) => {
-    if (message.header.msg_type === 'status') {
-      setKernelStatus(message.content.execution_state);
-    }
-
-    if (message.header.msg_type === 'execute_input') {
-      setNotebook((prevNotebook) => {
-        const updatedCells = prevNotebook.cells.map((cell) => {
-          if (cell.id === message.parent_header.msg_id) {
-            const updatedCell = { ...cell };
-            updatedCell.execution_count = message.content.execution_count;
-            return updatedCell;
-          }
-          return cell;
-        });
-
-        return { ...prevNotebook, cells: updatedCells };
-      });
-    }
-
-    if (message.header.msg_type === 'error') {
-      setNotebook((prevNotebook) => {
-        const updatedCells = prevNotebook.cells.map((cell) => {
-          if (cell.id === message.parent_header.msg_id) {
-            const updatedCell = { ...cell };
-            updatedCell.outputs = [
-              {
-                output_type: 'error',
-                ename: message.content.ename,
-                evalue: message.content.evalue,
-                traceback: message.content.traceback,
-              },
-            ];
-
-            return updatedCell;
-          }
-          return cell;
-        });
-
-        return { ...prevNotebook, cells: updatedCells };
-      });
-    }
-
-    if (message.header.msg_type === 'stream') {
-      if (message.content.name === 'stdout') {
-        setNotebook((prevNotebook) => {
-          const updatedCells = prevNotebook.cells.map((cell) => {
-            if (cell.id === message.parent_header.msg_id) {
-              const updatedCell = { ...cell };
-              // if (message.hasOwnProperty('text')) {
-              var textMessage = message.content.text;
-              const cleanedArray = removeAnsiCodes(textMessage);
-              console.log(updatedCell.outputs);
-              if (updatedCell.outputs.length === 0) {
-                updatedCell.outputs[0] = { text: '' };
-              }
-              updatedCell.outputs[0].text += cleanedArray;
-              // }
-              return updatedCell;
-            }
-            return cell;
-          });
-
-          return { ...prevNotebook, cells: updatedCells };
-        });
-      }
-    }
-
-    if (message.header.msg_type === 'execute_result') {
-      console.log('execute_result');
-      setNotebook((prevNotebook) => {
-        const updatedCells = prevNotebook.cells.map((cell) => {
-          if (cell.id === message.parent_header.msg_id) {
-            const updatedCell = { ...cell };
-            if (updatedCell.outputs.length === 0) {
-              updatedCell.outputs[0] = { data: message.content.data };
-            } else {
-              updatedCell.outputs[0]['data'] = message.content.data;
-            }
-            return updatedCell;
-          }
-          return cell;
-        });
-
-        return { ...prevNotebook, cells: updatedCells };
-      });
-    }
-
-    if (message.header.msg_type === 'display_data') {
-      console.log('display_data');
-      setNotebook((prevNotebook) => {
-        const updatedCells = prevNotebook.cells.map((cell) => {
-          if (cell.id === message.parent_header.msg_id) {
-            const updatedCell = { ...cell };
-            updatedCell.outputs = [{ data: message.content.data }];
-            return updatedCell;
-          }
-          return cell;
-        });
-
-        return { ...prevNotebook, cells: updatedCells };
-      });
-    }
-  };
 
   const updateCellSource = (value: string, cellId: string) => {
     setNotebook((prevNotebook) => {
@@ -387,53 +409,6 @@ export default function NotebookEditor(props) {
   };
 
   const getTimeStamp = () => new Date().toISOString();
-
-  const addCellUp = () => {
-    setNotebook((prevNotebook) => {
-      const newCell = {
-        execution_count: 0,
-        source: '',
-        cell_type: 'code',
-        id: uuidv4(),
-        reload: false,
-        outputs: [],
-      };
-
-      const updatedCells = [
-        ...prevNotebook.cells.slice(0, focusedIndex),
-        newCell, // The new cell to be inserted
-        ...prevNotebook.cells.slice(focusedIndex),
-      ];
-
-      return { ...prevNotebook, cells: updatedCells };
-    });
-  };
-
-  const addCellDown = () => {
-    setNotebook((prevNotebook) => {
-      const newCell = {
-        execution_count: 0,
-        source: '',
-        cell_type: 'code',
-        id: uuidv4(),
-        reload: false,
-        outputs: [],
-      };
-      // Ensure the focusedIndex is within the bounds of the cells array
-      const index =
-        focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
-          ? focusedIndex + 1
-          : prevNotebook.cells.length;
-
-      const updatedCells = [
-        ...prevNotebook.cells.slice(0, index), // Cells before the focused index
-        newCell, // The new cell to add
-        ...prevNotebook.cells.slice(index), // Cells after the focused index
-      ];
-
-      return { ...prevNotebook, cells: updatedCells };
-    });
-  };
 
   // const deleteCell = (index: number) => {
   //   setNotebook((prevNotebook) => {
@@ -582,7 +557,7 @@ export default function NotebookEditor(props) {
     fetch(BaseApiUrl + '/api/contents', {
       method: 'PUT',
       body: JSON.stringify({
-        path: props.data.path,
+        path: data.path,
         content: notebook,
         type: 'notebook',
         format: 'json',
@@ -595,7 +570,7 @@ export default function NotebookEditor(props) {
   return (
     <div className="tab-content">
       <div
-        className={props.data.active ? 'd-block' : 'd-none'}
+        className={data.active ? 'd-block' : 'd-none'}
         id="profile"
         role="tabpanel"
         aria-labelledby="profile-tab"
@@ -625,14 +600,7 @@ export default function NotebookEditor(props) {
             </button>
             <button
               type="button"
-              onClick={() =>
-                startASession(
-                  props.data.path,
-                  props.data.name,
-                  props.data.type,
-                  props.data.kernelspec
-                )
-              }
+              onClick={() => startASession(data.path, data.name, data.type, data.kernelspec)}
             >
               StartASession
             </button>

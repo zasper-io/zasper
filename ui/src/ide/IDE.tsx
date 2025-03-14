@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAtom } from 'jotai';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { settingsAtom, themeAtom } from '../store/Settings';
+import { themeAtom } from '../store/Settings';
 
 import NavigationPanel from './sidebar/NavigationPanel/NavigationPanel';
 import FileBrowser from './sidebar/FileBrowser';
@@ -25,7 +25,6 @@ import {
   languageModeAtom,
   terminalsAtom,
 } from '../store/AppState';
-import { BaseApiUrl } from './config';
 
 interface Ifile {
   type: string;
@@ -78,8 +77,6 @@ function IDE() {
     },
   };
 
-  const [prevActiveTab, setPrevActiveTab] = useState('launcher');
-
   const [dataFromChild, setDataFromChild] = useState<IfileDict>(defaultFileState);
   const [navState, setNavState] = useState<INavDict>(defaultNavState);
 
@@ -125,7 +122,6 @@ function IDE() {
   };
 
   function handlCloseTabSignal(key) {
-    console.log('closing key', key);
     const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild);
     if (updatedDataFromChild[key].type === 'notebook') {
       console.log('notebook close signal');
@@ -139,7 +135,6 @@ function IDE() {
     });
     delete updatedDataFromChild[key];
     setDataFromChild(updatedDataFromChild);
-    console.log(updatedDataFromChild);
 
     var updatedterminals = { ...terminals };
     delete updatedterminals[key];
@@ -149,23 +144,26 @@ function IDE() {
   const [fontSize, setFontSize] = useAtom(fontSizeAtom); // Initial font size
 
   // Helper function to handle keydown events
-  const handleKeyDown = (event) => {
-    if (event.metaKey) {
-      if (event.key === '+' || event.key === '=') {
-        // Increase font size
-        setFontSize((prevFontSize) => {
-          const newSize = Math.min(prevFontSize + 2, 24);
-          return newSize;
-        });
-      } else if (event.key === '-') {
-        // Decrease font size
-        setFontSize((prevFontSize) => {
-          const newSize = Math.max(prevFontSize - 2, 8);
-          return newSize;
-        });
+  const handleKeyDown = useCallback(
+    (event) => {
+      if (event.metaKey) {
+        if (event.key === '+' || event.key === '=') {
+          // Increase font size
+          setFontSize((prevFontSize) => {
+            const newSize = Math.min(prevFontSize + 2, 24);
+            return newSize;
+          });
+        } else if (event.key === '-') {
+          // Decrease font size
+          setFontSize((prevFontSize) => {
+            const newSize = Math.max(prevFontSize - 2, 8);
+            return newSize;
+          });
+        }
       }
-    }
-  };
+    },
+    [setFontSize]
+  );
 
   useEffect(() => {
     // Listen to the keydown event
@@ -175,7 +173,7 @@ function IDE() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [handleKeyDown]);
 
   const getFontClass = (fontSize: number) => {
     return 'zfont-' + fontSize;

@@ -14,7 +14,6 @@ export function GitCommit({ display }) {
     try {
       const resp = await fetch(BaseApiUrl + '/api/uncommitted-files');
       const respJSON = await resp.json();
-      console.log('Uncommitted files:', respJSON);
       setFiles(respJSON);
     } catch (error) {
       console.error('Error fetching files:', error);
