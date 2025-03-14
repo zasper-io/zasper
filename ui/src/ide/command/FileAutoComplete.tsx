@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './CommandPalette.scss';
 import { BaseApiUrl } from '../config';
 import { debounce } from 'lodash';
@@ -33,8 +33,7 @@ const FileAutocomplete = ({ sendDataToParent, onClose }) => {
     }
   };
 
-  // Debounced fetch function to avoid unnecessary API calls
-  const debouncedFetchFiles = debounce(async (query) => {
+  const debouncedFetch = debounce(async (query) => {
     if (cache[query]) {
       setFileSuggestions(cache[query]);
       return;
@@ -50,11 +49,18 @@ const FileAutocomplete = ({ sendDataToParent, onClose }) => {
     } else {
       setFileSuggestions([]);
     }
-  }, 300); // Wait 300ms after the last keypress to trigger the request
+  }, 300);
+
+  const debouncedFetchFiles = useCallback(
+    (query) => {
+      debouncedFetch(query);
+    },
+    [debouncedFetch]
+  );
 
   useEffect(() => {
     debouncedFetchFiles(input);
-  }, [input]); // Triggered whenever `input` changes
+  }, [input, debouncedFetchFiles]); // Triggered whenever `input` changes
 
   return (
     <div className="command-palette">

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { AttachAddon } from '@xterm/addon-attach';
@@ -17,10 +17,21 @@ export default function TerminalTab(props) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
 
-  const fitAddon = new FitAddon();
-  const webLinksAddon = new WebLinksAddon();
-  const unicode11Addon = new Unicode11Addon();
-  const serializeAddon = new SerializeAddon();
+  const fitAddon = useMemo(() => new FitAddon(), []);
+  const webLinksAddon = useMemo(() => new WebLinksAddon(), []);
+  const unicode11Addon = useMemo(() => new Unicode11Addon(), []);
+  const serializeAddon = useMemo(() => new SerializeAddon(), []);
+
+  const sendSizeToBackend = (colsInput: number, rowsInput: number) => {
+    // Send the set_size message to the backend with the terminal dimensions
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      let rows = rowsInput;
+      let cols = colsInput;
+      let size = JSON.stringify({ cols: cols, rows: rows + 1 });
+      let send = new TextEncoder().encode('\x01' + size);
+      socketRef.current.send(send);
+    }
+  };
 
   useEffect(() => {
     if (terminalRef.current == null) return;
@@ -34,17 +45,6 @@ export default function TerminalTab(props) {
       fontFamily: 'Monospace',
       allowProposedApi: true,
     });
-
-    const sendSizeToBackend = (colsInput: number, rowsInput: number) => {
-      // Send the set_size message to the backend with the terminal dimensions
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-        let rows = rowsInput;
-        let cols = colsInput;
-        let size = JSON.stringify({ cols: cols, rows: rows + 1 });
-        let send = new TextEncoder().encode('\x01' + size);
-        socketRef.current.send(send);
-      }
-    };
 
     terminal.loadAddon(webLinksAddon);
     terminal.loadAddon(fitAddon);
@@ -85,7 +85,7 @@ export default function TerminalTab(props) {
         fitAddon.fit();
       });
     };
-  }, [theme]);
+  }, [theme, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
 
   return (
     <div className="tab-content">

@@ -1,3 +1,4 @@
+/* eslint-disable no-control-regex */
 import React, { useState, useCallback } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
@@ -47,16 +48,19 @@ export interface CodeMirrorRef {
 }
 
 const Cell = React.forwardRef((props: ICellProps, ref) => {
-  const cell = props.cell;
+  const { cell, updateCellSource } = props;
   const [theme] = useAtom(themeAtom);
   const [cellContents, setCellContents] = useState(cell.source);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [totalLines, setTotalLines] = useState(0);
 
-  const onChange = useCallback((value, viewUpdate) => {
-    setCellContents(value);
-    props.updateCellSource(value, props.cell.id);
-  }, []);
+  const onChange = useCallback(
+    (value, viewUpdate) => {
+      setCellContents(value);
+      updateCellSource(value, cell.id);
+    },
+    [cell, updateCellSource]
+  );
 
   const onUpdate = useCallback((viewUpdate: ViewUpdate) => {
     if (viewUpdate) {
@@ -274,7 +278,7 @@ const CellOutput = ({ data }) => {
         const blob = `data:image/png;base64,${imageContent}`;
         return (
           <div>
-            <img src={blob} alt="image" />
+            <img src={blob} alt="blob selected" />
           </div>
         );
       }

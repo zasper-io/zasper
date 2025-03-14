@@ -196,7 +196,6 @@ export default function NotebookEditor(props) {
   };
 
   function changeKernel(value: string) {
-    console.log('changing kernel');
     setKernelName(value);
     startASession(props.data.path, props.data.name, props.data.type, value);
   }
@@ -258,7 +257,6 @@ export default function NotebookEditor(props) {
               // if (message.hasOwnProperty('text')) {
               var textMessage = message.content.text;
               const cleanedArray = removeAnsiCodes(textMessage);
-              console.log(updatedCell.outputs);
               if (updatedCell.outputs.length === 0) {
                 updatedCell.outputs[0] = { text: '' };
               }
