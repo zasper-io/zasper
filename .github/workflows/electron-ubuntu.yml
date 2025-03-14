@@ -1,18 +1,14 @@
-name: MacOS Build Electron App
+name: Build Electron App on Ubuntu
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-    
 
 jobs:
   build:
-    runs-on: macos-latest
-
-    env:
-      CI: false
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -21,26 +17,26 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23' 
+          go-version: '1.23'
+
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.7'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: make init
 
       - name: Build Frontend and Backend
-        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make build
+        run: make build
 
       - name: Package Electron app
-        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make electron-package
+        run: make electron-package
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: zasper-0.1.0-alpha-arm64.dmg
-          path: ui/dist/zasper-0.1.0-alpha-arm64.dmg
+          name: zasper-0.1.0-arm64.dmg
+          path: ui/dist
 
-               
