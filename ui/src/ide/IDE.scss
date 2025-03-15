@@ -513,6 +513,16 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   overflow-y: scroll;
 }
 
+.tabHeader {
+  overflow-x: auto;
+  white-space: nowrap;
+
+  .nav {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+}
+
 .tab-item {
   font-size: 14px;
   line-height: 22px;
