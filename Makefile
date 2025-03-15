@@ -116,3 +116,9 @@ clean:
 	rm -f zasper
 	rm -rf ui/build
 	rm -rf ui/dist
+
+
+# Run the tests
+test:
+	@echo "Running tests on frontend"
+	cd ./ui/src && npm test
