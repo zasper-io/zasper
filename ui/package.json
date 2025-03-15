@@ -64,6 +64,8 @@
   },
   "devDependencies": {
     "@electron/notarize": "^2.5.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
     "@types/dompurify": "^2.4.0",
     "electron": "^30.1.0",
     "electron-builder": "^24.13.3",
@@ -72,6 +74,7 @@
     "eslint-plugin-prettier": "^5.2.3",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "jest": "^27.5.1",
     "prettier": "^3.5.3",
     "sass": "^1.77.8",
     "ts-standard": "^12.0.2"
