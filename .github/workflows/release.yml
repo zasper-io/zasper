@@ -81,6 +81,9 @@ jobs:
       - name: Package Electron app
         env:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+
         run: make electron-package
 
       - name: Extract tag name
