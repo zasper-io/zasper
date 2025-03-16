@@ -65,7 +65,7 @@ export default function JupyterInfoPanel({ sendDataToParent, display }) {
                 <li className="fileItem" key={key}>
                   {kernels[key].name}
                   <button
-                    className="btn btn-danger btn-sm"
+                    className="btn btn-outline-danger btn-sm m-2 rounded float-right"
                     onClick={() => killKernel(kernels[key].id)}
                   >
                     Kill
