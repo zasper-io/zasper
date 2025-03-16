@@ -21,7 +21,6 @@
     "react/jsx-uses-react": "off",
     "react/display-name": "off",
     "no-console": "warn", 
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }], 
     "no-debugger": "error", 
     "react/jsx-boolean-value": ["error", "always"], 
     "react/jsx-key": "error", // Ensure proper usage of keys in lists
