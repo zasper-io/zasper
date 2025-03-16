@@ -2,6 +2,10 @@ project_name: zasper
 
 version: 2
 
+env:
+  - POSTHOG_API_KEY={{ .Env.POSTHOG_API_KEY }}
+  - VERSION_BUILD_FLAG={{ .Env.VERSION_BUILD_FLAG }}
+
 before:
   hooks:
     - go mod tidy
@@ -13,6 +17,8 @@ builds:
     env:
       - CGO_ENABLED=0
     main: .
+    ldflags:
+      - -s -w -X main.build={{.Env.VERSION_BUILD_FLAG}}
     targets:
       - darwin_amd64
       - darwin_arm64
@@ -23,6 +29,20 @@ builds:
       - windows_amd64
       - windows_arm64
       - android_arm64
+
+notarize:
+  macos:
+      enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      sign:
+        certificate: "{{.Env.MACOS_SIGN_P12}}"
+        password: "{{.Env.MACOS_SIGN_PASSWORD}}"
+        entitlements: ./path/to/entitlements.xml
+      notarize:
+        issuer_id: "{{.Env.MACOS_NOTARY_ISSUER_ID}}"
+        key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
+        key: "{{.Env.MACOS_NOTARY_KEY}}"
+        wait: true
+        timeout: 20m
 
 archives:
   - id: archive
