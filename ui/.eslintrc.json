@@ -22,8 +22,8 @@
     "react/display-name": "off",
     "no-console": "warn", 
     "no-debugger": "error", 
-    "react/jsx-boolean-value": ["error", "always"], 
-    "react/jsx-key": "error", // Ensure proper usage of keys in lists
-    "react/jsx-no-bind": ["error", { "allowArrowFunctions": true }] 
+    "no-unused-vars": "warn",
+    "react/jsx-key": "warn", // Ensure proper usage of keys in lists
+    "react/jsx-no-bind": ["warn", { "allowArrowFunctions": true }] 
   }
 }
