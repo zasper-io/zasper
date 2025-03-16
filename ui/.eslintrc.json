@@ -16,9 +16,17 @@
         "printWidth": 100
       }
     ],
-    "react/prop-types": "off" ,
+    "react/prop-types": "off",
     "react/react-in-jsx-scope": "off",
     "react/jsx-uses-react": "off",
-    "react/display-name": "off"
+    "react/display-name": "off",
+    "no-console": "warn", // Warn when console statements are used
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }], // Error on unused variables, but ignore those starting with _
+    "eqeqeq": ["error", "always"], // Enforce strict equality
+    "curly": ["error", "all"], // Enforce consistent brace style for all control statements
+    "no-debugger": "error", // Disallow the use of debugger
+    "react/jsx-boolean-value": ["error", "always"], // Enforce boolean attributes notation in JSX
+    "react/jsx-key": "error", // Ensure proper usage of keys in lists
+    "react/jsx-no-bind": ["error", { "allowArrowFunctions": true }] // Prevent usage of .bind() and arrow functions in JSX props
   }
 }
