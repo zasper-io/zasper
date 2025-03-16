@@ -32,7 +32,7 @@ builds:
 
 notarize:
   macos:
-      enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
       sign:
         certificate: "{{.Env.MACOS_SIGN_P12}}"
         password: "{{.Env.MACOS_SIGN_PASSWORD}}"
