@@ -121,7 +121,7 @@ func CwdForPath(path string) string {
 }
 
 func createKernelManager(kernelName string, kernelId string) (KernelManager, string, string) {
-	connectionDir := "/tmp/"
+	connectionDir := os.TempDir()
 	connectionFile := filepath.Join(connectionDir, "kernel-"+kernelId[:6]+".json")
 	km := KernelManager{
 		ConnectionFile: filepath.Join(connectionFile),
