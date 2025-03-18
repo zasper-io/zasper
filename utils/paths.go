@@ -68,27 +68,27 @@ func GetJupyterPath() []string {
 		fmt.Println(err)
 	}
 
-	// Get Python version (e.g., "3.9")
-	pythonVersion, err := getPythonVersion()
-	if err != nil {
-		return nil
-	}
-
+	
 	// Initialize an empty slice to hold the paths
 	paths := []string{}
-
+	
 	// Add various possible paths, using the home directory dynamically
 	paths = append(paths, filepath.Join(homeDir, ".local", "jupyter"))                                                                  // Linux
 	paths = append(paths, "/usr/local/share/jupyter")                                                                                   // Linux
 	paths = append(paths, filepath.Join(homeDir, ".local", "share", "jupyter"))                                                         // Linux
-	paths = append(paths, filepath.Join(homeDir, "Library", "Python", pythonVersion, "share", "jupyter"))                               // macOS
 	paths = append(paths, filepath.Join(homeDir, "Library", "Jupyter"))                                                                 // miniconda
 	paths = append(paths, filepath.Join(homeDir, "anaconda3", "share", "jupyter"))                                                      // Anaconda
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Roaming", "jupyter"))                                                      // Windows
-	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Programs", "Python", "Python"+pythonVersion, "share", "jupyter")) // Windows
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Continuum", "anaconda3", "share", "jupyter"))                     // Windows
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Enthought", "Canopy", "edm", "envs", "User", "share", "jupyter")) // Windows
-
+	
+	// Get Python version (e.g., "3.9")
+	pythonVersion, err := getPythonVersion()
+	if err != nil {
+		return paths
+	}
+	paths = append(paths, filepath.Join(homeDir, "Library", "Python", pythonVersion, "share", "jupyter"))                               // macOS
+	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Programs", "Python", "Python"+pythonVersion, "share", "jupyter")) // Windows
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Programs", "Python", "Python"+pythonVersion, "Lib", "site-packages", "notebook", "static")) // Windows
 
 	// Return the list of paths
