@@ -88,7 +88,7 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 
 	info, err := os.Lstat(abspath)
 	if err != nil {
-		panic(err)
+		log.Info().Msgf("error getting directory data %s", err)
 	}
 
 	output := models.ContentModel{
@@ -179,7 +179,7 @@ func read_file2(path string, fileName string) string {
 	log.Debug().Msgf("reading path: %s", path)
 	file, err := os.ReadFile(path)
 	if err != nil {
-		panic(err)
+		log.Info().Msgf("error reading file %s", err)
 	}
 	if extension == ".png" {
 		return "data:image/png;base64," + base64.StdEncoding.EncodeToString(file)
@@ -230,7 +230,7 @@ func newUntitledFile(payload ContentPayload) models.ContentModel {
 	}
 
 	// Create the file with the unique filename
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		log.Info().Msgf("Error creating file: %s", err)
 	}
@@ -268,7 +268,7 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 	log.Debug().Msgf("Creating new untitled notebook at os path: %s", osFilePath)
 
 	// Create the file with the unique filename
-	file, err := os.OpenFile(osFilePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
+	file, err := os.OpenFile(osFilePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		log.Info().Msgf("Error creating file: %s", err)
 	}
@@ -313,10 +313,10 @@ func CreateDirectory(payload ContentPayload) models.ContentModel {
 	model.ContentType = payload.ContentType
 	dirName := "untitled-directory"
 	i := 0
-	dirPath := GetOSPath(payload.ParentDir + "/" + dirName)
+	dirPath := GetOSPath(filepath.Join(payload.ParentDir, dirName))
 	for directoryExists(dirPath) {
 		i++
-		dirPath = GetOSPath(payload.ParentDir + "/" + fmt.Sprintf("%s-%d", dirName, i))
+		dirPath = GetOSPath(filepath.Join(payload.ParentDir, fmt.Sprintf("%s-%d", dirName, i)))
 	}
 
 	// Create the directory with the unique name
@@ -331,7 +331,7 @@ func CreateDirectory(payload ContentPayload) models.ContentModel {
 }
 
 func rename(parentDir, oldName, newName string) error {
-	err := os.Rename(GetOSPath(parentDir+"/"+oldName), GetOSPath(parentDir+"/"+newName))
+	err := os.Rename(GetOSPath(filepath.Join(parentDir, oldName)), GetOSPath(filepath.Join(parentDir, newName)))
 	if err != nil {
 		log.Info().Msgf("error is %s", err)
 	}
@@ -366,7 +366,9 @@ func IsDir(path string) bool {
 }
 
 func GetOSPath(path string) string {
-	abspath := filepath.Join(core.Zasper.HomeDir, path)
+	// Sanitize path to prevent directory traversal
+	cleanPath := filepath.Clean(path)
+	abspath := filepath.Join(core.Zasper.HomeDir, cleanPath)
 	return abspath
 }
 
