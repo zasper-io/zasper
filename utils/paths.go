@@ -63,10 +63,9 @@ func getPythonVersion() (string, error) {
 
 // GetJupyterPath returns a list of possible Jupyter paths, making the function user-agnostic
 func GetJupyterPath() []string {
-	// Get the home directory from the environment variable
-	homeDir := os.Getenv("HOME")
-	if homeDir == "" {
-		fmt.Println("HOME environment variable is not set")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	// Get Python version (e.g., "3.9")
