@@ -181,71 +181,63 @@ function IDE() {
 
   return (
     <div className={theme === 'light' ? 'editor themeLight' : 'editor themeDark'}>
-      <PanelGroup direction="vertical">
-        <Panel defaultSize={5}>
-          <Topbar sendDataToParent={handleDataFromChild} />
-        </Panel>
-        <PanelResizeHandle disabled />
-        <Panel defaultSize={92.5} maxSize={93}>
-          <PanelGroup direction="horizontal">
-            <Panel defaultSize={20} minSize={20}>
-              <div className="navigation">
-                <NavigationPanel handleNavigationPanel={handleNavigationPanel} />
-                <div className="sideBar">
-                  <FileBrowser
-                    sendDataToParent={handleDataFromChild}
-                    display={navState.fileBrowser.display}
-                    reloadCount={reloadCount}
-                  />
-                  <SettingsPanel
-                    sendDataToParent={handleDataFromChild}
-                    display={navState.settingsPanel.display}
-                  />
-                  <JupyterInfoPanel
-                    sendDataToParent={handleDataFromChild}
-                    display={navState.jupyterInfoPanel.display}
-                  />
-                  <GitPanel
-                    sendDataToParent={handleDataFromChild}
-                    display={navState.gitPanel.display}
-                  />
-                  <DebugPanel
-                    sendDataToParent={handleDataFromChild}
-                    display={navState.debugPanel.display}
-                  />
-                  <DatabasePanel
-                    sendDataToParent={handleDataFromChild}
-                    display={navState.databasePanel.display}
-                  />
-                  <SecretsPanel
-                    sendDataToParent={handleDataFromChild}
-                    display={navState.secretsPanel.display}
-                  />
-                </div>
-              </div>
-            </Panel>
-            <PanelResizeHandle />
-            <Panel defaultSize={80} minSize={50}>
-              <div className={'main-content ' + getFontClass(fontSize)}>
-                <TabIndex
-                  tabs={dataFromChild}
+      <Topbar sendDataToParent={handleDataFromChild} />
+      <div className="editor-container">
+        <PanelGroup direction="horizontal">
+          <Panel defaultSize={20} minSize={20}>
+            <div className="navigation">
+              <NavigationPanel handleNavigationPanel={handleNavigationPanel} />
+              <div className="sideBar">
+                <FileBrowser
                   sendDataToParent={handleDataFromChild}
-                  sendCloseSignalToParent={handlCloseTabSignal}
+                  display={navState.fileBrowser.display}
+                  reloadCount={reloadCount}
                 />
-                <ContentPanel
-                  tabs={dataFromChild}
+                <SettingsPanel
                   sendDataToParent={handleDataFromChild}
-                  theme={theme}
+                  display={navState.settingsPanel.display}
+                />
+                <JupyterInfoPanel
+                  sendDataToParent={handleDataFromChild}
+                  display={navState.jupyterInfoPanel.display}
+                />
+                <GitPanel
+                  sendDataToParent={handleDataFromChild}
+                  display={navState.gitPanel.display}
+                />
+                <DebugPanel
+                  sendDataToParent={handleDataFromChild}
+                  display={navState.debugPanel.display}
+                />
+                <DatabasePanel
+                  sendDataToParent={handleDataFromChild}
+                  display={navState.databasePanel.display}
+                />
+                <SecretsPanel
+                  sendDataToParent={handleDataFromChild}
+                  display={navState.secretsPanel.display}
                 />
               </div>
-            </Panel>
-          </PanelGroup>
-        </Panel>
-        <PanelResizeHandle disabled />
-        <Panel maxSize={2.5}>
-          <StatusBar />
-        </Panel>
-      </PanelGroup>
+            </div>
+          </Panel>
+          <PanelResizeHandle />
+          <Panel defaultSize={80} minSize={50}>
+            <div className={'main-content ' + getFontClass(fontSize)}>
+              <TabIndex
+                tabs={dataFromChild}
+                sendDataToParent={handleDataFromChild}
+                sendCloseSignalToParent={handlCloseTabSignal}
+              />
+              <ContentPanel
+                tabs={dataFromChild}
+                sendDataToParent={handleDataFromChild}
+                theme={theme}
+              />
+            </div>
+          </Panel>
+        </PanelGroup>
+      </div>
+      <StatusBar />
     </div>
   );
 }

@@ -62,15 +62,6 @@ a {
   height: 100vh;
 }
 
-.statusBar {
-  width: 100%;
-  height: 100%;
-  background-color: #473990;
-  color: #ffffff;
-  font-size: 16px;
-  padding: 0 40px;
-  font-weight: 300;
-}
 
 .themeLight {
   width: 100%;
@@ -236,9 +227,26 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   }
 }
 
+.statusBar {
+  width: 100%;
+  height: 30px;
+  background-color: #473990;
+  color: #ffffff;
+  font-size: 16px;
+  padding: 0 40px;
+  font-weight: 300;
+}
+
+.editor-container {
+  width: 100%;
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}
+
 .topBar {
   width: 100%;
-  height: 96%;
+  height: 50px;
   color: #ffffff;
   padding: 2px 40px;
   box-shadow:

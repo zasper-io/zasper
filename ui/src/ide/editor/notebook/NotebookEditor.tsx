@@ -182,7 +182,15 @@ export default function NotebookEditor(props) {
       FetchFileData(data.path);
       startASession(data.path, data.name, data.type, data.kernelspec);
     }
-  }, [data, startASession]);
+  }, [data]);
+
+  useEffect(() => {
+    startWebSocket();
+    window.addEventListener('keydown', handleKeyDownNotebook);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDownNotebook);
+    };
+  }, [session]);
 
   const updateNotebook = useCallback(
     (message: any) => {
@@ -284,7 +292,7 @@ export default function NotebookEditor(props) {
         });
       }
     },
-    [setKernelStatus, setNotebook]
+    [setNotebook]
   );
 
   const startWebSocket = useCallback(() => {
@@ -312,15 +320,7 @@ export default function NotebookEditor(props) {
 
       setKernelWebSocketClient(kernelWebSocketClient);
     }
-  }, [session, setKernelStatus, updateNotebook, setKernelWebSocketClient]);
-
-  useEffect(() => {
-    startWebSocket();
-    window.addEventListener('keydown', handleKeyDownNotebook);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDownNotebook);
-    };
-  }, [session, handleKeyDownNotebook, startWebSocket]);
+  }, [session, setKernelWebSocketClient]);
 
   function changeKernel(value: string) {
     setKernelName(value);
