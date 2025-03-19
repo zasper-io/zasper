@@ -15,45 +15,46 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func GetContent(relativePath string, contentType string, format string, hash int) models.ContentModel {
+func GetContent(relativePath string, contentType string, format string, hash int) (models.ContentModel, error) {
 	log.Debug().Msgf("getting content for path : %s", relativePath)
 	// get path info
-	osPath := GetOSPath(relativePath)
+	osPath := GetSafePath(relativePath)
 	info, err := os.Lstat(osPath)
 
 	if err != nil {
-		panic(err)
+		return models.ContentModel{}, err
 	}
 
 	var model models.ContentModel
 
 	log.Debug().Msgf("Is directory %t", info.IsDir())
 	if info.IsDir() {
-		model = getDirectoryModel(relativePath)
+		model, _ = getDirectoryModel(relativePath)
 	} else {
 		if contentType == "notebook" {
-			model = getNotebookModel(relativePath)
+			model, _ = getNotebookModel(relativePath)
 		} else {
-			model = getFileModelWithContent(relativePath)
+			model, _ = getFileModelWithContent(relativePath)
 		}
 
 	}
 
-	return model
+	return model, nil
 }
 
-func getNotebookModel(path string) models.ContentModel {
-
-	// fmt.Println(path)
-	osPath := GetOSPath(path)
+func getNotebookModel(path string) (models.ContentModel, error) {
+	osPath := GetSafePath(path)
 
 	info, err := os.Lstat(osPath)
 
 	if err != nil {
-		panic(err)
+		return models.ContentModel{}, err
 	}
 
-	content := read_file(osPath)
+	content, err := read_file(osPath)
+	if err != nil {
+		return models.ContentModel{}, err
+	}
 
 	as_version := 4
 	capture_validation_error := false
@@ -71,7 +72,7 @@ func getNotebookModel(path string) models.ContentModel {
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
-	return output
+	return output, nil
 }
 
 func nbformatReads(data string, version int, capture_validation_error bool) Notebook {
@@ -82,13 +83,13 @@ func nbformatReads(data string, version int, capture_validation_error bool) Note
 	return output
 }
 
-func getDirectoryModel(relativePath string) models.ContentModel {
+func getDirectoryModel(relativePath string) (models.ContentModel, error) {
 	log.Debug().Msgf("relative path %s", relativePath)
-	abspath := GetOSPath(relativePath)
+	abspath := GetSafePath(relativePath)
 
 	info, err := os.Lstat(abspath)
 	if err != nil {
-		log.Info().Msgf("error getting directory data %s", err)
+		return models.ContentModel{}, err
 	}
 
 	output := models.ContentModel{
@@ -101,7 +102,7 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 
 	dir, err := os.Open(abspath)
 	if err != nil {
-		panic(err)
+		log.Info().Msgf("error getting content data %s", err)
 	}
 	files, err := dir.Readdir(0)
 	if err != nil {
@@ -115,7 +116,7 @@ func getDirectoryModel(relativePath string) models.ContentModel {
 	}
 	sort.Sort(models.ByContentTypeAndName(listOfContents))
 	output.Content = listOfContents
-	return output
+	return output, nil
 }
 
 func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
@@ -125,7 +126,7 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 	info, err := os.Lstat(os_path)
 
 	if err != nil {
-		panic(err)
+		log.Info().Msgf("error getting content data %s", err)
 	}
 	extension := filepath.Ext(fileName)
 	contentType := "file"
@@ -152,48 +153,50 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 
 }
 
-func getFileModelWithContent(path string) models.ContentModel {
+func getFileModelWithContent(path string) (models.ContentModel, error) {
 	// fmt.Println(path)
-	osPath := GetOSPath(path)
+	osPath := GetSafePath(path)
 
 	info, err := os.Lstat(osPath)
 
 	if err != nil {
-		panic(err)
+		return models.ContentModel{}, err
 	}
-
+	fileContent, err := read_file2(osPath, info.Name())
+	if err != nil {
+		return models.ContentModel{}, err
+	}
 	output := models.ContentModel{
 		Name:          info.Name(),
 		Path:          path,
-		Content:       read_file2(osPath, info.Name()),
+		Content:       fileContent,
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
-	return output
-
+	return output, nil
 }
 
-func read_file2(path string, fileName string) string {
+func read_file2(path string, fileName string) (string, error) {
 	extension := filepath.Ext(fileName)
 	log.Debug().Msgf("reading path extension: %s", extension)
 	log.Debug().Msgf("reading path: %s", path)
 	file, err := os.ReadFile(path)
 	if err != nil {
-		log.Info().Msgf("error reading file %s", err)
+		return "", err
 	}
 	if extension == ".png" {
-		return "data:image/png;base64," + base64.StdEncoding.EncodeToString(file)
+		return "data:image/png;base64," + base64.StdEncoding.EncodeToString(file), nil
 	}
-	return string(file)
+	return string(file), nil
 }
 
-func read_file(path string) string {
+func read_file(path string) (string, error) {
 	log.Debug().Msgf("reading path: %s", path)
 	file, err := os.ReadFile(path)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return string(file)
+	return string(file), nil
 }
 
 func createContent(payload ContentPayload) models.ContentModel {
@@ -219,14 +222,14 @@ func newUntitledFile(payload ContentPayload) models.ContentModel {
 	model := models.ContentModel{}
 	model.ContentType = payload.ContentType
 
-	filePath := GetOSPath(payload.ParentDir + "/" + "untitled.txt")
+	filePath := GetSafePath(payload.ParentDir + "/" + "untitled.txt")
 
 	// Check if the file already exists and if so, increment the file number
 	i := 0
 	for fileExists(filePath) {
 		i++
 		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
-		filePath = GetOSPath(payload.ParentDir + "/" + fmt.Sprintf("untitled%d.txt", i))
+		filePath = GetSafePath(payload.ParentDir + "/" + fmt.Sprintf("untitled%d.txt", i))
 	}
 
 	// Create the file with the unique filename
@@ -253,7 +256,7 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 	model.ContentType = payload.ContentType
 
 	filePath := payload.ParentDir + "/" + "Untitled.ipynb"
-	osFilePath := GetOSPath(filePath)
+	osFilePath := GetSafePath(filePath)
 
 	// Check if the file already exists and if so, increment the file number
 	i := 0
@@ -261,7 +264,7 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 		i++
 		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
 		filePath = payload.ParentDir + "/" + fmt.Sprintf("Untitled%d.ipynb", i)
-		osFilePath = GetOSPath(filePath)
+		osFilePath = GetSafePath(filePath)
 	}
 
 	log.Debug().Msgf("Creating new untitled notebook at filepath: %s", filePath)
@@ -289,7 +292,7 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 	info, err := os.Lstat(osFilePath)
 
 	if err != nil {
-		panic(err)
+		log.Info().Msgf("error getting content data %s", err)
 	}
 
 	model.Created = info.ModTime().UTC().Format(time.RFC3339)
@@ -313,10 +316,10 @@ func CreateDirectory(payload ContentPayload) models.ContentModel {
 	model.ContentType = payload.ContentType
 	dirName := "untitled-directory"
 	i := 0
-	dirPath := GetOSPath(filepath.Join(payload.ParentDir, dirName))
+	dirPath := GetSafePath(filepath.Join(payload.ParentDir, dirName))
 	for directoryExists(dirPath) {
 		i++
-		dirPath = GetOSPath(filepath.Join(payload.ParentDir, fmt.Sprintf("%s-%d", dirName, i)))
+		dirPath = GetSafePath(filepath.Join(payload.ParentDir, fmt.Sprintf("%s-%d", dirName, i)))
 	}
 
 	// Create the directory with the unique name
@@ -331,7 +334,7 @@ func CreateDirectory(payload ContentPayload) models.ContentModel {
 }
 
 func rename(parentDir, oldName, newName string) error {
-	err := os.Rename(GetOSPath(filepath.Join(parentDir, oldName)), GetOSPath(filepath.Join(parentDir, newName)))
+	err := os.Rename(GetSafePath(filepath.Join(parentDir, oldName)), GetSafePath(filepath.Join(parentDir, newName)))
 	if err != nil {
 		log.Info().Msgf("error is %s", err)
 	}
@@ -339,7 +342,7 @@ func rename(parentDir, oldName, newName string) error {
 }
 
 func deleteFile(filename string) error {
-	err := os.Remove(GetOSPath(filename))
+	err := os.Remove(GetSafePath(filename))
 	if err != nil {
 		return err
 	}
@@ -352,7 +355,7 @@ func GetKernelPath(path string) int {
 
 func dirExists(path string) bool {
 	path = filepath.Clean(path)
-	os_path := GetOSPath(path)
+	os_path := GetSafePath(path)
 	return IsDir(os_path)
 }
 
@@ -360,12 +363,12 @@ func IsDir(path string) bool {
 	info, err := os.Lstat(path)
 
 	if err != nil {
-		panic(err)
+		log.Info().Msgf("error getting content data %s", err)
 	}
 	return info.IsDir()
 }
 
-func GetOSPath(path string) string {
+func GetSafePath(path string) string {
 	// Sanitize path to prevent directory traversal
 	cleanPath := filepath.Clean(path)
 	abspath := filepath.Join(core.Zasper.HomeDir, cleanPath)

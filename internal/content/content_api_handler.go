@@ -57,7 +57,13 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 		hash = 0
 	}
 
-	contentModel := GetContent(relativePath, contentType, format, hash)
+	contentModel, err := GetContent(relativePath, contentType, format, hash)
+
+	if err != nil {
+		log.Error().Msgf("Error fetching content: %v", err)
+		zhttp.SendErrorResponse(w, http.StatusNotFound, "Content not found")
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
