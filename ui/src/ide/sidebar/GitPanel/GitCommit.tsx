@@ -72,16 +72,16 @@ export function GitCommit({ display }) {
           <div>VERSION CONTROL</div>
         </div>
       </div>
-      <div className="git-commit-content">
+      <div className="git-commit-content mt-2">
         <div>
           <h6>Uncommitted Files</h6>
           {files && files.length > 0 ? (
-            <ul className="file-list list-unstyled">
+            <ul className="file-list list-unstyled list-group w-100 mb-3 mt-2">
               {files.map((file, index) => (
                 <li key={index} className="list-group-item">
                   <div className="form-check">
                     <input
-                      className="form-check-input"
+                      className="form-check-input "
                       type="checkbox"
                       id={file}
                       value={file}
@@ -100,13 +100,12 @@ export function GitCommit({ display }) {
 
           <h4>Commit Message</h4>
           <input
-            className="command-palette-input"
+            className="command-palette-input w-100 mw-100"
             type="text"
             value={commitMessage}
             onChange={(e) => setCommitMessage(e.target.value)}
             placeholder="Enter commit message"
           />
-
           <div className="form-check">
             <input
               className="form-check-input"
@@ -117,7 +116,7 @@ export function GitCommit({ display }) {
             <label className="form-check-label">Push after commit</label>
           </div>
 
-          <button className="gitbutton" onClick={handleCommit}>
+          <button className="gitbutton m-1" onClick={handleCommit}>
             Commit {pushAfterCommit ? 'and Push' : ''}{' '}
           </button>
         </div>
