@@ -1,4 +1,3 @@
-// filepath: /home/aditya/zasper/zasper/ui/src/test/GitCommit.test.jsx
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
