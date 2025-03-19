@@ -96,7 +96,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
           </div>
         </div>
         <div className="content-inner">
-          <ul className="file-list list-unstyled">
+          <ul className="file-list list-unstyled noborder-list">
             {contents.map((content, index) =>
               content.type === 'directory' ? (
                 <DirectoryItem

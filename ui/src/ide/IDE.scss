@@ -457,7 +457,13 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
       }
 
       .file-list {
-        padding-left: 1rem;
+        // padding-left: 1rem;
+        margin-left: 1rem;
+        border-left: 1px solid #969696;
+      }
+
+      .noborder-list{
+        border-left: none !important;
       }
 
       .file-list li a {
