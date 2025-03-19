@@ -16,7 +16,7 @@ import (
 func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var body ContentRequestBody
 	err := json.NewDecoder(req.Body).Decode(&body)
-	log.Info().Msgf("%s", body)
+	log.Info().Msgf("Content requested with payload: %+v", body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -42,6 +42,10 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	if !(slices.Contains(allowedFormats, format)) {
 		format = "base64"
+	}
+
+	if hash_str == "" {
+		hash_str = "0"
 	}
 
 	hash, err := strconv.Atoi(hash_str)

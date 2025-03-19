@@ -177,21 +177,6 @@ export default function NotebookEditor(props) {
     [setKernelName, setSession, setActiveKernels]
   );
 
-  useEffect(() => {
-    if (data.load_required === true) {
-      FetchFileData(data.path);
-      startASession(data.path, data.name, data.type, data.kernelspec);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    startWebSocket();
-    window.addEventListener('keydown', handleKeyDownNotebook);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDownNotebook);
-    };
-  }, [session]);
-
   const updateNotebook = useCallback(
     (message: any) => {
       if (message.header.msg_type === 'status') {
@@ -320,7 +305,25 @@ export default function NotebookEditor(props) {
 
       setKernelWebSocketClient(kernelWebSocketClient);
     }
-  }, [session, setKernelWebSocketClient]);
+  }, [session, updateNotebook, setKernelWebSocketClient]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDownNotebook);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDownNotebook);
+    };
+  }, [handleKeyDownNotebook]);
+
+  useEffect(() => {
+    if (data.load_required === true) {
+      FetchFileData(data.path);
+      startASession(data.path, data.name, data.type, data.kernelspec);
+    }
+  }, [data, startASession]);
+
+  useEffect(() => {
+    startWebSocket();
+  }, [session, startWebSocket]);
 
   function changeKernel(value: string) {
     setKernelName(value);

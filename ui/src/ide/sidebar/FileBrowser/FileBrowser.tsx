@@ -30,7 +30,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
 
   const FetchData = useCallback(async () => {
     try {
-      const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
+      const res = await fetch(BaseApiUrl + '/api/contents', {
         method: 'POST',
         body: JSON.stringify({ path: cwd }),
       });
