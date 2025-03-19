@@ -1,11 +1,11 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useCallback, useEffect, useState } from 'react';
-import { BaseApiUrl } from '../config';
-import ContextMenu from './ContextMenu';
-import getFileExtension from '../utils';
+import ContextMenu from '../ContextMenu';
+import getFileExtension from '../../utils';
 import { useAtom } from 'jotai';
-import { userNameAtom, zasperVersionAtom } from '../../store/AppState';
 import { v4 as uuidv4 } from 'uuid';
+import { BaseApiUrl } from '../../config';
+import { userNameAtom, zasperVersionAtom } from '../../../store/AppState';
 
 interface IContent {
   id: string;

@@ -4,12 +4,12 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { themeAtom } from '../store/Settings';
 
 import NavigationPanel from './sidebar/NavigationPanel/NavigationPanel';
-import FileBrowser from './sidebar/FileBrowser';
+import FileBrowser from './sidebar/FileBrowser/FileBrowser';
 import ContentPanel from './editor/ContentPanel';
 import TabIndex from './tabs/TabIndex';
 import Topbar from './topbar/Topbar';
 import GitPanel from './sidebar/GitPanel';
-import JupyterInfoPanel from './sidebar/JupyterInfoPanel';
+import JupyterInfoPanel from './sidebar/JupyterInfoPanel/JupyterInfoPanel';
 import SettingsPanel from './sidebar/SettingsPanel';
 import DebugPanel from './sidebar/DebugPanel';
 import DatabasePanel from './sidebar/DatabasePanel';

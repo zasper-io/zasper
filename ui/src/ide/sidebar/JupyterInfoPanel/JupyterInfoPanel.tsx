@@ -1,8 +1,8 @@
 import { useAtom } from 'jotai';
 import React from 'react';
-import { kernelsAtom, kernelspecsAtom, terminalsAtom } from '../../store/AppState';
+import { kernelsAtom, kernelspecsAtom, terminalsAtom } from '../../../store/AppState';
 import './JupyterInfoPanel.scss';
-import { BaseApiUrl } from '../config';
+import { BaseApiUrl } from '../../config';
 
 export default function JupyterInfoPanel({ sendDataToParent, display }) {
   const [kernelspecs] = useAtom(kernelspecsAtom);
