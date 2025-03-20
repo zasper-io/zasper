@@ -255,46 +255,45 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 	model := models.ContentModel{}
 	model.ContentType = payload.ContentType
 
-	filePath := payload.ParentDir + "/" + "Untitled.ipynb"
-	osFilePath := GetSafePath(filePath)
+	parentDir := GetSafePath(payload.ParentDir)
+
+	fileNameWithPath := parentDir + "/" + "Untitled.ipynb"
 
 	// Check if the file already exists and if so, increment the file number
 	i := 0
-	for fileExists(osFilePath) {
+	for fileExists(fileNameWithPath) {
 		i++
 		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
-		filePath = payload.ParentDir + "/" + fmt.Sprintf("Untitled%d.ipynb", i)
-		osFilePath = GetSafePath(filePath)
+		fileNameWithPath = parentDir + "/" + fmt.Sprintf("Untitled%d.ipynb", i)
 	}
 
-	log.Debug().Msgf("Creating new untitled notebook at filepath: %s", filePath)
-	log.Debug().Msgf("Creating new untitled notebook at os path: %s", osFilePath)
+	log.Debug().Msgf("Creating new untitled notebook at fileNameWithPath: %s", fileNameWithPath)
 
 	// Create the file with the unique filename
-	file, err := os.OpenFile(osFilePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+	file, err := os.OpenFile(fileNameWithPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		log.Info().Msgf("Error creating file: %s", err)
 	}
 	defer file.Close() // Ensure the file is closed when the function exits
 
-	// Update the model to use the new path and name
-	model.Path = filePath
-	model.Name = filepath.Base(filePath)
-
 	// Write the default notebook content to the file
 	defaultNotebook := `{	"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 4}`
 
-	err = os.WriteFile(osFilePath, []byte(defaultNotebook), 0644) // Write the default notebook content to the file
+	err = os.WriteFile(fileNameWithPath, []byte(defaultNotebook), 0644) // Write the default notebook content to the file
 	if err != nil {
-		log.Error().Err(err).Msgf("Error writing default notebook content to file: %s", osFilePath)
+		log.Error().Err(err).Msgf("Error writing default notebook content to file: %s", fileNameWithPath)
 	}
 
-	info, err := os.Lstat(osFilePath)
+	info, err := os.Lstat(fileNameWithPath)
 
 	if err != nil {
 		log.Info().Msgf("error getting content data %s", err)
 	}
 
+	// Update the model to use the new path and name
+	fileName := filepath.Base(fileNameWithPath)
+	model.Path = filepath.Join(payload.ParentDir, fileName)
+	model.Name = fileName
 	model.Created = info.ModTime().UTC().Format(time.RFC3339)
 	model.Last_modified = info.ModTime().UTC().Format(time.RFC3339)
 	model.Size = info.Size()

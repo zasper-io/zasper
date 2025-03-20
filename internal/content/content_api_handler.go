@@ -159,7 +159,7 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 	oldName := renameContentPayload.OldName
 	log.Info().Msgf("old path : %s", oldName)
 
-	if strings.Contains(renameContentPayload.ParentDir, "..") || strings.Contains(oldName, "..") {
+	if strings.Contains(renameContentPayload.ParentDir, "..") || strings.Contains(oldName, "..") || strings.Contains(renameContentPayload.NewName, "..") {
 		log.Error().Msg("Invalid path")
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
