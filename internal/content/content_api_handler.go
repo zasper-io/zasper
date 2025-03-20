@@ -87,6 +87,12 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if strings.Contains(body.Path, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
 	if body.Type == "notebook" {
 		UpdateNbContent(body.Path, body.Type, body.Format, body.Content)
 	}
@@ -116,6 +122,12 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if strings.Contains(body.Path, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
 	deleteFile(body.Path)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -126,6 +138,12 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var contentPayload ContentPayload
 	_ = json.NewDecoder(req.Body).Decode(&contentPayload)
+
+	if strings.Contains(contentPayload.ParentDir, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
 
 	data := createContent(contentPayload)
 	w.Header().Set("Content-Type", "application/json")
@@ -140,6 +158,12 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	oldName := renameContentPayload.OldName
 	log.Info().Msgf("old path : %s", oldName)
+
+	if strings.Contains(renameContentPayload.ParentDir, "..") || strings.Contains(oldName, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
 
 	rename(renameContentPayload.ParentDir, oldName, renameContentPayload.NewName)
 
