@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/zasper-io/zasper/internal/core"
@@ -381,10 +382,22 @@ func IsDir(path string) bool {
 }
 
 func GetSafePath(path string) string {
-	// Sanitize path to prevent directory traversal
+	// Clean the path to remove any directory traversal components
 	cleanPath := filepath.Clean(path)
 	abspath := filepath.Join(core.Zasper.HomeDir, cleanPath)
-	return abspath
+
+	absPathResolved, err := filepath.Abs(abspath)
+	if err != nil {
+		log.Printf("Error resolving absolute path: %v", err)
+		return ""
+	}
+
+	if !strings.HasPrefix(absPathResolved, core.Zasper.HomeDir) {
+		log.Printf("Warning: Path traversal detected. The path %s is outside the allowed directory %s", absPathResolved, core.Zasper.HomeDir)
+		return ""
+	}
+
+	return absPathResolved
 }
 
 func UpdateNbContent(path, ftype, format string, content interface{}) error {
