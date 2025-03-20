@@ -3,6 +3,7 @@ package content
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"net/http"
 	"slices"
@@ -55,6 +56,12 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	if !(slices.Contains(allowedHashes, hash)) {
 		hash = 0
+	}
+
+	if strings.Contains(relativePath, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
 	}
 
 	contentModel, err := GetContent(relativePath, contentType, format, hash)
