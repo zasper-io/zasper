@@ -3,6 +3,7 @@ package content
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"net/http"
 	"slices"
@@ -57,6 +58,12 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 		hash = 0
 	}
 
+	if strings.Contains(relativePath, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
 	contentModel, err := GetContent(relativePath, contentType, format, hash)
 
 	if err != nil {
@@ -77,6 +84,12 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Error().Err(err).Msg("Error decoding request body")
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error updating content: %v", err))
+		return
+	}
+
+	if strings.Contains(body.Path, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
@@ -109,6 +122,12 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if strings.Contains(body.Path, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
 	deleteFile(body.Path)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -119,6 +138,12 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var contentPayload ContentPayload
 	_ = json.NewDecoder(req.Body).Decode(&contentPayload)
+
+	if strings.Contains(contentPayload.ParentDir, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
 
 	data := createContent(contentPayload)
 	w.Header().Set("Content-Type", "application/json")
@@ -133,6 +158,12 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	oldName := renameContentPayload.OldName
 	log.Info().Msgf("old path : %s", oldName)
+
+	if strings.Contains(renameContentPayload.ParentDir, "..") || strings.Contains(oldName, "..") || strings.Contains(renameContentPayload.NewName, "..") {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
 
 	rename(renameContentPayload.ParentDir, oldName, renameContentPayload.NewName)
 

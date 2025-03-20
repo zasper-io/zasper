@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/zasper-io/zasper/internal/core"
@@ -219,29 +220,41 @@ func fileExists(path string) bool {
 // Modify the newUntitledFile function to create untitled-1.txt, untitled-2.txt, etc.
 func newUntitledFile(payload ContentPayload) models.ContentModel {
 
-	model := models.ContentModel{}
-	model.ContentType = payload.ContentType
+	parentDir := GetSafePath(payload.ParentDir)
 
-	filePath := GetSafePath(payload.ParentDir + "/" + "untitled.txt")
+	fileNameWithPath := filepath.Join(parentDir, "untitled.txt")
 
 	// Check if the file already exists and if so, increment the file number
 	i := 0
-	for fileExists(filePath) {
+	for fileExists(fileNameWithPath) {
 		i++
 		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
-		filePath = GetSafePath(payload.ParentDir + "/" + fmt.Sprintf("untitled%d.txt", i))
+		fileNameWithPath = filepath.Join(parentDir, fmt.Sprintf("untitled%d.txt", i))
 	}
 
 	// Create the file with the unique filename
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+	file, err := os.OpenFile(fileNameWithPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		log.Info().Msgf("Error creating file: %s", err)
 	}
 	defer file.Close() // Ensure the file is closed when the function exits
 
+	info, err := os.Lstat(fileNameWithPath)
+
+	if err != nil {
+		log.Info().Msgf("error getting content data %s", err)
+	}
+
 	// Update the model to use the new path and name
-	model.Path = filePath
-	model.Name = filepath.Base(filePath)
+	fileName := filepath.Base(fileNameWithPath)
+	model := models.ContentModel{
+		ContentType:   payload.ContentType,
+		Path:          filepath.Join(payload.ParentDir, fileName),
+		Name:          fileName,
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
+		Size:          info.Size(),
+	}
 
 	return model
 }
@@ -252,52 +265,52 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 		os.O_TRUNC: Truncate the file to zero length if it already exists.
 		os.O_RDWR: Open the file for reading and writing.
 	*/
-	model := models.ContentModel{}
-	model.ContentType = payload.ContentType
 
-	filePath := payload.ParentDir + "/" + "Untitled.ipynb"
-	osFilePath := GetSafePath(filePath)
+	parentDir := GetSafePath(payload.ParentDir)
+
+	fileNameWithPath := filepath.Join(parentDir, "Untitled.ipynb")
 
 	// Check if the file already exists and if so, increment the file number
 	i := 0
-	for fileExists(osFilePath) {
+	for fileExists(fileNameWithPath) {
 		i++
 		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
-		filePath = payload.ParentDir + "/" + fmt.Sprintf("Untitled%d.ipynb", i)
-		osFilePath = GetSafePath(filePath)
+		fileNameWithPath = filepath.Join(parentDir, fmt.Sprintf("Untitled%d.ipynb", i))
 	}
 
-	log.Debug().Msgf("Creating new untitled notebook at filepath: %s", filePath)
-	log.Debug().Msgf("Creating new untitled notebook at os path: %s", osFilePath)
+	log.Debug().Msgf("Creating new untitled notebook at fileNameWithPath: %s", fileNameWithPath)
 
 	// Create the file with the unique filename
-	file, err := os.OpenFile(osFilePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+	file, err := os.OpenFile(fileNameWithPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		log.Info().Msgf("Error creating file: %s", err)
 	}
 	defer file.Close() // Ensure the file is closed when the function exits
 
-	// Update the model to use the new path and name
-	model.Path = filePath
-	model.Name = filepath.Base(filePath)
-
 	// Write the default notebook content to the file
 	defaultNotebook := `{	"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 4}`
 
-	err = os.WriteFile(osFilePath, []byte(defaultNotebook), 0644) // Write the default notebook content to the file
+	err = os.WriteFile(fileNameWithPath, []byte(defaultNotebook), 0644) // Write the default notebook content to the file
 	if err != nil {
-		log.Error().Err(err).Msgf("Error writing default notebook content to file: %s", osFilePath)
+		log.Error().Err(err).Msgf("Error writing default notebook content to file: %s", fileNameWithPath)
 	}
 
-	info, err := os.Lstat(osFilePath)
+	info, err := os.Lstat(fileNameWithPath)
 
 	if err != nil {
 		log.Info().Msgf("error getting content data %s", err)
 	}
 
-	model.Created = info.ModTime().UTC().Format(time.RFC3339)
-	model.Last_modified = info.ModTime().UTC().Format(time.RFC3339)
-	model.Size = info.Size()
+	// Update the model to use the new path and name
+	fileName := filepath.Base(fileNameWithPath)
+	model := models.ContentModel{
+		ContentType:   payload.ContentType,
+		Path:          filepath.Join(payload.ParentDir, fileName),
+		Name:          fileName,
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
+		Size:          info.Size(),
+	}
 
 	return model
 }
@@ -369,10 +382,22 @@ func IsDir(path string) bool {
 }
 
 func GetSafePath(path string) string {
-	// Sanitize path to prevent directory traversal
+	// Clean the path to remove any directory traversal components
 	cleanPath := filepath.Clean(path)
 	abspath := filepath.Join(core.Zasper.HomeDir, cleanPath)
-	return abspath
+
+	absPathResolved, err := filepath.Abs(abspath)
+	if err != nil {
+		log.Printf("Error resolving absolute path: %v", err)
+		return ""
+	}
+
+	if !strings.HasPrefix(absPathResolved, core.Zasper.HomeDir) {
+		log.Printf("Warning: Path traversal detected. The path %s is outside the allowed directory %s", absPathResolved, core.Zasper.HomeDir)
+		return ""
+	}
+
+	return absPathResolved
 }
 
 func UpdateNbContent(path, ftype, format string, content interface{}) error {
