@@ -3,8 +3,7 @@ const fs = require('fs');
 const { notarize: electronNotarize } = require('@electron/notarize');
 
 const notarizeApp = async (context) => {
-
-  const { electronPlatformName, appOutDir } = context;  
+  const { electronPlatformName, appOutDir } = context;
   if (electronPlatformName !== 'darwin') {
     return;
   }
@@ -18,7 +17,9 @@ const notarizeApp = async (context) => {
     return;
   }
 
-  console.log(`Notarizing app with ID ${appId} located at ${appPath} using Apple ID ${process.env.APPLE_ID}`);
+  console.log(
+    `Notarizing app with ID ${appId} located at ${appPath} using Apple ID ${process.env.APPLE_ID}`
+  );
 
   try {
     await electronNotarize({
