@@ -219,29 +219,41 @@ func fileExists(path string) bool {
 // Modify the newUntitledFile function to create untitled-1.txt, untitled-2.txt, etc.
 func newUntitledFile(payload ContentPayload) models.ContentModel {
 
-	model := models.ContentModel{}
-	model.ContentType = payload.ContentType
+	parentDir := GetSafePath(payload.ParentDir)
 
-	filePath := GetSafePath(payload.ParentDir + "/" + "untitled.txt")
+	fileNameWithPath := filepath.Join(parentDir, "untitled.txt")
 
 	// Check if the file already exists and if so, increment the file number
 	i := 0
-	for fileExists(filePath) {
+	for fileExists(fileNameWithPath) {
 		i++
 		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
-		filePath = GetSafePath(payload.ParentDir + "/" + fmt.Sprintf("untitled%d.txt", i))
+		fileNameWithPath = filepath.Join(parentDir, fmt.Sprintf("untitled%d.txt", i))
 	}
 
 	// Create the file with the unique filename
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+	file, err := os.OpenFile(fileNameWithPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		log.Info().Msgf("Error creating file: %s", err)
 	}
 	defer file.Close() // Ensure the file is closed when the function exits
 
+	info, err := os.Lstat(fileNameWithPath)
+
+	if err != nil {
+		log.Info().Msgf("error getting content data %s", err)
+	}
+
 	// Update the model to use the new path and name
-	model.Path = filePath
-	model.Name = filepath.Base(filePath)
+	fileName := filepath.Base(fileNameWithPath)
+	model := models.ContentModel{
+		ContentType:   payload.ContentType,
+		Path:          filepath.Join(payload.ParentDir, fileName),
+		Name:          fileName,
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
+		Size:          info.Size(),
+	}
 
 	return model
 }
@@ -252,19 +264,17 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 		os.O_TRUNC: Truncate the file to zero length if it already exists.
 		os.O_RDWR: Open the file for reading and writing.
 	*/
-	model := models.ContentModel{}
-	model.ContentType = payload.ContentType
 
 	parentDir := GetSafePath(payload.ParentDir)
 
-	fileNameWithPath := parentDir + "/" + "Untitled.ipynb"
+	fileNameWithPath := filepath.Join(parentDir, "Untitled.ipynb")
 
 	// Check if the file already exists and if so, increment the file number
 	i := 0
 	for fileExists(fileNameWithPath) {
 		i++
 		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
-		fileNameWithPath = parentDir + "/" + fmt.Sprintf("Untitled%d.ipynb", i)
+		fileNameWithPath = filepath.Join(parentDir, fmt.Sprintf("Untitled%d.ipynb", i))
 	}
 
 	log.Debug().Msgf("Creating new untitled notebook at fileNameWithPath: %s", fileNameWithPath)
@@ -292,11 +302,14 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 
 	// Update the model to use the new path and name
 	fileName := filepath.Base(fileNameWithPath)
-	model.Path = filepath.Join(payload.ParentDir, fileName)
-	model.Name = fileName
-	model.Created = info.ModTime().UTC().Format(time.RFC3339)
-	model.Last_modified = info.ModTime().UTC().Format(time.RFC3339)
-	model.Size = info.Size()
+	model := models.ContentModel{
+		ContentType:   payload.ContentType,
+		Path:          filepath.Join(payload.ParentDir, fileName),
+		Name:          fileName,
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
+		Size:          info.Size(),
+	}
 
 	return model
 }
