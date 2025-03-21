@@ -89,10 +89,8 @@ export default function TerminalTab(props) {
 
   return (
     <div className="tab-content">
-      <div className={props.data.active ? 'd-block' : 'd-none'}>
-        <div className="terminalContainer">
-          <div ref={terminalRef} className="terminalArea" />
-        </div>
+      <div className="terminalContainer">
+        <div ref={terminalRef} className="terminalArea" />
       </div>
     </div>
   );
