@@ -3,7 +3,6 @@ package content
 import (
 	"encoding/base64"
 	"errors"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -189,7 +188,6 @@ func TestGetFileModel(t *testing.T) {
 				assert.Equal(t, tt.expectedModel, result)
 			} else {
 				assert.Error(t, err)
-				log.Println("ERROR IS HERE =>", err.Error())
 				assert.Contains(t, err.Error(), tt.expectedErr.Error())
 				assert.Equal(t, tt.expectedModel, result)
 			}
