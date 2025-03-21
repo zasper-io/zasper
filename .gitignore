@@ -28,6 +28,9 @@ go.work.sum
 ui/dist
 .DS_Store
 
+# Jest snapshot files
+__snapshots__/
+
 #binary file
 zasper_go
 examples
