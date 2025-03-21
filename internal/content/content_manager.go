@@ -111,16 +111,19 @@ func getDirectoryModel(relativePath string) (models.ContentModel, error) {
 	}
 	listOfContents := []models.ContentModel{}
 	for _, v := range files {
-
-		listOfContents = append(listOfContents, getFileModel(abspath, relativePath, v.Name()))
-
+		fileContent, _ := getFileModel(abspath, relativePath, v.Name())
+		if err != nil {
+			log.Info().Msgf("error getting content data %s", err)
+			continue
+		}
+		listOfContents = append(listOfContents, fileContent)
 	}
 	sort.Sort(models.ByContentTypeAndName(listOfContents))
 	output.Content = listOfContents
 	return output, nil
 }
 
-func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
+func getFileModel(abspath, relativePath, fileName string) (models.ContentModel, error) {
 
 	os_path := filepath.Join(abspath, fileName)
 
@@ -128,6 +131,7 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 
 	if err != nil {
 		log.Info().Msgf("error getting content data %s", err)
+		return models.ContentModel{}, err
 	}
 	extension := filepath.Ext(fileName)
 	contentType := "file"
@@ -150,7 +154,7 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
-	return output
+	return output, nil
 
 }
 
