@@ -11,6 +11,28 @@ body {
   position: relative;
 }
 
+/* ===== Scrollbar CSS ===== */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #e0daff #ffffff;
+}
+
+/* Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 16px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #8f54a0;
+  border-radius: 10px;
+  border: 3px solid #ffffff;
+}
+
 a {
   text-decoration: none;
   display: inline-block;
@@ -32,7 +54,8 @@ a {
 }
 
 .terminalContainer {
-  height: calc(100vh - 110px);
+  height: 100%;
+  width: 100%;
   background-color: #392e6b;
   color: #ffffff;
   padding-bottom: 10px;
@@ -526,15 +549,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   overflow-y: scroll;
 }
 
-.tabHeader {
-  overflow-x: auto;
-  white-space: nowrap;
 
-  .nav {
-    display: flex;
-    flex-wrap: nowrap;
-  }
-}
 
 .tab-item {
   font-size: 14px;
@@ -544,14 +559,42 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 .main-content {
   margin-left: 1px;
   margin-right: 1px;
-  height: calc(100vh - 28px);
+  height: 100%;
   font-weight: 300;
   line-height: 27px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow-y: hidden;
+
+  .tabHeader {
+    min-height: 36px;
+    overflow-x: auto;
+    white-space: nowrap;
+
+    .nav {
+      display: flex;
+      flex-wrap: nowrap;
+    }
+  }
+
+  .tabContent {
+    width: 100%;
+    height: 100%;
+    flex-grow: 1;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background-color: #ffffff;
+    border-radius: 2px;
+  }
 
   .tab-content {
     box-shadow: 0px 3px 20px #0000001c;
     border-radius: 2px;
     background-color: #fff;
+    height: 100%;
   }
 
   .window-tab {
@@ -566,7 +609,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     overflow: auto;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 45px);
+    height: 100%;
     position: relative;
     padding-bottom: 500px;
   }
@@ -617,16 +660,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   background: #553b9e;
 }
 
-.tabContent {
-  width: 100%;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 65px);
-  position: relative;
-  background-color: #ffffff;
-  border-radius: 2px;
-}
+
 
 /*# sourceMappingURL=main.css.map */
 

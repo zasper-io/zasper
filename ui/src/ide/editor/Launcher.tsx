@@ -80,40 +80,38 @@ const Launcher: React.FC<LauncherProps> = ({ data, sendDataToParent }) => {
   }, [fetchData]);
 
   return (
-    <div className={data.active ? 'd-block' : 'd-none'}>
-      <div className="LauncherArea">
-        <div className="launcher-title">
-          <h2 className="font-h3 fontw-300">
-            Welcome to <span className="fontw-500">zasper</span>
-          </h2>
-        </div>
-        <div className="launchSection">
-          <h2 className="font-h5 fontw-300">Notebook</h2>
-          {Object.keys(kernelspecs).length > 0 ? (
-            Object.keys(kernelspecs).map((key) => (
-              <div
-                className="launcher-icon"
-                key={key}
-                onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
-              >
-                <img
-                  className="resourceLogoImage"
-                  src={getLogoUrl(kernelspecs[key].resources)}
-                  alt="logo"
-                />
-                <h6>{key}</h6>
-              </div>
-            ))
-          ) : (
-            <p>No kernels available.</p>
-          )}
-        </div>
+    <div className="LauncherArea">
+      <div className="launcher-title">
+        <h2 className="font-h3 fontw-300">
+          Welcome to <span className="fontw-500">zasper</span>
+        </h2>
+      </div>
+      <div className="launchSection">
+        <h2 className="font-h5 fontw-300">Notebook</h2>
+        {Object.keys(kernelspecs).length > 0 ? (
+          Object.keys(kernelspecs).map((key) => (
+            <div
+              className="launcher-icon"
+              key={key}
+              onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
+            >
+              <img
+                className="resourceLogoImage"
+                src={getLogoUrl(kernelspecs[key].resources)}
+                alt="logo"
+              />
+              <h6>{key}</h6>
+            </div>
+          ))
+        ) : (
+          <p>No kernels available.</p>
+        )}
+      </div>
 
-        <div className="launchSection">
-          <h2 className="font-h5 fontw-300">Terminal</h2>
-          <div className="launcher-icon" onClick={openTerminal}>
-            <TerminalIcon />
-          </div>
+      <div className="launchSection">
+        <h2 className="font-h5 fontw-300">Terminal</h2>
+        <div className="launcher-icon" onClick={openTerminal}>
+          <TerminalIcon />
         </div>
       </div>
     </div>
