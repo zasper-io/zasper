@@ -52,7 +52,7 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 		return models.ContentModel{}, err
 	}
 
-	content, err := read_file(osPath)
+	content, err := readFileContent(osPath)
 	if err != nil {
 		return models.ContentModel{}, err
 	}
@@ -163,7 +163,7 @@ func getFileModelWithContent(path string) (models.ContentModel, error) {
 	if err != nil {
 		return models.ContentModel{}, err
 	}
-	fileContent, err := read_file2(osPath, info.Name())
+	fileContent, err := readFileContent(osPath)
 	if err != nil {
 		return models.ContentModel{}, err
 	}
@@ -177,26 +177,21 @@ func getFileModelWithContent(path string) (models.ContentModel, error) {
 	return output, nil
 }
 
-func read_file2(path string, fileName string) (string, error) {
+func readFileContent(path string) (string, error) {
+	fileName := filepath.Base(path)
 	extension := filepath.Ext(fileName)
 	log.Debug().Msgf("reading path extension: %s", extension)
 	log.Debug().Msgf("reading path: %s", path)
+
 	file, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
+
 	if extension == ".png" {
 		return "data:image/png;base64," + base64.StdEncoding.EncodeToString(file), nil
 	}
-	return string(file), nil
-}
 
-func read_file(path string) (string, error) {
-	log.Debug().Msgf("reading path: %s", path)
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
 	return string(file), nil
 }
 
