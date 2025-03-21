@@ -52,7 +52,7 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 		return models.ContentModel{}, err
 	}
 
-	content, err := read_file(osPath)
+	content, err := readFileContent(osPath)
 	if err != nil {
 		return models.ContentModel{}, err
 	}
@@ -111,16 +111,19 @@ func getDirectoryModel(relativePath string) (models.ContentModel, error) {
 	}
 	listOfContents := []models.ContentModel{}
 	for _, v := range files {
-
-		listOfContents = append(listOfContents, getFileModel(abspath, relativePath, v.Name()))
-
+		fileContent, _ := getFileModel(abspath, relativePath, v.Name())
+		if err != nil {
+			log.Info().Msgf("error getting content data %s", err)
+			continue
+		}
+		listOfContents = append(listOfContents, fileContent)
 	}
 	sort.Sort(models.ByContentTypeAndName(listOfContents))
 	output.Content = listOfContents
 	return output, nil
 }
 
-func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
+func getFileModel(abspath, relativePath, fileName string) (models.ContentModel, error) {
 
 	os_path := filepath.Join(abspath, fileName)
 
@@ -128,6 +131,7 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 
 	if err != nil {
 		log.Info().Msgf("error getting content data %s", err)
+		return models.ContentModel{}, err
 	}
 	extension := filepath.Ext(fileName)
 	contentType := "file"
@@ -150,7 +154,7 @@ func getFileModel(abspath, relativePath, fileName string) models.ContentModel {
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
-	return output
+	return output, nil
 
 }
 
@@ -163,7 +167,7 @@ func getFileModelWithContent(path string) (models.ContentModel, error) {
 	if err != nil {
 		return models.ContentModel{}, err
 	}
-	fileContent, err := read_file2(osPath, info.Name())
+	fileContent, err := readFileContent(osPath)
 	if err != nil {
 		return models.ContentModel{}, err
 	}
@@ -177,26 +181,21 @@ func getFileModelWithContent(path string) (models.ContentModel, error) {
 	return output, nil
 }
 
-func read_file2(path string, fileName string) (string, error) {
+func readFileContent(path string) (string, error) {
+	fileName := filepath.Base(path)
 	extension := filepath.Ext(fileName)
 	log.Debug().Msgf("reading path extension: %s", extension)
 	log.Debug().Msgf("reading path: %s", path)
+
 	file, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
+
 	if extension == ".png" {
 		return "data:image/png;base64," + base64.StdEncoding.EncodeToString(file), nil
 	}
-	return string(file), nil
-}
 
-func read_file(path string) (string, error) {
-	log.Debug().Msgf("reading path: %s", path)
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
 	return string(file), nil
 }
 
