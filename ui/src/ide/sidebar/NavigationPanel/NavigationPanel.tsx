@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ContextMenu from '../ContextMenu';
-import HelpDialog from '../../Help';
+import HelpDialog from '../HelpDialog/HelpDialog';
 
 import './NavigationPanel.scss';
 
