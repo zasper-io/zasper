@@ -8,10 +8,11 @@ export default function BreadCrumb(props) {
         <ol className="breadcrumb">
           {props.path.split('/').map((item, index) => {
             if (item === '') {
-              return;
-              <li key={index} className="breadcrumb-item">
-                root
-              </li>;
+              return (
+                <li key={index} className="breadcrumb-item">
+                  root
+                </li>
+              );
             }
             return (
               <li key={index} className="breadcrumb-item">
