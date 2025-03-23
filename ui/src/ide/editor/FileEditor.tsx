@@ -18,6 +18,7 @@ import './FileEditor.scss';
 import { themeAtom } from '../../store/Settings';
 import { useAtom } from 'jotai';
 import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '../../store/AppState';
+import BreadCrumb from './BreadCrumb';
 
 export default function FileEditor(props) {
   const [fileContents, setFileContents] = useState('');
@@ -116,6 +117,7 @@ export default function FileEditor(props) {
     <div className="tab-content">
       <div className={props.data.active ? 'd-block' : 'd-none'}>
         <div className="editor-body2">
+          <BreadCrumb path={props.data.path} />
           <CodeMirror
             value={fileContents}
             theme={theme === 'light' ? githubLight : githubDark}

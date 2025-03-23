@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { BaseApiUrl } from '../config';
+import BreadCrumb from './BreadCrumb';
 
 export default function ImageEditor(props) {
   const { data } = props;
@@ -28,6 +29,7 @@ export default function ImageEditor(props) {
   return (
     <div className="tab-content">
       <div className={props.data.active ? 'd-block' : 'd-none'}>
+        <BreadCrumb path={data.path} />
         <img
           src={fileContents}
           className="imageArea"

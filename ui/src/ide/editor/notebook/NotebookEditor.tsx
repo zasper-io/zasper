@@ -12,6 +12,7 @@ import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
 import KernelSwitcher from './KernelSwitch';
 import { INotebookModel } from './types';
+import BreadCrumb from '../BreadCrumb';
 
 const debugMode = false;
 
@@ -578,6 +579,7 @@ export default function NotebookEditor(props) {
         role="tabpanel"
         aria-labelledby="profile-tab"
       >
+        <BreadCrumb path={data.path} />
         <NbButtons
           saveNotebook={handleCmdEnter}
           addCellDown={addCellDown}
