@@ -16,8 +16,8 @@ func parseNotebook(nb NotebookDisk) Notebook {
 	return outNb
 }
 
-func _rejoinMimeBundle(data map[string]interface{}) map[string]string {
-	// _rejoinMimeBundle rejoins multi-line string fields in a mimebundle.
+func rejoinMimeBundle(data map[string]interface{}) map[string]string {
+	// rejoinMimeBundle rejoins multi-line string fields in a mimebundle.
 	outData := make(map[string]string)
 	for key, value := range data {
 		if !_isJSONMime(key) {
@@ -30,7 +30,7 @@ func _rejoinMimeBundle(data map[string]interface{}) map[string]string {
 					}
 				}
 				if allStrings {
-					joined := strings.Join(toStringSlice(valueList), "")
+					joined := strings.Join(toStringSlice(valueList), "\n")
 					outData[key] = joined
 				}
 
@@ -58,7 +58,7 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 			data = strings.Join(cell.Source, "")
 		}
 
-		attachmentData := _rejoinMimeBundle(cell.Attachments)
+		attachmentData := rejoinMimeBundle(cell.Attachments)
 
 		if cell.CellType == "code" {
 			for _, output := range cell.Outputs {
@@ -73,13 +73,13 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 				}
 				switch output.OutputType {
 				case "execute_result", "display_data":
-					x.Data = _rejoinMimeBundle(output.Data)
+					x.Data = rejoinMimeBundle(output.Data)
 				case "stream":
 					if output.Text != nil {
 						x.Text = strings.Join(output.Text, "")
 					}
 				default:
-					x.Data = _rejoinMimeBundle(output.Data)
+					x.Data = rejoinMimeBundle(output.Data)
 				}
 				outputData = append(outputData, x)
 			}
@@ -96,8 +96,8 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 	return nb
 }
 
-// _splitMimeBundle splits multi-line string fields in a mimebundle.
-func _splitMimeBundle(data map[string]string) map[string]interface{} {
+// splitMimeBundle splits multi-line string fields in a mimebundle.
+func splitMimeBundle(data map[string]string) map[string]interface{} {
 	diskData := make(map[string]interface{})
 	nonTextSplitMimes := map[string]bool{
 		"application/javascript": false,
@@ -145,7 +145,7 @@ func convertToNbDisk(nb Notebook) NotebookDisk {
 			outputsDisk[i] = OutputDisk{
 				OutputType:     out.OutputType,
 				ExecutionCount: out.ExecutionCount,
-				Data:           _splitMimeBundle(out.Data),
+				Data:           splitMimeBundle(out.Data),
 				Text:           strings.SplitAfter(out.Text, "\n"),
 				Metadata:       out.Metadata,
 				Ename:          out.Ename,

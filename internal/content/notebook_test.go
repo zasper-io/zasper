@@ -54,7 +54,71 @@ func TestSplitMimeBundle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := _splitMimeBundle(tt.data)
+			result := splitMimeBundle(tt.data)
+
+			// Check if the result matches the expected output
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestRejoinMimeBundle(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]interface{}
+		expected map[string]string
+	}{
+		{
+			name: "Rejoin text MIME types",
+			data: map[string]interface{}{
+				"text/plain":    []interface{}{"Hello", "World", "This is a test."},
+				"image/svg+xml": "<svg>...</svg>", // should remain unchanged
+			},
+			expected: map[string]string{
+				"text/plain":    "Hello\nWorld\nThis is a test.",
+				"image/svg+xml": "<svg>...</svg>",
+			},
+		},
+		{
+			name: "Leave non-text MIME types unchanged",
+			data: map[string]interface{}{
+				"application/json": `{"key": "value"}`,                // should remain unchanged
+				"application/xml":  "<root><node>value</node></root>", // should remain unchanged
+			},
+			expected: map[string]string{
+				"application/json": `{"key": "value"}`,
+				"application/xml":  "<root><node>value</node></root>",
+			},
+		},
+		{
+			name: "Handle non-list values",
+			data: map[string]interface{}{
+				"application/json": map[string]interface{}{"key": "value"}, // should remain unchanged
+				"other/mime":       123,                                    // should remain unchanged
+			},
+			expected: map[string]string{
+				"application/json": `map[key:value]`,
+				"other/mime":       "123",
+			},
+		},
+		{
+			name: "Handle mixed types with some lists",
+			data: map[string]interface{}{
+				"text/html":        []interface{}{"<html>", "<body>", "</body>", "</html>"},
+				"application/json": `{"name": "value"}`, // should remain unchanged
+			},
+			expected: map[string]string{
+				"text/html":        "<html>\n<body>\n</body>\n</html>",
+				"application/json": `{"name": "value"}`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := rejoinMimeBundle(tt.data)
 
 			// Check if the result matches the expected output
 			if !reflect.DeepEqual(result, tt.expected) {
