@@ -200,7 +200,6 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save the file to the disk
 	dst := filepath.Join(core.Zasper.HomeDir, parentPath, fileName)
-	log.Info().Msgf("Saving file to: %s", dst)
 	out, err := os.Create(dst)
 	if err != nil {
 		http.Error(w, "Unable to create file", http.StatusInternalServerError)
@@ -217,5 +216,5 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Return success response
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "File uploaded successfully")
+	log.Info().Msgf("File uploaded successfully to %s", dst)
 }
