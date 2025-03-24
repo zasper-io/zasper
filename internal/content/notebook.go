@@ -100,17 +100,25 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 func _splitMimeBundle(data map[string]string) map[string]interface{} {
 	diskData := make(map[string]interface{})
 	nonTextSplitMimes := map[string]bool{
-		"application/javascript": true,
-		"image/svg+xml":          true,
+		"application/javascript": false,
+		"image/svg+xml":          false,
+		"application/json":       false,
 	}
 
 	for key, value := range data {
 		// if str, ok := value.(string); ok {
 		if strings.HasPrefix(key, "text/") || nonTextSplitMimes[key] {
-			diskData[key] = strings.SplitAfter(value, "\n")
+			splitValue := strings.SplitAfter(value, "\n")
+
+			// Trim the last element to remove the trailing newline
+			if len(splitValue) > 0 {
+				splitValue[len(splitValue)-1] = strings.TrimSuffix(splitValue[len(splitValue)-1], "\n")
+			}
+
+			diskData[key] = splitValue
+		} else {
+			diskData[key] = value
 		}
-		// }
-		diskData[key] = value
 	}
 	return diskData
 }
