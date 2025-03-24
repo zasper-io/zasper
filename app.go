@@ -105,6 +105,7 @@ func main() {
 	apiRouter.HandleFunc("/contents/rename", content.ContentRenameAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
 	apiRouter.HandleFunc("/contents/watch", content.HandleWatchWebSocket).Methods("GET")
+	apiRouter.HandleFunc("/contents/upload", content.UploadFileHandler).Methods("POST")
 
 	// search
 	apiRouter.HandleFunc("/files", search.GetFileSuggestions).Methods("GET")

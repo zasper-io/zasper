@@ -3,12 +3,16 @@ package content
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"net/http"
 	"slices"
 	"strconv"
 
+	"github.com/zasper-io/zasper/internal/core"
 	zhttp "github.com/zasper-io/zasper/internal/http"
 
 	"github.com/rs/zerolog/log"
@@ -173,4 +177,44 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 func NewErrorResponse(w http.ResponseWriter, i int, s string) {
 	panic("unimplemented")
+}
+
+func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse the form data (including file uploads)
+	err := r.ParseMultipartForm(10 << 20) // 10 MB limit for file uploads
+	if err != nil {
+		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+		return
+	}
+
+	// Get the file from the form input
+	file, fileHeader, err := r.FormFile("file") // "file" is the field name in the form
+	if err != nil {
+		http.Error(w, "Unable to read file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	fileName := fileHeader.Filename
+	parentPath := r.FormValue("parentPath")
+
+	// Save the file to the disk
+	dst := filepath.Join(core.Zasper.HomeDir, parentPath, fileName)
+	out, err := os.Create(dst)
+	if err != nil {
+		http.Error(w, "Unable to create file", http.StatusInternalServerError)
+		return
+	}
+	defer out.Close()
+
+	// Copy the uploaded file to the destination file
+	_, err = io.Copy(out, file)
+	if err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.WriteHeader(http.StatusOK)
+	log.Info().Msgf("File uploaded successfully to %s", dst)
 }
