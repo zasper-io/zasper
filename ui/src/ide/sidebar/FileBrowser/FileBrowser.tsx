@@ -6,6 +6,8 @@ import { useAtom } from 'jotai';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseApiUrl } from '../../config';
 import { userNameAtom, zasperVersionAtom } from '../../../store/AppState';
+import FileUpload from './FileUpload';
+import { fileUploadParentPathAtom, showFileUploadDialogAtom } from './store';
 
 interface IContent {
   id: string;
@@ -27,6 +29,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
   const [projectName, setProjectName] = useState('');
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
+  const [showFileUploader] = useAtom(showFileUploadDialogAtom);
 
   const FetchData = useCallback(async () => {
     try {
@@ -116,6 +119,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
           </ul>
         </div>
       </div>
+      {showFileUploader && <FileUpload />}
     </div>
   );
 }
@@ -171,7 +175,7 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
   const [isDeleted, setIsDeleted] = useState(false);
 
   const renameContent = async () => {
-    setIsEditing(false);
+    setIsEditing(true);
     await fetch(BaseApiUrl + '/api/contents/rename', {
       method: 'POST',
       body: JSON.stringify({
@@ -182,6 +186,7 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
     });
     setContentName(text);
     setIcon(getIconToLoad(text));
+    setIsEditing(false);
   };
 
   const deleteContent = async () => {
@@ -196,14 +201,12 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
     {
       label: 'Rename',
       action: (path: string) => {
-        // e.stopPropagation(); // Stop the click event from propagating
-        setIsEditing(true);
+        renameContent();
       },
     },
     {
       label: 'Delete',
       action: (path: string) => {
-        // e.stopPropagation(); // Stop the click event from propagating
         deleteContent();
       },
     },
@@ -283,6 +286,9 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [contentName, setContentName] = useState(content.name);
+  const [showFileUploader, setShowFileUploader] = useAtom(showFileUploadDialogAtom);
+  const [fileUploadParentPath, setFileUploadPath] = useAtom(fileUploadParentPathAtom);
 
   const handleDirectoryClick = async (path: string) => {
     setIsCollapsed(!isCollapsed);
@@ -314,12 +320,31 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
     setContent(resJson);
   };
 
+  const renameContent = async () => {
+    // check if the name is empty
+    setIsEditing(true);
+    await fetch(BaseApiUrl + '/api/contents/rename', {
+      method: 'POST',
+      body: JSON.stringify({
+        old_name: contentName,
+        new_name: text,
+      }),
+    });
+    setContentName(text);
+    setIsEditing(false);
+  };
+
   const deleteContent = async (path) => {
     await fetch(BaseApiUrl + '/api/contents', {
       method: 'DELETE',
       body: JSON.stringify({ path: path }),
     });
     setIsDeleted(true);
+  };
+
+  const fileUploadFlow = () => {
+    setShowFileUploader(true);
+    setFileUploadPath(data.path);
   };
 
   const menuItems = [
@@ -335,6 +360,10 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
     {
       label: 'Add Folder',
       action: (path: string) => createNewFile(path, 'directory'),
+    },
+    {
+      label: 'Upload File',
+      action: (path: string) => fileUploadFlow(),
     },
     { label: 'Delete Folder', action: (path: string) => deleteContent(path) },
   ];
