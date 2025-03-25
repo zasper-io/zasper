@@ -104,6 +104,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
               content.type === 'directory' ? (
                 <DirectoryItem
                   key={content.id}
+                  parentDir={cwd}
                   data={content}
                   sendDataToParent={sendDataToParent}
                 />
@@ -175,7 +176,6 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
   const [isDeleted, setIsDeleted] = useState(false);
 
   const renameContent = async () => {
-    setIsEditing(true);
     await fetch(BaseApiUrl + '/api/contents/rename', {
       method: 'POST',
       body: JSON.stringify({
@@ -201,7 +201,7 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
     {
       label: 'Rename',
       action: (path: string) => {
-        renameContent();
+        setIsEditing(true);
       },
     },
     {
@@ -271,11 +271,12 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
 
 interface IDirectoryItemProps {
   key: string;
+  parentDir: string;
   data: IContent;
   sendDataToParent: (name: string, path: string, type: string, kernelspec: string) => void;
 }
 
-const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
+const DirectoryItem = ({ parentDir, data, sendDataToParent }: IDirectoryItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(data);
   const [text, setText] = useState(data.name);
@@ -287,8 +288,8 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [contentName, setContentName] = useState(content.name);
-  const [showFileUploader, setShowFileUploader] = useAtom(showFileUploadDialogAtom);
-  const [fileUploadParentPath, setFileUploadPath] = useAtom(fileUploadParentPathAtom);
+  const [, setShowFileUploader] = useAtom(showFileUploadDialogAtom);
+  const [, setFileUploadPath] = useAtom(fileUploadParentPathAtom);
 
   const handleDirectoryClick = async (path: string) => {
     setIsCollapsed(!isCollapsed);
@@ -322,10 +323,10 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
 
   const renameContent = async () => {
     // check if the name is empty
-    setIsEditing(true);
     await fetch(BaseApiUrl + '/api/contents/rename', {
       method: 'POST',
       body: JSON.stringify({
+        parent_dir: parentDir,
         old_name: contentName,
         new_name: text,
       }),
@@ -391,7 +392,7 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onBlur={() => setIsEditing(false)}
-            onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+            onKeyDown={(e) => e.key === 'Enter' && renameContent()}
             autoFocus
           />
         ) : (
@@ -412,7 +413,12 @@ const DirectoryItem = ({ data, sendDataToParent }: IDirectoryItemProps) => {
           content.content !== null &&
           content.content.map((content, index) =>
             content.type === 'directory' ? (
-              <DirectoryItem key={content.id} sendDataToParent={sendDataToParent} data={content} />
+              <DirectoryItem
+                key={content.id}
+                parentDir={data.path}
+                sendDataToParent={sendDataToParent}
+                data={content}
+              />
             ) : (
               <FileItem
                 parentDir={data.path}
