@@ -35,6 +35,7 @@ interface ICellProps {
   focusedIndex: number;
   setFocusedIndex: (index: number) => void;
   handleKeyDown: any;
+  changeCellType: any;
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
   execution_count: number;
   codeMirrorRefs: any;
@@ -77,10 +78,10 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 
   const handleKeyDownCM = (event) => {
     if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
-      props.handleKeyDown({ key: 'ArrowDown', preventDefault: () => {} });
+      props.handleKeyDown(false, { key: 'ArrowDown', preventDefault: () => {} });
       event.preventDefault();
     } else if (event.key === 'ArrowUp' && cursorPosition === 1) {
-      props.handleKeyDown({ key: 'ArrowUp', preventDefault: () => {} });
+      props.handleKeyDown(false, { key: 'ArrowUp', preventDefault: () => {} });
       event.preventDefault();
     }
   };
@@ -89,7 +90,20 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
     if (props.cell.cell_type === 'code') {
       props.submitCell(cellContents, props.cell.id);
     }
-    props.handleKeyDown({ key: 'ArrowDown', preventDefault: () => {} });
+    props.handleKeyDown(true, { key: 'ArrowDown', preventDefault: () => {} });
+    return true;
+  };
+
+  const handleChangeCellType = () => {
+    if (props.cell.cell_type === 'code') {
+      props.changeCellType('markdown');
+    }
+    if (props.cell.cell_type === 'markdown') {
+      props.changeCellType('raw');
+    }
+    if (props.cell.cell_type === 'raw') {
+      props.changeCellType('code');
+    }
     return true;
   };
 
@@ -97,6 +111,10 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
     {
       key: 'Shift-Enter',
       run: handleCmdEnter,
+    },
+    {
+      key: 'Shift-M',
+      run: handleChangeCellType,
     },
   ]);
 
@@ -113,7 +131,6 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
         tabIndex={props.index}
         className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
         ref={divRef}
-        onKeyDown={props.handleKeyDown}
         onFocus={() => props.setFocusedIndex(props.index)}
       >
         {props.index === props.focusedIndex ? (
