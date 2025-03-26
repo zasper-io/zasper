@@ -152,6 +152,7 @@ export default function NotebookEditor(props) {
     async (path: string, name: string, type: string, kernelspec: string) => {
       if (kernelspec === 'default') {
         kernelspec = 'python3';
+        // setShowKernelSwitcher(true);
         setKernelName('python3');
       }
       fetch(BaseApiUrl + '/api/sessions', {
@@ -487,10 +488,15 @@ export default function NotebookEditor(props) {
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
+  const handleKeyDown = (addCell, event: React.KeyboardEvent) => {
+    let notebookCellLength = notebook.cells.length;
     if (event.key === 'ArrowDown') {
+      if (notebook.cells.length === focusedIndex + 1 && addCell) {
+        addCellDown();
+        notebookCellLength += 1;
+      }
       setFocusedIndex((prev) => {
-        const newIndex = Math.min(prev + 1, notebook.cells.length - 1);
+        const newIndex = Math.min(prev + 1, notebookCellLength - 1);
         divRefs.current[newIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return newIndex;
       });
@@ -638,6 +644,7 @@ export default function NotebookEditor(props) {
                 focusedIndex={focusedIndex}
                 setFocusedIndex={setFocusedIndex}
                 handleKeyDown={handleKeyDown}
+                changeCellType={changeCellType}
                 divRefs={divRefs}
                 execution_count={cell.execution_count}
                 codeMirrorRefs={codeMirrorRefs}
