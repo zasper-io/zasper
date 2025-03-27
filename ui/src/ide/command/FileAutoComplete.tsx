@@ -38,7 +38,7 @@ const FileAutocomplete = ({ sendDataToParent, onClose }) => {
       setFileSuggestions(cache[query]);
       return;
     }
-    if (query.length > 2) {
+    if (query.length > 0) {
       try {
         const response = await fetch(`${BaseApiUrl}/api/files?query=${query}`);
         const files = await response.json();
@@ -49,7 +49,7 @@ const FileAutocomplete = ({ sendDataToParent, onClose }) => {
     } else {
       setFileSuggestions([]);
     }
-  }, 300);
+  }, 100);
 
   const debouncedFetchFiles = useCallback(
     (query) => {
