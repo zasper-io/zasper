@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import './CommandPalette.scss';
-import { BaseApiUrl } from '../config';
+import '../command/CommandPalette.scss';
+import { BaseApiUrl } from '../../config';
 import { debounce } from 'lodash';
 
 interface IContent {
@@ -10,7 +10,7 @@ interface IContent {
   content: IContent[];
 }
 
-const FileAutocomplete = ({ sendDataToParent, onClose }) => {
+const FileSearch = ({ sendDataToParent, onClose }) => {
   const [input, setInput] = useState('');
   const [fileSuggestions, setFileSuggestions] = useState<IContent[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
@@ -89,4 +89,4 @@ const FileAutocomplete = ({ sendDataToParent, onClose }) => {
   );
 };
 
-export default FileAutocomplete;
+export default FileSearch;
