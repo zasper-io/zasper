@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import CommandPalette from '../ide/command/CommandPalette';
+import CommandPalette from '../ide/topbar/command/CommandPalette';
 
 const mockCommands = [
   { name: 'Open File', description: 'Open a file in the editor', action: jest.fn() },
