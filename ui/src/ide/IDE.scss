@@ -85,9 +85,7 @@ a {
   width: 100%;
   height: 100vh;
 }
-.editor-body2{
-  background-color: #272727;
-}
+
 
 .themeLight {
   width: 100%;
@@ -109,6 +107,10 @@ a {
   }
   .projectBanner {
     background-color: #553b9e;
+  }
+  .breadcrumbArea{
+    background: #fff;
+    color: #000;
   }
 }
 
@@ -209,6 +211,10 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 
   .editor-body .single-line {
     background: #343434;
+  }
+
+  .editor-body2{
+    background-color: #272727;
   }
 
   .serial-no {
