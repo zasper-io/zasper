@@ -91,10 +91,10 @@ func (conn *Connection) makeURL(channel string, port int) string {
 	return fmt.Sprintf("%s://%s-%d", conn.Transport, conn.IP, port)
 }
 
-func (conn *Connection) ConnectShell(ctx context.Context) zmq4.Socket {
+func (conn *Connection) ConnectShell(ctx context.Context, id zmq4.SocketIdentity) zmq4.Socket {
 	channel := "shell"
 	url := conn.makeURL(channel, conn.ShellPort)
-	socket := zmq4.NewDealer(ctx)
+	socket := zmq4.NewDealer(ctx, zmq4.WithID(id))
 	socket.Dial(url)
 	return socket
 
@@ -122,11 +122,16 @@ func (conn *Connection) ConnectIopub(ctx context.Context) zmq4.Socket {
 
 }
 
-func (conn *Connection) ConnectStdin(ctx context.Context) zmq4.Socket {
+func (conn *Connection) ConnectStdin(ctx context.Context, id zmq4.SocketIdentity) zmq4.Socket {
 	channel := "stdin"
 	url := conn.makeURL(channel, conn.StdinPort)
-	socket := zmq4.NewDealer(ctx)
-	socket.Dial(url)
+	socket := zmq4.NewDealer(ctx, zmq4.WithID(id))
+	err := socket.Dial(url)
+
+	if err != nil {
+		log.Fatal().Msgf("dealer failed to dial: %v", err)
+	}
+
 	return socket
 
 }
