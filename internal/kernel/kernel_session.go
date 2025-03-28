@@ -166,7 +166,7 @@ func (ks *KernelSession) sign(msg_list [][]byte) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func (ks *KernelSession) Deserialize(zmsg zmq4.Msg) []byte {
+func (ks *KernelSession) Deserialize(zmsg zmq4.Msg, chanel string) []byte {
 
 	msg := zmsg.Bytes()
 	log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
@@ -220,6 +220,8 @@ func (ks *KernelSession) Deserialize(zmsg zmq4.Msg) []byte {
 	if err != nil {
 		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling Content: %w", err)
 	}
+
+	kernelResponseMsg.Channel = chanel
 
 	jsonBytes, err := json.Marshal(kernelResponseMsg)
 	if err != nil {

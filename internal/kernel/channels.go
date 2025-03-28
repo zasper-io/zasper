@@ -3,9 +3,11 @@ package kernel
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 
@@ -53,7 +55,7 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 	kwsConn.mu.Unlock()
 	go func() {
 		defer func() {
-			log.Debug().Msgf("Polling of %q socket finished.", socketName)
+			log.Info().Msgf("Polling of %q socket finished.", socketName)
 			kwsConn.mu.Lock()
 			kwsConn.pollingWait.Done()
 			kwsConn.mu.Unlock()
@@ -64,16 +66,16 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 				log.Debug().Msgf("Polling of %q socket canceled.", socketName)
 				return
 			default:
-				log.Debug().Msgf("Polling of %q socket started.", socketName)
+				log.Debug().Msgf("Receive message on %q chanel.", socketName)
 
 				zmsg, err2 := socket.Recv()
 				if err2 != nil {
 					log.Info().Msgf("could not receive message: %v", err2)
 					continue
 				}
-				log.Printf("[%s] %s\n", zmsg.Frames[0], zmsg.Frames[1])
+				log.Debug().Msgf("channel: [%s] [%s] %s\n", socketName, zmsg.Frames[0], zmsg.Frames[1])
 
-				kwsConn.Send <- kwsConn.Session.Deserialize(zmsg)
+				kwsConn.Send <- kwsConn.Session.Deserialize(zmsg, socketName)
 			}
 		}
 	}()
@@ -81,11 +83,14 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 
 func (kwsConn *KernelWebSocketConnection) startPolling() { //msg interface{}, binary bool
 	iopub_channel := kwsConn.Channels["iopub"]
-	// shell_channel := kwsConn.Channels["shell"]
+	stdin_channel := kwsConn.Channels["stdin"]
+	control_channel := kwsConn.Channels["control"]
+	shell_channel := kwsConn.Channels["shell"]
 
 	kwsConn.pollChannel(iopub_channel, "iopub")
-	kwsConn.pollChannel(iopub_channel, "shell")
-	kwsConn.pollChannel(iopub_channel, "control")
+	kwsConn.pollChannel(control_channel, "control")
+	kwsConn.pollChannel(stdin_channel, "stdin")
+	kwsConn.pollChannel(shell_channel, "shell")
 }
 
 func (kwsConn *KernelWebSocketConnection) Prepare(sessionId string) {
@@ -117,13 +122,13 @@ func (kwsConn *KernelWebSocketConnection) createStream() {
 
 	// connect on iopub, shell, control, stdin
 	// not sure about hb
-
+	id := zmq4.SocketIdentity(fmt.Sprintf("channel-%d", uuid.New().String()))
 	cinfo := kwsConn.KernelManager.ConnectionInfo
 	context := kwsConn.Context
 	kwsConn.Channels["iopub"] = cinfo.ConnectIopub(context)
-	kwsConn.Channels["shell"] = cinfo.ConnectShell(context)
+	kwsConn.Channels["shell"] = cinfo.ConnectShell(context, id)
 	kwsConn.Channels["control"] = cinfo.ConnectControl(context)
-	kwsConn.Channels["stdin"] = cinfo.ConnectStdin(context)
+	kwsConn.Channels["stdin"] = cinfo.ConnectStdin(context, id)
 	kwsConn.Channels["hb"] = cinfo.ConnectHb(context)
 }
 
@@ -140,7 +145,8 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
 
 	context := context.Background()
-	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell(context)
+	id := zmq4.SocketIdentity(fmt.Sprintf("channel-%d", uuid.New().String()))
+	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell(context, id)
 
 	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest)
 
@@ -168,7 +174,7 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 		if res.err != nil {
 			log.Info().Msgf("dealer failed to recv message: %v", res.err)
 		} else {
-			log.Info().Msgf("%s", kwsConn.Session.Deserialize(res.msg))
+			log.Info().Msgf("%s", kwsConn.Session.Deserialize(res.msg, "shell"))
 		}
 	case <-timeout:
 		log.Warn().Msg("Timeout waiting for response from shell channel")

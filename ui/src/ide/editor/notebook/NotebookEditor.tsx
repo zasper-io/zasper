@@ -394,6 +394,7 @@ export default function NotebookEditor(props) {
           deletedCells: [],
           recordTiming: false,
           cellId: cellId,
+          trusted: true,
         },
         parent_header: {},
       });
