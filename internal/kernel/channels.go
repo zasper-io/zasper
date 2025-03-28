@@ -122,7 +122,7 @@ func (kwsConn *KernelWebSocketConnection) createStream() {
 
 	// connect on iopub, shell, control, stdin
 	// not sure about hb
-	id := zmq4.SocketIdentity(fmt.Sprintf("channel-%d", uuid.New().String()))
+	id := zmq4.SocketIdentity(fmt.Sprintf("channel-%s", uuid.New().String()))
 	cinfo := kwsConn.KernelManager.ConnectionInfo
 	context := kwsConn.Context
 	kwsConn.Channels["iopub"] = cinfo.ConnectIopub(context)
@@ -145,7 +145,7 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	kernelInfoRequest := kwsConn.Session.MessageFromString("kernel_info_request")
 
 	context := context.Background()
-	id := zmq4.SocketIdentity(fmt.Sprintf("channel-%d", uuid.New().String()))
+	id := zmq4.SocketIdentity(fmt.Sprintf("channel-%s", uuid.New().String()))
 	transient_shell_channel := kwsConn.KernelManager.ConnectionInfo.ConnectShell(context, id)
 
 	kwsConn.Session.SendStreamMsg(transient_shell_channel, kernelInfoRequest)
