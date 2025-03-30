@@ -44,6 +44,8 @@ interface ICellProps {
   promptContent: any;
   submitPrompt: any;
   toggleShowPrompt: () => void;
+  inspectReplyMessage: any;
+  submitTabCompletion: (source: string, cellId: string, cursor_pos: number) => void;
 }
 
 export interface CodeMirrorRef {
@@ -86,6 +88,10 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       event.preventDefault();
     } else if (event.key === 'ArrowUp' && cursorPosition === 1) {
       props.handleKeyDown(false, { key: 'ArrowUp', preventDefault: () => {} });
+      event.preventDefault();
+    } else if (event.key === 'Tab') {
+      event.preventDefault();
+      props.submitTabCompletion(cell.id, 'abs', cursorPosition);
       event.preventDefault();
     }
   };
