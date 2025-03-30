@@ -201,8 +201,12 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 			return
 		}
 		log.Debug().Msgf("msg is => %v", msg)
+		if msg.Channel == "stdin" {
+			kwsConn.Session.SendStreamMsg(kwsConn.Channels["stdin"], msg)
+		} else {
+			kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
+		}
 
-		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
 	}
 }
 
