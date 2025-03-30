@@ -86,7 +86,6 @@ a {
   height: 100vh;
 }
 
-
 .themeLight {
   width: 100%;
   height: 100vh;
@@ -108,7 +107,7 @@ a {
   .projectBanner {
     background-color: #553b9e;
   }
-  .breadcrumbArea{
+  .breadcrumbArea {
     background: #fff;
     color: #000;
   }
@@ -129,7 +128,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   background-color: #000000;
   color: $darkThemeFontColor;
 
-  *{
+  * {
     scrollbar-color: #1c1c1c #313131;
   }
   .main-content {
@@ -213,7 +212,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     background: #343434;
   }
 
-  .editor-body2{
+  .editor-body2 {
     background-color: #272727;
   }
 
@@ -264,7 +263,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     }
   }
 
-  .breadcrumbArea{
+  .breadcrumbArea {
     color: #d2d2d2;
     border-bottom: 1px solid #252525;
   }
@@ -286,8 +285,6 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   display: flex;
   flex-direction: column;
 }
-
-
 
 .tab-item {
   font-size: 14px;

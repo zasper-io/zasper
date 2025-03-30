@@ -5,7 +5,7 @@ import FileAutocomplete from './search/FileSearch';
 import { useAtom } from 'jotai';
 import { userNameAtom } from '../../store/AppState';
 
-export default function Topbar(props) {
+export default function Topbar() {
   const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
   const [showFileAutocomplete, setShowFileAutocomplete] = useState<boolean>(false);
   const [userName] = useAtom(userNameAtom);
@@ -77,10 +77,7 @@ export default function Topbar(props) {
                 <CommandPalette commands={commands} onClose={() => setShowCommandPalette(false)} />
               )}
               {showFileAutocomplete && (
-                <FileAutocomplete
-                  sendDataToParent={props.sendDataToParent}
-                  onClose={() => setShowFileAutocomplete(false)}
-                />
+                <FileAutocomplete onClose={() => setShowFileAutocomplete(false)} />
               )}
             </div>
           </div>

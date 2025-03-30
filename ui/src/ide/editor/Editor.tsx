@@ -8,7 +8,7 @@ import ImageEditor from './ImageEditor';
 
 export default function Editor(props) {
   if (props.data.type === 'launcher') {
-    return <Launcher data={props.data} sendDataToParent={props.sendDataToParent} />;
+    return <Launcher data={props.data} />;
   }
   if (props.data.type === 'file') {
     if (props.data.extension === 'png') {

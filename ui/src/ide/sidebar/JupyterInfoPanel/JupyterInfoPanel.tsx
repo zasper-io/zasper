@@ -4,7 +4,7 @@ import { kernelsAtom, kernelspecsAtom, terminalsAtom } from '../../../store/AppS
 import './JupyterInfoPanel.scss';
 import { BaseApiUrl } from '../../config';
 
-export default function JupyterInfoPanel({ sendDataToParent, display }) {
+export default function JupyterInfoPanel({ display }) {
   const [kernelspecs] = useAtom(kernelspecsAtom);
   const [kernels] = useAtom(kernelsAtom);
   const [terminals] = useAtom(terminalsAtom);

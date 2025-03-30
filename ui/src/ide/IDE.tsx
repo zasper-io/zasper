@@ -16,30 +16,8 @@ import DatabasePanel from './sidebar/DatabasePanel';
 import SecretsPanel from './sidebar/SecretsPanel';
 import StatusBar from './statusBar/StatusBar';
 
-import getFileExtension from './utils';
-
 import './IDE.scss';
-import {
-  fileBrowserReloadCountAtom,
-  fontSizeAtom,
-  languageModeAtom,
-  terminalsAtom,
-} from '../store/AppState';
-
-interface Ifile {
-  type: string;
-  path: string;
-  name: string;
-  active: boolean;
-  extension: string | null;
-  load_required: boolean;
-  kernelspec: string;
-}
-
-interface IfileDict {
-  [id: string]: Ifile;
-}
-
+import { fileBrowserReloadCountAtom, fontSizeAtom } from '../store/AppState';
 interface INav {
   name: string;
   display: string;
@@ -51,8 +29,6 @@ interface INavDict {
 
 function IDE() {
   const [theme] = useAtom(themeAtom);
-  const [, setLanguageMode] = useAtom(languageModeAtom);
-  const [terminals, setTerminals] = useAtom(terminalsAtom);
   const [reloadCount] = useAtom(fileBrowserReloadCountAtom);
 
   const defaultNavState: INavDict = {
@@ -65,19 +41,6 @@ function IDE() {
     secretsPanel: { name: 'secretsPanel', display: 'd-none' },
   };
 
-  const defaultFileState: IfileDict = {
-    Launcher: {
-      type: 'launcher',
-      path: 'Launcher',
-      name: 'Launcher',
-      active: true,
-      extension: 'txt',
-      load_required: false,
-      kernelspec: 'none',
-    },
-  };
-
-  const [dataFromChild, setDataFromChild] = useState<IfileDict>(defaultFileState);
   const [navState, setNavState] = useState<INavDict>(defaultNavState);
 
   const handleNavigationPanel = (name: string) => {
@@ -89,57 +52,6 @@ function IDE() {
     );
     setNavState(updatedNavState);
   };
-
-  const handleDataFromChild = (name: string, path: string, type: string, kernelspec: string) => {
-    const updatedDataFromChild = { ...dataFromChild };
-    const fileData: Ifile = {
-      type,
-      path,
-      name,
-      extension: getFileExtension(name),
-      active: true,
-      load_required: true,
-      kernelspec: kernelspec,
-    };
-
-    Object.keys(updatedDataFromChild).forEach((key) => {
-      updatedDataFromChild[key] = {
-        ...updatedDataFromChild[key],
-        active: false,
-        load_required: false,
-      };
-    });
-    if (updatedDataFromChild[path]) {
-      updatedDataFromChild[path] = { ...updatedDataFromChild[path], active: true };
-    } else {
-      updatedDataFromChild[path] = fileData;
-    }
-    if (updatedDataFromChild[path].extension) {
-      setLanguageMode(updatedDataFromChild[path].extension);
-    }
-
-    setDataFromChild(updatedDataFromChild);
-  };
-
-  function handlCloseTabSignal(key) {
-    const updatedDataFromChild: IfileDict = Object.assign({}, dataFromChild);
-    if (updatedDataFromChild[key].type === 'notebook') {
-      console.log('notebook close signal');
-    }
-
-    if ('Launcher' in updatedDataFromChild) {
-      updatedDataFromChild['Launcher']['active'] = true;
-    }
-    Object.keys(updatedDataFromChild).forEach((key) => {
-      updatedDataFromChild[key] = { ...updatedDataFromChild[key], load_required: false };
-    });
-    delete updatedDataFromChild[key];
-    setDataFromChild(updatedDataFromChild);
-
-    var updatedterminals = { ...terminals };
-    delete updatedterminals[key];
-    setTerminals(updatedterminals);
-  }
 
   const [fontSize, setFontSize] = useAtom(fontSizeAtom); // Initial font size
 
@@ -181,58 +93,28 @@ function IDE() {
 
   return (
     <div className={theme === 'light' ? 'editor themeLight' : 'editor themeDark'}>
-      <Topbar sendDataToParent={handleDataFromChild} />
+      <Topbar />
       <div className="editor-container">
         <PanelGroup direction="horizontal">
           <Panel defaultSize={20} minSize={20}>
             <div className="navigation">
               <NavigationPanel handleNavigationPanel={handleNavigationPanel} />
               <div className="sideBar">
-                <FileBrowser
-                  sendDataToParent={handleDataFromChild}
-                  display={navState.fileBrowser.display}
-                  reloadCount={reloadCount}
-                />
-                <SettingsPanel
-                  sendDataToParent={handleDataFromChild}
-                  display={navState.settingsPanel.display}
-                />
-                <JupyterInfoPanel
-                  sendDataToParent={handleDataFromChild}
-                  display={navState.jupyterInfoPanel.display}
-                />
-                <GitPanel
-                  sendDataToParent={handleDataFromChild}
-                  display={navState.gitPanel.display}
-                />
-                <DebugPanel
-                  sendDataToParent={handleDataFromChild}
-                  display={navState.debugPanel.display}
-                />
-                <DatabasePanel
-                  sendDataToParent={handleDataFromChild}
-                  display={navState.databasePanel.display}
-                />
-                <SecretsPanel
-                  sendDataToParent={handleDataFromChild}
-                  display={navState.secretsPanel.display}
-                />
+                <FileBrowser display={navState.fileBrowser.display} reloadCount={reloadCount} />
+                <SettingsPanel display={navState.settingsPanel.display} />
+                <JupyterInfoPanel display={navState.jupyterInfoPanel.display} />
+                <GitPanel display={navState.gitPanel.display} />
+                <DebugPanel display={navState.debugPanel.display} />
+                <DatabasePanel display={navState.databasePanel.display} />
+                <SecretsPanel display={navState.secretsPanel.display} />
               </div>
             </div>
           </Panel>
           <PanelResizeHandle />
           <Panel defaultSize={80} minSize={50}>
             <div className={'main-content ' + getFontClass(fontSize)}>
-              <TabIndex
-                tabs={dataFromChild}
-                sendDataToParent={handleDataFromChild}
-                sendCloseSignalToParent={handlCloseTabSignal}
-              />
-              <ContentPanel
-                tabs={dataFromChild}
-                sendDataToParent={handleDataFromChild}
-                theme={theme}
-              />
+              <TabIndex />
+              <ContentPanel theme={theme} />
             </div>
           </Panel>
         </PanelGroup>

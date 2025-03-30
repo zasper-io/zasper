@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function DebugPanel({ sendDataToParent, display }) {
+export default function DebugPanel({ display }) {
   return (
     <div className={display}>
       <div className="nav-content">
