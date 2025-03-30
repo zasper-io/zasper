@@ -36,13 +36,18 @@ export default function NotebookEditor(props) {
   const [kernelName, setKernelName] = useState<string>(data.kernelspec);
   const [session, setSession] = useState<ISession | null>();
   const [kernelStatus, setKernelStatus] = useState('idle');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_, setActiveKernels] = useAtom(kernelsAtom);
+  const [, setActiveKernels] = useAtom(kernelsAtom);
+  const [showPrompt, setShowPrompt] = useState<Boolean>(false);
+  const [promptContent, setPromptContent] = useState();
   const [userName] = useAtom(userNameAtom);
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
 
   const toggleKernelSwitcher = () => {
     setShowKernelSwitcher(!showKernelSwitcher);
+  };
+
+  const toggleShowPrompt = () => {
+    setShowPrompt(!showPrompt);
   };
 
   interface IKernelWebSocketClient {
@@ -181,6 +186,10 @@ export default function NotebookEditor(props) {
 
   const updateNotebook = useCallback(
     (message: any) => {
+      if (message.header.msg_type === 'input_request') {
+        setShowPrompt(true);
+        setPromptContent(message);
+      }
       if (message.header.msg_type === 'status') {
         setKernelStatus(message.content.execution_state);
       }
@@ -399,6 +408,41 @@ export default function NotebookEditor(props) {
         parent_header: {},
       });
 
+      kernelWebSocketClient.send(message);
+    }
+  };
+
+  const submitPrompt = (cellId: string, parentHeader, inputValue: string) => {
+    setNotebook((prevNotebook) => {
+      const updatedCells = prevNotebook.cells.map((cell) => {
+        if (cell.id === cellId) {
+          return { ...cell, outputs: [] };
+        }
+        return cell;
+      });
+
+      return { ...prevNotebook, cells: updatedCells };
+    });
+
+    if (session) {
+      const message = JSON.stringify({
+        buffers: [],
+        channel: 'stdin',
+        content: {
+          status: 'ok',
+          value: inputValue,
+        },
+        header: {
+          date: getTimeStamp(),
+          msg_id: cellId,
+          msg_type: 'input_reply',
+          session: session.id,
+          username: userName,
+          version: '5.2',
+        },
+        parent_header: parentHeader,
+        metadata: {},
+      });
       kernelWebSocketClient.send(message);
     }
   };
@@ -630,6 +674,7 @@ export default function NotebookEditor(props) {
               changeKernel={changeKernel}
             />
           )}
+
           {notebook.cells &&
             notebook.cells.map((cell, index) => (
               <Cell
@@ -650,6 +695,10 @@ export default function NotebookEditor(props) {
                 execution_count={cell.execution_count}
                 codeMirrorRefs={codeMirrorRefs}
                 updateCellSource={updateCellSource}
+                showPrompt={showPrompt}
+                promptContent={promptContent}
+                submitPrompt={submitPrompt}
+                toggleShowPrompt={toggleShowPrompt}
               />
             ))}
         </div>

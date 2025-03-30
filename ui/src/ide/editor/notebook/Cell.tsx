@@ -40,6 +40,10 @@ interface ICellProps {
   execution_count: number;
   codeMirrorRefs: any;
   updateCellSource: any;
+  showPrompt: Boolean;
+  promptContent: any;
+  submitPrompt: any;
+  toggleShowPrompt: () => void;
 }
 
 export interface CodeMirrorRef {
@@ -235,6 +239,16 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
           />
         </div>
       </div>
+      {props.showPrompt &&
+        props.promptContent &&
+        props.promptContent.content &&
+        props.promptContent.parent_header.msg_id === props.cell.id && (
+          <Prompt
+            content={props.promptContent}
+            submitPrompt={props.submitPrompt}
+            toggleShowPrompt={props.toggleShowPrompt}
+          />
+        )}
       <div className="inner-text">
         <CellOutput data={cell} />
       </div>
@@ -342,3 +356,33 @@ const LoaderSvg = () => {
 };
 
 export default Cell;
+
+const Prompt = (props) => {
+  const [inputValue, setInputValue] = useState('');
+
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault(); // Prevent form submission refresh
+      props.submitPrompt(
+        props.content.parent_header.msg_id,
+        props.content.parent_header,
+        inputValue
+      );
+      setInputValue(''); // Clear input after submission
+      props.toggleShowPrompt();
+    }
+  };
+
+  return (
+    <div>
+      <input
+        type="name"
+        name="prompt"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyPress}
+        placeholder="Type something and press Enter"
+      />
+    </div>
+  );
+};
