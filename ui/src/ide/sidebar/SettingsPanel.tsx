@@ -3,7 +3,7 @@ import { useAtom } from 'jotai';
 import { themeAtom } from '../../store/Settings';
 import './SettingsPanel.scss';
 
-export default function SettingsPanel({ sendDataToParent, display }) {
+export default function SettingsPanel({ display }) {
   const [theme, setTheme] = useAtom(themeAtom);
 
   const options = [

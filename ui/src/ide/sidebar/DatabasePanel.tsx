@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function DatabasePanel({ sendDataToParent, display }) {
+export default function DatabasePanel({ display }) {
   return (
     <div className={display}>
       <div className="nav-content">

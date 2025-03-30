@@ -5,9 +5,10 @@ import getFileExtension from '../../utils';
 import { useAtom } from 'jotai';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseApiUrl } from '../../config';
-import { userNameAtom, zasperVersionAtom } from '../../../store/AppState';
+import { languageModeAtom, userNameAtom, zasperVersionAtom } from '../../../store/AppState';
 import FileUpload from './FileUpload';
 import { fileUploadParentPathAtom, showFileUploadDialogAtom } from './store';
+import { fileTabsAtom, IfileTab } from '../../../store/TabState';
 
 interface IContent {
   id: string;
@@ -18,18 +19,49 @@ interface IContent {
 }
 
 interface FileBrowserProps {
-  sendDataToParent: (name: string, path: string, type: string, kernelspec: string) => void;
   display: string;
   reloadCount: number;
 }
 
-export default function FileBrowser({ sendDataToParent, display, reloadCount }: FileBrowserProps) {
+export default function FileBrowser({ display, reloadCount }: FileBrowserProps) {
   const [contents, setContents] = useState<IContent[]>([]);
   const [cwd] = useState<string>('');
   const [projectName, setProjectName] = useState('');
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
   const [showFileUploader] = useAtom(showFileUploadDialogAtom);
+  const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
+  const [, setLanguageMode] = useAtom(languageModeAtom);
+
+  const handleTabActivate = (name: string, path: string, type: string, kernelspec: string) => {
+    const updatedFileTabs = { ...fileTabsState };
+    const fileTabData: IfileTab = {
+      type,
+      path,
+      name,
+      extension: getFileExtension(name),
+      active: true,
+      load_required: true,
+      kernelspec: kernelspec,
+    };
+
+    Object.keys(updatedFileTabs).forEach((key) => {
+      updatedFileTabs[key] = {
+        ...updatedFileTabs[key],
+        active: false,
+        load_required: false,
+      };
+    });
+    if (updatedFileTabs[path]) {
+      updatedFileTabs[path] = { ...updatedFileTabs[path], active: true };
+    } else {
+      updatedFileTabs[path] = fileTabData;
+    }
+    if (updatedFileTabs[path].extension) {
+      setLanguageMode(updatedFileTabs[path].extension);
+    }
+    setFileTabsState(updatedFileTabs);
+  };
 
   const FetchData = useCallback(async () => {
     try {
@@ -58,7 +90,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
   }, [cwd, setContents, setProjectName, setUserName, setVersion]);
 
   const handleFileClick = (name: string, path: string, type: string) => {
-    sendDataToParent(name, path, type, 'default');
+    handleTabActivate(name, path, type, 'default');
   };
 
   const createNewFile = async () => {
@@ -106,7 +138,7 @@ export default function FileBrowser({ sendDataToParent, display, reloadCount }: 
                   key={content.id}
                   parentDir={cwd}
                   data={content}
-                  sendDataToParent={sendDataToParent}
+                  handleTabActivate={handleTabActivate}
                 />
               ) : (
                 <FileItem
@@ -273,10 +305,10 @@ interface IDirectoryItemProps {
   key: string;
   parentDir: string;
   data: IContent;
-  sendDataToParent: (name: string, path: string, type: string, kernelspec: string) => void;
+  handleTabActivate: (name: string, path: string, type: string, kernelspec: string) => void;
 }
 
-const DirectoryItem = ({ parentDir, data, sendDataToParent }: IDirectoryItemProps) => {
+const DirectoryItem = ({ parentDir, data, handleTabActivate }: IDirectoryItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(data);
   const [text, setText] = useState(data.name);
@@ -416,7 +448,7 @@ const DirectoryItem = ({ parentDir, data, sendDataToParent }: IDirectoryItemProp
               <DirectoryItem
                 key={content.id}
                 parentDir={data.path}
-                sendDataToParent={sendDataToParent}
+                handleTabActivate={handleTabActivate}
                 data={content}
               />
             ) : (
@@ -424,7 +456,7 @@ const DirectoryItem = ({ parentDir, data, sendDataToParent }: IDirectoryItemProp
                 parentDir={data.path}
                 key={content.id}
                 content={content}
-                handleFileClick={sendDataToParent}
+                handleFileClick={handleTabActivate}
               />
             )
           )}

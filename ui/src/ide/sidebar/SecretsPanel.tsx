@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function SecretsPanel({ sendDataToParent, display }) {
+export default function SecretsPanel({ display }) {
   return (
     <div className={display}>
       <div className="nav-content">

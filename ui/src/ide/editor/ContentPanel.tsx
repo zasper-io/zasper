@@ -1,15 +1,18 @@
 import React from 'react';
 import Editor from './Editor';
+import { useAtom } from 'jotai';
+import { fileTabsAtom } from '../../store/TabState';
 
 export default function ContentPanel(props) {
+  const [fileTabsState] = useAtom(fileTabsAtom);
   return (
     <>
-      {Object.keys(props.tabs).map((key, index) => (
+      {Object.keys(fileTabsState).map((key, index) => (
         <div
           key={index}
-          className={props.tabs[key].active ? 'tabContent d-block' : 'tabContent d-none'}
+          className={fileTabsState[key].active ? 'tabContent d-block' : 'tabContent d-none'}
         >
-          <Editor key={index} data={props.tabs[key]} sendDataToParent={props.sendDataToParent} />
+          <Editor key={index} data={fileTabsState[key]} />
         </div>
       ))}
     </>

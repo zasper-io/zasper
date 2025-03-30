@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import '../command/CommandPalette.scss';
 import { BaseApiUrl } from '../../config';
 import { debounce } from 'lodash';
+import { useAtom } from 'jotai';
+import { fileTabsAtom, IfileTab } from '../../../store/TabState';
+import { languageModeAtom } from '../../../store/AppState';
+import getFileExtension from '../../utils';
 
 interface IContent {
   type: string;
@@ -10,14 +14,47 @@ interface IContent {
   content: IContent[];
 }
 
-const FileSearch = ({ sendDataToParent, onClose }) => {
+const FileSearch = ({ onClose }) => {
   const [input, setInput] = useState('');
   const [fileSuggestions, setFileSuggestions] = useState<IContent[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const cache = {};
 
+  const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
+  const [, setLanguageMode] = useAtom(languageModeAtom);
+
+  const handleTabActivate = (name: string, path: string, type: string, kernelspec: string) => {
+    const updatedFileTabs = { ...fileTabsState };
+    const fileTabData: IfileTab = {
+      type,
+      path,
+      name,
+      extension: getFileExtension(name),
+      active: true,
+      load_required: true,
+      kernelspec: kernelspec,
+    };
+
+    Object.keys(updatedFileTabs).forEach((key) => {
+      updatedFileTabs[key] = {
+        ...updatedFileTabs[key],
+        active: false,
+        load_required: false,
+      };
+    });
+    if (updatedFileTabs[path]) {
+      updatedFileTabs[path] = { ...updatedFileTabs[path], active: true };
+    } else {
+      updatedFileTabs[path] = fileTabData;
+    }
+    if (updatedFileTabs[path].extension) {
+      setLanguageMode(updatedFileTabs[path].extension);
+    }
+    setFileTabsState(updatedFileTabs);
+  };
+
   const handleFileClick = (name: string, path: string, type: string) => {
-    sendDataToParent(name, path, type);
+    handleTabActivate(name, path, type, 'none');
     onClose();
   };
 
@@ -28,7 +65,7 @@ const FileSearch = ({ sendDataToParent, onClose }) => {
       setSelectedIndex((prevIndex) => Math.max(prevIndex - 1, 0));
     } else if (e.key === 'Enter' && selectedIndex >= 0) {
       var file = fileSuggestions[selectedIndex];
-      sendDataToParent(file.name, file.path, file.type);
+      handleTabActivate(file.name, file.path, file.type, 'none');
       onClose();
     }
   };

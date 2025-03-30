@@ -5,7 +5,7 @@ import './GitPanel.scss';
 import { GitCommit } from './GitCommit';
 import { CommitGraphContainer } from './CommitGraphContainer';
 
-export default function GitPanel({ sendDataToParent, display }) {
+export default function GitPanel({ display }) {
   return (
     <div className={display}>
       <div className="nav-content">
