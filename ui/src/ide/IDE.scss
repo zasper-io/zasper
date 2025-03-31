@@ -131,6 +131,12 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   * {
     scrollbar-color: #1c1c1c #313131;
   }
+
+  select {
+    // A reset of styles, including removing the default dropdown arrow
+    background-color: #3e3e3e;
+    color: $darkThemeFontColor;
+  }
   .main-content {
     background-color: #3e3e3e;
   }
@@ -166,6 +172,11 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     background-color: #272727;
     color: $darkThemeFontColor;
   }
+
+  .navButton.active {
+    border: 1px solid #6c6c6c
+  }
+
   .tabContent {
     background-color: #272727;
   }
@@ -265,7 +276,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 
   .breadcrumbArea {
     color: #d2d2d2;
-    border-bottom: 1px solid #252525;
+    border-bottom: 1px solid #636262;
   }
 }
 

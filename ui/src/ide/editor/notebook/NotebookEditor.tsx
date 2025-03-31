@@ -40,6 +40,7 @@ export default function NotebookEditor(props) {
   const [showPrompt, setShowPrompt] = useState<Boolean>(false);
   const [promptContent, setPromptContent] = useState();
   const [userName] = useAtom(userNameAtom);
+  const [inspectReplyMessage, setInspectReplyMessage] = useState('');
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
 
   const toggleKernelSwitcher = () => {
@@ -189,6 +190,9 @@ export default function NotebookEditor(props) {
       if (message.header.msg_type === 'input_request') {
         setShowPrompt(true);
         setPromptContent(message);
+      }
+      if (message.header.msg_type === 'inspect_reply') {
+        setInspectReplyMessage(message.content.data['text/plain']);
       }
       if (message.header.msg_type === 'status') {
         setKernelStatus(message.content.execution_state);
@@ -447,6 +451,30 @@ export default function NotebookEditor(props) {
     }
   };
 
+  const submitTabCompletion = (cellId: string, source: string, cursor_pos: number) => {
+    if (session) {
+      const message = JSON.stringify({
+        channel: 'shell',
+        header: {
+          date: getTimeStamp(),
+          msg_id: '5cfe8270-a5b0-4706-868e-4249c852949e',
+          msg_type: 'inspect_request',
+          session: session.id,
+          username: userName,
+          version: '5.2',
+        },
+        parent_header: {},
+        metadata: {},
+        content: {
+          code: source,
+          cursor_pos: cursor_pos,
+          detail_level: 0,
+        },
+      });
+      kernelWebSocketClient.send(message);
+    }
+  };
+
   const createExecuteRequestMsg = (code: string) => {
     return {
       silent: false,
@@ -648,6 +676,7 @@ export default function NotebookEditor(props) {
           changeCellType={changeCellType}
           startWebSocket={startWebSocket}
           toggleKernelSwitcher={toggleKernelSwitcher}
+          submitTabCompletion={submitTabCompletion}
         />
         {debugMode && (
           <div>
@@ -699,6 +728,8 @@ export default function NotebookEditor(props) {
                 promptContent={promptContent}
                 submitPrompt={submitPrompt}
                 toggleShowPrompt={toggleShowPrompt}
+                submitTabCompletion={submitTabCompletion}
+                inspectReplyMessage={inspectReplyMessage}
               />
             ))}
         </div>

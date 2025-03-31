@@ -53,6 +53,7 @@ func SetUpZasper(version string, cwd string) Application {
 type Config struct {
 	TrackingID   string   `json:"tracking_id"`
 	LastProjects []string `json:"last_projects"`
+	Theme        string   `json:"theme`
 }
 
 // Function to expand the ~ to home directory path
@@ -135,6 +136,41 @@ func addProject(projectName string) error {
 		config.LastProjects = config.LastProjects[len(config.LastProjects)-5:]
 	}
 
+	err = WriteConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Function to generate or retreive Theme from the config
+func GetTheme() (string, error) {
+	config, err := ReadConfig()
+	if err != nil {
+		log.Info().Msgf("Error reading config file: %v", err)
+		return "", err
+	}
+
+	if config.Theme == "" {
+		config.Theme = "Light"
+		err = WriteConfig(config)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return config.Theme, nil
+}
+
+// Function to change theme and persist it
+func changeTheme(theme string) error {
+	config, err := ReadConfig()
+	if err != nil {
+		return err
+	}
+
+	config.Theme = theme
 	err = WriteConfig(config)
 	if err != nil {
 		return err

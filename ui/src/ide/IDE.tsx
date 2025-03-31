@@ -17,7 +17,14 @@ import SecretsPanel from './sidebar/SecretsPanel';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
-import { fileBrowserReloadCountAtom, fontSizeAtom } from '../store/AppState';
+import {
+  fileBrowserReloadCountAtom,
+  fontSizeAtom,
+  projectNameAtom,
+  userNameAtom,
+  zasperVersionAtom,
+} from '../store/AppState';
+import { BaseApiUrl } from './config';
 interface INav {
   name: string;
   display: string;
@@ -28,8 +35,11 @@ interface INavDict {
 }
 
 function IDE() {
-  const [theme] = useAtom(themeAtom);
+  const [theme, setTheme] = useAtom(themeAtom);
   const [reloadCount] = useAtom(fileBrowserReloadCountAtom);
+  const [, setProjectName] = useAtom(projectNameAtom);
+  const [, setUserName] = useAtom(userNameAtom);
+  const [, setVersion] = useAtom(zasperVersionAtom);
 
   const defaultNavState: INavDict = {
     fileBrowser: { name: 'fileBrowser', display: 'd-block' },
@@ -76,6 +86,20 @@ function IDE() {
     },
     [setFontSize]
   );
+
+  const initConfig = useCallback(async () => {
+    const res = await fetch(BaseApiUrl + '/api/info');
+    const resJson = await res.json();
+
+    setProjectName(resJson.project.toUpperCase());
+    setUserName(resJson.username);
+    setVersion(resJson.version);
+    setTheme(resJson.theme);
+  }, [setProjectName, setUserName, setVersion, setTheme]);
+
+  useEffect(() => {
+    initConfig();
+  }, [initConfig]);
 
   useEffect(() => {
     // Listen to the keydown event

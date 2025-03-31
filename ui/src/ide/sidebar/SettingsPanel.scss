@@ -1,6 +1,6 @@
 select {
   // A reset of styles, including removing the default dropdown arrow
-  background-color: #ededed;
+  background-color: #f8f8f8;
   color: #4b3e88;
   border: none;
   padding: 4px 14px;
@@ -49,8 +49,6 @@ select {
 
   // Optional styles
   // remove for transparency
-  background-color: #fff;
-  background-image: linear-gradient(to top, #f9f9f9, #fff 33%);
 
   // Custom arrow
   &:not(.select--multiple)::after {

@@ -5,7 +5,7 @@ import getFileExtension from '../../utils';
 import { useAtom } from 'jotai';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseApiUrl } from '../../config';
-import { languageModeAtom, userNameAtom, zasperVersionAtom } from '../../../store/AppState';
+import { languageModeAtom, projectNameAtom } from '../../../store/AppState';
 import FileUpload from './FileUpload';
 import { fileUploadParentPathAtom, showFileUploadDialogAtom } from './store';
 import { fileTabsAtom, IfileTab } from '../../../store/TabState';
@@ -26,9 +26,7 @@ interface FileBrowserProps {
 export default function FileBrowser({ display, reloadCount }: FileBrowserProps) {
   const [contents, setContents] = useState<IContent[]>([]);
   const [cwd] = useState<string>('');
-  const [projectName, setProjectName] = useState('');
-  const [, setUserName] = useAtom(userNameAtom);
-  const [, setVersion] = useAtom(zasperVersionAtom);
+  const [projectName] = useAtom(projectNameAtom);
   const [showFileUploader] = useAtom(showFileUploadDialogAtom);
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
   const [, setLanguageMode] = useAtom(languageModeAtom);
@@ -77,17 +75,10 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
       }));
 
       setContents(updatedContent);
-
-      const res2 = await fetch(BaseApiUrl + '/api/info');
-      const resJson2 = await res2.json();
-
-      setProjectName(resJson2.project.toUpperCase());
-      setUserName(resJson2.username);
-      setVersion(resJson2.version);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
-  }, [cwd, setContents, setProjectName, setUserName, setVersion]);
+  }, [cwd, setContents]);
 
   const handleFileClick = (name: string, path: string, type: string) => {
     handleTabActivate(name, path, type, 'default');
