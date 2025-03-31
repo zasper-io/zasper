@@ -37,14 +37,17 @@ type InfoResponse struct {
 	UserName    string `json:"username"`
 	OS          string `json:"os"`
 	Version     string `json:"version"`
+	Theme       string `json:"theme"`
 }
 
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
+	theme, _ := core.GetTheme()
 	response := InfoResponse{
 		ProjectName: core.Zasper.ProjectName,
 		UserName:    core.Zasper.UserName,
 		OS:          core.Zasper.OSName,
 		Version:     core.Zasper.Version,
+		Theme:       theme,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -161,12 +164,12 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	fmt.Println(`
-███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ 
+███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
 ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
   ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
  ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
 ███████╗██║  ██║███████║██║     ███████╗██║  ██║
-╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝                  
+╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
 	`)
 	fmt.Printf("Version: %s\n", core.Zasper.Version)
 	glog.Println("Zasper Server started! Listening on port", *port)

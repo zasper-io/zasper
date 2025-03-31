@@ -168,11 +168,7 @@ $fileBrowserItemHeight: 32px;
 }
 
 .navButton.active {
-  background-color: #e7e4f5;
-
-  img {
-    filter: invert(30%) sepia(41%) saturate(4131%) hue-rotate(233deg) brightness(83%) contrast(104%);
-  }
+  border: 1px solid #aa95ff
 }
 
 .help-icon {

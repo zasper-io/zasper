@@ -38,7 +38,7 @@ function NbButtons(props) {
       </button>
       <select
         onChange={(e) => props.changeCellType(e.target.value)}
-        className="form-select editor-select"
+        className=" editor-select"
         value={
           props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type
         }
