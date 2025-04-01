@@ -109,7 +109,6 @@ a {
   }
   .breadcrumbArea {
     background: #fff;
-    color: #000;
   }
 }
 
@@ -225,7 +224,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   }
 
   .editor-body2 {
-    background-color: #272727;
+    background-color: #1E1E1E;
   }
 
   .serial-no {
@@ -278,6 +277,10 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   .breadcrumbArea {
     color: #d2d2d2;
     border-bottom: 1px solid #636262;
+  }
+
+  .cellEditor .cm-editor {
+    border: 1px solid #1c1c1c;
   }
 }
 
