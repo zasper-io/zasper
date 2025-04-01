@@ -174,7 +174,8 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   }
 
   .navButton.active {
-    border: 1px solid #6c6c6c
+    border-left: 4px solid #fff;
+    background-color: transparent;
   }
 
   .tabContent {

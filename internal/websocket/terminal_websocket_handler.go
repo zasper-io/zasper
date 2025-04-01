@@ -219,7 +219,7 @@ func writeToTTY(sessionID string, connection *websocket.Conn, tty *os.File) {
 		dataBuffer := bytes.Trim(data, "\x00")
 
 		dataType := getMessageType(messageType)
-		log.Info().Msgf("Received %s (type: %v) message of size %v byte(s)", dataType, messageType, dataLength)
+		log.Debug().Msgf("Received %s (type: %v) message of size %v byte(s)", dataType, messageType, dataLength)
 
 		if messageType == websocket.BinaryMessage {
 			if dataBuffer[0] == 1 {

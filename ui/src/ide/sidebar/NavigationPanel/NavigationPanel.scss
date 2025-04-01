@@ -148,27 +148,26 @@ $fileBrowserItemHeight: 32px;
 
 .navigation-list {
   border-right: 1px solid #e0dceb;
-  padding: 9px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   padding-top: 13px;
 }
 
 .navButton {
   border: none;
-  border-radius: 50%;
+  padding: 9px;
   padding: 0;
-  height: 37px;
-  width: 37px;
-  border-radius: 50%;
+  height: 45px;
+  width: 60px;
   background-color: transparent;
   line-height: 30px;
   text-align: center;
 }
 
 .navButton.active {
-  border: 1px solid #aa95ff
+  border-left: 4px solid #272727;
+  background-color: #c3c1f4;
 }
 
 .help-icon {
