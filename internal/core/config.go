@@ -153,7 +153,7 @@ func GetTheme() (string, error) {
 	}
 
 	if config.Theme == "" {
-		config.Theme = "Light"
+		config.Theme = "light"
 		err = WriteConfig(config)
 		if err != nil {
 			return "", err
