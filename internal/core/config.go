@@ -53,7 +53,7 @@ func SetUpZasper(version string, cwd string) Application {
 type Config struct {
 	TrackingID   string   `json:"tracking_id"`
 	LastProjects []string `json:"last_projects"`
-	Theme        string   `json:"theme`
+	Theme        string   `json:"theme"`
 }
 
 // Function to expand the ~ to home directory path

@@ -100,6 +100,9 @@ func main() {
 
 	apiRouter.HandleFunc("/info", InfoHandler).Methods("GET")
 
+	// config
+	apiRouter.HandleFunc("/config/modify", core.ConfigModifyHandler).Methods("POST")
+
 	// contents
 	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentAPIHandler).Methods("POST")

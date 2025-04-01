@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
+import { vscodeLight, vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -159,7 +159,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             <div className="inner-content">
               <div className="cellEditor">
                 <CodeMirror
-                  theme={theme === 'light' ? githubLight : githubDark}
+                  theme={theme === 'light' ? vscodeLight : vscodeDark}
                   value={cellContents}
                   height="auto"
                   width="100%"
@@ -223,7 +223,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
         )}
         <div className="cellEditor">
           <CodeMirror
-            theme={theme === 'light' ? githubLight : githubDark}
+            theme={theme === 'light' ? vscodeLight : vscodeDark}
             value={cellContents}
             height="auto"
             width="100%"

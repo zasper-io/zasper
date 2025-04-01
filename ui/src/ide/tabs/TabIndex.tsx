@@ -2,7 +2,8 @@ import { useAtom } from 'jotai';
 import React from 'react';
 import { fileTabsAtom, IfileTab, IfileTabDict } from '../../store/TabState';
 import { languageModeAtom, terminalsAtom } from '../../store/AppState';
-import getFileExtension from '../utils';
+import getFileExtension, { getIconToLoad } from '../utils';
+import './TabIndex.scss';
 
 export default function TabIndex() {
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
@@ -79,6 +80,7 @@ export default function TabIndex() {
                 )
               }
             >
+              <img className="tabIcon" src={getIconToLoad(fileTabsState[key].name)} alt="" />
               {fileTabsState[key].name}
               <span className="editor-button">
                 <i

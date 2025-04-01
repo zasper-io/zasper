@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { githubLight, githubDark } from '@uiw/codemirror-theme-github';
+import { vscodeLight, vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { python } from '@codemirror/lang-python';
 import { html } from '@codemirror/lang-html';
 import { go } from '@codemirror/lang-go';
@@ -120,7 +120,7 @@ export default function FileEditor(props) {
           <BreadCrumb path={props.data.path} />
           <CodeMirror
             value={fileContents}
-            theme={theme === 'light' ? githubLight : githubDark}
+            theme={theme === 'light' ? vscodeLight : vscodeDark}
             minHeight="100%"
             width="100%"
             extensions={[getExtensionToLoad(), customKeymap]}

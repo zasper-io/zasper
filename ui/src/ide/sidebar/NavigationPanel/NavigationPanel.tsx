@@ -121,7 +121,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
 
 const FileBrowserIcon = () => {
   const [theme] = useAtom(themeAtom);
-  var fill = theme === 'dark' ? '#747474' : '#272727';
+  var fill = theme === 'dark' ? '#d2d2d2' : '#272727';
 
   useEffect(() => {}, [theme]);
 
@@ -171,7 +171,7 @@ const FileBrowserIcon = () => {
 
 const GitPanelIcon = () => {
   const [theme] = useAtom(themeAtom);
-  var fill = theme === 'dark' ? '#747474' : '#272727';
+  var fill = theme === 'dark' ? '#d2d2d2' : '#272727';
 
   return (
     <svg
@@ -193,7 +193,7 @@ const GitPanelIcon = () => {
 
 const JupyterInfoPanelIcon = () => {
   const [theme] = useAtom(themeAtom);
-  var fill = theme === 'dark' ? '#747474' : '#272727';
+  var fill = theme === 'dark' ? '#d2d2d2' : '#272727';
 
   return (
     <svg
@@ -229,7 +229,7 @@ const JupyterInfoPanelIcon = () => {
 
 const SettingsPanelIcon = () => {
   const [theme] = useAtom(themeAtom);
-  var fill = theme === 'dark' ? '#747474' : '#272727';
+  var fill = theme === 'dark' ? '#d2d2d2' : '#272727';
 
   return (
     <svg

@@ -2,6 +2,7 @@ import React from 'react';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../store/Settings';
 import './SettingsPanel.scss';
+import { BaseApiUrl } from '../config';
 
 export default function SettingsPanel({ display }) {
   const [theme, setTheme] = useAtom(themeAtom);
@@ -10,6 +11,14 @@ export default function SettingsPanel({ display }) {
     { label: 'Light', value: 'light' },
     { label: 'Dark', value: 'dark' },
   ];
+
+  const changeTheme = (e) => {
+    setTheme(e.target.value);
+    fetch(BaseApiUrl + '/api/config/modify', {
+      method: 'POST',
+      body: JSON.stringify({ key: 'theme', value: e.target.value }),
+    });
+  };
 
   return (
     <div className={display}>
@@ -25,7 +34,7 @@ export default function SettingsPanel({ display }) {
         </div>
         <div className="content-inner">
           <div className="select">
-            <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+            <select value={theme} onChange={(e) => changeTheme(e)}>
               {options.map((option, index) => (
                 <option key={index} value={option.value}>
                   {option.label}
