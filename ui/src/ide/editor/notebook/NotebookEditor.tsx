@@ -156,31 +156,31 @@ export default function NotebookEditor(props) {
 
   const startASession = useCallback(
     async (path: string, name: string, type: string, kernelspec: string) => {
-      if (kernelspec === 'default') {
-        kernelspec = 'python3';
-        // setShowKernelSwitcher(true);
-        setKernelName('python3');
-      }
-      fetch(BaseApiUrl + '/api/sessions', {
-        method: 'POST',
-        body: JSON.stringify({
-          path,
-          name,
-          type,
-          kernel: { name: kernelspec },
-        }),
-      })
-        .then(async (response) => await response.json())
-        .then((data) => {
-          setSession(data); // update session
-          console.log('session updated', data);
-          setActiveKernels((prevActiveKernels) => {
-            const updatedKernels = { ...prevActiveKernels };
-            updatedKernels[data.kernel.id] = data.kernel;
-            return updatedKernels;
-          });
+      setKernelName(kernelspec);
+      if (kernelspec === 'none') {
+        setShowKernelSwitcher(true);
+      } else {
+        fetch(BaseApiUrl + '/api/sessions', {
+          method: 'POST',
+          body: JSON.stringify({
+            path,
+            name,
+            type,
+            kernel: { name: kernelspec },
+          }),
         })
-        .catch((error) => console.log('error', error));
+          .then(async (response) => await response.json())
+          .then((data) => {
+            setSession(data); // update session
+            console.log('session updated', data);
+            setActiveKernels((prevActiveKernels) => {
+              const updatedKernels = { ...prevActiveKernels };
+              updatedKernels[data.kernel.id] = data.kernel;
+              return updatedKernels;
+            });
+          })
+          .catch((error) => console.log('error', error));
+      }
     },
     [setKernelName, setSession, setActiveKernels]
   );
@@ -343,6 +343,7 @@ export default function NotebookEditor(props) {
   function changeKernel(value: string) {
     setKernelName(value);
     startASession(data.path, data.name, data.type, value);
+    toggleKernelSwitcher();
   }
 
   function removeAnsiCodes(str) {

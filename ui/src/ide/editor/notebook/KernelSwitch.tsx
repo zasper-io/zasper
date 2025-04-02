@@ -4,22 +4,26 @@ import { useAtom } from 'jotai';
 import { IKernelspecsState, kernelspecsAtom } from '../../../store/AppState';
 
 interface ModalProps {
-  toggleKernelSwitcher: any;
+  toggleKernelSwitcher: () => void;
   kernelName: string;
-  changeKernel: any;
+  changeKernel: (kernel: string) => void;
 }
 
 function KernelSwitcher(props: ModalProps) {
   const [kernelspecs] = useAtom<IKernelspecsState>(kernelspecsAtom);
 
-  const [selectedKernel, setSelectedKernel] = useState<string>(props.kernelName);
+  const [selectedKernel, setSelectedKernel] = useState(
+    Object.keys(kernelspecs).length === 1
+      ? Object.values(kernelspecs)[0].name // Auto-select if only one kernel
+      : props.kernelName
+  );
 
   return (
-    <div className="modal" id="exampleModal" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div className="modal" id="exampleModal" aria-labelledby="exampleModalLabel">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-head">
-            Change Kernel
+            {props.kernelName === 'none' ? 'Select Kernel' : 'Switch Kernel'}
             <button
               type="button"
               className="modal-btn-close"
@@ -47,7 +51,7 @@ function KernelSwitcher(props: ModalProps) {
                     ))}
                   </select>
                   <button className="gitbutton" onClick={() => props.changeKernel(selectedKernel)}>
-                    Change Kernel
+                    {props.kernelName === 'none' ? 'Select Kernel' : 'Switch Kernel'}
                   </button>
                 </div>
               </div>

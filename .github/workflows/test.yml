@@ -1,22 +1,22 @@
-name: Testing the frontend 
+name: Testing the frontend
 
 on:
-    pull_request:
-        branches:
-            - main
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-    test:
-        name: Running the tests
-        runs-on: ubuntu-latest
+  test:
+    name: Running the tests
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout the code
-              uses: actions/checkout@v2
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v2
 
-            - name: Install dependencies
-              run: make init
+      - name: Install dependencies
+        run: make init
 
-            - name: Run the tests
-              run: make test
-    
+      - name: Run the tests
+        run: make test
