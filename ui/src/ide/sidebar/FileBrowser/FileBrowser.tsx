@@ -81,7 +81,7 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
   }, [cwd, setContents]);
 
   const handleFileClick = (name: string, path: string, type: string) => {
-    handleTabActivate(name, path, type, 'default');
+    handleTabActivate(name, path, type, 'none');
   };
 
   const createNewFile = async () => {
