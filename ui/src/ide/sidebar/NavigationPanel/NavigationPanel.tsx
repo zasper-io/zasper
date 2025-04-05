@@ -128,7 +128,7 @@ const FileMenuIcon = () => {
   );
 };
 
-const CheckmarkIcon = () => {
+export const CheckmarkIcon = () => {
   const [theme] = useAtom(themeAtom);
   var fill = theme === 'dark' ? '#d2d2d2' : '#272727';
 
