@@ -16,7 +16,7 @@ export default function TabIndex() {
   const [, setLanguageMode] = useAtom(languageModeAtom);
   const [terminals, setTerminals] = useAtom(terminalsAtom);
   const [, setKernels] = useAtom(kernelsAtom);
-  const [notebookKernelMap] = useAtom(notebookKernelMapAtom);
+  const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
 
   const handleTabActivate = (name: string, path: string, type: string, kernelspec: string) => {
     const updatedFileTabs = { ...fileTabsState };
@@ -77,6 +77,12 @@ export default function TabIndex() {
       console.log('notebook close signal');
       const kernelId = notebookKernelMap[key].id;
       killKernel(kernelId);
+
+      setNotebookKernelMap((prevNotebookKernelMap) => {
+        const updatedNotebookKernelMap = { ...prevNotebookKernelMap };
+        delete notebookKernelMap[key];
+        return updatedNotebookKernelMap;
+      });
 
       setKernels((prevKernels) => {
         const updatedKernels = { ...prevKernels };
