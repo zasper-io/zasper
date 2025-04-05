@@ -220,7 +220,7 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
 
   const handleClick = (name: string, path: string, type: string) => {
     if (!isMenuVisible) {
-      handleFileClick(name, getPath(), type, 'default');
+      handleFileClick(name, getPath(), type, 'none');
     }
   };
 

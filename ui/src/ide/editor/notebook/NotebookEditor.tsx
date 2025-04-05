@@ -9,7 +9,7 @@ import NbButtons from './NbButtons';
 import Cell, { CodeMirrorRef, ICell } from './Cell';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
-import { IKernel, kernelsAtom, userNameAtom } from '../../../store/AppState';
+import { IKernel, kernelsAtom, notebookKernelMapAtom, userNameAtom } from '../../../store/AppState';
 import KernelSwitcher from './KernelSwitch';
 import { INotebookModel } from './types';
 import BreadCrumb from '../BreadCrumb';
@@ -42,6 +42,8 @@ export default function NotebookEditor(props) {
   const [userName] = useAtom(userNameAtom);
   const [inspectReplyMessage, setInspectReplyMessage] = useState('');
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
+  const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
+  const [, setKernels] = useAtom(kernelsAtom);
 
   const toggleKernelSwitcher = () => {
     setShowKernelSwitcher(!showKernelSwitcher);
@@ -178,11 +180,16 @@ export default function NotebookEditor(props) {
               updatedKernels[data.kernel.id] = data.kernel;
               return updatedKernels;
             });
+            setNotebookKernelMap((prevNotebookKernelMap) => {
+              const updatedNotebookKernelMap = { ...prevNotebookKernelMap };
+              updatedNotebookKernelMap[data.path] = data.kernel;
+              return updatedNotebookKernelMap;
+            });
           })
           .catch((error) => console.log('error', error));
       }
     },
-    [setKernelName, setSession, setActiveKernels]
+    [setKernelName, setSession, setActiveKernels, setNotebookKernelMap]
   );
 
   const updateNotebook = useCallback(
@@ -341,8 +348,27 @@ export default function NotebookEditor(props) {
   }, [session, startWebSocket]);
 
   function changeKernel(value: string) {
-    setKernelName(value);
-    startASession(data.path, data.name, data.type, value);
+    // console.log('triggered!');
+    // console.log(kernelName, value);
+    if (data.path in notebookKernelMap) {
+      const kernelId = notebookKernelMap[data.path].id;
+
+      setNotebookKernelMap((prevNotebookKernelMap) => {
+        const updatedNotebookKernelMap = { ...prevNotebookKernelMap };
+        delete updatedNotebookKernelMap[data.path];
+        return updatedNotebookKernelMap;
+      });
+
+      setKernels((prevKernels) => {
+        const updatedKernels = { ...prevKernels };
+        delete updatedKernels[kernelId];
+        return updatedKernels;
+      });
+    }
+    if (kernelName !== value) {
+      setKernelName(value);
+      startASession(data.path, data.name, data.type, value);
+    }
     toggleKernelSwitcher();
   }
 

@@ -6,10 +6,11 @@ import { BaseApiUrl } from '../../config';
 
 export default function JupyterInfoPanel({ display }) {
   const [kernelspecs] = useAtom(kernelspecsAtom);
-  const [kernels] = useAtom(kernelsAtom);
+  const [kernels, setKernels] = useAtom(kernelsAtom);
   const [terminals] = useAtom(terminalsAtom);
 
-  function killKernel(id) {
+  function killKernel(key) {
+    const id = kernels[key].id;
     fetch(BaseApiUrl + '/api/kernels/' + id, {
       method: 'DELETE',
       headers: {
@@ -19,7 +20,11 @@ export default function JupyterInfoPanel({ display }) {
       .then((response) => {
         if (response.ok) {
           console.log('Kernel killed');
-          // sendDataToParentsendDataToParent('kernels');
+          setKernels((prevKernels) => {
+            const updatedKernels = { ...prevKernels };
+            delete updatedKernels[key];
+            return updatedKernels;
+          });
         } else {
           console.log('Failed to kill kernel');
         }
@@ -64,10 +69,7 @@ export default function JupyterInfoPanel({ display }) {
               Object.keys(kernels).map((key) => (
                 <li className="fileItem" key={key}>
                   {kernels[key].name}
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => killKernel(kernels[key].id)}
-                  >
+                  <button className="btn btn-danger btn-sm" onClick={() => killKernel(key)}>
                     Kill
                   </button>
                 </li>

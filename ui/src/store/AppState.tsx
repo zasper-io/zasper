@@ -28,6 +28,10 @@ export interface IKernelsState {
   [key: string]: IKernel;
 }
 
+export interface INotebookKernelMap {
+  [key: string]: IKernel;
+}
+
 export interface ITerminalsState {
   [key: string]: ITerminal;
 }
@@ -36,6 +40,7 @@ export const zasperVersionAtom = atom<string>('');
 export const projectNameAtom = atom<string>('');
 export const kernelspecsAtom = atom<IKernelspecsState>({});
 export const kernelsAtom = atom<IKernelsState>({});
+export const notebookKernelMapAtom = atom<INotebookKernelMap>({});
 export const terminalsAtom = atom<ITerminalsState>({});
 export const terminalsCountAtom = atom<number>(0);
 export const userNameAtom = atom<string>('');
