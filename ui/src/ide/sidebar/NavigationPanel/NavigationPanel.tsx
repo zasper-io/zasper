@@ -113,8 +113,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
 
 const FileMenuIcon = () => {
   const [theme] = useAtom(themeAtom);
-  var fill = theme === 'dark' ? '#d2d2d2' : '#272727';
-
+  const fill = theme === 'dark' ? '#d2d2d2' : '#272727';
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
