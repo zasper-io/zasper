@@ -20,3 +20,20 @@
 .context-menu-item:hover {
   background-color: #f0f0f0;
 }
+
+.themeDark{
+  .context-menu {
+    background: #181818;
+    color: #f0f0f0;
+    box-shadow: 0px 4px 8px rgba(255, 255, 255, 0.1);
+  }
+
+  .context-menu-item {
+    cursor: pointer;
+    color: #f0f0f0;
+  }
+
+  .context-menu-item:hover {
+    background-color: #515151;
+  }
+}

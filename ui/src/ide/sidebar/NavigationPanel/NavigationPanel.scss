@@ -45,18 +45,16 @@ $fileBrowserItemHeight: 32px;
       padding-left: 1rem;
       color: #fff;
       font-weight: 400;
-      display: flex;
+      display: block;
 
       .projectName {
-        width: 65%;
         float: left;
-        margin-right: 40px;
       }
 
       .projectButtons {
-        width: 35%;
         fill: #ffffff;
         float: right;
+        margin-right: 20px;
       }
     }
 
