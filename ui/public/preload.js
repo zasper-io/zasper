@@ -11,7 +11,7 @@ process.once('loaded', () => {
   contextBridge.exposeInMainWorld('api', {
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
     runCommand: (directory) => ipcRenderer.invoke('runCommand', directory),
+    getVersion: () => ipcRenderer.invoke('renderer:currentVersion'),
+    getLatestReleaseVersion: () => ipcRenderer.invoke('renderer:getLatestReleaseVersion'),
   });
 })
-
-

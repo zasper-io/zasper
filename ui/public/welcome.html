@@ -27,17 +27,21 @@
 
     <title>Zasper</title>
     <style>
+        .container-full{
+            width: 100%;
+            height: 100vh;
+        }
+
         .welcome-screen-wraper {
             display: flex;
             justify-content: space-between;
-            width: 85%;
+            width: 100%;
             margin: 0 auto;
             overflow: hidden;
             box-shadow: 0px 3px 36px #d6d0e8;
             position: relative;
             z-index: 1;
-            width: 100%;
-            height: 100vh;
+            height: 100%;
         }
 
         .welcome-screen-content {
@@ -78,7 +82,7 @@
             justify-content: center;
             margin-top: 15px;
         }
-        
+
         .welcome-screen-form-wraper button {
             border: none;
             background: #583BD8;
@@ -92,16 +96,11 @@
             color: #fff;
         }
 
-        #content {
-            min-height: 100vh;
-            transition: all 0.3s;
-            width: calc(100% - 320px);
-            right: 0;
-            position: absolute;
-        }
-
-        .content-full {
-            width: calc(100% - 80px) !important;
+        .info{
+            font-size: 14px;
+            width: 50%;
+            margin: 125px auto;
+            text-align: center;
         }
 
     </style>
@@ -109,25 +108,24 @@
 
 <body>
     <div class="container-full">
-        <div class="row">
-            <div class="col-12">
-                <div class="welcome-screen-wraper">
-                    <div class="welcome-screen-content">
-                        <div class="login-section-image"><img src="./images/header-image.svg" alt="#"></div>
+        <div class="welcome-screen-wraper">
+            <div class="welcome-screen-content">
+                <div class="login-section-image"><img src="./images/header-image.svg" alt="#"></div>
 
+            </div>
+            <div class="welcome-screen-form">
+                <div class="welcome-screen-form-top">
+                    <div class="zlogo">
+                        <img className='logo-white' src='./images/logo.svg' alt='#' />
                     </div>
-                    <div class="welcome-screen-form">
-                        <div class="welcome-screen-form-top">
-                            <div class="zlogo">
-                                <img className='logo-white' src='./images/logo.svg' alt='#' />
-                            </div>
-                        </div>
-                        <div class="welcome-screen-form-wraper">
-                            <form>
-                                <button type="button" id="open-directory-btn">Open Project</button>
-                            </form>
-                        </div>
-                    </div>
+                </div>
+                <div class="welcome-screen-form-wraper">
+                    <form>
+                        <button type="button" id="open-directory-btn">Open Project</button>
+                    </form>
+                </div>
+                <div class="info">
+                    <p>Version: v<span id="version">Loading...</span></p>
                 </div>
             </div>
         </div>
@@ -143,6 +141,19 @@
                 await window.api.runCommand(selectedDirectory);
             }
         });
+
+        // Fetch the app version from the main process
+        async function showAppVersion() {
+            try {
+                const version = await window.api.getVersion();
+                document.getElementById('version').innerText = version;
+            } catch (error) {
+                console.error('Failed to fetch current version:', error);
+            }
+        }
+        window.onload = showAppVersion;
+
+
     </script>
 </body>
 

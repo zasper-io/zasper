@@ -13,6 +13,8 @@ var mainWindow;
 var welcomeScreen;
 var welcomeScreenOn = false;
 
+const feedURL = 'https://update.electronjs.org/zasper-io/zasper';
+
 // Optional, initialize the logger for any renderer process
 log.transports.file.level = "silly";
 
@@ -104,6 +106,38 @@ app.whenReady().then(() => {
       log.info("Window created!");
     }
   });
+
+   // Check for updates as soon as the app is ready
+  autoUpdater.setFeedURL(feedURL); // Set the URL where the updates will be downloaded from
+
+  // Automatically check for updates when the app is ready
+  autoUpdater.checkForUpdatesAndNotify();
+
+  // Handle the event when an update is downloaded
+  autoUpdater.on('update-downloaded', (info) => {
+    dialog
+      .showMessageBox({
+        type: 'info',
+        buttons: ['Restart', 'Later'],
+        title: 'Update Available',
+        message: 'A new version has been downloaded. Restart the application to apply the update.',
+      })
+      .then((result) => {
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall();
+        }
+      });
+  });
+
+  // Handle update errors
+  autoUpdater.on('error', (error) => {
+    console.error('Error occurred while updating:', error);
+  });
+
+  // Optional: Show update progress
+  autoUpdater.on('download-progress', (progressObj) => {
+    console.log('Update progress:', progressObj);
+  });
 });
 
 ipcMain.handle("dialog:openDirectory", async () => {
@@ -136,6 +170,35 @@ ipcMain.handle("runCommand", async (event, directory) => {
 
   checkApi();
 });
+
+async function getLatestReleaseVersion() {
+  try {
+      const response = await fetch('https://api.github.com/repos/zasper-io/zasper/releases/latest');
+      const data = await response.json();
+
+      if (data && data.tag_name) {
+      // Update the version in the HTML
+      document.getElementById('version').innerText = data.tag_name;
+      } else {
+      console.error('Version not found in response');
+      }
+  } catch (error) {
+      console.error('Error fetching the latest release:', error);
+  }
+}
+
+function getCurrentVersion() {
+  return app.getVersion();
+}
+
+ipcMain.handle('renderer:currentVersion', () => {
+  return getCurrentVersion();
+});
+
+ipcMain.handle('renderer:getLatestReleaseVersion', () => {
+  return getLatestReleaseVersion();
+});
+
 
 app.on("before-quit", () => {
   if (apiProcess) {
