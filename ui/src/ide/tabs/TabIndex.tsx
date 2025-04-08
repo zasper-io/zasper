@@ -124,12 +124,14 @@ export default function TabIndex() {
             >
               <img className="tabIcon" src={getIconToLoad(fileTabsState[key].name)} alt="" />
               {fileTabsState[key].name}
-              <span className="editor-button">
-                <i
-                  className="fas fa-times-circle"
-                  onClick={async (e) => await handleTabClose(e, key)}
-                />
-              </span>
+              {fileTabsState[key].name != 'Launcher' && (
+                <span className="editor-button">
+                  <i
+                    className="fas fa-times-circle"
+                    onClick={async (e) => await handleTabClose(e, key)}
+                  />
+                </span>
+              )}
             </button>
           </li>
         ))}
