@@ -124,7 +124,7 @@ export default function TabIndex() {
             >
               <img className="tabIcon" src={getIconToLoad(fileTabsState[key].name)} alt="" />
               {fileTabsState[key].name}
-              {fileTabsState[key].name != 'Launcher' && (
+              {fileTabsState[key].name !== 'Launcher' && (
                 <span className="editor-button">
                   <i
                     className="fas fa-times-circle"
