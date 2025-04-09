@@ -18,7 +18,7 @@ builds:
       - CGO_ENABLED=0
     main: .
     ldflags:
-      - -s -w -X main.build={{.Env.VERSION_BUILD_FLAG}}
+      - -s -w -X main.version={{.Env.VERSION_BUILD_FLAG}}
     targets:
       - darwin_amd64
       - darwin_arm64
