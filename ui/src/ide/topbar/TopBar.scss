@@ -7,11 +7,12 @@
   width: 100%;
   padding-left: 45px;
   background-color: #5f568f;
+  height: 100%;
 }
 
 .userName {
   font-weight: 400;
-  margin-top: 2px;
+  margin-top: 6px;
   border-radius: 5px;
   vertical-align: middle;
   text-align: center;
@@ -35,12 +36,13 @@
     flex-wrap: wrap;
     flex-direction: column-reverse;
     vertical-align: middle;
-    height: 90%;
+    height: 100%;
   }
 
   .search-wraper {
     position: relative;
     width: 60%;
+    height: 100%;
   }
 
   .search-wraper input {

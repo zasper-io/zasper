@@ -7,7 +7,6 @@ export default function getFileExtension(filename: string): string | null {
 }
 
 export const getIconToLoad = (fileName) => {
-  const extension = getFileExtension(fileName);
   const iconMap: { [key: string]: string } = {
     c: './images/editor/c-icon.svg',
     cpp: './images/editor/cpp-icon.svg',
@@ -33,7 +32,20 @@ export const getIconToLoad = (fileName) => {
     markdown: './images/editor/md-icon.svg',
     txt: './images/editor/txt-icon.svg',
     gitignore: './images/editor/git-icon.svg',
+    license: './images/editor/license-icon.svg',
+    makefile: './images/editor/makefile-icon.svg',
+    launcher: './images/logo-icon.svg',
   };
-  const icon = extension != null ? iconMap[extension] : './images/editor/unknown-file-icon.svg';
-  return icon != null ? icon : './images/editor/unknown-file-icon.svg';
+
+  // Get the file extension or use the base filename if no extension exists
+  const extension = getFileExtension(fileName)?.toLowerCase();
+  const baseName = fileName.split('/').pop()?.toLowerCase();
+
+  // Handle cases where the extension is valid or null
+  const icon =
+    (extension && iconMap[extension]) ||
+    (baseName && iconMap[baseName]) ||
+    './images/editor/unknown-file-icon.svg';
+
+  return icon;
 };
