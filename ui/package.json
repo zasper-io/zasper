@@ -111,6 +111,7 @@
       "target": "dmg",
       "category": "public.app-category.developer-tools",
       "identity": "Prasun Anand (C72MG66GBX)",
+      "hardenedRuntime": true,
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist"
     },
