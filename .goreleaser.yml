@@ -18,7 +18,7 @@ builds:
       - CGO_ENABLED=0
     main: .
     ldflags:
-      - -s -w -X main.build={{.Env.VERSION_BUILD_FLAG}}
+      - -s -w -X main.version={{.Env.VERSION_BUILD_FLAG}}
     targets:
       - darwin_amd64
       - darwin_arm64
@@ -42,7 +42,7 @@ notarize:
         key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
         key: "{{.Env.MACOS_NOTARY_KEY}}"
         wait: true
-        timeout: 20m
+        timeout: 30m
 
 archives:
   - id: archive
@@ -56,4 +56,3 @@ archives:
       - goos: windows
         formats:
           - zip
-        

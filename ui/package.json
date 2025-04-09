@@ -95,7 +95,6 @@
   },
   "build": {
     "appId": "io.zasper.app",
-    "afterSign": "notarize.js",
     "files": [
       "build/**/*",
       "node_modules/**/*"
@@ -108,7 +107,15 @@
     },
     "mac": {
       "icon": "build/logo512.png",
-      "target": "dmg"
+      "target": "dmg",
+      "category": "public.app-category.developer-tools",
+      "identity": "Prasun Anand (C72MG66GBX)",
+      "hardenedRuntime": true,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist",
+      "notarize" : {
+        "teamId": "C72MG66GBX"
+      }
     },
     "linux": {
       "icon": "build/logo512.png",
