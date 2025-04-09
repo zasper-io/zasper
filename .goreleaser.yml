@@ -42,7 +42,7 @@ notarize:
         key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
         key: "{{.Env.MACOS_NOTARY_KEY}}"
         wait: true
-        timeout: 20m
+        timeout: 30m
 
 archives:
   - id: archive
@@ -56,4 +56,3 @@ archives:
       - goos: windows
         formats:
           - zip
-        
