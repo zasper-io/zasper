@@ -26,7 +26,7 @@ const notarizeApp = async (context) => {
       appBundleId: appId,
       appPath: appPath,
       appleId: process.env.APPLE_ID,
-      appleIdPassword: process.env.APPLE_ID_PASSWORD,
+      appleIdPassword: process.env.APPLE_APP_SPECIFIC_PASSWORD,
       ascProvider: '', // If applicable, add ASC provider here
     });
   } catch (error) {
