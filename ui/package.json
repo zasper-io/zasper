@@ -91,7 +91,8 @@
     "electron-package-linux": "electron-builder --linux",
     "electron-package-rpm": "electron-builder --linux rpm",
     "electron-package-snap": "electron-builder --linux snap",
-    "electron-package-appImage": "electron-builder --linux AppImage"
+    "electron-package-appImage": "electron-builder --linux AppImage",
+    "electron-package-windows": "electron-builder --windows"
   },
   "build": {
     "appId": "io.zasper.app",
