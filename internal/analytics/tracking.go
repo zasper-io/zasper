@@ -65,7 +65,8 @@ func SendStatsToPostHog() {
 		Set("terminals_opened", stats.TerminalsOpened).
 		Set("code_cells_executed", stats.CodeCellsExecuted).
 		Set("files_opened", stats.FilesOpened).
-		Set("timestamp", time.Now().Format(time.RFC3339))
+		Set("timestamp", time.Now().Format(time.RFC3339)).
+		Set("OS", core.Zasper.OSName)
 
 	config, _ := core.ReadConfig()
 
@@ -149,6 +150,7 @@ func TrackEvent(eventName string, properties map[string]interface{}) {
 	}
 
 	properties["source"] = "web"
+	properties["OS"] = core.Zasper.OSName
 
 	err := client.Enqueue(posthog.Capture{
 		DistinctId: trackingID,
