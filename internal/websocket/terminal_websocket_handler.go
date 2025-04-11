@@ -13,6 +13,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
 )
 
@@ -120,6 +121,8 @@ func startTTY() (*os.File, *exec.Cmd, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to start TTY: %w", err)
 	}
+
+	analytics.IncrementUsageStat(analytics.EventTerminalOpened)
 
 	return tty, cmd, nil
 }

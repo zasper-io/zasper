@@ -185,6 +185,14 @@ func main() {
 		}
 	}()
 
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			analytics.SendStatsToPostHog()
+		}
+	}()
+
 	<-stop
 	fmt.Println("Shutting down server...")
 
@@ -199,6 +207,7 @@ func main() {
 
 // cleanup performs cleanup operations
 func cleanup() {
+	analytics.SendStatsToPostHog()
 	analytics.TrackEvent("server_shutdown", map[string]interface{}{"source": "web"})
 	fmt.Println("Performing cleanup...")
 	kernel.Cleanup()

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
 
@@ -73,6 +74,8 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
+
+	analytics.IncrementUsageStat(analytics.EventNotebookOpened)
 	return output, nil
 }
 
@@ -178,6 +181,8 @@ func getFileModelWithContent(path string) (models.ContentModel, error) {
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
+
+	analytics.IncrementUsageStat(analytics.EventFileOpened)
 	return output, nil
 }
 

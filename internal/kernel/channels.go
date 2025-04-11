@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/internal/analytics"
 
 	"github.com/go-zeromq/zmq4"
 )
@@ -201,6 +202,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 			return
 		}
 		log.Debug().Msgf("msg is => %v", msg)
+		analytics.IncrementUsageStat(analytics.EventCodeCellExecuted)
 		if msg.Channel == "stdin" {
 			kwsConn.Session.SendStreamMsg(kwsConn.Channels["stdin"], msg)
 		} else {
