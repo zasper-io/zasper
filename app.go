@@ -207,8 +207,8 @@ func main() {
 
 // cleanup performs cleanup operations
 func cleanup() {
-	analytics.SendStatsToPostHog()
-	analytics.TrackEvent("server_shutdown", map[string]interface{}{"source": "web"})
+	analytics.CloseClient()
+
 	fmt.Println("Performing cleanup...")
 	kernel.Cleanup()
 }

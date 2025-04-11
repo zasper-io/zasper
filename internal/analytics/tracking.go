@@ -165,3 +165,12 @@ func TrackEvent(eventName string, properties map[string]interface{}) {
 
 	log.Debug().Msg("Sent tracking event successfully.")
 }
+
+func CloseClient() {
+	SendStatsToPostHog()
+	TrackEvent("server_shutdown", map[string]interface{}{"source": "web"})
+	// Flush analytics queue
+	if client != nil {
+		client.Close() // This will block until the queue is flushed
+	}
+}
