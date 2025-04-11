@@ -76,7 +76,7 @@ func SendStatsToPostHog() {
 	})
 
 	if err != nil {
-		log.Info().Msgf("PostHog enqueue failed: %v. Retrying once...", err)
+		log.Debug().Msgf("PostHog enqueue failed: %v. Retrying once...", err)
 
 		// Retry once after a short delay
 		time.Sleep(2 * time.Second)
@@ -89,11 +89,11 @@ func SendStatsToPostHog() {
 		if err != nil {
 			log.Printf("PostHog enqueue retry also failed: %v", err)
 		} else {
-			log.Info().Msg("PostHog retry succeeded.")
+			log.Debug().Msg("PostHog retry succeeded.")
 			stats = UsageStats{}
 		}
 	} else {
-		log.Info().Msg("PostHog session usage summary sent successfully.")
+		log.Debug().Msg("PostHog session usage summary sent successfully.")
 		stats = UsageStats{}
 	}
 }
@@ -102,7 +102,7 @@ func SendStatsToPostHog() {
 func GetAnonymousTrackingId() (string, error) {
 	config, err := core.ReadConfig()
 	if err != nil {
-		log.Info().Msgf("Error reading config file: %v", err)
+		log.Debug().Msgf("Error reading config file: %v", err)
 		return "", err
 	}
 
@@ -161,5 +161,5 @@ func TrackEvent(eventName string, properties map[string]interface{}) {
 		return
 	}
 
-	log.Info().Msg("Sent tracking event successfully.")
+	log.Debug().Msg("Sent tracking event successfully.")
 }
