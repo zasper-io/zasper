@@ -69,21 +69,21 @@ Hence the Go version of Zasper was born!
 ![Editor](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/terminal.png)
 
 ### Launcher
-![Launcher](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/launcher.png) 
+![Launcher](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/launcher.png)
 
 ### Jupyter Notebook
-![Notebook](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/notebook.png) 
+![Notebook](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/notebook.png)
 
 ### Version Control
-![Version Control](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/git.png) 
+![Version Control](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/git.png)
 
 ### Command Palette
 ![Command Palette](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/commandPalette.png)
 
 ### Dark Mode
-![Dark mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/dark.png) 
+![Dark mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/dark.png)
 
-![Dark Notebook mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/darkNotebook.png) 
+![Dark Notebook mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/darkNotebook.png)
 
 ## Architecture
 ![architecture](./assets/architecture.svg)
@@ -97,7 +97,7 @@ Zasper comes in two flavours:
 2. Desktop App
 
 
-#### Initializing 
+#### Initializing
 
 Download `zasper` from Github and initialize the dependencies.
 
@@ -113,7 +113,7 @@ make init
 make webapp-install
 ```
 
-This will create a binary `zasper` and add it to your go executables directory. Make sure you have go executables on your path. 
+This will create a binary `zasper` and add it to your go executables directory. Make sure you have go executables on your path.
 
 Run zasper in any directory to see if the installation was done correctly.
 
@@ -134,13 +134,13 @@ Go to any directory you want to serve and run `zasper`. This starts zasper serve
 ```
 prasunanand@Prasuns-Laptop nbformat_go % zasper
 
-███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ 
+███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
 ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
   ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
  ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
 ███████╗██║  ██║███████║██║     ███████╗██║  ██║
-╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝                  
-	
+╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
+
 2025/02/21 10:19:44 Zasper Server started! Listening on port :8048
 2025/02/21 10:19:44 Visit Zasper webapp on http://localhost:8048
 
@@ -163,7 +163,7 @@ make electron-package-linux # on Linux
 This creates  `zasper-0.1.0-arm64.dmg`(macOS) and `zasper_0.1.0_arm64.deb`(Debian) installer.
 
 ```
-prasunanand@Prasuns-Laptop zasper % ls -l ui/dist 
+prasunanand@Prasuns-Laptop zasper % ls -l ui/dist
 total 626360
 -rw-r--r--   1 prasunanand  staff       1713 Feb 21 10:31 builder-debug.yml
 -rw-r--r--   1 prasunanand  staff        353 Feb 21 10:29 builder-effective-config.yaml
@@ -230,7 +230,7 @@ See [Code of conduct](./CODE_OF_CONDUCT.md)
 Data Scientists and AI Engineers spend most of their time running Notebooks on IDEs and hence need a robust ecosystem.
 Zasper aspires to be a full fledged IDE and the future development will be along making it more efficient by:
 
-* Allowing custom data apps support rather than just Jupyter Notebooks. 
+* Allowing custom data apps support rather than just Jupyter Notebooks.
 * Easier integration with the existing tools.
 * Zasper Hub for Self Hosted deployment in the cloud.
 
@@ -254,9 +254,19 @@ Join Zasper Community on [Slack](https://join.slack.com/t/zasper/shared_invite/z
 
 <img height=40px src="./assets/zerodha.png">
 
+## Support and Sponsor Us
+
+If you like Zasper, please consider [sponsoring us on GitHub](https://github.com/sponsors/prasunanand).
+
+## Contributors
+
+<a href = "https://github.com/zasper-io/zasper/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=zasper-io/zasper"/>
+</a>
+
 # Copyright
 
-Prasun Anand 
+Prasun Anand
 
 ## ⚖️ License
 
