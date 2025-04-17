@@ -5,12 +5,12 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-    
+
 
 jobs:
   build:
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,7 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23' 
+          go-version: '1.23'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -27,6 +27,10 @@ jobs:
 
       - name: Install dependencies
         run: make init
+
+      - name: Read version from file
+        id: get_version
+        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
 
       - name: Build Frontend and Backend
         run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make build
@@ -37,7 +41,5 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zasper-0.1.0-alpha-arm64.dmg
-          path: ui/dist/zasper-0.1.0-alpha-arm64.dmg
-
-               
+          name: zasper-${{ steps.get_version.outputs.VERSION }}-arm64.dmg
+          path: ui/dist/zasper-${{ steps.get_version.outputs.VERSION }}-arm64.dmg
