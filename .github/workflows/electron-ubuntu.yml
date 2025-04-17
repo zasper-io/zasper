@@ -1,4 +1,4 @@
-name: Build Electron App on Ubuntu
+name: Build Electron App for Ubuntu
 
 on:
   push:
@@ -25,6 +25,10 @@ jobs:
         with:
           node-version: '22.7'
 
+      - name: Read version from file
+        id: get_version
+        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
+
       - name: Install Dependencies
         run: make init
 
@@ -37,6 +41,5 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zasper-0.1.0-arm64.dmg
-          path: ui/dist
-
+          name: zasper_${{ steps.get_version.outputs.VERSION }}.deb
+          path: ui/dist/zasper_${{ steps.get_version.outputs.VERSION }}.deb

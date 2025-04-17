@@ -1,4 +1,4 @@
-name: MacOS Build Electron App
+name: Build Electron App for Windows
 
 on:
   push:
@@ -28,14 +28,18 @@ jobs:
       - name: Install dependencies
         run: make init
 
+      - name: Read version from file
+        id: get_version
+        run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
+
       - name: Build Frontend and Backend
         run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make build
 
       - name: Package Electron app
-        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make electron-package-mac
+        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make electron-package-windows
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zasper-0.1.0-alpha-arm64.dmg
-          path: ui/dist/zasper Setup 0.1.0-alpha.exe
+          name: zasper Setup ${{ steps.get_version.outputs.VERSION }}.exe
+          path: ui/dist/zasper Setup ${{ steps.get_version.outputs.VERSION }}.exe

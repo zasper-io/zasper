@@ -38,7 +38,6 @@
     "html-to-react": "^1.5.0",
     "jotai": "1.7.2",
     "lodash": "^4.17.21",
-    "monaco-editor": "^0.33.0",
     "react": "18.3.1",
     "react-bootstrap": "^2.4.0",
     "react-codemirror-merge": "^4.23.2",
@@ -86,7 +85,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "electron-dev": "concurrently \"BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron-package": "electron-builder --mac --linux",
+    "electron-package": "electron-builder --mac --linux --windows",
     "electron-package-mac": "electron-builder --mac",
     "electron-package-linux": "electron-builder --linux",
     "electron-package-rpm": "electron-builder --linux rpm",
@@ -104,11 +103,22 @@
       "buildResources": "public"
     },
     "win": {
+      "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
       "icon": "build/favicon.ico"
     },
     "mac": {
+      "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
       "icon": "build/logo512.png",
-      "target": "dmg",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
       "category": "public.app-category.developer-tools",
       "identity": "Prasun Anand (C72MG66GBX)",
       "hardenedRuntime": true,
@@ -119,8 +129,18 @@
       }
     },
     "linux": {
+      "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
       "icon": "build/logo512.png",
-      "target": "deb"
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64", "arm64"]
+        }
+      ]
     }
   },
   "eslintConfig": {

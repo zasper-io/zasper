@@ -51,7 +51,7 @@ archives:
     files:
       - LICENSE
     name_template: >-
-      {{ .ProjectName }}-{{- .Os }}-{{ .Arch }}
+      {{ .ProjectName }}-webapp-{{- .Os }}-{{ .Arch }}
     format_overrides:
       - goos: windows
         formats:

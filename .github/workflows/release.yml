@@ -44,7 +44,6 @@ jobs:
     name: Build and Release Electron App
     runs-on: macos-latest
     needs: build-go
-
     env:
       CI: false
 
@@ -80,78 +79,22 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-
         run: make electron-package
 
-      - name: Extract tag name
-        id: extract_tag
+      - name: Extract version from tag
+        id: extract_version
         run: |
-          TAG_NAME=$(echo $GITHUB_REF | sed 's/refs\/tags\///')
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG_NAME#v}" # Strip 'v' if it exists
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          # Remove 'v' prefix from tag name if it exists
-          VERSION=$(echo "$TAG_NAME" | sed 's/^v//')
-
-          echo "tag_name=$TAG_NAME" >> $GITHUB_ENV
-          echo "version=$VERSION" >> $GITHUB_ENV
-
-      - name: Upload Electron app as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: zasper-${{ env.version }}-arm64.dmg
-          path: ui/dist/zasper-${{ env.version }}-arm64.dmg
-
-      - name: Push Release Asset
-        if: github.event_name == 'push' && github.ref_type == 'tag'
+      - name: Upload release assets
         run: |
-          TAG_NAME=${{ env.tag_name }}
-          VERSION=${{ env.version }}
-
-          # Check if the release already exists for the tag
-          release_url="https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME"
-          release_exists=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -s -o /dev/null -w "%{http_code}" $release_url)
-
-          if [ "$release_exists" -eq 200 ]; then
-            echo "Release exists, uploading asset to the existing release."
-
-            # If the release exists, extract the upload URL from the existing release
-            upload_url=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -s $release_url | jq -r .upload_url | sed 's/{?name,label}//')
-
-            # Path to the artifact to upload
-            ARTIFACT_PATH="ui/dist/zasper-${VERSION}-arm64.dmg"
-
-            # Check if the artifact exists and upload it
-            if [ -f "$ARTIFACT_PATH" ]; then
-              echo "Uploading artifact..."
-              curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                    -H "Content-Type: application/zip" \
-                    --data-binary "@$ARTIFACT_PATH" \
-                    "$upload_url?name=zasper-${VERSION}-arm64.dmg"
-            else
-              echo "Artifact $ARTIFACT_PATH not found, skipping upload."
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          for file in ui/dist/*; do
+            if [[ -f "$file" && "$file" != *.blockmap && "$file" != *.yaml && "$file" != *.yml ]]; then
+              gh release upload "$TAG_NAME" "$file" --clobber
             fi
-          else
-            echo "Release for tag $TAG_NAME doesn't exist. Creating a new release and uploading asset."
-
-            # Create a new release if it doesn't exist
-            release_response=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                                    -X POST \
-                                    -d "{\"tag_name\":\"$TAG_NAME\", \"name\":\"Release $TAG_NAME\"}" \
-                                    "https://api.github.com/repos/${{ github.repository }}/releases")
-
-            # Extract the upload URL from the new release response
-            upload_url=$(echo "$release_response" | jq -r .upload_url | sed 's/{?name,label}//')
-
-            # Path to the artifact to upload
-            ARTIFACT_PATH="ui/dist/zasper-${VERSION}-arm64.dmg"
-
-            # Check if the artifact exists and upload it
-            if [ -f "$ARTIFACT_PATH" ]; then
-              echo "Uploading artifact..."
-              curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                    -H "Content-Type: application/zip" \
-                    --data-binary "@$ARTIFACT_PATH" \
-                    "$upload_url?name=zasper-${VERSION}-arm64.dmg"
-            else
-              echo "Artifact $ARTIFACT_PATH not found, skipping upload."
-            fi
-          fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
