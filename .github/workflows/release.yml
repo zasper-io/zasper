@@ -99,12 +99,14 @@ jobs:
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG_NAME#v}"
-          ARTIFACT="ui/dist/zasper-${VERSION}-arm64.dmg"
+          ARTIFACT_MAC="ui/dist/zasper-${VERSION}-arm64.dmg"
+          ARTIFACT_LINUX="ui/dist/zasper_${VERSION}.deb"
+          ARTIFACT_WINDOWS="ui/dist/zasper Setup ${VERSION}.exe"
 
-          echo "Preparing to upload $ARTIFACT to release $TAG_NAME"
+          echo "Preparing to upload $ARTIFACT_MAC, $ARTIFACT_LINUX, $ARTIFACT_WINDOWS to release $TAG_NAME"
 
-          if [ ! -f "$ARTIFACT" ]; then
-            echo "Artifact $ARTIFACT not found!"
+          if [ ! -f "$ARTIFACT_MAC" ]; then
+            echo "Artifact $ARTIFACT_MAC not found!"
             exit 1
           fi
 
@@ -115,4 +117,4 @@ jobs:
             || true
 
           # Upload the asset
-          gh release upload "$TAG_NAME" "$ARTIFACT" --clobber
+          gh release upload "$TAG_NAME" "$ARTIFACT_MAC" "$ARTIFACT_LINUX" "$ARTIFACT_WINDOWS" --clobber
