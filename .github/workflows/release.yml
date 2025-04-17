@@ -88,12 +88,6 @@ jobs:
           VERSION="${TAG_NAME#v}" # Strip 'v' if it exists
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Upload Electron app as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: zasper-${{ steps.extract_version.outputs.version }}-arm64.dmg
-          path: ui/dist/zasper-${{ steps.extract_version.outputs.version }}-arm64.dmg
-
       - name: Upload release assets
         run: |
           for file in ui/dist/*; do
@@ -101,3 +95,5 @@ jobs:
               gh release upload "$TAG_NAME" "$file" --clobber
             fi
           done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
