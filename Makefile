@@ -73,8 +73,8 @@ init:
 	cd ui && npm install
 
 # Build the frontend and backend
- 
-build: 
+
+build:
 	@echo "Building the frontend and backend..."
 	cd ui && npm run build
 	go build -ldflags $(VERSION_BUILD_FLAG) .
@@ -87,7 +87,7 @@ dev:
 # Run the Electron app in development
 electron-dev:
 	@echo "Starting the Electron app in development..."
-	(go run .) & cd ui && npm run electron-dev		
+	(go run .) & cd ui && npm run electron-dev
 
 electron-package:
 	@echo "Packaging the Electron app for both macOS and Linux..."
@@ -104,6 +104,11 @@ electron-package-linux:
 	@echo "Packaging the Electron app for Linux..."
 	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/build/zasper
 	cd ui && npm run electron-package-linux
+
+electron-package-windows:
+	@echo "Packaging the Electron app for Windows..."
+	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/build/zasper
+	cd ui && npm run electron-package-windows
 
 # Install the web app
 webapp-install: build
