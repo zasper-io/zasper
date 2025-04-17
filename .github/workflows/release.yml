@@ -46,7 +46,6 @@ jobs:
     needs: build-go
     env:
       CI: false
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout code
