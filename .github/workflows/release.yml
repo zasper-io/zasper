@@ -94,26 +94,10 @@ jobs:
           name: zasper-${{ steps.extract_version.outputs.version }}-arm64.dmg
           path: ui/dist/zasper-${{ steps.extract_version.outputs.version }}-arm64.dmg
 
-      - name: Release Electron App with gh CLI
+      - name: Upload release assets
         run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          VERSION="${TAG_NAME#v}"
-          ARTIFACT_MAC="ui/dist/zasper-${VERSION}-arm64.dmg"
-          ARTIFACT_LINUX="ui/dist/zasper_${VERSION}.deb"
-          ARTIFACT_WINDOWS="ui/dist/zasper Setup ${VERSION}.exe"
-
-          echo "Preparing to upload $ARTIFACT_MAC, $ARTIFACT_LINUX, $ARTIFACT_WINDOWS to release $TAG_NAME"
-
-          if [ ! -f "$ARTIFACT_MAC" ]; then
-            echo "Artifact $ARTIFACT_MAC not found!"
-            exit 1
-          fi
-
-          # Create release if it doesn't exist
-          gh release create "$TAG_NAME" \
-            --title "Release $TAG_NAME" \
-            --notes "Automated release for $TAG_NAME" \
-            || true
-
-          # Upload the asset
-          gh release upload "$TAG_NAME" "$ARTIFACT_MAC" "$ARTIFACT_LINUX" "$ARTIFACT_WINDOWS" --clobber
+          for file in ui/dist/*; do
+            if [[ -f "$file" && "$file" != *.blockmap && "$file" != *.yaml && "$file" != *.yml ]]; then
+              gh release upload "$TAG_NAME" "$file" --clobber
+            fi
+          done
