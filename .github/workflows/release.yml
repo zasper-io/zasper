@@ -90,6 +90,7 @@ jobs:
 
       - name: Upload release assets
         run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
           for file in ui/dist/*; do
             if [[ -f "$file" && "$file" != *.blockmap && "$file" != *.yaml && "$file" != *.yml ]]; then
               gh release upload "$TAG_NAME" "$file" --clobber
