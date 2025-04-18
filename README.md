@@ -34,8 +34,7 @@ It's perfectly suited for running REPL-style data applications, with Jupyter not
 # Benchmarks - 4X Better
 Zasper uses one fourth of RAM and one fourth of CPU used by Jupyterlab. While Jupyterlab uses around 104.8 MB of RAM and 0.8 CPUs, Zasper uses 26.7 MB of RAM and 0.2 CPUs.
 
-
-# Why I built Zasper ?
+🔍  Why I built Zasper ?
 
 There are several proprietary JupyterLab-like frontend tools available in the market, such as Databricks Notebooks and Deepnote Notebooks. However, none of them are free or open-source, and most require users to work in the cloud. Even the modest personal computers these days are typically equipped with at least 8 GB of RAM, an 8-core CPU, and a decent 4 GB GPU, I saw an opportunity to create a solution that works seamlessly on local machines. That’s why I decided to build Zasper which can effectively utilize the resources available and guarantee maximum efficiency.
 
@@ -59,6 +58,23 @@ Hence the Go version of Zasper was born!
 * Go Kernels ([GoNb](https://github.com/janpfeifer/gonb))
 * Compatible with all Jupyter kernels
 
+
+# Releases
+
+Current release version: `v0.1.0-alpha`
+
+| OS             | Web App | Desktop App |
+|----------------|:-------:|:-----------:|
+| Mac (Silicone) |    ✅   |     ✅      |
+| Mac (Intel)    |    ✅   |     ✅      |
+| Debian x32     |    ✅   |     ❌      |
+| Debian x64     |    ✅   |     ❌      |
+| Redhat x32     |    ❌   |     ❌      |
+| Redhat x64     |    ❌   |     ❌      |
+| Windows x64    |    ✅   |     ❌      |
+| Windows x32    |    ✅   |     ❌      |
+
+The missing distributions will be out soon.
 
 ## 📷 Screenshots
 
@@ -200,7 +216,7 @@ pip install jupyter
 
 You can install other kernels as well. Just Google it!
 
-## Logging
+🪵 Logging
 
 By default, the application writes logs to the following locations:
 
@@ -210,22 +226,7 @@ on macOS: ~/Library/Logs/zasper/main.log
 on Windows: %USERPROFILE%\AppData\Roaming\zasper\logs\main.log
 ```
 
-# Wiki
-
-For Zasper architecture, and other info refer [wiki](https://github.com/zasper-io/zasper/wiki).
-
-# Contributing
-
-You can contribute in multiple ways:
-* Documentation
-* Bug Filing
-* Submitting PRs or reviewing them
-
-# Code of Conduct
-
-See [Code of conduct](./CODE_OF_CONDUCT.md)
-
-# Roadmap
+🧭 Roadmap
 
 Data Scientists and AI Engineers spend most of their time running Notebooks on IDEs and hence need a robust ecosystem.
 Zasper aspires to be a full fledged IDE and the future development will be along making it more efficient by:
@@ -234,7 +235,15 @@ Zasper aspires to be a full fledged IDE and the future development will be along
 * Easier integration with the existing tools.
 * Zasper Hub for Self Hosted deployment in the cloud.
 
-## Star History
+# Sponsors
+
+A few months ago I received a grant to help me building Zasper.
+
+<img height=100px src="./assets/foss-united.png"> &nbsp;&nbsp;&nbsp;&nbsp; <img height=80px src="./assets/zerodha.png">
+
+If you like Zasper and want to support me in my mission, please consider [sponsoring me on GitHub](https://github.com/sponsors/prasunanand).
+
+⭐️ Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=zasper-io/zasper&type=Date)](https://star-history.com/#zasper-io/zasper&Date)
 
@@ -248,21 +257,25 @@ Join Zasper Community on [Slack](https://join.slack.com/t/zasper/shared_invite/z
   </a>
 </p>
 
-# Sponsors
 
-<img height=100px src="./assets/foss-united.png">
 
-<img height=40px src="./assets/zerodha.png">
-
-## Support and Sponsor Us
-
-If you like Zasper, please consider [sponsoring us on GitHub](https://github.com/sponsors/prasunanand).
-
-## Contributors
+# Contributors
 
 <a href = "https://github.com/zasper-io/zasper/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=zasper-io/zasper"/>
 </a>
+
+# Contributing
+
+You can contribute in multiple ways:
+* Documentation
+* Bug Filing
+* Submitting PRs or reviewing them
+
+# Code of Conduct
+
+See [Code of conduct](./CODE_OF_CONDUCT.md)
+
 
 # Copyright
 
