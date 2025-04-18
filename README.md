@@ -65,16 +65,17 @@ Current release version: `v0.1.0-alpha`
 
 | OS              | Web App | Desktop App |
 |-----------------|:-------:|:-----------:|
-| Mac (🍏 Silicon)|    ✅   |     ✅      |
-| Mac (x64)       |    ✅   |     ✅      |
-| Debian ARM 64   |    ✅   |     ❌      |
+| Mac 🍏 Silicon  |    ✅   |     ✅      |
+| Mac AMD 64      |    ✅   |     ✅      |
 | Debian AMD 64   |    ✅   |     ❌      |
+| Debian ARM 64   |    ✅   |     ❌      |
 | Debian i386     |    ✅   |     ❌      |
-| Redhat ARM 64   |    ✅   |     ❌      |
 | Redhat AMD 64   |    ✅   |     ❌      |
+| Redhat ARM 64   |    ✅   |     ❌      |
 | Redhat i386     |    ✅   |     ❌      |
-| Windows x64     |    ✅   |     ❌      |
-| Windows x32     |    ✅   |     ❌      |
+| Windows AMD 64  |    ✅   |     ❌      |
+| Windows ARM 64  |    ✅   |     ❌      |
+| Windows i386    |    ✅   |     ❌      |
 
 The missing distributions will be out soon.
 
