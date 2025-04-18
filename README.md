@@ -63,16 +63,16 @@ Hence the Go version of Zasper was born!
 
 Current release version: `v0.1.0-alpha`
 
-| OS             | Web App | Desktop App |
-|----------------|:-------:|:-----------:|
-| Mac (Silicone) |    ✅   |     ✅      |
-| Mac (Intel)    |    ✅   |     ✅      |
-| Debian x32     |    ✅   |     ❌      |
-| Debian x64     |    ✅   |     ❌      |
-| Redhat x32     |    ❌   |     ❌      |
-| Redhat x64     |    ❌   |     ❌      |
-| Windows x64    |    ✅   |     ❌      |
-| Windows x32    |    ✅   |     ❌      |
+| OS              | Web App | Desktop App |
+|-----------------|:-------:|:-----------:|
+| Mac (🍏 Silicon)|    ✅   |     ✅      |
+| Mac (Intel)     |    ✅   |     ✅      |
+| Debian x32      |    ✅   |     ❌      |
+| Debian x64      |    ✅   |     ❌      |
+| Redhat x32      |    ❌   |     ❌      |
+| Redhat x64      |    ❌   |     ❌      |
+| Windows x64     |    ✅   |     ❌      |
+| Windows x32     |    ✅   |     ❌      |
 
 The missing distributions will be out soon.
 
@@ -216,7 +216,7 @@ pip install jupyter
 
 You can install other kernels as well. Just Google it!
 
-🪵 Logging
+# 🪵 Logging
 
 By default, the application writes logs to the following locations:
 
@@ -226,7 +226,7 @@ on macOS: ~/Library/Logs/zasper/main.log
 on Windows: %USERPROFILE%\AppData\Roaming\zasper\logs\main.log
 ```
 
-🧭 Roadmap
+# 🧭 Roadmap
 
 Data Scientists and AI Engineers spend most of their time running Notebooks on IDEs and hence need a robust ecosystem.
 Zasper aspires to be a full fledged IDE and the future development will be along making it more efficient by:
@@ -235,17 +235,18 @@ Zasper aspires to be a full fledged IDE and the future development will be along
 * Easier integration with the existing tools.
 * Zasper Hub for Self Hosted deployment in the cloud.
 
-# Sponsors
+
+# 🤞 Support Zasper
+
+If you like Zasper and want to support me in my mission, please consider [sponsoring me on GitHub](https://github.com/sponsors/prasunanand).
+
+
+#  🚀 Sponsors
 
 A few months ago I received a grant to help me building Zasper.
 
 <img height=100px src="./assets/foss-united.png"> &nbsp;&nbsp;&nbsp;&nbsp; <img height=80px src="./assets/zerodha.png">
 
-If you like Zasper and want to support me in my mission, please consider [sponsoring me on GitHub](https://github.com/sponsors/prasunanand).
-
-⭐️ Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=zasper-io/zasper&type=Date)](https://star-history.com/#zasper-io/zasper&Date)
 
 # 🌐 Community
 
@@ -271,6 +272,10 @@ You can contribute in multiple ways:
 * Documentation
 * Bug Filing
 * Submitting PRs or reviewing them
+
+# ⭐️ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=zasper-io/zasper&type=Date)](https://star-history.com/#zasper-io/zasper&Date)
 
 # Code of Conduct
 
