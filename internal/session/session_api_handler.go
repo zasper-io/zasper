@@ -26,7 +26,7 @@ func SessionCreateApiHandler(w http.ResponseWriter, req *http.Request) {
 	sessions := CreateSession(body)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(sessions)
 }
 
