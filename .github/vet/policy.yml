@@ -1,0 +1,22 @@
+name: General Purpose OSS Best Practices
+description: |
+  This filter suite contains rules for implementing general purpose OSS
+  consumption best practices for an organization.
+tags:
+  - community
+  - oss
+filters:
+  - name: critical-or-high-vulns
+    check_type: CheckTypeVulnerability
+    summary: Critical or high risk vulnerabilities were found
+    value: |
+      vulns.critical.exists(p, true) || vulns.high.exists(p, true)
+  - name: risky-oss-licenses
+    check_type: CheckTypeLicense
+    summary: Risky OSS license was detected
+    value: |
+      licenses.exists(p, p == "GPL-2.0") ||
+      licenses.exists(p, p == "GPL-2.0-only") ||
+      licenses.exists(p, p == "GPL-3.0") ||
+      licenses.exists(p, p == "GPL-3.0-only") ||
+      licenses.exists(p, p == "BSD-3-Clause OR GPL-2.0")
