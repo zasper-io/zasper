@@ -27,14 +27,25 @@ Zasper is an IDE designed from the ground up to support massive concurrency. It 
 
 It's perfectly suited for running REPL-style data applications, with Jupyter notebooks being one example.
 
-**Currently Zasper is fully supported on MacOS and Linux.** Currently Windows has limited support!
+**Currently Zasper is fully supported on MacOS and Linux.** Windows has limited support.
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=zasper-io/zasper)
 
-# Benchmarks - 4X Better
-Zasper uses one fourth of RAM and one fourth of CPU used by Jupyterlab. While Jupyterlab uses around 104.8 MB of RAM and 0.8 CPUs, Zasper uses 26.7 MB of RAM and 0.2 CPUs.
+# Benchmarks
 
-🔍  Why I built Zasper ?
+How is Zasper better than JupyterLab ?
+
+![](https://raw.githubusercontent.com/zasper-io/zasper-benchmark/main/assets/summary_resources.png)
+
+* Upto 5X Lesser CPU usage
+* Upto 40X Lesser RAM
+* Higher throughput
+* Lower latency
+* Highly resilient under very high loads
+
+Benchmark comparision report can be accessed [here](https://github.com/zasper-io/zasper-benchmark?tab=readme-ov-file#benchmarking-zasper-vs-jupyter-server).
+
+# 🔍  Why I built Zasper ?
 
 There are several proprietary JupyterLab-like frontend tools available in the market, such as Databricks Notebooks and Deepnote Notebooks. However, none of them are free or open-source, and most require users to work in the cloud. Even the modest personal computers these days are typically equipped with at least 8 GB of RAM, an 8-core CPU, and a decent 4 GB GPU, I saw an opportunity to create a solution that works seamlessly on local machines. That’s why I decided to build Zasper which can effectively utilize the resources available and guarantee maximum efficiency.
 
@@ -261,8 +272,6 @@ Join Zasper Community on [Slack](https://join.slack.com/t/zasper/shared_invite/z
   </a>
 </p>
 
-
-
 # Contributors
 
 <a href = "https://github.com/zasper-io/zasper/graphs/contributors">
@@ -284,6 +293,9 @@ You can contribute in multiple ways:
 
 See [Code of conduct](./CODE_OF_CONDUCT.md)
 
+# 🙏 Thanks to Jupyter Community
+
+Zasper would not exist without the incredible work of the Jupyter community. Zasper uses the Jupyter wire protocol and draws inspiration from its architecture. Deep thanks to all Jupyter contributors for laying the groundwork. Data Science Notebooks would not have existed without them.
 
 # Copyright
 
