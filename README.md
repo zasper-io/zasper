@@ -93,10 +93,10 @@ The missing distributions will be out soon.
 ## 📷 Screenshots
 
 ### Editor
-![Editor](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main//editor.png)
+![Editor](https://github.com/zasper-io/assets/blob/37161f853444ba3423cf71b50e001a3f9b706d1b/editor.png)
 
 ### Terminal
-![Editor](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/terminal.png)
+![Terminal](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/terminal.png)
 
 ### Launcher
 ![Launcher](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/launcher.png)
