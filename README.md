@@ -225,8 +225,39 @@ Available kernels:
 The simplest way to install a Python 3 Jupyter kernel is
 
 ```
+pip install ipykernel
+```
+
+or
+
+```
 pip install jupyter
 ```
+
+## Using with conda environments
+
+Create an environment.
+```
+conda create --name torchEnv
+```
+
+Activate the environment.
+```
+conda activate torchEnv
+```
+
+Install the necessary packages and ipykernel
+
+```
+conda install -c anaconda ipykernel
+```
+
+Create `kernelspec` file and you are done! 🚀
+
+```
+python -m ipykernel install --user --name=torchEnv
+```
+
 
 You can install other kernels as well. Just Google it!
 
