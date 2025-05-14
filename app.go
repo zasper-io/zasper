@@ -14,6 +14,7 @@ import (
 	"os"
 
 	"github.com/zasper-io/zasper/internal/analytics"
+	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/gitclient"
@@ -102,6 +103,8 @@ func main() {
 
 	// config
 	apiRouter.HandleFunc("/config/modify", core.ConfigModifyHandler).Methods("POST")
+
+	apiRouter.HandleFunc("/login", auth.LoginHandler).Methods("POST")
 
 	// contents
 	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")

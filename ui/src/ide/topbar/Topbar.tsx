@@ -4,8 +4,10 @@ import CommandPalette from './command/CommandPalette';
 import FileAutocomplete from './search/FileSearch';
 import { useAtom } from 'jotai';
 import { userNameAtom } from '../../store/AppState';
+import { useNavigate } from 'react-router-dom';
 
 export default function Topbar() {
+  const navigate = useNavigate();
   const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
   const [showFileAutocomplete, setShowFileAutocomplete] = useState<boolean>(false);
   const [userName] = useAtom(userNameAtom);
@@ -28,6 +30,12 @@ export default function Topbar() {
     },
     // Add more commands as needed
   ];
+
+  const logout = () => {
+    console.log('Logging out...');
+    localStorage.removeItem('token'); // Remove token from local storage
+    navigate('/login');
+  };
 
   // Toggle functions wrapped in useCallback
   const toggleCommandPalette = useCallback(() => {
@@ -64,7 +72,7 @@ export default function Topbar() {
           <div className="col-3">
             <img className="logo-white" src="./images/logo-white.svg" alt="#" />
           </div>
-          <div className="col-8">
+          <div className="col-7">
             <div className="searchArea">
               <div className="search-wraper">
                 <button className="openCommandPaletteButton" onClick={toggleFileAutoComplete}>
@@ -81,9 +89,10 @@ export default function Topbar() {
               )}
             </div>
           </div>
-          <div className="col-1">
+          <div className="col-2">
             <div className="userName">
               <span>{userName}</span>
+              <button onClick={logout}>Logout</button>
             </div>
           </div>
         </div>
