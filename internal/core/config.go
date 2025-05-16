@@ -1,6 +1,8 @@
 package core
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"runtime"
@@ -11,6 +13,17 @@ import (
 )
 
 var Zasper Application
+
+var ServerAccessToken string
+
+func GenerateRandomToken(n int) (string, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
 
 type Application struct {
 	BaseUrl           string
@@ -25,11 +38,18 @@ type Application struct {
 	ProjectName       string
 	OSName            string
 	Version           string
+	Protected         bool
 }
 
-func SetUpZasper(version string, cwd string) Application {
+func SetUpZasper(version string, cwd string, protected bool) Application {
 	if cwd == "." {
 		cwd = utils.GetHomeDir()
+	}
+
+	var err error
+	ServerAccessToken, err = GenerateRandomToken(16) // 16 bytes = 32 hex characters
+	if err != nil {
+		log.Fatal().Msgf("Failed to generate access token: %v", err)
 	}
 
 	application := Application{
@@ -39,6 +59,7 @@ func SetUpZasper(version string, cwd string) Application {
 		Version:           string(version),
 		UserName:          utils.GetUsername(),
 		StaticUrl:         "./images",
+		Protected:         protected,
 		OSName:            runtime.GOOS,
 		JupyterConfigDir:  utils.GetJupyterConfigDir(),
 		JupyterDataDir:    utils.GetJupyterDataDir(),

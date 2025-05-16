@@ -1,15 +1,52 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/zasper-io/zasper/internal/core"
 )
 
 var jwtSecret = []byte("your-secret-key")
+
+func JwtAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || len(authHeader) < 8 || authHeader[:7] != "Bearer " {
+			http.Error(w, "Missing or invalid Authorization header", http.StatusUnauthorized)
+			return
+		}
+		tokenStr := authHeader[7:]
+
+		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+			// Make sure the signing method is HMAC
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method")
+			}
+			return jwtSecret, nil
+		})
+
+		if err != nil || !token.Valid {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || claims["user_id"] == nil {
+			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+			return
+		}
+
+		userID := claims["user_id"].(string)
+		ctx := context.WithValue(r.Context(), "user_id", userID)
+		// ctx = context.WithValue(ctx, "role", claims["role"].(string))
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 type LoginResponse struct {
 	Token        string `json:"token"`
@@ -19,39 +56,35 @@ type LoginResponse struct {
 type User struct {
 	ID       string `json:"user_id"`
 	Username string `json:"username"`
-	Password string `json:"password"`
 	Role     string `json:"role"` // e.g., "admin", "editor", "viewer"
 }
 
 func GetUserByUsername(username string) (User, error) {
 	return User{
 		ID:       "1",
-		Username: username,
-		Password: "$2a$10$EIX5Q1Z5x1z5x1z5x1z5xO", // hashed password for "password"
-		Role:     "admin",                         // example role
+		Username: core.Zasper.UserName,
+		Role:     "user",
 	}, nil
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		AccessToken string `json:"accessToken"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	user, err := GetUserByUsername(creds.Username)
+	user, err := GetUserByUsername(creds.AccessToken)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
-
-	// if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)) != nil {
-	// 	http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-	// 	return
-	// }
+	if creds.AccessToken != core.ServerAccessToken {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
 
 	// Create JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

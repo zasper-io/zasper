@@ -16,13 +16,13 @@ function Login(props: any) {
     if (token) {
       navigate('/', { replace: true });
     }
-  }, []);
+  }, [navigate]);
 
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState({ accessToken: '' });
 
   const submitLogin = async () => {
     const body = JSON.stringify(form);
-    const res = await fetch(BaseApiUrl + '/api/login', {
+    const res = await fetch(BaseApiUrl + '/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
@@ -33,7 +33,6 @@ function Login(props: any) {
       const data = await res.json();
       localStorage.setItem('token', data.token); // store for auth headers
       navigate(data.redirect_path);
-      // window.location.href = data.redirectPath;
     } else if (res.status === 401) {
       toast.error('Invalid username or password');
     } else if (res.status === 403) {
@@ -42,8 +41,8 @@ function Login(props: any) {
       toast.error('Internal server error');
     } else {
       toast.error('Unknown error');
-      setForm({ username: '', password: '' });
     }
+    setForm({ accessToken: '' });
   };
 
   return (
@@ -74,33 +73,19 @@ function Login(props: any) {
                   </div>
                   <div className="login-signup-form">
                     <div className="login-signup-form-wraper">
-                      <div className="or">
-                        <p>Or</p>
-                      </div>
+                      <div className="or"></div>
                       <form>
-                        <p className="font-p">
-                          Enter your email ID and password to login to your account.
-                        </p>
-                        <input
-                          type="email"
-                          name="email"
-                          placeholder="Enter email id"
-                          onChange={(e) => setForm({ ...form, username: e.target.value })}
-                        />
+                        <p className="font-p">Enter access token.</p>
                         <input
                           type="password"
                           name="password"
-                          placeholder="Enter password"
-                          onChange={(e) => setForm({ ...form, password: e.target.value })}
+                          placeholder="Access Token"
+                          onChange={(e) => setForm({ ...form, accessToken: e.target.value })}
                         />
-                        <Link to="/forgot-password">Forgot Password</Link>
                         <button type="button" onClick={submitLogin}>
                           Login
                         </button>
                       </form>
-                      <p className="font-p">
-                        Haven’t registered yet? <Link to="/signup">Signup</Link>
-                      </p>
                     </div>
                   </div>
                 </div>

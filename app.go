@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	glog "log"
 	"os/signal"
 	"syscall"
 	"time"
@@ -39,6 +38,7 @@ type InfoResponse struct {
 	OS          string `json:"os"`
 	Version     string `json:"version"`
 	Theme       string `json:"theme"`
+	Protected   bool   `json:"protected"`
 }
 
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +49,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 		OS:          core.Zasper.OSName,
 		Version:     core.Zasper.Version,
 		Theme:       theme,
+		Protected:   core.Zasper.Protected,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -66,6 +67,7 @@ func main() {
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	cwd := flag.String("cwd", ".", "base directory of project")
 	port := flag.String("port", ":8048", "port to start the server on")
+	protected := flag.Bool("protected", false, "enable protected mode")
 
 	flag.Parse()
 
@@ -86,7 +88,7 @@ func main() {
 
 	router := mux.NewRouter()
 
-	core.Zasper = core.SetUpZasper(version, *cwd)
+	core.Zasper = core.SetUpZasper(version, *cwd, *protected)
 	core.ZasperSession = core.SetUpActiveSessions()
 	content.ZasperActiveWatcherConnections = content.SetUpActiveWatcherConnections()
 	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
@@ -97,14 +99,21 @@ func main() {
 
 	// API routes
 	apiRouter := router.PathPrefix("/api").Subrouter()
+
+	authRouter := router.PathPrefix("/auth").Subrouter()
+	staticRouter := router.PathPrefix("/static").Subrouter()
+	wsRouter := router.PathPrefix("/ws").Subrouter()
+	if *protected {
+		apiRouter.Use(auth.JwtAuthMiddleware)
+	}
 	apiRouter.HandleFunc("/health", health.HealthCheckHandler).Methods("GET")
 
-	apiRouter.HandleFunc("/info", InfoHandler).Methods("GET")
+	router.HandleFunc("/api/info", InfoHandler).Methods("GET")
 
 	// config
 	apiRouter.HandleFunc("/config/modify", core.ConfigModifyHandler).Methods("POST")
 
-	apiRouter.HandleFunc("/login", auth.LoginHandler).Methods("POST")
+	authRouter.HandleFunc("/login", auth.LoginHandler).Methods("POST")
 
 	// contents
 	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")
@@ -128,7 +137,7 @@ func main() {
 	// kernelspecs
 	apiRouter.HandleFunc("/kernelspecs", kernelspec.KernelspecAPIHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernelspecs/{kernelName}", kernelspec.SingleKernelspecAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/kernelspecs/{kernel}/{resource}", kernelspec.ServeKernelResource).Methods("GET")
+	staticRouter.HandleFunc("/kernelspecs/{kernel}/{resource}", kernelspec.ServeKernelResource).Methods("GET")
 
 	// kernels
 	apiRouter.HandleFunc("/kernels", kernel.KernelListAPIHandler).Methods("GET")
@@ -139,9 +148,9 @@ func main() {
 	apiRouter.HandleFunc("/sessions", session.SessionCreateApiHandler).Methods("POST")
 
 	//web sockets
-	apiRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)
-	apiRouter.HandleFunc("/kernels/{kernel_id}", websocket.KernelDeleteAPIHandler).Methods("DELETE")
-	apiRouter.HandleFunc("/terminals/{terminalId}", websocket.HandleTerminalWebSocket)
+	wsRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)
+	wsRouter.HandleFunc("/kernels/{kernel_id}", websocket.KernelDeleteAPIHandler).Methods("DELETE")
+	wsRouter.HandleFunc("/terminals/{terminalId}", websocket.HandleTerminalWebSocket)
 
 	//cors optionsGoes Below
 	corsOpts := cors.New(cors.Options{
@@ -169,18 +178,7 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
-	fmt.Println(`
-███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
-╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
-  ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
- ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
-███████╗██║  ██║███████║██║     ███████╗██║  ██║
-╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
-	`)
-	fmt.Printf("Version: %s\n", core.Zasper.Version)
-	glog.Println("Zasper Server started! Listening on port", *port)
-	url := "http://localhost" + *port
-	glog.Printf("Visit Zasper webapp on %s", url)
+	printBanner(*port, core.ServerAccessToken, version, *protected)
 
 	go func() {
 		if err := http.ListenAndServe(*port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {
@@ -206,6 +204,30 @@ func main() {
 	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	fmt.Println("Server exiting")
+}
+
+func printBanner(port string, accessToken string, version string, protected bool) {
+	fmt.Println("==========================================================")
+	fmt.Println("     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ ")
+	fmt.Println("     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗")
+	fmt.Println("       ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝")
+	fmt.Println("      ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗")
+	fmt.Println("     ███████╗██║  ██║███████║██║     ███████╗██║  ██║")
+	fmt.Println("     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝")
+	fmt.Println()
+	fmt.Printf("                    Zasper Server\n")
+	fmt.Printf("                Version: %s\n", version)
+	fmt.Println("----------------------------------------------------------")
+	fmt.Println(" ✅ Server started successfully!")
+	fmt.Printf(" 📡 Listening on:        http://localhost:%s\n", port)
+	fmt.Printf(" 🖥️  Webapp available at: http://localhost:%s\n", port)
+	if protected {
+		fmt.Println(" 🔒 Protected Mode:      enabled")
+		fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
+	} else {
+		fmt.Println(" 🔒 Protected Mode:      disabled")
+	}
+	fmt.Println("==========================================================")
 }
 
 // cleanup performs cleanup operations

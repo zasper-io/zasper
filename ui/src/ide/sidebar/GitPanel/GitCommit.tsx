@@ -12,7 +12,13 @@ export function GitCommit({ display }) {
   // Function to fetch the list of uncommitted files
   const fetchFiles = async () => {
     try {
-      const resp = await fetch(BaseApiUrl + '/api/uncommitted-files');
+      const resp = await fetch(BaseApiUrl + '/api/uncommitted-files', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
       const respJSON = await resp.json();
       setFiles(respJSON);
     } catch (error) {
@@ -50,7 +56,10 @@ export function GitCommit({ display }) {
 
     fetch(BaseApiUrl + '/api/commit-and-maybe-push', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify(payload),
     })
       .then((response) => response.text())

@@ -16,6 +16,10 @@ export default function SettingsPanel({ display }) {
     setTheme(e.target.value);
     fetch(BaseApiUrl + '/api/config/modify', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({ key: 'theme', value: e.target.value }),
     });
   };

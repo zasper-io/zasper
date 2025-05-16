@@ -10,6 +10,10 @@ export default function ImageEditor(props) {
     async (path) => {
       const res = await fetch(BaseApiUrl + '/api/contents?type=file&hash=0', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
         body: JSON.stringify({
           path,
         }),

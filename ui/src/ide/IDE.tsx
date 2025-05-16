@@ -88,7 +88,13 @@ function IDE() {
   );
 
   const initConfig = useCallback(async () => {
-    const res = await fetch(BaseApiUrl + '/api/info');
+    const res = await fetch(BaseApiUrl + '/api/info', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
     const resJson = await res.json();
 
     setProjectName(resJson.project.toUpperCase());

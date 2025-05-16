@@ -26,7 +26,13 @@ export default function StatusBar() {
   const [branchName, setBranchName] = useAtom(branchNameAtom);
 
   const FetchBranchData = useCallback(async () => {
-    const res = await fetch(BaseApiUrl + '/api/current-branch');
+    const res = await fetch(BaseApiUrl + '/api/current-branch', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
     const resJson = await res.json();
     setBranchName(resJson.branch);
   }, [setBranchName]);

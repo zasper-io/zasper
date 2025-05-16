@@ -62,7 +62,7 @@ export default function TerminalTab(props) {
       sendSizeToBackend(cols, rows); // Send new size on resize
     });
 
-    socketRef.current = new WebSocket(BaseWebSocketUrl + '/api/terminals/1');
+    socketRef.current = new WebSocket(BaseWebSocketUrl + '/ws/terminals/1');
 
     socketRef.current.onopen = () => {
       if (socketRef.current !== null) {
