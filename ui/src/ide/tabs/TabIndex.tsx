@@ -54,6 +54,7 @@ export default function TabIndex() {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
     })
       .then((response) => {

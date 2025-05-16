@@ -54,6 +54,7 @@
     "react-terminal": "1.3.0",
     "react-toastify": "10.0.5",
     "rehype-raw": "^7.0.0",
+    "swiper": "^11.2.6",
     "typescript": "^4.9.5",
     "uuid": "11.0.5",
     "wait-on": "^7.2.0",
@@ -65,6 +66,8 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/dompurify": "^2.4.0",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
     "electron": "^30.1.0",
     "electron-builder": "^24.13.3",
     "eslint": "^8.57.1",
@@ -112,11 +115,17 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "category": "public.app-category.developer-tools",
@@ -124,7 +133,7 @@
       "hardenedRuntime": true,
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
-      "notarize" : {
+      "notarize": {
         "teamId": "C72MG66GBX"
       }
     },
@@ -134,11 +143,17 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "deb",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ]
     }

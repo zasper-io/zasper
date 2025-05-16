@@ -3,12 +3,14 @@ import './TopBar.scss';
 import CommandPalette from './command/CommandPalette';
 import FileAutocomplete from './search/FileSearch';
 import { useAtom } from 'jotai';
-import { userNameAtom } from '../../store/AppState';
+import { protectedStateAtom, userNameAtom } from '../../store/AppState';
+import { useNavigate } from 'react-router-dom';
 
 export default function Topbar() {
   const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
   const [showFileAutocomplete, setShowFileAutocomplete] = useState<boolean>(false);
   const [userName] = useAtom(userNameAtom);
+  const [protectedState] = useAtom(protectedStateAtom);
 
   const commands = [
     {
@@ -64,7 +66,7 @@ export default function Topbar() {
           <div className="col-3">
             <img className="logo-white" src="./images/logo-white.svg" alt="#" />
           </div>
-          <div className="col-8">
+          <div className="col-7">
             <div className="searchArea">
               <div className="search-wraper">
                 <button className="openCommandPaletteButton" onClick={toggleFileAutoComplete}>
@@ -81,9 +83,10 @@ export default function Topbar() {
               )}
             </div>
           </div>
-          <div className="col-1">
+          <div className="col-2">
             <div className="userName">
               <span>{userName}</span>
+              {protectedState ? <LogoutButton /> : <></>}
             </div>
           </div>
         </div>
@@ -91,3 +94,19 @@ export default function Topbar() {
     </div>
   );
 }
+
+const LogoutButton = () => {
+  const navigate = useNavigate();
+
+  const logout = () => {
+    console.log('Logging out...');
+    localStorage.removeItem('token'); // Remove token from local storage
+    navigate('/login');
+  };
+
+  return (
+    <button className="logoutButton" onClick={logout}>
+      <img src="./images/icons/logout.svg" alt="" />
+    </button>
+  );
+};

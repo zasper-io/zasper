@@ -21,6 +21,7 @@ import {
   fileBrowserReloadCountAtom,
   fontSizeAtom,
   projectNameAtom,
+  protectedStateAtom,
   userNameAtom,
   zasperVersionAtom,
 } from '../store/AppState';
@@ -38,6 +39,7 @@ function IDE() {
   const [theme, setTheme] = useAtom(themeAtom);
   const [reloadCount] = useAtom(fileBrowserReloadCountAtom);
   const [, setProjectName] = useAtom(projectNameAtom);
+  const [, setProtectedState] = useAtom(protectedStateAtom);
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
 
@@ -88,14 +90,21 @@ function IDE() {
   );
 
   const initConfig = useCallback(async () => {
-    const res = await fetch(BaseApiUrl + '/api/info');
+    const res = await fetch(BaseApiUrl + '/api/info', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
     const resJson = await res.json();
 
     setProjectName(resJson.project.toUpperCase());
     setUserName(resJson.username);
     setVersion(resJson.version);
     setTheme(resJson.theme);
-  }, [setProjectName, setUserName, setVersion, setTheme]);
+    setProtectedState(resJson.protected);
+  }, [setProjectName, setUserName, setVersion, setTheme, setProtectedState]);
 
   useEffect(() => {
     initConfig();

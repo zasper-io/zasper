@@ -67,6 +67,10 @@ export default function NotebookEditor(props) {
       const res = await fetch(BaseApiUrl + '/api/contents', {
         method: 'POST',
         body: JSON.stringify({ path: path, type: 'notebook' }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
       });
       if (!res.ok) {
         throw new Error('Failed to fetch data');
@@ -170,6 +174,10 @@ export default function NotebookEditor(props) {
             type,
             kernel: { name: kernelspec },
           }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
         })
           .then(async (response) => await response.json())
           .then((data) => {
@@ -305,11 +313,7 @@ export default function NotebookEditor(props) {
   const startWebSocket = useCallback(() => {
     if (session) {
       const kernelWebSocketClient = new W3CWebSocket(
-        BaseWebSocketUrl +
-          '/api/kernels/' +
-          session.kernel.id +
-          '/channels?session_id=' +
-          session.id
+        BaseWebSocketUrl + '/ws/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
       );
 
       kernelWebSocketClient.onopen = () => {
@@ -666,6 +670,10 @@ export default function NotebookEditor(props) {
 
     fetch(BaseApiUrl + '/api/contents', {
       method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({
         path: data.path,
         content: notebook,

@@ -42,7 +42,13 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   // Fetch kernelspecs from the API
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`${BaseApiUrl}/api/kernelspecs`);
+      const res = await fetch(`${BaseApiUrl}/api/kernelspecs`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
       const resJson = await res.json();
       setKernelspecs(resJson.kernelspecs || {});
     } catch (error) {
@@ -87,6 +93,10 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   const createNewNotebook = async (path: string, contentType: string, kernelspec: string) => {
     const res = await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({ parent_dir: path, type: contentType }),
     });
 

@@ -27,6 +27,10 @@ export default function FileEditor(props) {
   const handleCmdEnter = () => {
     fetch(BaseApiUrl + '/api/contents', {
       method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({
         path: props.data.path,
         content: fileContents,
@@ -48,7 +52,10 @@ export default function FileEditor(props) {
   const FetchFileData = async (path) => {
     const res = await fetch(BaseApiUrl + '/api/contents?type=file&hash=0', {
       method: 'POST',
-
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({
         path,
       }),

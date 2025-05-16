@@ -13,7 +13,7 @@ function KernelSwitcher(props: ModalProps) {
   const [kernelspecs] = useAtom<IKernelspecsState>(kernelspecsAtom);
 
   const [selectedKernel, setSelectedKernel] = useState(
-    Object.keys(kernelspecs).length === 1
+    Object.keys(kernelspecs).length >= 1
       ? Object.values(kernelspecs)[0].name // Auto-select if only one kernel
       : props.kernelName
   );

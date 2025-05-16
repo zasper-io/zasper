@@ -28,6 +28,10 @@ function FileUpload(props) {
 
       const response = await fetch(BaseApiUrl + '/api/contents/upload', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
         body: formData,
       });
 

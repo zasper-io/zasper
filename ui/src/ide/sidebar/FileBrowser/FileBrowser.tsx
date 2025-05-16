@@ -65,6 +65,10 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
     try {
       const res = await fetch(BaseApiUrl + '/api/contents', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
         body: JSON.stringify({ path: cwd }),
       });
       const resJson = await res.json();
@@ -95,6 +99,10 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
   const createNewDirectory = async () => {
     await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({ type: 'directory' }),
     });
     FetchData();
@@ -184,6 +192,10 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
   const deleteContent = async () => {
     await fetch(BaseApiUrl + '/api/contents', {
       method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({ path: getPath() }),
     });
     setIsDeleted(true);
@@ -287,6 +299,10 @@ const DirectoryItem = ({ parentDir, data, handleTabActivate }: IDirectoryItemPro
     setIsCollapsed(!isCollapsed);
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({ path }),
     });
     const resJson = await res.json();
@@ -299,11 +315,19 @@ const DirectoryItem = ({ parentDir, data, handleTabActivate }: IDirectoryItemPro
   const createNewFile = async (path: string, contentType: string) => {
     await fetch(BaseApiUrl + '/api/contents/create', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({ parent_dir: path, type: contentType }),
     });
 
     const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({ path }),
     });
     const resJson = await res.json();
@@ -317,6 +341,10 @@ const DirectoryItem = ({ parentDir, data, handleTabActivate }: IDirectoryItemPro
     // check if the name is empty
     await fetch(BaseApiUrl + '/api/contents/rename', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({
         parent_dir: parentDir,
         old_name: contentName,
@@ -330,6 +358,10 @@ const DirectoryItem = ({ parentDir, data, handleTabActivate }: IDirectoryItemPro
   const deleteContent = async (path) => {
     await fetch(BaseApiUrl + '/api/contents', {
       method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
       body: JSON.stringify({ path: path }),
     });
     setIsDeleted(true);

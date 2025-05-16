@@ -77,7 +77,13 @@ const FileSearch = ({ onClose }) => {
     }
     if (query.length > 0) {
       try {
-        const response = await fetch(`${BaseApiUrl}/api/files?query=${query}`);
+        const response = await fetch(`${BaseApiUrl}/api/files?query=${query}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
         const files = await response.json();
         setFileSuggestions(files);
       } catch (error) {

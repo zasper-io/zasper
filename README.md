@@ -96,7 +96,7 @@ The missing distributions will be out soon.
 ![Editor](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main//editor.png)
 
 ### Terminal
-![Editor](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/terminal.png)
+![Terminal](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/terminal.png)
 
 ### Launcher
 ![Launcher](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/launcher.png)
@@ -156,23 +156,31 @@ Usage of zasper:
     	sets log level to debug
   -port string
     	port to start the server on (default ":8048")
+  -protected
+    	enable protected mode
 ```
 
 
 Go to any directory you want to serve and run `zasper`. This starts zasper server in the directory.
 
 ```
-prasunanand@Prasuns-Laptop nbformat_go % zasper
+prasunanand@Prasuns-Mac-mini example % zasper
+==========================================================
+     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
+     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
+       ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
+      ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
+     ███████╗██║  ██║███████║██║     ███████╗██║  ██║
+     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
 
-███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
-╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
-  ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
- ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
-███████╗██║  ██║███████║██║     ███████╗██║  ██║
-╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
-
-2025/02/21 10:19:44 Zasper Server started! Listening on port :8048
-2025/02/21 10:19:44 Visit Zasper webapp on http://localhost:8048
+                    Zasper Server
+                Version: 0.1.0-alpha
+----------------------------------------------------------
+ ✅ Server started successfully!
+ 📡 Listening on:         http://localhost:8048
+ 🖥️ Webapp available at:  http://localhost:8048
+ 🔒 Protected Mode:       disabled
+==========================================================
 
 ```
 
@@ -207,6 +215,45 @@ drwxr-xr-x   3 prasunanand  staff         96 Feb 21 10:29 mac-arm64
 
 Install `zasper-0.1.0-arm64.dmg` to your machine.
 
+### 🚀 Hosting Zasper
+
+To host your own instance of Zasper, follow these steps:
+
+#### 1. Start the server in protected mode
+Run Zasper with the --protected=true flag to enable authentication:
+
+```
+prasunanand@Prasuns-Mac-mini example % zasper --protected=true
+
+==========================================================
+     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
+     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
+       ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
+      ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
+     ███████╗██║  ██║███████║██║     ███████╗██║  ██║
+     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
+
+                    Zasper Server
+                Version: 0.1.0-alpha
+----------------------------------------------------------
+ ✅ Server started successfully!
+ 📡 Listening on:        http://localhost:8048
+ 🖥️  Webapp available at: http://localhost:8048
+ 🔒 Protected Mode:      enabled
+ 🔐 Server Access Token: 14be1b674a3b9196a82c01129028d0dd
+==========================================================
+```
+### 2. Access the login page
+
+Once the server starts, visit: [http://localhost:8048](http://localhost:8048). It will redirect you to a login page.
+
+
+![Server Login Page](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/login.png)
+
+### 3. Authenticate using the access token
+Copy the `Server Access Token` displayed in the console output when the server starts.
+Paste it into the login page to authenticate and access the app.
+
 ## Jupyter kernels
 
 Please ensure you have jupyter kernels installed.
@@ -225,8 +272,39 @@ Available kernels:
 The simplest way to install a Python 3 Jupyter kernel is
 
 ```
+pip install ipykernel
+```
+
+or
+
+```
 pip install jupyter
 ```
+
+## Using with conda environments
+
+Create an environment.
+```
+conda create --name torchEnv
+```
+
+Activate the environment.
+```
+conda activate torchEnv
+```
+
+Install the necessary packages and ipykernel
+
+```
+conda install -c anaconda ipykernel
+```
+
+Create `kernelspec` file and you are done! 🚀
+
+```
+python -m ipykernel install --user --name=torchEnv
+```
+
 
 You can install other kernels as well. Just Google it!
 
