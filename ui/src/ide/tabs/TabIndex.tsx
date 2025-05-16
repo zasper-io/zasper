@@ -55,7 +55,7 @@ export default function TabIndex() {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${localStorage.getItem('token')}`,
-      }
+      },
     })
       .then((response) => {
         if (response.ok) {

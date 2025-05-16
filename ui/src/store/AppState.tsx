@@ -38,6 +38,7 @@ export interface ITerminalsState {
 
 export const zasperVersionAtom = atom<string>('');
 export const projectNameAtom = atom<string>('');
+export const protectedStateAtom = atom<boolean>(false);
 export const kernelspecsAtom = atom<IKernelspecsState>({});
 export const kernelsAtom = atom<IKernelsState>({});
 export const notebookKernelMapAtom = atom<INotebookKernelMap>({});

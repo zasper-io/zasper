@@ -156,6 +156,8 @@ Usage of zasper:
     	sets log level to debug
   -port string
     	port to start the server on (default ":8048")
+  -protected
+    	enable protected mode
 ```
 
 
@@ -175,8 +177,8 @@ prasunanand@Prasuns-Mac-mini zasper % go run .
                 Version: 0.1.0-alpha
 ----------------------------------------------------------
  ✅ Server started successfully!
- 📡 Listening on:         http://localhost::8048
- 🖥️  Webapp available at: http://localhost::8048
+ 📡 Listening on:         http://localhost:8048
+ 🖥️ Webapp available at:  http://localhost:8048
  🔒 Protected Mode:       disabled
 ==========================================================
 

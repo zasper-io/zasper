@@ -69,7 +69,7 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({ path: cwd })
+        body: JSON.stringify({ path: cwd }),
       });
       const resJson = await res.json();
 
@@ -103,7 +103,7 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
         'Content-Type': 'application/json',
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
-      body: JSON.stringify({ type: 'directory' })
+      body: JSON.stringify({ type: 'directory' }),
     });
     FetchData();
   };

@@ -97,7 +97,7 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
-      body: JSON.stringify({ parent_dir: path, type: contentType })
+      body: JSON.stringify({ parent_dir: path, type: contentType }),
     });
 
     const resJson = await res.json();
