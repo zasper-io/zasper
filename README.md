@@ -247,6 +247,9 @@ prasunanand@Prasuns-Mac-mini example % zasper --protected=true
 
 Once the server starts, visit: [http://localhost:8048](http://localhost:8048). It will redirect you to a login page.
 
+
+![Server Login Page](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/login.png)
+
 ### 3. Authenticate using the access token
 Copy the `Server Access Token` displayed in the console output when the server starts.
 Paste it into the login page to authenticate and access the app.
