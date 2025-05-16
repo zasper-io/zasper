@@ -164,7 +164,7 @@ Usage of zasper:
 Go to any directory you want to serve and run `zasper`. This starts zasper server in the directory.
 
 ```
-prasunanand@Prasuns-Mac-mini zasper % go run .
+prasunanand@Prasuns-Mac-mini example % zasper
 ==========================================================
      ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
      ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
@@ -214,6 +214,42 @@ drwxr-xr-x   3 prasunanand  staff         96 Feb 21 10:29 mac-arm64
 ```
 
 Install `zasper-0.1.0-arm64.dmg` to your machine.
+
+### 🚀 Hosting Zasper
+
+To host your own instance of Zasper, follow these steps:
+
+#### 1. Start the server in protected mode
+Run Zasper with the --protected=true flag to enable authentication:
+
+```
+prasunanand@Prasuns-Mac-mini example % zasper --protected=true
+
+==========================================================
+     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
+     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
+       ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝
+      ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗
+     ███████╗██║  ██║███████║██║     ███████╗██║  ██║
+     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
+
+                    Zasper Server
+                Version: 0.1.0-alpha
+----------------------------------------------------------
+ ✅ Server started successfully!
+ 📡 Listening on:        http://localhost:8048
+ 🖥️  Webapp available at: http://localhost:8048
+ 🔒 Protected Mode:      enabled
+ 🔐 Server Access Token: 14be1b674a3b9196a82c01129028d0dd
+==========================================================
+```
+### 2. Access the login page
+
+Once the server starts, visit: [http://localhost:8048](http://localhost:8048). It will redirect you to a login page.
+
+### 3. Authenticate using the access token
+Copy the `Server Access Token` displayed in the console output when the server starts.
+Paste it into the login page to authenticate and access the app.
 
 ## Jupyter kernels
 

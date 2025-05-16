@@ -75,11 +75,11 @@ function Login(props: any) {
                     <div className="login-signup-form-wraper">
                       <div className="or"></div>
                       <form>
-                        <p className="font-p">Enter access token.</p>
+                        <p className="font-p">Enter Server access token</p>
                         <input
                           type="password"
                           name="password"
-                          placeholder="Access Token"
+                          placeholder="Server Access Token"
                           onChange={(e) => setForm({ ...form, accessToken: e.target.value })}
                         />
                         <button type="button" onClick={submitLogin}>

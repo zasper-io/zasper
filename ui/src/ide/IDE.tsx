@@ -104,7 +104,7 @@ function IDE() {
     setVersion(resJson.version);
     setTheme(resJson.theme);
     setProtectedState(resJson.protected);
-  }, [setProjectName, setUserName, setVersion, setTheme]);
+  }, [setProjectName, setUserName, setVersion, setTheme, setProtectedState]);
 
   useEffect(() => {
     initConfig();
