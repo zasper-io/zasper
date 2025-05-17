@@ -1,0 +1,19 @@
+name: zasper
+base: core22
+version: '0.1.0-beta'
+summary: High Performance IDE for Jupyter Notebooks
+description: |
+  Zasper is a High Performance IDE for Jupyter Notebooks.
+
+grade: stable
+confinement: strict
+
+apps:
+  zasper:
+    command: zasper
+
+parts:
+  zasper:
+    plugin: go
+    source: .
+    go-importpath: github.com/zasper-io/zasper
