@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/zasper-io/zasper/utils"
+	"github.com/zasper-io/zasper/internal/utils"
 )
 
 var Zasper Application
