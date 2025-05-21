@@ -69,6 +69,29 @@ Hence the Go version of Zasper was born!
 * Go Kernels ([GoNb](https://github.com/janpfeifer/gonb))
 * Compatible with all Jupyter kernels
 
+# 🚀 Installation
+
+Web App is available as Homebrew , snap and conda package.
+
+### HomeBrew
+
+```
+brew install zasper-io/tap/zasper
+```
+
+### Snap
+
+```
+Coming Soon!
+```
+
+### Conda
+
+```
+Coming soon!
+```
+
+Or directly install from releases.
 
 # Releases
 
