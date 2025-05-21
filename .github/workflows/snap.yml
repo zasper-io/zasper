@@ -1,0 +1,34 @@
+name: Build and Publish Snap (multi-arch)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Snapcraft
+        uses: snapcore/action-build@v1
+        with:
+          build-for: ${{ matrix.arch }}
+
+      - name: Export Snap filename
+        id: snap
+        run: |
+          SNAP_FILE=$(ls *.snap | head -n 1)
+          echo "snap_file=$SNAP_FILE" >> $GITHUB_OUTPUT
+
+      - name: Upload Snap to Snap Store
+        run: |
+          echo "${{ secrets.SNAPCRAFT_LOGIN_FILE }}" > snapcraft.login
+          snapcraft login --with snapcraft.login
+          snapcraft upload ${{ steps.snap.outputs.snap_file }} --release=stable

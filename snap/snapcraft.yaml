@@ -1,0 +1,58 @@
+name: zasper
+base: core22
+version: '0.1.0-beta'
+summary: High Performance IDE for Jupyter Notebooks
+description: |
+  Zasper is a High Performance IDE for Jupyter Notebooks.
+
+grade: stable
+confinement: strict
+
+apps:
+  zasper:
+    command: bin/zasper
+
+parts:
+  zasper:
+    plugin: nil
+    source: .
+    build-packages:
+      - make
+      - gcc
+      - golang-go
+      - curl
+      - gnupg
+    override-build: |
+      # Install Node.js 20.x
+      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      apt-get update
+      apt-get install -y nodejs curl gnupg make gcc
+
+      # Remove old golang-go
+      apt-get remove -y golang-go || true
+
+      ARCH=$(dpkg --print-architecture)
+      if [ "$ARCH" = "amd64" ]; then
+        GO_TAR=go1.23.2.linux-amd64.tar.gz
+      elif [ "$ARCH" = "arm64" ]; then
+        GO_TAR=go1.23.2.linux-arm64.tar.gz
+      else
+        echo "Unsupported architecture $ARCH"
+        exit 1
+      fi
+
+      curl -L -O https://go.dev/dl/$GO_TAR
+      rm -rf /usr/local/go
+      tar -C /usr/local -xzf $GO_TAR
+      export PATH=/usr/local/go/bin:$PATH
+      go version
+
+      # Build steps
+      make init
+      make build
+      ls -l
+
+      # Install binary
+      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
+      cp zasper $SNAPCRAFT_PART_INSTALL/bin/
+      ls -l $SNAPCRAFT_PART_INSTALL/bin
