@@ -63,11 +63,15 @@ func getPythonVersion() (string, error) {
 
 // GetJupyterPath returns a list of possible Jupyter paths, making the function user-agnostic
 func GetJupyterPath() []string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Println(err)
+	// Prefer the real home directory if running inside a Snap
+	homeDir := os.Getenv("SNAP_REAL_HOME")
+	if homeDir == "" {
+		var err error
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			fmt.Println("Failed to get home directory:", err)
+		}
 	}
-
 	// Initialize an empty slice to hold the paths
 	paths := []string{}
 

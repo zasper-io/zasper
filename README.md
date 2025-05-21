@@ -82,7 +82,7 @@ brew install zasper-io/tap/zasper
 ### Snap
 
 ```
-Coming Soon!
+sudo snap install zasper
 ```
 
 ### Conda

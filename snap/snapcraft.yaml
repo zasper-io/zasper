@@ -11,6 +11,10 @@ confinement: strict
 apps:
   zasper:
     command: bin/zasper
+    plugs:
+      - network
+      - network-bind
+      - home
 
 parts:
   zasper:
