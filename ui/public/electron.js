@@ -18,6 +18,38 @@ const feedURL = 'https://update.electronjs.org/zasper-io/zasper';
 // Optional, initialize the logger for any renderer process
 log.transports.file.level = "silly";
 
+function getGoBinaryName() {
+  const platform = process.platform; // 'darwin', 'win32', 'linux'
+  const arch = process.arch;         // 'arm64', 'x64', 'ia32'
+
+  // if (platform === 'darwin') {
+  //   if (arch === 'arm64') {
+  //     return 'zasper-webapp-darwin-arm64';
+  //   } else if (arch === 'x64') {
+  //     return 'zasper-webapp-darwin-amd64';
+  //   }
+  // } else if (platform === 'linux') {
+  //   if (arch === 'arm64') {
+  //     return 'zasper-webapp-linux-arm64';
+  //   } else if (arch === 'x64') {
+  //     return 'zasper-webapp-linux-amd64';
+  //   } else if (arch === 'ia32') {
+  //     return 'zasper-webapp-linux-386';
+  //   }
+  // } else if (platform === 'win32') {
+  //   if (arch === 'arm64') {
+  //     return 'zasper-webapp-windows-arm64.exe';
+  //   } else if (arch === 'x64') {
+  //     return 'zasper-webapp-windows-amd64.exe';
+  //   } else if (arch === 'ia32') {
+  //     return 'zasper-webapp-windows-386.exe';
+  //   }
+  // }
+  return "zasper";
+
+  throw new Error(`Unsupported platform/architecture: ${platform}-${arch}`);
+}
+
 const isApiServerReady = (port, callback) => {
   const options = {
     hostname: "localhost",
@@ -38,7 +70,9 @@ const isApiServerReady = (port, callback) => {
 };
 
 const startApiServer = (directory) => {
-  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: directory });
+  const binaryName = getGoBinaryName();
+  const binaryPath = path.join(process.resourcesPath, 'backend', binaryName);
+  apiProcess = execFile(binaryPath, { cwd: directory });
 
   apiProcess.stdout.on("data", (data) => {
     log.info(`API Server: ${data}`);

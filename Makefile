@@ -91,23 +91,23 @@ electron-dev:
 
 electron-package:
 	@echo "Packaging the Electron app for both macOS and Linux..."
-	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/build/zasper
+	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/zasper
 	cd ui && npm run electron-package
 
 # Package the Electron app
 electron-package-mac:
 	@echo "Packaging the Electron app for macOS..."
-	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/build/zasper
+	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/zasper
 	cd ui && npm run electron-package-mac
 
 electron-package-linux:
 	@echo "Packaging the Electron app for Linux..."
-	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/build/zasper
+	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/zasper
 	cd ui && npm run electron-package-linux
 
 electron-package-windows:
 	@echo "Packaging the Electron app for Windows..."
-	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/build/zasper
+	go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/zasper.exe
 	cd ui && npm run electron-package-windows
 
 # Install the web app
