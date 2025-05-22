@@ -102,14 +102,14 @@
       "node_modules/**/*"
     ],
     "directories": {
-      "buildResources": "public"
+      "buildResources": "resources"
     },
     "extraResources": [
       {
         "from": "backend",
         "to": "backend",
         "filter": [
-          "*"
+          "**/*"
         ]
       }
     ],
@@ -147,7 +147,7 @@
     },
     "linux": {
       "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
-      "icon": "build/logo512.png",
+      "icon": "resources/icons/linux",
       "target": [
         {
           "target": "AppImage",
