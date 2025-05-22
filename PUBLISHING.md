@@ -1,6 +1,6 @@
 # Publishing Zasper
 
-While Zasper is open-source and available for everyone to use, I kindly ask that you get in touch before considering publishing it on new package managers. 
+While Zasper is open-source and available for everyone to use, I kindly ask that you get in touch before considering publishing it on new package managers.
 
 As the creator of Zasper, I hold the trademark for this project and prefer to manage its distribution. If you’d like to see Zasper available on a new package manager, please feel free to raise an issue on GitHub, and I’ll be happy to discuss it!
 
@@ -69,7 +69,7 @@ For example:
    npm test
    ```
 
-### Create a New Tag: 
+### Create a New Tag:
 
 **For a major version bump (e.g., 1.0.0 to 2.0.0):**
 
@@ -159,9 +159,23 @@ New version: 2.0.0
 ```
 
 Output:
-```pgsql
+```bash
 New version: 2.0.0
 ```
 ```
 Version bumped and tagged as v2.0.0
 ```
+
+# Publishing on conda-forge
+
+Awaiting PR merge
+
+# Publishing on snap
+
+Handled by CI
+
+# Publishing on homebrew
+
+Repo: https://github.com/zasper-io/homebrew-tap
+
+Just replace the `url` and `sha256` and you are good to go.
