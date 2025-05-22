@@ -22,32 +22,36 @@ function getGoBinaryName() {
   const platform = process.platform; // 'darwin', 'win32', 'linux'
   const arch = process.arch;         // 'arm64', 'x64', 'ia32'
 
-  // if (platform === 'darwin') {
-  //   if (arch === 'arm64') {
-  //     return 'zasper-webapp-darwin-arm64';
-  //   } else if (arch === 'x64') {
-  //     return 'zasper-webapp-darwin-amd64';
-  //   }
-  // } else if (platform === 'linux') {
-  //   if (arch === 'arm64') {
-  //     return 'zasper-webapp-linux-arm64';
-  //   } else if (arch === 'x64') {
-  //     return 'zasper-webapp-linux-amd64';
-  //   } else if (arch === 'ia32') {
-  //     return 'zasper-webapp-linux-386';
-  //   }
-  // } else if (platform === 'win32') {
-  //   if (arch === 'arm64') {
-  //     return 'zasper-webapp-windows-arm64.exe';
-  //   } else if (arch === 'x64') {
-  //     return 'zasper-webapp-windows-amd64.exe';
-  //   } else if (arch === 'ia32') {
-  //     return 'zasper-webapp-windows-386.exe';
-  //   }
-  // }
-  return "zasper";
+  let goos;
+  let goarch;
 
-  throw new Error(`Unsupported platform/architecture: ${platform}-${arch}`);
+  // Map Node.js platform to Go OS names
+  if (platform === 'darwin') {
+    goos = 'darwin';
+  } else if (platform === 'linux') {
+    goos = 'linux';
+  } else if (platform === 'win32') {
+    goos = 'windows';
+  } else {
+    throw new Error(`Unsupported platform: ${platform}`);
+  }
+
+  // Map Node.js architecture to Go arch names
+  if (arch === 'x64') {
+    goarch = 'amd64';
+  } else if (arch === 'arm64') {
+    goarch = 'arm64';
+  } else if (arch === 'ia32') {
+    goarch = '386';
+  } else {
+    throw new Error(`Unsupported architecture: ${arch}`);
+  }
+
+  // Append `.exe` only for Windows
+  const ext = goos === 'windows' ? '.exe' : '';
+
+  // Return final filename
+  return `${goos}-${goarch}/zasper${ext}`;
 }
 
 const isApiServerReady = (port, callback) => {

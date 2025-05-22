@@ -86,11 +86,6 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: make electron-package-linux
 
-      - name: Package Electron app for linux
-        env:
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: make electron-package
-
       - name: Package Electron app for windows
         env:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
