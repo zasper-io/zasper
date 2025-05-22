@@ -68,6 +68,7 @@ Hence the Go version of Zasper was born!
 * Javascript kernels [(Deno)](https://docs.deno.com/runtime/reference/cli/jupyter/)
 * Go Kernels ([GoNb](https://github.com/janpfeifer/gonb))
 * Compatible with all Jupyter kernels
+* Also works with UV. See the section on "Working with conda environments".
 
 # 🚀 Installation
 
@@ -304,7 +305,7 @@ or
 pip install jupyter
 ```
 
-## Using with conda environments
+## Working with conda environments
 
 Create an environment.
 ```
@@ -328,8 +329,32 @@ Create `kernelspec` file and you are done! 🚀
 python -m ipykernel install --user --name=torchEnv
 ```
 
+## Working with UV
 
-You can install other kernels as well. Just Google it!
+Create a project.
+```
+uv init exampleUV
+cd exampleUV
+uv run main.py    # This creates a .venv directory
+```
+
+Activate the environment.
+```
+
+source .venv/bin/activate
+```
+
+Install the necessary packages and ipykernel
+
+```
+uv pip install ipykernel
+```
+
+Create `kernelspec` file and you are done! 🚀
+
+```
+uv run python -m ipykernel install --user --name=exampleUV
+```
 
 # 🪵 Logging
 
