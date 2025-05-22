@@ -3,7 +3,7 @@ name: Build and Publish Snap (multi-arch)
 on:
   push:
     tags:
-      - 'v*'
+      - 'none*'
 
 jobs:
   build:
