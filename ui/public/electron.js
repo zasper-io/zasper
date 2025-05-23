@@ -1,7 +1,5 @@
 const { app, ipcMain, BrowserWindow, protocol, dialog } = require("electron");
 const path = require("path");
-const url = require("url");
-const os = require("os");
 const { execFile } = require("child_process");
 const http = require("http");
 
@@ -17,6 +15,42 @@ const feedURL = 'https://update.electronjs.org/zasper-io/zasper';
 
 // Optional, initialize the logger for any renderer process
 log.transports.file.level = "silly";
+
+function getGoBinaryName() {
+  const platform = process.platform; // 'darwin', 'win32', 'linux'
+  const arch = process.arch;         // 'arm64', 'x64', 'ia32'
+
+  let goos;
+  let goarch;
+
+  // Map Node.js platform to Go OS names
+  if (platform === 'darwin') {
+    goos = 'darwin';
+  } else if (platform === 'linux') {
+    goos = 'linux';
+  } else if (platform === 'win32') {
+    goos = 'windows';
+  } else {
+    throw new Error(`Unsupported platform: ${platform}`);
+  }
+
+  // Map Node.js architecture to Go arch names
+  if (arch === 'x64') {
+    goarch = 'amd64';
+  } else if (arch === 'arm64') {
+    goarch = 'arm64';
+  } else if (arch === 'ia32') {
+    goarch = '386';
+  } else {
+    throw new Error(`Unsupported architecture: ${arch}`);
+  }
+
+  // Append `.exe` only for Windows
+  const ext = goos === 'windows' ? '.exe' : '';
+
+  // Return final filename
+  return `${goos}-${goarch}/zasper${ext}`;
+}
 
 const isApiServerReady = (port, callback) => {
   const options = {
@@ -38,7 +72,9 @@ const isApiServerReady = (port, callback) => {
 };
 
 const startApiServer = (directory) => {
-  apiProcess = execFile(path.join(__dirname, "zasper"), { cwd: directory });
+  const binaryName = getGoBinaryName();
+  const binaryPath = path.join(process.resourcesPath, 'backend', binaryName);
+  apiProcess = execFile(binaryPath, { cwd: directory });
 
   apiProcess.stdout.on("data", (data) => {
     log.info(`API Server: ${data}`);

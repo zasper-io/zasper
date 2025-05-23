@@ -50,7 +50,6 @@
     "react-resizable-panels": "^2.1.2",
     "react-router-dom": "^6.30.0",
     "react-scripts": "^5.0.1",
-    "react-spinners": "^0.13.6",
     "react-terminal": "1.3.0",
     "react-toastify": "10.0.5",
     "rehype-raw": "^7.0.0",
@@ -103,8 +102,17 @@
       "node_modules/**/*"
     ],
     "directories": {
-      "buildResources": "public"
+      "buildResources": "resources"
     },
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "win": {
       "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
       "icon": "build/favicon.ico"
@@ -139,7 +147,7 @@
     },
     "linux": {
       "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
-      "icon": "build/logo512.png",
+      "icon": "resources/icons/linux",
       "target": [
         {
           "target": "AppImage",
