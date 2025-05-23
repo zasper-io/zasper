@@ -27,7 +27,11 @@ Zasper is an IDE designed from the ground up to support massive concurrency. It 
 
 It implements [Jupyter's wire protocol](https://jupyter-client.readthedocs.io/en/latest/messaging.html) and can efficiently run Jupyter Notebooks.
 
-**Currently Zasper is fully supported on MacOS and Linux.** Windows has limited support.
+# Cross Platform
+
+✅ Fully supported: macOS & Linux
+
+⚠️ Limited support: Windows — for the best experience, use via WSL
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=zasper-io/zasper)
 
@@ -38,24 +42,12 @@ How is Zasper better than JupyterLab ?
 ![](https://raw.githubusercontent.com/zasper-io/zasper-benchmark/main/assets/summary_resources.png)
 
 * Up to 5X Less CPU usage
-* Upto 40X Less RAM usage
+* Up to 40X Less RAM usage
 * Higher throughput
 * Lower latency
 * Highly resilient under very high loads
 
 Benchmark comparision report can be accessed [here](https://github.com/zasper-io/zasper-benchmark?tab=readme-ov-file#benchmarking-zasper-vs-jupyterlab).
-
-# 🔍  Why I built Zasper ?
-
-There are several proprietary JupyterLab-like frontend tools available in the market, such as Databricks Notebooks and Deepnote Notebooks. However, none of them are free or open-source, and most require users to work in the cloud. Even the modest personal computers these days are typically equipped with at least 8 GB of RAM, an 8-core CPU, and a decent 4 GB GPU, I saw an opportunity to create a solution that works seamlessly on local machines. That’s why I decided to build Zasper which can effectively utilize the resources available and guarantee maximum efficiency.
-
-Originally I wrote https://github.com/zasper-io/zasper_py (now in Private mode) to build a new frontend around Jupyter. During the process I realized, Go is the ideal choice to rebuild the Jupyter project. Go has excellent support for REST, RPC, WS protocols. Concurrency and Performance are the areas where Go shines.
-
-Go's Concurrency: Better suited for applications requiring both concurrency and parallelism, as it leverages multiple cores effectively. It's easier to handle blocking operations without freezing the system.
-
-Python's Event Loop: Ideal for I/O-bound applications that need to handle a lot of asynchronous tasks without blocking. However, it struggles with CPU-bound tasks and lacks native parallelism unless additional worker threads are used.
-
-Hence the Go version of Zasper was born!
 
 
 # Jupyter Kernels Supported
@@ -71,6 +63,11 @@ Hence the Go version of Zasper was born!
 * Also works with UV. See the section on "Working with conda environments".
 
 # 🚀 Installation
+
+Zasper comes in two flavours:
+
+1. Web App
+2. Desktop App
 
 Web App is available as Homebrew , snap and conda package.
 
@@ -92,6 +89,10 @@ sudo snap install zasper
 Coming soon!
 ```
 
+### Desktop App
+
+Visit our [downloads page](https://zasper.io/downloads)
+
 Or directly install from releases.
 
 # Releases
@@ -102,14 +103,14 @@ Current release version: `v0.1.0-alpha`
 |-----------------|:-------:|:-----------:|
 | Mac 🍏 Silicon  |    ✅   |     ✅      |
 | Mac AMD 64      |    ✅   |     ✅      |
-| Debian AMD 64   |    ✅   |     ❌      |
-| Debian ARM 64   |    ✅   |     ❌      |
-| Debian i386     |    ✅   |     ❌      |
+| Debian AMD 64   |    ✅   |     ✅      |
+| Debian ARM 64   |    ✅   |     ✅      |
+| Debian i386     |    ✅   |     ✅      |
 | Redhat AMD 64   |    ✅   |     ❌      |
 | Redhat ARM 64   |    ✅   |     ❌      |
 | Redhat i386     |    ✅   |     ❌      |
 | Windows AMD 64  |    ✅   |     ❌      |
-| Windows ARM 64  |    ✅   |     ❌      |
+| Windows ARM 64  |    ✅   |     ✅      |
 | Windows i386    |    ✅   |     ❌      |
 
 The missing distributions will be out soon.
@@ -143,49 +144,16 @@ The missing distributions will be out soon.
 ![architecture](./assets/architecture.svg)
 
 
-## ⚡️ Quick start
-
-Zasper comes in two flavours:
-
-1. Web App
-2. Desktop App
+## Quickstart
 
 
-#### Initializing
+### Webapp
 
-Download `zasper` from Github and initialize the dependencies.
+Just launch Zasper from launcher.
 
-```
-git clone https://github.com/zasper-io/zasper
-cd zasper
-make init
-```
+### Webapp
 
-#### Web App
-
-```
-make webapp-install
-```
-
-This will create a binary `zasper` and add it to your go executables directory. Make sure you have go executables on your path.
-
-Run zasper in any directory to see if the installation was done correctly.
-
-```
-prasunanand@Prasuns-Laptop example % zasper --help
-Usage of zasper:
-  -cwd string
-    	base directory of project (default ".")
-  -debug
-    	sets log level to debug
-  -port string
-    	port to start the server on (default ":8048")
-  -protected
-    	enable protected mode
-```
-
-
-Go to any directory you want to serve and run `zasper`. This starts zasper server in the directory.
+Once you have the webapp installed, Go to any directory you want to serve and run `zasper`. This starts zasper server in the directory.
 
 ```
 prasunanand@Prasuns-Mac-mini example % zasper
@@ -210,34 +178,6 @@ prasunanand@Prasuns-Mac-mini example % zasper
 
 Go to `http://localhost:8048`
 
-
-
-### Desktop App
-
-```
-make electron-package-mac # on macOS
-```
-
-```
-make electron-package-linux # on Linux
-```
-
-This creates  `zasper-0.1.0-arm64.dmg`(macOS) and `zasper_0.1.0_arm64.deb`(Debian) installer.
-
-```
-prasunanand@Prasuns-Laptop zasper % ls -l ui/dist
-total 626360
--rw-r--r--   1 prasunanand  staff       1713 Feb 21 10:31 builder-debug.yml
--rw-r--r--   1 prasunanand  staff        353 Feb 21 10:29 builder-effective-config.yaml
-drwxr-xr-x  21 prasunanand  staff        672 Feb 21 10:30 linux-arm64-unpacked
-drwxr-xr-x   3 prasunanand  staff         96 Feb 21 10:29 mac-arm64
--rw-r--r--@  1 prasunanand  staff  196642562 Feb 21 10:30 zasper-0.1.0-arm64.dmg
--rw-r--r--   1 prasunanand  staff     204747 Feb 21 10:30 zasper-0.1.0-arm64.dmg.blockmap
--rw-r--r--   1 prasunanand  staff  119088602 Feb 21 10:31 zasper_0.1.0_arm64.deb
-
-```
-
-Install `zasper-0.1.0-arm64.dmg` to your machine.
 
 ### 🚀 Hosting Zasper
 
@@ -355,6 +295,68 @@ Create `kernelspec` file and you are done! 🚀
 ```
 uv run python -m ipykernel install --user --name=exampleUV
 ```
+
+## ⚡️ Building from Source
+
+#### Initializing
+
+Download `zasper` from Github and initialize the dependencies.
+
+```
+git clone https://github.com/zasper-io/zasper
+cd zasper
+make init
+```
+
+#### Web App
+
+```
+make webapp-install
+```
+
+This will create a binary `zasper` and add it to your go executables directory. Make sure you have go executables on your path.
+
+Run zasper in any directory to see if the installation was done correctly.
+
+```
+prasunanand@Prasuns-Laptop example % zasper --help
+Usage of zasper:
+  -cwd string
+    	base directory of project (default ".")
+  -debug
+    	sets log level to debug
+  -port string
+    	port to start the server on (default ":8048")
+  -protected
+    	enable protected mode
+```
+
+### Desktop App
+
+```
+make electron-package-mac # on macOS
+```
+
+```
+make electron-package-linux # on Linux
+```
+
+This creates  `zasper-0.1.0-arm64.dmg`(macOS) and `zasper_0.1.0_arm64.deb`(Debian) installer.
+
+```
+prasunanand@Prasuns-Laptop zasper % ls -l ui/dist
+total 626360
+-rw-r--r--   1 prasunanand  staff       1713 Feb 21 10:31 builder-debug.yml
+-rw-r--r--   1 prasunanand  staff        353 Feb 21 10:29 builder-effective-config.yaml
+drwxr-xr-x  21 prasunanand  staff        672 Feb 21 10:30 linux-arm64-unpacked
+drwxr-xr-x   3 prasunanand  staff         96 Feb 21 10:29 mac-arm64
+-rw-r--r--@  1 prasunanand  staff  196642562 Feb 21 10:30 zasper-0.1.0-arm64.dmg
+-rw-r--r--   1 prasunanand  staff     204747 Feb 21 10:30 zasper-0.1.0-arm64.dmg.blockmap
+-rw-r--r--   1 prasunanand  staff  119088602 Feb 21 10:31 zasper_0.1.0_arm64.deb
+
+```
+
+Install `zasper-0.1.0-arm64.dmg` to your machine.
 
 # 🪵 Logging
 
