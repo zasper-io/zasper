@@ -1,7 +1,5 @@
 const { app, ipcMain, BrowserWindow, protocol, dialog } = require("electron");
 const path = require("path");
-const url = require("url");
-const os = require("os");
 const { execFile } = require("child_process");
 const http = require("http");
 
