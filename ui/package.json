@@ -1,10 +1,10 @@
 {
   "name": "zasper",
   "author": "Prasun Anand <prasun@zasper.io>",
-  "description": "IDE",
+  "description": "High Performance IDE for Jupyter Notebooks",
   "version": "0.1.0-alpha",
   "private": true,
-  "homepage": "./",
+  "homepage": "https://zasper.io",
   "main": "./public/electron.js",
   "dependencies": {
     "@codemirror/commands": "^6.6.2",
