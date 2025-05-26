@@ -150,7 +150,7 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
             </div>
           ))
         ) : (
-          <p>No kernels available.</p>
+          <NoKernelsFound />
         )}
       </div>
 
@@ -160,6 +160,29 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
           <TerminalIcon />
         </div>
       </div>
+    </div>
+  );
+};
+
+const NoKernelsFound: React.FC = () => {
+  return (
+    <div className="noKernelsFound">
+      <h3 className="font-h6 fontw-300">❌ No kernels available</h3>
+      <p>Please install a kernel to create a new notebook.</p>
+      <code>
+        pip install ipykernel
+        <br />
+      </code>
+      <p>
+        Check docs on our{' '}
+        <a
+          href="https://zasper.io/docs/installing-jupyter-kernels"
+          target="_blank"
+          rel="noreferrer"
+        >
+          website
+        </a>
+      </p>
     </div>
   );
 };
