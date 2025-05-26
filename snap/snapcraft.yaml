@@ -36,14 +36,30 @@ parts:
       apt-get remove -y golang-go || true
 
       ARCH=$(dpkg --print-architecture)
-      if [ "$ARCH" = "amd64" ]; then
-        GO_TAR=go1.23.2.linux-amd64.tar.gz
-      elif [ "$ARCH" = "arm64" ]; then
-        GO_TAR=go1.23.2.linux-arm64.tar.gz
-      else
-        echo "Unsupported architecture $ARCH"
-        exit 1
-      fi
+      case "$ARCH" in
+        amd64)
+          GO_TAR=go1.23.2.linux-amd64.tar.gz
+          ;;
+        arm64)
+          GO_TAR=go1.23.2.linux-arm64.tar.gz
+          ;;
+        ppc64el)
+          GO_TAR=go1.23.2.linux-ppc64le.tar.gz
+          ;;
+        s390x)
+          GO_TAR=go1.23.2.linux-s390x.tar.gz
+          ;;
+        riscv64)
+          GO_TAR=go1.23.2.linux-riscv64.tar.gz
+          ;;
+        armhf)
+          GO_TAR=go1.23.2.linux-armv6l.tar.gz  # closest for armhf
+          ;;
+        *)
+          echo "Unsupported architecture $ARCH"
+          exit 1
+          ;;
+      esac
 
       curl -L -O https://go.dev/dl/$GO_TAR
       rm -rf /usr/local/go

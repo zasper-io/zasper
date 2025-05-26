@@ -21,7 +21,9 @@
 <p align="center">
     <a href="https://www.youtube.com/watch?v=LvVOkYL_LzQ" target="_blank"><img src="https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/play-demo.png" alt="Zasper Demo"></a>
 </p>
-
+<p align="center">
+  <a href="https://snapcraft.io/zasper" target="_blank"><img src="https://snapcraft.io/en/light/install.svg" alt="Get it from the Snap Store"></a>
+</p>
 
 Zasper is an IDE designed from the ground up to support massive concurrency. It provides a minimal memory footprint, exceptional speed, and the ability to handle numerous concurrent connections.
 
@@ -33,7 +35,6 @@ It implements [Jupyter's wire protocol](https://jupyter-client.readthedocs.io/en
 
 ⚠️ Limited support: Windows — for the best experience, use via WSL
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=zasper-io/zasper)
 
 # Benchmarks
 
