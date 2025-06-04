@@ -87,7 +87,7 @@ sudo snap install zasper
 ### Conda
 
 ```
-Coming soon!
+conda install zasper -c conda-forge
 ```
 
 ### Desktop App
