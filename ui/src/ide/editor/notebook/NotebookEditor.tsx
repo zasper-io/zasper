@@ -13,7 +13,6 @@ import { IKernel, kernelsAtom, notebookKernelMapAtom, userNameAtom } from '../..
 import KernelSwitcher from './KernelSwitch';
 import { INotebookModel } from './types';
 import BreadCrumb from '../BreadCrumb';
-
 const debugMode = false;
 
 export default function NotebookEditor(props) {
@@ -24,6 +23,8 @@ export default function NotebookEditor(props) {
     nbformat_minor: 0,
     metadata: {},
   });
+
+  type IKernelWebSocketClient = W3CWebSocket;
   const [, setLoading] = useState(true);
   const [, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -32,6 +33,11 @@ export default function NotebookEditor(props) {
   const [theme] = useAtom(themeAtom);
   const [kernelWebSocketClient, setKernelWebSocketClient] = useState<IKernelWebSocketClient>({
     send: () => {},
+    close: () => {},
+    onopen: () => {},
+    onmessage: () => {},
+    onerror: () => {},
+    onclose: () => {},
   });
   const [kernelName, setKernelName] = useState<string>(data.kernelspec);
   const [session, setSession] = useState<ISession | null>();
@@ -44,6 +50,7 @@ export default function NotebookEditor(props) {
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
   const [, setKernels] = useAtom(kernelsAtom);
+  const [executeAllCellsFlag, setExecuteAllCellsFlag] = useState<boolean>(false);
 
   const toggleKernelSwitcher = () => {
     setShowKernelSwitcher(!showKernelSwitcher);
@@ -52,10 +59,6 @@ export default function NotebookEditor(props) {
   const toggleShowPrompt = () => {
     setShowPrompt(!showPrompt);
   };
-
-  interface IKernelWebSocketClient {
-    send: any;
-  }
 
   interface ISession {
     id: string;
@@ -158,46 +161,6 @@ export default function NotebookEditor(props) {
       // Add more conditions for other keys you need
     },
     [addCellUp, addCellDown]
-  );
-
-  const startASession = useCallback(
-    async (path: string, name: string, type: string, kernelspec: string) => {
-      setKernelName(kernelspec);
-      if (kernelspec === 'none') {
-        setShowKernelSwitcher(true);
-      } else {
-        fetch(BaseApiUrl + '/api/sessions', {
-          method: 'POST',
-          body: JSON.stringify({
-            path,
-            name,
-            type,
-            kernel: { name: kernelspec },
-          }),
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        })
-          .then(async (response) => await response.json())
-          .then((data) => {
-            setSession(data); // update session
-            console.log('session updated', data);
-            setActiveKernels((prevActiveKernels) => {
-              const updatedKernels = { ...prevActiveKernels };
-              updatedKernels[data.kernel.id] = data.kernel;
-              return updatedKernels;
-            });
-            setNotebookKernelMap((prevNotebookKernelMap) => {
-              const updatedNotebookKernelMap = { ...prevNotebookKernelMap };
-              updatedNotebookKernelMap[data.path] = data.kernel;
-              return updatedNotebookKernelMap;
-            });
-          })
-          .catch((error) => console.log('error', error));
-      }
-    },
-    [setKernelName, setSession, setActiveKernels, setNotebookKernelMap]
   );
 
   const updateNotebook = useCallback(
@@ -310,28 +273,42 @@ export default function NotebookEditor(props) {
     [setNotebook]
   );
 
-  const startWebSocket = useCallback(() => {
-    if (session) {
-      const kernelWebSocketClient = new W3CWebSocket(
-        BaseWebSocketUrl + '/ws/kernels/' + session.kernel.id + '/channels?session_id=' + session.id
-      );
+  const startWebSocket = useCallback(
+    (session) => {
+      // console.log('starting websocket for session', session);
+      if (!session) return Promise.reject('No session provided');
 
-      kernelWebSocketClient.onopen = () => {
-        setKernelStatus('connected');
-      };
+      return new Promise((resolve, reject) => {
+        const kernelWebSocketClient = new W3CWebSocket(
+          BaseWebSocketUrl +
+            '/ws/kernels/' +
+            session.kernel.id +
+            '/channels?session_id=' +
+            session.id
+        );
 
-      kernelWebSocketClient.onmessage = (message) => {
-        message = JSON.parse(message.data);
-        updateNotebook(message);
-      };
+        kernelWebSocketClient.onopen = () => {
+          setKernelStatus('connected');
+          resolve(kernelWebSocketClient);
+        };
 
-      kernelWebSocketClient.onclose = () => {
-        console.log('disconnected');
-      };
+        kernelWebSocketClient.onmessage = (message) => {
+          const parsedMessage = JSON.parse(message.data);
+          updateNotebook(parsedMessage);
+        };
 
-      setKernelWebSocketClient(kernelWebSocketClient);
-    }
-  }, [session, updateNotebook, setKernelWebSocketClient]);
+        kernelWebSocketClient.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          reject(error);
+        };
+
+        kernelWebSocketClient.onclose = () => {
+          console.log('disconnected');
+        };
+      });
+    },
+    [updateNotebook]
+  );
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDownNotebook);
@@ -340,16 +317,66 @@ export default function NotebookEditor(props) {
     };
   }, [handleKeyDownNotebook]);
 
+  const startASession = useCallback(
+    async (path, name, type, kernelspec) => {
+      setKernelName(kernelspec);
+
+      if (kernelspec === 'none') {
+        setShowKernelSwitcher(true);
+        return; // Resolve immediately, no kernel
+      }
+
+      try {
+        const response = await fetch(BaseApiUrl + '/api/sessions', {
+          method: 'POST',
+          body: JSON.stringify({
+            path,
+            name,
+            type,
+            kernel: { name: kernelspec },
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+
+        const data = await response.json();
+
+        setSession(data);
+        // console.log('session updated', data);
+
+        setActiveKernels((prev) => {
+          const updated = { ...prev };
+          updated[data.kernel.id] = data.kernel;
+          return updated;
+        });
+
+        setNotebookKernelMap((prev) => {
+          const updated = { ...prev };
+          updated[data.path] = data.kernel;
+          return updated;
+        });
+
+        // console.log('starting websocket for session', data.id);
+        const kernelWebSocketClient = await startWebSocket(data);
+        setKernelWebSocketClient(kernelWebSocketClient);
+
+        return data;
+      } catch (error) {
+        console.log('error starting session:', error);
+        throw error;
+      }
+    },
+    [setKernelName, setSession, setActiveKernels, setNotebookKernelMap, startWebSocket]
+  );
+
   useEffect(() => {
     if (data.load_required === true) {
       FetchFileData(data.path);
       startASession(data.path, data.name, data.type, data.kernelspec);
     }
   }, [data, startASession]);
-
-  useEffect(() => {
-    startWebSocket();
-  }, [session, startWebSocket]);
 
   function changeKernel(value: string) {
     // console.log('triggered!');
@@ -408,44 +435,49 @@ export default function NotebookEditor(props) {
     });
   };
 
-  const submitCell = (source: string, cellId: string) => {
-    // console.log('submitting cell:',  cellId);
-    setNotebook((prevNotebook) => {
-      const updatedCells = prevNotebook.cells.map((cell) => {
-        if (cell.id === cellId) {
-          return { ...cell, execution_count: -1, outputs: [] };
+  const submitCell = useCallback(
+    (source: string, cellId: string) => {
+      setNotebook((prevNotebook) => {
+        const updatedCells = prevNotebook.cells.map((cell) => {
+          if (cell.id === cellId) {
+            return { ...cell, execution_count: -1, outputs: [] };
+          }
+          return cell;
+        });
+        return { ...prevNotebook, cells: updatedCells };
+      });
+
+      if (session && kernelWebSocketClient && kernelWebSocketClient.readyState === WebSocket.OPEN) {
+        const message = JSON.stringify({
+          buffers: [],
+          channel: 'shell',
+          content: createExecuteRequestMsg(source),
+          header: {
+            date: getTimeStamp(),
+            msg_id: cellId,
+            msg_type: 'execute_request',
+            session: session.id,
+            username: userName,
+            version: '5.2',
+          },
+          metadata: {
+            deletedCells: [],
+            recordTiming: false,
+            cellId: cellId,
+            trusted: true,
+          },
+          parent_header: {},
+        });
+
+        try {
+          kernelWebSocketClient.send(message);
+        } catch (error) {
+          console.error('Failed to send execute_request message:', error);
         }
-        return cell;
-      });
-
-      return { ...prevNotebook, cells: updatedCells };
-    });
-
-    if (session) {
-      const message = JSON.stringify({
-        buffers: [],
-        channel: 'shell',
-        content: createExecuteRequestMsg(source),
-        header: {
-          date: getTimeStamp(),
-          msg_id: cellId,
-          msg_type: 'execute_request',
-          session: session.id,
-          username: userName,
-          version: '5.2',
-        },
-        metadata: {
-          deletedCells: [],
-          recordTiming: false,
-          cellId: cellId,
-          trusted: true,
-        },
-        parent_header: {},
-      });
-
-      kernelWebSocketClient.send(message);
-    }
-  };
+      }
+    },
+    [session, kernelWebSocketClient, userName, setNotebook]
+  );
 
   const submitPrompt = (cellId: string, parentHeader, inputValue: string) => {
     setNotebook((prevNotebook) => {
@@ -618,43 +650,52 @@ export default function NotebookEditor(props) {
         },
       })
         .then(() => {
-          setSession(null);
-          setKernelWebSocketClient({ send: () => {} });
-          setKernelStatus('idle');
           startASession(data.path, data.name, data.type, kernelName);
         })
         .catch((error) => console.error('Error restarting kernel:', error));
     }
   };
 
-  const restartAndExecuteAllCells = () => {
-    if (session) {
-      fetch(BaseApiUrl + '/api/sessions/' + session.id, {
+  const restartAndExecuteAllCells = async () => {
+    if (!session) return;
+
+    try {
+      await fetch(BaseApiUrl + '/api/sessions/' + session.id, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
-      })
-        .then(() => {
-          setSession(null);
-          setKernelWebSocketClient({ send: () => {} });
-          setKernelStatus('idle');
+      });
 
-          // Start new session, and after it is ready, run all cells
-          return startASession(data.path, data.name, data.type, kernelName);
-        })
-        .then(() => {
-          // Now that new kernel is started, run all code cells
-          notebook.cells.forEach((cell) => {
-            if (cell.cell_type === 'code') {
-              submitCell(cell.source, cell.id);
-            }
-          });
-        })
-        .catch((error) => console.error('Error restarting kernel:', error));
+      // Start new session, and wait for it to be ready
+      await startASession(data.path, data.name, data.type, kernelName);
+      // console.log('Kernel restarted and websocket connected successfully', newSessionData);
+
+      // Now that new kernel is started, run all code cells
+      setExecuteAllCellsFlag(true);
+    } catch (error) {
+      console.error('Error restarting kernel:', error);
     }
   };
+
+  const submitAllCellsForExecution = useCallback(() => {
+    if (session) {
+      setExecuteAllCellsFlag(true);
+      notebook.cells.forEach((cell) => {
+        if (cell.cell_type === 'code') {
+          submitCell(cell.source, cell.id);
+        }
+      });
+      setExecuteAllCellsFlag(false); // Reset after executing all cells
+    }
+  }, [session, notebook, submitCell, setExecuteAllCellsFlag]);
+
+  useEffect(() => {
+    if (executeAllCellsFlag) {
+      submitAllCellsForExecution();
+    }
+  }, [executeAllCellsFlag, submitAllCellsForExecution]);
 
   const handleKeyDown = (addCell, event: React.KeyboardEvent) => {
     let notebookCellLength = notebook.cells.length;
