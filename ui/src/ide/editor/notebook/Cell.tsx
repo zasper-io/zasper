@@ -11,6 +11,7 @@ import CellButtons from './CellButtons';
 import { languages } from '@codemirror/language-data';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
+import { AnsiUp } from 'ansi_up';
 
 type CellType = 'code' | 'markdown' | 'raw' | string;
 
@@ -263,6 +264,8 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 });
 
 const CellOutput = ({ data }) => {
+  const ansi_up = new AnsiUp();
+
   if (!data) {
     return null;
   }
@@ -270,42 +273,51 @@ const CellOutput = ({ data }) => {
   const { outputs } = data;
   if (outputs && outputs.length > 0) {
     const output = outputs[0];
-    // return <p>{JSON.stringify(output)}</p>;
 
     if (output.output_type === 'error') {
       const { ename, evalue, traceback } = output;
 
-      // Clean up the traceback by removing ANSI escape codes
-      const cleanTraceback = traceback
-        ? traceback.map((line) => line.replace(/\u001b\[[0-9;]*m/g, ''))
-        : [];
+      // Join traceback array and convert to HTML with ANSI colors
+      const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
 
       return (
-        <div style={{ color: 'red' }}>
+        <div>
           <h6>
             {ename}: {evalue}
           </h6>
-          <pre>{cleanTraceback.join('\n')}</pre>
+          <pre>
+            <div dangerouslySetInnerHTML={{ __html: tracebackHtml }} />
+          </pre>
         </div>
       );
     }
 
-    const { text, 'text/plain': textPlain, data } = output;
+    const { text, 'text/plain': textPlain, data: outputData } = output;
 
     if (text) {
-      return <pre>{String(text.replace(/\u001b\[[0-9;]*m/g, ''))}</pre>;
+      const textHtml = ansi_up.ansi_to_html(text);
+      return (
+        <pre>
+          <div dangerouslySetInnerHTML={{ __html: textHtml }} />
+        </pre>
+      );
     }
 
     if (textPlain) {
-      return <pre>{textPlain}</pre>;
+      const textPlainHtml = ansi_up.ansi_to_html(textPlain);
+      return (
+        <pre>
+          <div dangerouslySetInnerHTML={{ __html: textPlainHtml }} />
+        </pre>
+      );
     }
 
-    if (data) {
+    if (outputData) {
       const {
         'text/html': htmlContent,
         'image/png': imageContent,
         'text/plain': textPlainData,
-      } = data;
+      } = outputData;
 
       if (htmlContent) {
         return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
@@ -315,20 +327,22 @@ const CellOutput = ({ data }) => {
         const blob = `data:image/png;base64,${imageContent}`;
         return (
           <div>
-            <img src={blob} alt="blob selected" />
+            <img src={blob} alt="cell output" />
           </div>
         );
       }
 
       if (textPlainData) {
+        const textPlainDataHtml = ansi_up.ansi_to_html(textPlainData);
         return (
-          <div>
-            <pre>{String(textPlainData.replace(/\u001b\[[0-9;]*m/g, ''))}</pre>
-          </div>
+          <pre>
+            <div dangerouslySetInnerHTML={{ __html: textPlainDataHtml }} />
+          </pre>
         );
       }
     }
 
+    // Fallback if output type is unrecognized
     return <p>{JSON.stringify(output)}</p>;
   }
 
