@@ -9,31 +9,76 @@ function NbButtons(props) {
 
   return (
     <div className="text-editor-tool">
-      <button type="button" className="editor-button" onClick={() => props.saveNotebook()}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.saveNotebook()}
+        title="Save Notebook"
+      >
         <i className="fas fa-save" />
       </button>
-      <button type="button" className="editor-button" onClick={() => props.addCellDown()}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.addCellDown()}
+        title="Add Cell Below"
+      >
         <i className="fas fa-plus" />
       </button>
-      <button type="button" className="editor-button" onClick={() => props.cutCell()}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.cutCell()}
+        title="Cut Cell"
+      >
         <i className="fas fa-cut" />
       </button>
-      <button type="button" className="editor-button" onClick={() => props.copyCell()}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.copyCell()}
+        title="Copy Cell"
+      >
         <i className="fas fa-copy" />
       </button>
-      <button type="button" className="editor-button" onClick={() => props.pasteCell()}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.pasteCell()}
+        title="Paste Cell"
+      >
         <i className="fas fa-paste" />
       </button>
-      <button type="button" className="editor-button" onClick={() => props.submitCell(props.index)}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.submitCell(props.index)}
+        title="Run Cell"
+      >
         <i className="fas fa-play" />
       </button>
-      <button type="button" className="editor-button" onClick={() => props.stopKernel()}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.interruptKernel()}
+        title="Interrupt Kernel"
+      >
         <i className="fas fa-square" />
       </button>
-      <button type="button" className="editor-button" onClick={() => props.restartKernel()}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.restartKernel()}
+        title="Restart Kernel"
+      >
         <i className="fas fa-redo" />
       </button>
-      <button type="button" className="editor-button" onClick={() => props.reExecuteNotebook()}>
+      <button
+        type="button"
+        className="editor-button"
+        onClick={() => props.restartAndExecuteAllCells()}
+        title="Restart Kernel and Execute all Cells"
+      >
         <i className="fas fa-forward" />
       </button>
       <select
