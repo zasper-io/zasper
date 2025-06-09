@@ -43,3 +43,47 @@ func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(kernel)
 }
+
+func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
+
+	log.Info().Msg("Get request received")
+
+	vars := mux.Vars(req)
+	kernelId := vars["kernelId"]
+	log.Info().Msgf("kernelId : %s", kernelId)
+
+	err := interruptKernel(kernelId)
+	if err != nil {
+		log.Error().Msgf("Error getting kernel: %v", err)
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting kernel: %v", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Kernel interrupted successfully",
+	})
+}
+
+func KernelKillAPIHandler(w http.ResponseWriter, req *http.Request) {
+
+	log.Info().Msg("Get request received")
+
+	vars := mux.Vars(req)
+	kernelId := vars["kernelId"]
+	log.Info().Msgf("kernelId : %s", kernelId)
+
+	err := KillKernelById(kernelId)
+	if err != nil {
+		log.Error().Msgf("Error getting kernel: %v", err)
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting kernel: %v", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Kernel killed successfully",
+	})
+}

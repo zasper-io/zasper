@@ -89,6 +89,23 @@ func getKernel(kernelId string) (models.KernelModel, error) {
 	return kernel, nil
 }
 
+func interruptKernel(kernelId string) error {
+	km := ZasperActiveKernels[kernelId]
+
+	pid := km.Provisioner.Pid
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("Failed to find process %d: %v", pid, err)
+	}
+
+	err = process.Signal(syscall.SIGINT)
+	if err != nil {
+		return fmt.Errorf("Failed to send SIGINT to process %d: %v", pid, err)
+	}
+
+	return nil
+}
+
 func listKernelIds() []string {
 	keys := make([]string, 0, len(ZasperActiveKernels))
 	for key := range ZasperActiveKernels {

@@ -142,6 +142,8 @@ func main() {
 	// kernels
 	apiRouter.HandleFunc("/kernels", kernel.KernelListAPIHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelReadAPIHandler).Methods("GET")
+	apiRouter.HandleFunc("/kernels/{kernelId}/interrupt", kernel.KernelInterruptAPIHandler).Methods("POST")
+	apiRouter.HandleFunc("/kernels/{kernelId}/stop", kernel.KernelKillAPIHandler).Methods("POST")
 
 	// sessions
 	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")

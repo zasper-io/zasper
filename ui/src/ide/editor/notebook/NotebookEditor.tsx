@@ -592,6 +592,70 @@ export default function NotebookEditor(props) {
     }
   };
 
+  const interruptKernel = () => {
+    if (session) {
+      fetch(BaseApiUrl + '/api/kernels/' + session.kernel.id + '/interrupt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+        .then(() => {
+          setKernelStatus('interrupted');
+        })
+        .catch((error) => console.error('Error interrupting kernel:', error));
+    }
+  };
+
+  const restartKernel = () => {
+    if (session) {
+      fetch(BaseApiUrl + '/api/sessions/' + session.id, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+        .then(() => {
+          setSession(null);
+          setKernelWebSocketClient({ send: () => {} });
+          setKernelStatus('idle');
+          startASession(data.path, data.name, data.type, kernelName);
+        })
+        .catch((error) => console.error('Error restarting kernel:', error));
+    }
+  };
+
+  const restartAndExecuteAllCells = () => {
+    if (session) {
+      fetch(BaseApiUrl + '/api/sessions/' + session.id, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+        .then(() => {
+          setSession(null);
+          setKernelWebSocketClient({ send: () => {} });
+          setKernelStatus('idle');
+
+          // Start new session, and after it is ready, run all cells
+          return startASession(data.path, data.name, data.type, kernelName);
+        })
+        .then(() => {
+          // Now that new kernel is started, run all code cells
+          notebook.cells.forEach((cell) => {
+            if (cell.cell_type === 'code') {
+              submitCell(cell.source, cell.id);
+            }
+          });
+        })
+        .catch((error) => console.error('Error restarting kernel:', error));
+    }
+  };
+
   const handleKeyDown = (addCell, event: React.KeyboardEvent) => {
     let notebookCellLength = notebook.cells.length;
     if (event.key === 'ArrowDown') {
@@ -701,9 +765,9 @@ export default function NotebookEditor(props) {
           copyCell={copyCell}
           pasteCell={pasteCell}
           submitCell={submitCell}
-          stopKernel={() => console.log('stop kernel')}
-          restartKernel={() => console.log('restart kernel')}
-          reExecuteNotebook={() => console.log('reexecute notebook')}
+          interruptKernel={interruptKernel}
+          restartKernel={restartKernel}
+          restartAndExecuteAllCells={restartAndExecuteAllCells}
           focusedIndex={focusedIndex}
           notebook={notebook}
           kernelName={kernelName}
