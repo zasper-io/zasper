@@ -84,7 +84,8 @@ func GetJupyterPath() []string {
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Roaming", "jupyter"))                                                      // Windows
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Continuum", "anaconda3", "share", "jupyter"))                     // Windows
 	paths = append(paths, filepath.Join(homeDir, "AppData", "Local", "Enthought", "Canopy", "edm", "envs", "User", "share", "jupyter")) // Windows
-
+	// miniforge
+	paths = append(paths, filepath.Join(homeDir, "miniforge3", "share", "jupyter")) // Miniforge                                        // Miniforge
 	// Get Python version (e.g., "3.9")
 	pythonVersion, err := getPythonVersion()
 	if err != nil {
