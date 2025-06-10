@@ -101,7 +101,7 @@ function NbButtons(props) {
       </div>
       <div className="kStatus">
         <span className={`kernelStatus ks-${props.kernelStatus}`}></span>
-        <button className="reconnectButton" onClick={props.startWebSocket}>
+        <button className="reconnectButton" onClick={props.reconnectKernel}>
           <img
             src="./images/editor/reconnect-icon.svg"
             title="Reconnect Kernel"

@@ -790,6 +790,19 @@ export default function NotebookEditor(props) {
     return true;
   };
 
+  const reConnectKernel = () => {
+    if (session) {
+      startWebSocket(session)
+        .then((client) => {
+          setKernelWebSocketClient(client);
+          setKernelStatus('connected');
+        })
+        .catch((error) => {
+          console.error('Error reconnecting to kernel:', error);
+        });
+    }
+  };
+
   return (
     <div className="tab-content">
       <div
@@ -814,7 +827,7 @@ export default function NotebookEditor(props) {
           kernelName={kernelName}
           kernelStatus={kernelStatus}
           changeCellType={changeCellType}
-          startWebSocket={startWebSocket}
+          reconnectKernel={reConnectKernel}
           toggleKernelSwitcher={toggleKernelSwitcher}
           submitTabCompletion={submitTabCompletion}
         />
