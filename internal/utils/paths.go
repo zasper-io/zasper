@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -63,7 +65,20 @@ func getPythonVersion() (string, error) {
 
 // GetJupyterPath returns a list of possible Jupyter paths, making the function user-agnostic
 func GetJupyterPath() []string {
-	// Prefer the real home directory if running inside a Snap
+	// Try to get Jupyter data paths dynamically using 'jupyter --paths --json'
+	cmd := exec.Command("jupyter", "--paths", "--json")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err == nil {
+		var result struct {
+			Data []string `json:"data"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &result); err == nil && len(result.Data) > 0 {
+			return result.Data
+		}
+	}
+
+	// Fallback: Prefer the real home directory if running inside a Snap
 	homeDir := os.Getenv("SNAP_REAL_HOME")
 	if homeDir == "" {
 		var err error
