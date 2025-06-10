@@ -2,7 +2,7 @@
   "name": "zasper",
   "author": "Prasun Anand <prasun@zasper.io>",
   "description": "High Performance IDE for Jupyter Notebooks",
-  "version": "0.1.0-alpha",
+  "version": "0.2.0-beta",
   "private": true,
   "homepage": "https://zasper.io",
   "main": "./public/electron.js",
