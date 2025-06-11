@@ -98,7 +98,7 @@ Or directly install from releases.
 
 # Releases
 
-Current release version: `v0.1.0-alpha`
+Current release version: `v0.2.0-beta`
 
 | OS              | Web App | Desktop App |
 |-----------------|:-------:|:-----------:|
