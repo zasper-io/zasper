@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	zhttp "github.com/zasper-io/zasper/internal/http"
 	"github.com/zasper-io/zasper/internal/models"
 )
 
@@ -25,7 +26,7 @@ func SessionCreateApiHandler(w http.ResponseWriter, req *http.Request) {
 
 	sessions, err := CreateSession(body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, "Failed to create session: "+err.Error())
 		return
 	}
 

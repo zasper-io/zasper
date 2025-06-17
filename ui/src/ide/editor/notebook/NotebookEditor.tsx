@@ -343,6 +343,11 @@ export default function NotebookEditor(props) {
 
         const data = await response.json();
 
+        if (!response.ok) {
+          console.error('Session creation failed:', data);
+          throw new Error(data.message || 'Failed to start session');
+        }
+
         setSession(data);
         // console.log('session updated', data);
 
@@ -358,12 +363,13 @@ export default function NotebookEditor(props) {
           return updated;
         });
 
-        // console.log('starting websocket for session', data.id);
+        console.log('starting websocket for session', data.id);
         const kernelWebSocketClient = await startWebSocket(data);
         setKernelWebSocketClient(kernelWebSocketClient);
 
         return data;
-      } catch (error) {
+      } catch (error: any) {
+        alert(error.message || 'Unable to start session');
         console.log('error starting session:', error);
         throw error;
       }
@@ -374,7 +380,11 @@ export default function NotebookEditor(props) {
   useEffect(() => {
     if (data.load_required === true) {
       FetchFileData(data.path);
-      startASession(data.path, data.name, data.type, data.kernelspec);
+
+      startASession(data.path, data.name, data.type, data.kernelspec).catch((error) => {
+        console.error('Failed to start session:', error);
+        setShowKernelSwitcher(true); // Show kernel switcher if session fails
+      });
     }
   }, [data, startASession]);
 
@@ -398,7 +408,10 @@ export default function NotebookEditor(props) {
     }
     if (kernelName !== value) {
       setKernelName(value);
-      startASession(data.path, data.name, data.type, value);
+      startASession(data.path, data.name, data.type, value).catch((error) => {
+        console.error('Failed to start session:', error);
+        setShowKernelSwitcher(true); // Show kernel switcher if session fails
+      });
     }
     toggleKernelSwitcher();
   }
