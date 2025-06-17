@@ -24,19 +24,23 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		log.Fatal().Msgf("Error creating stdin pipe: %v", err)
+		log.Error().Msgf("Error creating stdin pipe: %v", err)
+		return nil, err
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatal().Msgf("Error creating stdout pipe: %v", err)
+		log.Error().Msgf("Error creating stdout pipe: %v", err)
+		return nil, err
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		log.Fatal().Msgf("Error creating stderr pipe: %v", err)
+		log.Error().Msgf("Error creating stderr pipe: %v", err)
+		return nil, err
 	}
 	// Start the command
 	if err := cmd.Start(); err != nil {
-		log.Fatal().Msgf("Error starting command: %v", err)
+		log.Error().Msgf("Error starting command: %v", err)
+		return nil, err
 	}
 
 	// Send input to the process

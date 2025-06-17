@@ -42,15 +42,19 @@ type KernelManager struct {
 **********************************************************************
 *********************************************************************/
 
-func (km *KernelManager) StartKernel(kernelName string) {
+func (km *KernelManager) StartKernel(kernelName string) error {
 
 	log.Info().Msg("starting kernel")
 
 	km.AttemptedStart = true
 
 	kernelCmd, kw := km.asyncPrestartKernel(kernelName)
-	km.asyncLaunchKernel(kernelCmd, kw)
+	err := km.LaunchKernel(kernelCmd, kw)
+	if err != nil {
+		return err
+	}
 	km.Ready = true
+	return nil
 }
 
 func (km *KernelManager) StopKernel(kernelId string) {
@@ -92,13 +96,13 @@ func isLocalIP(ip string) bool {
 **********************************************************************
 *********************************************************************/
 
-func (km *KernelManager) asyncLaunchKernel(kernelCmd []string, kw map[string]interface{}) {
+func (km *KernelManager) LaunchKernel(kernelCmd []string, kw map[string]interface{}) error {
 	ConnectionInfo, err := km.Provisioner.LaunchKernel(kernelCmd, kw, km.ConnectionFile)
 	if err != nil {
-		log.Fatal().Msgf("Error launching kernel: %v", err)
-		return
+		return err
 	}
 	log.Debug().Msgf("connectionInfo: %s", ConnectionInfo)
+	return nil
 }
 
 func (km *KernelManager) preLaunch() map[string]interface{} {

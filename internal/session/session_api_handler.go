@@ -23,7 +23,11 @@ func SessionCreateApiHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	sessions := CreateSession(body)
+	sessions, err := CreateSession(body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

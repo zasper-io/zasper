@@ -114,17 +114,21 @@ func listKernelIds() []string {
 	return keys
 }
 
-func StartKernelManager(kernelPath string, kernelName string, env map[string]string) string {
+func StartKernelManager(kernelPath string, kernelName string, env map[string]string) (string, error) {
 	kernelId := uuid.New().String()
 
 	km, kernel_name, kernel_id := createKernelManager(kernelName, kernelId)
 	log.Debug().Msgf("%v | %v | %v ", km, kernel_name, kernel_id)
 
-	km.StartKernel(kernelName)
+	err := km.StartKernel(kernelName)
+
+	if err != nil {
+		return "", err
+	}
 
 	ZasperActiveKernels[kernelId] = km
 
-	return kernelId
+	return kernelId, nil
 }
 
 func StopKernelManager(kernelId string) {

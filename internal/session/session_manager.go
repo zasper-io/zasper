@@ -18,7 +18,7 @@ func ListSessions() map[string]models.SessionModel {
 	return core.ZasperSession
 }
 
-func CreateSession(req models.SessionModel) models.SessionModel {
+func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	/*
 		Creates a new Sesion
 	*/
@@ -30,7 +30,10 @@ func CreateSession(req models.SessionModel) models.SessionModel {
 		//do something here
 		log.Info().Msg("session exists")
 	} else {
-		kernelId := startKernelForSession(req.Path, req.Kernel.Name)
+		kernelId, err := startKernelForSession(req.Path, req.Kernel.Name)
+		if err != nil {
+			return session, err
+		}
 		log.Info().Msgf("started kernel with id %s", kernelId)
 		// pendingSessions.update()
 		session = models.SessionModel{
@@ -49,7 +52,7 @@ func CreateSession(req models.SessionModel) models.SessionModel {
 		core.ZasperSession[session_id] = session
 	}
 
-	return session
+	return session, nil
 }
 
 func DeleteSession(req models.SessionModel) {
@@ -67,10 +70,9 @@ func DeleteSession(req models.SessionModel) {
 	// delete session
 
 	delete(core.ZasperSession, req.Id)
-	return
 }
 
-func startKernelForSession(path string, name string) string {
+func startKernelForSession(path string, name string) (string, error) {
 	/*
 		Starts a Jupyter Kernel for a new Sesion
 	*/
@@ -78,8 +80,11 @@ func startKernelForSession(path string, name string) string {
 	fmt.Println(kernel_path)
 	env := getKernelEnv(path, name)
 	log.Info().Msg("starting kernel")
-	kernelId := kernel.StartKernelManager(path, name, env)
-	return kernelId
+	kernelId, err := kernel.StartKernelManager(path, name, env)
+	if err != nil {
+		return "", err
+	}
+	return kernelId, nil
 }
 
 func stopKernelForSession(kernelId string) {
