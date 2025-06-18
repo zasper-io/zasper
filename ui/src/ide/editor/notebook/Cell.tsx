@@ -1,5 +1,5 @@
 /* eslint-disable no-control-regex */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
@@ -263,6 +263,31 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
   );
 });
 
+const HTMLWithScripts = ({ html }: { html: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const scripts = container.querySelectorAll('script');
+    scripts.forEach((oldScript) => {
+      const newScript = document.createElement('script');
+      if (oldScript.src) {
+        newScript.src = oldScript.src;
+      } else {
+        newScript.text = oldScript.textContent || '';
+      }
+      Array.from(oldScript.attributes).forEach((attr) =>
+        newScript.setAttribute(attr.name, attr.value)
+      );
+      oldScript.parentNode?.replaceChild(newScript, oldScript);
+    });
+  }, [html]);
+
+  return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
+};
+
 const CellOutput = ({ data }) => {
   const ansi_up = new AnsiUp();
 
@@ -320,7 +345,7 @@ const CellOutput = ({ data }) => {
       } = outputData;
 
       if (htmlContent) {
-        return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
+        return <HTMLWithScripts html={htmlContent} />;
       }
 
       if (imageContent) {

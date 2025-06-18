@@ -174,9 +174,7 @@
   margin: 0px;
 }
 
-
 table.dataframe {
-  font-family: "Segoe UI", Roboto, sans-serif;
   border-collapse: collapse;
   width: 100%;
   margin: 0;
@@ -188,7 +186,7 @@ table.dataframe {
 }
 
 table.dataframe thead {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: rgb(32, 32, 32);
   text-align: right;
 }
@@ -196,7 +194,7 @@ table.dataframe thead {
 table.dataframe thead th {
   padding: 4px 8px;
   font-weight: bold;
-  border-bottom: 2px solid #388E3C;
+  border-bottom: 2px solid #388e3c;
 }
 
 table.dataframe tbody {
