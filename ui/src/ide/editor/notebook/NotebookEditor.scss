@@ -103,6 +103,7 @@
 
 .inner-text {
   padding-left: 17px;
+  overflow: auto;
   margin-top: 14px;
   position: relative;
   background: #eaf3fb;
@@ -171,4 +172,51 @@
 
 .spinner {
   margin: 0px;
+}
+
+
+table.dataframe {
+  font-family: "Segoe UI", Roboto, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+table.dataframe thead {
+  background-color: #4CAF50;
+  color: rgb(32, 32, 32);
+  text-align: right;
+}
+
+table.dataframe thead th {
+  padding: 4px 8px;
+  font-weight: bold;
+  border-bottom: 2px solid #388E3C;
+}
+
+table.dataframe tbody {
+  display: table-row-group;
+}
+table.dataframe tbody tr {
+  border-bottom: 1px solid #ddd;
+  transition: background-color 0.2s ease-in-out;
+}
+
+table.dataframe tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+table.dataframe td {
+  padding: 4px 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+table.dataframe tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
 }
