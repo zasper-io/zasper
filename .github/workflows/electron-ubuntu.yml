@@ -29,6 +29,11 @@ jobs:
         id: get_version
         run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
 
+      - name: Install RPM build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
       - name: Install Dependencies
         run: make init
 

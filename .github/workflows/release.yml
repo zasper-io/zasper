@@ -40,8 +40,8 @@ jobs:
         with:
           args: release --clean
 
-  build-electron:
-    name: Build and Release Electron App
+  build-electron-macos:
+    name: Build Electron App for macOS and Windows
     runs-on: macos-latest
     needs: build-go
     env:
@@ -81,12 +81,7 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
         run: make electron-package-mac
 
-      - name: Package Electron app for linux
-        env:
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: make electron-package-linux
-
-      - name: Package Electron app for windows
+      - name: Package Electron app for Windows
         env:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: make electron-package-windows
@@ -98,11 +93,68 @@ jobs:
           VERSION="${TAG_NAME#v}" # Strip 'v' if it exists
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Upload release assets
+      - name: Upload macOS and Windows release assets
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           for file in ui/dist/*; do
-            if [[ -f "$file" && "$file" != *.blockmap && "$file" != *.yaml && "$file" != *.yml ]]; then
+            if [[ -f "$file" && "$file" != *.blockmap && "$file" != *.yaml && "$file" != *.yml && "$file" != *.deb && "$file" != *.rpm && "$file" != *.AppImage ]]; then
+              gh release upload "$TAG_NAME" "$file" --clobber
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-electron-linux:
+    name: Build Electron App for Linux
+    runs-on: ubuntu-latest
+    needs: build-go
+    env:
+      CI: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.7'
+      
+      - name: Install RPM build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
+      - name: Install dependencies
+        run: make init
+
+      - name: Build Frontend and Backend
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: make build
+
+      - name: Package Electron app for Linux
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: make electron-package-linux
+
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG_NAME#v}" # Strip 'v' if it exists
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Upload Linux release assets
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          for file in ui/dist/*; do
+            if [[ -f "$file" && ("$file" == *.deb || "$file" == *.rpm || "$file" == *.AppImage) ]]; then
               gh release upload "$TAG_NAME" "$file" --clobber
             fi
           done
