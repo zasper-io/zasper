@@ -38,8 +38,14 @@ jobs:
       - name: Package Electron app
         run: make electron-package-linux
 
-      - name: Upload artifacts
+      - name: Upload DEB artifacts
         uses: actions/upload-artifact@v4
         with:
           name: zasper_${{ steps.get_version.outputs.VERSION }}.deb
           path: ui/dist/zasper_${{ steps.get_version.outputs.VERSION }}.deb
+      
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zasper_${{ steps.get_version.outputs.VERSION }}.rpm
+          path: ui/dist/zasper_${{ steps.get_version.outputs.VERSION }}.rpm

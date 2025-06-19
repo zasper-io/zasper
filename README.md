@@ -107,9 +107,9 @@ Current release version: `v0.2.0-beta`
 | Debian AMD 64   |    ✅   |     ✅      |
 | Debian ARM 64   |    ✅   |     ✅      |
 | Debian i386     |    ✅   |     ✅      |
-| Redhat AMD 64   |    ✅   |     ❌      |
-| Redhat ARM 64   |    ✅   |     ❌      |
-| Redhat i386     |    ✅   |     ❌      |
+| Redhat AMD 64   |    ✅   |     ✅      |
+| Redhat ARM 64   |    ✅   |     ✅      |
+| Redhat i386     |    ✅   |     ✅      |
 | Windows AMD 64  |    ✅   |     ❌      |
 | Windows ARM 64  |    ✅   |     ✅      |
 | Windows i386    |    ✅   |     ❌      |
