@@ -13,6 +13,7 @@ import { IKernel, kernelsAtom, notebookKernelMapAtom, userNameAtom } from '../..
 import KernelSwitcher from './KernelSwitch';
 import { INotebookModel } from './types';
 import BreadCrumb from '../BreadCrumb';
+import ErrorDialog from './ErrorDialog';
 const debugMode = false;
 
 export default function NotebookEditor(props) {
@@ -48,12 +49,17 @@ export default function NotebookEditor(props) {
   const [userName] = useAtom(userNameAtom);
   const [inspectReplyMessage, setInspectReplyMessage] = useState('');
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
+  const [showErrorDialog, setShowErrorDialog] = useState<boolean>(false);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
   const [, setKernels] = useAtom(kernelsAtom);
   const [executeAllCellsFlag, setExecuteAllCellsFlag] = useState<boolean>(false);
 
   const toggleKernelSwitcher = () => {
     setShowKernelSwitcher(!showKernelSwitcher);
+  };
+
+  const toggleErrorDialog = () => {
+    setShowErrorDialog(!showErrorDialog);
   };
 
   const toggleShowPrompt = () => {
@@ -369,12 +375,19 @@ export default function NotebookEditor(props) {
 
         return data;
       } catch (error: any) {
-        alert(error.message || 'Unable to start session');
+        setShowErrorDialog(true);
         console.log('error starting session:', error);
         throw error;
       }
     },
-    [setKernelName, setSession, setActiveKernels, setNotebookKernelMap, startWebSocket]
+    [
+      setKernelName,
+      setSession,
+      setActiveKernels,
+      setNotebookKernelMap,
+      startWebSocket,
+      setShowErrorDialog,
+    ]
   );
 
   useEffect(() => {
@@ -869,6 +882,7 @@ export default function NotebookEditor(props) {
               changeKernel={changeKernel}
             />
           )}
+          {showErrorDialog && <ErrorDialog toggleErrorDialog={toggleErrorDialog} />}
 
           {notebook.cells &&
             notebook.cells.map((cell, index) => (
