@@ -12,6 +12,8 @@ import { languages } from '@codemirror/language-data';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { AnsiUp } from 'ansi_up';
+import remarkMath from 'remark-math';
+import rehypeMathjax from 'rehype-mathjax';
 
 type CellType = 'code' | 'markdown' | 'raw' | string;
 
@@ -187,7 +189,9 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             </div>
           </>
         ) : (
-          <Markdown rehypePlugins={[rehypeRaw]}>{cellContents}</Markdown>
+          <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeMathjax, rehypeRaw]}>
+            {cellContents}
+          </Markdown>
         )}
       </div>
     );
