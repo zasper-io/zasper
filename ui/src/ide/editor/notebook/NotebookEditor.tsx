@@ -11,7 +11,7 @@ import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { IKernel, kernelsAtom, notebookKernelMapAtom, userNameAtom } from '../../../store/AppState';
 import KernelSwitcher from './KernelSwitch';
-import { INotebookModel } from './types';
+import { INotebookMetadata, INotebookModel } from './types';
 import BreadCrumb from '../BreadCrumb';
 import ErrorDialog from './ErrorDialog';
 const debugMode = false;
@@ -466,18 +466,13 @@ export default function NotebookEditor(props) {
     });
   };
 
-  const setNotebookMetadata = () => {
-    setNotebook((prevNotebook) => {
-      const updatedMetadata = {
-        ...prevNotebook.metadata,
-        kernelspec: {
-          name: kernelName,
-          display_name: kernelName,
-        },
-      };
-
-      return { ...prevNotebook, metadata: updatedMetadata };
-    });
+  const getNotebookMetaData = () => {
+    const metadata: INotebookMetadata = {
+      kernelspec: kernelName,
+      name: kernelName,
+      display_name: kernelName,
+    };
+    return metadata;
   };
 
   const submitCell = useCallback(
@@ -817,6 +812,9 @@ export default function NotebookEditor(props) {
 
   const handleCmdEnter = () => {
     console.log('Saving notebook');
+
+    console.log('notebook metadata', getNotebookMetaData());
+    notebook.metadata = getNotebookMetaData();
 
     fetch(BaseApiUrl + '/api/contents', {
       method: 'PUT',

@@ -8,7 +8,9 @@ export interface INotebookModel {
 }
 
 export interface INotebookMetadata {
-  kernelspec?: IKernelspecMetadata;
+  kernelspec?: string;
+  name?: string;
+  display_name?: string;
   language_info?: ILanguageInfoMetadata;
   orig_nbformat?: number;
 }

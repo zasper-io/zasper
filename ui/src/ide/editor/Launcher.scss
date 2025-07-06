@@ -5,14 +5,15 @@
 }
 
 .launchSection {
+  min-height: 500px;
   padding: 20px;
   border-bottom: 1px solid #f3f2f6;
 }
 
 .launcher-icon {
-  display: inline-block;
-  height: 150px;
-  width: 150px;
+  float: left;
+  height: 170px;
+  width: 160px;
   border: 1px solid #cfcfcf;
   border-radius: 5px;
   padding: auto;
@@ -23,6 +24,7 @@
   box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 6px;
   cursor: pointer;
   margin-right: 20px;
+  margin-bottom: 10px;
 }
 
 .launcher-icon:hover {
@@ -67,4 +69,21 @@
   code {
     background-color: #3d3d3d;
   }
+}
+
+.kernelSpecIconArea {
+  height: 100px;
+  width: 100%;
+  img {
+    height: 64px;
+    width: 64px;
+    margin: 25px auto;
+  }
+}
+
+.kernelspecDisplayName {
+  margin-top: 8x;
+  height: 100px;
+  font-size: 16px;
+  font-weight: 300;
 }

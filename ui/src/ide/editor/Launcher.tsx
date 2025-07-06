@@ -141,12 +141,14 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
               key={key}
               onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
             >
-              <img
-                className="resourceLogoImage"
-                src={getLogoUrl(kernelspecs[key].resources)}
-                alt="logo"
-              />
-              <h6>{key}</h6>
+              <div className="kernelSpecIconArea">
+                <img
+                  className="resourceLogoImage"
+                  src={getLogoUrl(kernelspecs[key].resources)}
+                  alt="logo"
+                />
+              </div>
+              <div className="kernelspecDisplayName">{kernelspecs[key].spec.display_name}</div>
             </div>
           ))
         ) : (

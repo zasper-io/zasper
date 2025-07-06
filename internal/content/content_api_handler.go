@@ -98,7 +98,13 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if body.Type == "notebook" {
-		UpdateNbContent(body.Path, body.Type, body.Format, body.Content)
+		err = UpdateNbContent(body.Path, body.Type, body.Format, body.Content)
+
+		if err != nil {
+			log.Error().Err(err).Msg("Error saving notebook content")
+			zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving notebook content: %v", err))
+			return
+		}
 	}
 
 	if body.Type == "file" {
@@ -108,7 +114,12 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 			zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid content type")
 			return
 		}
-		UpdateContent(body.Path, body.Type, body.Format, contentStr)
+		err = UpdateContent(body.Path, body.Type, body.Format, contentStr)
+		if err != nil {
+			log.Error().Err(err).Msg("Error saving content")
+			zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving content: %v", err))
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -3,7 +3,7 @@ import { atom } from 'jotai';
 // Define the interface for kernelspec and kernel
 export interface IKernelspec {
   name: string;
-  spec: string;
+  spec: any;
   resources: {
     'logo-64x64': string;
   };
