@@ -62,15 +62,20 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 
 		if cell.CellType == "code" {
 			for _, output := range cell.Outputs {
+
 				x := Output{
 					OutputType:     output.OutputType,
 					ExecutionCount: output.ExecutionCount,
 					Metadata:       output.Metadata,
-					Ename:          output.Ename,
-					Evalue:         output.Evalue,
-					Traceback:      output.Traceback,
 					Text:           strings.Join(output.Text, ""),
 				}
+
+				if output.OutputType == "error" {
+					x.Ename = output.Ename
+					x.Evalue = output.Evalue
+					x.Traceback = output.Traceback
+				}
+
 				switch output.OutputType {
 				case "execute_result", "display_data":
 					x.Data = rejoinMimeBundle(output.Data)
@@ -88,7 +93,7 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 			Cell{Source: data,
 				CellType:       cell.CellType,
 				ExecutionCount: cell.ExecutionCount,
-				Metadata:       cell.Metadata,
+				CellMetadata:   cell.CellMetadata,
 				Attachments:    attachmentData,
 				Outputs:        outputData,
 			})
@@ -126,8 +131,10 @@ func splitMimeBundle(data map[string]string) map[string]interface{} {
 // splitLines splits likely multi-line text into lists of strings.
 func convertToNbDisk(nb Notebook) NotebookDisk {
 	nbDisk := NotebookDisk{
-		Cells:    []CellDisk{},
-		Metadata: nb.Metadata,
+		Cells:         []CellDisk{},
+		Metadata:      nb.Metadata,
+		Nbformat:      4,
+		NbformatMinor: 5,
 	}
 	for _, outCell := range nb.Cells {
 		// Convert string slice to []interface{}
@@ -148,10 +155,18 @@ func convertToNbDisk(nb Notebook) NotebookDisk {
 				Data:           splitMimeBundle(out.Data),
 				Text:           strings.SplitAfter(out.Text, "\n"),
 				Metadata:       out.Metadata,
-				Ename:          out.Ename,
-				Evalue:         out.Evalue,
-				Traceback:      out.Traceback,
 			}
+			if out.OutputType == "error" {
+				outputsDisk[i].Ename = out.Ename
+				outputsDisk[i].Evalue = out.Evalue
+				outputsDisk[i].Traceback = out.Traceback
+			}
+		}
+		// fmt.Println("outputsDisk", outputsDisk)
+
+		cellMeta := outCell.CellMetadata
+		if cellMeta == nil {
+			cellMeta = map[string]interface{}{}
 		}
 
 		nbDisk.Cells = append(nbDisk.Cells, CellDisk{
@@ -160,7 +175,7 @@ func convertToNbDisk(nb Notebook) NotebookDisk {
 			ExecutionCount: outCell.ExecutionCount,
 			Attachments:    attachments,
 			Outputs:        outputsDisk,
-			Metadata:       outCell.Metadata,
+			CellMetadata:   cellMeta,
 		})
 	}
 
@@ -170,11 +185,12 @@ func convertToNbDisk(nb Notebook) NotebookDisk {
 
 // stripTransient removes transient metadata from the notebook.
 func stripTransient(nb *NotebookDisk) *NotebookDisk {
-	delete(nb.Metadata, "orig_nbformat")
-	delete(nb.Metadata, "orig_nbformat_minor")
-	delete(nb.Metadata, "signature")
+	// todo
+	// delete(nb.Metadata, "orig_nbformat")
+	// delete(nb.Metadata, "orig_nbformat_minor")
+	// delete(nb.Metadata, "signature")
 	for _, cell := range nb.Cells {
-		delete(cell.Metadata, "trusted")
+		delete(cell.CellMetadata, "trusted")
 	}
 	return nb
 }
@@ -190,14 +206,18 @@ func toStringSlice(input []interface{}) []string {
 
 // Notebook struct to be stored on disk
 type NotebookDisk struct {
-	Cells    []CellDisk             `json:"cells"`
-	Metadata map[string]interface{} `json:"metadata"`
+	Cells         []CellDisk       `json:"cells"`
+	Nbformat      int              `json:"nbformat"`
+	NbformatMinor int              `json:"nbformat_minor"`
+	Metadata      NotebookMetadata `json:"metadata"`
 }
 
 // Notebook struct that is rendered as json to outside world
 type Notebook struct {
-	Cells    []Cell                 `json:"cells"`
-	Metadata map[string]interface{} `json:"metadata"`
+	Cells         []Cell           `json:"cells"`
+	Nbformat      int              `json:"nbformat"`
+	NbformatMinor int              `json:"nbformat_minor"`
+	Metadata      NotebookMetadata `json:"metadata"`
 }
 
 // Cell struct for handling individual cells in a notebook
@@ -207,7 +227,7 @@ type CellDisk struct {
 	CellType       string                 `json:"cell_type"`
 	Attachments    map[string]interface{} `json:"attachments"`
 	Outputs        []OutputDisk           `json:"outputs"`
-	Metadata       map[string]interface{} `json:"metadata"`
+	CellMetadata   map[string]interface{} `json:"metadata"`
 }
 
 type Cell struct {
@@ -216,7 +236,25 @@ type Cell struct {
 	CellType       string                 `json:"cell_type"`
 	Attachments    map[string]string      `json:"attachments"`
 	Outputs        []Output               `json:"outputs"`
-	Metadata       map[string]interface{} `json:"metadata"`
+	CellMetadata   map[string]interface{} `json:"metadata"`
+}
+
+type NotebookLanguageInfo struct {
+	CodemirrorMode  string `json:"codemirror_mode"`
+	FileExtension   string `json:"file_extension"`
+	Mimetype        string `json:"mimetype"`
+	Name            string `json:"name"`
+	Version         string `json:"version"`
+	NbConvertExport string `json:"nbconvert_exporter"`
+	PygmentsLexer   string `json:"pygments_lexer"`
+}
+
+type NotebookMetadata struct {
+	KernelSpec   string               `json:"kernelspec"`
+	DisplayName  string               `json:"display_name"`
+	Language     string               `json:"language"`
+	Name         string               `json:"name"`
+	LanguageInfo NotebookLanguageInfo `json:"language_info"`
 }
 
 // Output struct for handling cell outputs
@@ -227,19 +265,19 @@ type OutputDisk struct {
 	Text           []string               `json:"text"`
 	Metadata       map[string]interface{} `json:"metadata"`
 	// in case of error traceback
-	Ename     string   `json:"ename"`
-	Evalue    string   `json:"evalue"`
-	Traceback []string `json:"traceback"`
+	Ename     string   `json:"ename,omitempty"`
+	Evalue    string   `json:"evalue,omitempty"`
+	Traceback []string `json:"traceback,omitempty"`
 }
 
 type Output struct {
-	OutputType     string                 `json:"output_type"`
-	ExecutionCount int                    `json:"execution_count"`
-	Data           map[string]string      `json:"data"`
-	Text           string                 `json:"text"`
-	Metadata       map[string]interface{} `json:"metadata"`
+	OutputType     string                 `json:"output_type,omitempty"`
+	ExecutionCount int                    `json:"execution_count,omitempty"`
+	Data           map[string]string      `json:"data,omitempty"`
+	Text           string                 `json:"text,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 	// in case of error traceback
-	Ename     string   `json:"ename"`
-	Evalue    string   `json:"evalue"`
-	Traceback []string `json:"traceback"`
+	Ename     string   `json:"ename,omitempty"`
+	Evalue    string   `json:"evalue,omitempty"`
+	Traceback []string `json:"traceback,omitempty"`
 }

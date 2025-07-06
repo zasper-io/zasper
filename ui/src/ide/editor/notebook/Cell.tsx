@@ -23,6 +23,7 @@ export interface ICell {
   execution_count: number;
   source: string;
   outputs: any;
+  metadata: any;
   reload: boolean;
 }
 

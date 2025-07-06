@@ -20,8 +20,8 @@ export default function NotebookEditor(props) {
   const { data } = props;
   const [notebook, setNotebook] = useState<INotebookModel>({
     cells: [],
-    nbformat: 0,
-    nbformat_minor: 0,
+    nbformat: 4,
+    nbformat_minor: 5,
     metadata: {},
   });
 
@@ -117,6 +117,7 @@ export default function NotebookEditor(props) {
         id: uuidv4(),
         reload: false,
         outputs: [],
+        metadata: {},
       };
 
       const updatedCells = [
@@ -138,6 +139,7 @@ export default function NotebookEditor(props) {
         id: uuidv4(),
         reload: false,
         outputs: [],
+        metadata: {},
       };
       // Ensure the focusedIndex is within the bounds of the cells array
       const index =
@@ -229,7 +231,7 @@ export default function NotebookEditor(props) {
                 var textMessage = message.content.text;
                 const cleanedArray = removeAnsiCodes(textMessage);
                 if (updatedCell.outputs.length === 0) {
-                  updatedCell.outputs[0] = { text: '' };
+                  updatedCell.outputs[0] = { text: '', output_type: 'stream' };
                 }
                 updatedCell.outputs[0].text += cleanedArray;
                 return updatedCell;
@@ -248,7 +250,10 @@ export default function NotebookEditor(props) {
             if (cell.id === message.parent_header.msg_id) {
               const updatedCell = { ...cell };
               if (updatedCell.outputs.length === 0) {
-                updatedCell.outputs[0] = { data: message.content.data };
+                updatedCell.outputs[0] = {
+                  data: message.content.data,
+                  output_type: 'execute_result',
+                };
               } else {
                 updatedCell.outputs[0]['data'] = message.content.data;
               }
@@ -458,6 +463,20 @@ export default function NotebookEditor(props) {
       });
 
       return { ...prevNotebook, cells: updatedCells };
+    });
+  };
+
+  const setNotebookMetadata = () => {
+    setNotebook((prevNotebook) => {
+      const updatedMetadata = {
+        ...prevNotebook.metadata,
+        kernelspec: {
+          name: kernelName,
+          display_name: kernelName,
+        },
+      };
+
+      return { ...prevNotebook, metadata: updatedMetadata };
     });
   };
 

@@ -443,7 +443,7 @@ func UpdateNbContent(path, ftype, format string, content interface{}) error {
 		return fmt.Errorf("failed to marshal notebook: %w", err)
 	}
 
-	log.Info().Msgf("nbJSON: %s", string(nbJSON))
+	log.Debug().Msgf("nbJSON: %s", string(nbJSON))
 
 	// Write the JSON back to the file
 	if err := os.WriteFile(path, nbJSON, 0644); err != nil {
