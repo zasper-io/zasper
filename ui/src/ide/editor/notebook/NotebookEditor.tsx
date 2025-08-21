@@ -927,6 +927,7 @@ export default function NotebookEditor(props) {
                 toggleShowPrompt={toggleShowPrompt}
                 submitTabCompletion={submitTabCompletion}
                 inspectReplyMessage={inspectReplyMessage}
+                connection={kernelWebSocketClient}
               />
             ))}
         </div>

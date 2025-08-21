@@ -16,9 +16,9 @@ func parseNotebook(nb NotebookDisk) Notebook {
 	return outNb
 }
 
-func rejoinMimeBundle(data map[string]interface{}) map[string]string {
+func rejoinMimeBundle(data map[string]interface{}) map[string]interface{} {
 	// rejoinMimeBundle rejoins multi-line string fields in a mimebundle.
-	outData := make(map[string]string)
+	outData := make(map[string]interface{})
 	for key, value := range data {
 		if !_isJSONMime(key) {
 			if valueList, ok := value.([]interface{}); ok {
@@ -30,7 +30,7 @@ func rejoinMimeBundle(data map[string]interface{}) map[string]string {
 					}
 				}
 				if allStrings {
-					joined := strings.Join(toStringSlice(valueList), "\n")
+					joined := strings.Join(toStringSlice(valueList), "")
 					outData[key] = joined
 				}
 
@@ -102,7 +102,7 @@ func rejoinLines(nbDisk NotebookDisk) Notebook {
 }
 
 // splitMimeBundle splits multi-line string fields in a mimebundle.
-func splitMimeBundle(data map[string]string) map[string]interface{} {
+func splitMimeBundle(data map[string]interface{}) map[string]interface{} {
 	diskData := make(map[string]interface{})
 	nonTextSplitMimes := map[string]bool{
 		"application/javascript": false,
@@ -113,14 +113,20 @@ func splitMimeBundle(data map[string]string) map[string]interface{} {
 	for key, value := range data {
 		// if str, ok := value.(string); ok {
 		if strings.HasPrefix(key, "text/") || nonTextSplitMimes[key] {
-			splitValue := strings.SplitAfter(value, "\n")
+			strVal, ok := value.(string)
+			if ok {
+				splitValue := strings.SplitAfter(strVal, "\n")
 
-			// Trim the last element to remove the trailing newline
-			if len(splitValue) > 0 {
-				splitValue[len(splitValue)-1] = strings.TrimSuffix(splitValue[len(splitValue)-1], "\n")
+				// Trim the last element to remove the trailing newline
+				if len(splitValue) > 0 {
+					splitValue[len(splitValue)-1] = strings.TrimSuffix(splitValue[len(splitValue)-1], "\n")
+				}
+
+				diskData[key] = splitValue
+			} else {
+				// If not a string, just assign the value as is
+				diskData[key] = value
 			}
-
-			diskData[key] = splitValue
 		} else {
 			diskData[key] = value
 		}
@@ -143,7 +149,11 @@ func convertToNbDisk(nb Notebook) NotebookDisk {
 		// Convert attachments map
 		attachments := make(map[string]interface{})
 		for k, v := range outCell.Attachments {
-			attachments[k] = map[string]string{"data": v}
+			if str, ok := v.(string); ok {
+				attachments[k] = map[string]string{"data": str}
+			} else {
+				attachments[k] = map[string]string{"data": fmt.Sprintf("%v", v)}
+			}
 		}
 
 		// Convert outputs
@@ -234,7 +244,7 @@ type Cell struct {
 	Source         string                 `json:"source"`
 	ExecutionCount int                    `json:"execution_count"`
 	CellType       string                 `json:"cell_type"`
-	Attachments    map[string]string      `json:"attachments"`
+	Attachments    map[string]interface{} `json:"attachments"`
 	Outputs        []Output               `json:"outputs"`
 	CellMetadata   map[string]interface{} `json:"metadata"`
 }
@@ -273,7 +283,7 @@ type OutputDisk struct {
 type Output struct {
 	OutputType     string                 `json:"output_type,omitempty"`
 	ExecutionCount int                    `json:"execution_count,omitempty"`
-	Data           map[string]string      `json:"data,omitempty"`
+	Data           map[string]interface{} `json:"data,omitempty"`
 	Text           string                 `json:"text,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 	// in case of error traceback

@@ -14,6 +14,7 @@ import { themeAtom } from '../../../store/Settings';
 import { AnsiUp } from 'ansi_up';
 import remarkMath from 'remark-math';
 import rehypeMathjax from 'rehype-mathjax';
+import { WidgetRenderer } from '../../widgets/WidgetRenderer';
 
 type CellType = 'code' | 'markdown' | 'raw' | string;
 
@@ -50,6 +51,7 @@ interface ICellProps {
   toggleShowPrompt: () => void;
   inspectReplyMessage: any;
   submitTabCompletion: (source: string, cellId: string, cursor_pos: number) => void;
+  connection: any; // Add connection type if available
 }
 
 export interface CodeMirrorRef {
@@ -262,7 +264,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
           />
         )}
       <div className="inner-text">
-        <CellOutput data={cell} />
+        <CellOutput data={cell} connection={props.connection} />
       </div>
     </div>
   );
@@ -293,7 +295,7 @@ const HTMLWithScripts = ({ html }: { html: string }) => {
   return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
-const CellOutput = ({ data }) => {
+const CellOutput = ({ data, connection }) => {
   const ansi_up = new AnsiUp();
 
   if (!data) {
@@ -347,7 +349,12 @@ const CellOutput = ({ data }) => {
         'text/html': htmlContent,
         'image/png': imageContent,
         'text/plain': textPlainData,
+        'application/vnd.jupyter.widget-view+json': widgetData,
       } = outputData;
+
+      if (widgetData) {
+        return <WidgetRenderer modelId={widgetData.model_id} connection={connection} />;
+      }
 
       if (htmlContent) {
         return <HTMLWithScripts html={htmlContent} />;
