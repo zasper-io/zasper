@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState } from 'react';
 
 // Types for Jupyter messages we care about
 interface JupyterMessage {
@@ -24,7 +24,7 @@ interface WidgetState {
 
 export const WidgetRenderer: React.FC<WidgetRendererProps> = ({ modelId }) => {
   const [state, setState] = useState<WidgetState | null>(null);
-  const commIdRef = useRef<string>(modelId);
+  // const commIdRef = useRef<string>(modelId);
 
   //   useEffect(() => {
   //     const handleMsg = (msg: JupyterMessage) => {
