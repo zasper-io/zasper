@@ -68,6 +68,7 @@ func main() {
 	cwd := flag.String("cwd", ".", "base directory of project")
 	port := flag.String("port", ":8048", "port to start the server on")
 	protected := flag.Bool("protected", false, "enable protected mode")
+	host :=  flag.String("host", "127.0.0.1" ,  "host to start the server on") 
 
 	flag.Parse()
 
@@ -180,10 +181,10 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
-	printBanner(*port, core.ServerAccessToken, version, *protected)
+	printBanner(*port, core.ServerAccessToken, version, *protected, *host)
 
 	go func() {
-		if err := http.ListenAndServe(*port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {
+		if err := http.ListenAndServe( *host + *port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {
 			fmt.Printf("ListenAndServe(): %s\n", err)
 		}
 	}()
@@ -208,7 +209,7 @@ func main() {
 	fmt.Println("Server exiting")
 }
 
-func printBanner(port string, accessToken string, version string, protected bool) {
+func printBanner(port string, accessToken string, version string, protected bool, host string) {
 	fmt.Println("==========================================================")
 	fmt.Println("     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ ")
 	fmt.Println("     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗")
@@ -221,8 +222,8 @@ func printBanner(port string, accessToken string, version string, protected bool
 	fmt.Printf("                Version: %s\n", version)
 	fmt.Println("----------------------------------------------------------")
 	fmt.Println(" ✅ Server started successfully!")
-	fmt.Printf(" 📡 Listening on:        http://localhost%s\n", port)
-	fmt.Printf(" 🖥️  Webapp available at: http://localhost%s\n", port)
+	fmt.Printf(" 📡 Listening on:        http://%s%s\n", host, port)
+	fmt.Printf(" 🖥️  Webapp available at: http://%s%s\n", host, port)
 	if protected {
 		fmt.Println(" 🔒 Protected Mode:      enabled")
 		fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
