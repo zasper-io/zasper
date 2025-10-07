@@ -1,0 +1,85 @@
+# Caddyfile for Zasper IDE
+# This configuration sets up a reverse proxy for the Zasper application
+
+# Replace 'your-domain.com' with your actual domain name
+# For local testing, you can use 'localhost' or remove the domain entirely
+zasper.ghcat.tech {
+	# Enable automatic HTTPS with Let's Encrypt
+	# Caddy will automatically obtain and renew SSL certificates
+
+	# Reverse proxy to the Zasper application
+	reverse_proxy localhost:8048 {
+		# Forward the real client IP
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+
+		# WebSocket support for Jupyter kernels and terminal
+		# Zasper uses WebSockets extensively for kernel communication
+		# This ensures WebSocket connections are properly upgraded
+		@websockets {
+			header Connection *Upgrade*
+			header Upgrade websocket
+		}
+	}
+
+	# Enable compression for better performance
+	encode gzip zstd
+
+	# Security headers
+	header {
+		# Prevent clickjacking
+		X-Frame-Options SAMEORIGIN
+
+		# Prevent MIME type sniffing
+		X-Content-Type-Options nosniff
+
+		# Enable XSS protection
+		X-XSS-Protection "1; mode=block"
+
+		# Referrer policy
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# Logging (using relative path to avoid permission issues)
+	log {
+		output file ./logs/zasper-access.log
+		format json
+	}
+}
+
+# Alternative configuration for local development or IP-based access
+# Uncomment and modify as needed
+# :8080 {
+#     reverse_proxy localhost:8048 {
+#         header_up X-Real-IP {remote_host}
+#         header_up X-Forwarded-For {remote_host}
+#         header_up X-Forwarded-Proto {scheme}
+#     }
+
+#     encode gzip zstd
+# }
+
+# Configuration for subdomain or path-based routing
+# Example: zasper.your-domain.com
+# zasper.your-domain.com {
+#     reverse_proxy localhost:8048 {
+#         header_up X-Real-IP {remote_host}
+#         header_up X-Forwarded-For {remote_host}
+#         header_up X-Forwarded-Proto {scheme}
+#     }
+#     
+#     encode gzip zstd
+# }
+
+# Configuration for path-based routing
+# Example: example.com/zasper
+# your-domain.com {
+#     handle /zasper* {
+#         reverse_proxy localhost:8048 {
+#             header_up X-Real-IP {remote_host}
+#             header_up X-Forwarded-For {remote_host}
+#             header_up X-Forwarded-Proto {scheme}
+#         }
+#     }
+# }
