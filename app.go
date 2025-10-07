@@ -222,8 +222,8 @@ func printBanner(port string, accessToken string, version string, protected bool
 	fmt.Printf("                Version: %s\n", version)
 	fmt.Println("----------------------------------------------------------")
 	fmt.Println(" ✅ Server started successfully!")
-	fmt.Printf(" 📡 Listening on:        http://%s%s\n", host, port)
-	fmt.Printf(" 🖥️  Webapp available at: http://%s%s\n", host, port)
+	fmt.Printf(" 📡 Listening on:        http://%s:%s\n", host, port)
+	fmt.Printf(" 🖥️  Webapp available at: http://%s:%s\n", host, port)
 	if protected {
 		fmt.Println(" 🔒 Protected Mode:      enabled")
 		fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
