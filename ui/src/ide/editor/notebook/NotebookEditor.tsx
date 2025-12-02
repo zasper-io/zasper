@@ -172,6 +172,7 @@ export default function NotebookEditor(props) {
   );
 
   const updateNotebook = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (message: any) => {
       if (message.header.msg_type === 'input_request') {
         setShowPrompt(true);
@@ -204,14 +205,13 @@ export default function NotebookEditor(props) {
           const updatedCells = prevNotebook.cells.map((cell) => {
             if (cell.id === message.parent_header.msg_id) {
               const updatedCell = { ...cell };
-              updatedCell.outputs = [
-                {
-                  output_type: 'error',
-                  ename: message.content.ename,
-                  evalue: message.content.evalue,
-                  traceback: message.content.traceback,
-                },
-              ];
+              if (!updatedCell.outputs.length) updatedCell.outputs = [];
+              updatedCell.outputs.push({
+                output_type: 'error',
+                ename: message.content.ename,
+                evalue: message.content.evalue,
+                traceback: message.content.traceback,
+              });
 
               return updatedCell;
             }
@@ -228,12 +228,10 @@ export default function NotebookEditor(props) {
             const updatedCells = prevNotebook.cells.map((cell) => {
               if (cell.id === message.parent_header.msg_id) {
                 const updatedCell = { ...cell };
-                var textMessage = message.content.text;
+                const textMessage = message.content.text;
                 const cleanedArray = removeAnsiCodes(textMessage);
-                if (updatedCell.outputs.length === 0) {
-                  updatedCell.outputs[0] = { text: '', output_type: 'stream' };
-                }
-                updatedCell.outputs[0].text += cleanedArray;
+                if (!updatedCell.outputs.length) updatedCell.outputs = [];
+                updatedCell.outputs.push({ text: cleanedArray, output_type: 'stream' });
                 return updatedCell;
               }
               return cell;
@@ -249,14 +247,12 @@ export default function NotebookEditor(props) {
           const updatedCells = prevNotebook.cells.map((cell) => {
             if (cell.id === message.parent_header.msg_id) {
               const updatedCell = { ...cell };
-              if (updatedCell.outputs.length === 0) {
-                updatedCell.outputs[0] = {
-                  data: message.content.data,
-                  output_type: 'execute_result',
-                };
-              } else {
-                updatedCell.outputs[0]['data'] = message.content.data;
-              }
+              if (!updatedCell.outputs.length) updatedCell.outputs = [];
+              updatedCell.outputs.push({
+                data: message.content.data,
+                output_type: 'execute_result',
+              });
+
               return updatedCell;
             }
             return cell;
@@ -271,7 +267,8 @@ export default function NotebookEditor(props) {
           const updatedCells = prevNotebook.cells.map((cell) => {
             if (cell.id === message.parent_header.msg_id) {
               const updatedCell = { ...cell };
-              updatedCell.outputs = [{ data: message.content.data }];
+              if (!updatedCell.outputs.length) updatedCell.outputs = [];
+              updatedCell.outputs.push({ data: message.content.data });
               return updatedCell;
             }
             return cell;

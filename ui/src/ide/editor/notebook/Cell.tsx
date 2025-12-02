@@ -304,83 +304,87 @@ const CellOutput = ({ data, connection }) => {
 
   const { outputs } = data;
   if (outputs && outputs.length > 0) {
-    const output = outputs[0];
+    return (
+      <>
+        {outputs.map((output, index) => {
+          if (output.output_type === 'error') {
+            const { ename, evalue, traceback } = output;
+            const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
 
-    if (output.output_type === 'error') {
-      const { ename, evalue, traceback } = output;
+            return (
+              <div key={index}>
+                <h6>
+                  {ename}: {evalue}
+                </h6>
+                <pre>
+                  <div dangerouslySetInnerHTML={{ __html: tracebackHtml }} />
+                </pre>
+              </div>
+            );
+          }
 
-      // Join traceback array and convert to HTML with ANSI colors
-      const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
+          const { text, 'text/plain': textPlain, data: outputData } = output;
 
-      return (
-        <div>
-          <h6>
-            {ename}: {evalue}
-          </h6>
-          <pre>
-            <div dangerouslySetInnerHTML={{ __html: tracebackHtml }} />
-          </pre>
-        </div>
-      );
-    }
+          if (text) {
+            const textHtml = ansi_up.ansi_to_html(text);
+            return (
+              <pre key={index}>
+                <div dangerouslySetInnerHTML={{ __html: textHtml }} />
+              </pre>
+            );
+          }
 
-    const { text, 'text/plain': textPlain, data: outputData } = output;
+          if (textPlain) {
+            const textPlainHtml = ansi_up.ansi_to_html(textPlain);
+            return (
+              <pre key={index}>
+                <div dangerouslySetInnerHTML={{ __html: textPlainHtml }} />
+              </pre>
+            );
+          }
 
-    if (text) {
-      const textHtml = ansi_up.ansi_to_html(text);
-      return (
-        <pre>
-          <div dangerouslySetInnerHTML={{ __html: textHtml }} />
-        </pre>
-      );
-    }
+          if (outputData) {
+            const {
+              'text/html': htmlContent,
+              'image/png': imageContent,
+              'text/plain': textPlainData,
+              'application/vnd.jupyter.widget-view+json': widgetData,
+            } = outputData;
 
-    if (textPlain) {
-      const textPlainHtml = ansi_up.ansi_to_html(textPlain);
-      return (
-        <pre>
-          <div dangerouslySetInnerHTML={{ __html: textPlainHtml }} />
-        </pre>
-      );
-    }
+            if (widgetData) {
+              return (
+                <WidgetRenderer key={index} modelId={widgetData.model_id} connection={connection} />
+              );
+            }
 
-    if (outputData) {
-      const {
-        'text/html': htmlContent,
-        'image/png': imageContent,
-        'text/plain': textPlainData,
-        'application/vnd.jupyter.widget-view+json': widgetData,
-      } = outputData;
+            if (htmlContent) {
+              return <HTMLWithScripts key={index} html={htmlContent} />;
+            }
 
-      if (widgetData) {
-        return <WidgetRenderer modelId={widgetData.model_id} connection={connection} />;
-      }
+            if (imageContent) {
+              const blob = `data:image/png;base64,${imageContent}`;
+              return (
+                <div key={index}>
+                  <img src={blob} alt="cell output" />
+                </div>
+              );
+            }
 
-      if (htmlContent) {
-        return <HTMLWithScripts html={htmlContent} />;
-      }
+            if (textPlainData) {
+              const textPlainDataHtml = ansi_up.ansi_to_html(textPlainData);
+              return (
+                <pre key={index}>
+                  <div dangerouslySetInnerHTML={{ __html: textPlainDataHtml }} />
+                </pre>
+              );
+            }
+          }
 
-      if (imageContent) {
-        const blob = `data:image/png;base64,${imageContent}`;
-        return (
-          <div>
-            <img src={blob} alt="cell output" />
-          </div>
-        );
-      }
-
-      if (textPlainData) {
-        const textPlainDataHtml = ansi_up.ansi_to_html(textPlainData);
-        return (
-          <pre>
-            <div dangerouslySetInnerHTML={{ __html: textPlainDataHtml }} />
-          </pre>
-        );
-      }
-    }
-
-    // Fallback if output type is unrecognized
-    return <p>{JSON.stringify(output)}</p>;
+          // Fallback if output type is unrecognized
+          return <p key={index}>{JSON.stringify(output)}</p>;
+        })}
+      </>
+    );
   }
 
   return null;

@@ -223,12 +223,11 @@ table.dataframe tbody tr:nth-child(even) {
   background-color: rgb(170, 26, 26) !important;
 }
 
-
 /* Dark theme styles */
 
 /* Dark Theme for Pandas DataFrame Table */
 
-.themeDark{
+.themeDark {
   table.dataframe {
     background-color: #1e1e1e;
     color: #d4d4d4;
@@ -237,46 +236,40 @@ table.dataframe tbody tr:nth-child(even) {
 
   /* Header */
   table.dataframe thead {
-      background-color: #252526;
-      color: #fff;
+    background-color: #252526;
+    color: #fff;
   }
 
   table.dataframe thead th {
-      border-right: 1px solid #444;
+    border-right: 1px solid #444;
   }
-  
 
   /* Table Body */
   table.dataframe tbody tr {
-      border-bottom: 1px solid #333;
+    border-bottom: 1px solid #333;
   }
 
   table.dataframe tbody tr:nth-child(odd) {
-      background-color: #2a2a2a;
+    background-color: #2a2a2a;
   }
 
   table.dataframe tbody tr:nth-child(even) {
-      background-color: #1e1e1e;
+    background-color: #1e1e1e;
   }
 
   table.dataframe tbody tr:hover {
-      background-color: #3a3d41;
+    background-color: #3a3d41;
   }
 
   /* Cells */
   table.dataframe td {
-      border-right: 1px solid #333;
+    border-right: 1px solid #333;
   }
-
-  
 
   /* Index Column (if any) */
   table.dataframe th {
-      background-color: #2d2d2d;
-      color: #cccccc;
-      border-right: 1px solid #444;
+    background-color: #2d2d2d;
+    color: #cccccc;
+    border-right: 1px solid #444;
   }
-
- 
-
 }
