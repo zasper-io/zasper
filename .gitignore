@@ -33,3 +33,6 @@ zasper_go
 examples
 ui/public/zasper
 kernelConnection.json
+
+# Caddy logs
+logs/
