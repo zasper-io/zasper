@@ -34,6 +34,7 @@ interface ICellProps {
   submitCell: (source: string, cellId: string) => void;
   addCellUp: () => void;
   addCellDown: () => void;
+  copyCellByIndex: (index: number) => void;
   prevCell: () => void;
   nextCell: () => void;
   deleteCell: (index: number) => void;
@@ -215,6 +216,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
           submitCell={props.submitCell}
           addCellUp={props.addCellUp}
           addCellDown={props.addCellDown}
+          copyCellByIndex={props.copyCellByIndex}
           deleteCell={props.deleteCell}
           nextCell={props.nextCell}
           prevCell={props.prevCell}

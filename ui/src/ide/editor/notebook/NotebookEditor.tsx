@@ -619,6 +619,10 @@ export default function NotebookEditor(props) {
     setCopiedCell(notebook.cells[focusedIndex]);
   };
 
+  const copyCellByIndex = (index: number) => {
+    setCopiedCell(notebook.cells[index]);
+  };
+
   // Function to cut the cell (copy it and remove from notebook)
   const cutCell = () => {
     const cellToCut = notebook.cells[focusedIndex];
@@ -843,6 +847,14 @@ export default function NotebookEditor(props) {
     }
   };
 
+  const goToPreviousCell = () => {
+    setFocusedIndex((prev) => Math.max(prev - 1, 0));
+  };
+
+  const goToNextCell = () => {
+    setFocusedIndex((prev) => Math.min(prev + 1, notebook.cells.length - 1));
+  };
+
   return (
     <div className="tab-content">
       <div
@@ -905,10 +917,11 @@ export default function NotebookEditor(props) {
                 index={index}
                 cell={cell}
                 submitCell={submitCell}
+                copyCellByIndex={copyCellByIndex}
                 addCellUp={addCellUp}
                 addCellDown={addCellDown}
-                prevCell={() => console.log('prev cell')}
-                nextCell={() => console.log('next cell')}
+                prevCell={goToPreviousCell}
+                nextCell={goToNextCell}
                 deleteCell={deleteCell}
                 focusedIndex={focusedIndex}
                 setFocusedIndex={setFocusedIndex}

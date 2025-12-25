@@ -11,7 +11,11 @@ function CellButtons(props) {
         >
           <i className="fas fa-play" />
         </button>
-        <button type="button" className="editor-button" onClick={() => props.copyCell(props.index)}>
+        <button
+          type="button"
+          className="editor-button"
+          onClick={() => props.copyCellByIndex(props.index)}
+        >
           <i className="fas fa-copy" />
         </button>
         <button type="button" className="editor-button" onClick={() => props.nextCell(props.index)}>
