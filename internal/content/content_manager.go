@@ -361,10 +361,6 @@ func deleteFile(filename string) error {
 	return nil
 }
 
-func GetKernelPath(path string) int {
-	return 1
-}
-
 func IsDir(path string) bool {
 	info, err := os.Lstat(path)
 

@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/models"
@@ -75,8 +74,6 @@ func startKernelForSession(path string, name string) (string, error) {
 	/*
 		Starts a Jupyter Kernel for a new Sesion
 	*/
-	kernel_path := content.GetKernelPath(path)
-	log.Debug().Msgf("kernel_path: %s", kernel_path)
 	env := getKernelEnv(path, name)
 	log.Debug().Msg("starting kernel")
 	kernelId, err := kernel.StartKernelManager(path, name, env)
