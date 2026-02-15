@@ -44,7 +44,7 @@ func generateWatchId() string {
 
 // HandleWatchWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
 func HandleWatchWebSocket(w http.ResponseWriter, req *http.Request) {
-	log.Info().Msg("New connection request")
+	log.Debug().Msg("New connection request")
 	connection, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to upgrade connection")
@@ -55,7 +55,7 @@ func HandleWatchWebSocket(w http.ResponseWriter, req *http.Request) {
 	// Generate a unique session ID for each WebSocket connection
 	watchId := generateWatchId()
 
-	log.Info().Msgf("New connection: %s", watchId)
+	log.Debug().Msgf("New connection: %s", watchId)
 
 	// Create the context and cancel function for managing the lifecycle
 	ctx, cancel := context.WithCancel(context.Background())

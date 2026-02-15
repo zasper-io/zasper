@@ -172,7 +172,6 @@ func convertToNbDisk(nb Notebook) NotebookDisk {
 				outputsDisk[i].Traceback = out.Traceback
 			}
 		}
-		// fmt.Println("outputsDisk", outputsDisk)
 
 		cellMeta := outCell.CellMetadata
 		if cellMeta == nil {

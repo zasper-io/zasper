@@ -46,7 +46,7 @@ type ConnectionFileData struct {
 func (km *KernelManager) writeConnectionFile(connectionFile string) error {
 	// Open the file for writing, create it if it doesn't exist, or truncate it if it does.
 	file, err := os.Create(connectionFile)
-	log.Info().Msgf("writing connection info to %s", file.Name())
+	log.Debug().Msgf("writing connection info to %s", file.Name())
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
@@ -115,7 +115,7 @@ func (conn *Connection) ConnectIopub(ctx context.Context) zmq4.Socket {
 	socket := zmq4.NewSub(ctx)
 	err := socket.SetOption(zmq4.OptionSubscribe, "")
 	if err != nil {
-		log.Info().Msgf("could not subscribe: %v", err)
+		log.Error().Msgf("could not subscribe: %v", err)
 	}
 	socket.Dial(url)
 	return socket

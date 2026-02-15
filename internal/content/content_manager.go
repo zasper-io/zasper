@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
 
@@ -74,8 +73,6 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
-
-	analytics.IncrementUsageStat(analytics.EventNotebookOpened)
 	return output, nil
 }
 
@@ -110,7 +107,7 @@ func getDirectoryModel(relativePath string) (models.ContentModel, error) {
 	}
 	files, err := dir.Readdir(0)
 	if err != nil {
-		fmt.Println(err)
+		log.Error().Msgf("error getting content data %s", err)
 	}
 	listOfContents := []models.ContentModel{}
 	for _, v := range files {
@@ -162,7 +159,6 @@ func getFileModel(abspath, relativePath, fileName string) (models.ContentModel, 
 }
 
 func getFileModelWithContent(path string) (models.ContentModel, error) {
-	// fmt.Println(path)
 	osPath := GetSafePath(path)
 
 	info, err := os.Lstat(osPath)
@@ -182,7 +178,6 @@ func getFileModelWithContent(path string) (models.ContentModel, error) {
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
 
-	analytics.IncrementUsageStat(analytics.EventFileOpened)
 	return output, nil
 }
 

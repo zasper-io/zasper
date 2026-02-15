@@ -77,6 +77,18 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
+	// Optional: shorten file path
+	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
+		return fmt.Sprintf("%s:%d", file, line)
+	}
+
+	// Enable caller + timestamp
+	log.Logger = zerolog.New(os.Stdout).
+		With().
+		Timestamp().
+		Caller().
+		Logger()
+
 	if version == "" {
 		data, err := os.ReadFile("version.txt")
 		if err != nil {

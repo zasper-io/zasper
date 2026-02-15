@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+
+	"github.com/rs/zerolog/log"
 )
 
 func GetHomeDir() string {
@@ -84,7 +86,7 @@ func GetJupyterPath() []string {
 		var err error
 		homeDir, err = os.UserHomeDir()
 		if err != nil {
-			fmt.Println("Failed to get home directory:", err)
+			log.Debug().Msgf("Failed to get home directory: %v", err)
 		}
 	}
 	// Initialize an empty slice to hold the paths

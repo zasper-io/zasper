@@ -15,20 +15,6 @@ const phAPIKey = "phc_ptZIEQ1RgjxThkHTSeuxSgx7lxHSvnQx8anw9bD7A6R"
 var client posthog.Client
 var trackingID string
 
-// UsageStats struct
-type UsageStats struct {
-	NotebooksOpened   int
-	TerminalsOpened   int
-	CodeCellsExecuted int
-	FilesOpened       int
-}
-
-var stats UsageStats
-
-func SetUpUsage() {
-	stats = UsageStats{}
-}
-
 type EventType string
 
 const (
@@ -37,21 +23,6 @@ const (
 	EventCodeCellExecuted EventType = "code_cell_executed"
 	EventFileOpened       EventType = "file_opened"
 )
-
-func IncrementUsageStat(eventType EventType) {
-	switch eventType {
-	case EventNotebookOpened:
-		stats.NotebooksOpened++
-	case EventTerminalOpened:
-		stats.TerminalsOpened++
-	case EventCodeCellExecuted:
-		stats.CodeCellsExecuted++
-	case EventFileOpened:
-		stats.FilesOpened++
-	default:
-		log.Printf("Unknown event type: %s", eventType)
-	}
-}
 
 // Function to generate or retrieve the tracking ID from the config
 func GetAnonymousTrackingId() (string, error) {
@@ -93,7 +64,6 @@ func SetUpPostHogClient() error {
 	if err != nil {
 		log.Error().Msgf("Error getting tracking ID: %v", err)
 	}
-	SetUpUsage()
 	return nil
 }
 

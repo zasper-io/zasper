@@ -1,7 +1,6 @@
 package session
 
 import (
-	"fmt"
 	"path/filepath"
 	"time"
 
@@ -25,16 +24,16 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	session_id := uuid.New().String()
 	var session models.SessionModel
 	session, ok := core.ZasperSession[req.Id]
-	log.Info().Msgf("creating session %s", req.Kernel.Name)
+	log.Debug().Msgf("creating session %s", req.Kernel.Name)
 	if ok {
 		//do something here
-		log.Info().Msg("session exists")
+		log.Debug().Msg("session exists")
 	} else {
 		kernelId, err := startKernelForSession(req.Path, req.Kernel.Name)
 		if err != nil {
 			return session, err
 		}
-		log.Info().Msgf("started kernel with id %s", kernelId)
+		log.Debug().Msgf("started kernel with id %s", kernelId)
 		// pendingSessions.update()
 		session = models.SessionModel{
 			Id:          session_id,
@@ -77,9 +76,9 @@ func startKernelForSession(path string, name string) (string, error) {
 		Starts a Jupyter Kernel for a new Sesion
 	*/
 	kernel_path := content.GetKernelPath(path)
-	fmt.Println(kernel_path)
+	log.Debug().Msgf("kernel_path: %s", kernel_path)
 	env := getKernelEnv(path, name)
-	log.Info().Msg("starting kernel")
+	log.Debug().Msg("starting kernel")
 	kernelId, err := kernel.StartKernelManager(path, name, env)
 	if err != nil {
 		return "", err

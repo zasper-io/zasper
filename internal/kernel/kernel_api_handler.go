@@ -25,12 +25,9 @@ func KernelListAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
-
-	log.Info().Msg("Get request received")
-
 	vars := mux.Vars(req)
 	kernelId := vars["kernelId"]
-	log.Info().Msgf("kernelId : %s", kernelId)
+	log.Debug().Msgf("kernelId : %s", kernelId)
 
 	kernel, err := getKernel(kernelId)
 	if err != nil {
@@ -45,9 +42,6 @@ func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
-
-	log.Info().Msg("Get request received")
-
 	vars := mux.Vars(req)
 	kernelId := vars["kernelId"]
 	log.Info().Msgf("kernelId : %s", kernelId)
@@ -67,9 +61,6 @@ func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func KernelKillAPIHandler(w http.ResponseWriter, req *http.Request) {
-
-	log.Info().Msg("Get request received")
-
 	vars := mux.Vars(req)
 	kernelId := vars["kernelId"]
 	log.Info().Msgf("kernelId : %s", kernelId)

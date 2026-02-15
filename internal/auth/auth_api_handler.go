@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/core"
 )
 
@@ -93,7 +94,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	})
 
-	fmt.Println("Login role:", user.Role)
+	log.Debug().Msgf("Login role: %v", user.Role)
 
 	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {

@@ -36,7 +36,6 @@ func SetUpStateKernels() map[string]*kernel.KernelWebSocketConnection {
 	return make(map[string]*kernel.KernelWebSocketConnection)
 }
 
-// DELETE handler for /api/kernels/{kernel_id}
 func KernelDeleteAPIHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	kernelID := vars["kernel_id"]
@@ -64,18 +63,18 @@ func KernelDeleteAPIHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
-	log.Info().Msg("receieved kernel connection request")
+	log.Debug().Msg("receieved kernel connection request")
 	vars := mux.Vars(req)
 	kernelId := vars["kernelId"]
-	log.Info().Msgf("kernelName : %s", kernelId)
-
 	sessionId := req.URL.Query().Get("session_id")
-	log.Info().Msgf("sessionId : %s", sessionId)
+
+	log.Debug().Msgf("kernelName : %s, sessionId : %s", kernelId, sessionId)
 
 	session, ok := core.ZasperSession[sessionId]
-	log.Info().Msgf("session %v", session)
+
+	log.Debug().Msgf("session %v", session)
 	if !ok {
-		log.Info().Msg("session not found")
+		log.Warn().Msg("session not found")
 		http.NotFound(w, req)
 		return
 	}
@@ -83,7 +82,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	kernelManager, ok := kernel.ZasperActiveKernels[kernelId]
 
 	if !ok {
-		log.Info().Msg("kernel not found")
+		log.Error().Msg("kernel not found")
 		http.NotFound(w, req)
 		return
 	}
@@ -91,7 +90,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	conn, err := upgrader.Upgrade(w, req, nil)
 
 	if err != nil {
-		log.Info().Msgf("%s", err)
+		log.Error().Msgf("%s", err)
 		return
 	}
 
@@ -108,10 +107,10 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		PollingCancel: cancel, // Store the cancel function so it can be called later to stop polling
 	}
 
-	log.Info().Msg("preparing kernel connection")
+	log.Debug().Msg("preparing kernel connection")
 	kernelConnection.Prepare(sessionId)
 
-	log.Info().Msg("connecting kernel")
+	log.Debug().Msg("connecting kernel")
 	kernelConnection.Connect()
 
 	clientsMu.Lock()

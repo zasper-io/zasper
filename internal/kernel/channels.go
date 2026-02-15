@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	"github.com/zasper-io/zasper/internal/analytics"
 
 	"github.com/go-zeromq/zmq4"
 )
@@ -71,7 +70,7 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 
 				zmsg, err2 := socket.Recv()
 				if err2 != nil {
-					log.Info().Msgf("could not receive message: %v", err2)
+					log.Error().Msgf("could not receive message: %v", err2)
 					continue
 				}
 				log.Debug().Msgf("channel: [%s] [%s] %s\n", socketName, zmsg.Frames[0], zmsg.Frames[1])
@@ -97,25 +96,26 @@ func (kwsConn *KernelWebSocketConnection) startPolling() { //msg interface{}, bi
 func (kwsConn *KernelWebSocketConnection) Prepare(sessionId string) {
 	km := kwsConn.KernelManager
 	if km.Ready {
-		log.Info().Msgf("%s", km.Session.Key)
+		log.Debug().Msgf("%s", km.Session.Key)
 	} else {
-		log.Info().Msg("Kernel is not ready")
+		log.Debug().Msg("Kernel is not ready")
 	}
 	kwsConn.Session = km.Session
 }
 
 func (kwsConn *KernelWebSocketConnection) Connect() {
-	log.Info().Msg("notifying connection")
+	log.Debug().Msg("notifying connection")
 	NotifyConnect()
 
-	log.Info().Msg("creating stream")
+	log.Debug().Msg("creating stream")
 	kwsConn.createStream()
 
-	log.Info().Msg("Nudging the kernel")
+	log.Debug().Msg("Nudging the kernel")
 	kwsConn.nudge()
 
-	log.Info().Msg("Start polling")
+	log.Debug().Msg("Start polling")
 	// subscribe
+	log.Info().Msg("Kernel launched successfully")
 	kwsConn.startPolling()
 }
 
@@ -173,14 +173,14 @@ func (kwsConn *KernelWebSocketConnection) nudge() {
 	select {
 	case res := <-result:
 		if res.err != nil {
-			log.Info().Msgf("dealer failed to recv message: %v", res.err)
+			log.Error().Msgf("dealer failed to recv message: %v", res.err)
 		} else {
-			log.Info().Msgf("%s", kwsConn.Session.Deserialize(res.msg, "shell"))
+			log.Debug().Msgf("%s", kwsConn.Session.Deserialize(res.msg, "shell"))
 		}
 	case <-timeout:
 		log.Warn().Msg("Timeout waiting for response from shell channel")
 	}
-	log.Info().Msg("closing connection")
+	log.Debug().Msg("closing connection")
 	transient_shell_channel.Close()
 	log.Debug().Msgf("Nudge successful")
 }
@@ -202,7 +202,6 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 			return
 		}
 		log.Debug().Msgf("msg is => %v", msg)
-		analytics.IncrementUsageStat(analytics.EventCodeCellExecuted)
 		if msg.Channel == "stdin" {
 			kwsConn.Session.SendStreamMsg(kwsConn.Channels["stdin"], msg)
 		} else {

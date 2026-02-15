@@ -13,7 +13,6 @@ import (
 	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
 )
 
@@ -89,7 +88,7 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	go writeToTTY(sessionID, connection, tty)
 
 	waiter.Wait()
-	log.Info().Msg("Closing connection...")
+	log.Debug().Msg("Closing connection...")
 }
 
 // startTTY starts a new terminal session.
@@ -122,14 +121,12 @@ func startTTY() (*os.File, *exec.Cmd, error) {
 		return nil, nil, fmt.Errorf("failed to start TTY: %w", err)
 	}
 
-	analytics.IncrementUsageStat(analytics.EventTerminalOpened)
-
 	return tty, cmd, nil
 }
 
 // cleanupTTY gracefully stops the terminal and closes the connection.
 func cleanupTTY(sessionID string, tty *os.File, cmd *exec.Cmd, connection *websocket.Conn) {
-	log.Info().Msg("Gracefully stopping spawned TTY...")
+	log.Debug().Msg("Gracefully stopping spawned TTY...")
 
 	// Remove the session from the global map
 	delete(terminalSessions, sessionID)
@@ -255,7 +252,7 @@ func handleResizeMessage(dataBuffer []byte, tty *os.File) {
 		return
 	}
 
-	log.Info().Msgf("Resizing TTY to %d rows and %d columns", ttySize.Rows, ttySize.Cols)
+	log.Debug().Msgf("Resizing TTY to %d rows and %d columns", ttySize.Rows, ttySize.Cols)
 	if err := pty.Setsize(tty, &pty.Winsize{
 		Rows: ttySize.Rows,
 		Cols: ttySize.Cols,

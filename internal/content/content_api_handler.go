@@ -21,7 +21,7 @@ import (
 func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var body ContentRequestBody
 	err := json.NewDecoder(req.Body).Decode(&body)
-	log.Info().Msgf("Content requested with payload: %+v", body)
+	log.Debug().Msgf("Content requested with payload: %+v", body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -130,7 +130,7 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var body ContentRequestBody
 	err := json.NewDecoder(req.Body).Decode(&body)
 
-	log.Info().Msgf("%s", body)
+	log.Debug().Msgf("%s", body)
 	if err != nil {
 		log.Error().Err(err).Msg("Error decoding request body")
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))
@@ -172,7 +172,7 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 	_ = json.NewDecoder(req.Body).Decode(&renameContentPayload)
 
 	oldName := renameContentPayload.OldName
-	log.Info().Msgf("old path : %s", oldName)
+	log.Debug().Msgf("old path : %s", oldName)
 
 	if strings.Contains(renameContentPayload.ParentDir, "..") || strings.Contains(oldName, "..") || strings.Contains(renameContentPayload.NewName, "..") {
 		log.Error().Msg("Invalid path")
@@ -227,5 +227,5 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Return success response
 	w.WriteHeader(http.StatusOK)
-	log.Info().Msgf("File uploaded successfully to %s", dst)
+	log.Debug().Msgf("File uploaded successfully to %s", dst)
 }

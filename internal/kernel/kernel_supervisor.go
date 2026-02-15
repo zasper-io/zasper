@@ -30,7 +30,7 @@ func killKernel(pid int) {
 	// Get the process by PID
 	process, err := os.FindProcess(pid)
 	if err != nil {
-		fmt.Printf("Error finding process: %v\n", err)
+		log.Error().Msgf("Error finding process: %v\n", err)
 		return
 	}
 
@@ -38,16 +38,16 @@ func killKernel(pid int) {
 	err = process.Kill()
 	if err != nil {
 		if err == syscall.ESRCH {
-			fmt.Println("No such process.")
+			log.Error().Msgf("No such process.")
 		} else if err == syscall.EPERM {
-			fmt.Println("Permission denied.")
+			log.Error().Msgf("Permission denied.")
 		} else {
-			fmt.Printf("Error killing process: %v\n", err)
+			log.Error().Msgf("Error killing process: %v\n", err)
 		}
 		return
 	}
 
-	fmt.Printf("Process %d killed successfully.\n", pid)
+	log.Debug().Msgf("Process %d killed successfully.\n", pid)
 }
 
 func NotifyConnect() {
@@ -155,6 +155,6 @@ func createKernelManager(kernelName string, kernelId string) (KernelManager, str
 	km.ConnectionInfo.Transport = "tcp"
 	km.ConnectionInfo.IP = "127.0.0.1"
 	km.Session = getSession()
-	log.Info().Msgf("session is %v", km.Session)
+	log.Debug().Msgf("session is %v", km.Session)
 	return km, kernelName, kernelId
 }

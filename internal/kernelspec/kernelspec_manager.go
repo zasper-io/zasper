@@ -2,7 +2,6 @@ package kernelspec
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,7 +99,7 @@ func fromResourceDir(resourceDir string) KernelSpecJsonData {
 	*/
 
 	kernelFile := filepath.Join(resourceDir, "kernel.json")
-	log.Info().Msgf("loading file %s", kernelFile)
+	log.Debug().Msgf("loading file %s", kernelFile)
 	byteValue, _ := os.ReadFile(kernelFile)
 
 	var kernelSpecJsonData KernelSpecJsonData
@@ -195,10 +194,10 @@ func listKernelsIn(kernelDir string) map[string]string {
 		log.Debug().Msgf("No kernels found in %s", kernelDir)
 		return nil
 	}
-	log.Info().Msgf("kernels found in %s", kernelDir)
+	log.Debug().Msgf("kernels found in %s", kernelDir)
 	files, err := dir.Readdir(0)
 	if err != nil {
-		fmt.Println(err)
+		log.Debug().Msgf("Error reading directory %s: %v", kernelDir, err)
 	}
 	kernels := make(map[string]string)
 	for _, v := range files {

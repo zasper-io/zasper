@@ -43,8 +43,7 @@ type KernelManager struct {
 *********************************************************************/
 
 func (km *KernelManager) StartKernel(kernelName string) error {
-
-	log.Info().Msg("starting kernel")
+	log.Debug().Msg("kernel manager is launching a kernel")
 
 	km.AttemptedStart = true
 

@@ -40,9 +40,7 @@ func ServeKernelResource(w http.ResponseWriter, req *http.Request) {
 		contentType = "application/octet-stream" // default for unknown file types
 	}
 
-	// Set the content type for the response
 	w.Header().Set("Content-Type", contentType)
-	// Serve the resource data
 	w.Write(resourceData)
 }
 
