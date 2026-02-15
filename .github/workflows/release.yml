@@ -28,7 +28,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.24'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -41,7 +41,7 @@ jobs:
           args: release --clean
 
   build-electron-macos:
-    name: Build Electron App for macOS and Windows
+    name: Build Electron App for macOS
     runs-on: macos-latest
     needs: build-go
     env:
@@ -54,7 +54,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.24'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -79,25 +79,60 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: make electron-package-mac
+
+      - name: Upload macOS release assets
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          for file in ui/dist/*; do
+            if [[ -f "$file" && "$file" != *.blockmap && "$file" != *.yaml && "$file" != *.yml && "$file" != *.deb && "$file" != *.rpm && "$file" != *.AppImage ]]; then
+              gh release upload "$TAG_NAME" "$file" --clobber
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-electron-windows:
+    name: Build Electron App for Windows
+    runs-on: windows-latest
+    needs: build-go
+    env:
+      CI: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.7'
+
+      - name: Install dependencies
+        run: make init
+
+      - name: Build Frontend and Backend
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: make build
 
       - name: Package Electron app for Windows
         env:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: make electron-package-windows
 
-      - name: Extract version from tag
-        id: extract_version
-        run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          VERSION="${TAG_NAME#v}" # Strip 'v' if it exists
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Upload macOS and Windows release assets
+      - name: Upload Windows release assets
+        shell: bash
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           for file in ui/dist/*; do
-            if [[ -f "$file" && "$file" != *.blockmap && "$file" != *.yaml && "$file" != *.yml && "$file" != *.deb && "$file" != *.rpm && "$file" != *.AppImage ]]; then
+            if [[ -f "$file" && "$file" == *.exe ]]; then
               gh release upload "$TAG_NAME" "$file" --clobber
             fi
           done
@@ -118,13 +153,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.24'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.7'
-      
+
       - name: Install RPM build tools
         run: |
           sudo apt-get update
@@ -142,13 +177,6 @@ jobs:
         env:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: make electron-package-linux
-
-      - name: Extract version from tag
-        id: extract_version
-        run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          VERSION="${TAG_NAME#v}" # Strip 'v' if it exists
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Upload Linux release assets
         run: |

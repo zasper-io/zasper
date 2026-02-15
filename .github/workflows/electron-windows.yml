@@ -6,10 +6,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
-
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -18,7 +17,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23'
+          go-version: '1.24'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -33,10 +32,14 @@ jobs:
         run: echo "VERSION=$(cat version.txt)" >> $GITHUB_OUTPUT
 
       - name: Build Frontend and Backend
-        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make build
+        run: make build
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
       - name: Package Electron app
-        run: POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} && make electron-package-windows
+        run: make electron-package-windows
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
