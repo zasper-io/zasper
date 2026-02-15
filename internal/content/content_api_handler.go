@@ -222,13 +222,31 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to resolve base directory", http.StatusInternalServerError)
 		return
 	}
+	absBaseDir = filepath.Clean(absBaseDir)
 
-	dst := filepath.Join(absBaseDir, parentPath, fileName)
+	// Resolve the parentPath relative to the base directory and ensure it does not escape
+	parentDir := filepath.Join(absBaseDir, parentPath)
+	parentDir, err = filepath.Abs(parentDir)
+	if err != nil {
+		http.Error(w, "Unable to resolve destination path", http.StatusBadRequest)
+		return
+	}
+	parentDir = filepath.Clean(parentDir)
+
+	// Ensure the resolved parent directory is within the allowed base directory
+	if !strings.HasPrefix(parentDir, absBaseDir+string(os.PathSeparator)) && parentDir != absBaseDir {
+		http.Error(w, "Invalid destination path", http.StatusBadRequest)
+		return
+	}
+
+	// Build and validate the final destination path
+	dst := filepath.Join(parentDir, fileName)
 	absDst, err := filepath.Abs(dst)
 	if err != nil {
 		http.Error(w, "Unable to resolve destination path", http.StatusBadRequest)
 		return
 	}
+	absDst = filepath.Clean(absDst)
 
 	// Ensure the resolved destination path is within the allowed base directory
 	if !strings.HasPrefix(absDst, absBaseDir+string(os.PathSeparator)) && absDst != absBaseDir {
