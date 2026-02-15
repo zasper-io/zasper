@@ -21,15 +21,15 @@ CURRENT_PATCH = $(word 3, $(subst ., ,$(CURRENT_VERSION)))
 
 # Bump the version based on the specified type (major, minor, patch)
 bump-version:
-	@if [ "$(TYPE)" == "$(MAJOR_BUMP)" ]; then \
+	@if [ "$(TYPE)" = "$(MAJOR_BUMP)" ]; then \
 		NEW_MAJOR=$$(($(CURRENT_MAJOR) + 1)); \
 		NEW_MINOR=0; \
 		NEW_PATCH=0; \
-	elif [ "$(TYPE)" == "$(MINOR_BUMP)" ]; then \
+	elif [ "$(TYPE)" = "$(MINOR_BUMP)" ]; then \
 		NEW_MAJOR=$(CURRENT_MAJOR); \
 		NEW_MINOR=$$(($(CURRENT_MINOR) + 1)); \
 		NEW_PATCH=0; \
-	elif [ "$(TYPE)" == "$(PATCH_BUMP)" ]; then \
+	elif [ "$(TYPE)" = "$(PATCH_BUMP)" ]; then \
 		NEW_MAJOR=$(CURRENT_MAJOR); \
 		NEW_MINOR=$(CURRENT_MINOR); \
 		NEW_PATCH=$$(($(CURRENT_PATCH) + 1)); \
@@ -37,20 +37,22 @@ bump-version:
 		echo "Invalid version bump type. Use major, minor, or patch."; \
 		exit 1; \
 	fi; \
-	if [ "$(PRE_RELEASE)" == "alpha" ]; then \
+	if [ "$(PRE_RELEASE)" = "alpha" ]; then \
 		NEW_VERSION=$${NEW_MAJOR}.$${NEW_MINOR}.$${NEW_PATCH}$(ALPHA_SUFFIX); \
-	elif [ "$(PRE_RELEASE)" == "beta" ]; then \
+	elif [ "$(PRE_RELEASE)" = "beta" ]; then \
 		NEW_VERSION=$${NEW_MAJOR}.$${NEW_MINOR}.$${NEW_PATCH}$(BETA_SUFFIX); \
 	else \
 		NEW_VERSION=$${NEW_MAJOR}.$${NEW_MINOR}.$${NEW_PATCH}; \
 	fi; \
 	echo "New version: $${NEW_VERSION}"; \
-	echo $${NEW_VERSION} > $(VERSION_FILE); \
+	echo "$${NEW_VERSION}" > $(VERSION_FILE); \
+	echo "Version bumped and tagged as $(TAG_PREFIX)$${NEW_VERSION}"; \
+	(cd ui && node updateVersion.js); \
+	echo "Version updated in the frontend"; \
 	git commit -am "Bump version to $${NEW_VERSION}"; \
 	git tag $(TAG_PREFIX)$${NEW_VERSION}; \
-	echo "Version bumped and tagged as $(TAG_PREFIX)$${NEW_VERSION}"; \
-	cd ui && node updateVersion.js
-	echo "Version updated in the frontend"
+	git push origin main; \
+	git push origin $(TAG_PREFIX)$${NEW_VERSION}
 
 # To create a release (alpha, beta, or final) based on the version bump type
 release:
