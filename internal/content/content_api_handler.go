@@ -209,9 +209,35 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	fileName := fileHeader.Filename
 	parentPath := r.FormValue("parentPath")
 
+	// Validate file name to prevent path traversal via the name itself
+	if strings.Contains(fileName, "/") || strings.Contains(fileName, "\\") || strings.Contains(fileName, "..") {
+		http.Error(w, "Invalid file name", http.StatusBadRequest)
+		return
+	}
+
+	// Resolve and validate the destination path to ensure it stays within the home directory
+	baseDir := core.Zasper.HomeDir
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		http.Error(w, "Unable to resolve base directory", http.StatusInternalServerError)
+		return
+	}
+
+	dst := filepath.Join(absBaseDir, parentPath, fileName)
+	absDst, err := filepath.Abs(dst)
+	if err != nil {
+		http.Error(w, "Unable to resolve destination path", http.StatusBadRequest)
+		return
+	}
+
+	// Ensure the resolved destination path is within the allowed base directory
+	if !strings.HasPrefix(absDst, absBaseDir+string(os.PathSeparator)) && absDst != absBaseDir {
+		http.Error(w, "Invalid destination path", http.StatusBadRequest)
+		return
+	}
+
 	// Save the file to the disk
-	dst := filepath.Join(core.Zasper.HomeDir, parentPath, fileName)
-	out, err := os.Create(dst)
+	out, err := os.Create(absDst)
 	if err != nil {
 		http.Error(w, "Unable to create file", http.StatusInternalServerError)
 		return
@@ -227,5 +253,5 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Return success response
 	w.WriteHeader(http.StatusOK)
-	log.Debug().Msgf("File uploaded successfully to %s", dst)
+	log.Debug().Msgf("File uploaded successfully to %s", absDst)
 }
