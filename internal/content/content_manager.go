@@ -370,12 +370,6 @@ func GetKernelPath(path string) int {
 	return 1
 }
 
-func dirExists(path string) bool {
-	path = filepath.Clean(path)
-	os_path := GetSafePath(path)
-	return IsDir(os_path)
-}
-
 func IsDir(path string) bool {
 	info, err := os.Lstat(path)
 

@@ -68,6 +68,7 @@ func main() {
 	cwd := flag.String("cwd", ".", "base directory of project")
 	port := flag.String("port", ":8048", "port to start the server on")
 	protected := flag.Bool("protected", false, "enable protected mode")
+	tracking := flag.Bool("tracking", true, "enable usage tracking")
 
 	flag.Parse()
 
@@ -174,25 +175,23 @@ func main() {
 
 	router.PathPrefix("/").Handler(getSpaHandler())
 
-	analytics.TrackEvent("server_started", map[string]interface{}{"source": "web"})
+	// Track server start and stop events if tracking is enabled
+	// Note that this helps me understand if the users are actually using Zasper
+	// and keeps me motivated to maintain and improve the product
+
+	if *tracking {
+		analytics.TrackServerStartStopEvent("server_started", map[string]interface{}{"source": "web"})
+	}
 
 	// Channel for graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
-	printBanner(*port, core.ServerAccessToken, version, *protected)
+	printBanner(*port, core.ServerAccessToken, version, *protected, *tracking)
 
 	go func() {
 		if err := http.ListenAndServe(*port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {
 			fmt.Printf("ListenAndServe(): %s\n", err)
-		}
-	}()
-
-	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			analytics.SendStatsToPostHog()
 		}
 	}()
 
@@ -208,7 +207,7 @@ func main() {
 	fmt.Println("Server exiting")
 }
 
-func printBanner(port string, accessToken string, version string, protected bool) {
+func printBanner(port string, accessToken string, version string, protected bool, tracking bool) {
 	fmt.Println("==========================================================")
 	fmt.Println("     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ ")
 	fmt.Println("     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗")
@@ -229,6 +228,7 @@ func printBanner(port string, accessToken string, version string, protected bool
 	} else {
 		fmt.Println(" 🔒 Protected Mode:      disabled")
 	}
+	fmt.Println(" 🔄 Server start/shutdown tracking enabled:", tracking)
 	fmt.Println("==========================================================")
 }
 

@@ -2,7 +2,6 @@ package analytics
 
 import (
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/posthog/posthog-go"
@@ -54,51 +53,6 @@ func IncrementUsageStat(eventType EventType) {
 	}
 }
 
-func SendStatsToPostHog() {
-	if client == nil {
-		log.Info().Msg("PostHog client not initialized.")
-		return
-	}
-
-	props := posthog.NewProperties().
-		Set("notebooks_opened", stats.NotebooksOpened).
-		Set("terminals_opened", stats.TerminalsOpened).
-		Set("code_cells_executed", stats.CodeCellsExecuted).
-		Set("files_opened", stats.FilesOpened).
-		Set("timestamp", time.Now().Format(time.RFC3339)).
-		Set("OS", core.Zasper.OSName)
-
-	config, _ := core.ReadConfig()
-
-	err := client.Enqueue(posthog.Capture{
-		DistinctId: config.TrackingID,
-		Event:      "session usage summary",
-		Properties: props,
-	})
-
-	if err != nil {
-		log.Debug().Msgf("PostHog enqueue failed: %v. Retrying once...", err)
-
-		// Retry once after a short delay
-		time.Sleep(2 * time.Second)
-		err = client.Enqueue(posthog.Capture{
-			DistinctId: config.TrackingID,
-			Event:      "session usage summary",
-			Properties: props,
-		})
-
-		if err != nil {
-			log.Printf("PostHog enqueue retry also failed: %v", err)
-		} else {
-			log.Debug().Msg("PostHog retry succeeded.")
-			stats = UsageStats{}
-		}
-	} else {
-		log.Debug().Msg("PostHog session usage summary sent successfully.")
-		stats = UsageStats{}
-	}
-}
-
 // Function to generate or retrieve the tracking ID from the config
 func GetAnonymousTrackingId() (string, error) {
 	config, err := core.ReadConfig()
@@ -143,7 +97,7 @@ func SetUpPostHogClient() error {
 	return nil
 }
 
-func TrackEvent(eventName string, properties map[string]interface{}) {
+func TrackServerStartStopEvent(eventName string, properties map[string]interface{}) {
 	if phAPIKey == "" {
 		log.Warn().Msg("API key is missing. Event tracking skipped.")
 		return
@@ -167,8 +121,7 @@ func TrackEvent(eventName string, properties map[string]interface{}) {
 }
 
 func CloseClient() {
-	SendStatsToPostHog()
-	TrackEvent("server_shutdown", map[string]interface{}{"source": "web"})
+	TrackServerStartStopEvent("server_shutdown", map[string]interface{}{"source": "web"})
 	// Flush analytics queue
 	if client != nil {
 		client.Close() // This will block until the queue is flushed
