@@ -13,7 +13,7 @@ import { useAtom } from 'jotai';
 import { themeAtom } from '../../../store/Settings';
 import { AnsiUp } from 'ansi_up';
 import remarkMath from 'remark-math';
-import rehypeMathjax from 'rehype-mathjax';
+import rehypeMathjax from 'rehype-katex';
 import { WidgetRenderer } from '../../widgets/WidgetRenderer';
 
 type CellType = 'code' | 'markdown' | 'raw' | string;
