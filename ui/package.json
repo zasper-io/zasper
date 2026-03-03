@@ -92,8 +92,6 @@
     "electron-dev": "concurrently \"BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
     "electron-package": "electron-builder --mac --linux --windows",
     "electron-package-mac": "electron-builder --mac",
-    "electron-package-mac-arm64": "electron-builder --mac --arm64",
-    "electron-package-mac-x64": "electron-builder --mac --x64",
     "electron-package-linux": "electron-builder --linux",
     "electron-package-rpm": "electron-builder --linux rpm",
     "electron-package-snap": "electron-builder --linux snap",
@@ -129,15 +127,15 @@
         {
           "target": "dmg",
           "arch": [
-            "x64",
-            "arm64"
+            "arm64",
+            "x64"
           ]
         },
         {
-          "target": "zip",
+          "target": "pkg",
           "arch": [
-            "x64",
-            "arm64"
+            "arm64",
+            "x64"
           ]
         }
       ],

@@ -110,10 +110,10 @@ electron-package:
 
 # Package the Electron app
 electron-package-mac:
-	@echo "Packaging the Electron app for macOS (amd64 and arm64)..."
+	@echo "Packaging the Electron app for macOS (arm64 and amd64)..."
 	rm -rf ui/backend/*
-	GOOS=darwin GOARCH=amd64 go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/darwin-amd64/zasper
 	GOOS=darwin GOARCH=arm64  go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/darwin-arm64/zasper
+	GOOS=darwin GOARCH=amd64 go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/darwin-amd64/zasper
 	cd ui && npm run electron-package-mac
 
 electron-package-linux:
