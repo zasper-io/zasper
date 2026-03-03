@@ -9,6 +9,26 @@ import (
 )
 
 func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) (*os.Process, error) {
+	// Log which python will be used
+	// pythonCmd := kernelCmd[0]
+	// pythonPath, err := exec.LookPath(pythonCmd)
+	// if err != nil {
+	// 	log.Error().Msgf("Python command '%s' not found in PATH: %v", pythonCmd, err)
+	// } else {
+	// 	log.Info().Msgf("Using Python: %s", pythonPath)
+
+	// 	// Optionally, also log the Python version and architecture
+	// 	versionCmd := exec.Command(pythonPath, "--version")
+	// 	if output, err := versionCmd.CombinedOutput(); err == nil {
+	// 		log.Info().Msgf("Python version: %s", string(output))
+	// 	}
+
+	// 	// Log the architecture of the Python binary
+	// 	fileCmd := exec.Command("file", pythonPath)
+	// 	if output, err := fileCmd.CombinedOutput(); err == nil {
+	// 		log.Info().Msgf("Python architecture: %s", string(output))
+	// 	}
+	// }
 
 	for i, arg := range kernelCmd {
 		if arg == "{connection_file}" {
