@@ -218,3 +218,16 @@ nav.navbar.navbar-expand-lg {
 :focus-visible {
     outline: -webkit-focus-ring-color auto 0px;
 }
+/* ===================================== */
+/* Fix PNG Intrinsic Aspect Ratio in IDE */
+/* ===================================== */
+
+.tab-content img,
+.file-content img,
+.editor-preview img {
+    max-width: 100%;
+    height: auto !important;
+    width: auto !important;
+    object-fit: contain;
+    display: block;
+}

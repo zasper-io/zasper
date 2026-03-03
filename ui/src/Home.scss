@@ -91,3 +91,59 @@
   margin-top: 10px;
   margin-bottom: 10px;
 }
+/* ===================================== */
+/* Dark Mode Support - Home Dashboard    */
+/* ===================================== */
+
+@media (prefers-color-scheme: dark) {
+
+  body {
+    background-color: #121212;
+    color: #ffffff;
+  }
+
+  .dashboard-top-menu-wraper {
+    background: #1e1e1e !important;
+    box-shadow: 0px 3px 16px #00000040;
+  }
+
+  .dashboard-content-features {
+    background: #1e1e1e !important;
+    box-shadow: 0px 3px 26px #00000050;
+  }
+
+  .dashboard-title {
+    border-bottom: 1px solid #333;
+  }
+
+  .dashboard-task-items h6 {
+    color: #ffffff !important;
+  }
+
+  /* ===================================== */
+  /* DataFrame / Notebook Table Styling    */
+  /* ===================================== */
+
+  table {
+    background-color: #1e1e1e !important;
+    color: #ffffff !important;
+    border-collapse: collapse;
+  }
+
+  table th {
+    background-color: #2d2d2d !important;
+    color: #ffffff !important;
+    border: 1px solid #444;
+    padding: 8px;
+  }
+
+  table td {
+    background-color: #1e1e1e !important;
+    border: 1px solid #444;
+    padding: 8px;
+  }
+
+  table tr:hover {
+    background-color: #333 !important;
+  }
+}
