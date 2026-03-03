@@ -1,4 +1,4 @@
-const { app, ipcMain, BrowserWindow, protocol, dialog } = require("electron");
+const { app, ipcMain, BrowserWindow, dialog } = require("electron");
 const path = require("path");
 const { execFile } = require("child_process");
 const http = require("http");
@@ -11,10 +11,9 @@ var mainWindow;
 var welcomeScreen;
 var welcomeScreenOn = false;
 
-const feedURL = 'https://update.electronjs.org/zasper-io/zasper';
-
 // Optional, initialize the logger for any renderer process
 log.transports.file.level = "silly";
+log.transports.console.level = "silly";
 
 function getGoBinaryName() {
   const platform = process.platform; // 'darwin', 'win32', 'linux'
@@ -74,6 +73,7 @@ const isApiServerReady = (port, callback) => {
 const startApiServer = (directory) => {
   const binaryName = getGoBinaryName();
   const binaryPath = path.join(process.resourcesPath, 'backend', binaryName);
+  log.info("Go Binary Path:", binaryPath);
   apiProcess = execFile(binaryPath, { cwd: directory });
 
   apiProcess.stdout.on("data", (data) => {
@@ -98,7 +98,9 @@ const startApp = () => {
     },
   });
 
+  log.info('About to load file:', path.join(__dirname, "welcome.html"));
   welcomeScreen.loadFile(path.join(__dirname, "welcome.html"));
+  log.info('File loaded');
   if (!app.isPackaged) {
     welcomeScreen.webContents.openDevTools();
   }
@@ -142,41 +144,10 @@ app.whenReady().then(() => {
       log.info("Window created!");
     }
   });
-
-   // Check for updates as soon as the app is ready
-  autoUpdater.setFeedURL(feedURL); // Set the URL where the updates will be downloaded from
-
-  // Automatically check for updates when the app is ready
-  autoUpdater.checkForUpdatesAndNotify();
-
-  // Handle the event when an update is downloaded
-  autoUpdater.on('update-downloaded', (info) => {
-    dialog
-      .showMessageBox({
-        type: 'info',
-        buttons: ['Restart', 'Later'],
-        title: 'Update Available',
-        message: 'A new version has been downloaded. Restart the application to apply the update.',
-      })
-      .then((result) => {
-        if (result.response === 0) {
-          autoUpdater.quitAndInstall();
-        }
-      });
-  });
-
-  // Handle update errors
-  autoUpdater.on('error', (error) => {
-    console.error('Error occurred while updating:', error);
-  });
-
-  // Optional: Show update progress
-  autoUpdater.on('download-progress', (progressObj) => {
-    console.log('Update progress:', progressObj);
-  });
 });
 
 ipcMain.handle("dialog:openDirectory", async () => {
+  log.info("open dialog!");
   const result = await dialog.showOpenDialog({
     properties: ["openDirectory"],
   });
@@ -184,6 +155,7 @@ ipcMain.handle("dialog:openDirectory", async () => {
 });
 
 ipcMain.handle("runCommand", async (event, directory) => {
+  log.info("run command to open directory =>", directory);
   if (apiProcess) {
     apiProcess.kill();
     mainWindow.close();
@@ -249,17 +221,4 @@ app.on("window-all-closed", function () {
   if (process.platform !== "darwin") {
     app.quit();
   }
-});
-
-// If your app has no need to navigate or only needs to navigate to known pages,
-// it is a good idea to limit navigation outright to that known scope,
-// disallowing any other kinds of navigation.
-const allowedNavigationDestinations = "https://my-app.com";
-app.on("web-contents-created", (event, contents) => {
-  contents.on("will-navigate", (event, navigationURL) => {
-    const parsedURL = new URL(navigationURL);
-    if (!allowedNavigationDestinations.includes(parsedURL.origin)) {
-      event.preventDefault();
-    }
-  });
 });

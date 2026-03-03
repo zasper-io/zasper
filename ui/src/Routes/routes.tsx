@@ -40,7 +40,6 @@ export default function RouteConfig() {
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log('Contents:', data);
         setProtectedState(data.protected);
       })
       .catch((error) => {

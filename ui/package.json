@@ -53,7 +53,7 @@
     "react-scripts": "^5.0.1",
     "react-terminal": "1.3.0",
     "react-toastify": "10.0.5",
-    "rehype-mathjax": "^7.1.0",
+    "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
     "remark-math": "^6.0.0",
     "swiper": "^11.2.6",
@@ -64,7 +64,7 @@
     "websocket": "1.0.34"
   },
   "devDependencies": {
-    "@electron/notarize": "^2.5.0",
+    "@electron/notarize": "3.1.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/dompurify": "^2.4.0",
@@ -92,6 +92,8 @@
     "electron-dev": "concurrently \"BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
     "electron-package": "electron-builder --mac --linux --windows",
     "electron-package-mac": "electron-builder --mac",
+    "electron-package-mac-arm64": "electron-builder --mac --arm64",
+    "electron-package-mac-x64": "electron-builder --mac --x64",
     "electron-package-linux": "electron-builder --linux",
     "electron-package-rpm": "electron-builder --linux rpm",
     "electron-package-snap": "electron-builder --linux snap",
@@ -144,7 +146,7 @@
       "hardenedRuntime": true,
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
-      "notarize": true
+      "notarize": false
     },
     "linux": {
       "artifactName": "${name}_${version}_${arch}_${os}.${ext}",

@@ -283,7 +283,6 @@ export default function NotebookEditor(props) {
 
   const startWebSocket = useCallback(
     (session) => {
-      // console.log('starting websocket for session', session);
       if (!session) return Promise.reject('No session provided');
 
       return new Promise((resolve, reject) => {
@@ -370,8 +369,6 @@ export default function NotebookEditor(props) {
           updated[data.path] = data.kernel;
           return updated;
         });
-
-        console.log('starting websocket for session', data.id);
         const kernelWebSocketClient = await startWebSocket(data);
         setKernelWebSocketClient(kernelWebSocketClient);
 
