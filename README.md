@@ -185,11 +185,14 @@ Go to `http://localhost:8048`
 To host your own instance of Zasper, follow these steps:
 
 #### 1. Start the server in protected mode
-Run Zasper with the --protected=true flag to enable authentication:
 
+Run Zasper with the `--protected=true` flag to enable authentication:
+```sh
+zasper --protected=true
 ```
-prasunanand@Prasuns-Mac-mini example % zasper --protected=true
 
+On startup, Zasper will display a banner with your server details:
+```
 ==========================================================
      ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗
      ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗
@@ -208,16 +211,25 @@ prasunanand@Prasuns-Mac-mini example % zasper --protected=true
  🔐 Server Access Token: 14be1b674a3b9196a82c01129028d0dd
 ==========================================================
 ```
-### 2. Access the login page
 
-Once the server starts, visit: [http://localhost:8048](http://localhost:8048). It will redirect you to a login page.
+> **Note:** A unique `Server Access Token` is generated each time the server starts. To use a persistent token across restarts, set the `JWT_SECRET` environment variable before starting the server.
 
+### 2. Log in
+
+Open [http://localhost:8048](http://localhost:8048) in your browser — you'll be redirected to the login page.
 
 ![Server Login Page](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/login.png)
 
-### 3. Authenticate using the access token
-Copy the `Server Access Token` displayed in the console output when the server starts.
-Paste it into the login page to authenticate and access the app.
+Copy the `Server Access Token` from the console output and paste it into the login page to authenticate.
+
+### 3. Persistent token (optional)
+
+By default, a new token is generated on every restart, which will invalidate any active sessions. To keep sessions alive across restarts, set a fixed secret before starting the server:
+
+```sh
+export ZASPER_JWT_SECRET=your-secret-here
+zasper --protected=true
+```
 
 ## Jupyter kernels
 

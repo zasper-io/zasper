@@ -97,8 +97,14 @@ function IDE() {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
     });
-    const resJson = await res.json();
 
+    if (res.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+      return;
+    }
+
+    const resJson = await res.json();
     setProjectName(resJson.project.toUpperCase());
     setUserName(resJson.username);
     setVersion(resJson.version);

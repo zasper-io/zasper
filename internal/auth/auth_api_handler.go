@@ -2,9 +2,11 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -12,7 +14,30 @@ import (
 	"github.com/zasper-io/zasper/internal/core"
 )
 
-var jwtSecret = []byte("your-secret-key")
+var jwtSecret []byte
+
+func init() {
+	secret := os.Getenv("ZASPER_JWT_SECRET")
+	if secret != "" {
+		jwtSecret = []byte(secret)
+		log.Info().Msg("JWT secret loaded from environment")
+	} else {
+		generated, err := generateRandomSecret(32)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to generate JWT secret")
+		}
+		jwtSecret = generated
+		log.Warn().Msg("JWT_SECRET not set — using ephemeral random secret (tokens will invalidate on restart)")
+	}
+}
+
+func generateRandomSecret(n int) ([]byte, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
 
 func JwtAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
