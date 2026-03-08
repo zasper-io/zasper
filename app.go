@@ -118,9 +118,9 @@ func main() {
 	if *protected {
 		apiRouter.Use(auth.JwtAuthMiddleware)
 	}
-	apiRouter.HandleFunc("/health", health.HealthCheckHandler).Methods("GET")
+	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
 
-	router.HandleFunc("/api/info", InfoHandler).Methods("GET")
+	apiRouter.HandleFunc("/info", InfoHandler).Methods("GET")
 
 	// config
 	apiRouter.HandleFunc("/config/modify", core.ConfigModifyHandler).Methods("POST")
