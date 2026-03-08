@@ -108,7 +108,6 @@ func main() {
 	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()
 	websocket.ZasperActiveKernelConnections = websocket.SetUpStateKernels()
 	kernel.ProtocolVersion = "5.3"
-	_ = analytics.SetUpPostHogClient()
 
 	// API routes
 	apiRouter := router.PathPrefix("/api").Subrouter()
@@ -192,6 +191,7 @@ func main() {
 	// and keeps me motivated to maintain and improve the product
 
 	if *tracking {
+		analytics.SetUpPostHogClient()
 		analytics.TrackServerStartStopEvent("server_started", map[string]interface{}{"source": "web"})
 	}
 
@@ -211,7 +211,7 @@ func main() {
 	fmt.Println("Shutting down server...")
 
 	// Cleanup function
-	cleanup()
+	cleanup(*tracking)
 
 	// Shutdown the server gracefully
 	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -245,9 +245,10 @@ func printBanner(port string, accessToken string, version string, protected bool
 }
 
 // cleanup performs cleanup operations
-func cleanup() {
-	analytics.CloseClient()
-
+func cleanup(tracking bool) {
+	if tracking {
+		analytics.CloseClient()
+	}
 	fmt.Println("Performing cleanup...")
 	kernel.Cleanup()
 }
