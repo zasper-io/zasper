@@ -95,7 +95,10 @@ func (conn *Connection) ConnectShell(ctx context.Context, id zmq4.SocketIdentity
 	channel := "shell"
 	url := conn.makeURL(channel, conn.ShellPort)
 	socket := zmq4.NewDealer(ctx, zmq4.WithID(id))
-	socket.Dial(url)
+	err := socket.Dial(url)
+	if err != nil {
+		log.Error().Msgf("could not dial: %v", err)
+	}
 	return socket
 
 }
@@ -104,7 +107,10 @@ func (conn *Connection) ConnectControl(ctx context.Context) zmq4.Socket {
 	channel := "control"
 	url := conn.makeURL(channel, conn.ControlPort)
 	socket := zmq4.NewDealer(ctx)
-	socket.Dial(url)
+	err := socket.Dial(url)
+	if err != nil {
+		log.Error().Msgf("could not dial: %v", err)
+	}
 	return socket
 }
 
@@ -129,7 +135,7 @@ func (conn *Connection) ConnectStdin(ctx context.Context, id zmq4.SocketIdentity
 	err := socket.Dial(url)
 
 	if err != nil {
-		log.Fatal().Msgf("dealer failed to dial: %v", err)
+		log.Error().Msgf("could not dial: %v", err)
 	}
 
 	return socket
@@ -140,6 +146,10 @@ func (conn *Connection) ConnectHb(ctx context.Context) zmq4.Socket {
 	channel := "hb"
 	url := conn.makeURL(channel, conn.HbPort)
 	socket := zmq4.NewReq(ctx)
-	socket.Dial(url)
+	err := socket.Dial(url)
+
+	if err != nil {
+		log.Error().Msgf("could not dial: %v", err)
+	}
 	return socket
 }

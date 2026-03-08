@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"runtime"
-	"strconv"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 )
@@ -26,7 +26,7 @@ func newID() string {
 	// The ID format is 32 random bytes as hex-encoded text, with chunks separated by '-'.
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
-		log.Fatal().Msgf("Failed to generate random bytes: %v", err)
+		log.Error().Msgf("Failed to generate random bytes: %v", err)
 	}
 
 	hexStr := hex.EncodeToString(buf)
@@ -47,30 +47,62 @@ func newIDBytes() []byte {
 **********************************************************************
 *********************************************************************/
 
-var currentlyUsedPorts []int
+var (
+	currentlyUsedPorts []int
+	portMutex          sync.Mutex
+)
+
+func isPortAvailable(port int) bool {
+	// Test localhost binding (what Python ZeroMQ uses)
+	localListener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		log.Debug().Msgf("Port %d: localhost binding failed - %v", port, err)
+		return false
+	}
+	defer localListener.Close()
+
+	// Test all-interfaces binding (for completeness)
+	allListener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Debug().Msgf("Port %d: all-interfaces binding failed - %v", port, err)
+		return false
+	}
+	defer allListener.Close()
+
+	log.Debug().Msgf("Port %d: available on both 127.0.0.1 and 0.0.0.0", port)
+	return true
+}
 
 func findAvailablePort() (int, error) {
+	portMutex.Lock()
+	defer portMutex.Unlock()
 
-	// Start with a random port number or a specific range if needed.
-	for {
+	maxAttempts := 100
+	for attempt := 0; attempt < maxAttempts; attempt++ {
 		port := mrand.IntN(1000) + 5000
+
+		// Skip if we've already allocated this port
 		if portExists(port) {
+			log.Debug().Msgf("Port %d: already in our tracking list", port)
 			continue
 		}
-		log.Debug().Msgf("check port %d", port)
-		l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
-		if err == nil {
-			currentlyUsedPorts = append(currentlyUsedPorts, port)
-			l.Close()
-			return port, nil
+
+		// Check if port is available on both interfaces
+		if !isPortAvailable(port) {
+			continue
 		}
+
+		// Port is free - claim it
+		currentlyUsedPorts = append(currentlyUsedPorts, port)
+		log.Debug().Msgf("Successfully allocated port %d", port)
+		return port, nil
 	}
+
+	return 0, fmt.Errorf("could not find available port after %d attempts", maxAttempts)
 }
 
 func portExists(portNum int) bool {
-	// Iterate over the list of ports
 	for _, port := range currentlyUsedPorts {
-		// Only add the port to the result if it is not the one to remove
 		if port == portNum {
 			return true
 		}
@@ -78,17 +110,15 @@ func portExists(portNum int) bool {
 	return false
 }
 
-func removePort(portToRemove int) {
-	// Create a new slice to hold the ports after removal
-	var result []int
+func releasePort(port int) {
+	portMutex.Lock()
+	defer portMutex.Unlock()
 
-	// Iterate over the list of ports
-	for _, port := range currentlyUsedPorts {
-		// Only add the port to the result if it is not the one to remove
-		if port != portToRemove {
-			result = append(result, port)
+	for i, p := range currentlyUsedPorts {
+		if p == port {
+			currentlyUsedPorts = append(currentlyUsedPorts[:i], currentlyUsedPorts[i+1:]...)
+			log.Debug().Msgf("Released port %d", port)
+			return
 		}
 	}
-
-	currentlyUsedPorts = result
 }
