@@ -41,6 +41,11 @@ type InfoResponse struct {
 	Protected   bool   `json:"protected"`
 }
 
+type ConfigResponse struct {
+	Version   string `json:"version"`
+	Protected bool   `json:"protected"`
+}
+
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	theme, _ := core.GetTheme()
 	response := InfoResponse{
@@ -56,7 +61,18 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	json.NewEncoder(w).Encode(response)
+}
 
+func ConfigHandler(w http.ResponseWriter, r *http.Request) {
+	response := ConfigResponse{
+		Version:   core.Zasper.Version,
+		Protected: core.Zasper.Protected,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(response)
 }
 
 var version string
@@ -119,6 +135,7 @@ func main() {
 		apiRouter.Use(auth.JwtAuthMiddleware)
 	}
 	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
+	router.HandleFunc("/api/config", ConfigHandler).Methods("GET")
 
 	apiRouter.HandleFunc("/info", InfoHandler).Methods("GET")
 

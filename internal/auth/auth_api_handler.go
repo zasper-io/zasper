@@ -102,13 +102,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if creds.AccessToken != core.ServerAccessToken {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
 	user, err := GetUserByUsername(creds.AccessToken)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusUnauthorized)
-		return
-	}
-	if creds.AccessToken != core.ServerAccessToken {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 

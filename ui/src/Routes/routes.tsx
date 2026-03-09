@@ -24,7 +24,6 @@ const routes = [
 
 // Wrapper for protected routes
 function ProtectedRoute({ element }: { element: JSX.Element }) {
-  console.log(isAuthenticated());
   return isAuthenticated() ? element : <Navigate to="/login" replace />;
 }
 
@@ -32,7 +31,7 @@ export default function RouteConfig() {
   const [protectedState, setProtectedState] = useState(false);
 
   useEffect(() => {
-    fetch(BaseApiUrl + '/api/info', {
+    fetch(BaseApiUrl + '/api/config', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
