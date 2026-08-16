@@ -428,7 +428,7 @@ You can contribute in multiple ways:
 
 # ⭐️ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zasper-io/zasper&type=Date)](https://star-history.com/#zasper-io/zasper&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=zasper-io/zasper&type=Date)](https://star-history.dera.page/#zasper-io/zasper&Date)
 
 # Code of Conduct
 
