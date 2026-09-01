@@ -32,7 +32,7 @@ func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[str
 	return provisioner.ConnectionInfo, nil
 }
 
-func (provisioner *LocalProvisioner) ShutdownKernel() {
+func (provisioner *LocalProvisioner) ShutdownKernel() error {
 	log.Info().Msgf("Shutting down kernel with pid: %d", provisioner.Pid)
-	launcher.ShutdownKernel(provisioner.Pid)
+	return launcher.ShutdownKernel(provisioner.Pid)
 }

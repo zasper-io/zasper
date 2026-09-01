@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"net/http"
@@ -66,9 +67,14 @@ func KernelKillAPIHandler(w http.ResponseWriter, req *http.Request) {
 	log.Info().Msgf("kernelId : %s", kernelId)
 
 	err := KillKernelById(kernelId)
+	if errors.Is(err, ErrKernelNotFound) {
+		log.Error().Msgf("Error killing kernel: %v", err)
+		zhttp.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error killing kernel: %v", err))
+		return
+	}
 	if err != nil {
-		log.Error().Msgf("Error getting kernel: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting kernel: %v", err))
+		log.Error().Msgf("Error killing kernel: %v", err)
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error killing kernel: %v", err))
 		return
 	}
 

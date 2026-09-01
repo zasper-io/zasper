@@ -15,18 +15,10 @@ import { AnsiUp } from 'ansi_up';
 import remarkMath from 'remark-math';
 import rehypeMathjax from 'rehype-katex';
 import { WidgetRenderer } from '../../widgets/WidgetRenderer';
+import { IKernelMessage } from './kernelMessages';
+import { ICell, ICellOutput, IKernelConnection, INotebookKeyEvent } from './types';
 
-type CellType = 'code' | 'markdown' | 'raw' | string;
-
-export interface ICell {
-  cell_type: CellType;
-  id: string;
-  execution_count: number;
-  source: string;
-  outputs: any;
-  metadata: any;
-  reload: boolean;
-}
+export type { ICell } from './types';
 
 interface ICellProps {
   cell: ICell;
@@ -40,19 +32,19 @@ interface ICellProps {
   deleteCell: (index: number) => void;
   focusedIndex: number;
   setFocusedIndex: (index: number) => void;
-  handleKeyDown: any;
-  changeCellType: any;
+  handleKeyDown: (addCell: boolean, event: INotebookKeyEvent) => void;
+  changeCellType: (value: string) => void;
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
   execution_count: number;
-  codeMirrorRefs: any;
-  updateCellSource: any;
+  codeMirrorRefs: React.RefObject<CodeMirrorRef[] | null>;
+  updateCellSource: (value: string, cellId: string) => void;
   showPrompt: Boolean;
-  promptContent: any;
-  submitPrompt: any;
+  promptContent: IKernelMessage;
+  submitPrompt: (cellId: string, parentHeader: IKernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
-  inspectReplyMessage: any;
-  submitTabCompletion: (source: string, cellId: string, cursor_pos: number) => void;
-  connection: any; // Add connection type if available
+  inspectReplyMessage: string;
+  submitTabCompletion: (cellId: string, source: string, cursor_pos: number) => void;
+  connection: IKernelConnection;
 }
 
 export interface CodeMirrorRef {
@@ -69,7 +61,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
   const [totalLines, setTotalLines] = useState(0);
 
   const onChange = useCallback(
-    (value, viewUpdate) => {
+    (value: string) => {
       setCellContents(value);
       updateCellSource(value, cell.id);
     },
@@ -89,7 +81,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
     // props.setFocusedIndex(props.index)
   }, []);
 
-  const handleKeyDownCM = (event) => {
+  const handleKeyDownCM = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
       props.handleKeyDown(false, { key: 'ArrowDown', preventDefault: () => {} });
       event.preventDefault();
@@ -159,6 +151,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
               addCellUp={props.addCellUp}
               addCellDown={props.addCellDown}
               submitCell={props.submitCell}
+              copyCellByIndex={props.copyCellByIndex}
               deleteCell={props.deleteCell}
               nextCell={props.nextCell}
               prevCell={props.prevCell}
@@ -297,7 +290,12 @@ const HTMLWithScripts = ({ html }: { html: string }) => {
   return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
-const CellOutput = ({ data, connection }) => {
+interface CellOutputProps {
+  data: ICell;
+  connection: IKernelConnection;
+}
+
+const CellOutput = ({ data, connection }: CellOutputProps) => {
   const ansi_up = new AnsiUp();
 
   if (!data) {
@@ -308,7 +306,7 @@ const CellOutput = ({ data, connection }) => {
   if (outputs && outputs.length > 0) {
     return (
       <>
-        {outputs.map((output, index) => {
+        {outputs.map((output: ICellOutput, index: number) => {
           if (output.output_type === 'error') {
             const { ename, evalue, traceback } = output;
             const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
@@ -420,10 +418,16 @@ const LoaderSvg = () => {
 
 export default Cell;
 
-const Prompt = (props) => {
+interface PromptProps {
+  content: IKernelMessage;
+  submitPrompt: (cellId: string, parentHeader: IKernelMessage, inputValue: string) => void;
+  toggleShowPrompt: () => void;
+}
+
+const Prompt = (props: PromptProps) => {
   const [inputValue, setInputValue] = useState('');
 
-  const handleKeyPress = (event) => {
+  const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
       event.preventDefault(); // Prevent form submission refresh
       props.submitPrompt(

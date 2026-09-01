@@ -1,6 +1,8 @@
 import React from 'react';
 
-export default function DatabasePanel({ display }) {
+import { PanelProps } from './types';
+
+export default function DatabasePanel({ display }: PanelProps) {
   return (
     <div className={display}>
       <div className="nav-content">

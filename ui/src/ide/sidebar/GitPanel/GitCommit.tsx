@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { BaseApiUrl } from '../../config';
+import { commitAndMaybePush, getUncommittedFiles } from '../../../api';
+import { PanelProps } from '../types';
 import './GitPanel.scss';
 
-export function GitCommit({ display }) {
+export function GitCommit({ display }: PanelProps) {
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [commitMessage, setCommitMessage] = useState<string>('');
@@ -12,15 +13,7 @@ export function GitCommit({ display }) {
   // Function to fetch the list of uncommitted files
   const fetchFiles = async () => {
     try {
-      const resp = await fetch(BaseApiUrl + '/api/uncommitted-files', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      const respJSON = await resp.json();
-      setFiles(respJSON);
+      setFiles(await getUncommittedFiles());
     } catch (error) {
       console.error('Error fetching files:', error);
       setFiles([]);
@@ -48,21 +41,7 @@ export function GitCommit({ display }) {
       return;
     }
 
-    const payload = {
-      message: commitMessage,
-      files: selectedFiles,
-      push: pushAfterCommit, // Include the push option in the payload
-    };
-
-    fetch(BaseApiUrl + '/api/commit-and-maybe-push', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify(payload),
-    })
-      .then((response) => response.text())
+    commitAndMaybePush(commitMessage, selectedFiles, pushAfterCommit)
       .then((message) => {
         alert(message);
         // After commit (and push), re-fetch the list of uncommitted files

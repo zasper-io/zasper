@@ -11,8 +11,13 @@ import './xterm.css';
 import { BaseWebSocketUrl } from '../config';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../store/Settings';
+import { IfileTab } from '../../store/TabState';
 
-export default function TerminalTab(props) {
+interface TerminalTabProps {
+  data: IfileTab;
+}
+
+export default function TerminalTab({ data }: TerminalTabProps) {
   const [theme] = useAtom(themeAtom);
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -32,6 +37,8 @@ export default function TerminalTab(props) {
       socketRef.current.send(send);
     }
   };
+
+  const terminalId = data.name;
 
   useEffect(() => {
     if (terminalRef.current == null) return;
@@ -62,7 +69,9 @@ export default function TerminalTab(props) {
       sendSizeToBackend(cols, rows); // Send new size on resize
     });
 
-    socketRef.current = new WebSocket(BaseWebSocketUrl + '/ws/terminals/1');
+    socketRef.current = new WebSocket(
+      `${BaseWebSocketUrl}/ws/terminals/${encodeURIComponent(terminalId)}`
+    );
 
     socketRef.current.onopen = () => {
       if (socketRef.current !== null) {
@@ -72,20 +81,19 @@ export default function TerminalTab(props) {
       }
     };
 
-    window.addEventListener('resize', () => {
+    const refit = () => {
       fitAddon.fit();
-    });
+    };
+    window.addEventListener('resize', refit);
 
     return () => {
       // Clean up on component unmount
       socketRef.current?.close();
       terminal.dispose();
 
-      window.removeEventListener('resize', () => {
-        fitAddon.fit();
-      });
+      window.removeEventListener('resize', refit);
     };
-  }, [theme, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
+  }, [terminalId, theme, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
 
   return (
     <div className="tab-content">

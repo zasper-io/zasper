@@ -1,0 +1,100 @@
+import { BaseApiUrl } from '../ide/config';
+
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+/** Thrown whenever the server answers with a non-2xx status. */
+export class ApiError extends Error {
+  readonly status: number;
+  /** Raw response body, useful because the server reports errors as JSON or plain text. */
+  readonly body: string;
+
+  constructor(method: Method, path: string, status: number, body: string) {
+    super(`${method} ${path} failed with status ${status}`);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export interface RequestOptions {
+  method?: Method;
+  /** Sent as JSON, except for FormData which is passed through untouched. */
+  body?: unknown;
+  query?: Record<string, string | number | boolean | undefined>;
+}
+
+function buildUrl(path: string, query: RequestOptions['query']): string {
+  if (query === undefined) {
+    return BaseApiUrl + path;
+  }
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined) {
+      params.set(key, String(value));
+    }
+  });
+  const search = params.toString();
+  return search === '' ? BaseApiUrl + path : `${BaseApiUrl}${path}?${search}`;
+}
+
+function buildHeaders(body: unknown): Record<string, string> {
+  const headers: Record<string, string> = {};
+  // FormData needs the browser-generated Content-Type so the multipart boundary
+  // survives; setting it by hand breaks the server's form parser.
+  if (!(body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const token = localStorage.getItem('token');
+  if (token !== null) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+async function request(path: string, options: RequestOptions = {}): Promise<Response> {
+  const { method = 'GET', body, query } = options;
+
+  let payload: BodyInit | undefined;
+  if (body instanceof FormData) {
+    payload = body;
+  } else if (body !== undefined) {
+    payload = JSON.stringify(body);
+  }
+
+  const res = await fetch(buildUrl(path, query), {
+    method,
+    headers: buildHeaders(body),
+    body: payload,
+  });
+
+  if (!res.ok) {
+    const details = await res.text().catch(() => '');
+    throw new ApiError(method, path, res.status, details);
+  }
+
+  return res;
+}
+
+export async function requestJson<T>(path: string, options?: RequestOptions): Promise<T> {
+  const res = await request(path, options);
+  return (await res.json()) as T;
+}
+
+export async function requestText(path: string, options?: RequestOptions): Promise<string> {
+  const res = await request(path, options);
+  return res.text();
+}
+
+export async function requestEmpty(path: string, options?: RequestOptions): Promise<void> {
+  await request(path, options);
+}
+
+/**
+ * Reports a rejected request without propagating it, for the calls whose result
+ * the UI does not act on.
+ */
+export function logApiError(message: string): (error: unknown) => void {
+  return (error: unknown) => {
+    console.error(message, error);
+  };
+}

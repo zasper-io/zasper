@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/core"
@@ -37,12 +38,30 @@ var WebsocketMessageType = map[int]string{
 	websocket.PongMessage:   "pong",
 }
 
-// Global map to store active terminal sessions.
-var terminalSessions = make(map[string]*TerminalSession)
+// Global map to store active terminal sessions, keyed by connection ID. Written
+// from every connection's goroutine, so it is guarded by terminalSessionsMu.
+var (
+	terminalSessions   = make(map[string]*TerminalSession)
+	terminalSessionsMu sync.Mutex
+)
 
 // Unique session ID generator.
-func generateSessionID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano()) // Using Unix time as a unique ID
+func generateSessionID(terminalId string) string {
+	// The terminal id identifies the client tab; the timestamp keeps reconnects of
+	// the same tab from colliding with a session that is still shutting down.
+	return fmt.Sprintf("%s-%d", terminalId, time.Now().UnixNano())
+}
+
+func registerTerminalSession(sessionID string, session *TerminalSession) {
+	terminalSessionsMu.Lock()
+	defer terminalSessionsMu.Unlock()
+	terminalSessions[sessionID] = session
+}
+
+func unregisterTerminalSession(sessionID string) {
+	terminalSessionsMu.Lock()
+	defer terminalSessionsMu.Unlock()
+	delete(terminalSessions, sessionID)
 }
 
 // TerminalSession struct holds the terminal and related processes.
@@ -60,8 +79,11 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 	defer connection.Close()
 
-	// Generate a unique session ID for each WebSocket connection
-	sessionID := generateSessionID()
+	// Generate a unique session ID for each WebSocket connection, tagged with the
+	// terminal the client asked for.
+	terminalId := mux.Vars(req)["terminalId"]
+	sessionID := generateSessionID(terminalId)
+	log.Debug().Msgf("Opening terminal session %s for terminal %s", sessionID, terminalId)
 
 	// Start a new TTY session
 	tty, cmd, err := startTTY()
@@ -71,7 +93,7 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Store the session in the global map
-	terminalSessions[sessionID] = &TerminalSession{TTY: tty, Cmd: cmd}
+	registerTerminalSession(sessionID, &TerminalSession{TTY: tty, Cmd: cmd})
 
 	defer cleanupTTY(sessionID, tty, cmd, connection)
 
@@ -129,7 +151,7 @@ func cleanupTTY(sessionID string, tty *os.File, cmd *exec.Cmd, connection *webso
 	log.Debug().Msg("Gracefully stopping spawned TTY...")
 
 	// Remove the session from the global map
-	delete(terminalSessions, sessionID)
+	unregisterTerminalSession(sessionID)
 
 	if err := cmd.Process.Kill(); err != nil {
 		log.Warn().Err(err).Msg("Failed to kill process")

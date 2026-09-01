@@ -12,32 +12,25 @@ import { javascript } from '@codemirror/lang-javascript';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { keymap, ViewUpdate } from '@codemirror/view';
-import { BaseApiUrl } from '../config';
+import { getFileContent, logApiError, saveFile } from '../../api';
 
 import './FileEditor.scss';
 import { themeAtom } from '../../store/Settings';
 import { useAtom } from 'jotai';
 import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '../../store/AppState';
 import BreadCrumb from './BreadCrumb';
+import { IfileTab } from '../../store/TabState';
 
-export default function FileEditor(props) {
+interface FileEditorProps {
+  data: IfileTab;
+}
+
+export default function FileEditor(props: FileEditorProps) {
   const [fileContents, setFileContents] = useState('');
   const [theme] = useAtom(themeAtom);
 
   const handleCmdEnter = () => {
-    fetch(BaseApiUrl + '/api/contents', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({
-        path: props.data.path,
-        content: fileContents,
-        type: 'file',
-        format: 'text',
-      }),
-    });
+    saveFile(props.data.path, fileContents).catch(logApiError('Error saving file:'));
 
     return true;
   };
@@ -49,19 +42,8 @@ export default function FileEditor(props) {
     },
   ]);
 
-  const FetchFileData = async (path) => {
-    const res = await fetch(BaseApiUrl + '/api/contents?type=file&hash=0', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({
-        path,
-      }),
-    });
-    const resJson = await res.json();
-    setFileContents(resJson.content);
+  const FetchFileData = async (path: string) => {
+    setFileContents(await getFileContent(path));
   };
 
   useEffect(() => {

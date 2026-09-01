@@ -13,7 +13,7 @@ import {
   languageModeAtom,
   linePositionAtom,
 } from '../../store/AppState';
-import { BaseApiUrl } from '../config';
+import { getCurrentBranch, logApiError } from '../../api';
 
 export default function StatusBar() {
   const [indentationMode] = useAtom(indentationModeAtom);
@@ -25,16 +25,8 @@ export default function StatusBar() {
   const [eolSequence] = useAtom(eolSequenceAtom);
   const [branchName, setBranchName] = useAtom(branchNameAtom);
 
-  const FetchBranchData = useCallback(async () => {
-    const res = await fetch(BaseApiUrl + '/api/current-branch', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    const resJson = await res.json();
-    setBranchName(resJson.branch);
+  const FetchBranchData = useCallback(() => {
+    getCurrentBranch().then(setBranchName).catch(logApiError('Error fetching current branch:'));
   }, [setBranchName]);
 
   useEffect(() => {

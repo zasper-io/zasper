@@ -1,6 +1,19 @@
 import React from 'react';
 
-function CellButtons(props) {
+interface CellButtonsProps {
+  index: number;
+  cellId: string;
+  code: string;
+  submitCell: (source: string, cellId: string) => void;
+  copyCellByIndex: (index: number) => void;
+  addCellUp: () => void;
+  addCellDown: () => void;
+  nextCell: () => void;
+  prevCell: () => void;
+  deleteCell: (index: number) => void;
+}
+
+function CellButtons(props: CellButtonsProps) {
   return (
     <div className="cellOptionsDiv">
       <div className="cellOptions">
@@ -18,10 +31,10 @@ function CellButtons(props) {
         >
           <i className="fas fa-copy" />
         </button>
-        <button type="button" className="editor-button" onClick={() => props.nextCell(props.index)}>
+        <button type="button" className="editor-button" onClick={() => props.nextCell()}>
           <i className="fas fa-forward" />
         </button>
-        <button type="button" className="editor-button" onClick={() => props.prevCell(props.index)}>
+        <button type="button" className="editor-button" onClick={() => props.prevCell()}>
           <i className="fas fa-backward" />
         </button>
         <button type="button" className="editor-button" onClick={() => props.addCellUp()}>

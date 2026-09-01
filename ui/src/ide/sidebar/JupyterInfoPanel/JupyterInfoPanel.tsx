@@ -1,37 +1,38 @@
 import { useAtom } from 'jotai';
 import React from 'react';
-import { kernelsAtom, kernelspecsAtom, terminalsAtom } from '../../../store/AppState';
+import {
+  kernelsAtom,
+  kernelspecsAtom,
+  notebookKernelMapAtom,
+  terminalsAtom,
+} from '../../../store/AppState';
 import './JupyterInfoPanel.scss';
-import { BaseApiUrl } from '../../config';
+import { deleteKernel } from '../../../api';
+import { PanelProps } from '../types';
 
-export default function JupyterInfoPanel({ display }) {
+export default function JupyterInfoPanel({ display }: PanelProps) {
   const [kernelspecs] = useAtom(kernelspecsAtom);
   const [kernels, setKernels] = useAtom(kernelsAtom);
   const [terminals] = useAtom(terminalsAtom);
+  const [, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
 
-  function killKernel(key) {
+  function killKernel(key: string) {
     const id = kernels[key].id;
-    fetch(BaseApiUrl + '/api/kernels/' + id, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    })
-      .then((response) => {
-        if (response.ok) {
-          console.log('Kernel killed');
-          setKernels((prevKernels) => {
-            const updatedKernels = { ...prevKernels };
-            delete updatedKernels[key];
-            return updatedKernels;
-          });
-        } else {
-          console.log('Failed to kill kernel');
-        }
+    deleteKernel(id)
+      .then(() => {
+        setKernels((prevKernels) => {
+          const updatedKernels = { ...prevKernels };
+          delete updatedKernels[key];
+          return updatedKernels;
+        });
+        // Notebooks bound to this kernel would otherwise keep pointing at it and
+        // silently send execute requests to a dead kernel.
+        setNotebookKernelMap((prev) =>
+          Object.fromEntries(Object.entries(prev).filter(([, kernel]) => kernel.id !== id))
+        );
       })
       .catch((error) => {
-        console.error('Error:', error);
+        console.error('Failed to kill kernel', error);
       });
   }
 

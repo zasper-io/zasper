@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import IDE from '../ide/IDE';
 import Login from '../auth/Login';
 import { JSX, useEffect, useState } from 'react';
-import { BaseApiUrl } from '../ide/config';
+import { getConfig, logApiError } from '../api';
 
 const isAuthenticated = () => {
   // For example, check for token in localStorage or context
@@ -31,19 +31,11 @@ export default function RouteConfig() {
   const [protectedState, setProtectedState] = useState(false);
 
   useEffect(() => {
-    fetch(BaseApiUrl + '/api/config', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setProtectedState(data.protected);
+    getConfig()
+      .then((config) => {
+        setProtectedState(config.protected);
       })
-      .catch((error) => {
-        console.error('Error fetching contents:', error);
-      });
+      .catch(logApiError('Error fetching config:'));
   }, [setProtectedState]);
 
   if (protectedState) {

@@ -1,18 +1,15 @@
 // updateVersion.js
-const fs = require('fs');
-const path = require('path');
+import { readFileSync, writeFileSync } from 'node:fs';
 
-// Read the version from version.txt
-// const version = fs.readFileSync(path.join(__dirname, 'version.txt'), 'utf8').trim();
-const version = fs.readFileSync(path.join('..', 'version.txt'), 'utf8').trim();
+// Paths are resolved against this file so the script works from any cwd.
+const versionFile = new URL('../version.txt', import.meta.url);
+const packageJsonFile = new URL('./package.json', import.meta.url);
 
-// Read package.json
-const packageJson = require('./package.json');
+const version = readFileSync(versionFile, 'utf8').trim();
 
-// Update the version in package.json
+const packageJson = JSON.parse(readFileSync(packageJsonFile, 'utf8'));
 packageJson.version = version;
 
-// Write the updated package.json back to disk
-fs.writeFileSync(path.join(__dirname, 'package.json'), JSON.stringify(packageJson, null, 2));
+writeFileSync(packageJsonFile, JSON.stringify(packageJson, null, 2) + '\n');
 
 console.log(`Updated package.json with version: ${version}`);

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"path/filepath"
 	"time"
 
@@ -53,7 +54,7 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	return session, nil
 }
 
-func DeleteSession(req models.SessionModel) {
+func DeleteSession(req models.SessionModel) error {
 	/*
 		Deletes a Sesion
 	*/
@@ -61,13 +62,14 @@ func DeleteSession(req models.SessionModel) {
 	session, ok := core.ZasperSession[req.Id]
 	if !ok {
 		log.Info().Msg("session does not exist")
-		return
+		return fmt.Errorf("session %s does not exist", req.Id)
 	}
 	// stop kernel
 	stopKernelForSession(session.Kernel.Id)
 	// delete session
 
 	delete(core.ZasperSession, req.Id)
+	return nil
 }
 
 func startKernelForSession(path string, name string) (string, error) {
@@ -87,7 +89,10 @@ func stopKernelForSession(kernelId string) {
 	/*
 		Stops a Jupyter Kernel for a Sesion
 	*/
-	kernel.StopKernelManager(kernelId)
+	if err := kernel.StopKernelManager(kernelId); err != nil {
+		// The session is torn down regardless: its kernel is already gone.
+		log.Error().Msgf("Error stopping kernel %s: %v", kernelId, err)
+	}
 }
 
 func getKernelEnv(path string, name string) map[string]string {

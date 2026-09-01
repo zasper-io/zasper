@@ -15,7 +15,7 @@ interface ContextMenuProps {
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, path }) => {
-  const handleClick = (action: (path) => void) => {
+  const handleClick = (action: MenuItem['action']) => {
     action(path);
     onClose();
   };

@@ -1,6 +1,28 @@
 import React from 'react';
 
-function NbButtons(props) {
+import { INotebookModel } from './types';
+
+interface NbButtonsProps {
+  saveNotebook: () => void;
+  addCellDown: () => void;
+  cutCell: () => void;
+  copyCell: () => void;
+  pasteCell: () => void;
+  submitCell: (source: string, cellId: string) => void;
+  interruptKernel: () => void;
+  restartKernel: () => void;
+  restartAndExecuteAllCells: () => void;
+  focusedIndex: number;
+  notebook: INotebookModel;
+  kernelName: string;
+  kernelStatus: string;
+  changeCellType: (value: string) => void;
+  reconnectKernel: () => void;
+  toggleKernelSwitcher: () => void;
+}
+
+function NbButtons(props: NbButtonsProps) {
+  const focusedCell = props.notebook.cells[props.focusedIndex];
   const options = [
     { label: 'Code', value: 'code' },
     { label: 'Markdown', value: 'markdown' },
@@ -52,7 +74,7 @@ function NbButtons(props) {
       <button
         type="button"
         className="editor-button"
-        onClick={() => props.submitCell(props.index)}
+        onClick={() => focusedCell && props.submitCell(focusedCell.source, focusedCell.id)}
         title="Run Cell"
       >
         <i className="fas fa-play" />
@@ -84,9 +106,7 @@ function NbButtons(props) {
       <select
         onChange={(e) => props.changeCellType(e.target.value)}
         className=" editor-select"
-        value={
-          props.notebook.cells.length > 0 && props.notebook.cells[props.focusedIndex].cell_type
-        }
+        value={focusedCell ? focusedCell.cell_type : ''}
       >
         {options.map((option, index) => (
           <option key={index} value={option.value}>

@@ -2,9 +2,10 @@ import React from 'react';
 import { useAtom } from 'jotai';
 import { themeAtom } from '../../store/Settings';
 import './SettingsPanel.scss';
-import { BaseApiUrl } from '../config';
+import { logApiError, modifyConfig } from '../../api';
+import { PanelProps } from './types';
 
-export default function SettingsPanel({ display }) {
+export default function SettingsPanel({ display }: PanelProps) {
   const [theme, setTheme] = useAtom(themeAtom);
 
   const options = [
@@ -12,16 +13,9 @@ export default function SettingsPanel({ display }) {
     { label: 'Dark', value: 'dark' },
   ];
 
-  const changeTheme = (e) => {
+  const changeTheme = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTheme(e.target.value);
-    fetch(BaseApiUrl + '/api/config/modify', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ key: 'theme', value: e.target.value }),
-    });
+    modifyConfig('theme', e.target.value).catch(logApiError('Error saving theme:'));
   };
 
   return (

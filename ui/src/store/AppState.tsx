@@ -3,10 +3,12 @@ import { atom } from 'jotai';
 // Define the interface for kernelspec and kernel
 export interface IKernelspec {
   name: string;
-  spec: any;
-  resources: {
-    'logo-64x64': string;
+  spec: {
+    display_name: string;
+    language?: string;
   };
+  /** Jupyter serves logos under keys such as `logo-svg` and `logo-64x64`. */
+  resources: Record<string, string>;
 }
 
 export interface IKernel {

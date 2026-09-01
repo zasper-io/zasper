@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -90,16 +91,23 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 
 }
 
-func ShutdownKernel(pid int) {
+func ShutdownKernel(pid int) error {
+	// A pid of 0 means "every process in this process group" on Unix, which would
+	// take the server down with it.
+	if pid <= 0 {
+		return fmt.Errorf("refusing to shut down invalid pid %d", pid)
+	}
+
 	// Find the process
 	process, err := os.FindProcess(pid)
 	if err != nil {
-		log.Fatal().Msgf("Error finding process: %v", err)
+		return fmt.Errorf("error finding process %d: %w", pid, err)
 	}
 
 	// Kill the process
 	if err := process.Kill(); err != nil {
-		log.Fatal().Msgf("Error killing process: %v", err)
+		return fmt.Errorf("error killing process %d: %w", pid, err)
 	}
 	log.Info().Msgf("Process %d killed successfully.", pid)
+	return nil
 }

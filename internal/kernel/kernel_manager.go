@@ -56,9 +56,9 @@ func (km *KernelManager) StartKernel(kernelName string) error {
 	return nil
 }
 
-func (km *KernelManager) StopKernel(kernelId string) {
+func (km *KernelManager) StopKernel(kernelId string) error {
 	km.ShuttingDown = true
-	km.Provisioner.ShutdownKernel()
+	return km.Provisioner.ShutdownKernel()
 }
 
 func (km *KernelManager) getKernelspec() kernelspec.KernelSpecJsonData {

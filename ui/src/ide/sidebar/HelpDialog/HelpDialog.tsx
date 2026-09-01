@@ -4,7 +4,7 @@ import { zasperVersionAtom } from '../../../store/AppState';
 import './HelpDialog.scss';
 
 interface ModalProps {
-  toggleHelpDialog: any;
+  toggleHelpDialog: () => void;
 }
 
 interface INav {

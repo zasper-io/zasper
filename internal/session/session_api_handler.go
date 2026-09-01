@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	zhttp "github.com/zasper-io/zasper/internal/http"
 	"github.com/zasper-io/zasper/internal/models"
 )
@@ -36,14 +37,12 @@ func SessionCreateApiHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func SessionDeleteApiHandler(w http.ResponseWriter, req *http.Request) {
-	var body models.SessionModel
-	err := json.NewDecoder(req.Body).Decode(&body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	sessionId := mux.Vars(req)["sessionId"]
+
+	if err := DeleteSession(models.SessionModel{Id: sessionId}); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
-
-	DeleteSession(body)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

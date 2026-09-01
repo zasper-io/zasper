@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '../config';
+import { ContentType, createContent, listKernelspecs } from '../../api';
 import { useAtom } from 'jotai';
 import {
   kernelspecsAtom,
@@ -9,23 +10,9 @@ import {
   fileBrowserReloadCountAtom,
   languageModeAtom,
 } from '../../store/AppState';
-import { themeAtom } from '../../store/Settings';
 import { fileTabsAtom, IfileTab } from '../../store/TabState';
 import getFileExtension from '../utils';
-
-const TerminalIcon = () => {
-  const [theme] = useAtom(themeAtom);
-  var fill = theme === 'dark' ? 'white' : 'black';
-
-  return (
-    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={{ fill }} height="64px">
-      <g>
-        <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z" />
-        <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z" />
-      </g>
-    </svg>
-  );
-};
+import { TerminalIcon } from '../icons';
 
 interface LauncherProps {
   data: {
@@ -42,15 +29,7 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   // Fetch kernelspecs from the API
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`${BaseApiUrl}/api/kernelspecs`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      const resJson = await res.json();
-      setKernelspecs(resJson.kernelspecs || {});
+      setKernelspecs(await listKernelspecs());
     } catch (error) {
       console.error('Error fetching kernelspecs:', error);
     }
@@ -90,18 +69,9 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
     setFileTabsState(updatedFileTabs);
   };
 
-  const createNewNotebook = async (path: string, contentType: string, kernelspec: string) => {
-    const res = await fetch(BaseApiUrl + '/api/contents/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ parent_dir: path, type: contentType }),
-    });
-
-    const resJson = await res.json();
-    handleTabActivate(resJson.name, resJson.path, 'notebook', kernelspec);
+  const createNewNotebook = async (path: string, contentType: ContentType, kernelspec: string) => {
+    const created = await createContent(path, contentType);
+    handleTabActivate(created.name, created.path, 'notebook', kernelspec);
     setReloadCount(reloadCount + 1);
   };
 
@@ -115,7 +85,7 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
     setTerminals(updatedterminals);
   };
 
-  const getLogoUrl = (resources) => {
+  const getLogoUrl = (resources: Record<string, string>) => {
     const logoPath = resources['logo-svg'] || resources['logo-64x64'] || resources['logo-32x32'];
     return `${BaseApiUrl}${logoPath}`;
   };

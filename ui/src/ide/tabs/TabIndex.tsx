@@ -9,7 +9,7 @@ import {
 } from '../../store/AppState';
 import getFileExtension, { getIconToLoad } from '../utils';
 import './TabIndex.scss';
-import { BaseApiUrl } from '../config';
+import { deleteKernel } from '../../api';
 
 export default function TabIndex() {
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
@@ -49,24 +49,13 @@ export default function TabIndex() {
     setFileTabsState(updatedFileTabs);
   };
 
-  function killKernel(id) {
-    fetch(BaseApiUrl + '/api/kernels/' + id, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    })
-      .then((response) => {
-        if (response.ok) {
-          console.log('Kernel killed');
-          // sendDataToParentsendDataToParent('kernels');
-        } else {
-          console.log('Failed to kill kernel');
-        }
+  function killKernel(id: string) {
+    deleteKernel(id)
+      .then(() => {
+        console.log('Kernel killed');
       })
       .catch((error) => {
-        console.error('Error:', error);
+        console.log('Failed to kill kernel', error);
       });
   }
 

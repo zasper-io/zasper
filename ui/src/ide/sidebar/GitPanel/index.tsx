@@ -4,8 +4,9 @@ import './GitPanel.scss';
 
 import { GitCommit } from './GitCommit';
 import { CommitGraphContainer } from './CommitGraphContainer';
+import { PanelProps } from '../types';
 
-export default function GitPanel({ display }) {
+export default function GitPanel({ display }: PanelProps) {
   return (
     <div className={display}>
       <div className="nav-content">

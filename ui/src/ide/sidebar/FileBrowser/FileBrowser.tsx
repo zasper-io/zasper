@@ -4,19 +4,19 @@ import ContextMenu from '../ContextMenu';
 import getFileExtension, { getIconToLoad } from '../../utils';
 import { useAtom } from 'jotai';
 import { v4 as uuidv4 } from 'uuid';
-import { BaseApiUrl } from '../../config';
+import {
+  ContentType,
+  createContent,
+  deleteContent as deleteContentRequest,
+  getDirectory,
+  IContentEntry,
+  logApiError,
+  renameContent as renameContentRequest,
+} from '../../../api';
 import { languageModeAtom, projectNameAtom } from '../../../store/AppState';
 import FileUpload from './FileUpload';
 import { fileUploadParentPathAtom, showFileUploadDialogAtom } from './store';
 import { fileTabsAtom, IfileTab } from '../../../store/TabState';
-
-interface IContent {
-  id: string;
-  type: string;
-  path: string;
-  name: string;
-  content: IContent[];
-}
 
 interface FileBrowserProps {
   display: string;
@@ -24,7 +24,7 @@ interface FileBrowserProps {
 }
 
 export default function FileBrowser({ display, reloadCount }: FileBrowserProps) {
-  const [contents, setContents] = useState<IContent[]>([]);
+  const [contents, setContents] = useState<IContentEntry[]>([]);
   const [cwd] = useState<string>('');
   const [projectName] = useAtom(projectNameAtom);
   const [showFileUploader] = useAtom(showFileUploadDialogAtom);
@@ -63,17 +63,9 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
 
   const FetchData = useCallback(async () => {
     try {
-      const res = await fetch(BaseApiUrl + '/api/contents', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ path: cwd }),
-      });
-      const resJson = await res.json();
+      const directory = await getDirectory(cwd);
 
-      const updatedContent = resJson.content.map((item) => ({
+      const updatedContent = directory.content.map((item) => ({
         ...item,
         id: uuidv4(),
       }));
@@ -89,22 +81,12 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
   };
 
   const createNewFile = async () => {
-    await fetch(BaseApiUrl + '/api/contents/create', {
-      method: 'POST',
-      body: JSON.stringify({ parent_dir: '', type: 'file' }),
-    });
+    await createContent(cwd, 'file').catch(logApiError('Error creating file:'));
     FetchData();
   };
 
   const createNewDirectory = async () => {
-    await fetch(BaseApiUrl + '/api/contents/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ type: 'directory' }),
-    });
+    await createContent(cwd, 'directory').catch(logApiError('Error creating directory:'));
     FetchData();
   };
 
@@ -157,9 +139,8 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
 }
 
 interface IFileItemProps {
-  key: string;
   parentDir: string;
-  content: IContent;
+  content: IContentEntry;
   handleFileClick: (name: string, path: string, type: string, kernelspec: string) => void;
 }
 
@@ -176,28 +157,16 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
   const [isDeleted, setIsDeleted] = useState(false);
 
   const renameContent = async () => {
-    await fetch(BaseApiUrl + '/api/contents/rename', {
-      method: 'POST',
-      body: JSON.stringify({
-        parent_dir: parentDir,
-        old_name: contentName,
-        new_name: text,
-      }),
-    });
+    await renameContentRequest(parentDir, contentName, text).catch(
+      logApiError('Error renaming content:')
+    );
     setContentName(text);
     setIcon(getIconToLoad(text));
     setIsEditing(false);
   };
 
   const deleteContent = async () => {
-    await fetch(BaseApiUrl + '/api/contents', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ path: getPath() }),
-    });
+    await deleteContentRequest(getPath()).catch(logApiError('Error deleting content:'));
     setIsDeleted(true);
   };
 
@@ -274,9 +243,8 @@ const FileItem = ({ parentDir, content, handleFileClick }: IFileItemProps) => {
 };
 
 interface IDirectoryItemProps {
-  key: string;
   parentDir: string;
-  data: IContent;
+  data: IContentEntry;
   handleTabActivate: (name: string, path: string, type: string, kernelspec: string) => void;
 }
 
@@ -295,75 +263,35 @@ const DirectoryItem = ({ parentDir, data, handleTabActivate }: IDirectoryItemPro
   const [, setShowFileUploader] = useAtom(showFileUploadDialogAtom);
   const [, setFileUploadPath] = useAtom(fileUploadParentPathAtom);
 
-  const handleDirectoryClick = async (path: string) => {
-    setIsCollapsed(!isCollapsed);
-    const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ path }),
-    });
-    const resJson = await res.json();
-    resJson.content.forEach((item) => {
+  const loadDirectory = async (path: string) => {
+    const directory = await getDirectory(path);
+    directory.content.forEach((item) => {
       item.id = uuidv4();
     });
-    setContent(resJson);
+    setContent(directory);
   };
 
-  const createNewFile = async (path: string, contentType: string) => {
-    await fetch(BaseApiUrl + '/api/contents/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ parent_dir: path, type: contentType }),
-    });
+  const handleDirectoryClick = async (path: string) => {
+    setIsCollapsed(!isCollapsed);
+    await loadDirectory(path);
+  };
 
-    const res = await fetch(BaseApiUrl + '/api/contents?type=notebook&hash=0', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ path }),
-    });
-    const resJson = await res.json();
-    resJson.content.forEach((item) => {
-      item.id = uuidv4();
-    });
-    setContent(resJson);
+  const createNewFile = async (path: string, contentType: ContentType) => {
+    await createContent(path, contentType).catch(logApiError('Error creating content:'));
+    await loadDirectory(path);
   };
 
   const renameContent = async () => {
     // check if the name is empty
-    await fetch(BaseApiUrl + '/api/contents/rename', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({
-        parent_dir: parentDir,
-        old_name: contentName,
-        new_name: text,
-      }),
-    });
+    await renameContentRequest(parentDir, contentName, text).catch(
+      logApiError('Error renaming content:')
+    );
     setContentName(text);
     setIsEditing(false);
   };
 
-  const deleteContent = async (path) => {
-    await fetch(BaseApiUrl + '/api/contents', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ path: path }),
-    });
+  const deleteContent = async (path: string) => {
+    await deleteContentRequest(path).catch(logApiError('Error deleting content:'));
     setIsDeleted(true);
   };
 

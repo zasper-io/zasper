@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BaseApiUrl } from '../../config';
+import { getCommitGraph } from '../../../api';
 
 import { Commit } from './types';
 import './GitPanel.scss';
@@ -14,18 +14,7 @@ export const CommitGraphContainer: React.FC = () => {
   useEffect(() => {
     const fetchCommitData = async () => {
       try {
-        const response = await fetch(BaseApiUrl + '/api/commit-graph', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch commits');
-        }
-        const data = await response.json();
-        setCommitData(data);
+        setCommitData(await getCommitGraph());
       } catch (error) {
         setError('Failed to load commit data');
       } finally {

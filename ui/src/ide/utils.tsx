@@ -6,7 +6,7 @@ export default function getFileExtension(filename: string): string | null {
   return null;
 }
 
-export const getIconToLoad = (fileName) => {
+export const getIconToLoad = (fileName: string) => {
   const iconMap: { [key: string]: string } = {
     c: './images/editor/c-icon.svg',
     cpp: './images/editor/cpp-icon.svg',

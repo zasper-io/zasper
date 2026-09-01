@@ -36,20 +36,31 @@ func SetUpStateKernels() map[string]*kernel.KernelWebSocketConnection {
 	return make(map[string]*kernel.KernelWebSocketConnection)
 }
 
+// CloseKernelConnections drops every client connection attached to a kernel, so
+// notebooks stop listening on channels whose kernel no longer exists. Registered
+// with kernel.OnKernelDisconnect at startup.
+func CloseKernelConnections(kernelId string) {
+	clientsMu.Lock()
+	kwsConn, ok := ZasperActiveKernelConnections[kernelId]
+	delete(ZasperActiveKernelConnections, kernelId)
+	clientsMu.Unlock()
+
+	if !ok {
+		return
+	}
+
+	log.Debug().Msgf("closing client connection for kernel %s", kernelId)
+	kwsConn.Close()
+}
+
 func KernelDeleteAPIHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	kernelID := vars["kernel_id"]
 
-	kwsConn := ZasperActiveKernelConnections[kernelID]
-
-	kwsConn.PollingCancel()
-
-	clientsMu.Lock()
-	delete(ZasperActiveKernelConnections, kernelID)
-	clientsMu.Unlock()
-
-	// Try to delete the kernel from "database"
+	// Client connections are closed by the disconnect hook this package registers.
 	err := kernel.KillKernelById(kernelID)
+
+	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
 		// If the kernel is not found, respond with 404
 		w.WriteHeader(http.StatusNotFound)

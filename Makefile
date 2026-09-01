@@ -102,4 +102,4 @@ clean:
 # Run the tests
 test:
 	@echo "Running tests on frontend"
-	cd ./ui/src && npm test
+	cd ui && npm test

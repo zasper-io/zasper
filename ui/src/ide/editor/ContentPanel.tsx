@@ -3,7 +3,7 @@ import Editor from './Editor';
 import { useAtom } from 'jotai';
 import { fileTabsAtom } from '../../store/TabState';
 
-export default function ContentPanel(props) {
+export default function ContentPanel() {
   const [fileTabsState] = useAtom(fileTabsAtom);
   return (
     <>

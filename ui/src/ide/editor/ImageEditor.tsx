@@ -1,25 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { BaseApiUrl } from '../config';
+import { getFileContent } from '../../api';
 import BreadCrumb from './BreadCrumb';
+import { IfileTab } from '../../store/TabState';
 
-export default function ImageEditor(props) {
+interface ImageEditorProps {
+  data: IfileTab;
+}
+
+export default function ImageEditor(props: ImageEditorProps) {
   const { data } = props;
   const [fileContents, setFileContents] = useState('');
 
   const FetchFileData = useCallback(
-    async (path) => {
-      const res = await fetch(BaseApiUrl + '/api/contents?type=file&hash=0', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          path,
-        }),
-      });
-      const resJson = await res.json();
-      setFileContents(resJson.content);
+    async (path: string) => {
+      setFileContents(await getFileContent(path));
     },
     [setFileContents]
   );

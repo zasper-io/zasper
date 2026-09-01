@@ -1,16 +1,16 @@
 import { useAtom } from 'jotai';
 import React, { useState } from 'react';
 import { fileUploadParentPathAtom, showFileUploadDialogAtom } from './store';
-import { BaseApiUrl } from '../../config';
+import { uploadFile } from '../../../api';
 
-function FileUpload(props) {
-  const [file, setFile] = useState(null);
+function FileUpload() {
+  const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const [, setShowFileUploadDialog] = useAtom(showFileUploadDialogAtom);
   const [fileUploadParentPath] = useAtom(fileUploadParentPathAtom);
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFile(e.target.files ? e.target.files[0] : null);
   };
 
   const handleFileUpload = async () => {
@@ -19,28 +19,9 @@ function FileUpload(props) {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('parentPath', fileUploadParentPath);
-    formData.append('file', file);
-
     try {
       setUploadStatus('Uploading...');
-
-      const response = await fetch(BaseApiUrl + '/api/contents/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload file');
-      }
-
-      const result = await response.text();
-      setUploadStatus(result);
+      setUploadStatus(await uploadFile(fileUploadParentPath, file));
     } catch (error) {
       setUploadStatus('Error uploading file');
     }

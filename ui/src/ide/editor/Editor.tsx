@@ -5,8 +5,13 @@ import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
 import TerminalTab from '../terminal/Terminal';
 import ImageEditor from './ImageEditor';
+import { IfileTab } from '../../store/TabState';
 
-export default function Editor(props) {
+interface EditorProps {
+  data: IfileTab;
+}
+
+export default function Editor(props: EditorProps) {
   if (props.data.type === 'launcher') {
     return <Launcher data={props.data} />;
   }

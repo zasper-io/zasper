@@ -1,6 +1,8 @@
 import React from 'react';
 
-export default function DebugPanel({ display }) {
+import { PanelProps } from './types';
+
+export default function DebugPanel({ display }: PanelProps) {
   return (
     <div className={display}>
       <div className="nav-content">

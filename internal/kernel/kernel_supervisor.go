@@ -1,11 +1,13 @@
 package kernel
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 
+	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
 
 	"github.com/google/uuid"
@@ -27,6 +29,13 @@ func Cleanup() {
 }
 
 func killKernel(pid int) {
+	// A pid of 0 means "every process in this process group" on Unix, which would
+	// take the server down with it, so an unknown pid is never signalled.
+	if pid <= 0 {
+		log.Error().Msgf("Refusing to kill invalid pid %d", pid)
+		return
+	}
+
 	// Get the process by PID
 	process, err := os.FindProcess(pid)
 	if err != nil {
@@ -53,15 +62,41 @@ func killKernel(pid int) {
 func NotifyConnect() {
 }
 
-func NotifyDisconnect(kernelId string) {
+// disconnectHandlers are notified when a kernel stops. The websocket layer
+// registers one to tear down the client connections attached to that kernel; it
+// cannot be called from here directly without an import cycle.
+var disconnectHandlers []func(kernelId string)
 
+// OnKernelDisconnect registers a callback invoked whenever a kernel stops.
+func OnKernelDisconnect(handler func(kernelId string)) {
+	disconnectHandlers = append(disconnectHandlers, handler)
 }
 
+func NotifyDisconnect(kernelId string) {
+	for _, handler := range disconnectHandlers {
+		handler(kernelId)
+	}
+}
+
+// ErrKernelNotFound is returned when a kernel id does not belong to a running kernel.
+var ErrKernelNotFound = errors.New("kernel not found")
+
 func KillKernelById(kernelId string) error {
-	km := ZasperActiveKernels[kernelId]
+	km, ok := ZasperActiveKernels[kernelId]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrKernelNotFound, kernelId)
+	}
+
 	NotifyDisconnect(km.KernelId)
 	killKernel(km.Provisioner.Pid)
 	delete(ZasperActiveKernels, kernelId)
+
+	// The session outlives its kernel otherwise, so /api/sessions would keep
+	// advertising a kernel that is gone.
+	for _, sessionId := range core.DeleteSessionsForKernel(kernelId) {
+		log.Info().Msgf("Removed session %s attached to kernel %s", sessionId, kernelId)
+	}
+
 	return nil
 }
 
@@ -131,10 +166,21 @@ func StartKernelManager(kernelPath string, kernelName string, env map[string]str
 	return kernelId, nil
 }
 
-func StopKernelManager(kernelId string) {
-	km := ZasperActiveKernels[kernelId]
-	km.StopKernel(kernelId)
-	// todo
+func StopKernelManager(kernelId string) error {
+	km, ok := ZasperActiveKernels[kernelId]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrKernelNotFound, kernelId)
+	}
+
+	NotifyDisconnect(kernelId)
+
+	if err := km.StopKernel(kernelId); err != nil {
+		// The kernel is unusable either way, so it is still dropped below.
+		log.Error().Msgf("Error stopping kernel %s: %v", kernelId, err)
+	}
+
+	delete(ZasperActiveKernels, kernelId)
+	return nil
 }
 
 func CwdForPath(path string) string {

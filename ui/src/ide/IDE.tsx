@@ -25,7 +25,7 @@ import {
   userNameAtom,
   zasperVersionAtom,
 } from '../store/AppState';
-import { BaseApiUrl } from './config';
+import { ApiError, getInfo } from '../api';
 interface INav {
   name: string;
   display: string;
@@ -69,7 +69,7 @@ function IDE() {
 
   // Helper function to handle keydown events
   const handleKeyDown = useCallback(
-    (event) => {
+    (event: KeyboardEvent) => {
       if (event.metaKey) {
         if (event.key === '+' || event.key === '=') {
           // Increase font size
@@ -90,26 +90,23 @@ function IDE() {
   );
 
   const initConfig = useCallback(async () => {
-    const res = await fetch(BaseApiUrl + '/api/info', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (res.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-      return;
+    let info;
+    try {
+      info = await getInfo();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        return;
+      }
+      throw error;
     }
 
-    const resJson = await res.json();
-    setProjectName(resJson.project.toUpperCase());
-    setUserName(resJson.username);
-    setVersion(resJson.version);
-    setTheme(resJson.theme);
-    setProtectedState(resJson.protected);
+    setProjectName(info.project.toUpperCase());
+    setUserName(info.username);
+    setVersion(info.version);
+    setTheme(info.theme);
+    setProtectedState(info.protected);
   }, [setProjectName, setUserName, setVersion, setTheme, setProtectedState]);
 
   useEffect(() => {
@@ -153,7 +150,7 @@ function IDE() {
           <Panel defaultSize={80} minSize={50}>
             <div className={'main-content ' + getFontClass(fontSize)}>
               <TabIndex />
-              <ContentPanel theme={theme} />
+              <ContentPanel />
             </div>
           </Panel>
         </PanelGroup>

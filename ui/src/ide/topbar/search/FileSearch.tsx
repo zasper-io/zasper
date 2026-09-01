@@ -1,24 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import '../command/CommandPalette.scss';
-import { BaseApiUrl } from '../../config';
+import { IContentEntry, searchFiles } from '../../../api';
 import { debounce } from 'lodash';
 import { useAtom } from 'jotai';
 import { fileTabsAtom, IfileTab } from '../../../store/TabState';
 import { languageModeAtom } from '../../../store/AppState';
 import getFileExtension from '../../utils';
 
-interface IContent {
-  type: string;
-  path: string;
-  name: string;
-  content: IContent[];
+interface FileSearchProps {
+  onClose: () => void;
 }
 
-const FileSearch = ({ onClose }) => {
+const FileSearch = ({ onClose }: FileSearchProps) => {
   const [input, setInput] = useState('');
-  const [fileSuggestions, setFileSuggestions] = useState<IContent[]>([]);
+  const [fileSuggestions, setFileSuggestions] = useState<IContentEntry[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
-  const cache = {};
+  // Kept in a ref so results survive re-renders; a plain object would be rebuilt
+  // on every keystroke and never hit.
+  const cache = useRef<Record<string, IContentEntry[]>>({});
 
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
   const [, setLanguageMode] = useAtom(languageModeAtom);
@@ -70,36 +69,29 @@ const FileSearch = ({ onClose }) => {
     }
   };
 
-  const debouncedFetch = debounce(async (query) => {
-    if (cache[query]) {
-      setFileSuggestions(cache[query]);
-      return;
-    }
-    if (query.length > 0) {
-      try {
-        const response = await fetch(`${BaseApiUrl}/api/files?query=${query}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-        const files = await response.json();
-        setFileSuggestions(files);
-      } catch (error) {
-        console.error('Error fetching file suggestions:', error);
-      }
-    } else {
-      setFileSuggestions([]);
-    }
-  }, 100);
-
-  const debouncedFetchFiles = useCallback(
-    (query) => {
-      debouncedFetch(query);
-    },
-    [debouncedFetch]
+  const debouncedFetchFiles = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        if (cache.current[query]) {
+          setFileSuggestions(cache.current[query]);
+          return;
+        }
+        if (query.length > 0) {
+          try {
+            const results = await searchFiles(query);
+            cache.current[query] = results;
+            setFileSuggestions(results);
+          } catch (error) {
+            console.error('Error fetching file suggestions:', error);
+          }
+        } else {
+          setFileSuggestions([]);
+        }
+      }, 100),
+    []
   );
+
+  useEffect(() => () => debouncedFetchFiles.cancel(), [debouncedFetchFiles]);
 
   useEffect(() => {
     debouncedFetchFiles(input);

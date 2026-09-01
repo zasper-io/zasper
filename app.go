@@ -123,6 +123,8 @@ func main() {
 	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
 	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()
 	websocket.ZasperActiveKernelConnections = websocket.SetUpStateKernels()
+	// Killing a kernel has to close the sockets its notebooks are listening on.
+	kernel.OnKernelDisconnect(websocket.CloseKernelConnections)
 	kernel.ProtocolVersion = "5.3"
 
 	// API routes
@@ -173,10 +175,12 @@ func main() {
 	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelReadAPIHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernels/{kernelId}/interrupt", kernel.KernelInterruptAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/kernels/{kernelId}/stop", kernel.KernelKillAPIHandler).Methods("POST")
+	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelKillAPIHandler).Methods("DELETE")
 
 	// sessions
 	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")
 	apiRouter.HandleFunc("/sessions", session.SessionCreateApiHandler).Methods("POST")
+	apiRouter.HandleFunc("/sessions/{sessionId}", session.SessionDeleteApiHandler).Methods("DELETE")
 
 	//web sockets
 	wsRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)

@@ -1,4 +1,8 @@
-export default function ErrorDialog(props) {
+interface ErrorDialogProps {
+  toggleErrorDialog: () => void;
+}
+
+export default function ErrorDialog(props: ErrorDialogProps) {
   return (
     <div className="modal" id="exampleModal" aria-labelledby="exampleModalLabel">
       <div className="modal-dialog modal-dialog-centered">

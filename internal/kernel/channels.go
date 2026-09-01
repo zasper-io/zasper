@@ -34,6 +34,18 @@ type KernelWebSocketConnection struct {
 	KernelInfoChannel    zmq4.Socket
 	Subprotocol          string
 	mu                   sync.Mutex
+	closeOnce            sync.Once
+}
+
+// Close stops polling and closes the client socket, so a browser holding this
+// connection learns its kernel is gone. Safe to call more than once.
+func (kwsConn *KernelWebSocketConnection) Close() {
+	kwsConn.closeOnce.Do(func() {
+		kwsConn.stopPolling()
+		if kwsConn.Conn != nil {
+			kwsConn.Conn.Close()
+		}
+	})
 }
 
 func (kwsConn *KernelWebSocketConnection) stopPolling() {
@@ -254,11 +266,12 @@ func (kwsConn *KernelWebSocketConnection) WriteMessages(waiter *sync.WaitGroup) 
 				return
 			}
 			kwsConn.mu.Lock()
-			if err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message)
+			kwsConn.mu.Unlock()
+			if err != nil {
 				log.Info().Msgf("Error writing message: %s", err)
 				return
 			}
-			kwsConn.mu.Unlock()
 		}
 	}
 }

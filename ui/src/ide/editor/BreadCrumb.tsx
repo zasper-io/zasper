@@ -1,7 +1,11 @@
 import React from 'react';
 import './Editor.scss';
 
-export default function BreadCrumb(props) {
+interface BreadCrumbProps {
+  path: string;
+}
+
+export default function BreadCrumb(props: BreadCrumbProps) {
   return (
     <div className="breadcrumbArea">
       <nav aria-label="breadcrumb">

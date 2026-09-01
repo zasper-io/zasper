@@ -1,6 +1,8 @@
 import React from 'react';
 
-export default function SecretsPanel({ display }) {
+import { PanelProps } from './types';
+
+export default function SecretsPanel({ display }: PanelProps) {
   return (
     <div className={display}>
       <div className="nav-content">

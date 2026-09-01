@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
-import { BaseApiUrl } from '../ide/config';
+import { ApiError, login } from '../api';
 import './Login.scss';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 import 'swiper/css/autoplay';
 import { Autoplay } from 'swiper/modules';
 
-function Login(props: any) {
+function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,26 +21,22 @@ function Login(props: any) {
   const [form, setForm] = useState({ accessToken: '' });
 
   const submitLogin = async () => {
-    const body = JSON.stringify(form);
-    const res = await fetch(BaseApiUrl + '/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    });
-
-    if (res.status === 200) {
+    try {
+      const data = await login(form.accessToken);
       toast.success('Login successful');
-      const data = await res.json();
       localStorage.setItem('token', data.token); // store for auth headers
       navigate(data.redirect_path);
-    } else if (res.status === 401) {
-      toast.error('Invalid username or password');
-    } else if (res.status === 403) {
-      toast.error('Account is not activated');
-    } else if (res.status === 500) {
-      toast.error('Internal server error');
-    } else {
-      toast.error('Unknown error');
+    } catch (error) {
+      const status = error instanceof ApiError ? error.status : 0;
+      if (status === 401) {
+        toast.error('Invalid username or password');
+      } else if (status === 403) {
+        toast.error('Account is not activated');
+      } else if (status === 500) {
+        toast.error('Internal server error');
+      } else {
+        toast.error('Unknown error');
+      }
     }
     setForm({ accessToken: '' });
   };
