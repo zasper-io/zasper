@@ -1,64 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap');
-
-$fileBrowserItemHeight: 32px;
-$darkThemeFontColor: #e2e2e2;
-
-body {
-  font-family: 'Ubuntu', sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 24px;
-  background-color: #e4e4e5;
-  position: relative;
-}
-
-/* ===== Scrollbar CSS ===== */
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #e0daff #ffffff;
-}
-
-/* Chrome, Edge, and Safari */
-*::-webkit-scrollbar {
-  width: 16px;
-}
-
-*::-webkit-scrollbar-track {
-  background: #ffffff;
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: #8f54a0;
-  border-radius: 10px;
-  border: 3px solid #ffffff;
-}
-
-a {
-  text-decoration: none;
-  display: inline-block;
-  transition: all 0.3s ease-in-out;
-}
+// IDE shell layout: tab strip, tab content, terminal and editor chrome.
+//
+// There is deliberately no `.themeLight` / `.themeDark` block here any more.
+// Both themes are expressed once, via the tokens in styles/_tokens.scss, so a
+// new component styles itself correctly in every theme without a second entry
+// in an override list.
+//
+// Font, body and scrollbar rules moved to styles/_base.scss — they applied to
+// /login too, so they were never IDE-specific.
 
 .fileItem {
   white-space: nowrap;
 }
 
 .theme-btn {
-  border: 1px solid #583bd8;
+  border: 1px solid var(--z-accent);
   border-radius: 10px;
   text-align: center;
   padding: 11px 15px;
   font-size: 14px;
   line-height: 18px;
-  color: #583bd8;
+  color: var(--z-accent);
+}
+
+.theme-btn:hover {
+  background-color: var(--z-accent-hover);
+  color: var(--z-fg-on-accent);
 }
 
 .terminalContainer {
   height: 100%;
   width: 100%;
-  background-color: #392e6b;
-  color: #ffffff;
+  background-color: var(--z-bg-terminal);
+  color: var(--z-fg-on-chrome);
   padding-bottom: 10px;
   font-size: 16px;
   font-weight: 300;
@@ -69,6 +42,7 @@ a {
   width: 100%;
   padding-top: 10px;
   padding-left: 10px;
+  background-color: var(--z-bg-terminal);
 }
 
 .imageArea {
@@ -77,226 +51,11 @@ a {
   padding: 50px;
 }
 
-.theme-btn:hover {
-  background-color: #6f57da;
-  color: #fff;
-}
-.editor {
-  width: 100%;
-  height: 100vh;
-}
-
-.themeLight {
-  width: 100%;
-  height: 100vh;
-  .topBar {
-    background-color: #473990;
-  }
-  .navigation {
-    background: #ffffff;
-  }
-  .navigation-list {
-    background: #f3f1fd;
-  }
-  .tab-content {
-    background-color: #272727;
-  }
-  .terminalArea {
-    background-color: #392e6b;
-  }
-  .projectBanner {
-    background-color: #553b9e;
-  }
-  .breadcrumbArea {
-    background: #fff;
-  }
-}
-
-$font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
-
-// classes for each font size
-@each $size in $font-sizes {
-  .zfont-#{$size} {
-    font-size: #{$size}px;
-  }
-}
-
-.themeDark {
-  width: 100%;
-  height: 100vh;
-  background-color: #000000;
-  color: $darkThemeFontColor;
-
-  * {
-    scrollbar-color: #1c1c1c #313131;
-  }
-
-  select {
-    // A reset of styles, including removing the default dropdown arrow
-    background-color: #3e3e3e;
-    color: $darkThemeFontColor;
-  }
-  .main-content {
-    background-color: #3e3e3e;
-  }
-  .topBar {
-    background-color: #303030;
-  }
-
-  .navigation {
-    background-color: #272727;
-  }
-  .navigation .navigation-list .nav-link {
-    background-color: #dddddd;
-  }
-
-  .main-content .tabContent {
-    background-color: #1e1e1e;
-  }
-
-  .navigation-list {
-    background: #272727;
-  }
-  .nav-content {
-    color: $darkThemeFontColor;
-  }
-  .nav-link {
-    background-color: #545454;
-    border: 1px solid #272727;
-  }
-
-  .nav-link.active {
-    color: #ffffff;
-    font-weight: 400;
-    background: #424242;
-  }
-
-  .navigation .nav-content .content-inner .file-list li a {
-    background-color: #272727;
-    color: $darkThemeFontColor;
-  }
-
-  .navButton.active {
-    border-left: 4px solid #fff;
-    background-color: transparent;
-  }
-
-  .tabContent {
-    background-color: #272727;
-  }
-  .topBar .search-wraper input {
-    background-color: #272727;
-  }
-
-  .main-content .tab-content {
-    background-color: #272727;
-  }
-  .terminalArea {
-    background-color: #2b2a2a;
-  }
-  .launchItem {
-    color: $darkThemeFontColor;
-  }
-  .launcher-icon {
-    background-color: #272727;
-    color: $darkThemeFontColor;
-    border: 1px solid #4f4f4f;
-  }
-  .directoryIcon {
-    fill: #fff;
-  }
-  .inner-text {
-    background: #353535;
-  }
-
-  .helpNavButton {
-    color: #e2e2e2;
-  }
-
-  .openCommandPaletteButton {
-    background: #474747;
-  }
-  .command-palette {
-    background: #353535;
-  }
-  .projectBanner {
-    background-color: #3f3855;
-  }
-  .LauncherArea {
-    color: $darkThemeFontColor;
-    background: #1e1e1e;
-  }
-
-  .editor-body .single-line {
-    background: #343434;
-  }
-
-  .editor-body2 {
-    background-color: #1e1e1e;
-  }
-
-  .serial-no {
-    color: $darkThemeFontColor;
-  }
-  .launchSection {
-    border-bottom: 1px solid #89888b;
-  }
-  .launcher-title {
-    border-bottom: 1px solid #89888b;
-  }
-  .list-group-item {
-    background-color: #272727;
-    color: $darkThemeFontColor;
-  }
-  .graph-container {
-    background-color: #272727;
-    color: $darkThemeFontColor;
-  }
-  .commit-text {
-    color: $darkThemeFontColor;
-  }
-  .navigation-list {
-    border-right: 1px solid #000;
-  }
-
-  .activeCell {
-    border: 2px solid #767676;
-  }
-
-  .modal-body {
-    background: #272727;
-    color: $darkThemeFontColor;
-  }
-  .modal {
-    background: rgba(255, 255, 255, 0.5);
-  }
-  .kernelStatus {
-    box-shadow: 3px 3px 10px 3px #000000;
-  }
-  .reconnectButton {
-    box-shadow: 3px 3px 10px 3px #000000;
-  }
-  .terminalIconImage {
-    svg {
-      fill: #ffffff;
-    }
-  }
-
-  .breadcrumbArea {
-    color: #d2d2d2;
-    border-bottom: 1px solid #636262;
-  }
-
-  .cellEditor .cm-editor {
-    border: 1px solid #1c1c1c;
-  }
-}
-
 .statusBar {
   width: 100%;
   height: 30px;
-  background-color: #473990;
-  color: #ffffff;
+  background-color: var(--z-bg-statusbar);
+  color: var(--z-fg-on-chrome);
   font-size: 16px;
   padding: 0 40px;
   font-weight: 300;
@@ -324,6 +83,7 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   flex-direction: column;
   width: 100%;
   overflow-y: hidden;
+  background-color: var(--z-bg-content);
 
   .tabHeader {
     min-height: 36px;
@@ -344,14 +104,14 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
     display: flex;
     flex-direction: column;
     position: relative;
-    background-color: #ffffff;
+    background-color: var(--z-bg-editor);
     border-radius: 2px;
   }
 
   .tab-content {
-    box-shadow: 0px 3px 20px #0000001c;
+    box-shadow: var(--z-shadow-panel);
     border-radius: 2px;
-    background-color: #fff;
+    background-color: var(--z-bg-tab);
     height: 100%;
   }
 
@@ -362,7 +122,8 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   }
 
   .editor-body2 {
-    color: #000;
+    color: var(--z-fg-editor);
+    background-color: var(--z-bg-editor);
     width: 100%;
     overflow: auto;
     display: flex;
@@ -389,36 +150,54 @@ $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
   float: right;
 }
 
+// Editor tab strip. Bootstrap supplies .nav-link's box model; we restyle it.
 .nav-link {
-  // background: transparent linear-gradient(180deg, #ffffff 0%, #e6e6e6 100%) 0%
-  // 0% no-repeat;
-
   font-weight: 300;
-  border: 1px solid #e6e6e6;
+  border: 1px solid var(--z-border);
   border-radius: 2px 5px 0px 0px;
   padding: 6px 8px;
-  color: #ffffff;
+  color: var(--z-fg-on-accent);
   box-sizing: border-box;
-  background: #7651db;
+  background: var(--z-bg-tab-inactive);
 
   i {
     margin-left: 10px;
-    color: #acacac;
+    color: var(--z-fg-subtle);
     font-size: 12px;
   }
 }
+
 .nav-link:hover {
-  color: #ffffff;
-  background: #553b9e;
+  color: var(--z-fg-on-accent);
+  background: var(--z-bg-tab-hover);
 }
 
 .nav-link.active {
-  color: #ffffff;
+  color: var(--z-fg-on-accent);
   font-weight: 400;
-  background: #553b9e;
+  background: var(--z-bg-tab-active);
 }
 
-/*# sourceMappingURL=main.css.map */
+.list-group-item {
+  background-color: var(--z-bg-panel);
+  color: var(--z-fg-default);
+}
+
+.modal-body {
+  background: var(--z-bg-panel);
+  color: var(--z-fg-default);
+}
+
+.modal {
+  background: var(--z-overlay-backdrop);
+}
+
+// directory.svg is an <img> with fill="#5f568f" baked in, so CSS `fill` cannot
+// reach it (the old .themeDark rule tried, and silently did nothing). A filter
+// is the only lever that works on an <img>.
+.directoryIcon {
+  filter: var(--z-img-icon-filter);
+}
 
 .help-section {
   width: 100%;

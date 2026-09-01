@@ -1,0 +1,13 @@
+// Single global stylesheet entry, imported once from main.tsx.
+//
+// Order matters and is the whole point of this file:
+//   1. Bootstrap — third-party reset and components, so ours can override it.
+//   2. Tokens    — the theme contract every component reads from.
+//   3. Base      — app shell, typography, scrollbars, all token-driven.
+//
+// Per-component SCSS is imported by its own component and lands after all of
+// this, so component rules win without needing !important or deep selectors.
+
+@import 'bootstrap';
+@import 'tokens';
+@import 'base';

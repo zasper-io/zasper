@@ -3,6 +3,17 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  css: {
+    preprocessorOptions: {
+      scss: {
+        // Bootstrap 5.3 still uses @import and legacy colour functions
+        // internally. We can't fix that from here, so don't let it drown out
+        // warnings from our own SCSS.
+        quietDeps: true,
+        silenceDeprecations: ['import', 'global-builtin', 'color-functions'],
+      },
+    },
+  },
   server: {
     // `make dev` serves the frontend here while the Go backend runs on 8048.
     port: 3000,

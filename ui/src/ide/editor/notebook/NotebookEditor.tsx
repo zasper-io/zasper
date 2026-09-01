@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAtom } from 'jotai';
 import 'react-toastify/dist/ReactToastify.css';
 import './NotebookEditor.scss';
 
 import { logApiError, saveNotebook } from '../../../api';
-import { themeAtom } from '../../../store/Settings';
 import { IfileTab } from '../../../store/TabState';
 import BreadCrumb from '../BreadCrumb';
 import { CodeMirrorRef } from './Cell';
@@ -22,7 +20,6 @@ interface NotebookEditorProps {
 }
 
 export default function NotebookEditor({ data }: NotebookEditorProps) {
-  const [theme] = useAtom(themeAtom);
   const codeMirrorRefs = useRef<CodeMirrorRef[] | null>([]);
   const [executeAllCellsFlag, setExecuteAllCellsFlag] = useState<boolean>(false);
 
@@ -184,7 +181,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           toggleKernelSwitcher={kernel.toggleKernelSwitcher}
         />
 
-        <div className={theme === 'light' ? 'editor-body light' : 'editor-body dark'}>
+        <div className="editor-body">
           {kernel.showKernelSwitcher && (
             <KernelSwitcher
               kernelName={kernel.kernelName}

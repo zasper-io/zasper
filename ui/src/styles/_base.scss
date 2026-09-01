@@ -1,0 +1,63 @@
+// App-global base styles. These used to live at the top of IDE.scss, but they
+// apply to every route (including /login), so they belong with the token layer.
+//
+// Everything here reads from _tokens.scss — no literal colours below this line.
+
+body {
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  position: relative;
+  background-color: var(--z-bg-app);
+  color: var(--z-fg-default);
+}
+
+// The theme lives on <html>, so the shell just fills the viewport.
+.editor {
+  width: 100%;
+  height: 100vh;
+  background-color: var(--z-bg-app);
+  color: var(--z-fg-default);
+}
+
+a {
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.3s ease-in-out;
+}
+
+// Replaces the `.themeDark select` override; native selects don't inherit.
+select {
+  background-color: var(--z-bg-select);
+  color: var(--z-fg-default);
+}
+
+/* ===== Scrollbars ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--z-scrollbar-thumb) var(--z-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 16px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--z-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--z-scrollbar-thumb);
+  border-radius: 10px;
+  border: 3px solid var(--z-scrollbar-track);
+}
+
+// Editor font size, driven by fontSizeAtom (Cmd +/-) via getFontClass().
+$font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
+
+@each $size in $font-sizes {
+  .zfont-#{$size} {
+    font-size: #{$size}px;
+  }
+}

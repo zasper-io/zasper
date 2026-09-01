@@ -1,0 +1,167 @@
+// Zasper design tokens.
+//
+// Every colour in the UI resolves through one of these custom properties, so a
+// theme is a set of values rather than a set of override rules. Light is the
+// default in `:root`; a theme only has to restate what it changes.
+//
+// Adding a theme means adding one `[data-theme='name']` block below (or shipping
+// the same block from a plugin stylesheet) — no component SCSS has to change.
+// `themeAtom` writes the active name to `data-theme` on <html>; see IDE.tsx.
+
+:root {
+  // --- Surfaces -----------------------------------------------------------
+  --z-bg-app: #e4e4e5;
+  --z-bg-content: #e4e4e5;
+  --z-bg-panel: #ffffff;
+  --z-bg-panel-alt: #f3f1fd;
+  --z-bg-editor: #ffffff;
+  --z-bg-tab: #ffffff;
+  --z-bg-input: #5f568f;
+  --z-bg-select: #ffffff;
+  --z-bg-terminal: #392e6b;
+  --z-bg-cell: #f8f8f8;
+  --z-bg-cell-output: #eaf3fb;
+  --z-bg-code: #f4f4f4;
+  --z-bg-notice: #eaeaea;
+  --z-bg-menu: #ffffff;
+  --z-bg-menu-hover: #f0f0f0;
+  --z-fg-menu-item: #473990;
+
+  // --- Chrome (topbar / tabs / banner) ------------------------------------
+  --z-bg-topbar: #473990;
+  --z-bg-banner: #553b9e;
+  --z-bg-statusbar: #473990;
+  --z-bg-command-palette: #5f568f;
+  --z-bg-tab-inactive: #7651db;
+  --z-bg-tab-active: #553b9e;
+  --z-bg-tab-hover: #553b9e;
+  --z-bg-navbutton-active: #c3c1f4;
+  --z-border-navbutton-active: #272727;
+
+  // --- Launcher -----------------------------------------------------------
+  --z-bg-launcher-tile: #f3f2f6;
+  --z-bg-launcher-tile-hover: #e3e1e9;
+
+  // --- Foreground ---------------------------------------------------------
+  --z-fg-default: #393939;
+  --z-fg-editor: #000000;
+  --z-fg-muted: #747474;
+  --z-fg-subtle: #c4c4c4;
+  --z-fg-on-accent: #ffffff;
+  --z-fg-on-chrome: #ffffff;
+  --z-fg-icon: #564d7b;
+  // Applied to <img>-based icons, whose fill is baked into the file.
+  --z-img-icon-filter: none;
+
+  // --- Borders ------------------------------------------------------------
+  --z-border: #e0dceb;
+  --z-border-strong: #969696;
+  --z-border-subtle: #f3f2f6;
+  --z-border-divider: #cccccc;
+  --z-border-cell: #553b9e;
+  --z-border-breadcrumb: #e8e1fd;
+  --z-border-active-cell: #4a2ccf;
+  --z-border-kernel-status: #1f1f1f;
+
+  // --- Accent -------------------------------------------------------------
+  --z-brand: #5f568f; // Zasper purple; intentionally theme-independent
+  --z-accent: #583bd8;
+  --z-accent-hover: #6f57da;
+  --z-fg-serial-no: #473990;
+
+  // --- Scrollbars ---------------------------------------------------------
+  --z-scrollbar-thumb: #8f54a0;
+  --z-scrollbar-track: #ffffff;
+
+  // --- Elevation ----------------------------------------------------------
+  --z-shadow-ambient: #dddddd;
+  --z-shadow-overlay: rgba(0, 0, 0, 0.2);
+  --z-shadow-panel: 0 3px 20px #0000001c;
+  --z-overlay-backdrop: rgba(0, 0, 0, 0.5);
+
+  // --- Kernel status ------------------------------------------------------
+  --z-status-idle: #139513;
+  --z-status-busy: #fb3636;
+  --z-status-disconnected: #888888;
+  --z-status-error: #aa1a1a;
+
+  // --- Git graph ----------------------------------------------------------
+  --z-git-node: #6a0dad;
+
+  // --- DataFrame output ---------------------------------------------------
+  --z-df-bg: #ffffff;
+  --z-df-fg: #333333;
+  --z-df-header-bg: #f2f2f2;
+  --z-df-header-fg: #202020;
+  --z-df-header-rule: #388e3c;
+  --z-df-row-even: #f9f9f9;
+  --z-df-row-odd: #ffffff;
+  --z-df-row-hover: #f1f1f1;
+  --z-df-border: #dddddd;
+}
+
+[data-theme='dark'] {
+  --z-bg-app: #000000;
+  --z-bg-content: #3e3e3e;
+  --z-bg-panel: #272727;
+  --z-bg-panel-alt: #272727;
+  --z-bg-editor: #1e1e1e;
+  --z-bg-tab: #272727;
+  --z-bg-input: #272727;
+  --z-bg-select: #3e3e3e;
+  --z-bg-terminal: #2b2a2a;
+  --z-bg-cell: #343434;
+  --z-bg-cell-output: #353535;
+  --z-bg-code: #3d3d3d;
+  --z-bg-notice: #2d2d2d;
+  --z-bg-menu: #181818;
+  --z-bg-menu-hover: #515151;
+  --z-fg-menu-item: #f0f0f0;
+
+  --z-bg-topbar: #303030;
+  --z-bg-banner: #3f3855;
+  --z-bg-command-palette: #353535;
+  --z-bg-tab-inactive: #545454;
+  --z-bg-tab-active: #424242;
+  --z-bg-tab-hover: #424242;
+  --z-bg-navbutton-active: transparent;
+  --z-border-navbutton-active: #ffffff;
+
+  --z-bg-launcher-tile: #272727;
+  --z-bg-launcher-tile-hover: #353535;
+
+  --z-fg-default: #e2e2e2;
+  --z-fg-editor: #d7d7d7;
+  --z-fg-muted: #a8a8a8;
+  --z-fg-subtle: #8b8b8b;
+  --z-fg-icon: #e2e2e2;
+  --z-img-icon-filter: brightness(1.9) saturate(0.7);
+
+  --z-border: #4f4f4f;
+  --z-border-strong: #636262;
+  --z-border-subtle: #89888b;
+  --z-border-divider: #444444;
+  --z-border-cell: #1c1c1c;
+  --z-border-breadcrumb: #636262;
+  --z-border-active-cell: #767676;
+  --z-border-kernel-status: #636262;
+  --z-fg-serial-no: #e2e2e2;
+
+  --z-scrollbar-thumb: #1c1c1c;
+  --z-scrollbar-track: #313131;
+
+  --z-git-node: #b06ee0; // lifted off the dark panel background
+
+  --z-shadow-ambient: #000000;
+  --z-shadow-overlay: rgba(255, 255, 255, 0.1);
+  --z-overlay-backdrop: rgba(255, 255, 255, 0.5);
+
+  --z-df-bg: #1e1e1e;
+  --z-df-fg: #d4d4d4;
+  --z-df-header-bg: #252526;
+  --z-df-header-fg: #ffffff;
+  --z-df-row-even: #1e1e1e;
+  --z-df-row-odd: #2a2a2a;
+  --z-df-row-hover: #3a3d41;
+  --z-df-border: #333333;
+}

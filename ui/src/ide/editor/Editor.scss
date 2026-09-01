@@ -1,8 +1,9 @@
 .breadcrumbArea {
   height: 33px;
+  background: var(--z-bg-editor);
   font-weight: 400;
   padding: 2px 13px;
-  border-bottom: 2px solid #e8e1fd;
+  border-bottom: 2px solid var(--z-border-breadcrumb);
   font-size: 14px;
-  color: #393939;
+  color: var(--z-fg-default);
 }

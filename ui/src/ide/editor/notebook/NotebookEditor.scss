@@ -1,16 +1,23 @@
+// Notebook editor: cell chrome, kernel status and DataFrame output.
+//
+// The old `.light` / `.dark` classes on `.editor-body` and the `.themeDark`
+// DataFrame block are gone — both themes now come from tokens, so the DataFrame
+// styling is written once instead of twice.
+
 .text-editor-tool {
   display: flex;
   align-items: center;
   gap: 32px;
   padding: 18px 18px 13px 18px;
-  border-bottom: 1px solid #cccccc;
-  color: #acacac;
+  border-bottom: 1px solid var(--z-border-divider);
+  color: var(--z-fg-subtle);
 }
 
 .text-editor-tool a {
-  color: #747474;
+  color: var(--z-fg-muted);
   font-size: 17px;
 }
+
 .cellOptionsDiv {
   width: 100%;
   height: 35px;
@@ -21,8 +28,8 @@
   align-items: center;
   gap: 20px;
   padding: 18px 18px 13px 18px;
-  border: 1px solid #cccccc;
-  color: #837ca4;
+  border: 1px solid var(--z-border-divider);
+  color: var(--z-fg-muted);
   height: 20px;
   float: right;
   border-radius: 4px;
@@ -35,7 +42,7 @@
 }
 
 .activeCell {
-  border: 2px solid #4a2ccf;
+  border: 2px solid var(--z-border-active-cell);
   border-radius: 4px;
 }
 
@@ -46,14 +53,15 @@
   overflow-y: scroll;
   margin-right: 7px;
   scrollbar-width: thin;
-  /* Handle */
+  background-color: var(--z-bg-editor);
+  color: var(--z-fg-editor);
 
   .single-line {
     gap: 8px;
     padding: 10px;
     min-height: 35px;
     margin: 6px;
-    background: #f8f8f8;
+    background: var(--z-bg-cell);
   }
 
   .single-line .inner-content {
@@ -61,7 +69,7 @@
   }
 
   .serial-no {
-    color: #473990;
+    color: var(--z-fg-serial-no);
     font-size: 14px;
     font-weight: 700;
     line-height: 24px;
@@ -75,21 +83,12 @@
   }
 }
 
-.light {
-  color: #000000;
-}
-
-.dark {
-  color: #d7d7d7;
-  background-color: #1e1e1e;
-}
-
 .editor-body::-webkit-scrollbar {
   width: 7px;
 }
 
 .editor-body::-webkit-scrollbar-thumb {
-  background: #9f9f9f;
+  background: var(--z-scrollbar-thumb);
   border-radius: 100px;
 }
 
@@ -98,17 +97,17 @@
   overflow: auto;
   margin-top: 14px;
   position: relative;
-  background: #eaf3fb;
+  background: var(--z-bg-cell-output);
 
   p {
     margin-bottom: 0;
-    color: #747474;
+    color: var(--z-fg-muted);
     font-weight: 700;
   }
 }
 
 .cellEditor .cm-editor {
-  border: 1px solid #553b9e;
+  border: 1px solid var(--z-border-cell);
   border-radius: 2px;
 }
 
@@ -117,36 +116,32 @@
   height: 22px;
   width: 22px;
   border-radius: 11px;
-  border: 1px solid #1f1f1f;
-  -webkit-box-shadow: 3px 3px 10px 3px #dddddd;
-  -moz-box-shadow: 3px 3px 10px 3px #dddddd;
-  box-shadow: 3px 3px 10px 3px #dddddd;
+  border: 1px solid var(--z-border-kernel-status);
+  box-shadow: 3px 3px 10px 3px var(--z-shadow-ambient);
   margin-right: 20px;
 }
 
 .ks-idle {
-  background-color: rgb(19, 149, 19);
+  background-color: var(--z-status-idle);
 }
 
 .ks-busy {
-  background-color: rgb(251, 54, 54);
+  background-color: var(--z-status-busy);
 }
 
 .ks-connected {
-  background-color: rgb(19, 149, 19);
+  background-color: var(--z-status-idle);
 }
 
 .ks-disconnected {
-  background-color: rgb(136, 136, 136);
+  background-color: var(--z-status-disconnected);
 }
 
 .reconnectButton {
   border: none;
   width: 20px;
   height: 20px;
-  -webkit-box-shadow: 3px 3px 10px 3px #dddddd;
-  -moz-box-shadow: 3px 3px 10px 3px #dddddd;
-  box-shadow: 3px 3px 10px 3px #dddddd;
+  box-shadow: 3px 3px 10px 3px var(--z-shadow-ambient);
   border-radius: 10px;
   padding: 0;
   padding-inline: 0;
@@ -170,33 +165,34 @@
   margin: 0px;
 }
 
+/* ===== Pandas DataFrame output ===== */
+
 table.dataframe {
   border-collapse: collapse;
   min-width: 40%;
-  color: #333;
+  background-color: var(--z-df-bg);
+  color: var(--z-df-fg);
   font-size: 14px;
-  border: 1px solid #333;
+  border: 1px solid var(--z-df-border);
   border-radius: 8px;
   overflow: hidden;
 }
 
 table.dataframe thead {
-  color: rgb(32, 32, 32);
+  background-color: var(--z-df-header-bg);
+  color: var(--z-df-header-fg);
   text-align: right;
-}
-
-table.dataframe thead {
   padding: 4px 8px;
   font-weight: bold;
-  border-bottom: 2px solid #388e3c;
+  border-bottom: 2px solid var(--z-df-header-rule);
 }
 
 table.dataframe th {
-  background-color: #f2f2f2;
+  background-color: var(--z-df-header-bg);
+  color: var(--z-df-header-fg);
   text-align: right;
-  font-weight: bold;
   padding: 4px 8px;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid var(--z-df-border);
   font-weight: normal;
   white-space: nowrap;
 }
@@ -204,76 +200,31 @@ table.dataframe th {
 table.dataframe tbody {
   display: table-row-group;
 }
+
 table.dataframe tbody tr {
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--z-df-border);
   transition: background-color 0.2s ease-in-out;
 }
 
+table.dataframe tbody tr:nth-child(odd) {
+  background-color: var(--z-df-row-odd);
+}
+
+table.dataframe tbody tr:nth-child(even) {
+  background-color: var(--z-df-row-even);
+}
+
 table.dataframe tbody tr:hover {
-  background-color: #f1f1f1;
+  background-color: var(--z-df-row-hover);
 }
 
 table.dataframe td {
   padding: 4px 8px;
   text-align: right;
   white-space: nowrap;
-}
-
-table.dataframe tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
+  border-right: 1px solid var(--z-df-border);
 }
 
 .error-head {
-  background-color: rgb(170, 26, 26) !important;
-}
-
-/* Dark theme styles */
-
-/* Dark Theme for Pandas DataFrame Table */
-
-.themeDark {
-  table.dataframe {
-    background-color: #1e1e1e;
-    color: #d4d4d4;
-    border-right: 1px solid #444;
-  }
-
-  /* Header */
-  table.dataframe thead {
-    background-color: #252526;
-    color: #fff;
-  }
-
-  table.dataframe thead th {
-    border-right: 1px solid #444;
-  }
-
-  /* Table Body */
-  table.dataframe tbody tr {
-    border-bottom: 1px solid #333;
-  }
-
-  table.dataframe tbody tr:nth-child(odd) {
-    background-color: #2a2a2a;
-  }
-
-  table.dataframe tbody tr:nth-child(even) {
-    background-color: #1e1e1e;
-  }
-
-  table.dataframe tbody tr:hover {
-    background-color: #3a3d41;
-  }
-
-  /* Cells */
-  table.dataframe td {
-    border-right: 1px solid #333;
-  }
-
-  /* Index Column (if any) */
-  table.dataframe th {
-    background-color: #2d2d2d;
-    color: #cccccc;
-    border-right: 1px solid #444;
-  }
+  background-color: var(--z-status-error) !important;
 }

@@ -1,39 +1,23 @@
-/* src/ContextMenu.css */
 .context-menu {
   position: absolute;
-  background: white;
-  border: 1px solid #ccc;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+  background: var(--z-bg-menu);
+  color: var(--z-fg-default);
+  border: 1px solid var(--z-border-divider);
+  box-shadow: 0px 4px 8px var(--z-shadow-overlay);
   z-index: 1000;
-  width: 12 0px;
+  // NB: this was `width: 12 0px` — invalid, so it never applied and the menu has
+  // always auto-sized to its items. Left auto rather than pinning it now.
   border-radius: 5px;
 }
 
 .context-menu-item {
   padding: 4px 12px;
   cursor: pointer;
-  color: #473990;
+  color: var(--z-fg-menu-item);
   font-size: 12px;
   font-weight: 400;
 }
 
 .context-menu-item:hover {
-  background-color: #f0f0f0;
-}
-
-.themeDark {
-  .context-menu {
-    background: #181818;
-    color: #f0f0f0;
-    box-shadow: 0px 4px 8px rgba(255, 255, 255, 0.1);
-  }
-
-  .context-menu-item {
-    cursor: pointer;
-    color: #f0f0f0;
-  }
-
-  .context-menu-item:hover {
-    background-color: #515151;
-  }
+  background-color: var(--z-bg-menu-hover);
 }

@@ -5,7 +5,7 @@
   transform: translateX(-50%);
   min-width: 750px;
   max-height: 300px;
-  background-color: #5f568f;
+  background-color: var(--z-bg-command-palette);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   z-index: 9999;

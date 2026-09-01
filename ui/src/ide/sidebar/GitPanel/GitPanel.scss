@@ -1,20 +1,18 @@
-@use '../../../variables' as *;
-
 .graph-container {
   display: flex;
   flex-direction: column;
   align-items: start;
-  background-color: $white-color;
+  background-color: var(--z-bg-panel);
   border-radius: 8px;
-  color: $black-color;
+  color: var(--z-fg-default);
   position: relative;
   width: 100%;
 }
 
 .commit-node {
   height: 40px;
-  background-color: $primary-color;
-  color: $white-color;
+  background-color: var(--z-brand);
+  color: var(--z-fg-on-accent);
   padding: 10px;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
@@ -41,7 +39,7 @@
 }
 
 .connection-line {
-  background-color: #999;
+  background-color: var(--z-border-strong);
   z-index: 0;
   height: 2px;
   transform-origin: top left;
@@ -57,12 +55,12 @@
 
 .gitbutton {
   font-weight: 400;
-  border: 1px solid #e6e6e6;
+  border: 1px solid var(--z-border);
   border-radius: 4px;
   padding: 6px 18px;
-  color: $white-color;
+  color: var(--z-fg-on-accent);
   box-sizing: border-box;
-  background: $primary-color;
+  background: var(--z-brand);
   box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
 }
 
@@ -76,15 +74,15 @@
 }
 
 .git-graph-svg {
-  background-color: $white-color;
+  background-color: var(--z-bg-panel);
   border-radius: 8px;
 }
 
 .commit-node {
-  fill: #6a0dad;
-  stroke: $white-color;
+  fill: var(--z-git-node);
+  stroke: var(--z-bg-panel);
   font-size: 12px;
-  color: $white-color;
+  color: var(--z-fg-on-accent);
   cursor: pointer;
   transition: transform 0.2s;
 
@@ -94,7 +92,7 @@
 }
 
 .commit-edge {
-  stroke: #6a0dad;
+  stroke: var(--z-git-node);
   stroke-width: 2px;
 }
 
@@ -108,7 +106,7 @@
 .commit-circle {
   width: 12px;
   height: 12px;
-  background-color: #6a0dad;
+  background-color: var(--z-git-node);
   border-radius: 50%;
   position: relative;
   z-index: 1;
@@ -117,7 +115,7 @@
 .commit-line {
   width: 2px;
   height: 34px;
-  background-color: #6a0dad;
+  background-color: var(--z-git-node);
   position: absolute;
   left: 5px;
   top: 12px;
@@ -125,7 +123,7 @@
 
 .commit-text {
   margin-left: 12px;
-  color: $black-color;
+  color: var(--z-fg-default);
   font-size: 14px;
   cursor: pointer;
   white-space: nowrap;

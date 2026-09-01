@@ -113,6 +113,13 @@ function IDE() {
     initConfig();
   }, [initConfig]);
 
+  // Publish the active theme as `data-theme` on <html>. Every colour in the app
+  // resolves through the custom properties keyed off this attribute (see
+  // styles/_tokens.scss), so this one write repaints the whole UI.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
   useEffect(() => {
     // Listen to the keydown event
     window.addEventListener('keydown', handleKeyDown);
@@ -128,7 +135,7 @@ function IDE() {
   };
 
   return (
-    <div className={theme === 'light' ? 'editor themeLight' : 'editor themeDark'}>
+    <div className="editor">
       <Topbar />
       <div className="editor-container">
         <PanelGroup direction="horizontal">

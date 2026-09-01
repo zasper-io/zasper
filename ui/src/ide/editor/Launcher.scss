@@ -1,5 +1,5 @@
 .launcher-title {
-  border-bottom: 1px solid #f3f2f6;
+  border-bottom: 1px solid var(--z-border-subtle);
   padding: 0px 40px;
   padding-bottom: 20px;
 }
@@ -7,17 +7,18 @@
 .launchSection {
   min-height: 500px;
   padding: 20px;
-  border-bottom: 1px solid #f3f2f6;
+  border-bottom: 1px solid var(--z-border-subtle);
 }
 
 .launcher-icon {
   float: left;
   height: 170px;
   width: 160px;
-  border: 1px solid #cfcfcf;
+  border: 1px solid var(--z-border);
   border-radius: 5px;
   padding: auto;
-  background-color: #f3f2f6;
+  background-color: var(--z-bg-launcher-tile);
+  color: var(--z-fg-default);
   align-content: center;
   text-align: center;
   box-shadow: #b1b0b0;
@@ -28,7 +29,7 @@
 }
 
 .launcher-icon:hover {
-  background-color: #e3e1e9;
+  background-color: var(--z-bg-launcher-tile-hover);
 }
 
 .terminalIconImage {
@@ -36,6 +37,8 @@
 }
 
 .LauncherArea {
+  background: var(--z-bg-editor);
+  color: var(--z-fg-default);
   padding: 40px;
   height: 100%;
   width: 100%;
@@ -48,7 +51,8 @@
 .noKernelsFound {
   padding: 20px 20px 10px;
   font-size: 16px;
-  background: #eaeaea;
+  background: var(--z-bg-notice);
+  color: var(--z-fg-default);
   border-radius: 6px;
   font-weight: 300;
 
@@ -56,18 +60,8 @@
     width: 100%;
     display: block;
     padding: 10px;
-    background-color: #f4f4f4;
+    background-color: var(--z-bg-code);
     margin-bottom: 10px;
-  }
-}
-
-.themeDark * {
-  .noKernelsFound {
-    background: #2d2d2d;
-    color: #f0f0f0;
-  }
-  code {
-    background-color: #3d3d3d;
   }
 }
 

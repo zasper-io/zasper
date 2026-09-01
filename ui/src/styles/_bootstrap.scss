@@ -1,0 +1,73 @@
+// Bootstrap, reduced to the parts Zasper actually uses.
+//
+// This replaces the 163 KB pre-built `public/css/bootstrap.min.css` that used to
+// be <link>ed from index.html. Two things change: the bundle only carries the
+// components that appear in our markup, and Vite now controls the cascade order,
+// so Bootstrap always loses to the token layer instead of racing it.
+//
+// Before dropping a partial, check the class is unused across src/**/*.tsx —
+// several are load-bearing in non-obvious ways (`d-block`/`d-none` drive sidebar
+// panel visibility in IDE.tsx).
+
+// Required infrastructure.
+@import 'bootstrap/scss/functions';
+@import 'bootstrap/scss/variables';
+@import 'bootstrap/scss/variables-dark';
+@import 'bootstrap/scss/maps';
+@import 'bootstrap/scss/mixins';
+@import 'bootstrap/scss/utilities';
+
+// Bootstrap's `utilities/api` expands `$utilities` into every utility class at
+// every breakpoint, which is ~120 KB on its own. Narrow the map to the groups
+// whose classes actually appear in src/**/*.tsx before the api runs.
+//
+// Add a key here if you start using a new utility family — `git grep` for the
+// class first, since an unmatched utility class fails silently.
+$zasper-utility-keys: (
+  'display',
+  // .d-block, .d-none — sidebar panel visibility
+  'margin-top',
+  // .mt-auto
+  'margin-start',
+  // .ms-auto
+  'margin-x',
+  // .mx-auto
+  'text-align' // .text-center
+);
+
+$zasper-utilities: ();
+@each $key in $zasper-utility-keys {
+  @if map-has-key($utilities, $key) {
+    $zasper-utilities: map-merge(
+      $zasper-utilities,
+      (
+        $key: map-get($utilities, $key),
+      )
+    );
+  } @else {
+    @error 'Unknown Bootstrap utility key: #{$key}';
+  }
+}
+$utilities: $zasper-utilities;
+
+// Base.
+@import 'bootstrap/scss/root';
+@import 'bootstrap/scss/reboot';
+@import 'bootstrap/scss/type';
+@import 'bootstrap/scss/containers';
+@import 'bootstrap/scss/grid';
+
+// Components in use.
+@import 'bootstrap/scss/transitions'; // .fade/.collapse, required by modal
+@import 'bootstrap/scss/buttons'; // .btn, .btn-sm, .btn-danger
+@import 'bootstrap/scss/close'; // .btn-close
+@import 'bootstrap/scss/forms'; // .form-check*, .form-select
+@import 'bootstrap/scss/nav'; // .nav, .nav-item, .nav-link, .tab-content
+@import 'bootstrap/scss/navbar'; // .navbar, .navbar-brand
+@import 'bootstrap/scss/breadcrumb'; // .breadcrumb, .breadcrumb-item
+@import 'bootstrap/scss/list-group'; // .list-group-item
+@import 'bootstrap/scss/modal'; // .modal, .modal-body, .modal-dialog-centered
+
+// Generates the utility classes (.d-none, .d-block, .ms-auto, .text-center, …).
+// Must come last so the utilities win over component rules, as upstream expects.
+@import 'bootstrap/scss/utilities/api';
