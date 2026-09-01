@@ -6,7 +6,7 @@
   min-width: 750px;
   max-height: 300px;
   background-color: var(--z-bg-command-palette);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--z-shadow-medium);
   border-radius: 8px;
   z-index: 9999;
   padding: 10px;
@@ -16,7 +16,7 @@
 .command-palette-input {
   width: 100%;
   padding: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--z-border-divider);
   border-radius: 4px;
   font-size: 14px;
   margin-bottom: 10px;
@@ -30,22 +30,29 @@
   list-style: none;
 }
 
+// The palette floats over the topbar and shares its background, so its rows are
+// chrome. They used to inherit --z-fg-default from <body>, which put #393939 text
+// on the purple palette at 1.6:1.
 .command-palette-item {
   height: 40px;
   padding: 8px;
   cursor: pointer;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--z-border);
   font-size: 14px;
+  color: var(--z-fg-on-chrome);
 }
 
+// Hovering used to swap in --z-bg-menu-hover, a *panel* colour: in the light
+// theme that turned the row near-white while the text stayed white. The palette
+// gets its own hover surface so the row keeps its chrome contrast.
 .command-palette-item:hover,
 .command-palette-item.selected {
-  background-color: #f0f0f0;
-  color: #5f568f;
+  background-color: var(--z-bg-command-palette-hover);
 }
 
+// Secondary text (the keyboard shortcut). Kept on the chrome colour and set apart
+// by size rather than by --z-fg-muted, which is also panel-relative.
 .command-palette-item small {
-  color: #888;
   font-size: 12px;
 }
 

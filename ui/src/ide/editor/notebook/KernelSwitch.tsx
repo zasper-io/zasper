@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import './KernelSwitch.scss';
 import { useAtom } from 'jotai';
 import { IKernelspecsState, kernelspecsAtom } from '../../../store/AppState';
 

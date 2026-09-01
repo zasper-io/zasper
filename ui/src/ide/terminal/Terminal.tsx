@@ -9,8 +9,6 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
 import { BaseWebSocketUrl } from '../config';
-import { useAtom } from 'jotai';
-import { themeAtom } from '../../store/Settings';
 import { IfileTab } from '../../store/TabState';
 
 interface TerminalTabProps {
@@ -18,7 +16,6 @@ interface TerminalTabProps {
 }
 
 export default function TerminalTab({ data }: TerminalTabProps) {
-  const [theme] = useAtom(themeAtom);
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -43,12 +40,15 @@ export default function TerminalTab({ data }: TerminalTabProps) {
   useEffect(() => {
     if (terminalRef.current == null) return;
 
-    const xtemBackground = theme === 'light' ? '#392e6b' : '#2b2a2a';
-    // Initialize the terminal
+    // The background is drawn by .terminalArea from --z-bg-terminal rather than
+    // baked into the XTerm instance. Keeping it in CSS means switching themes
+    // repaints the terminal instead of disposing and rebuilding it, so the
+    // scrollback and the shell session survive.
     const terminal = new XTerm({
       theme: {
-        background: xtemBackground,
+        background: 'rgba(0, 0, 0, 0)',
       },
+      allowTransparency: true,
       fontFamily: 'Monospace',
       allowProposedApi: true,
     });
@@ -93,7 +93,7 @@ export default function TerminalTab({ data }: TerminalTabProps) {
 
       window.removeEventListener('resize', refit);
     };
-  }, [terminalId, theme, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
+  }, [terminalId, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
 
   return (
     <div className="tab-content">

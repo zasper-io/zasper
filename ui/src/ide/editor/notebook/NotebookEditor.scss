@@ -35,10 +35,15 @@
   border-radius: 4px;
 }
 
+// Also used by the kernel switcher and NbButtons. Bootstrap's .form-select
+// hardcodes a white background off --bs-body-bg, so restate it from the tokens.
 .editor-select {
   width: 200px;
   font-weight: 300;
   font-size: 16px;
+  background-color: var(--z-bg-field);
+  color: var(--z-fg-field);
+  border: 1px solid var(--z-border-field);
 }
 
 .activeCell {

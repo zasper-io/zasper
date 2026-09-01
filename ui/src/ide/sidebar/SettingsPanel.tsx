@@ -4,14 +4,10 @@ import { themeAtom } from '../../store/Settings';
 import './SettingsPanel.scss';
 import { logApiError, modifyConfig } from '../../api';
 import { PanelProps } from './types';
+import { themes } from '../../themes';
 
 export default function SettingsPanel({ display }: PanelProps) {
   const [theme, setTheme] = useAtom(themeAtom);
-
-  const options = [
-    { label: 'Light', value: 'light' },
-    { label: 'Dark', value: 'dark' },
-  ];
 
   const changeTheme = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTheme(e.target.value);
@@ -32,9 +28,11 @@ export default function SettingsPanel({ display }: PanelProps) {
         </div>
         <div className="content-inner">
           <div className="select">
+            {/* Driven by the theme registry, so a new theme shows up here
+                without touching this component. */}
             <select value={theme} onChange={(e) => changeTheme(e)}>
-              {options.map((option, index) => (
-                <option key={index} value={option.value}>
+              {themes.map((option) => (
+                <option key={option.id} value={option.id}>
                   {option.label}
                 </option>
               ))}

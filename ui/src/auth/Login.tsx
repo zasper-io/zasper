@@ -104,7 +104,7 @@ const TextCarousel = () => {
   ];
 
   return (
-    <div className="max-w-2xl mx-auto mt-10">
+    <div className="mx-auto">
       <Swiper
         modules={[Autoplay]}
         spaceBetween={20}
@@ -114,7 +114,7 @@ const TextCarousel = () => {
       >
         {texts.map((text, index) => (
           <SwiperSlide key={index}>
-            <div className="text-center text-xl text-gray-800 font-semibold py-6">{text}</div>
+            <div className="login-slider-text">{text}</div>
           </SwiperSlide>
         ))}
       </Swiper>

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { vscodeLight, vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { python } from '@codemirror/lang-python';
 import { html } from '@codemirror/lang-html';
 import { go } from '@codemirror/lang-go';
@@ -15,8 +14,8 @@ import { keymap, ViewUpdate } from '@codemirror/view';
 import { getFileContent, logApiError, saveFile } from '../../api';
 
 import './FileEditor.scss';
-import { themeAtom } from '../../store/Settings';
 import { useAtom } from 'jotai';
+import { useTheme } from '../../themes/useTheme';
 import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '../../store/AppState';
 import BreadCrumb from './BreadCrumb';
 import { IfileTab } from '../../store/TabState';
@@ -27,7 +26,7 @@ interface FileEditorProps {
 
 export default function FileEditor(props: FileEditorProps) {
   const [fileContents, setFileContents] = useState('');
-  const [theme] = useAtom(themeAtom);
+  const theme = useTheme();
 
   const handleCmdEnter = () => {
     saveFile(props.data.path, fileContents).catch(logApiError('Error saving file:'));
@@ -109,7 +108,7 @@ export default function FileEditor(props: FileEditorProps) {
           <BreadCrumb path={props.data.path} />
           <CodeMirror
             value={fileContents}
-            theme={theme === 'light' ? vscodeLight : vscodeDark}
+            theme={theme.codeMirror}
             minHeight="100%"
             width="100%"
             extensions={[getExtensionToLoad(), customKeymap]}

@@ -64,7 +64,10 @@ export default function Topbar() {
       <div className="container-fluid">
         <div className="row">
           <div className="col-3">
-            <img className="logo-white" src="./images/logo-white.svg" alt="#" />
+            {/* Not an <img>: which wordmark file to use depends on whether the
+                topbar is dark or light, and that has to come from a token so no
+                component branches on the theme name. See --z-logo. */}
+            <span className="zasperLogo" role="img" aria-label="Zasper" />
           </div>
           <div className="col-7">
             <div className="searchArea">

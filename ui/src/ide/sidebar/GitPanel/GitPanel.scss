@@ -15,7 +15,7 @@
   color: var(--z-fg-on-accent);
   padding: 10px;
   border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--z-shadow-medium);
   margin-bottom: 10px;
   width: '200px';
 }
@@ -31,11 +31,11 @@
 }
 
 .commit-node.main {
-  background-color: #3498db;
+  background-color: var(--z-git-branch-1);
 }
 
 .commit-node.feature-xyz {
-  background-color: #f39c12;
+  background-color: var(--z-git-branch-2);
 }
 
 .connection-line {
@@ -53,6 +53,10 @@
   overflow-y: scroll;
 }
 
+// Also the "Select Kernel" / "Switch Kernel" button in KernelSwitch. It is a
+// primary action, so it follows --z-accent; it used to be filled with --z-brand,
+// which is pinned to Zasper purple for the wordmark and does not move with the
+// theme.
 .gitbutton {
   font-weight: 400;
   border: 1px solid var(--z-border);
@@ -60,12 +64,13 @@
   padding: 6px 18px;
   color: var(--z-fg-on-accent);
   box-sizing: border-box;
-  background: var(--z-brand);
-  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  background: var(--z-accent);
+  box-shadow: var(--z-shadow-wide);
 }
 
 .gitbutton:hover {
-  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  background: var(--z-accent-hover);
+  box-shadow: var(--z-shadow-medium);
 }
 
 .content-body {

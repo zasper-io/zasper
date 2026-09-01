@@ -25,12 +25,15 @@
   background-color: var(--z-bg-topbar);
   color: var(--z-fg-on-chrome);
   padding: 2px 40px;
-  box-shadow:
-    0 3px 6px rgba(0, 0, 0, 0.16),
-    0 3px 6px rgba(0, 0, 0, 0.23);
+  box-shadow: var(--z-shadow-high);
 
-  .logo-white {
+  // logo-white.svg draws the wordmark in #fff, so it vanished on a light topbar.
+  // A background-image lets --z-logo pick the right file per theme.
+  .zasperLogo {
+    display: block;
     height: 44px;
+    width: 104px;
+    background: var(--z-logo) left center / contain no-repeat;
   }
 
   .searchArea {

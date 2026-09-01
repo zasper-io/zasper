@@ -1,0 +1,79 @@
+// The shared modal shell.
+//
+// Four components render this markup — KernelSwitch, ErrorDialog, HelpDialog and
+// FileUpload — so the rules live here rather than in any one of their
+// stylesheets. They used to sit in KernelSwitch.scss, which meant the other
+// three only looked right as long as a notebook happened to be open and that
+// file had been imported.
+
+.modal {
+  // Bootstrap ships `.modal { display: none }` and expects its own JS to add
+  // `.show`. We open dialogs by conditionally rendering them instead, so the
+  // element only exists when it should be visible. The deleted template
+  // stylesheet carried this as `display: block !important`; losing it made all
+  // four dialogs render invisibly.
+  display: block;
+  background: var(--z-overlay-backdrop);
+}
+
+.modal-dialog {
+  max-width: 95%;
+  margin: 1.75rem auto;
+  width: 600px;
+}
+
+.modal-content {
+  border: none;
+  border-radius: 4px;
+  height: 400px;
+  // Bootstrap defaults .modal-content to $white, so without this the dark theme
+  // rendered every dialog as a white box.
+  background-color: var(--z-bg-modal);
+  color: var(--z-fg-default);
+}
+
+.modal-head {
+  height: 40px;
+  width: 100%;
+  background-color: var(--z-bg-modal-header);
+  color: var(--z-fg-on-accent);
+  font-weight: 300;
+  padding: 8px;
+  text-align: center;
+  border-radius: 4px 4px 0px 0px;
+}
+
+.modal-btn-close {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  font-size: 20px;
+  background: transparent;
+  border: none;
+  color: var(--z-fg-on-accent);
+}
+
+.modal-body {
+  background: var(--z-bg-modal);
+  color: var(--z-fg-default);
+}
+
+// Body layout, shared by KernelSwitch and ErrorDialog.
+.update-kernel-popup {
+  display: flex;
+  justify-content: space-between;
+  padding: 22px;
+}
+
+.update-kernel-popup-right {
+  // Was `calc(100% - 290px)`, leaving a 290px gap for a left-hand illustration
+  // column that has not been rendered for a long time.
+  width: 100%;
+}
+
+.update-kernel-popup-form {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 16px;
+}

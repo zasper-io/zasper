@@ -78,8 +78,8 @@
 
 .xterm .composition-view {
   /* TODO: Composition position got messed up somewhere */
-  background: #000;
-  color: #fff;
+  background: var(--z-bg-terminal);
+  color: var(--z-fg-on-terminal);
   display: none;
   position: absolute;
   white-space: nowrap;
@@ -91,8 +91,10 @@
 }
 
 .xterm .xterm-viewport {
-  /* On OS X this is required in order for the scroll bar to appear fully opaque */
-  background-color: #000000;
+  /* On OS X this is required in order for the scroll bar to appear fully opaque.
+     Upstream hardcodes #000, which showed as a black gutter beside the purple
+     light-theme terminal. */
+  background-color: var(--z-bg-terminal);
   overflow-y: scroll;
   cursor: default;
   position: absolute;

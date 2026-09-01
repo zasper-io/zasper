@@ -26,6 +26,7 @@ import {
   zasperVersionAtom,
 } from '../store/AppState';
 import { ApiError, getInfo } from '../api';
+import { getTheme } from '../themes';
 interface INav {
   name: string;
   display: string;
@@ -105,7 +106,9 @@ function IDE() {
     setProjectName(info.project.toUpperCase());
     setUserName(info.username);
     setVersion(info.version);
-    setTheme(info.theme);
+    // Resolve through the registry so a config naming a theme we no longer ship
+    // falls back instead of writing a data-theme with no stylesheet behind it.
+    setTheme(getTheme(info.theme).id);
     setProtectedState(info.protected);
   }, [setProjectName, setUserName, setVersion, setTheme, setProtectedState]);
 

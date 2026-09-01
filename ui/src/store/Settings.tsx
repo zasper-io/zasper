@@ -1,7 +1,9 @@
 import { atom } from 'jotai';
 
+import { defaultTheme } from '../themes';
+
 export const settingsAtom = atom({
-  theme: 'light',
+  theme: defaultTheme.id,
   encoding: 'UTF-8',
   language: 'en',
   activeLine: 1,
@@ -10,4 +12,5 @@ export const settingsAtom = atom({
   tabSize: '4',
 });
 
-export const themeAtom = atom('light');
+/** A theme id from the registry (src/themes). IDE.tsx publishes it to <html>. */
+export const themeAtom = atom(defaultTheme.id);

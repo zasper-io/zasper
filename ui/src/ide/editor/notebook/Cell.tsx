@@ -3,14 +3,13 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { vscodeLight, vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import Markdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import CellButtons from './CellButtons';
 import { languages } from '@codemirror/language-data';
 import { useAtom } from 'jotai';
-import { themeAtom } from '../../../store/Settings';
+import { useTheme } from '../../../themes/useTheme';
 import { AnsiUp } from 'ansi_up';
 import remarkMath from 'remark-math';
 import rehypeMathjax from 'rehype-katex';
@@ -55,7 +54,7 @@ export interface CodeMirrorRef {
 
 const Cell = React.forwardRef((props: ICellProps, ref) => {
   const { cell, updateCellSource } = props;
-  const [theme] = useAtom(themeAtom);
+  const theme = useTheme();
   const [cellContents, setCellContents] = useState(cell.source);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [totalLines, setTotalLines] = useState(0);
@@ -159,7 +158,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             <div className="inner-content">
               <div className="cellEditor">
                 <CodeMirror
-                  theme={theme === 'light' ? vscodeLight : vscodeDark}
+                  theme={theme.codeMirror}
                   value={cellContents}
                   height="auto"
                   width="100%"
@@ -226,7 +225,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
         )}
         <div className="cellEditor">
           <CodeMirror
-            theme={theme === 'light' ? vscodeLight : vscodeDark}
+            theme={theme.codeMirror}
             value={cellContents}
             height="auto"
             width="100%"

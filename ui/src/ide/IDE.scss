@@ -31,7 +31,7 @@
   height: 100%;
   width: 100%;
   background-color: var(--z-bg-terminal);
-  color: var(--z-fg-on-chrome);
+  color: var(--z-fg-on-terminal);
   padding-bottom: 10px;
   font-size: 16px;
   font-weight: 300;
@@ -151,29 +151,34 @@
 }
 
 // Editor tab strip. Bootstrap supplies .nav-link's box model; we restyle it.
+//
+// The tab strip is chrome, so it reads --z-fg-on-chrome rather than
+// --z-fg-on-accent. Identical in light and dark (both white), but a theme with a
+// light tab strip needs dark tab labels.
 .nav-link {
   font-weight: 300;
   border: 1px solid var(--z-border);
   border-radius: 2px 5px 0px 0px;
   padding: 6px 8px;
-  color: var(--z-fg-on-accent);
+  color: var(--z-fg-on-chrome);
   box-sizing: border-box;
   background: var(--z-bg-tab-inactive);
 
+  // The close × inherits the tab's colour. It used to be --z-fg-subtle, which is
+  // picked to sit on a *panel* — on the purple tab it came out at 1.16:1.
   i {
     margin-left: 10px;
-    color: var(--z-fg-subtle);
     font-size: 12px;
   }
 }
 
 .nav-link:hover {
-  color: var(--z-fg-on-accent);
+  color: var(--z-fg-on-chrome);
   background: var(--z-bg-tab-hover);
 }
 
 .nav-link.active {
-  color: var(--z-fg-on-accent);
+  color: var(--z-fg-on-chrome);
   font-weight: 400;
   background: var(--z-bg-tab-active);
 }
@@ -183,14 +188,7 @@
   color: var(--z-fg-default);
 }
 
-.modal-body {
-  background: var(--z-bg-panel);
-  color: var(--z-fg-default);
-}
-
-.modal {
-  background: var(--z-overlay-backdrop);
-}
+// The modal shell lives in styles/_modal.scss — four components share it.
 
 // directory.svg is an <img> with fill="#5f568f" baked in, so CSS `fill` cannot
 // reach it (the old .themeDark rule tried, and silently did nothing). A filter

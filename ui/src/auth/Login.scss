@@ -1,17 +1,20 @@
-.login-signup-wraper > div {
-  width: 50%;
+// /login.
+//
+// Dropped along the way: `.owl-dots` / `button.owl-dot`, which styled the
+// owl.carousel dots — that carousel was replaced by Swiper, and owl's stylesheet
+// went out with the rest of the template CSS. Also `.click-to-join-btn`,
+// `.login-signup-form-top` and `.login-sign-up-form-slider-item`, none of which
+// appear in Login.tsx.
+
+section#header-login-signup {
+  min-height: 100vh;
+  background: var(--z-bg-login-page);
+  height: auto;
 }
 
-.login-signup-wraper {
-  display: flex;
-  justify-content: space-between;
-  width: 85%;
-  margin: 0 auto;
-  border-radius: 40px;
-  overflow: hidden;
-  box-shadow: 0px 3px 36px #d6d0e8;
-  position: relative;
-  z-index: 1;
+.login-section {
+  margin-top: 100px;
+  padding-bottom: 100px;
 }
 
 .login-section .col-12 {
@@ -32,16 +35,37 @@
   background-repeat: no-repeat;
 }
 
-.login-section-image img {
-  width: 100%;
+.login-signup-wraper {
+  display: flex;
+  justify-content: space-between;
+  width: 85%;
+  margin: 0 auto;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: var(--z-shadow-login);
+  position: relative;
+  z-index: 1;
 }
 
+.login-signup-wraper > div {
+  width: 50%;
+}
+
+/* ===== Hero (left half) ===== */
+
 .login-signup-content {
-  background: transparent linear-gradient(133deg, #594c91 0%, #221c3c 100%) 0% 0% no-repeat
-    padding-box;
+  background: var(--z-bg-login-hero);
   padding: 50px 40px;
   display: flex;
   align-items: center;
+}
+
+.login-signup-content > div {
+  width: 100%;
+}
+
+.login-section-image {
+  text-align: center;
 }
 
 .login-section-image img {
@@ -50,108 +74,28 @@
   margin: 0 auto;
 }
 
-.login-section-image {
-  text-align: center;
-}
-
 .login-signup-content-slider {
-  color: #fff;
+  color: var(--z-fg-on-accent);
   width: 70%;
   margin: 0 auto;
   margin-top: 30px;
 }
 
-.login-sign-up-form-slider-item p {
+// The slides were marked up with Tailwind class names (text-xl, font-semibold,
+// py-6, mt-10) from an abandoned Tailwind attempt, so they rendered unstyled.
+.login-slider-text {
+  margin-top: 2.5rem;
+  padding: 1.5rem 0;
   text-align: center;
-  font-size: 16px;
-  font-weight: 400;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
-.owl-dots {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 15px;
-}
-
-button.owl-dot {
-  width: 10px;
-  height: 10px;
-  background: #fff !important;
-  opacity: 0.4;
-  border-radius: 100%;
-  margin-left: 3px;
-  margin-right: 3px;
-  transition: 0.3s ease;
-}
-
-button.owl-dot.active {
-  background: #fff !important;
-  opacity: 1;
-}
-
-.login-signup-form-top p {
-  color: #8b8b8b;
-}
-
-.click-to-join-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 15px;
-}
-
-.click-to-join-btn a {
-  padding: 13px 30px;
-  border-radius: 10px;
-  margin-left: 5px;
-  margin-right: 5px;
-  font-weight: 400;
-  font-size: 18px;
-  width: 50%;
-  text-align: center;
-}
-
-.click-to-join-btn a i {
-  margin-right: 10px;
-  font-size: 24px;
-  position: relative;
-  top: 2px;
-}
+/* ===== Form (right half) ===== */
 
 .login-signup-form {
   padding: 40px 40px;
-}
-
-.or p {
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 0px 10px;
-  background: #fff;
-  color: #564d7b;
-  font-weight: 500;
-  top: -1px;
-}
-
-.or {
-  border-top: 1px solid #e2e2e2;
-  margin-top: 30px;
-  margin-bottom: 25px;
-  text-align: center;
-  position: relative;
-}
-
-.login-signup-form {
-  background: #fff;
-}
-
-.login-signup-form-wraper input {
-  width: 100%;
-  padding: 12px 15px;
-  margin-bottom: 12px;
-  border: 1px solid #d0d0d0;
-  border-radius: 10px;
+  background: var(--z-bg-panel);
 }
 
 .login-signup-form-wraper {
@@ -159,31 +103,38 @@ button.owl-dot.active {
   margin: 0 auto;
 }
 
-.login-signup-form-wraper p {
-  color: #8b8b8b;
-  margin-bottom: 13px;
+.or {
+  border-top: 1px solid var(--z-border);
+  margin-top: 30px;
+  margin-bottom: 25px;
+  text-align: center;
+  position: relative;
 }
 
-.login-signup-form-wraper a {
-  color: #583bd8;
+.or p {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0px 10px;
+  background: var(--z-bg-panel);
+  color: var(--z-fg-icon);
   font-weight: 500;
+  top: -1px;
 }
 
-.login-signup-form-wraper button {
-  border: none;
-  background: #583bd8;
+.login-signup-form-wraper input {
   width: 100%;
-  padding: 12px 10px;
-  font-size: 18px;
-  font-weight: 400;
+  padding: 12px 15px;
+  margin-bottom: 12px;
+  border: 1px solid var(--z-border-field);
   border-radius: 10px;
-  margin-top: 15px;
-  margin-bottom: 10px;
-  color: #fff;
+  background: var(--z-bg-field);
+  color: var(--z-fg-default);
 }
 
-.login-signup-form-wraper button:hover {
-  background: #5136c5;
+.login-signup-form-wraper p {
+  color: var(--z-fg-muted);
+  margin-bottom: 13px;
 }
 
 .login-signup-form-wraper > p {
@@ -191,17 +142,24 @@ button.owl-dot.active {
   margin-top: 8px;
 }
 
-.login-signup-content > div {
+.login-signup-form-wraper a {
+  color: var(--z-accent);
+  font-weight: 500;
+}
+
+.login-signup-form-wraper button {
+  border: none;
+  background: var(--z-accent);
   width: 100%;
+  padding: 12px 10px;
+  font-size: 18px;
+  font-weight: 400;
+  border-radius: 10px;
+  margin-top: 15px;
+  margin-bottom: 10px;
+  color: var(--z-fg-on-accent);
 }
 
-.login-section {
-  margin-top: 100px;
-  padding-bottom: 100px;
-}
-
-section#header-login-signup {
-  min-height: 100vh;
-  background: transparent linear-gradient(119deg, #ffffff 0%, #d6d4e0 100%) 0% 0% no-repeat;
-  height: auto;
+.login-signup-form-wraper button:hover {
+  background: var(--z-accent-active);
 }

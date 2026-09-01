@@ -33,6 +33,17 @@ select {
   color: var(--z-fg-default);
 }
 
+// Inline SVG icons (src/ide/icons). Icon.tsx sets these classes instead of
+// computing a fill in JS, so icons repaint with the rest of the UI when
+// `data-theme` changes — no component re-render involved.
+.z-icon {
+  fill: var(--z-fg-svg);
+}
+
+.z-icon-contrast {
+  fill: var(--z-fg-svg-contrast);
+}
+
 /* ===== Scrollbars ===== */
 * {
   scrollbar-width: thin;

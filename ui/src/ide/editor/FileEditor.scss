@@ -9,7 +9,7 @@
 }
 
 .cm-indent-guide {
-  border-left: 1px solid #151414; /* Light gray line for indentation guides */
+  border-left: 1px solid var(--z-border-indent-guide);
   margin-left: -1px; /* Align guide to the left of the code */
   padding-left: 5px; /* Optional: space between the guide and code */
 }

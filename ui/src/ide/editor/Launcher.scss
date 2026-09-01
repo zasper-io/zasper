@@ -21,8 +21,7 @@
   color: var(--z-fg-default);
   align-content: center;
   text-align: center;
-  box-shadow: #b1b0b0;
-  box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 6px;
+  box-shadow: var(--z-shadow-low);
   cursor: pointer;
   margin-right: 20px;
   margin-bottom: 10px;

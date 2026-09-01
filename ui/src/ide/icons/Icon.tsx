@@ -1,42 +1,42 @@
 import React from 'react';
-import { useAtom } from 'jotai';
 
-import { themeAtom } from '../../store/Settings';
-
-const defaultDarkFill = '#d2d2d2';
-const defaultLightFill = '#272727';
-
-/** Resolves an icon fill for the active theme. */
-export function useIconFill(darkFill = defaultDarkFill, lightFill = defaultLightFill): string {
-  const [theme] = useAtom(themeAtom);
-  return theme === 'dark' ? darkFill : lightFill;
-}
+/**
+ * `default` follows --z-fg-svg; `contrast` follows --z-fg-svg-contrast, for
+ * icons that sit on a coloured tile and need to read at full strength.
+ */
+export type IconTone = 'default' | 'contrast';
 
 export interface IconProps {
   viewBox: string;
   width?: string | number;
   height?: string | number;
-  /** Overrides for icons that need more contrast than the default palette. */
-  darkFill?: string;
-  lightFill?: string;
+  tone?: IconTone;
   className?: string;
   children: React.ReactNode;
 }
 
 /**
- * An inline SVG whose fill follows the editor theme, so icons do not each have to
- * read the theme atom themselves.
+ * An inline SVG whose fill comes from the token layer.
+ *
+ * The fill is a class, not a style attribute, so it resolves in CSS against the
+ * `data-theme` on <html>. That means no icon has to subscribe to the theme atom,
+ * and a new theme recolours every icon by declaring two custom properties.
  */
 export default function Icon({
   viewBox,
   width,
   height,
-  darkFill,
-  lightFill,
+  tone = 'default',
   className,
   children,
 }: IconProps) {
-  const fill = useIconFill(darkFill, lightFill);
+  const classNames = ['z-icon'];
+  if (tone === 'contrast') {
+    classNames.push('z-icon-contrast');
+  }
+  if (className !== undefined) {
+    classNames.push(className);
+  }
 
   return (
     <svg
@@ -44,8 +44,7 @@ export default function Icon({
       viewBox={viewBox}
       width={width}
       height={height}
-      className={className}
-      style={{ fill }}
+      className={classNames.join(' ')}
     >
       {children}
     </svg>
