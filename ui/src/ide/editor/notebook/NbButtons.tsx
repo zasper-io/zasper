@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { INotebookModel } from './types';
+import { INotebookModel } from '@/api';
 
 interface NbButtonsProps {
   saveNotebook: () => void;

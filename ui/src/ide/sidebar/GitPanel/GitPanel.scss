@@ -57,20 +57,15 @@
 // primary action, so it follows --z-accent; it used to be filled with --z-brand,
 // which is pinned to Zasper purple for the wordmark and does not move with the
 // theme.
-.gitbutton {
-  font-weight: 400;
-  border: 1px solid var(--z-border);
+// The commit-message box. Previously styled with .command-palette-input, which
+// meant the git panel broke if the command palette was restyled.
+.gitpanel-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--z-border-divider);
   border-radius: 4px;
-  padding: 6px 18px;
-  color: var(--z-fg-on-accent);
-  box-sizing: border-box;
-  background: var(--z-accent);
-  box-shadow: var(--z-shadow-wide);
-}
-
-.gitbutton:hover {
-  background: var(--z-accent-hover);
-  box-shadow: var(--z-shadow-medium);
+  font-size: 14px;
+  margin-bottom: 10px;
 }
 
 .content-body {

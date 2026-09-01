@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import './TopBar.scss';
+import './Topbar.scss';
 import CommandPalette from './command/CommandPalette';
 import FileAutocomplete from './search/FileSearch';
 import { useAtom } from 'jotai';
-import { protectedStateAtom, userNameAtom } from '../../store/AppState';
+import { protectedStateAtom, userNameAtom } from '@/store/AppState';
 import { useNavigate } from 'react-router-dom';
 
 export default function Topbar() {

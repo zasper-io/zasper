@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Commit, CommitNode } from './types';
+import { Commit } from '@/api';
+
+import { CommitNode } from './types';
 import './GitPanel.scss';
 
 export const CommitGraph: React.FC<{ data: Commit[] }> = ({ data }) => {

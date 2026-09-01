@@ -27,7 +27,7 @@ export default function ErrorDialog(props: ErrorDialogProps) {
             </div>
             <div className="update-kernel-popup">
               <div className="update-kernel-popup-form">
-                <button className="gitbutton" onClick={props.toggleErrorDialog}>
+                <button className="z-button" onClick={props.toggleErrorDialog}>
                   Switch
                 </button>
               </div>

@@ -121,6 +121,10 @@ Please follow these code style guidelines when contributing:
 
 If there are any specific style guidelines for the project, such as ESLint or PEP8, please refer to the project’s configuration files.
 
+For frontend work, [`ui/README.md`](ui/README.md) documents the conventions the `ui/`
+tree follows — layering, path aliases, component packaging and CSS ownership — along
+with the commands for type-checking, linting and tests.
+
 ### Testing
 
 Please ensure that your changes are covered by tests. If the project includes a test suite, you can run it to verify your changes.

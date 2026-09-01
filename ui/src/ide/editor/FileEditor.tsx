@@ -11,14 +11,13 @@ import { javascript } from '@codemirror/lang-javascript';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { keymap, ViewUpdate } from '@codemirror/view';
-import { getFileContent, logApiError, saveFile } from '../../api';
+import { getFileContent, logApiError, saveFile } from '@/api';
 
-import './FileEditor.scss';
 import { useAtom } from 'jotai';
-import { useTheme } from '../../themes/useTheme';
-import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '../../store/AppState';
+import { useTheme } from '@/themes/useTheme';
+import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '@/store/AppState';
 import BreadCrumb from './BreadCrumb';
-import { IfileTab } from '../../store/TabState';
+import { IfileTab } from '@/store/TabState';
 
 interface FileEditorProps {
   data: IfileTab;

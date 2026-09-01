@@ -2,10 +2,10 @@ import { useCallback, useState } from 'react';
 import { useAtom } from 'jotai';
 import { w3cwebsocket as W3CWebSocket } from 'websocket';
 
-import { createSession, deleteSession, interruptKernel, ISession } from '../../../api';
-import { BaseWebSocketUrl } from '../../config';
-import { kernelsAtom, notebookKernelMapAtom, userNameAtom } from '../../../store/AppState';
-import { IfileTab } from '../../../store/TabState';
+import { createSession, deleteSession, interruptKernel, ISession } from '@/api';
+import { BaseWebSocketUrl } from '@/config';
+import { kernelsAtom, notebookKernelMapAtom, userNameAtom } from '@/store/AppState';
+import { IfileTab } from '@/store/TabState';
 import {
   buildExecuteRequest,
   buildInputReply,

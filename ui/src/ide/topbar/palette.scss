@@ -1,11 +1,18 @@
-.command-palette {
+// The floating palette widget: a search box over a keyboard-navigable list.
+//
+// Two topbar features render it — CommandPalette (commands) and FileSearch (files) —
+// which is why it lives beside them both as palette.scss rather than inside
+// command/ as CommandPalette.scss. Both import it. Class names are `palette-*` for
+// the same reason: the shape belongs to neither feature.
+
+.palette {
   position: fixed;
   top: 2px;
   left: 48%;
   transform: translateX(-50%);
   min-width: 750px;
   max-height: 300px;
-  background-color: var(--z-bg-command-palette);
+  background-color: var(--z-bg-palette);
   box-shadow: var(--z-shadow-medium);
   border-radius: 8px;
   z-index: 9999;
@@ -13,7 +20,7 @@
   box-sizing: border-box;
 }
 
-.command-palette-input {
+.palette-input {
   width: 100%;
   padding: 8px;
   border: 1px solid var(--z-border-divider);
@@ -22,7 +29,7 @@
   margin-bottom: 10px;
 }
 
-.command-palette-list {
+.palette-list {
   max-height: 200px;
   overflow-y: auto;
   padding: 0;
@@ -33,7 +40,7 @@
 // The palette floats over the topbar and shares its background, so its rows are
 // chrome. They used to inherit --z-fg-default from <body>, which put #393939 text
 // on the purple palette at 1.6:1.
-.command-palette-item {
+.palette-item {
   height: 40px;
   padding: 8px;
   cursor: pointer;
@@ -45,17 +52,19 @@
 // Hovering used to swap in --z-bg-menu-hover, a *panel* colour: in the light
 // theme that turned the row near-white while the text stayed white. The palette
 // gets its own hover surface so the row keeps its chrome contrast.
-.command-palette-item:hover,
-.command-palette-item.selected {
-  background-color: var(--z-bg-command-palette-hover);
+.palette-item:hover,
+.palette-item.selected {
+  background-color: var(--z-bg-palette-hover);
 }
 
 // Secondary text (the keyboard shortcut). Kept on the chrome colour and set apart
 // by size rather than by --z-fg-muted, which is also panel-relative.
-.command-palette-item small {
+.palette-item small {
   font-size: 12px;
 }
 
+// Only CommandPalette renders these two columns, but keeping them here means the
+// whole widget is described in one file.
 .commandName {
   width: 300px;
   float: left;

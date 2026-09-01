@@ -1,7 +1,7 @@
 import { useAtom } from 'jotai';
 import React, { useState } from 'react';
-import { fileUploadParentPathAtom, showFileUploadDialogAtom } from './store';
-import { uploadFile } from '../../../api';
+import { fileUploadParentPathAtom, showFileUploadDialogAtom } from './atoms';
+import { uploadFile } from '@/api';
 
 function FileUpload() {
   const [file, setFile] = useState<File | null>(null);

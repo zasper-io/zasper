@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import './Launcher.scss';
-import { BaseApiUrl } from '../config';
-import { ContentType, createContent, listKernelspecs } from '../../api';
+import { BaseApiUrl } from '@/config';
+import { ContentType, createContent, listKernelspecs } from '@/api';
 import { useAtom } from 'jotai';
 import {
   kernelspecsAtom,
@@ -9,8 +9,8 @@ import {
   terminalsAtom,
   fileBrowserReloadCountAtom,
   languageModeAtom,
-} from '../../store/AppState';
-import { fileTabsAtom, IfileTab } from '../../store/TabState';
+} from '@/store/AppState';
+import { fileTabsAtom, IfileTab } from '@/store/TabState';
 import getFileExtension from '../utils';
 import { TerminalIcon } from '../icons';
 

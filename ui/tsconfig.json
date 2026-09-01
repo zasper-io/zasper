@@ -13,7 +13,15 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+
+    // Keep these in sync with `resolve.alias` in vite.config.ts — tsc only
+    // type-checks, Vite does the actual resolving, so a mismatch shows up as a
+    // runtime failure rather than a compile error.
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src"]
 }

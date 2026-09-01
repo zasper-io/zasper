@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAtom } from 'jotai';
-import { zasperVersionAtom } from '../../../store/AppState';
+import { zasperVersionAtom } from '@/store/AppState';
 import './HelpDialog.scss';
 
 interface ModalProps {

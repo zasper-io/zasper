@@ -1,5 +1,5 @@
-import { INotebookModel } from '../ide/editor/notebook/types';
 import { requestEmpty, requestJson, requestText } from './client';
+import { INotebookModel } from './notebook';
 
 export type ContentType = 'file' | 'directory' | 'notebook';
 

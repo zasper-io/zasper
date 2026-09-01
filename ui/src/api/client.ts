@@ -1,4 +1,4 @@
-import { BaseApiUrl } from '../ide/config';
+import { BaseApiUrl } from '@/config';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 

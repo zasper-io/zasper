@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 
 import FileEditor from './FileEditor';
 import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
-import TerminalTab from '../terminal/Terminal';
 import ImageEditor from './ImageEditor';
-import { IfileTab } from '../../store/TabState';
+import { IfileTab } from '@/store/TabState';
+
+// The xterm.js core plus its five addons are only needed once a terminal tab is
+// opened, which many sessions never do, so they load on demand.
+const TerminalTab = lazy(() => import('../terminal/Terminal'));
 
 interface EditorProps {
   data: IfileTab;
@@ -25,7 +28,11 @@ export default function Editor(props: EditorProps) {
     return <NotebookEditor data={props.data} />;
   }
   if (props.data.type === 'terminal') {
-    return <TerminalTab data={props.data} />;
+    return (
+      <Suspense fallback={<div className="terminalContainer" />}>
+        <TerminalTab data={props.data} />
+      </Suspense>
+    );
   }
   return <></>;
 }

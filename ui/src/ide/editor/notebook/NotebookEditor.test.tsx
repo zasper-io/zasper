@@ -2,8 +2,8 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import NotebookEditor from '../ide/editor/notebook/NotebookEditor';
-import { IfileTab } from '../store/TabState';
+import NotebookEditor from './NotebookEditor';
+import { IfileTab } from '@/store/TabState';
 
 const notebookContent = {
   cells: [
@@ -33,7 +33,7 @@ const session = {
 const getNotebook = vi.fn();
 const createSession = vi.fn();
 
-vi.mock('../api', () => ({
+vi.mock('@/api', () => ({
   getNotebook: (path: string) => getNotebook(path),
   createSession: (path: string, name: string, type: string, kernelspec: string) =>
     createSession(path, name, type, kernelspec),

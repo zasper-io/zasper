@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import { getNotebook } from '../../../api';
+import { getNotebook, ICell, INotebookModel } from '@/api';
+
 import { applyKernelMessage, IKernelMessage } from './kernelMessages';
-import { ICell, INotebookModel } from './types';
 
 const emptyNotebook: INotebookModel = {
   cells: [],

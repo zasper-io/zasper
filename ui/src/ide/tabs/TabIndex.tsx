@@ -1,15 +1,15 @@
 import { useAtom } from 'jotai';
 import React from 'react';
-import { fileTabsAtom, IfileTab, IfileTabDict } from '../../store/TabState';
+import { fileTabsAtom, IfileTab, IfileTabDict } from '@/store/TabState';
 import {
   kernelsAtom,
   languageModeAtom,
   notebookKernelMapAtom,
   terminalsAtom,
-} from '../../store/AppState';
+} from '@/store/AppState';
 import getFileExtension, { getIconToLoad } from '../utils';
 import './TabIndex.scss';
-import { deleteKernel } from '../../api';
+import { deleteKernel } from '@/api';
 
 export default function TabIndex() {
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);

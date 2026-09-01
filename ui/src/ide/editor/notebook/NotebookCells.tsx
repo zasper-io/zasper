@@ -2,7 +2,9 @@ import React from 'react';
 
 import Cell, { CodeMirrorRef } from './Cell';
 import { IKernelMessage } from './kernelMessages';
-import { IKernelConnection, INotebookKeyEvent, INotebookModel } from './types';
+import { INotebookModel } from '@/api';
+
+import { IKernelConnection, INotebookKeyEvent } from './types';
 
 interface NotebookCellsProps {
   notebook: INotebookModel;

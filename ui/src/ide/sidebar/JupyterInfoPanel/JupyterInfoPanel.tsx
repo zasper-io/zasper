@@ -5,9 +5,9 @@ import {
   kernelspecsAtom,
   notebookKernelMapAtom,
   terminalsAtom,
-} from '../../../store/AppState';
+} from '@/store/AppState';
 import './JupyterInfoPanel.scss';
-import { deleteKernel } from '../../../api';
+import { deleteKernel } from '@/api';
 import { PanelProps } from '../types';
 
 export default function JupyterInfoPanel({ display }: PanelProps) {

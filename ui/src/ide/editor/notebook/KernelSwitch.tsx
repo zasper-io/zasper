@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAtom } from 'jotai';
-import { IKernelspecsState, kernelspecsAtom } from '../../../store/AppState';
+import { IKernelspecsState, kernelspecsAtom } from '@/store/AppState';
 
 interface ModalProps {
   toggleKernelSwitcher: () => void;
@@ -49,7 +49,7 @@ function KernelSwitcher(props: ModalProps) {
                       </option>
                     ))}
                   </select>
-                  <button className="gitbutton" onClick={() => props.changeKernel(selectedKernel)}>
+                  <button className="z-button" onClick={() => props.changeKernel(selectedKernel)}>
                     {props.kernelName === 'none' ? 'Select Kernel' : 'Switch Kernel'}
                   </button>
                 </div>

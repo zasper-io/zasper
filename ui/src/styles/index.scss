@@ -1,15 +1,26 @@
 // Single global stylesheet entry, imported once from main.tsx.
 //
 // Order matters and is the whole point of this file:
-//   1. Bootstrap — third-party reset and components, so ours can override it.
-//   2. Tokens    — the theme contract every component reads from.
-//   3. Base      — app shell, typography, scrollbars, all token-driven.
-//   4. Modal     — the dialog shell, shared by four components.
+//   1. Bootstrap  — third-party reset and components, so ours can override it.
+//   2. Tokens     — the theme contract every component reads from.
+//   3. Base       — app shell, typography, scrollbars, all token-driven.
+//   4. CodeMirror — overrides for the editor's own classes, in every editor.
+//   5. Controls   — buttons and inputs used across features.
+//   6. Panel      — chrome shared by every sidebar panel.
+//   7. Modal      — the dialog shell, shared by four components.
 //
 // Per-component SCSS is imported by its own component and lands after all of
 // this, so component rules win without needing !important or deep selectors.
+//
+// A rule belongs here rather than in a component stylesheet as soon as a second
+// component depends on it. Leaving it in the first component's file makes that
+// file impossible to change safely, because its name gives no hint that anything
+// else is reading it.
 
 @import 'bootstrap';
 @import 'tokens';
 @import 'base';
+@import 'codemirror';
+@import 'controls';
+@import 'panel';
 @import 'modal';

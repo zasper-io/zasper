@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import CommandPalette from '../ide/topbar/command/CommandPalette';
+import { describe, expect, it, vi } from 'vitest';
+import CommandPalette from './CommandPalette';
 
 const mockCommands = [
   { name: 'Open File', description: 'Open a file in the editor', action: vi.fn() },
@@ -8,12 +9,12 @@ const mockCommands = [
   { name: 'Close File', description: 'Close the current file', action: vi.fn() },
 ];
 describe('CommandPalette', () => {
-  test('renders CommandPalette component', () => {
+  it('renders CommandPalette component', () => {
     render(<CommandPalette commands={mockCommands} onClose={vi.fn()} />);
     expect(screen.getByPlaceholderText('Type a command...')).toBeInTheDocument();
   });
 
-  test('filters commands based on query', () => {
+  it('filters commands based on query', () => {
     render(<CommandPalette commands={mockCommands} onClose={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('Type a command...'), {
       target: { value: 'Open File' },
@@ -23,7 +24,7 @@ describe('CommandPalette', () => {
     expect(screen.queryByText('Close File')).not.toBeInTheDocument();
   });
 
-  test('handles keyboard navigation', () => {
+  it('handles keyboard navigation', () => {
     render(<CommandPalette commands={mockCommands} onClose={vi.fn()} />);
     const input = screen.getByPlaceholderText('Type a command...');
     fireEvent.keyDown(input, { key: 'ArrowDown' });
@@ -34,7 +35,7 @@ describe('CommandPalette', () => {
     expect(screen.getByText('Open File').parentElement).toHaveClass('selected');
   });
 
-  test('executes command on Enter key press', () => {
+  it('executes command on Enter key press', () => {
     const onClose = vi.fn();
     render(<CommandPalette commands={mockCommands} onClose={onClose} />);
     const input = screen.getByPlaceholderText('Type a command...');
@@ -44,7 +45,7 @@ describe('CommandPalette', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  test('executes command on click', () => {
+  it('executes command on click', () => {
     const onClose = vi.fn();
     render(<CommandPalette commands={mockCommands} onClose={onClose} />);
     fireEvent.click(screen.getByText('Open File'));

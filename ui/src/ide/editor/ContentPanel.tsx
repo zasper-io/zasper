@@ -1,7 +1,7 @@
 import React from 'react';
 import Editor from './Editor';
 import { useAtom } from 'jotai';
-import { fileTabsAtom } from '../../store/TabState';
+import { fileTabsAtom } from '@/store/TabState';
 
 export default function ContentPanel() {
   const [fileTabsState] = useAtom(fileTabsAtom);

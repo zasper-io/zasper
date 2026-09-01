@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { getFileContent } from '../../api';
+import { getFileContent } from '@/api';
 import BreadCrumb from './BreadCrumb';
-import { IfileTab } from '../../store/TabState';
+import { IfileTab } from '@/store/TabState';
 
 interface ImageEditorProps {
   data: IfileTab;

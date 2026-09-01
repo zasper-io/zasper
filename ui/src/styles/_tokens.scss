@@ -34,8 +34,8 @@
   --z-bg-topbar: #473990;
   --z-bg-banner: #553b9e;
   --z-bg-statusbar: #473990;
-  --z-bg-command-palette: #5f568f;
-  --z-bg-command-palette-hover: #4b4373;
+  --z-bg-palette: #5f568f;
+  --z-bg-palette-hover: #4b4373;
   --z-bg-tab-inactive: #7651db;
   --z-bg-tab-active: #553b9e;
   --z-bg-tab-hover: #553b9e;
@@ -109,8 +109,7 @@
   // box-shadow so a theme can dial the whole scale at once.
   --z-shadow-low: 0 2px 6px rgba(0, 0, 0, 0.1);
   --z-shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.2);
-  --z-shadow-high:
-    0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  --z-shadow-high: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
   // Wide and soft rather than tight and dark — for buttons and cards that need
   // separation without a visible edge.
   --z-shadow-wide: rgba(149, 157, 165, 0.2) 0px 8px 24px;
@@ -174,8 +173,8 @@
 
   --z-bg-topbar: #303030;
   --z-bg-banner: #3f3855;
-  --z-bg-command-palette: #353535;
-  --z-bg-command-palette-hover: #515151;
+  --z-bg-palette: #353535;
+  --z-bg-palette-hover: #515151;
   --z-bg-tab-inactive: #545454;
   --z-bg-tab-active: #424242;
   --z-bg-tab-hover: #424242;
@@ -217,8 +216,7 @@
   // Drop shadows barely read against dark surfaces, so lean on them harder.
   --z-shadow-low: 0 2px 6px rgba(0, 0, 0, 0.4);
   --z-shadow-medium: 0 2px 6px rgba(0, 0, 0, 0.55);
-  --z-shadow-high:
-    0 3px 6px rgba(0, 0, 0, 0.45), 0 3px 6px rgba(0, 0, 0, 0.6);
+  --z-shadow-high: 0 3px 6px rgba(0, 0, 0, 0.45), 0 3px 6px rgba(0, 0, 0, 0.6);
   --z-shadow-wide: rgba(0, 0, 0, 0.5) 0px 8px 24px;
 
   --z-shadow-ambient: #000000;
@@ -278,8 +276,8 @@
   --z-bg-topbar: #f5f5f5;
   --z-bg-banner: #eeeeee;
   --z-bg-statusbar: #f5f5f5;
-  --z-bg-command-palette: #ffffff;
-  --z-bg-command-palette-hover: #e0e0e0;
+  --z-bg-palette: #ffffff;
+  --z-bg-palette-hover: #e0e0e0;
   --z-bg-tab-inactive: #e0e0e0;
   --z-bg-tab-active: #ffffff;
   --z-bg-tab-hover: #eeeeee;

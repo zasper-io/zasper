@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCommitGraph } from '../../../api';
-
-import { Commit } from './types';
+import { Commit, getCommitGraph } from '@/api';
 import './GitPanel.scss';
 
 import { CommitGraph } from './CommitGraph';

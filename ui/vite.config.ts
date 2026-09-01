@@ -1,8 +1,17 @@
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      // Mirrored by `paths` in tsconfig.json. Anything reaching outside its own
+      // feature folder should use this rather than counting ../ hops.
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   css: {
     preprocessorOptions: {
       scss: {

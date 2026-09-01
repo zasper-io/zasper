@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import './CommandPalette.scss';
+import '../palette.scss';
 
 interface Command {
   name: string;
@@ -37,22 +37,22 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ commands, onClose }) =>
   };
 
   return (
-    <div className="command-palette">
+    <div className="palette">
       <input
         ref={inputRef}
         type="text"
-        className="command-palette-input"
+        className="palette-input"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
         autoFocus
         placeholder="Type a command..."
       />
-      <ul className="command-palette-list">
+      <ul className="palette-list">
         {filteredCommands.map((command, index) => (
           <li
             key={command.name}
-            className={`command-palette-item ${selectedIndex === index ? 'selected' : ''}`}
+            className={`palette-item ${selectedIndex === index ? 'selected' : ''}`}
             onClick={() => {
               command.action();
               onClose();

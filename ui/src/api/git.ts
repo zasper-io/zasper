@@ -1,5 +1,14 @@
-import { Commit } from '../ide/sidebar/GitPanel/types';
 import { requestJson, requestText } from './client';
+
+/** One entry of /api/commit-graph. */
+export type Commit = {
+  hash: string;
+  message: string;
+  author: string;
+  date: string;
+  branch: string;
+  parents: string[];
+};
 
 export async function getCurrentBranch(): Promise<string> {
   const res = await requestJson<{ branch: string }>('/api/current-branch');

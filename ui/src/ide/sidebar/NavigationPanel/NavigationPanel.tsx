@@ -8,7 +8,7 @@ import {
   HelpIcon,
   JupyterInfoPanelIcon,
   SettingsPanelIcon,
-} from '../../icons';
+} from '@/ide/icons';
 
 interface NavigationPanelProps {
   handleNavigationPanel: (panelName: string) => void;

@@ -12,8 +12,8 @@ import {
   indentationSizeAtom,
   languageModeAtom,
   linePositionAtom,
-} from '../../store/AppState';
-import { getCurrentBranch, logApiError } from '../../api';
+} from '@/store/AppState';
+import { getCurrentBranch, logApiError } from '@/api';
 
 export default function StatusBar() {
   const [indentationMode] = useAtom(indentationModeAtom);

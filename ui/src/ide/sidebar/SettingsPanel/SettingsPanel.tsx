@@ -1,10 +1,10 @@
 import React from 'react';
 import { useAtom } from 'jotai';
-import { themeAtom } from '../../store/Settings';
+import { themeAtom } from '@/store/Settings';
 import './SettingsPanel.scss';
-import { logApiError, modifyConfig } from '../../api';
-import { PanelProps } from './types';
-import { themes } from '../../themes';
+import { logApiError, modifyConfig } from '@/api';
+import { PanelProps } from '../types';
+import { themes } from '@/themes';
 
 export default function SettingsPanel({ display }: PanelProps) {
   const [theme, setTheme] = useAtom(themeAtom);

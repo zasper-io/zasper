@@ -62,7 +62,11 @@ export const jupyterLabHighlight: Extension = createTheme({
     { tag: [tags.special(tags.variableName), tags.namespace], color: VARIABLE_2 },
     { tag: [tags.propertyName, tags.punctuation, tags.separator], color: PROPERTY },
     { tag: [tags.operator, tags.operatorKeyword], color: OPERATOR, fontWeight: 'bold' },
-    { tag: [tags.comment, tags.lineComment, tags.blockComment], color: COMMENT, fontStyle: 'italic' },
+    {
+      tag: [tags.comment, tags.lineComment, tags.blockComment],
+      color: COMMENT,
+      fontStyle: 'italic',
+    },
     { tag: [tags.string, tags.character, tags.docString], color: STRING },
     { tag: [tags.special(tags.string), tags.regexp, tags.escape], color: STRING_2 },
     { tag: [tags.meta, tags.processingInstruction], color: META },

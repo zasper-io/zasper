@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyKernelMessage, removeAnsiCodes } from '../ide/editor/notebook/kernelMessages';
-import { INotebookModel } from '../ide/editor/notebook/types';
+import { applyKernelMessage, removeAnsiCodes } from './kernelMessages';
+import { INotebookModel } from '@/api';
 
 function notebookWith(cellId: string): INotebookModel {
   return {

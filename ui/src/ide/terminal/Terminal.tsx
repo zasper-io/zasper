@@ -8,8 +8,8 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 
 import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
-import { BaseWebSocketUrl } from '../config';
-import { IfileTab } from '../../store/TabState';
+import { BaseWebSocketUrl } from '@/config';
+import { IfileTab } from '@/store/TabState';
 
 interface TerminalTabProps {
   data: IfileTab;

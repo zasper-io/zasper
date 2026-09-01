@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import '../command/CommandPalette.scss';
-import { IContentEntry, searchFiles } from '../../../api';
+import '../palette.scss';
+import { IContentEntry, searchFiles } from '@/api';
 import { debounce } from 'lodash';
 import { useAtom } from 'jotai';
-import { fileTabsAtom, IfileTab } from '../../../store/TabState';
-import { languageModeAtom } from '../../../store/AppState';
-import getFileExtension from '../../utils';
+import { fileTabsAtom, IfileTab } from '@/store/TabState';
+import { languageModeAtom } from '@/store/AppState';
+import getFileExtension from '@/ide/utils';
 
 interface FileSearchProps {
   onClose: () => void;
@@ -98,23 +98,23 @@ const FileSearch = ({ onClose }: FileSearchProps) => {
   }, [input, debouncedFetchFiles]); // Triggered whenever `input` changes
 
   return (
-    <div className="command-palette">
+    <div className="palette">
       <input
-        className="command-palette-input"
+        className="palette-input"
         type="text"
         onKeyDown={handleKeyDown}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Type a file name..."
       />
-      <ul className="command-palette-list">
+      <ul className="palette-list">
         {fileSuggestions &&
           fileSuggestions.length > 0 &&
           fileSuggestions.map((file, index) => (
             <li
               key={index}
               onClick={() => handleFileClick(file.name, file.path, file.type)}
-              className={`command-palette-item ${selectedIndex === index ? 'selected' : ''}`}
+              className={`palette-item ${selectedIndex === index ? 'selected' : ''}`}
             >
               {file.name} -- {file.path}
             </li>

@@ -1,23 +1,23 @@
-/* eslint-disable no-control-regex */
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { keymap, ViewUpdate } from '@codemirror/view';
-import Markdown from 'react-markdown';
-import rehypeRaw from 'rehype-raw';
-import CellButtons from './CellButtons';
 import { languages } from '@codemirror/language-data';
-import { useAtom } from 'jotai';
-import { useTheme } from '../../../themes/useTheme';
-import { AnsiUp } from 'ansi_up';
-import remarkMath from 'remark-math';
-import rehypeMathjax from 'rehype-katex';
-import { WidgetRenderer } from '../../widgets/WidgetRenderer';
-import { IKernelMessage } from './kernelMessages';
-import { ICell, ICellOutput, IKernelConnection, INotebookKeyEvent } from './types';
 
-export type { ICell } from './types';
+import { ICell } from '@/api';
+import { useTheme } from '@/themes/useTheme';
+import CellButtons from './CellButtons';
+import CellOutput from './CellOutput';
+import LoaderSvg from './LoaderSvg';
+import Prompt from './Prompt';
+import { IKernelMessage } from './kernelMessages';
+import { IKernelConnection, INotebookKeyEvent } from './types';
+
+// react-markdown + remark-math + rehype-katex is the heaviest thing in the
+// notebook and nothing needs it until a markdown cell is actually rendered, so
+// it loads on demand. See MarkdownRenderer.tsx.
+const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
 
 interface ICellProps {
   cell: ICell;
@@ -185,9 +185,9 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             </div>
           </>
         ) : (
-          <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeMathjax, rehypeRaw]}>
-            {cellContents}
-          </Markdown>
+          <Suspense fallback={<pre>{cellContents}</pre>}>
+            <MarkdownRenderer source={cellContents} />
+          </Suspense>
         )}
       </div>
     );
@@ -264,191 +264,4 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
   );
 });
 
-const HTMLWithScripts = ({ html }: { html: string }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const scripts = container.querySelectorAll('script');
-    scripts.forEach((oldScript) => {
-      const newScript = document.createElement('script');
-      if (oldScript.src) {
-        newScript.src = oldScript.src;
-      } else {
-        newScript.text = oldScript.textContent || '';
-      }
-      Array.from(oldScript.attributes).forEach((attr) =>
-        newScript.setAttribute(attr.name, attr.value)
-      );
-      oldScript.parentNode?.replaceChild(newScript, oldScript);
-    });
-  }, [html]);
-
-  return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
-};
-
-interface CellOutputProps {
-  data: ICell;
-  connection: IKernelConnection;
-}
-
-const CellOutput = ({ data, connection }: CellOutputProps) => {
-  const ansi_up = new AnsiUp();
-
-  if (!data) {
-    return null;
-  }
-
-  const { outputs } = data;
-  if (outputs && outputs.length > 0) {
-    return (
-      <>
-        {outputs.map((output: ICellOutput, index: number) => {
-          if (output.output_type === 'error') {
-            const { ename, evalue, traceback } = output;
-            const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
-
-            return (
-              <div key={index}>
-                <h6>
-                  {ename}: {evalue}
-                </h6>
-                <pre>
-                  <div dangerouslySetInnerHTML={{ __html: tracebackHtml }} />
-                </pre>
-              </div>
-            );
-          }
-
-          const { text, 'text/plain': textPlain, data: outputData } = output;
-
-          if (text) {
-            const textHtml = ansi_up.ansi_to_html(text);
-            return (
-              <pre key={index}>
-                <div dangerouslySetInnerHTML={{ __html: textHtml }} />
-              </pre>
-            );
-          }
-
-          if (textPlain) {
-            const textPlainHtml = ansi_up.ansi_to_html(textPlain);
-            return (
-              <pre key={index}>
-                <div dangerouslySetInnerHTML={{ __html: textPlainHtml }} />
-              </pre>
-            );
-          }
-
-          if (outputData) {
-            const {
-              'text/html': htmlContent,
-              'image/png': imageContent,
-              'text/plain': textPlainData,
-              'application/vnd.jupyter.widget-view+json': widgetData,
-            } = outputData;
-
-            if (widgetData) {
-              return (
-                <WidgetRenderer key={index} modelId={widgetData.model_id} connection={connection} />
-              );
-            }
-
-            if (htmlContent) {
-              return <HTMLWithScripts key={index} html={htmlContent} />;
-            }
-
-            if (imageContent) {
-              const blob = `data:image/png;base64,${imageContent}`;
-              return (
-                <div key={index}>
-                  <img src={blob} alt="cell output" />
-                </div>
-              );
-            }
-
-            if (textPlainData) {
-              const textPlainDataHtml = ansi_up.ansi_to_html(textPlainData);
-              return (
-                <pre key={index}>
-                  <div dangerouslySetInnerHTML={{ __html: textPlainDataHtml }} />
-                </pre>
-              );
-            }
-          }
-
-          // Fallback if output type is unrecognized
-          return <p key={index}>{JSON.stringify(output)}</p>;
-        })}
-      </>
-    );
-  }
-
-  return null;
-};
-
-const LoaderSvg = () => {
-  return (
-    <div className="svgContainer">
-      <svg
-        className="spinner"
-        xmlns="http://www.w3.org/2000/svg"
-        width="50px"
-        height="50px"
-        viewBox="0 0 100 100"
-      >
-        <path d="M 50,50 L 33,60.5 a 20 20 -210 1 1 34,0 z" fill="blue">
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 50 50"
-            to="360 50 50"
-            dur="1.2s"
-            repeatCount="indefinite"
-          />
-        </path>
-        <circle cx="50" cy="50" r="16" fill="#fff"></circle>
-      </svg>
-    </div>
-  );
-};
-
 export default Cell;
-
-interface PromptProps {
-  content: IKernelMessage;
-  submitPrompt: (cellId: string, parentHeader: IKernelMessage, inputValue: string) => void;
-  toggleShowPrompt: () => void;
-}
-
-const Prompt = (props: PromptProps) => {
-  const [inputValue, setInputValue] = useState('');
-
-  const handleKeyPress = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter') {
-      event.preventDefault(); // Prevent form submission refresh
-      props.submitPrompt(
-        props.content.parent_header.msg_id,
-        props.content.parent_header,
-        inputValue
-      );
-      setInputValue(''); // Clear input after submission
-      props.toggleShowPrompt();
-    }
-  };
-
-  return (
-    <div>
-      <input
-        type="name"
-        name="prompt"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyPress}
-        placeholder="Type something and press Enter"
-      />
-    </div>
-  );
-};

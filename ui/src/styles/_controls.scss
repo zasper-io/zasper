@@ -1,0 +1,22 @@
+// Shared form controls.
+//
+// `.z-button` was called `.gitbutton` and lived in GitPanel.scss, but the notebook's
+// error dialog and kernel switcher used it too — it is the app's primary button, not
+// a git one. It sits here so that using it does not mean depending on an unrelated
+// feature's stylesheet.
+
+.z-button {
+  font-weight: 400;
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  padding: 6px 18px;
+  color: var(--z-fg-on-accent);
+  box-sizing: border-box;
+  background: var(--z-accent);
+  box-shadow: var(--z-shadow-wide);
+}
+
+.z-button:hover {
+  background: var(--z-accent-hover);
+  box-shadow: var(--z-shadow-medium);
+}

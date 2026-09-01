@@ -1,4 +1,4 @@
-import { ICell, ICellOutput, INotebookModel } from './types';
+import { ICell, ICellOutput, INotebookModel } from '@/api';
 
 /** A message received from, or sent to, the kernel over the websocket channel. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

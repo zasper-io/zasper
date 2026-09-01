@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { commitAndMaybePush, getUncommittedFiles } from '../../../api';
+import { commitAndMaybePush, getUncommittedFiles } from '@/api';
 import { PanelProps } from '../types';
 import './GitPanel.scss';
 
@@ -88,7 +88,7 @@ export function GitCommit({ display }: PanelProps) {
 
           <h4>Commit Message</h4>
           <input
-            className="command-palette-input"
+            className="gitpanel-input"
             type="text"
             value={commitMessage}
             onChange={(e) => setCommitMessage(e.target.value)}
@@ -105,7 +105,7 @@ export function GitCommit({ display }: PanelProps) {
             <label className="form-check-label">Push after commit</label>
           </div>
 
-          <button className="gitbutton" onClick={handleCommit}>
+          <button className="z-button" onClick={handleCommit}>
             Commit {pushAfterCommit ? 'and Push' : ''}{' '}
           </button>
         </div>

@@ -1,8 +1,13 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import IDE from '../ide/IDE';
-import Login from '../auth/Login';
-import { JSX, useEffect, useState } from 'react';
-import { getConfig, logApiError } from '../api';
+import { JSX, lazy, Suspense, useEffect, useState } from 'react';
+
+import { getConfig, logApiError } from '@/api';
+
+// Both route components load on demand, so the two screens don't pay for each
+// other: /login would otherwise pull in the whole IDE (CodeMirror and all), and /
+// would pull in the login carousel.
+const IDE = lazy(() => import('@/ide/IDE'));
+const Login = lazy(() => import('@/auth/Login'));
 
 const isAuthenticated = () => {
   // For example, check for token in localStorage or context
@@ -38,16 +43,20 @@ export default function RouteConfig() {
       .catch(logApiError('Error fetching config:'));
   }, [setProtectedState]);
 
-  if (protectedState) {
-    return (
-      <BrowserRouter>
+  return (
+    <BrowserRouter>
+      {/* No fallback markup: the route chunk is the first thing rendered, so
+          anything here would only flash. */}
+      <Suspense fallback={null}>
         <Routes>
           {routes.map((route, i) => (
             <Route
               key={i}
               path={route.path}
               element={
-                route.protected ? (
+                // `protected` marks which routes *can* be gated; whether gating
+                // is on at all comes from the server's /api/config.
+                route.protected && protectedState ? (
                   <ProtectedRoute element={<route.component />} />
                 ) : (
                   <route.component />
@@ -56,17 +65,7 @@ export default function RouteConfig() {
             />
           ))}
         </Routes>
-      </BrowserRouter>
-    );
-  } else {
-    return (
-      <BrowserRouter>
-        <Routes>
-          {routes.map((route, i) => (
-            <Route key={i} path={route.path} element={<route.component />} />
-          ))}
-        </Routes>
-      </BrowserRouter>
-    );
-  }
+      </Suspense>
+    </BrowserRouter>
+  );
 }

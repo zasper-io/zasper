@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import 'react-toastify/dist/ReactToastify.css';
 import './NotebookEditor.scss';
 
-import { logApiError, saveNotebook } from '../../../api';
-import { IfileTab } from '../../../store/TabState';
+import { logApiError, saveNotebook } from '@/api';
+import { IfileTab } from '@/store/TabState';
 import BreadCrumb from '../BreadCrumb';
 import { CodeMirrorRef } from './Cell';
 import ErrorDialog from './ErrorDialog';
@@ -11,7 +11,9 @@ import { IKernelMessage } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
 import NotebookCells from './NotebookCells';
-import { INotebookKeyEvent, INotebookMetadata } from './types';
+import { INotebookMetadata } from '@/api';
+
+import { INotebookKeyEvent } from './types';
 import { useKernelSession } from './useKernelSession';
 import { useNotebookCells } from './useNotebookCells';
 

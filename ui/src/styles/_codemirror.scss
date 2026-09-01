@@ -1,0 +1,28 @@
+// Overrides for CodeMirror's own classes.
+//
+// These are global on purpose: `.cm-editor` and friends are emitted by every
+// CodeMirror instance in the app — the file editor and each notebook cell alike —
+// so the rules have to be loaded whichever editor a session opens first. They used
+// to live in ide/editor/FileEditor.scss, which only FileEditor.tsx imported, so in a
+// session that opened a notebook and never a file, `.cm-focused` below never loaded
+// and every focused cell drew CodeMirror's dotted outline.
+//
+// Anything that should apply to one editor only belongs in that editor's own
+// stylesheet, scoped under a container class the way `.cellEditor .cm-editor` is in
+// NotebookEditor.scss.
+
+.cm-editor {
+  border: none;
+}
+
+.cm-focused {
+  // CodeMirror injects its own `.cm-focused { outline: 1px dotted }` at runtime, so
+  // !important is load-order insurance rather than a specificity hack.
+  outline: none !important;
+}
+
+.cm-indent-guide {
+  border-left: 1px solid var(--z-border-indent-guide);
+  margin-left: -1px; // align the guide to the left of the code
+  padding-left: 5px;
+}
