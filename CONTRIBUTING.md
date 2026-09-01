@@ -103,26 +103,7 @@ make dev
 ```
 This is especially useful when you are working on the project and want to run both the frontend and backend concurrently.
 
-### 3. **Start the Electron app (development mode)**
-
-This command starts both the frontend and the backend simultaneously in development mode. The frontend runs via `npm run electron-dev` and the backend via `go run .`
-
-```bash
-make electron-dev
-```
-
-This is especially useful when you are working on the project and want to run both the frontend and backend concurrently.
-
-### 5. **Package the Desktop app**
-
-This command builds the Electron app and packages it using the `npm run electron-package` script in the `ui` directory. The backend is also compiled with `go build`.
-
-```bash
-make electron-package
-```
-This will create a packaged Electron app inside the `ui/build/dist` directory.
-
-### 6. **Package and Install the Web App**
+### 4. **Package and Install the Web App**
 
 This command builds creates a binary `zasper` and add it to your go executables directory. Make sure you have go executables on your path. 
 

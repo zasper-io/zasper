@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import ContextMenu from '../ContextMenu';
 import HelpDialog from '../HelpDialog/HelpDialog';
 
 import './NavigationPanel.scss';
@@ -11,40 +10,9 @@ interface NavigationPanelProps {
 }
 
 const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel }) => {
-  const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
-  const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false);
-  const [contextPath] = useState<string>('');
-  const [, setDirectory] = useState<string>('');
-  const [, setOutput] = useState<string>('');
-
   // State to track the active navigation item
   const [activeNavItem, setActiveNavItem] = useState<string>('fileBrowser'); // Default active item
   const [showHelpDialog, setShowHelpDialog] = useState<boolean>(false);
-
-  // Open directory selection dialog
-  const handleSelectDirectory = async () => {
-    const result = await window.api.openDirectory();
-    if (result.length > 0) {
-      const selectedDirectory = result[0];
-      setDirectory(selectedDirectory);
-      await window.api.runCommand(selectedDirectory);
-      setOutput(`Selected Directory: ${selectedDirectory}`);
-    }
-  };
-
-  const menuItems = [{ label: 'Open Project', action: handleSelectDirectory }];
-
-  // Handle the right-click event to show context menu
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setMenuPosition({ xPos: e.pageX, yPos: e.pageY });
-    setIsMenuVisible(true);
-  };
-
-  // Close the context menu
-  const handleCloseMenu = () => {
-    setIsMenuVisible(false);
-  };
 
   // Handle navigation item click (set active class)
   const handleNavItemClick = (panelName: string) => {
@@ -82,11 +50,6 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
 
   return (
     <div className="navigation-list">
-      {/* Menu button */}
-      <button className="navButton" onClick={handleContextMenu}>
-        <FileMenuIcon />
-      </button>
-
       {/* Render navigation buttons */}
       {renderNavButtons()}
 
@@ -96,34 +59,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ handleNavigationPanel
       </button>
 
       {showHelpDialog && <HelpDialog toggleHelpDialog={toggleHelpDialog} />}
-
-      {/* Context menu */}
-      {isMenuVisible && menuPosition && (
-        <ContextMenu
-          xPos={menuPosition.xPos}
-          yPos={menuPosition.yPos}
-          items={menuItems}
-          path={contextPath}
-          onClose={handleCloseMenu}
-        />
-      )}
     </div>
-  );
-};
-
-const FileMenuIcon = () => {
-  const [theme] = useAtom(themeAtom);
-  const fill = theme === 'dark' ? '#d2d2d2' : '#272727';
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      width="24px"
-      height="24px"
-      style={{ fill }}
-    >
-      <path d="M 3 5 A 1.0001 1.0001 0 1 0 3 7 L 21 7 A 1.0001 1.0001 0 1 0 21 5 L 3 5 z M 3 11 A 1.0001 1.0001 0 1 0 3 13 L 21 13 A 1.0001 1.0001 0 1 0 21 11 L 3 11 z M 3 17 A 1.0001 1.0001 0 1 0 3 19 L 21 19 A 1.0001 1.0001 0 1 0 21 17 L 3 17 z" />
-    </svg>
   );
 };
 

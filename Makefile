@@ -67,7 +67,7 @@ show-version:
 VERSION_BUILD_FLAG = "-X main.version=$(CURRENT_VERSION)"
 
 
-.PHONY: init build start dev electron-package webapp-install
+.PHONY: init build start dev webapp-install
 
 # Initialize the project by installing frontend dependencies
 init:
@@ -85,52 +85,6 @@ build:
 dev:
 	@echo "Starting the frontend and backend in development..."
 	(cd ui && npm start) & go run .
-
-# Run the Electron app in development
-electron-dev:
-	@echo "Starting the Electron app in development..."
-	(go run .) & cd ui && npm run electron-dev
-
-electron-package:
-	@echo "Detecting platform..."
-	@uname_s=$$(uname -s); \
-	if [ "$$uname_s" = "Darwin" ]; then \
-		echo "Running electron-package-mac..."; \
-		$(MAKE) electron-package-mac; \
-	elif [ "$$uname_s" = "Linux" ]; then \
-		echo "Running electron-package-linux..."; \
-		$(MAKE) electron-package-linux; \
-	elif echo "$$uname_s" | grep -qE "MINGW|MSYS|CYGWIN|Windows_NT"; then \
-		echo "Running electron-package-windows..."; \
-		$(MAKE) electron-package-windows; \
-	else \
-		echo "Unsupported platform: $$uname_s"; \
-		exit 1; \
-	fi
-
-# Package the Electron app
-electron-package-mac:
-	@echo "Packaging the Electron app for macOS (arm64 and amd64)..."
-	rm -rf ui/backend/*
-	GOOS=darwin GOARCH=arm64  go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/darwin-arm64/zasper
-	GOOS=darwin GOARCH=amd64 go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/darwin-amd64/zasper
-	cd ui && npm run electron-package-mac
-
-electron-package-linux:
-	@echo "Packaging the Electron app for Linux (amd64, arm64, 386)..."
-	rm -rf ui/backend/*
-	GOOS=linux GOARCH=amd64 go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/linux-amd64/zasper
-	GOOS=linux GOARCH=arm64  go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/linux-arm64/zasper
-	GOOS=linux GOARCH=386    go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/linux-386/zasper
-	cd ui && npm run electron-package-linux
-
-electron-package-windows:
-	@echo "Packaging the Electron app for Windows (amd64, arm64, 386)..."
-	rm -rf ui/backend/*
-	GOOS=windows GOARCH=amd64 go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/windows-amd64/zasper.exe
-	GOOS=windows GOARCH=arm64  go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/windows-arm64/zasper.exe
-	GOOS=windows GOARCH=386    go build -ldflags $(VERSION_BUILD_FLAG) -o ./ui/backend/windows-386/zasper.exe
-	cd ui && npm run electron-package-windows
 
 # Install the web app
 webapp-install: build

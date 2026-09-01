@@ -65,12 +65,7 @@ Benchmark comparision report can be accessed [here](https://github.com/zasper-io
 
 # 🚀 Installation
 
-Zasper comes in two flavours:
-
-1. Web App
-2. Desktop App
-
-Web App is available as Homebrew , snap and conda package.
+Zasper is distributed as a web app, available as a Homebrew, snap and conda package.
 
 ### HomeBrew
 
@@ -90,7 +85,7 @@ sudo snap install zasper
 conda install zasper -c conda-forge
 ```
 
-### Desktop App
+### Releases
 
 Visit our [downloads page](https://zasper.io/downloads)
 
@@ -100,21 +95,19 @@ Or directly install from releases.
 
 Current release version: `v0.2.0-beta`
 
-| OS              | Web App | Desktop App |
-|-----------------|:-------:|:-----------:|
-| Mac 🍏 Silicon  |    ✅   |     ✅      |
-| Mac AMD 64      |    ✅   |     ✅      |
-| Debian AMD 64   |    ✅   |     ✅      |
-| Debian ARM 64   |    ✅   |     ✅      |
-| Debian i386     |    ✅   |     ✅      |
-| Redhat AMD 64   |    ✅   |     ✅      |
-| Redhat ARM 64   |    ✅   |     ✅      |
-| Redhat i386     |    ✅   |     ✅      |
-| Windows AMD 64  |    ✅   |     ❌      |
-| Windows ARM 64  |    ✅   |     ✅      |
-| Windows i386    |    ✅   |     ❌      |
-
-The missing distributions will be out soon.
+| OS              | Web App |
+|-----------------|:-------:|
+| Mac 🍏 Silicon  |    ✅   |
+| Mac AMD 64      |    ✅   |
+| Debian AMD 64   |    ✅   |
+| Debian ARM 64   |    ✅   |
+| Debian i386     |    ✅   |
+| Redhat AMD 64   |    ✅   |
+| Redhat ARM 64   |    ✅   |
+| Redhat i386     |    ✅   |
+| Windows AMD 64  |    ✅   |
+| Windows ARM 64  |    ✅   |
+| Windows i386    |    ✅   |
 
 ## 📷 Screenshots
 
@@ -147,10 +140,6 @@ The missing distributions will be out soon.
 
 ## Quickstart
 
-
-### Webapp
-
-Just launch Zasper from launcher.
 
 ### Webapp
 
@@ -344,41 +333,12 @@ Usage of zasper:
     	enable protected mode
 ```
 
-### Desktop App
-
-```
-make electron-package-mac # on macOS
-```
-
-```
-make electron-package-linux # on Linux
-```
-
-This creates  `zasper-0.1.0-arm64.dmg`(macOS) and `zasper_0.1.0_arm64.deb`(Debian) installer.
-
-```
-prasunanand@Prasuns-Laptop zasper % ls -l ui/dist
-total 626360
--rw-r--r--   1 prasunanand  staff       1713 Feb 21 10:31 builder-debug.yml
--rw-r--r--   1 prasunanand  staff        353 Feb 21 10:29 builder-effective-config.yaml
-drwxr-xr-x  21 prasunanand  staff        672 Feb 21 10:30 linux-arm64-unpacked
-drwxr-xr-x   3 prasunanand  staff         96 Feb 21 10:29 mac-arm64
--rw-r--r--@  1 prasunanand  staff  196642562 Feb 21 10:30 zasper-0.1.0-arm64.dmg
--rw-r--r--   1 prasunanand  staff     204747 Feb 21 10:30 zasper-0.1.0-arm64.dmg.blockmap
--rw-r--r--   1 prasunanand  staff  119088602 Feb 21 10:31 zasper_0.1.0_arm64.deb
-
-```
-
-Install `zasper-0.1.0-arm64.dmg` to your machine.
-
 # 🪵 Logging
 
-By default, the application writes logs to the following locations:
+The server writes logs to standard output. Run it with `-debug` to raise the log level:
 
 ```bash
-on Linux: ~/.config/zasper/logs/main.log
-on macOS: ~/Library/Logs/zasper/main.log
-on Windows: %USERPROFILE%\AppData\Roaming\zasper\logs\main.log
+zasper -debug
 ```
 
 # 🧭 Roadmap

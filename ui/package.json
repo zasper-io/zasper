@@ -5,7 +5,6 @@
   "version": "0.2.0-beta",
   "private": true,
   "homepage": "https://zasper.io",
-  "main": "./public/electron.js",
   "dependencies": {
     "@codemirror/commands": "^6.6.2",
     "@codemirror/lang-go": "^6.0.1",
@@ -29,12 +28,8 @@
     "@xterm/xterm": "5.5.0",
     "ansi_up": "^6.0.6",
     "bootstrap": "^5.1.3",
-    "concurrently": "^7.2.0",
     "deepdash": "4.5.1",
     "dompurify": "^3.2.4",
-    "electron-is-dev": "^2.0.0",
-    "electron-log": "^5.2.0",
-    "electron-store": "^10.0.0",
     "html-react-parser": "^3.0.1",
     "html-to-react": "^1.5.0",
     "jotai": "1.7.2",
@@ -59,19 +54,15 @@
     "swiper": "^12.1.2",
     "typescript": "^4.9.5",
     "uuid": "11.0.5",
-    "wait-on": "^7.2.0",
     "web-vitals": "^2.1.2",
     "websocket": "1.0.34"
   },
   "devDependencies": {
-    "@electron/notarize": "3.1.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/dompurify": "^2.4.0",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
-    "electron": "^40.4.1",
-    "electron-builder": "^26.7.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.3",
@@ -88,91 +79,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "electron-dev": "concurrently \"BROWSER=none npm start\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron-package": "electron-builder --mac --linux --windows",
-    "electron-package-mac": "electron-builder --mac",
-    "electron-package-linux": "electron-builder --linux",
-    "electron-package-rpm": "electron-builder --linux rpm",
-    "electron-package-snap": "electron-builder --linux snap",
-    "electron-package-appImage": "electron-builder --linux AppImage",
-    "electron-package-windows": "electron-builder --windows"
-  },
-  "build": {
-    "appId": "io.zasper.app",
-    "files": [
-      "build/**/*",
-      "node_modules/**/*"
-    ],
-    "directories": {
-      "buildResources": "resources"
-    },
-    "extraResources": [
-      {
-        "from": "backend",
-        "to": "backend",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "win": {
-      "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
-      "icon": "build/favicon.ico"
-    },
-    "mac": {
-      "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
-      "icon": "build/logo512.png",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        },
-        {
-          "target": "pkg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "category": "public.app-category.developer-tools",
-      "identity": "Prasun Anand (C72MG66GBX)",
-      "hardenedRuntime": true,
-      "entitlements": "resources/entitlements.mac.plist",
-      "entitlementsInherit": "resources/entitlements.mac.plist",
-      "notarize": false
-    },
-    "linux": {
-      "artifactName": "${name}_${version}_${arch}_${os}.${ext}",
-      "icon": "resources/icons/linux",
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "rpm",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ]
-    }
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [
@@ -182,13 +89,11 @@
   },
   "browserslist": {
     "production": [
-      "last 1 electron version",
       ">0.2%",
       "not dead",
       "not op_mini all"
     ],
     "development": [
-      "last 1 electron version",
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
