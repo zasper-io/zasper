@@ -40,12 +40,7 @@ export default function RouteConfig() {
 
   if (protectedState) {
     return (
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <BrowserRouter>
         <Routes>
           {routes.map((route, i) => (
             <Route
@@ -65,12 +60,7 @@ export default function RouteConfig() {
     );
   } else {
     return (
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <BrowserRouter>
         <Routes>
           {routes.map((route, i) => (
             <Route key={i} path={route.path} element={<route.component />} />
