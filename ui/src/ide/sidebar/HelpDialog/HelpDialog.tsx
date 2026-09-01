@@ -7,32 +7,12 @@ interface ModalProps {
   toggleHelpDialog: () => void;
 }
 
-interface INav {
-  name: string;
-  display: string;
-}
-
-interface INavDict {
-  [id: string]: INav;
-}
+type HelpSection = 'general' | 'keyBindings' | 'support';
 
 function HelpDialog(props: ModalProps) {
-  const defaultNavState: INavDict = {
-    general: { name: 'general', display: 'd-block' },
-    keyBindings: { name: 'keyBindings', display: 'd-none' },
-    support: { name: 'support', display: 'd-none' },
-  };
-  const [navState, setNavState] = useState<INavDict>(defaultNavState);
-
-  const handleNavigationPanel = (name: string) => {
-    const updatedNavState = Object.fromEntries(
-      Object.keys(navState).map((key) => [
-        key,
-        { ...navState[key], display: key === name ? 'd-block' : 'd-none' },
-      ])
-    );
-    setNavState(updatedNavState);
-  };
+  // A section name, not a map of CSS class names: hiding is .is-hidden's job (see
+  // styles/_base.scss), and the visible display value belongs to the section's stylesheet.
+  const [activeSection, setActiveSection] = useState<HelpSection>('general');
 
   return (
     <div className="modal" id="exampleModal" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -53,12 +33,15 @@ function HelpDialog(props: ModalProps) {
           <div className="modal-body">
             <div className="helpArea">
               <div className="helpNavigation">
-                <HelpNavigationPanel handleNavigationPanel={handleNavigationPanel} />
+                <HelpNavigationPanel
+                  activeSection={activeSection}
+                  setActiveSection={setActiveSection}
+                />
               </div>
               <div className="help-section">
-                <AboutSection display={navState.general.display} />
-                <KeyBindingsSection display={navState.keyBindings.display} />
-                <SupportSection display={navState.support.display} />
+                <AboutSection hidden={activeSection !== 'general'} />
+                <KeyBindingsSection hidden={activeSection !== 'keyBindings'} />
+                <SupportSection hidden={activeSection !== 'support'} />
               </div>
             </div>
           </div>
@@ -69,53 +52,45 @@ function HelpDialog(props: ModalProps) {
 }
 
 interface HelpNavigationPanelProps {
-  handleNavigationPanel: (panelName: string) => void;
+  activeSection: HelpSection;
+  setActiveSection: (section: HelpSection) => void;
 }
 
-const HelpNavigationPanel: React.FC<HelpNavigationPanelProps> = ({ handleNavigationPanel }) => {
-  // State to track the active navigation item
-  const [activeNavItem, setActiveNavItem] = useState<string>('general'); // Default active item
+const NAV_ITEMS: { name: HelpSection; label: string }[] = [
+  { name: 'general', label: 'General' },
+  { name: 'support', label: 'Support' },
+  { name: 'keyBindings', label: 'Key Bindings' },
+];
 
-  // Handle navigation item click (set active class)
-  const handleNavItemClick = (panelName: string) => {
-    setActiveNavItem(panelName); // Update the active item
-    handleNavigationPanel(panelName); // Call the parent handler
-  };
-
-  // Render navigation buttons
-  const renderNavButtons = () => {
-    const navItems = [
-      { name: 'general', display: 'General' },
-      { name: 'support', display: 'Support' },
-      { name: 'keyBindings', display: 'Key Bindings' },
-    ];
-
-    return navItems.map((item) => (
-      <button
-        key={item.name}
-        className={`helpNavButton ${activeNavItem === item.name ? 'active' : ''}`}
-        onClick={() => handleNavItemClick(item.name)} // Set active item and navigate
-      >
-        {item.display}
-      </button>
-    ));
-  };
-
+// Which item is highlighted comes from the parent, which also decides which section is
+// shown — one piece of state, so the two cannot disagree.
+const HelpNavigationPanel: React.FC<HelpNavigationPanelProps> = ({
+  activeSection,
+  setActiveSection,
+}) => {
   return (
     <div className="help-navigation-list">
-      {/* Render navigation buttons */}
-      {renderNavButtons()}
+      {NAV_ITEMS.map((item) => (
+        <button
+          key={item.name}
+          className={`helpNavButton ${activeSection === item.name ? 'active' : ''}`}
+          onClick={() => setActiveSection(item.name)}
+        >
+          {item.label}
+        </button>
+      ))}
     </div>
   );
 };
 
-function AboutSection({ display }: { display: string }) {
+function AboutSection({ hidden }: { hidden: boolean }) {
   const [zasperVersion] = useAtom(zasperVersionAtom);
   return (
-    <div className={display}>
-      <h6>Zasper is a supercharged IDE for Data Science.</h6>
-      <h6>Version: {zasperVersion}</h6>
-      <h6>Author: Prasun Anand</h6>
+    <div className={hidden ? 'is-hidden' : undefined}>
+      {/* Body text, so <p> rather than a heading element. */}
+      <p>Zasper is a supercharged IDE for Data Science.</p>
+      <p>Version: {zasperVersion}</p>
+      <p>Author: Prasun Anand</p>
       <a href="https://zasper.io/docs" target="_blank" rel="noreferrer">
         Docs
       </a>
@@ -123,17 +98,17 @@ function AboutSection({ display }: { display: string }) {
   );
 }
 
-function KeyBindingsSection({ display }: { display: string }) {
+function KeyBindingsSection({ hidden }: { hidden: boolean }) {
   return (
-    <div className={display}>
+    <div className={hidden ? 'is-hidden' : undefined}>
       <span>Key Bindings </span>
     </div>
   );
 }
 
-function SupportSection({ display }: { display: string }) {
+function SupportSection({ hidden }: { hidden: boolean }) {
   return (
-    <div className={display}>
+    <div className={hidden ? 'is-hidden' : undefined}>
       <span>Support </span>
     </div>
   );

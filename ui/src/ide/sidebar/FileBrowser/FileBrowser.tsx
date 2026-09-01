@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { createContent, getDirectory, IContentEntry, logApiError } from '@/api';
 import getFileExtension from '@/ide/utils';
-import { languageModeAtom, projectNameAtom } from '@/store/AppState';
+import { projectNameAtom } from '@/store/AppState';
 import { fileTabsAtom, IfileTab } from '@/store/TabState';
 import DirectoryItem from './DirectoryItem';
 import FileItem from './FileItem';
@@ -12,17 +12,16 @@ import FileUpload from './FileUpload';
 import { showFileUploadDialogAtom } from './atoms';
 
 interface FileBrowserProps {
-  display: string;
+  hidden: boolean;
   reloadCount: number;
 }
 
-export default function FileBrowser({ display, reloadCount }: FileBrowserProps) {
+export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
   const [contents, setContents] = useState<IContentEntry[]>([]);
   const [cwd] = useState<string>('');
   const [projectName] = useAtom(projectNameAtom);
   const [showFileUploader] = useAtom(showFileUploadDialogAtom);
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
-  const [, setLanguageMode] = useAtom(languageModeAtom);
 
   const handleTabActivate = (name: string, path: string, type: string, kernelspec: string) => {
     const updatedFileTabs = { ...fileTabsState };
@@ -47,9 +46,6 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
       updatedFileTabs[path] = { ...updatedFileTabs[path], active: true };
     } else {
       updatedFileTabs[path] = fileTabData;
-    }
-    if (updatedFileTabs[path].extension) {
-      setLanguageMode(updatedFileTabs[path].extension);
     }
     setFileTabsState(updatedFileTabs);
   };
@@ -88,18 +84,20 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
   }, [FetchData, reloadCount]);
 
   return (
-    <div className={display}>
-      <div className="nav-content">
+    <>
+      <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
         <div className="content-head">
-          <div>FILE EXPLORER</div>
+          <div className="z-label">File explorer</div>
         </div>
+        {/* The one place the project banner is right: it names the thing this panel
+            is a view of. */}
         <div className="projectBanner">
           <div className="projectName">{projectName}</div>
           <div className="projectButtons">
-            <button className="editor-button" onClick={createNewFile}>
+            <button className="editor-button" onClick={createNewFile} title="New file">
               <img src="./images/editor/feather-file-plus.svg" alt="" />
             </button>
-            <button className="editor-button" onClick={createNewDirectory}>
+            <button className="editor-button" onClick={createNewDirectory} title="New folder">
               <img src="./images/editor/feather-folder-plus.svg" alt="" />
             </button>
           </div>
@@ -126,7 +124,9 @@ export default function FileBrowser({ display, reloadCount }: FileBrowserProps) 
           </ul>
         </div>
       </div>
+      {/* A fixed-position dialog, so it is a sibling of the panel rather than a
+          child of its scroll area. */}
       {showFileUploader && <FileUpload />}
-    </div>
+    </>
   );
 }

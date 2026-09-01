@@ -3,11 +3,12 @@
 // Order matters and is the whole point of this file:
 //   1. Bootstrap  — third-party reset and components, so ours can override it.
 //   2. Tokens     — the theme contract every component reads from.
-//   3. Base       — app shell, typography, scrollbars, all token-driven.
-//   4. CodeMirror — overrides for the editor's own classes, in every editor.
-//   5. Controls   — buttons and inputs used across features.
-//   6. Panel      — chrome shared by every sidebar panel.
-//   7. Modal      — the dialog shell, shared by four components.
+//   3. Base       — app shell, scrollbars, visibility, all token-driven.
+//   4. Typography — the type scale every heading picks a step from.
+//   5. CodeMirror — overrides for the editor's own classes, in every editor.
+//   6. Controls   — buttons and inputs used across features.
+//   7. Panel      — chrome shared by every sidebar panel.
+//   8. Modal      — the dialog shell, shared by four components.
 //
 // Per-component SCSS is imported by its own component and lands after all of
 // this, so component rules win without needing !important or deep selectors.
@@ -20,6 +21,7 @@
 @import 'bootstrap';
 @import 'tokens';
 @import 'base';
+@import 'typography';
 @import 'codemirror';
 @import 'controls';
 @import 'panel';

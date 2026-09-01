@@ -5,9 +5,8 @@
 // components that appear in our markup, and Vite now controls the cascade order,
 // so Bootstrap always loses to the token layer instead of racing it.
 //
-// Before dropping a partial, check the class is unused across src/**/*.tsx —
-// several are load-bearing in non-obvious ways (`d-block`/`d-none` drive sidebar
-// panel visibility in IDE.tsx).
+// Before dropping a partial, check the class is unused across src/**/*.tsx — several are
+// load-bearing in non-obvious ways.
 
 // Required infrastructure.
 @import 'bootstrap/scss/functions';
@@ -24,15 +23,9 @@
 // Add a key here if you start using a new utility family — `git grep` for the
 // class first, since an unmatched utility class fails silently.
 $zasper-utility-keys: (
-  'display',
-  // .d-block, .d-none — sidebar panel visibility
   'margin-top',
-  // .mt-auto
-  'margin-start',
-  // .ms-auto
-  'margin-x',
-  // .mx-auto
-  'text-align' // .text-center
+  // .mt-auto — pushes the help button to the bottom of the activity bar
+  'margin-x' // .mx-auto — centres the login page's carousel
 );
 
 $zasper-utilities: ();
@@ -68,6 +61,8 @@ $utilities: $zasper-utilities;
 @import 'bootstrap/scss/list-group'; // .list-group-item
 @import 'bootstrap/scss/modal'; // .modal, .modal-body, .modal-dialog-centered
 
-// Generates the utility classes (.d-none, .d-block, .ms-auto, .text-center, …).
-// Must come last so the utilities win over component rules, as upstream expects.
+// Generates the utility classes (.mt-auto, .mx-auto, …). Must come last so the utilities win
+// over component rules, as upstream expects — which is why 'display' is not in the map above:
+// `.d-block` is `display: block !important`, and it beat the `display: flex` that the sidebar
+// panels and editor tabs lay out with. Hide with .is-hidden (styles/_base.scss) instead.
 @import 'bootstrap/scss/utilities/api';

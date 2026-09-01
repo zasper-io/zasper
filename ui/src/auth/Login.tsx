@@ -69,10 +69,10 @@ function Login() {
                   </div>
                   <div className="login-signup-form">
                     <div className="login-signup-form-wraper">
-                      <div className="or"></div>
                       <form>
-                        <p className="font-p">Enter Server access token</p>
+                        <label htmlFor="accessToken">Enter Server access token</label>
                         <input
+                          id="accessToken"
                           type="password"
                           name="password"
                           placeholder="Server Access Token"

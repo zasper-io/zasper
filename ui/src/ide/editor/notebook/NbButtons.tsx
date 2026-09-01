@@ -105,7 +105,7 @@ function NbButtons(props: NbButtonsProps) {
       </button>
       <select
         onChange={(e) => props.changeCellType(e.target.value)}
-        className=" editor-select"
+        className="editor-select"
         value={focusedCell ? focusedCell.cell_type : ''}
       >
         {options.map((option, index) => (
@@ -114,7 +114,7 @@ function NbButtons(props: NbButtonsProps) {
           </option>
         ))}
       </select>
-      <div className="ms-auto">
+      <div className="tool-group-end">
         <button className="editor-button" onClick={props.toggleKernelSwitcher}>
           {props.kernelName}
         </button>

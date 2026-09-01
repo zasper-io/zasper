@@ -40,7 +40,7 @@ function KernelSwitcher(props: ModalProps) {
                 <div className="update-kernel-popup-form">
                   <select
                     onChange={(e) => setSelectedKernel(e.target.value)}
-                    className="form-select editor-select"
+                    className="editor-select"
                     value={selectedKernel}
                   >
                     {Object.keys(kernelspecs).map((option, index) => (

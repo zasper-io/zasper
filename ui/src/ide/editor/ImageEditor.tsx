@@ -26,13 +26,16 @@ export default function ImageEditor(props: ImageEditorProps) {
 
   return (
     <div className="tab-content">
-      <div className={props.data.active ? 'd-block' : 'd-none'}>
+      <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         <BreadCrumb path={data.path} />
-        <img
-          src={fileContents}
-          className="imageArea"
-          alt={data.name ? `Image of ${data.name}` : 'Image content'}
-        />
+        {/* .imageArea is the scroll box; the <img> keeps its own aspect ratio inside it. */}
+        <div className="imageArea">
+          <img
+            src={fileContents}
+            className="imageContent"
+            alt={data.name ? `Image of ${data.name}` : 'Image content'}
+          />
+        </div>
       </div>
     </div>
   );

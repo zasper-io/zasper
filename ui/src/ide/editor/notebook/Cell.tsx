@@ -156,6 +156,10 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
               prevCell={props.prevCell}
             />
             <div className="inner-content">
+              {/* A markdown cell has no execution count, but it still needs the gutter a
+                  code cell's `[n]:` occupies, or the two cell types sit on different
+                  left edges. */}
+              <div className="cell-gutter" aria-hidden="true" />
               <div className="cellEditor">
                 <CodeMirror
                   theme={theme.codeMirror}
@@ -185,9 +189,16 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             </div>
           </>
         ) : (
-          <Suspense fallback={<pre>{cellContents}</pre>}>
-            <MarkdownRenderer source={cellContents} />
-          </Suspense>
+          // Same gutter and content column as the editor above, so focusing a markdown
+          // cell swaps the rendered output for its source in place.
+          <div className="inner-content">
+            <div className="cell-gutter" aria-hidden="true" />
+            <div className="cellEditor">
+              <Suspense fallback={<pre>{cellContents}</pre>}>
+                <MarkdownRenderer source={cellContents} />
+              </Suspense>
+            </div>
+          </div>
         )}
       </div>
     );
@@ -257,9 +268,13 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             toggleShowPrompt={props.toggleShowPrompt}
           />
         )}
-      <div className="inner-text">
-        <CellOutput data={cell} connection={props.connection} />
-      </div>
+      {/* Only when there is something to show — .inner-text has padding and a background,
+          so an empty one is a tinted strip under every un-run cell. */}
+      {cell.outputs && cell.outputs.length > 0 && (
+        <div className="inner-text">
+          <CellOutput data={cell} connection={props.connection} />
+        </div>
+      )}
     </div>
   );
 });

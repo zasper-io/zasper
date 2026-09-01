@@ -8,7 +8,8 @@
 .palette {
   position: fixed;
   top: 2px;
-  left: 48%;
+  // 50%, with the -50% translate below, to centre on the window.
+  left: 50%;
   transform: translateX(-50%);
   min-width: 750px;
   max-height: 300px;
@@ -22,10 +23,11 @@
 
 .palette-input {
   width: 100%;
-  padding: 8px;
+  height: var(--z-ui-control-height);
+  padding: 0 8px;
   border: 1px solid var(--z-border-divider);
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--z-ui-font-size);
   margin-bottom: 10px;
 }
 
@@ -41,11 +43,14 @@
 // chrome. They used to inherit --z-fg-default from <body>, which put #393939 text
 // on the purple palette at 1.6:1.
 .palette-item {
-  height: 40px;
-  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 26px;
+  padding: 0 8px;
   cursor: pointer;
   border-bottom: 1px solid var(--z-border);
-  font-size: 14px;
+  font-size: var(--z-ui-font-size);
   color: var(--z-fg-on-chrome);
 }
 
@@ -64,9 +69,21 @@
 }
 
 // Only CommandPalette renders these two columns, but keeping them here means the
-// whole widget is described in one file.
+// whole widget is described in one file. Flex items in a .palette-item row, so the row sizes
+// to them.
 .commandName {
-  width: 300px;
-  float: left;
-  height: 40px;
+  flex: 0 0 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commandDescription {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  opacity: 0.85;
 }

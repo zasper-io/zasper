@@ -1,12 +1,8 @@
 // IDE shell layout: tab strip, tab content, terminal and editor chrome.
 //
-// There is deliberately no `.themeLight` / `.themeDark` block here any more.
-// Both themes are expressed once, via the tokens in styles/_tokens.scss, so a
-// new component styles itself correctly in every theme without a second entry
-// in an override list.
-//
-// Font, body and scrollbar rules moved to styles/_base.scss — they applied to
-// /login too, so they were never IDE-specific.
+// No `.themeLight` / `.themeDark` blocks: both themes are expressed once via the tokens in
+// styles/_tokens.scss, so a new component styles itself correctly in every theme without a
+// second entry in an override list. App-global rules are in styles/_base.scss.
 
 .fileItem {
   white-space: nowrap;
@@ -16,8 +12,8 @@
   border: 1px solid var(--z-accent);
   border-radius: 10px;
   text-align: center;
-  padding: 11px 15px;
-  font-size: 14px;
+  padding: 6px 14px;
+  font-size: var(--z-ui-font-size);
   line-height: 18px;
   color: var(--z-accent);
 }
@@ -27,66 +23,88 @@
   color: var(--z-fg-on-accent);
 }
 
+// The terminal owns the whole pane. Padding is symmetric and lives on the container
+// only: xterm's FitAddon measures the element it was opened on, so padding on
+// .terminalArea itself makes the fit calculation disagree with the visible box.
 .terminalContainer {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   width: 100%;
+  padding: 10px;
   background-color: var(--z-bg-terminal);
   color: var(--z-fg-on-terminal);
-  padding-bottom: 10px;
-  font-size: 16px;
+  // Monospace content, not chrome, so it does not read --z-ui-font-size. xterm derives its
+  // cell size from this, so it is also the terminal's column width.
+  font-size: 14px;
   font-weight: 300;
 }
 
 .terminalArea {
   height: 100%;
   width: 100%;
-  padding-top: 10px;
-  padding-left: 10px;
-  background-color: var(--z-bg-terminal);
 }
 
 .imageArea {
-  height: calc(100vh - 100px);
+  flex: 1;
+  min-height: 0;
   width: 100%;
   padding: 50px;
+  overflow: auto;
+  text-align: center;
+}
+
+.imageContent {
+  max-width: 100%;
 }
 
 .statusBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   width: 100%;
-  height: 30px;
+  height: 24px;
   background-color: var(--z-bg-statusbar);
   color: var(--z-fg-on-chrome);
-  font-size: 16px;
-  padding: 0 40px;
+  font-size: var(--z-ui-font-size-sm);
+  padding: 0 16px;
   font-weight: 300;
 }
 
+// Takes whatever the topbar and status bar leave, without knowing how tall they are.
 .editor-container {
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
 }
 
 .tab-item {
-  font-size: 14px;
-  line-height: 22px;
+  font-size: var(--z-ui-font-size);
+  line-height: 20px;
 }
 
+// No `width: 100%` next to the 1px margins — that made this 2px wider than the resizable
+// panel holding it and put a horizontal scrollbar under every tab. A block-level flex column
+// already fills the panel minus its margins.
+//
+// No `line-height` either: it would be inherited by every tab's contents, and the body's
+// --z-ui-line-height is what the chrome is measured against.
 .main-content {
   margin-left: 1px;
   margin-right: 1px;
   height: 100%;
   font-weight: 300;
-  line-height: 27px;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  overflow-y: hidden;
+  overflow: hidden;
   background-color: var(--z-bg-content);
 
   .tabHeader {
-    min-height: 36px;
+    flex: 0 0 auto;
+    min-height: 28px;
     overflow-x: auto;
     white-space: nowrap;
 
@@ -96,11 +114,12 @@
     }
   }
 
+  // One .tabContent per open tab; all but the active one carry .is-hidden. Everything below
+  // this gets its height from the `display: flex` here — see .is-hidden in styles/_base.scss.
   .tabContent {
+    flex: 1;
+    min-height: 0;
     width: 100%;
-    height: 100%;
-    flex-grow: 1;
-    overflow: auto;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -109,10 +128,22 @@
   }
 
   .tab-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     box-shadow: var(--z-shadow-panel);
     border-radius: 2px;
     background-color: var(--z-bg-tab);
-    height: 100%;
+  }
+
+  // The pane inside .tab-content: breadcrumb and toolbars at their natural height, the
+  // editor body taking the rest. FileEditor, NotebookEditor and ImageEditor all render one.
+  .editor-pane {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .window-tab {
@@ -122,13 +153,14 @@
   }
 
   .editor-body2 {
+    flex: 1;
+    min-height: 0;
     color: var(--z-fg-editor);
     background-color: var(--z-bg-editor);
     width: 100%;
     overflow: auto;
     display: flex;
     flex-direction: column;
-    height: 100%;
     position: relative;
     padding-bottom: 500px;
   }
@@ -139,7 +171,6 @@
   color: inherit;
   border: none;
   padding: 0;
-  margin-right: 5px;
 }
 
 .editor-button-right {
@@ -152,23 +183,22 @@
 
 // Editor tab strip. Bootstrap supplies .nav-link's box model; we restyle it.
 //
-// The tab strip is chrome, so it reads --z-fg-on-chrome rather than
-// --z-fg-on-accent. Identical in light and dark (both white), but a theme with a
-// light tab strip needs dark tab labels.
+// Chrome, so it reads --z-fg-on-chrome rather than --z-fg-on-accent: identical in light and
+// dark today, but a theme with a light tab strip needs dark tab labels.
 .nav-link {
   font-weight: 300;
   border: 1px solid var(--z-border);
   border-radius: 2px 5px 0px 0px;
-  padding: 6px 8px;
+  padding: 3px 8px;
   color: var(--z-fg-on-chrome);
   box-sizing: border-box;
   background: var(--z-bg-tab-inactive);
 
-  // The close × inherits the tab's colour. It used to be --z-fg-subtle, which is
-  // picked to sit on a *panel* — on the purple tab it came out at 1.16:1.
+  // The close × inherits the tab's colour; --z-fg-subtle is picked to sit on a *panel*, and
+  // on the purple tab it comes out at 1.16:1.
   i {
-    margin-left: 10px;
-    font-size: 12px;
+    margin-left: 8px;
+    font-size: 11px;
   }
 }
 
@@ -190,9 +220,8 @@
 
 // The modal shell lives in styles/_modal.scss — four components share it.
 
-// directory.svg is an <img> with fill="#5f568f" baked in, so CSS `fill` cannot
-// reach it (the old .themeDark rule tried, and silently did nothing). A filter
-// is the only lever that works on an <img>.
+// directory.svg is an <img> with fill="#5f568f" baked in, so CSS `fill` cannot reach it.
+// A filter is the only lever that works on an <img>.
 .directoryIcon {
   filter: var(--z-img-icon-filter);
 }
@@ -201,8 +230,8 @@
   width: 100%;
   height: 100%;
   padding: 20px;
-  padding-top: 80px;
-  font-size: 16px;
+  padding-top: 60px;
+  font-size: var(--z-ui-font-size);
   font-weight: 300;
   text-align: center;
 }

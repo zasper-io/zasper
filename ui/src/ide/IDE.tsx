@@ -27,14 +27,7 @@ import {
 } from '../store/AppState';
 import { ApiError, getInfo } from '../api';
 import { getTheme } from '../themes';
-interface INav {
-  name: string;
-  display: string;
-}
-
-interface INavDict {
-  [id: string]: INav;
-}
+import { PanelName } from './sidebar/types';
 
 function IDE() {
   const [theme, setTheme] = useAtom(themeAtom);
@@ -44,27 +37,7 @@ function IDE() {
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
 
-  const defaultNavState: INavDict = {
-    fileBrowser: { name: 'fileBrowser', display: 'd-block' },
-    settingsPanel: { name: 'settingsPanel', display: 'd-none' },
-    gitPanel: { name: 'gitPanel', display: 'd-none' },
-    jupyterInfoPanel: { name: 'jupyterInfoPanel', display: 'd-none' },
-    debugPanel: { name: 'debugPanel', display: 'd-none' },
-    databasePanel: { name: 'databasePanel', display: 'd-none' },
-    secretsPanel: { name: 'secretsPanel', display: 'd-none' },
-  };
-
-  const [navState, setNavState] = useState<INavDict>(defaultNavState);
-
-  const handleNavigationPanel = (name: string) => {
-    const updatedNavState = Object.fromEntries(
-      Object.keys(navState).map((key) => [
-        key,
-        { ...navState[key], display: key === name ? 'd-block' : 'd-none' },
-      ])
-    );
-    setNavState(updatedNavState);
-  };
+  const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
 
   const [fontSize, setFontSize] = useAtom(fontSizeAtom); // Initial font size
 
@@ -144,15 +117,17 @@ function IDE() {
         <PanelGroup direction="horizontal">
           <Panel defaultSize={20} minSize={20}>
             <div className="navigation">
-              <NavigationPanel handleNavigationPanel={handleNavigationPanel} />
+              {/* The activity bar reads the same state it writes, so its highlight and
+                  the visible panel cannot disagree. */}
+              <NavigationPanel activePanel={activePanel} setActivePanel={setActivePanel} />
               <div className="sideBar">
-                <FileBrowser display={navState.fileBrowser.display} reloadCount={reloadCount} />
-                <SettingsPanel display={navState.settingsPanel.display} />
-                <JupyterInfoPanel display={navState.jupyterInfoPanel.display} />
-                <GitPanel display={navState.gitPanel.display} />
-                <DebugPanel display={navState.debugPanel.display} />
-                <DatabasePanel display={navState.databasePanel.display} />
-                <SecretsPanel display={navState.secretsPanel.display} />
+                <FileBrowser hidden={activePanel !== 'fileBrowser'} reloadCount={reloadCount} />
+                <SettingsPanel hidden={activePanel !== 'settingsPanel'} />
+                <JupyterInfoPanel hidden={activePanel !== 'jupyterInfoPanel'} />
+                <GitPanel hidden={activePanel !== 'gitPanel'} />
+                <DebugPanel hidden={activePanel !== 'debugPanel'} />
+                <DatabasePanel hidden={activePanel !== 'databasePanel'} />
+                <SecretsPanel hidden={activePanel !== 'secretsPanel'} />
               </div>
             </div>
           </Panel>

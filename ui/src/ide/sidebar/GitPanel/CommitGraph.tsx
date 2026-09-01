@@ -54,24 +54,19 @@ export const CommitGraph: React.FC<{ data: Commit[] }> = ({ data }) => {
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
   };
 
+  // No .projectBanner here: that is the purple identity bar, and this is a section of a
+  // panel that already has a title.
   return (
-    <>
-      <div className="projectBanner">
-        <div className="projectName">SOURCE CONTROL GRAPH</div>
-      </div>
-      <div className="git-commit-content">
-        <div className="graph-container">
-          {commitNodes.map((node, index) => (
-            <div key={node.id} className={`commit-row`}>
-              <div className="commit-circle" />
-              {index < commitNodes.length - 1 && <div className="commit-line" />}
-              <span className="commit-text">
-                {truncateText(node.commit.message, 50)} -- {node.commit.author}
-              </span>
-            </div>
-          ))}
+    <div className="graph-container">
+      {commitNodes.map((node, index) => (
+        <div key={node.id} className="commit-row">
+          <div className="commit-circle" />
+          {index < commitNodes.length - 1 && <div className="commit-line" />}
+          <span className="commit-text">
+            {truncateText(node.commit.message, 50)} -- {node.commit.author}
+          </span>
         </div>
-      </div>
-    </>
+      ))}
+    </div>
   );
 };

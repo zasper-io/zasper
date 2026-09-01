@@ -8,6 +8,25 @@
 // the same block from a plugin stylesheet) — no component SCSS has to change.
 // `themeAtom` writes the active name to `data-theme` on <html>; see IDE.tsx.
 
+// --- Chrome type and density --------------------------------------------------
+//
+// In its own block, above the theme: density is not a theme property, so a
+// `[data-theme]` block below should not have to restate it.
+//
+// Chrome text belongs one step *below* content text, with tight leading; these
+// are VS Code's numbers. Anything in the chrome with a literal font-size larger
+// than these is a bug. Smaller is fine — 11–12px captions are deliberate.
+:root {
+  --z-ui-font-size: 13px;
+  // Status bar, panel title strips, captions.
+  --z-ui-font-size-sm: 11px;
+  --z-ui-line-height: 1.4;
+  // One row of a tree or list.
+  --z-ui-row-height: 22px;
+  // Selects, inputs and buttons sitting in the chrome.
+  --z-ui-control-height: 24px;
+}
+
 :root {
   // --- Surfaces -----------------------------------------------------------
   --z-bg-app: #e4e4e5;
@@ -40,7 +59,9 @@
   --z-bg-tab-active: #553b9e;
   --z-bg-tab-hover: #553b9e;
   --z-bg-navbutton-active: #c3c1f4;
-  --z-border-navbutton-active: #272727;
+  // The accent, as in the dark and Jupyter themes — a near-black marker on the lavender
+  // active fill reads as a chip stuck to the icon rather than as a selection.
+  --z-border-navbutton-active: var(--z-accent);
 
   // --- Launcher -----------------------------------------------------------
   --z-bg-launcher-tile: #f3f2f6;

@@ -22,10 +22,15 @@
   width: 600px;
 }
 
+// Sized by its content, capped at the viewport — no fixed height, which every dialog either
+// under- or overflows.
 .modal-content {
   border: none;
   border-radius: 4px;
-  height: 400px;
+  max-height: 90vh;
+  overflow: hidden; // so the header's rounded corners clip the scrolling body
+  display: flex;
+  flex-direction: column;
   // Bootstrap defaults .modal-content to $white, so without this the dark theme
   // rendered every dialog as a white box.
   background-color: var(--z-bg-modal);
@@ -33,27 +38,35 @@
 }
 
 .modal-head {
-  height: 40px;
+  flex: 0 0 auto;
+  height: 32px;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-color: var(--z-bg-modal-header);
   color: var(--z-fg-on-accent);
-  font-weight: 300;
-  padding: 8px;
+  font-weight: 400;
+  padding: 0 32px;
   text-align: center;
   border-radius: 4px 4px 0px 0px;
 }
 
 .modal-btn-close {
   position: absolute;
-  right: 6px;
-  top: 6px;
-  font-size: 20px;
+  right: 8px;
+  top: 4px;
+  font-size: 16px;
   background: transparent;
   border: none;
   color: var(--z-fg-on-accent);
 }
 
+// The one part that scrolls, once a dialog's content exceeds the 90vh cap.
 .modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   background: var(--z-bg-modal);
   color: var(--z-fg-default);
 }
@@ -62,7 +75,7 @@
 .update-kernel-popup {
   display: flex;
   justify-content: space-between;
-  padding: 22px;
+  padding: 16px;
 }
 
 .update-kernel-popup-right {

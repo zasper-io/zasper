@@ -59,7 +59,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ commands, onClose }) =>
             }}
           >
             <div className="commandName">{command.name}</div>
-            <div className="commandName">{command.description}</div>
+            <div className="commandDescription">{command.description}</div>
           </li>
         ))}
       </ul>

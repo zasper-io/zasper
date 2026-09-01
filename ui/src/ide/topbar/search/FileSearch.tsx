@@ -4,7 +4,6 @@ import { IContentEntry, searchFiles } from '@/api';
 import { debounce } from 'lodash';
 import { useAtom } from 'jotai';
 import { fileTabsAtom, IfileTab } from '@/store/TabState';
-import { languageModeAtom } from '@/store/AppState';
 import getFileExtension from '@/ide/utils';
 
 interface FileSearchProps {
@@ -20,7 +19,6 @@ const FileSearch = ({ onClose }: FileSearchProps) => {
   const cache = useRef<Record<string, IContentEntry[]>>({});
 
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
-  const [, setLanguageMode] = useAtom(languageModeAtom);
 
   const handleTabActivate = (name: string, path: string, type: string, kernelspec: string) => {
     const updatedFileTabs = { ...fileTabsState };
@@ -45,9 +43,6 @@ const FileSearch = ({ onClose }: FileSearchProps) => {
       updatedFileTabs[path] = { ...updatedFileTabs[path], active: true };
     } else {
       updatedFileTabs[path] = fileTabData;
-    }
-    if (updatedFileTabs[path].extension) {
-      setLanguageMode(updatedFileTabs[path].extension);
     }
     setFileTabsState(updatedFileTabs);
   };

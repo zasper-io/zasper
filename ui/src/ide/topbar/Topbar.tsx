@@ -60,38 +60,32 @@ export default function Topbar() {
   }, [toggleCommandPalette, toggleFileAutoComplete]);
 
   return (
+    // A three-part flex row, not a 12-column grid: the two side groups flex equally, so the
+    // search box is centred on the window rather than on whatever the columns leave.
     <div className="topBar">
-      <div className="container-fluid">
-        <div className="row">
-          <div className="col-3">
-            {/* Not an <img>: which wordmark file to use depends on whether the
-                topbar is dark or light, and that has to come from a token so no
-                component branches on the theme name. See --z-logo. */}
-            <span className="zasperLogo" role="img" aria-label="Zasper" />
-          </div>
-          <div className="col-7">
-            <div className="searchArea">
-              <div className="search-wraper">
-                <button className="openCommandPaletteButton" onClick={toggleFileAutoComplete}>
-                  Type your search here <img src="./images/icons/search.svg" alt="#" />
-                </button>
-              </div>
-            </div>
-            <div>
-              {showCommandPalette && (
-                <CommandPalette commands={commands} onClose={() => setShowCommandPalette(false)} />
-              )}
-              {showFileAutocomplete && (
-                <FileAutocomplete onClose={() => setShowFileAutocomplete(false)} />
-              )}
-            </div>
-          </div>
-          <div className="col-2">
-            <div className="userName">
-              <span>{userName}</span>
-              {protectedState ? <LogoutButton /> : <></>}
-            </div>
-          </div>
+      <div className="topBar-side">
+        {/* Not an <img>: which wordmark file to use depends on whether the topbar is
+            dark or light, which comes from --z-logo so that no component has to branch
+            on the theme name. */}
+        <span className="zasperLogo" role="img" aria-label="Zasper" />
+      </div>
+      <div className="searchArea">
+        <div className="search-wraper">
+          <button className="openCommandPaletteButton" onClick={toggleFileAutoComplete}>
+            Type your search here <img src="./images/icons/search.svg" alt="#" />
+          </button>
+        </div>
+        {showCommandPalette && (
+          <CommandPalette commands={commands} onClose={() => setShowCommandPalette(false)} />
+        )}
+        {showFileAutocomplete && (
+          <FileAutocomplete onClose={() => setShowFileAutocomplete(false)} />
+        )}
+      </div>
+      <div className="topBar-side topBar-side-end">
+        <div className="userName">
+          <span>{userName}</span>
+          {protectedState ? <LogoutButton /> : <></>}
         </div>
       </div>
     </div>

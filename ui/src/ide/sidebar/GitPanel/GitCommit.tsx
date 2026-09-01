@@ -3,7 +3,7 @@ import { commitAndMaybePush, getUncommittedFiles } from '@/api';
 import { PanelProps } from '../types';
 import './GitPanel.scss';
 
-export function GitCommit({ display }: PanelProps) {
+export function GitCommit({ hidden }: PanelProps) {
   const [files, setFiles] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [commitMessage, setCommitMessage] = useState<string>('');
@@ -21,9 +21,9 @@ export function GitCommit({ display }: PanelProps) {
   };
 
   useEffect(() => {
-    // Initial fetch when component mounts
+    // Refetch when the panel is shown, so the list is not stale from last time.
     fetchFiles();
-  }, [display]);
+  }, [hidden]);
 
   const handleCheckboxChange = (file: string) => {
     setSelectedFiles((prevSelectedFiles) => {
@@ -53,40 +53,39 @@ export function GitCommit({ display }: PanelProps) {
       });
   };
 
+  // No .projectBanner here: that purple bar means "this is the open project", and this
+  // panel already has its own title.
   return (
-    <>
-      <div className="projectBanner">
-        <div className="projectName">
-          <div>VERSION CONTROL</div>
-        </div>
-      </div>
-      <div className="git-commit-content">
-        <div>
-          <h6>Uncommitted Files</h6>
-          {files && files.length > 0 ? (
-            <ul className="file-list list-unstyled">
-              {files.map((file, index) => (
-                <li key={index} className="list-group-item">
-                  <div className="form-check">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id={file}
-                      value={file}
-                      onChange={() => handleCheckboxChange(file)}
-                    />
-                    <label htmlFor={file} className="form-check-label">
-                      {file}
-                    </label>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
+    <div className="git-commit-content">
+      <div>
+        <h2 className="z-subheading panel-section-head">Uncommitted files</h2>
+        {files && files.length > 0 ? (
+          <ul className="file-list list-unstyled noborder-list">
+            {files.map((file, index) => (
+              <li key={index} className="list-group-item">
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id={file}
+                    value={file}
+                    onChange={() => handleCheckboxChange(file)}
+                  />
+                  <label htmlFor={file} className="form-check-label">
+                    {file}
+                  </label>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="panel-section-body">
             <p>No uncommitted files found.</p>
-          )}
+          </div>
+        )}
 
-          <h4>Commit Message</h4>
+        <h2 className="z-subheading panel-section-head">Commit message</h2>
+        <div className="panel-section-body">
           <input
             className="gitpanel-input"
             type="text"
@@ -106,10 +105,10 @@ export function GitCommit({ display }: PanelProps) {
           </div>
 
           <button className="z-button" onClick={handleCommit}>
-            Commit {pushAfterCommit ? 'and Push' : ''}{' '}
+            Commit {pushAfterCommit ? 'and Push' : ''}
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }

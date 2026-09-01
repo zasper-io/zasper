@@ -6,7 +6,7 @@ import { logApiError, modifyConfig } from '@/api';
 import { PanelProps } from '../types';
 import { themes } from '@/themes';
 
-export default function SettingsPanel({ display }: PanelProps) {
+export default function SettingsPanel({ hidden }: PanelProps) {
   const [theme, setTheme] = useAtom(themeAtom);
 
   const changeTheme = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -15,22 +15,22 @@ export default function SettingsPanel({ display }: PanelProps) {
   };
 
   return (
-    <div className={display}>
-      <div className="nav-content">
-        <div className="content-head">
-          <div>SETTINGS</div>
-          <div />
-        </div>
-        <div className="projectBanner">
-          <div className="projectName">
-            <div>Theme</div>
-          </div>
-        </div>
-        <div className="content-inner">
+    <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
+      <div className="content-head">
+        <div className="z-label">Settings</div>
+      </div>
+      <div className="content-inner">
+        {/* A section heading, not a .projectBanner — that purple bar means "this is the
+            open project" everywhere else. */}
+        <h2 className="z-subheading panel-section-head">Appearance</h2>
+        <div className="panel-section-body settings-field">
+          <label className="settings-field-label" htmlFor="settings-theme">
+            Theme
+          </label>
           <div className="select">
             {/* Driven by the theme registry, so a new theme shows up here
                 without touching this component. */}
-            <select value={theme} onChange={(e) => changeTheme(e)}>
+            <select id="settings-theme" value={theme} onChange={(e) => changeTheme(e)}>
               {themes.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}

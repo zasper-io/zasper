@@ -1,0 +1,61 @@
+// The type scale.
+//
+// Every heading in the app picks one of these instead of a literal font-size, so a
+// new section heading matches the ones beside it. Sizes are the ones already in use
+// across the tree, collapsed to four steps.
+//
+// This layer exists because the scale used to be applied but never defined:
+// `font-h3`, `font-h5`, `font-h6`, `font-p`, `fontw-300` and `fontw-500` appeared in
+// Launcher.tsx and Login.tsx and matched no rule anywhere, so the launcher's page
+// title and its section headings both fell back to the browser default for <h2> —
+// 32px/500 — and the page had no hierarchy at all. Meanwhile the git panel sized
+// sibling headings with raw <h6> (16px) and <h4> (24px). Names are `z-`prefixed like
+// `.z-button` and `.z-icon`, which is how this codebase marks a class as global.
+//
+// Colours are not set here. A heading inherits the colour of whatever surface it is
+// on, which is what lets the same class sit on a panel and on the editor.
+//
+// The four steps were one notch larger (28/20/16/12) when the body was 14px. They came
+// down with it, so the same relationship to body text survives the density change — a
+// heading is meant to read as a heading, not as a large heading. Weight does as much of
+// the work as size here, which is why 17 and 14 are far enough apart to be distinct.
+
+// Page title: one per screen, the largest thing on it.
+.z-title {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 300;
+  margin: 0;
+
+  // For the emphasised word inside a title, e.g. "Welcome to **zasper**".
+  strong,
+  b {
+    font-weight: 500;
+  }
+}
+
+// Section heading: the major divisions of a screen ("Notebook", "Terminal").
+.z-heading {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 400;
+  margin: 0;
+}
+
+// Group heading: a labelled group inside a panel or a section.
+.z-subheading {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  margin: 0;
+}
+
+// The smallest step, for the strip at the top of a sidebar panel and anything else
+// that names a region rather than titling it.
+.z-label {
+  font-size: var(--z-ui-font-size-sm);
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

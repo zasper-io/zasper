@@ -1,12 +1,17 @@
-.leftStatus {
-  float: left;
-  // width: 50%;
+// .statusBar is a flex row (see ide/IDE.scss), so these two groups are flex items and the bar
+// gets its height from them.
+.leftStatus,
+.rightStatus {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .rightStatus {
-  float: right;
-  // width: 50%;
+  margin-left: auto;
 }
+
 .statusItem {
   padding: 0 10px;
+  white-space: nowrap;
 }

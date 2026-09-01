@@ -1,30 +1,54 @@
+// One padding value for the whole launcher, so the page title, the section headings and the
+// tiles all start on the same vertical line. The launcher is a content page, not chrome, so
+// it keeps more air than the sidebar and the toolbars.
+$launcher-gutter: 32px;
+
+.LauncherArea {
+  // Fills the editor pane and scrolls itself.
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  width: 100%;
+  padding: $launcher-gutter 0;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-default);
+}
+
 .launcher-title {
+  padding: 0 $launcher-gutter 16px;
   border-bottom: 1px solid var(--z-border-subtle);
-  padding: 0px 40px;
-  padding-bottom: 20px;
 }
 
+// A grid, so the tiles wrap into even columns and the section grows to fit them.
 .launchSection {
-  min-height: 500px;
-  padding: 20px;
+  padding: 20px $launcher-gutter;
   border-bottom: 1px solid var(--z-border-subtle);
 }
 
+.launchSection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+// A flex column: logo area on top, name under it, both centred.
 .launcher-icon {
-  float: left;
-  height: 170px;
-  width: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 112px;
+  padding: 16px 10px;
   border: 1px solid var(--z-border);
   border-radius: 5px;
-  padding: auto;
   background-color: var(--z-bg-launcher-tile);
   color: var(--z-fg-default);
-  align-content: center;
   text-align: center;
   box-shadow: var(--z-shadow-low);
   cursor: pointer;
-  margin-right: 20px;
-  margin-bottom: 10px;
 }
 
 .launcher-icon:hover {
@@ -32,24 +56,17 @@
 }
 
 .terminalIconImage {
-  height: 64px;
-}
-
-.LauncherArea {
-  background: var(--z-bg-editor);
-  color: var(--z-fg-default);
-  padding: 40px;
-  height: 100%;
-  width: 100%;
+  height: 44px;
 }
 
 .resourceLogoImage {
-  height: 64px;
+  height: 44px;
 }
 
 .noKernelsFound {
-  padding: 20px 20px 10px;
-  font-size: 16px;
+  margin-top: 16px;
+  padding: 16px 16px 8px;
+  font-size: var(--z-ui-font-size);
   background: var(--z-bg-notice);
   color: var(--z-fg-default);
   border-radius: 6px;
@@ -64,19 +81,16 @@
   }
 }
 
+// No fixed heights on either of these: the tile sizes to them, not the other way round.
 .kernelSpecIconArea {
-  height: 100px;
-  width: 100%;
   img {
-    height: 64px;
-    width: 64px;
-    margin: 25px auto;
+    height: 44px;
+    width: 44px;
   }
 }
 
 .kernelspecDisplayName {
-  margin-top: 8x;
-  height: 100px;
-  font-size: 16px;
-  font-weight: 300;
+  font-size: var(--z-ui-font-size);
+  line-height: 18px;
+  font-weight: 400;
 }

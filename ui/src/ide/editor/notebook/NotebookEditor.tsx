@@ -158,7 +158,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   return (
     <div className="tab-content">
       <div
-        className={data.active ? 'd-block' : 'd-none'}
+        className={data.active ? 'editor-pane' : 'editor-pane is-hidden'}
         id="profile"
         role="tabpanel"
         aria-labelledby="profile-tab"

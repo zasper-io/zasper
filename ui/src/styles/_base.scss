@@ -1,24 +1,41 @@
-// App-global base styles. These used to live at the top of IDE.scss, but they
-// apply to every route (including /login), so they belong with the token layer.
+// App-global base styles, applying to every route including /login.
 //
 // Everything here reads from _tokens.scss — no literal colours below this line.
 
+// The app default is the chrome size, because most text on screen is chrome. The few
+// places that are document text — notebook output, the launcher, the login card — set
+// their own size.
 body {
   font-family: 'Ubuntu', sans-serif;
-  font-size: 14px;
+  font-size: var(--z-ui-font-size);
   font-weight: 400;
-  line-height: 24px;
+  line-height: var(--z-ui-line-height);
   position: relative;
   background-color: var(--z-bg-app);
   color: var(--z-fg-default);
 }
 
 // The theme lives on <html>, so the shell just fills the viewport.
+//
+// The first link in the only chain of definite heights in the app: topbar and status bar
+// size to their content, the editor container takes the rest. Nothing below this needs to
+// know how tall the chrome is.
 .editor {
   width: 100%;
   height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: var(--z-bg-app);
   color: var(--z-fg-default);
+}
+
+// Tab panes and sidebar panels all stay mounted; this is how the inactive ones are hidden.
+//
+// Only the hidden state is a utility. Bootstrap's `.d-block` did the visible half before,
+// and `display: block !important` on elements whose own stylesheet said `display: flex`
+// severed the flex chain from the shell down to the editor body.
+.is-hidden {
+  display: none !important;
 }
 
 a {
@@ -27,15 +44,14 @@ a {
   transition: all 0.3s ease-in-out;
 }
 
-// Replaces the `.themeDark select` override; native selects don't inherit.
+// Native selects don't inherit.
 select {
   background-color: var(--z-bg-select);
   color: var(--z-fg-default);
 }
 
-// Inline SVG icons (src/ide/icons). Icon.tsx sets these classes instead of
-// computing a fill in JS, so icons repaint with the rest of the UI when
-// `data-theme` changes — no component re-render involved.
+// Inline SVG icons (src/ide/icons). Icon.tsx sets these classes instead of computing a
+// fill in JS, so icons repaint when `data-theme` changes without a component re-render.
 .z-icon {
   fill: var(--z-fg-svg);
 }
@@ -45,30 +61,34 @@ select {
 }
 
 /* ===== Scrollbars ===== */
-* {
+//
+// One API, set once. Both properties inherit, so :root reaches every scroll container
+// without a `*` selector — which also keeps the rule out of CodeMirror's and xterm's
+// internals. Don't add `::-webkit-scrollbar` rules: Chromium ignores those pseudo-elements
+// entirely once the standard properties are set on the same element.
+:root {
   scrollbar-width: thin;
   scrollbar-color: var(--z-scrollbar-thumb) var(--z-scrollbar-track);
 }
 
-*::-webkit-scrollbar {
-  width: 16px;
-}
-
-*::-webkit-scrollbar-track {
-  background: var(--z-scrollbar-track);
-}
-
-*::-webkit-scrollbar-thumb {
-  background-color: var(--z-scrollbar-thumb);
-  border-radius: 10px;
-  border: 3px solid var(--z-scrollbar-track);
-}
-
 // Editor font size, driven by fontSizeAtom (Cmd +/-) via getFontClass().
+//
+// Keep this scoped to `.cm-editor` when adding a size. IDE.tsx puts the class on
+// `.main-content`, which also contains the tab strip, the notebook toolbar, the launcher and
+// the terminal, so an unscoped `font-size` resizes all of that with the code.
 $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 
 @each $size in $font-sizes {
-  .zfont-#{$size} {
+  .zfont-#{$size} .cm-editor {
     font-size: #{$size}px;
   }
+}
+
+// 1.5 rather than the body's 1.4, so every size above is a whole number of pixels per line;
+// CodeMirror stacks line boxes, so a fractional one puts every baseline below the first off
+// the pixel grid. `.cm-content` has to be named as well as `.cm-editor`, because CodeMirror's
+// base theme sets `.cm-content { line-height: 1.4 }` and a rule beats an inherited value.
+.cm-editor,
+.cm-editor .cm-content {
+  line-height: 1.5;
 }

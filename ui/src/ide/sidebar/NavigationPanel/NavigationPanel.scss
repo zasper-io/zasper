@@ -1,35 +1,46 @@
-// The icon rail down the left of the sidebar. This is all NavigationPanel renders.
-//
-// The chrome the *panels* share — `.navigation`, `.nav-content`, `.content-head`,
-// `.content-inner`, `.projectBanner`, `.file-list` — is in styles/_panel.scss, not
-// here, because eight components use it and only one of them is this file's.
+// The icon rail down the left of the sidebar. This is all NavigationPanel renders; the chrome
+// the *panels* share is in styles/_panel.scss.
 
 .navigation-list {
   background: var(--z-bg-panel-alt);
   border-right: 1px solid var(--z-border);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 13px;
+  gap: 4px;
+  padding-top: 8px;
 }
 
+// Near-square and flush, so the active marker reads as a full-height bar.
 .navButton {
   border: none;
   padding: 0;
-  height: 45px;
-  width: 60px;
+  height: 40px;
+  width: 44px;
   background-color: transparent;
-  line-height: 30px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+// One box for every icon in the rail — the components in ide/icons each carry a different
+// fractional intrinsic size, which renders ragged and unaligned. `viewBox` and the default
+// `preserveAspectRatio` fit each drawing without distorting it, and 18px inside 44x40 centres
+// on whole pixels so the thin strokes stay crisp.
+.navButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+// The 4px marker is inside the 44px width, so an active button does not shift its icon.
+// (4px border + 18px icon + 4px padding leaves 18px, so the icon still lands on 13px.)
 .navButton.active {
   border-left: 4px solid var(--z-border-navbutton-active);
+  padding-right: 4px;
   background-color: var(--z-bg-navbutton-active);
 }
 
 .help-icon {
   text-align: center;
-  font-size: 18px;
+  font-size: 15px;
   color: var(--z-fg-icon);
 }

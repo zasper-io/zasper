@@ -55,7 +55,8 @@ function CellButtons(props: CellButtonsProps) {
   );
 }
 
-const IconAddAbove = ({ size = 24, color = 'currentColor' }) => {
+// 16 to match the box `.cellOptions .editor-button` gives the Font Awesome glyphs beside them.
+const IconAddAbove = ({ size = 16, color = 'currentColor' }) => {
   const maskId = 'mask-plus-above';
   return (
     <svg
@@ -84,7 +85,7 @@ const IconAddAbove = ({ size = 24, color = 'currentColor' }) => {
   );
 };
 
-const IconAddBelow = ({ size = 24, color = 'currentColor' }) => {
+const IconAddBelow = ({ size = 16, color = 'currentColor' }) => {
   const maskId = 'mask-plus-below';
   return (
     <svg

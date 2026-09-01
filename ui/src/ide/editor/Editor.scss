@@ -1,9 +1,24 @@
 .breadcrumbArea {
-  height: 33px;
+  // A navigable path, not a caption: the same kind of text as the tab label above it and the
+  // toolbar below it.
+  height: 26px;
+  display: flex;
+  align-items: center;
   background: var(--z-bg-editor);
   font-weight: 400;
-  padding: 2px 13px;
-  border-bottom: 2px solid var(--z-border-breadcrumb);
-  font-size: 14px;
-  color: var(--z-fg-default);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--z-border-breadcrumb);
+  font-size: var(--z-ui-font-size);
+  color: var(--z-fg-muted);
+
+  // The list is the whole content of this strip, so it owns no outer spacing. Bootstrap's
+  // `.breadcrumb` is `margin-bottom: 1rem`, and in a centred flex row that margin counts as
+  // part of the item being centred — it pushes the crumbs up under the tab bar.
+  .breadcrumb {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+  }
 }

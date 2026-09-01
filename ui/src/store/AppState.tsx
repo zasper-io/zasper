@@ -60,7 +60,8 @@ export const linePositionAtom = atom<number>(0);
 export const columnPositionAtom = atom<number>(0);
 export const encodingAtom = atom<string>('UTF-8');
 export const eolSequenceAtom = atom<string>('LF');
-export const languageModeAtom = atom<string | null>('Launcher');
 export const indentationModeAtom = atom<string>('Spaces');
 export const indentationSizeAtom = atom<number>(2);
-export const fontSizeAtom = atom<number>(16);
+// Drives the `.zfont-<n>` class on `.main-content` (see getFontClass in ide/IDE.tsx), which
+// styles `.cm-editor`. One step above the 13px chrome.
+export const fontSizeAtom = atom<number>(14);

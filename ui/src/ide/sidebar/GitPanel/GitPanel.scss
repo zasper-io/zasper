@@ -45,12 +45,12 @@
   transform-origin: top left;
 }
 
+// No height and no scrollbar of its own — the panel's .content-inner is the one scroll area.
+// Horizontal padding comes from .panel-section-head and .panel-section-body, so the headings
+// and their content share one left edge.
 .git-commit-content {
   width: 100%;
-  padding: 10px;
-  height: 45vh;
-  overflow: hidden;
-  overflow-y: scroll;
+  padding-bottom: 12px;
 }
 
 // Also the "Select Kernel" / "Switch Kernel" button in KernelSwitch. It is a
@@ -61,16 +61,12 @@
 // meant the git panel broke if the command palette was restyled.
 .gitpanel-input {
   width: 100%;
-  padding: 8px;
+  height: var(--z-ui-control-height);
+  padding: 0 8px;
   border: 1px solid var(--z-border-divider);
   border-radius: 4px;
-  font-size: 14px;
-  margin-bottom: 10px;
-}
-
-.content-body {
-  display: flex;
-  flex-direction: column;
+  font-size: var(--z-ui-font-size);
+  margin-bottom: 8px;
 }
 
 .git-graph-svg {
@@ -100,7 +96,7 @@
   display: flex;
   align-items: center;
   position: relative;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .commit-circle {
@@ -114,7 +110,8 @@
 
 .commit-line {
   width: 2px;
-  height: 34px;
+  // Reaches the next circle: one .commit-row is 12px of margin plus the 12px circle.
+  height: 24px;
   background-color: var(--z-git-node);
   position: absolute;
   left: 5px;
@@ -124,7 +121,7 @@
 .commit-text {
   margin-left: 12px;
   color: var(--z-fg-default);
-  font-size: 14px;
+  font-size: var(--z-ui-font-size);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;

@@ -8,7 +8,6 @@ import {
   terminalsCountAtom,
   terminalsAtom,
   fileBrowserReloadCountAtom,
-  languageModeAtom,
 } from '@/store/AppState';
 import { fileTabsAtom, IfileTab } from '@/store/TabState';
 import getFileExtension from '../utils';
@@ -36,7 +35,6 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   }, [setKernelspecs]);
 
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
-  const [, setLanguageMode] = useAtom(languageModeAtom);
 
   const handleTabActivate = (name: string, path: string, type: string, kernelspec: string) => {
     const updatedFileTabs = { ...fileTabsState };
@@ -61,9 +59,6 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
       updatedFileTabs[path] = { ...updatedFileTabs[path], active: true };
     } else {
       updatedFileTabs[path] = fileTabData;
-    }
-    if (updatedFileTabs[path].extension) {
-      setLanguageMode(updatedFileTabs[path].extension);
     }
 
     setFileTabsState(updatedFileTabs);
@@ -97,39 +92,44 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
 
   return (
     <div className="LauncherArea">
+      {/* The type scale comes from styles/_typography.scss. */}
       <div className="launcher-title">
-        <h2 className="font-h3 fontw-300">
-          Welcome to <span className="fontw-500">zasper</span>
+        <h2 className="z-title">
+          Welcome to <strong>zasper</strong>
         </h2>
       </div>
       <div className="launchSection">
-        <h2 className="font-h5 fontw-300">Notebook</h2>
+        <h2 className="z-heading">Notebook</h2>
         {Object.keys(kernelspecs).length > 0 ? (
-          Object.keys(kernelspecs).map((key) => (
-            <div
-              className="launcher-icon"
-              key={key}
-              onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
-            >
-              <div className="kernelSpecIconArea">
-                <img
-                  className="resourceLogoImage"
-                  src={getLogoUrl(kernelspecs[key].resources)}
-                  alt="logo"
-                />
+          <div className="launchSection-grid">
+            {Object.keys(kernelspecs).map((key) => (
+              <div
+                className="launcher-icon"
+                key={key}
+                onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
+              >
+                <div className="kernelSpecIconArea">
+                  <img
+                    className="resourceLogoImage"
+                    src={getLogoUrl(kernelspecs[key].resources)}
+                    alt="logo"
+                  />
+                </div>
+                <div className="kernelspecDisplayName">{kernelspecs[key].spec.display_name}</div>
               </div>
-              <div className="kernelspecDisplayName">{kernelspecs[key].spec.display_name}</div>
-            </div>
-          ))
+            ))}
+          </div>
         ) : (
           <NoKernelsFound />
         )}
       </div>
 
       <div className="launchSection">
-        <h2 className="font-h5 fontw-300">Terminal</h2>
-        <div className="launcher-icon" onClick={openTerminal}>
-          <TerminalIcon />
+        <h2 className="z-heading">Terminal</h2>
+        <div className="launchSection-grid">
+          <div className="launcher-icon" onClick={openTerminal}>
+            <TerminalIcon />
+          </div>
         </div>
       </div>
     </div>
@@ -139,7 +139,7 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
 const NoKernelsFound: React.FC = () => {
   return (
     <div className="noKernelsFound">
-      <h3 className="font-h6 fontw-300">❌ No kernels available</h3>
+      <h3 className="z-subheading">❌ No kernels available</h3>
       <p>Please install a kernel to create a new notebook.</p>
       <code>
         pip install ipykernel

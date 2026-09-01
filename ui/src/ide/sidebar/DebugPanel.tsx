@@ -2,15 +2,13 @@ import React from 'react';
 
 import { PanelProps } from './types';
 
-export default function DebugPanel({ display }: PanelProps) {
+export default function DebugPanel({ hidden }: PanelProps) {
   return (
-    <div className={display}>
-      <div className="nav-content">
-        <div className="content-head">
-          <h6>Debug</h6>
-        </div>
-        <div className="content-inner" />
+    <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
+      <div className="content-head">
+        <div className="z-label">Debug</div>
       </div>
+      <div className="content-inner" />
     </div>
   );
 }

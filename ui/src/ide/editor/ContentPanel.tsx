@@ -8,9 +8,11 @@ export default function ContentPanel() {
   return (
     <>
       {Object.keys(fileTabsState).map((key, index) => (
+        // .is-hidden only hides, leaving the visible display value to .tabContent's own
+        // stylesheet — see styles/_base.scss.
         <div
           key={index}
-          className={fileTabsState[key].active ? 'tabContent d-block' : 'tabContent d-none'}
+          className={fileTabsState[key].active ? 'tabContent' : 'tabContent is-hidden'}
         >
           <Editor key={index} data={fileTabsState[key]} />
         </div>

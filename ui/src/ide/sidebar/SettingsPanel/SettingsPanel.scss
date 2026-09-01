@@ -1,3 +1,20 @@
+// A labelled setting. The indent comes from .panel-section-body in styles/_panel.scss,
+// which every panel's section content shares.
+.settings-field {
+  // Fills the column rather than taking a width of its own.
+  .select {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+.settings-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--z-ui-font-size);
+  color: var(--z-fg-muted);
+}
+
 // Scoped under .select on purpose. This used to be a bare `select { … }` rule
 // with hardcoded colours, and because every component stylesheet is imported
 // globally it beat the token-driven `select` rule in styles/_base.scss — which
@@ -13,11 +30,13 @@
 
   border: 1px solid var(--z-border);
   border-radius: 0.25em;
-  padding: 0.25em 0.5em;
+  padding: 0 0.5em;
 
-  font-size: 1rem;
+  // An explicit height, because the <select> inside cannot supply one: Chromium ignores
+  // `line-height` on a native select, so a line-height-only control clips its option text.
+  height: var(--z-ui-control-height);
+  font-size: var(--z-ui-font-size);
   cursor: pointer;
-  line-height: 1.1;
 
   select,
   &::after {
@@ -29,14 +48,14 @@
     background-color: var(--z-bg-field);
     color: var(--z-fg-field);
     border: none;
-    padding: 4px 14px;
+    padding: 0 10px;
     margin: 0;
     width: 100%;
+    height: 100%;
     font-family: inherit;
     font-size: inherit;
     cursor: inherit;
     border-radius: 5px;
-    line-height: 32px;
 
     // Stack above the custom arrow.
     z-index: 1;

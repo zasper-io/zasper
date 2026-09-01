@@ -1,10 +1,5 @@
 // /login.
 //
-// Dropped along the way: `.owl-dots` / `button.owl-dot`, which styled the
-// owl.carousel dots — that carousel was replaced by Swiper, and owl's stylesheet
-// went out with the rest of the template CSS. Also `.click-to-join-btn`,
-// `.login-signup-form-top` and `.login-sign-up-form-slider-item`, none of which
-// appear in Login.tsx.
 
 section#header-login-signup {
   min-height: 100vh;
@@ -93,9 +88,14 @@ section#header-login-signup {
 
 /* ===== Form (right half) ===== */
 
+// Centres the form against the hero on the left: the two halves are `width: 50%` of a flex
+// row, so this one is as tall as the hero image but its content is only ~160px.
 .login-signup-form {
   padding: 40px 40px;
   background: var(--z-bg-panel);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .login-signup-form-wraper {
@@ -103,23 +103,10 @@ section#header-login-signup {
   margin: 0 auto;
 }
 
-.or {
-  border-top: 1px solid var(--z-border);
-  margin-top: 30px;
-  margin-bottom: 25px;
-  text-align: center;
-  position: relative;
-}
-
-.or p {
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 0px 10px;
-  background: var(--z-bg-panel);
-  color: var(--z-fg-icon);
-  font-weight: 500;
-  top: -1px;
+.login-signup-form-wraper label {
+  display: block;
+  color: var(--z-fg-muted);
+  margin-bottom: 13px;
 }
 
 .login-signup-form-wraper input {
@@ -151,8 +138,8 @@ section#header-login-signup {
   border: none;
   background: var(--z-accent);
   width: 100%;
-  padding: 12px 10px;
-  font-size: 18px;
+  padding: 10px;
+  font-size: 15px;
   font-weight: 400;
   border-radius: 10px;
   margin-top: 15px;

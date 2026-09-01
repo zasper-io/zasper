@@ -1,113 +1,190 @@
 // Notebook editor: cell chrome, kernel status and DataFrame output.
-//
-// The old `.light` / `.dark` classes on `.editor-body` and the `.themeDark`
-// DataFrame block are gone — both themes now come from tokens, so the DataFrame
-// styling is written once instead of twice.
 
 .text-editor-tool {
   display: flex;
   align-items: center;
-  gap: 32px;
-  padding: 18px 18px 13px 18px;
+  gap: 24px;
+  padding: 4px 12px;
   border-bottom: 1px solid var(--z-border-divider);
   color: var(--z-fg-subtle);
 }
 
-.text-editor-tool a {
+// Icon glyphs, so a step above the chrome text.
+.text-editor-tool .editor-button {
   color: var(--z-fg-muted);
-  font-size: 17px;
+  font-size: 12px;
 }
 
+.tool-group-end {
+  margin-left: auto;
+}
+
+// Overlaid on the cell's top edge rather than stacked above it, so taking focus does not
+// reflow the cell.
 .cellOptionsDiv {
-  width: 100%;
-  height: 35px;
+  position: absolute;
+  top: 2px;
+  right: 15px;
+  // transform: translateY(-50%);
+  z-index: 2;
 }
 
 .cellOptions {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 18px 18px 13px 18px;
+  // Sized to keep the bar 22px tall: half of it overhangs the cell above, so .single-line's
+  // bottom margin has to clear 11px.
+  gap: 10px;
+  padding: 2px 8px;
   border: 1px solid var(--z-border-divider);
-  color: var(--z-fg-muted);
-  height: 20px;
-  float: right;
   border-radius: 4px;
+  background: var(--z-bg-cell);
+  color: var(--z-fg-muted);
+  box-shadow: var(--z-shadow-low);
 }
 
-// Also used by the kernel switcher and NbButtons. Bootstrap's .form-select
-// hardcodes a white background off --bs-body-bg, so restate it from the tokens.
+// One box for the Font Awesome glyphs and the inline SVGs from CellButtons alike.
+.cellOptions .editor-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 13px;
+  color: var(--z-fg-muted);
+
+  svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.cellOptions .editor-button:hover {
+  color: var(--z-fg-default);
+}
+
+// Also used by the kernel switcher and NbButtons. Don't add Bootstrap's `.form-select`
+// alongside it: that class's padding and line-height overflow this 24px box.
 .editor-select {
-  width: 200px;
+  width: 180px;
+  height: var(--z-ui-control-height);
   font-weight: 300;
-  font-size: 16px;
+  font-size: var(--z-ui-font-size);
   background-color: var(--z-bg-field);
   color: var(--z-fg-field);
   border: 1px solid var(--z-border-field);
 }
 
 .activeCell {
-  border: 2px solid var(--z-border-active-cell);
-  border-radius: 4px;
+  border-color: var(--z-border-active-cell);
 }
 
 .editor-body {
-  padding: 28px 18px;
-  padding-right: 30px;
-  height: calc(100vh - 179px);
-  overflow-y: scroll;
-  margin-right: 7px;
-  scrollbar-width: thin;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  // 16px matches the toolbar and breadcrumb above, so the cells share their left edge.
+  padding: 12px 16px;
   background-color: var(--z-bg-editor);
   color: var(--z-fg-editor);
 
   .single-line {
+    // The anchor for .cellOptionsDiv.
+    position: relative;
     gap: 8px;
-    padding: 10px;
+    padding: 24px 10px;
     min-height: 35px;
-    margin: 6px;
+    // Has to clear the 11px of .cellOptions that overhangs this cell's top edge, so the two
+    // numbers are coupled: shrinking one means checking the other.
+    margin: 0 0 16px;
     background: var(--z-bg-cell);
+    // Transparent but always present, so .activeCell colouring it does not resize the cell.
+    border: 2px solid transparent;
+    border-radius: 4px;
   }
 
   .single-line .inner-content {
     display: flex;
   }
 
+  // A fixed gutter, so `[1]:` and `[10]:` put their editors on the same left edge.
+  // .cell-gutter is the empty one a markdown cell renders in place of an execution count.
+  .serial-no,
+  .svgContainer,
+  .cell-gutter {
+    flex: 0 0 44px;
+    text-align: right;
+    padding-right: 4px;
+  }
+
   .serial-no {
     color: var(--z-fg-serial-no);
-    font-size: 14px;
+    font-size: var(--z-ui-font-size);
     font-weight: 700;
-    line-height: 24px;
+    // Aligned to the first line of code beside it: 5px is .cm-editor's border plus
+    // .cm-content's padding, 21px its line box at the 14px default.
+    line-height: 21px;
     margin-top: 5px;
   }
 
   .cellEditor {
     flex: 1;
+    min-width: 0; // stop a long line from widening the cell instead of scrolling
     padding: 0 5px;
-    width: 100%; // stop editor from overflowing to right
   }
 }
 
-.editor-body::-webkit-scrollbar {
-  width: 7px;
-}
-
-.editor-body::-webkit-scrollbar-thumb {
-  background: var(--z-scrollbar-thumb);
-  border-radius: 100px;
-}
-
+// The output area, below the cell's input. The left margin is the gutter above, so output
+// lines up with the code that produced it rather than with the execution count.
 .inner-text {
-  padding-left: 17px;
+  margin: 8px 0 0 44px;
+  padding: 6px 10px;
   overflow: auto;
-  margin-top: 14px;
   position: relative;
   background: var(--z-bg-cell-output);
+  border-radius: 2px;
+  // Whole pixels per line, so a multi-line traceback doesn't stack fractional baselines and
+  // leave the cell a fractional height. Move this if --z-ui-font-size moves.
+  line-height: 18px;
+
+  // Bootstrap's reboot puts a bottom margin on all three; this box's padding is the spacing.
+  pre,
+  h6,
+  p {
+    margin: 0;
+  }
+
+  // Bootstrap sizes `pre` at 0.875em, which off 13px is a fractional 11.375px.
+  pre {
+    font-size: var(--z-ui-font-size);
+    white-space: pre-wrap;
+  }
+
+  // The `ename: evalue` line of an error output. Bootstrap makes headings 16px on a 1.2 line
+  // box; both are wrong here, and the 1.2 is fractional at this size.
+  h6 {
+    font-size: var(--z-ui-font-size);
+    line-height: inherit;
+    font-weight: 700;
+    color: var(--z-status-error);
+    margin-bottom: 4px;
+  }
 
   p {
-    margin-bottom: 0;
     color: var(--z-fg-muted);
     font-weight: 700;
+  }
+
+  // A figure should not force the cell wider than the pane.
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  // Tells consecutive outputs from one cell apart without changing the tint.
+  > * + * {
+    margin-top: 6px;
   }
 }
 
@@ -116,14 +193,19 @@
   border-radius: 2px;
 }
 
+.kStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .kernelStatus {
-  display: inline-block;
-  height: 22px;
-  width: 22px;
-  border-radius: 11px;
+  flex: 0 0 auto;
+  height: 14px;
+  width: 14px;
+  border-radius: 7px;
   border: 1px solid var(--z-border-kernel-status);
   box-shadow: 3px 3px 10px 3px var(--z-shadow-ambient);
-  margin-right: 20px;
 }
 
 .ks-idle {
@@ -142,25 +224,27 @@
   background-color: var(--z-status-disconnected);
 }
 
+// A toolbar button like the rest of them, sized to the status dot beside it.
 .reconnectButton {
+  flex: 0 0 auto;
   border: none;
-  width: 20px;
-  height: 20px;
-  box-shadow: 3px 3px 10px 3px var(--z-shadow-ambient);
-  border-radius: 10px;
+  background: none;
   padding: 0;
-  padding-inline: 0;
-  padding-block: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reconnectButton img {
-  width: 22px;
-  height: 22px;
-  margin-top: -10px;
+  display: block;
+  width: 15px;
+  height: 15px;
 }
 
 .svgContainer {
-  height: 25px;
+  height: 20px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -177,7 +261,7 @@ table.dataframe {
   min-width: 40%;
   background-color: var(--z-df-bg);
   color: var(--z-df-fg);
-  font-size: 14px;
+  font-size: var(--z-ui-font-size);
   border: 1px solid var(--z-df-border);
   border-radius: 8px;
   overflow: hidden;

@@ -102,9 +102,10 @@ export default function FileEditor(props: FileEditorProps) {
 
   return (
     <div className="tab-content">
-      <div className={props.data.active ? 'd-block' : 'd-none'}>
+      <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
+        {/* Outside .editor-body2, so it stays put while the file scrolls. */}
+        <BreadCrumb path={props.data.path} />
         <div className="editor-body2">
-          <BreadCrumb path={props.data.path} />
           <CodeMirror
             value={fileContents}
             theme={theme.codeMirror}
