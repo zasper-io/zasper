@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './Topbar.scss';
 import CommandPalette from './command/CommandPalette';
 import FileAutocomplete from './search/FileSearch';
@@ -11,6 +11,8 @@ export default function Topbar() {
   const [showFileAutocomplete, setShowFileAutocomplete] = useState<boolean>(false);
   const [userName] = useAtom(userNameAtom);
   const [protectedState] = useAtom(protectedStateAtom);
+  const searchAreaRef = useRef<HTMLDivElement>(null);
+  const isPaletteOpen = showCommandPalette || showFileAutocomplete;
 
   const commands = [
     {
@@ -59,6 +61,31 @@ export default function Topbar() {
     };
   }, [toggleCommandPalette, toggleFileAutoComplete]);
 
+  // Clicking away dismisses, as Escape does. Both palettes render inside .searchArea, as does
+  // the button that opens them, so one containment check covers all three: a click on the
+  // button falls through to its own toggle instead of being closed and reopened.
+  //
+  // `mousedown` rather than `click`, so the palette is gone before the thing underneath takes
+  // focus — a click into a notebook cell should land in the cell.
+  useEffect(() => {
+    if (!isPaletteOpen) {
+      return;
+    }
+    const handleMouseDown = (event: MouseEvent) => {
+      if (searchAreaRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      setShowCommandPalette(false);
+      setShowFileAutocomplete(false);
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, [isPaletteOpen]);
+
   return (
     // A three-part flex row, not a 12-column grid: the two side groups flex equally, so the
     // search box is centred on the window rather than on whatever the columns leave.
@@ -69,10 +96,10 @@ export default function Topbar() {
             on the theme name. */}
         <span className="zasperLogo" role="img" aria-label="Zasper" />
       </div>
-      <div className="searchArea">
+      <div className="searchArea" ref={searchAreaRef}>
         <div className="search-wraper">
           <button className="openCommandPaletteButton" onClick={toggleFileAutoComplete}>
-            Type your search here <img src="./images/icons/search.svg" alt="#" />
+            Type your search here
           </button>
         </div>
         {showCommandPalette && (
@@ -81,6 +108,9 @@ export default function Topbar() {
         {showFileAutocomplete && (
           <FileAutocomplete onClose={() => setShowFileAutocomplete(false)} />
         )}
+        {/* Outside the button, and painted over the palette, so the same magnifier sits in the
+            same place whether the button or the palette's input is the field on screen. */}
+        <img className="searchIcon" src="./images/icons/search.svg" alt="" />
       </div>
       <div className="topBar-side topBar-side-end">
         <div className="userName">

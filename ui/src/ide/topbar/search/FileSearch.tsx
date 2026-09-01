@@ -97,6 +97,9 @@ const FileSearch = ({ onClose }: FileSearchProps) => {
       <input
         className="palette-input"
         type="text"
+        // The palette covers the button that opened it, so without this the user would be
+        // looking at an input that needs a second click before it takes a keystroke.
+        autoFocus
         onKeyDown={handleKeyDown}
         value={input}
         onChange={(e) => setInput(e.target.value)}
@@ -111,7 +114,8 @@ const FileSearch = ({ onClose }: FileSearchProps) => {
               onClick={() => handleFileClick(file.name, file.path, file.type)}
               className={`palette-item ${selectedIndex === index ? 'selected' : ''}`}
             >
-              {file.name} -- {file.path}
+              <div className="commandName">{file.name}</div>
+              <div className="commandDescription">{file.path}</div>
             </li>
           ))}
       </ul>

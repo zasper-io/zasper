@@ -4,31 +4,29 @@
 // which is why it lives beside them both as palette.scss rather than inside
 // command/ as CommandPalette.scss. Both import it. Class names are `palette-*` for
 // the same reason: the shape belongs to neither feature.
+//
+// One exception to that: `.palette-input` is styled in Topbar.scss, alongside the
+// .openCommandPaletteButton it stands exactly on top of. Two sets of declarations for one
+// box drift apart, and the drift shows as the field changing appearance when the palette
+// opens. Only the input's placement is described here.
 
+// Anchored to .searchArea, which Topbar.scss makes the containing block, rather
+// than centred on the window: the palette is the box .openCommandPaletteButton
+// occupies, and it covers that button instead of standing beside it. No padding of
+// its own, so the input inside it lands on the button's footprint.
 .palette {
-  position: fixed;
-  top: 2px;
-  // 50%, with the -50% translate below, to centre on the window.
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 750px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   max-height: 300px;
   background-color: var(--z-bg-palette);
   box-shadow: var(--z-shadow-medium);
-  border-radius: 8px;
+  border-radius: 2px;
   z-index: 9999;
-  padding: 10px;
+  // Clips the last row's hover fill to the rounded corners.
+  overflow: hidden;
   box-sizing: border-box;
-}
-
-.palette-input {
-  width: 100%;
-  height: var(--z-ui-control-height);
-  padding: 0 8px;
-  border: 1px solid var(--z-border-divider);
-  border-radius: 4px;
-  font-size: var(--z-ui-font-size);
-  margin-bottom: 10px;
 }
 
 .palette-list {
@@ -37,6 +35,12 @@
   padding: 0;
   margin: 0;
   list-style: none;
+}
+
+// The gap between input and list belongs to the list, not the input: with nothing
+// to show, the panel is then exactly the button it covers rather than 4px taller.
+.palette-list:not(:empty) {
+  margin-top: 4px;
 }
 
 // The palette floats over the topbar and shares its background, so its rows are
@@ -54,6 +58,12 @@
   color: var(--z-fg-on-chrome);
 }
 
+// The palette is only as wide as the search box, so the last row's rule would
+// otherwise sit on the panel's bottom edge.
+.palette-item:last-child {
+  border-bottom: none;
+}
+
 // Hovering used to swap in --z-bg-menu-hover, a *panel* colour: in the light
 // theme that turned the row near-white while the text stayed white. The palette
 // gets its own hover surface so the row keeps its chrome contrast.
@@ -68,9 +78,9 @@
   font-size: 12px;
 }
 
-// Only CommandPalette renders these two columns, but keeping them here means the
-// whole widget is described in one file. Flex items in a .palette-item row, so the row sizes
-// to them.
+// A row's two columns: name plus a secondary line — the command's description, or
+// the file's path. Both ellipsise rather than overflow, because the palette is now
+// only as wide as the search box.
 .commandName {
   flex: 0 0 220px;
   overflow: hidden;

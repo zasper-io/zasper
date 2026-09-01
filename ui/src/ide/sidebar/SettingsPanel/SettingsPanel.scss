@@ -30,7 +30,6 @@
 
   border: 1px solid var(--z-border);
   border-radius: 0.25em;
-  padding: 0 0.5em;
 
   // An explicit height, because the <select> inside cannot supply one: Chromium ignores
   // `line-height` on a native select, so a line-height-only control clips its option text.

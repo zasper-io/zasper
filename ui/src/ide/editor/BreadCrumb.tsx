@@ -8,7 +8,7 @@ interface BreadCrumbProps {
 export default function BreadCrumb(props: BreadCrumbProps) {
   // Paths are relative to the project root, and a top-level file splits to a single segment
   // while a nested one splits to an empty leading segment. Lead with `root` in both cases.
-  const crumbs = ['root', ...props.path.split('/').filter((segment) => segment !== '')];
+  const crumbs = ['Project Root', ...props.path.split('/').filter((segment) => segment !== '')];
 
   return (
     <div className="breadcrumbArea">

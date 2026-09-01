@@ -1,16 +1,39 @@
+// The search field, and the palette input that replaces it in place when the palette opens.
+// One rule for both: these are meant to be the same box, so any appearance property that
+// differs between them reads as a flicker on open — a border colour, a text offset, a ring.
+//
+// The magnifier is a sibling of both rather than a child of either (see .searchIcon), which is
+// why they reserve 34px on the left instead of carrying an icon each.
+.openCommandPaletteButton,
+.palette-input {
+  width: 100%;
+  height: var(--z-ui-control-height);
+  padding: 0 12px 0 34px;
+  border: 1px solid var(--z-border);
+  border-radius: 2px;
+  background-color: var(--z-bg-input);
+  color: var(--z-fg-on-chrome);
+  font-size: var(--z-ui-font-size);
+  text-align: left;
+}
+
+// Full --z-fg-on-chrome, not a dimmed version: this text stands exactly where the button's
+// label was.
+.palette-input::placeholder {
+  color: var(--z-fg-on-chrome);
+}
+
+// The palette only ever exists with this field focused, so a focus ring is permanent
+// decoration — and a ring drawn outside the border is the flicker again. The palette
+// appearing is itself the indication of where the keystrokes go.
+.palette-input:focus {
+  outline: none;
+}
+
 // Flex-centred rather than padded to height: it has to fit the 24px box .searchArea gives it.
 .openCommandPaletteButton {
-  border: 1px solid var(--z-border);
-  color: var(--z-fg-on-chrome);
-  padding: 0 12px 0 34px;
-  border-radius: 2px;
-  position: relative;
-  width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
-  text-align: left;
-  background-color: var(--z-bg-input);
 }
 
 .userName {
@@ -68,35 +91,34 @@
     display: flex;
     align-items: center;
     height: var(--z-ui-control-height);
+    // The containing block for .palette, which is a child of this box and sizes to
+    // it — that is how the palette ends up exactly as wide as the button.
+    position: relative;
+
+    // Above .palette's 9999 rather than inside either field, so one magnifier serves the
+    // button and the palette input that covers it. Not a pointer target: a click on the
+    // glyph belongs to whichever of the two is underneath it.
+    .searchIcon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      // Square rather than the file's 14.963x15.468: at width alone the height came out
+      // 13.4375 and centring put the glyph on a fractional y. The 3% squash is invisible.
+      width: 13px;
+      height: 13px;
+      // search.svg bakes in fill:#ffffff, so it disappears on a theme with a light topbar.
+      // Same filter the project banner's white icons use.
+      filter: var(--z-filter-chrome-icon);
+      z-index: 10000;
+      pointer-events: none;
+    }
   }
 
   .search-wraper {
     position: relative;
     width: 100%;
     height: 100%;
-  }
-
-  .search-wraper input {
-    border: 1px solid var(--z-border);
-    color: var(--z-fg-on-chrome);
-    padding: 0 12px;
-    border-radius: 2px;
-    position: relative;
-    width: 100%;
-    height: 100%;
-    padding-left: 34px;
-    background-color: var(--z-bg-input);
-  }
-  .search-wraper input::placeholder {
-    color: var(--z-fg-on-chrome);
-  }
-
-  .search-wraper img {
-    width: 13px;
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translate(0px, -50%);
   }
 
   .logoutButton {
