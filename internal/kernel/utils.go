@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	mrand "math/rand/v2"
 	"net"
 	"os"
 	"runtime"
@@ -52,53 +51,40 @@ var (
 	portMutex          sync.Mutex
 )
 
-func isPortAvailable(port int) bool {
-	// Test localhost binding (what Python ZeroMQ uses)
-	localListener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	if err != nil {
-		log.Debug().Msgf("Port %d: localhost binding failed - %v", port, err)
-		return false
-	}
-	defer localListener.Close()
-
-	// Test all-interfaces binding (for completeness)
-	allListener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		log.Debug().Msgf("Port %d: all-interfaces binding failed - %v", port, err)
-		return false
-	}
-	defer allListener.Close()
-
-	log.Debug().Msgf("Port %d: available on both 127.0.0.1 and 0.0.0.0", port)
-	return true
-}
-
+// findAvailablePort asks the kernel for a free port on the loopback interface, the same way
+// jupyter_client does: bind to port 0, read what was assigned, and let go of it. The kernel process
+// binds it a moment later, so the port is only reserved by convention — the tracking list is what
+// stops two kernels being handed the same one before either has bound it.
 func findAvailablePort() (int, error) {
 	portMutex.Lock()
 	defer portMutex.Unlock()
 
-	maxAttempts := 100
+	// A handful of attempts, only to step over a port already handed out and not yet bound. There is
+	// nothing to retry when the OS is out of ports.
+	const maxAttempts = 10
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		port := mrand.IntN(1000) + 5000
+		// 127.0.0.1 and not every interface: that is where the kernel binds (see createKernelManager),
+		// and asking about the wildcard address answers a question nobody asked.
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return 0, fmt.Errorf("could not open a port to be assigned one: %w", err)
+		}
+		port := listener.Addr().(*net.TCPAddr).Port
+		if err := listener.Close(); err != nil {
+			return 0, fmt.Errorf("could not release port %d after being assigned it: %w", port, err)
+		}
 
-		// Skip if we've already allocated this port
 		if portExists(port) {
 			log.Debug().Msgf("Port %d: already in our tracking list", port)
 			continue
 		}
 
-		// Check if port is available on both interfaces
-		if !isPortAvailable(port) {
-			continue
-		}
-
-		// Port is free - claim it
 		currentlyUsedPorts = append(currentlyUsedPorts, port)
 		log.Debug().Msgf("Successfully allocated port %d", port)
 		return port, nil
 	}
 
-	return 0, fmt.Errorf("could not find available port after %d attempts", maxAttempts)
+	return 0, fmt.Errorf("could not find an unclaimed port after %d attempts", maxAttempts)
 }
 
 func portExists(portNum int) bool {

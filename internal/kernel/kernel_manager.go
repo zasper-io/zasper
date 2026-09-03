@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"slices"
@@ -47,9 +48,11 @@ func (km *KernelManager) StartKernel(kernelName string) error {
 
 	km.AttemptedStart = true
 
-	kernelCmd, kw := km.asyncPrestartKernel(kernelName)
-	err := km.LaunchKernel(kernelCmd, kw)
+	kernelCmd, kw, err := km.asyncPrestartKernel(kernelName)
 	if err != nil {
+		return err
+	}
+	if err := km.LaunchKernel(kernelCmd, kw); err != nil {
 		return err
 	}
 	km.Ready = true
@@ -58,6 +61,17 @@ func (km *KernelManager) StartKernel(kernelName string) error {
 
 func (km *KernelManager) StopKernel(kernelId string) error {
 	km.ShuttingDown = true
+	// The kernel is about to let go of its five ports, so they go back on offer. Without this the
+	// tracking list only grows, and a long-lived server starts refusing to allocate.
+	for _, port := range []int{
+		km.ConnectionInfo.ShellPort,
+		km.ConnectionInfo.IopubPort,
+		km.ConnectionInfo.StdinPort,
+		km.ConnectionInfo.HbPort,
+		km.ConnectionInfo.ControlPort,
+	} {
+		releasePort(port)
+	}
 	return km.Provisioner.ShutdownKernel()
 }
 
@@ -65,7 +79,7 @@ func (km *KernelManager) getKernelspec() kernelspec.KernelSpecJsonData {
 	return kernelspec.GetKernelSpec(km.KernelName)
 }
 
-func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[string]interface{}) {
+func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[string]interface{}, error) {
 	km.ShuttingDown = false
 
 	km.Provisioner = provisioner.LocalProvisioner{
@@ -76,10 +90,13 @@ func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[s
 
 	log.Debug().Msgf("kernelspec created is: %v", km.Provisioner.Kernelspec)
 
-	kw := km.preLaunch()
+	kw, err := km.preLaunch()
+	if err != nil {
+		return nil, nil, err
+	}
 	kernelCmd := kw["cmd"].([]string)
 	log.Debug().Msgf("kenelName: %s", kernelName)
-	return kernelCmd, kw
+	return kernelCmd, kw, nil
 }
 
 var LOCAL_IPS []string
@@ -104,7 +121,7 @@ func (km *KernelManager) LaunchKernel(kernelCmd []string, kw map[string]interfac
 	return nil
 }
 
-func (km *KernelManager) preLaunch() map[string]interface{} {
+func (km *KernelManager) preLaunch() (map[string]interface{}, error) {
 
 	if km.ConnectionInfo.Transport == "tcp" && !isLocalIP(km.ConnectionInfo.IP) {
 		log.Debug().Msg("Can only launch a kernel on a local interface.")
@@ -113,16 +130,29 @@ func (km *KernelManager) preLaunch() map[string]interface{} {
 	log.Debug().Msgf("km.Provisioner.PortsCached %t", km.Provisioner.PortsCached)
 
 	if km.CachePorts && !km.Provisioner.PortsCached {
-		km.ConnectionInfo.ShellPort, _ = findAvailablePort()
-		km.ConnectionInfo.IopubPort, _ = findAvailablePort()
-		km.ConnectionInfo.StdinPort, _ = findAvailablePort()
-		km.ConnectionInfo.HbPort, _ = findAvailablePort()
-		km.ConnectionInfo.ControlPort, _ = findAvailablePort()
+		// Every one of them, or none: a connection file with a 0 in it launches a kernel that binds a
+		// port the client will never dial, and the failure surfaces much later as a kernel that starts
+		// and then says nothing.
+		for _, port := range []*int{
+			&km.ConnectionInfo.ShellPort,
+			&km.ConnectionInfo.IopubPort,
+			&km.ConnectionInfo.StdinPort,
+			&km.ConnectionInfo.HbPort,
+			&km.ConnectionInfo.ControlPort,
+		} {
+			assigned, err := findAvailablePort()
+			if err != nil {
+				return nil, fmt.Errorf("no port for the kernel's channels: %w", err)
+			}
+			*port = assigned
+		}
 		log.Debug().Msgf("connectionInfo : %+v", km.ConnectionInfo)
 	}
 	log.Debug().Msgf("km.ConnectionFile : %+v", km.ConnectionFile)
 
-	km.writeConnectionFile(km.ConnectionFile)
+	if err := km.writeConnectionFile(km.ConnectionFile); err != nil {
+		return nil, err
+	}
 
 	kernelCmd := km.formatKernelCmd()
 	log.Debug().Msgf("kernel cmd is %s", kernelCmd)
@@ -130,7 +160,7 @@ func (km *KernelManager) preLaunch() map[string]interface{} {
 	env := make(map[string]interface{})
 	env["cmd"] = kernelCmd
 	env["env"] = os.Environ()
-	return env
+	return env, nil
 }
 
 func (km *KernelManager) formatKernelCmd() []string {
