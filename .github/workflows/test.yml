@@ -23,5 +23,6 @@ jobs:
       - name: Install dependencies
         run: make init
 
+      # The frontend half only: the Go tests are Go Build's job, and `make test` now runs both.
       - name: Run the tests
-        run: make test
+        run: make test-frontend

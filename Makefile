@@ -67,7 +67,7 @@ show-version:
 VERSION_BUILD_FLAG = "-X main.version=$(CURRENT_VERSION)"
 
 
-.PHONY: init build start dev webapp-install
+.PHONY: init build start dev webapp-install test test-frontend test-go e2e e2e-api e2e-browser
 
 # Initialize the project by installing frontend dependencies
 init:
@@ -100,6 +100,27 @@ clean:
 
 
 # Run the tests
-test:
+test: test-frontend test-go
+
+test-frontend:
 	@echo "Running tests on frontend"
 	cd ui && npm test
+
+# -race because several of these tests are about concurrent requests for the same kernel or session.
+test-go:
+	@echo "Running tests on backend"
+	go test -race -tags apiserver ./internal/...
+
+# End-to-end: the two halves against each other. See e2e/README.md.
+e2e: e2e-api e2e-browser
+
+# No browser and no frontend build; skips the kernel journeys if no kernelspec is runnable.
+e2e-api:
+	@echo "Running the API journeys"
+	go test -race -tags apiserver ./internal/server/...
+
+# Builds the frontend first: the server embeds ui/build, and a stale build tests a stale app.
+e2e-browser:
+	@echo "Running the browser journeys"
+	cd ui && npm run build
+	cd e2e && npm install && npx playwright test

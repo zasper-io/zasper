@@ -142,13 +142,16 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		PollingCancel: cancel, // Store the cancel function so it can be called later to stop polling
 	}
 
+	// Registered before it is connected, not after: connecting nudges the kernel and waits up to two
+	// seconds for an answer, and a kernel killed in that window left the client socket open forever on
+	// channels that no longer had a kernel behind them.
+	setKernelConnection(kernelId, &kernelConnection)
+
 	log.Debug().Msg("preparing kernel connection")
 	kernelConnection.Prepare(sessionId)
 
 	log.Debug().Msg("connecting kernel")
 	kernelConnection.Connect()
-
-	setKernelConnection(kernelId, &kernelConnection)
 
 	var waiter sync.WaitGroup
 	waiter.Add(2)

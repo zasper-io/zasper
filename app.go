@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os/signal"
@@ -13,67 +12,15 @@ import (
 	"os"
 
 	"github.com/zasper-io/zasper/internal/analytics"
-	"github.com/zasper-io/zasper/internal/auth"
-	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
-	"github.com/zasper-io/zasper/internal/gitclient"
-	"github.com/zasper-io/zasper/internal/health"
 	"github.com/zasper-io/zasper/internal/kernel"
-	"github.com/zasper-io/zasper/internal/kernelspec"
-	"github.com/zasper-io/zasper/internal/search"
-	"github.com/zasper-io/zasper/internal/session"
-	"github.com/zasper-io/zasper/internal/websocket"
+	"github.com/zasper-io/zasper/internal/server"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
-
-// Response structure to return as JSON
-type InfoResponse struct {
-	ProjectName string `json:"project"`
-	UserName    string `json:"username"`
-	OS          string `json:"os"`
-	Version     string `json:"version"`
-	Theme       string `json:"theme"`
-	Protected   bool   `json:"protected"`
-}
-
-type ConfigResponse struct {
-	Version   string `json:"version"`
-	Protected bool   `json:"protected"`
-}
-
-func InfoHandler(w http.ResponseWriter, r *http.Request) {
-	theme, _ := core.GetTheme()
-	response := InfoResponse{
-		ProjectName: core.Zasper.ProjectName,
-		UserName:    core.Zasper.UserName,
-		OS:          core.Zasper.OSName,
-		Version:     core.Zasper.Version,
-		Theme:       theme,
-		Protected:   core.Zasper.Protected,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	json.NewEncoder(w).Encode(response)
-}
-
-func ConfigHandler(w http.ResponseWriter, r *http.Request) {
-	response := ConfigResponse{
-		Version:   core.Zasper.Version,
-		Protected: core.Zasper.Protected,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	json.NewEncoder(w).Encode(response)
-}
 
 var version string
 
@@ -115,81 +62,11 @@ func main() {
 		}
 	}
 
-	router := mux.NewRouter()
-
 	core.Zasper = core.SetUpZasper(version, *cwd, *protected)
-	core.SetUpActiveSessions()
-	content.SetUpActiveWatcherConnections()
-	kernel.SetUpStateKernels()
-	websocket.SetUpKernelConnections()
-	// Killing a kernel has to close the sockets its notebooks are listening on.
-	kernel.OnKernelDisconnect(websocket.CloseKernelConnections)
-	// A renamed or moved notebook keeps its session, which is keyed on the path it no longer has.
-	content.OnContentMoved = func(from, to string) { session.RelocateSessions(from, to) }
+	server.SetUp()
 	kernel.ProtocolVersion = "5.3"
 
-	// API routes
-	apiRouter := router.PathPrefix("/api").Subrouter()
-
-	authRouter := router.PathPrefix("/auth").Subrouter()
-	staticRouter := router.PathPrefix("/static").Subrouter()
-	wsRouter := router.PathPrefix("/ws").Subrouter()
-	if *protected {
-		apiRouter.Use(auth.JwtAuthMiddleware)
-	}
-	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
-	router.HandleFunc("/api/config", ConfigHandler).Methods("GET")
-
-	apiRouter.HandleFunc("/info", InfoHandler).Methods("GET")
-
-	// config
-	apiRouter.HandleFunc("/config/modify", core.ConfigModifyHandler).Methods("POST")
-
-	authRouter.HandleFunc("/login", auth.LoginHandler).Methods("POST")
-
-	// contents
-	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents", content.ContentAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")
-
-	apiRouter.HandleFunc("/contents/rename", content.ContentRenameAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents/move", content.ContentMoveAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents/copy", content.ContentCopyAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
-	apiRouter.HandleFunc("/contents/download", content.ContentDownloadAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/contents/watch", content.HandleWatchWebSocket).Methods("GET")
-	apiRouter.HandleFunc("/contents/upload", content.UploadFileHandler).Methods("POST")
-
-	// search
-	apiRouter.HandleFunc("/files", search.GetFileSuggestions).Methods("GET")
-
-	// git
-	apiRouter.HandleFunc("/commit-graph", gitclient.CommitGraphHandler).Methods("GET")
-	apiRouter.HandleFunc("/uncommitted-files", gitclient.GetUncommittedFilesHandler).Methods("GET")
-	apiRouter.HandleFunc("/commit-and-maybe-push", gitclient.CommitAndMaybePushHandler).Methods("POST")
-	apiRouter.HandleFunc("/current-branch", gitclient.BranchHandler).Methods("GET")
-
-	// kernelspecs
-	apiRouter.HandleFunc("/kernelspecs", kernelspec.KernelspecAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/kernelspecs/{kernelName}", kernelspec.SingleKernelspecAPIHandler).Methods("GET")
-	staticRouter.HandleFunc("/kernelspecs/{kernel}/{resource}", kernelspec.ServeKernelResource).Methods("GET")
-
-	// kernels
-	apiRouter.HandleFunc("/kernels", kernel.KernelListAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelReadAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/kernels/{kernelId}/interrupt", kernel.KernelInterruptAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/kernels/{kernelId}/stop", kernel.KernelKillAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelKillAPIHandler).Methods("DELETE")
-
-	// sessions
-	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")
-	apiRouter.HandleFunc("/sessions", session.SessionCreateApiHandler).Methods("POST")
-	apiRouter.HandleFunc("/sessions/{sessionId}", session.SessionDeleteApiHandler).Methods("DELETE")
-
-	//web sockets
-	wsRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)
-	wsRouter.HandleFunc("/kernels/{kernel_id}", websocket.KernelDeleteAPIHandler).Methods("DELETE")
-	wsRouter.HandleFunc("/terminals/{terminalId}", websocket.HandleTerminalWebSocket)
+	router := server.NewRouter(getSpaHandler())
 
 	//cors optionsGoes Below
 	corsOpts := cors.New(cors.Options{
@@ -208,8 +85,6 @@ func main() {
 			"*", //or you can your header key values which you are using in your application
 		},
 	})
-
-	router.PathPrefix("/").Handler(getSpaHandler())
 
 	// Track server start and stop events if tracking is enabled
 	// Note that this helps me understand if the users are actually using Zasper
