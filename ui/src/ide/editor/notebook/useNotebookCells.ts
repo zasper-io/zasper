@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import { getNotebook, ICell, INotebookModel } from '@/api';
+import { apiErrorMessage, getNotebook, ICell, INotebookModel } from '@/api';
 
 import { applyKernelMessage, IKernelMessage } from './kernelMessages';
 
@@ -38,7 +38,12 @@ export function useNotebookCells() {
   const [cutCellIndex, setCutCellIndex] = useState<number | null>(null);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const loadNotebook = useCallback(async (path: string) => {
+  /**
+   * Reads the document into this hook, resolving to it, or to null when it could not be read; it
+   * never rejects, the reason is left in `error` for the editor to show. The document is handed back
+   * because the caller needs it to start the kernel it names, before this state has been committed.
+   */
+  const loadNotebook = useCallback(async (path: string): Promise<INotebookModel | null> => {
     try {
       const resJson = await getNotebook(path);
 
@@ -51,9 +56,13 @@ export function useNotebookCells() {
       });
       setNotebook(resJson.content);
       setLoading(false);
+      return resJson.content;
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      // The server's own reason, not the status line: that sentence is what the editor shows in
+      // place of the cells.
+      setError(apiErrorMessage(err));
       setLoading(false); // Ensure loading is set to false
+      return null;
     }
   }, []);
 

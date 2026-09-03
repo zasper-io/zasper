@@ -1,4 +1,4 @@
-export { ApiError, logApiError } from './client';
+export { ApiError, apiErrorMessage, logApiError } from './client';
 export * from './auth';
 export * from './config';
 export * from './contents';

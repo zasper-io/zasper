@@ -1,11 +1,17 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 import { w3cwebsocket as W3CWebSocket } from 'websocket';
 import { v4 as uuidv4 } from 'uuid';
 
-import { createSession, deleteSession, interruptKernel, ISession } from '@/api';
+import { createSession, deleteSession, interruptKernel, INotebookMetadata, ISession } from '@/api';
 import { BaseWebSocketUrl } from '@/config';
-import { kernelsAtom, notebookKernelMapAtom, userNameAtom } from '@/store/AppState';
+import {
+  IKernelspecsState,
+  kernelsAtom,
+  kernelspecsAtom,
+  notebookKernelMapAtom,
+  userNameAtom,
+} from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
 import {
   buildCompleteRequest,
@@ -23,6 +29,44 @@ import {
  * the answer is wrong. Better to drop it than to pop a stale list over the cursor.
  */
 const COMPLETION_TIMEOUT_MS = 2000;
+
+/** The kernelspec a tab carries when it does not know one, i.e. "ask which kernel". */
+export const NO_KERNEL = 'none';
+
+/**
+ * Which kernel to start for a notebook that has just been read.
+ *
+ * Only the Launcher's "new notebook" knows a kernel up front; every other way of opening one passes
+ * 'none', so `metadata.kernelspec` is the only record of the kernel the file was saved with.
+ * Returns 'none' when there is no usable answer, which is what raises the picker.
+ */
+export function kernelToStart(
+  tabKernelspec: string,
+  metadata: INotebookMetadata,
+  installed: IKernelspecsState
+): string {
+  // A kernel chosen for this tab outranks the file: for a notebook created from the Launcher the
+  // file names none at all.
+  if (tabKernelspec !== '' && tabKernelspec !== NO_KERNEL) {
+    return tabKernelspec;
+  }
+
+  // Zasper wrote a bare string here before, so both shapes are on disk.
+  const saved =
+    typeof metadata.kernelspec === 'string' ? metadata.kernelspec : metadata.kernelspec?.name;
+  if (saved === undefined || saved === '' || saved === NO_KERNEL) {
+    return NO_KERNEL;
+  }
+
+  // Ask rather than fail: a notebook written elsewhere can name a kernel that is not installed
+  // here. An empty list means the kernelspecs have not been fetched yet, which is no evidence that
+  // the kernel is missing.
+  if (Object.keys(installed).length > 0 && !(saved in installed)) {
+    return NO_KERNEL;
+  }
+
+  return saved;
+}
 
 type IKernelWebSocketClient = W3CWebSocket;
 
@@ -56,6 +100,13 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
   const [, setKernels] = useAtom(kernelsAtom);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
   const [userName] = useAtom(userNameAtom);
+  const [kernelspecs] = useAtom(kernelspecsAtom);
+  // In a ref because `startSessionForNotebook` reads it: as a dependency it would rebuild that
+  // callback when the kernelspecs arrive, and the effect that opens a notebook would run twice.
+  const installedKernels = useRef(kernelspecs);
+  useEffect(() => {
+    installedKernels.current = kernelspecs;
+  }, [kernelspecs]);
 
   const toggleKernelSwitcher = () => setShowKernelSwitcher((prev) => !prev);
   const toggleErrorDialog = () => setShowErrorDialog((prev) => !prev);
@@ -119,7 +170,7 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
     async (path: string, name: string, type: string, kernelspec: string) => {
       setKernelName(kernelspec);
 
-      if (kernelspec === 'none') {
+      if (kernelspec === NO_KERNEL) {
         setShowKernelSwitcher(true);
         return; // Resolve immediately, no kernel
       }
@@ -153,6 +204,14 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
       });
     },
     [startSession, tab.path, tab.name, tab.type]
+  );
+
+  /** Starts the session for a notebook just read, on the kernel `kernelToStart` picks for it. */
+  const startSessionForNotebook = useCallback(
+    (metadata: INotebookMetadata) => {
+      startTabSession(kernelToStart(tab.kernelspec, metadata, installedKernels.current));
+    },
+    [startTabSession, tab.kernelspec]
   );
 
   const changeKernel = (value: string) => {
@@ -278,6 +337,7 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
     promptContent,
     toggleShowPrompt,
     startTabSession,
+    startSessionForNotebook,
     changeKernel,
     interruptKernel: interrupt,
     restartKernel,

@@ -1,9 +1,35 @@
 package content
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
+
+/*
+MultilineText is nbformat's "multiline string": a JSON string or a list of strings, which mean the
+same text. The format allows either, so decoding has to accept both — a bare []string makes a
+string-valued `source` an unmarshal error.
+*/
+type MultilineText []string
+
+func (m *MultilineText) UnmarshalJSON(data []byte) error {
+	var lines []string
+	if err := json.Unmarshal(data, &lines); err == nil {
+		*m = lines
+		return nil
+	}
+
+	var single string
+	if err := json.Unmarshal(data, &single); err != nil {
+		return fmt.Errorf("expected a string or a list of strings, got %s", string(data))
+	}
+
+	// Kept as one element: everything here is joined with "" on the way out, and the write path
+	// splits on newlines again.
+	*m = MultilineText{single}
+	return nil
+}
 
 func _isJSONMime(mime string) bool {
 	// _isJSONMime checks if a MIME type is JSON.
@@ -48,7 +74,9 @@ func rejoinMimeBundle(data map[string]interface{}) map[string]interface{} {
 // convert notebook disk from json to be rendered to outside world
 func rejoinLines(nbDisk NotebookDisk) Notebook {
 	nb := Notebook{
-		Metadata: nbDisk.Metadata,
+		Metadata:      nbDisk.Metadata,
+		Nbformat:      nbDisk.Nbformat,
+		NbformatMinor: nbDisk.NbformatMinor,
 	}
 	for _, cell := range nbDisk.Cells {
 		data := ""
@@ -137,10 +165,23 @@ func splitMimeBundle(data map[string]interface{}) map[string]interface{} {
 // splitLines splits likely multi-line text into lists of strings.
 func convertToNbDisk(nb Notebook) NotebookDisk {
 	nbDisk := NotebookDisk{
-		Cells:         []CellDisk{},
-		Metadata:      nb.Metadata,
+		Cells: []CellDisk{},
+		// Never nil: nbformat requires `metadata` to be an object, and a client that sends none would
+		// otherwise have `"metadata": null` written to disk.
+		Metadata:      NotebookMetadata{},
 		Nbformat:      4,
 		NbformatMinor: 5,
+	}
+	if nb.Metadata != nil {
+		nbDisk.Metadata = nb.Metadata
+	}
+	// Keep the document's own version when the client sent one back, rather than relabelling every
+	// save as 4.5.
+	if nb.Nbformat != 0 {
+		nbDisk.Nbformat = nb.Nbformat
+	}
+	if nb.NbformatMinor != 0 {
+		nbDisk.NbformatMinor = nb.NbformatMinor
 	}
 	for _, outCell := range nb.Cells {
 		// Convert string slice to []interface{}
@@ -231,7 +272,7 @@ type Notebook struct {
 
 // Cell struct for handling individual cells in a notebook
 type CellDisk struct {
-	Source         []string               `json:"source"`
+	Source         MultilineText          `json:"source"`
 	ExecutionCount int                    `json:"execution_count"`
 	CellType       string                 `json:"cell_type"`
 	Attachments    map[string]interface{} `json:"attachments"`
@@ -248,30 +289,19 @@ type Cell struct {
 	CellMetadata   map[string]interface{} `json:"metadata"`
 }
 
-type NotebookLanguageInfo struct {
-	CodemirrorMode  string `json:"codemirror_mode"`
-	FileExtension   string `json:"file_extension"`
-	Mimetype        string `json:"mimetype"`
-	Name            string `json:"name"`
-	Version         string `json:"version"`
-	NbConvertExport string `json:"nbconvert_exporter"`
-	PygmentsLexer   string `json:"pygments_lexer"`
-}
-
-type NotebookMetadata struct {
-	KernelSpec   string               `json:"kernelspec"`
-	DisplayName  string               `json:"display_name"`
-	Language     string               `json:"language"`
-	Name         string               `json:"name"`
-	LanguageInfo NotebookLanguageInfo `json:"language_info"`
-}
+/*
+Notebook metadata is carried through opaquely. nbformat lets a writer put arbitrary keys here, and
+the standard ones vary in shape: `kernelspec` is an object, and `language_info.codemirror_mode` is
+sometimes a string and sometimes an object. A map round-trips all of it and cannot fail to decode.
+*/
+type NotebookMetadata map[string]interface{}
 
 // Output struct for handling cell outputs
 type OutputDisk struct {
 	OutputType     string                 `json:"output_type"`
 	ExecutionCount int                    `json:"execution_count"`
 	Data           map[string]interface{} `json:"data"`
-	Text           []string               `json:"text"`
+	Text           MultilineText          `json:"text"`
 	Metadata       map[string]interface{} `json:"metadata"`
 	// in case of error traceback
 	Ename     string   `json:"ename,omitempty"`

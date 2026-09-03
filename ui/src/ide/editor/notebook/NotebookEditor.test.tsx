@@ -4,8 +4,19 @@ import { Provider } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import NotebookEditor from './NotebookEditor';
+// Straight from the module, not through the mocked '@/api': this is what a failed request rejects
+// with, and the banner is meant to read the reason out of it.
+import { ApiError } from '@/api/client';
 import { useRunCommand } from '@/commands/registry';
+import { IKernelspecsState, kernelspecsAtom } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
+
+/** The installed kernels, as /api/kernelspecs reports them: keyed by name. */
+function installedKernelspecs(...names: string[]): IKernelspecsState {
+  return Object.fromEntries(
+    names.map((name) => [name, { name, spec: { display_name: name }, resources: {} }])
+  );
+}
 
 const notebookContent = {
   cells: [
@@ -34,14 +45,17 @@ const session = {
 
 const getNotebook = vi.fn();
 const createSession = vi.fn();
+const saveNotebook = vi.fn();
 
-vi.mock('@/api', () => ({
+vi.mock('@/api', async () => ({
   getNotebook: (path: string) => getNotebook(path),
   createSession: (path: string, name: string, type: string, kernelspec: string) =>
     createSession(path, name, type, kernelspec),
   deleteSession: vi.fn(),
   interruptKernel: vi.fn(),
-  saveNotebook: vi.fn(),
+  saveNotebook: (path: string, notebook: unknown) => saveNotebook(path, notebook),
+  // Not stubbed: what it extracts from a failed request is what the load-error banner shows.
+  apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
   logApiError: () => () => {},
 }));
 
@@ -258,6 +272,72 @@ describe('NotebookEditor', () => {
     await waitFor(() => expect(container.querySelector('.ks-busy')).toBeInTheDocument());
   });
 
+  // Every way of opening an existing notebook passes a kernelspec of 'none', so the file — not the
+  // tab — is what a reopened notebook gets its kernel from.
+  it('attaches the kernel the notebook was saved with', async () => {
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: {
+        ...structuredClone(notebookContent),
+        metadata: { kernelspec: { name: 'python3', display_name: 'Python 3' } },
+      },
+    });
+
+    render(<NotebookEditor data={{ ...tab, kernelspec: 'none' }} />);
+
+    await waitFor(() =>
+      expect(createSession).toHaveBeenCalledWith(
+        'notebook.ipynb',
+        'notebook.ipynb',
+        'notebook',
+        'python3'
+      )
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    expect(screen.queryByText('Current Kernel : none')).not.toBeInTheDocument();
+  });
+
+  it('asks which kernel to use when the saved one is not installed', async () => {
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: {
+        ...structuredClone(notebookContent),
+        metadata: { kernelspec: { name: 'python2', display_name: 'Python 2' } },
+      },
+    });
+
+    render(
+      <Provider initialValues={[[kernelspecsAtom, installedKernelspecs('python3')]]}>
+        <NotebookEditor data={{ ...tab, kernelspec: 'none' }} />
+      </Provider>
+    );
+
+    expect(await screen.findByText('Current Kernel : none')).toBeInTheDocument();
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it('offers the kernel picker when neither the tab nor the file names a kernel', async () => {
+    render(<NotebookEditor data={{ ...tab, kernelspec: 'none' }} />);
+
+    expect(await screen.findByText('Current Kernel : none')).toBeInTheDocument();
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  // The picker would otherwise cover the error the reader is meant to see, with a modal asking
+  // which kernel to run a notebook nobody could read.
+  it('does not raise the kernel picker over a notebook that could not be loaded', async () => {
+    getNotebook.mockRejectedValue(new ApiError('POST', '/api/contents', 400, ''));
+
+    render(<NotebookEditor data={{ ...tab, kernelspec: 'none' }} />);
+
+    await screen.findByRole('alert');
+    expect(screen.queryByText('Current Kernel : none')).not.toBeInTheDocument();
+  });
+
   it('does not load or start anything when the tab is already loaded', async () => {
     render(<NotebookEditor data={{ ...tab, load_required: false }} />);
 
@@ -296,6 +376,8 @@ describe('NotebookEditor commands', () => {
     createSession.mockImplementation((path: string) =>
       Promise.resolve({ ...session, id: `session-${path}`, path, name: path })
     );
+    saveNotebook.mockReset();
+    saveNotebook.mockResolvedValue(undefined);
   });
 
   function socketFor(path: string): IFakeSocket {
@@ -371,6 +453,78 @@ describe('NotebookEditor commands', () => {
     expect(sockets).toHaveLength(0);
     // Not merely unsent: no spinner either, because the cell was never marked running.
     expect(document.querySelector('.spinner')).not.toBeInTheDocument();
+  });
+
+  // The server round-trips metadata it does not understand, so a save must not be the place it gets
+  // dropped: everything the file arrived with is sent back, with only kernelspec updated.
+  it('saves without discarding metadata it did not set', async () => {
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: {
+        ...structuredClone(notebookContent),
+        metadata: {
+          kernelspec: { name: 'python2', display_name: 'Python 2' },
+          language_info: { name: 'python', codemirror_mode: { name: 'ipython', version: 3 } },
+          widgets: { state: {} },
+        },
+      },
+    });
+
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:save" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    dispatch();
+
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    const [path, saved] = saveNotebook.mock.calls[0];
+    expect(path).toBe('notebook.ipynb');
+    expect(saved.metadata.language_info).toEqual({
+      name: 'python',
+      codemirror_mode: { name: 'ipython', version: 3 },
+    });
+    expect(saved.metadata.widgets).toEqual({ state: {} });
+    // The one key the editor owns: the kernel actually attached, as nbformat spells it.
+    expect(saved.metadata.kernelspec).toEqual({ name: 'python3', display_name: 'python3' });
+  });
+
+  // A failed read leaves the editor holding its empty starting state, so it has to say why — with
+  // the server's own reason, not just the status — and must not write that state over the file.
+  it('reports a notebook it could not load, and refuses to save over it', async () => {
+    getNotebook.mockRejectedValue(
+      new ApiError(
+        'POST',
+        '/api/contents',
+        400,
+        JSON.stringify({ message: 'not a valid notebook: unexpected end of JSON input' })
+      )
+    );
+
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:save" />
+      </Provider>
+    );
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('could not be loaded');
+    expect(alert).toHaveTextContent('not a valid notebook: unexpected end of JSON input');
+
+    dispatch();
+
+    expect(dispatched()).toBe('false');
+    expect(saveNotebook).not.toHaveBeenCalled();
+    // And no kernel was started for it: there is nothing to run.
+    expect(createSession).not.toHaveBeenCalled();
+    expect(sockets).toHaveLength(0);
   });
 
   it('inserts a cell below the focused one', async () => {

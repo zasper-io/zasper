@@ -90,6 +90,25 @@ export async function requestEmpty(path: string, options?: RequestOptions): Prom
 }
 
 /**
+ * The most specific explanation a failed request carries, for the places that show one to the user.
+ * `ApiError.message` is only a status line; the server puts the reason in a JSON `message` field.
+ */
+export function apiErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    try {
+      const parsed = JSON.parse(error.body) as { message?: unknown };
+      if (typeof parsed.message === 'string' && parsed.message !== '') {
+        return parsed.message;
+      }
+    } catch {
+      // Not JSON. The raw body, when there is one, still says more than the status line.
+    }
+    return error.body === '' ? error.message : error.body;
+  }
+  return error instanceof Error ? error.message : 'An unknown error occurred';
+}
+
+/**
  * Reports a rejected request without propagating it, for the calls whose result
  * the UI does not act on.
  */

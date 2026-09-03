@@ -19,6 +19,22 @@
   margin-left: auto;
 }
 
+// Shown in place of the cells when the file could not be read.
+.notebookLoadError {
+  margin: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--z-status-error);
+  border-radius: 4px;
+  background: var(--z-bg-cell);
+  color: var(--z-fg-default);
+
+  p {
+    margin: 4px 0 0;
+    color: var(--z-fg-muted);
+    font-size: var(--z-ui-font-size);
+  }
+}
+
 // Overlaid on the cell's top edge rather than stacked above it, so taking focus does not
 // reflow the cell.
 .cellOptionsDiv {

@@ -15,7 +15,7 @@ func SendErrorResponse(w http.ResponseWriter, statusCode int, errorMessage strin
 	w.WriteHeader(statusCode)
 
 	errorResponse := ErrorResponse{
-		Error:   "Internal Server Error",
+		Error:   http.StatusText(statusCode),
 		Message: errorMessage,
 	}
 	json.NewEncoder(w).Encode(errorResponse)

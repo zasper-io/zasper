@@ -30,14 +30,17 @@ func GetContent(relativePath string, contentType string, format string, hash int
 
 	log.Debug().Msgf("Is directory %t", info.IsDir())
 	if info.IsDir() {
-		model, _ = getDirectoryModel(relativePath)
+		model, err = getDirectoryModel(relativePath)
 	} else {
 		if contentType == "notebook" {
-			model, _ = getNotebookModel(relativePath)
+			model, err = getNotebookModel(relativePath)
 		} else {
-			model, _ = getFileModelWithContent(relativePath)
+			model, err = getFileModelWithContent(relativePath)
 		}
 
+	}
+	if err != nil {
+		return models.ContentModel{}, err
 	}
 
 	return model, nil
@@ -60,11 +63,14 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 	as_version := 4
 	capture_validation_error := false
 
-	nb := nbformatReads(
+	nb, err := nbformatReads(
 		content,
 		as_version,
 		capture_validation_error,
 	)
+	if err != nil {
+		return models.ContentModel{}, err
+	}
 
 	output := models.ContentModel{
 		Name:          info.Name(),
@@ -76,12 +82,18 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 	return output, nil
 }
 
-func nbformatReads(data string, version int, capture_validation_error bool) Notebook {
+/*
+A decode failure is returned rather than dropped: encoding/json zeroes the field it could not
+decode and carries on, so discarding the error hands back a well-formed document with empty cells,
+indistinguishable from a genuinely empty notebook.
+*/
+func nbformatReads(data string, version int, capture_validation_error bool) (Notebook, error) {
 	var nb NotebookDisk
-	_ = json.Unmarshal([]byte(data), &nb)
-	output := parseNotebook(nb)
+	if err := json.Unmarshal([]byte(data), &nb); err != nil {
+		return Notebook{}, fmt.Errorf("not a valid notebook: %w", err)
+	}
 
-	return output
+	return parseNotebook(nb), nil
 }
 
 func getDirectoryModel(relativePath string) (models.ContentModel, error) {
@@ -354,8 +366,14 @@ func rename(parentDir, oldName, newName string) error {
 }
 
 func deleteFile(filename string) error {
-	err := os.Remove(GetSafePath(filename))
+	// Via the same helper as the writes, so a rejected path says why rather than failing as
+	// `remove : no such file or directory`.
+	osPath, err := safeWritePath(filename)
 	if err != nil {
+		return err
+	}
+
+	if err := os.Remove(osPath); err != nil {
 		return err
 	}
 	return nil
@@ -371,9 +389,17 @@ func IsDir(path string) bool {
 }
 
 func GetSafePath(path string) string {
+	// Resolved, because the containment check below compares strings and HomeDir is whatever came
+	// in on -cwd: a relative one would make every path look like an escape.
+	homeDir, err := filepath.Abs(core.Zasper.HomeDir)
+	if err != nil {
+		log.Printf("Error resolving home directory %s: %v", core.Zasper.HomeDir, err)
+		return ""
+	}
+
 	// Clean the path to remove any directory traversal components
 	cleanPath := filepath.Clean(path)
-	abspath := filepath.Join(core.Zasper.HomeDir, cleanPath)
+	abspath := filepath.Join(homeDir, cleanPath)
 
 	absPathResolved, err := filepath.Abs(abspath)
 	if err != nil {
@@ -381,21 +407,40 @@ func GetSafePath(path string) string {
 		return ""
 	}
 
-	if !strings.HasPrefix(absPathResolved, core.Zasper.HomeDir) {
-		log.Printf("Warning: Path traversal detected. The path %s is outside the allowed directory %s", absPathResolved, core.Zasper.HomeDir)
+	// The separator matters: a plain prefix test lets `../projectX-secrets` out of `.../projectX`.
+	prefix := strings.TrimSuffix(homeDir, string(os.PathSeparator)) + string(os.PathSeparator)
+	if absPathResolved != homeDir && !strings.HasPrefix(absPathResolved, prefix) {
+		log.Printf("Warning: Path traversal detected. The path %s is outside the allowed directory %s", absPathResolved, homeDir)
 		return ""
 	}
 
 	return absPathResolved
 }
 
+/*
+Writes have to be rooted the same way reads are. GetSafePath is what confines a path to the project
+directory; without it a relative path resolves against the server process's working directory
+instead.
+*/
+func safeWritePath(path string) (string, error) {
+	osPath := GetSafePath(path)
+	if osPath == "" {
+		return "", fmt.Errorf("path %s is outside the project directory", path)
+	}
+	return osPath, nil
+}
+
 func UpdateNbContent(path, ftype, format string, content interface{}) error {
 	var nb Notebook
 	log.Info().Msgf("Updating notebook content for path: %s", path)
 
+	osPath, err := safeWritePath(path)
+	if err != nil {
+		return err
+	}
+
 	// Convert content to JSON if it's a string or []byte, otherwise directly marshal it
 	var contentBytes []byte
-	var err error
 
 	switch v := content.(type) {
 	case string:
@@ -431,17 +476,22 @@ func UpdateNbContent(path, ftype, format string, content interface{}) error {
 	log.Debug().Msgf("nbJSON: %s", string(nbJSON))
 
 	// Write the JSON back to the file
-	if err := os.WriteFile(path, nbJSON, 0644); err != nil {
-		log.Error().Err(err).Msgf("Error updating notebook content for path: %s", path)
+	if err := os.WriteFile(osPath, nbJSON, 0644); err != nil {
+		log.Error().Err(err).Msgf("Error updating notebook content for path: %s", osPath)
 		return fmt.Errorf("error writing notebook to path %s: %w", path, err)
 	}
 
-	log.Info().Msgf("Successfully updated notebook content for path: %s", path)
+	log.Info().Msgf("Successfully updated notebook content for path: %s", osPath)
 	return nil
 }
 
 func UpdateContent(path, ftype, format, content string) error {
-	err := os.WriteFile(path, []byte(content), 0644)
+	osPath, err := safeWritePath(path)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(osPath, []byte(content), 0644)
 	if err != nil {
 		log.Error().Err(err).Msg("")
 		return err

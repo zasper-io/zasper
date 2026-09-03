@@ -36,6 +36,8 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
   const focusedCell = () => notebook.cells[focusedIndex];
   const hasCell = () => focusedCell() !== undefined;
   const hasKernel = () => Boolean(kernel.session);
+  /** False once a read failed: what is on screen is then the error, not the file. */
+  const isLoaded = () => cells.error === '';
   const runFocusedCell = () => {
     const cell = focusedCell();
     if (cell) {
@@ -58,6 +60,8 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
       label: 'Save Notebook',
       // Both spellings: the handler this replaces accepted Ctrl and Cmd alike on every platform.
       keys: ['Mod-s', 'Ctrl-s'],
+      // Saving after a failed read would write the empty starting state over the file.
+      isEnabled: isLoaded,
       execute: targets.saveNotebook,
     }),
 
@@ -200,6 +204,9 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
       id: 'notebook:change-kernel',
       label: 'Change Kernel',
       category: 'Kernel',
+      // The one kernel command that needs no session — it is how you get one — but it does need a
+      // document to attach a kernel to.
+      isEnabled: isLoaded,
       execute: kernel.toggleKernelSwitcher,
     }),
   ];

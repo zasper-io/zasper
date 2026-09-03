@@ -16,7 +16,7 @@ import { INotebookMetadata } from '@/api';
 import { useRegisterCommands, useRunCommand } from '@/commands/registry';
 import { useEditorCommandKeymap } from '@/commands/useEditorCommandKeymap';
 import { useNotebookCommands } from './notebookCommands';
-import { useKernelSession } from './useKernelSession';
+import { NO_KERNEL, useKernelSession } from './useKernelSession';
 import { useNotebookCells } from './useNotebookCells';
 
 interface NotebookEditorProps {
@@ -31,21 +31,30 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const kernel = useKernelSession(data, cells.applyMessage);
 
   const { loadNotebook, notebook } = cells;
-  const { startTabSession } = kernel;
+  const { startSessionForNotebook } = kernel;
 
   useEffect(() => {
     if (data.load_required === true) {
-      loadNotebook(data.path);
-      startTabSession(data.kernelspec);
+      // Sequenced, not side by side: the kernel to start is the one the file names, so it takes
+      // reading the file to know it — and a notebook that could not be read gets no session, and
+      // so no kernel picker raised over the error.
+      loadNotebook(data.path).then((loaded) => {
+        if (loaded) {
+          startSessionForNotebook(loaded.metadata);
+        }
+      });
     }
-  }, [data, loadNotebook, startTabSession]);
+  }, [data, loadNotebook, startSessionForNotebook]);
 
   const saveNotebookToDisk = () => {
-    const metadata: INotebookMetadata = {
-      kernelspec: kernel.kernelName,
-      name: kernel.kernelName,
-      display_name: kernel.kernelName,
-    };
+    // Merged, not replaced: the server round-trips metadata it does not understand, so replacing
+    // the object here would drop language_info and whatever else the file arrived with.
+    const metadata: INotebookMetadata = { ...notebook.metadata };
+    // Only a kernel that is actually attached: writing the 'none' placeholder would replace the
+    // kernel the file remembers with a name that starts nothing.
+    if (kernel.kernelName && kernel.kernelName !== NO_KERNEL) {
+      metadata.kernelspec = { name: kernel.kernelName, display_name: kernel.kernelName };
+    }
     notebook.metadata = metadata;
 
     saveNotebook(data.path, notebook).catch(logApiError('Error saving notebook:'));
@@ -150,24 +159,33 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           )}
           {kernel.showErrorDialog && <ErrorDialog toggleErrorDialog={kernel.toggleErrorDialog} />}
 
-          <NotebookCells
-            notebook={notebook}
-            focusedIndex={cells.focusedIndex}
-            setFocusedIndex={cells.setFocusedIndex}
-            divRefs={cells.divRefs}
-            codeMirrorRefs={codeMirrorRefs}
-            run={runCommand}
-            commandKeymap={commandKeymap}
-            focusNextCell={cells.focusNextCell}
-            focusPreviousCell={cells.focusPreviousCell}
-            updateCellSource={cells.updateCellSource}
-            showPrompt={kernel.showPrompt}
-            promptContent={kernel.promptContent}
-            submitPrompt={submitPrompt}
-            toggleShowPrompt={kernel.toggleShowPrompt}
-            requestCompletions={kernel.requestCompletions}
-            connection={kernel.connection}
-          />
+          {/* The cells are not offered for editing once a read failed: they would be the empty
+              starting state rather than the file. */}
+          {cells.error !== '' ? (
+            <div className="notebookLoadError" role="alert">
+              <strong>This notebook could not be loaded.</strong>
+              <p>{cells.error}</p>
+            </div>
+          ) : (
+            <NotebookCells
+              notebook={notebook}
+              focusedIndex={cells.focusedIndex}
+              setFocusedIndex={cells.setFocusedIndex}
+              divRefs={cells.divRefs}
+              codeMirrorRefs={codeMirrorRefs}
+              run={runCommand}
+              commandKeymap={commandKeymap}
+              focusNextCell={cells.focusNextCell}
+              focusPreviousCell={cells.focusPreviousCell}
+              updateCellSource={cells.updateCellSource}
+              showPrompt={kernel.showPrompt}
+              promptContent={kernel.promptContent}
+              submitPrompt={submitPrompt}
+              toggleShowPrompt={kernel.toggleShowPrompt}
+              requestCompletions={kernel.requestCompletions}
+              connection={kernel.connection}
+            />
+          )}
         </div>
       </div>
     </div>

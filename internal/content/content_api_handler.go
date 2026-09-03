@@ -2,6 +2,7 @@ package content
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -72,7 +73,13 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		log.Error().Msgf("Error fetching content: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusNotFound, "Content not found")
+		// A file that is missing and a file that cannot be parsed are different answers.
+		if errors.Is(err, os.ErrNotExist) {
+			zhttp.SendErrorResponse(w, http.StatusNotFound, "Content not found")
+			return
+		}
+		// The reason alone: the editor shows this sentence to the reader, under its own heading.
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -143,7 +150,11 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	deleteFile(body.Path)
+	if err := deleteFile(body.Path); err != nil {
+		log.Error().Err(err).Msg("Error deleting content")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

@@ -9,8 +9,71 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
 )
+
+// Points HomeDir at a fresh directory and moves the process to a different one, so a path resolved
+// against the working directory rather than HomeDir lands somewhere the assertions can see.
+func projectDirElsewhere(t *testing.T) string {
+	t.Helper()
+
+	projectDir := t.TempDir()
+	previous := core.Zasper.HomeDir
+	core.Zasper.HomeDir = projectDir
+	t.Cleanup(func() { core.Zasper.HomeDir = previous })
+	t.Chdir(t.TempDir())
+
+	return projectDir
+}
+
+func TestUpdateNbContentWritesInsideTheProjectDirectory(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+
+	err := UpdateNbContent("notes.ipynb", "notebook", "json",
+		`{"cells": [{"cell_type": "code", "source": "print(1)"}], "nbformat": 4, "nbformat_minor": 4}`)
+	assert.NoError(t, err)
+
+	written, err := os.ReadFile(filepath.Join(projectDir, "notes.ipynb"))
+	assert.NoError(t, err, "the notebook should be written under HomeDir")
+	assert.Contains(t, string(written), "print(1)")
+
+	cwd, err := os.Getwd()
+	assert.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(cwd, "notes.ipynb"), "nothing should be written to the cwd")
+}
+
+func TestUpdateContentWritesInsideTheProjectDirectory(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+
+	err := UpdateContent("notes.txt", "file", "text", "hello")
+	assert.NoError(t, err)
+
+	written, err := os.ReadFile(filepath.Join(projectDir, "notes.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, "hello", string(written))
+}
+
+func TestWritesOutsideTheProjectDirectoryAreRefused(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	escape := filepath.Join(filepath.Dir(projectDir), "escaped.txt")
+
+	err := UpdateContent("../escaped.txt", "file", "text", "hello")
+
+	assert.Error(t, err, "a path that leaves the project directory should not be written")
+	assert.NoFileExists(t, escape)
+}
+
+func TestGetSafePath(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+
+	assert.Equal(t, filepath.Join(projectDir, "a", "b.txt"), GetSafePath("a/b.txt"))
+	assert.Equal(t, projectDir, GetSafePath("."), "the project directory itself is allowed")
+	assert.Equal(t, "", GetSafePath("../elsewhere"))
+
+	// A prefix test alone would pass this: the sibling directory's path starts with HomeDir's.
+	assert.Equal(t, "", GetSafePath(".."+string(os.PathSeparator)+filepath.Base(projectDir)+"-secrets"))
+}
 
 func TestReadFileContent(t *testing.T) {
 

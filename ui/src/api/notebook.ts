@@ -50,8 +50,8 @@ export interface INotebookModel {
 }
 
 export interface INotebookMetadata {
-  /** Loosely typed: nbformat sends an object here, see IKernelspecMetadata. */
-  kernelspec?: string;
+  /** An object per nbformat; the bare string is what Zasper wrote here before, so it is on disk. */
+  kernelspec?: IKernelspecMetadata | string;
   name?: string;
   display_name?: string;
   language_info?: ILanguageInfoMetadata;

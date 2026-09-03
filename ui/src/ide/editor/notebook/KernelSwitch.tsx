@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAtom } from 'jotai';
 import { IKernelspecsState, kernelspecsAtom } from '@/store/AppState';
+import { NO_KERNEL } from './useKernelSession';
 
 interface ModalProps {
   toggleKernelSwitcher: () => void;
@@ -22,7 +23,7 @@ function KernelSwitcher(props: ModalProps) {
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-head">
-            {props.kernelName === 'none' ? 'Select Kernel' : 'Switch Kernel'}
+            {props.kernelName === NO_KERNEL ? 'Select Kernel' : 'Switch Kernel'}
             <button
               type="button"
               className="modal-btn-close"
@@ -50,7 +51,7 @@ function KernelSwitcher(props: ModalProps) {
                     ))}
                   </select>
                   <button className="z-button" onClick={() => props.changeKernel(selectedKernel)}>
-                    {props.kernelName === 'none' ? 'Select Kernel' : 'Switch Kernel'}
+                    {props.kernelName === NO_KERNEL ? 'Select Kernel' : 'Switch Kernel'}
                   </button>
                 </div>
               </div>

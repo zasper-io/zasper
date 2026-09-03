@@ -27,6 +27,8 @@ interface IFakeOptions {
   focusedIndex?: number;
   copiedCell?: ICell | null;
   session?: unknown;
+  /** What useNotebookCells reports when the notebook could not be loaded. */
+  error?: string;
 }
 
 /**
@@ -60,6 +62,7 @@ function fakeTargets(options: IFakeOptions = {}) {
       notebook: { cells: options.cells ?? [cell()], nbformat: 4, nbformat_minor: 5, metadata: {} },
       focusedIndex: options.focusedIndex ?? 0,
       copiedCell: options.copiedCell ?? null,
+      error: options.error ?? '',
       addCellUp: spies.addCellUp,
       addCellDown: spies.addCellDown,
       deleteCell: spies.deleteCell,
@@ -192,9 +195,17 @@ describe('useNotebookCommands', () => {
     expect(byId(commands, 'notebook:run-cell').isEnabled?.()).toBe(false);
     expect(byId(commands, 'notebook:run-all-cells').isEnabled?.()).toBe(false);
     expect(byId(commands, 'notebook:restart-kernel').isEnabled?.()).toBe(false);
-    // Saving and inserting cells do not need one.
-    expect(byId(commands, 'notebook:save').isEnabled?.()).toBeUndefined();
+    // Saving, attaching one and inserting cells do not need one.
+    expect(byId(commands, 'notebook:save').isEnabled?.()).toBe(true);
+    expect(byId(commands, 'notebook:change-kernel').isEnabled?.()).toBe(true);
     expect(byId(commands, 'notebook:insert-cell-below').isEnabled?.()).toBeUndefined();
+  });
+
+  it('refuses to save or attach a kernel to a notebook that could not be loaded', () => {
+    const { commands } = build({ error: 'not a valid notebook: unexpected end of JSON input' });
+
+    expect(byId(commands, 'notebook:save').isEnabled?.()).toBe(false);
+    expect(byId(commands, 'notebook:change-kernel').isEnabled?.()).toBe(false);
   });
 
   it('disables the cell commands when the notebook is empty', () => {
