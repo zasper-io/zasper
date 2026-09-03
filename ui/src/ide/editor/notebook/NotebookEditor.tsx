@@ -65,12 +65,6 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     kernel.sendInputReply(cellId, parentHeader, inputValue);
   };
 
-  // cellId is unused: the inspect request carries only the code and cursor position,
-  // but the cell passes its id first, so the parameter is kept for call-site parity.
-  const submitTabCompletion = (cellId: string, source: string, cursorPos: number) => {
-    kernel.sendInspectRequest(source, cursorPos);
-  };
-
   const submitAllCellsForExecution = useCallback(() => {
     if (kernel.session) {
       setExecuteAllCellsFlag(true);
@@ -213,8 +207,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
             promptContent={kernel.promptContent}
             submitPrompt={submitPrompt}
             toggleShowPrompt={kernel.toggleShowPrompt}
-            submitTabCompletion={submitTabCompletion}
-            inspectReplyMessage={kernel.inspectReplyMessage}
+            requestCompletions={kernel.requestCompletions}
             connection={kernel.connection}
           />
         </div>

@@ -1,5 +1,6 @@
-import React, { useState, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
+import { autocompletion } from '@codemirror/autocomplete';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { keymap, ViewUpdate } from '@codemirror/view';
@@ -11,7 +12,8 @@ import CellButtons from './CellButtons';
 import CellOutput from './CellOutput';
 import LoaderSvg from './LoaderSvg';
 import Prompt from './Prompt';
-import { IKernelMessage } from './kernelMessages';
+import { kernelCompletionSource, tabCompletionKeymap } from './kernelCompletion';
+import { ICompleteReply, IKernelMessage } from './kernelMessages';
 import { IKernelConnection, INotebookKeyEvent } from './types';
 
 // react-markdown + remark-math + rehype-katex is the heaviest thing in the
@@ -41,8 +43,7 @@ interface ICellProps {
   promptContent: IKernelMessage;
   submitPrompt: (cellId: string, parentHeader: IKernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
-  inspectReplyMessage: string;
-  submitTabCompletion: (cellId: string, source: string, cursor_pos: number) => void;
+  requestCompletions: (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
   connection: IKernelConnection;
 }
 
@@ -87,10 +88,6 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
     } else if (event.key === 'ArrowUp' && cursorPosition === 1) {
       props.handleKeyDown(false, { key: 'ArrowUp', preventDefault: () => {} });
       event.preventDefault();
-    } else if (event.key === 'Tab') {
-      event.preventDefault();
-      props.submitTabCompletion(cell.id, 'abs', cursorPosition);
-      event.preventDefault();
     }
   };
 
@@ -125,6 +122,20 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       run: handleChangeCellType,
     },
   ]);
+
+  // Code cells complete against the kernel and nothing else: `override` replaces the language's
+  // own sources rather than adding to them, which is what we want — a running kernel knows what
+  // `df` is and the parser does not. Hence also `autocompletion: false` in basicSetup below;
+  // two autocompletion() instances would fight over one config facet.
+  //
+  // Memoized because @uiw/react-codemirror reconfigures the editor whenever the extensions it is
+  // given change identity, and a cell re-renders on every keystroke — an unmemoized source would
+  // replace the completion config out from under a popup as it is being typed into.
+  const { requestCompletions } = props;
+  const kernelAutocompletion = useMemo(
+    () => autocompletion({ override: [kernelCompletionSource(requestCompletions)] }),
+    [requestCompletions]
+  );
 
   // Make sure divRefs.current is not null before assigning
   const divRef = (el: HTMLDivElement | null) => {
@@ -240,7 +251,12 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             value={cellContents}
             height="auto"
             width="100%"
-            extensions={[python(), [Prec.highest(customKeymap)]]}
+            extensions={[
+              python(),
+              kernelAutocompletion,
+              [Prec.highest(keymap.of(tabCompletionKeymap))],
+              [Prec.highest(customKeymap)],
+            ]}
             autoFocus={props.index === props.focusedIndex ? true : false}
             onChange={onChange}
             onUpdate={onUpdate}
@@ -249,7 +265,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
               lineNumbers: false,
               bracketMatching: true,
               highlightActiveLineGutter: true,
-              autocompletion: true,
+              autocompletion: false,
               lintKeymap: true,
               foldGutter: true,
               completionKeymap: true,

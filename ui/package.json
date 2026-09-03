@@ -7,6 +7,8 @@
   "type": "module",
   "homepage": "https://zasper.io",
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.1",
+    "@codemirror/commands": "^6.10.2",
     "@codemirror/lang-go": "^6.0.1",
     "@codemirror/lang-html": "^6.4.9",
     "@codemirror/lang-javascript": "^6.2.2",

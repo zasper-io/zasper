@@ -144,9 +144,34 @@ export function buildInputReply(
   });
 }
 
-export function buildInspectRequest(
+/**
+ * The content of a `complete_reply`. `matches` are whole replacement texts, not suffixes —
+ * completing `np.ar` returns `np.arange`, not `ange` — and they replace the source between
+ * `cursor_start` and `cursor_end`.
+ *
+ * `_jupyter_types_experimental` is IPython's per-match kind (`function`, `instance`, `module`,
+ * …). Optional by name and in practice: kernels other than IPython need not send it.
+ */
+export interface ICompleteReply {
+  status: 'ok' | 'error';
+  matches: string[];
+  cursor_start: number;
+  cursor_end: number;
+  metadata?: {
+    _jupyter_types_experimental?: { start: number; end: number; text: string; type?: string }[];
+  };
+}
+
+/**
+ * Asks the kernel what completes at `cursorPos`. Unlike `execute_request`, which uses the cell
+ * id as its `msg_id` so that output can be routed back to the cell, this takes a fresh id per
+ * request: several are in flight at once while typing, and each reply has to find its own
+ * caller.
+ */
+export function buildCompleteRequest(
   sessionId: string,
   userName: string,
+  msgId: string,
   source: string,
   cursorPos: number
 ): string {
@@ -154,8 +179,8 @@ export function buildInspectRequest(
     channel: 'shell',
     header: {
       date: getTimeStamp(),
-      msg_id: '5cfe8270-a5b0-4706-868e-4249c852949e',
-      msg_type: 'inspect_request',
+      msg_id: msgId,
+      msg_type: 'complete_request',
       session: sessionId,
       username: userName,
       version: '5.2',
@@ -165,7 +190,6 @@ export function buildInspectRequest(
     content: {
       code: source,
       cursor_pos: cursorPos,
-      detail_level: 0,
     },
   });
 }

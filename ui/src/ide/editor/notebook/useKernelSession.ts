@@ -1,17 +1,28 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 import { w3cwebsocket as W3CWebSocket } from 'websocket';
+import { v4 as uuidv4 } from 'uuid';
 
 import { createSession, deleteSession, interruptKernel, ISession } from '@/api';
 import { BaseWebSocketUrl } from '@/config';
 import { kernelsAtom, notebookKernelMapAtom, userNameAtom } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
 import {
+  buildCompleteRequest,
   buildExecuteRequest,
   buildInputReply,
-  buildInspectRequest,
+  ICompleteReply,
   IKernelMessage,
 } from './kernelMessages';
+
+/**
+ * How long to wait for a `complete_reply` before giving up on it.
+ *
+ * A kernel handles shell messages one at a time, so a completion asked for while a cell is
+ * running is not answered until that cell finishes — by which point the editor has moved on and
+ * the answer is wrong. Better to drop it than to pop a stale list over the cursor.
+ */
+const COMPLETION_TIMEOUT_MS = 2000;
 
 type IKernelWebSocketClient = W3CWebSocket;
 
@@ -39,7 +50,9 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
   const [showErrorDialog, setShowErrorDialog] = useState<boolean>(false);
   const [showPrompt, setShowPrompt] = useState<Boolean>(false);
   const [promptContent, setPromptContent] = useState<IKernelMessage>();
-  const [inspectReplyMessage, setInspectReplyMessage] = useState('');
+  // Keyed by the request's msg_id, which is what a reply's parent_header carries. A ref rather
+  // than state: resolving a promise is not a render, and the callbacks have to survive one.
+  const pendingCompletions = useRef(new Map<string, (reply: ICompleteReply) => void>());
   const [, setKernels] = useAtom(kernelsAtom);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
   const [userName] = useAtom(userNameAtom);
@@ -54,8 +67,8 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
         setShowPrompt(true);
         setPromptContent(message);
       }
-      if (message.header.msg_type === 'inspect_reply') {
-        setInspectReplyMessage(message.content.data['text/plain']);
+      if (message.header.msg_type === 'complete_reply') {
+        pendingCompletions.current.get(message.parent_header.msg_id)?.(message.content);
       }
       if (message.header.msg_type === 'status') {
         setKernelStatus(message.content.execution_state);
@@ -213,11 +226,44 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
     }
   };
 
-  const sendInspectRequest = (source: string, cursorPos: number) => {
-    if (session) {
-      connection.send(buildInspectRequest(session.id, userName, source, cursorPos));
-    }
-  };
+  /**
+   * Asks the kernel what completes at `cursorPos` in `source`, resolving null when there is no
+   * live kernel to ask or when nothing arrives inside COMPLETION_TIMEOUT_MS. Callers get a
+   * promise per request rather than a piece of state, because two keystrokes can have requests
+   * in flight at once and only the newer answer is wanted.
+   */
+  const requestCompletions = useCallback(
+    (source: string, cursorPos: number): Promise<ICompleteReply | null> => {
+      if (!session || !connection || connection.readyState !== WebSocket.OPEN) {
+        return Promise.resolve(null);
+      }
+
+      const msgId = uuidv4();
+
+      return new Promise((resolve) => {
+        const timer = window.setTimeout(() => {
+          pendingCompletions.current.delete(msgId);
+          resolve(null);
+        }, COMPLETION_TIMEOUT_MS);
+
+        pendingCompletions.current.set(msgId, (reply) => {
+          window.clearTimeout(timer);
+          pendingCompletions.current.delete(msgId);
+          resolve(reply);
+        });
+
+        try {
+          connection.send(buildCompleteRequest(session.id, userName, msgId, source, cursorPos));
+        } catch (error) {
+          console.error('Failed to send complete_request message:', error);
+          window.clearTimeout(timer);
+          pendingCompletions.current.delete(msgId);
+          resolve(null);
+        }
+      });
+    },
+    [session, connection, userName]
+  );
 
   return {
     session,
@@ -231,7 +277,6 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
     showPrompt,
     promptContent,
     toggleShowPrompt,
-    inspectReplyMessage,
     startTabSession,
     changeKernel,
     interruptKernel: interrupt,
@@ -239,7 +284,7 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
     reconnectKernel,
     sendExecuteRequest,
     sendInputReply,
-    sendInspectRequest,
+    requestCompletions,
   };
 }
 

@@ -1,7 +1,7 @@
 import React from 'react';
 
 import Cell, { CodeMirrorRef } from './Cell';
-import { IKernelMessage } from './kernelMessages';
+import { ICompleteReply, IKernelMessage } from './kernelMessages';
 import { INotebookModel } from '@/api';
 
 import { IKernelConnection, INotebookKeyEvent } from './types';
@@ -26,8 +26,7 @@ interface NotebookCellsProps {
   promptContent: IKernelMessage;
   submitPrompt: (cellId: string, parentHeader: IKernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
-  submitTabCompletion: (cellId: string, source: string, cursorPos: number) => void;
-  inspectReplyMessage: string;
+  requestCompletions: (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
   connection: IKernelConnection;
 }
 
@@ -65,8 +64,7 @@ export default function NotebookCells(props: NotebookCellsProps) {
           promptContent={props.promptContent}
           submitPrompt={props.submitPrompt}
           toggleShowPrompt={props.toggleShowPrompt}
-          submitTabCompletion={props.submitTabCompletion}
-          inspectReplyMessage={props.inspectReplyMessage}
+          requestCompletions={props.requestCompletions}
           connection={props.connection}
         />
       ))}
