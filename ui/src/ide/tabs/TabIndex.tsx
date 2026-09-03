@@ -1,16 +1,23 @@
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import React from 'react';
 import { fileTabsAtom, IfileTab, IfileTabDict } from '@/store/TabState';
 import { kernelsAtom, notebookKernelMapAtom, terminalsAtom } from '@/store/AppState';
+import { unsavedTabsAtom } from '@/store/UnsavedState';
 import getFileExtension, { getIconToLoad } from '../utils';
 import './TabIndex.scss';
-import { deleteKernel } from '@/api';
+import { apiErrorMessage, deleteKernel } from '@/api';
+import UnsavedChangesDialog from './UnsavedChangesDialog';
 
 export default function TabIndex() {
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
   const [terminals, setTerminals] = useAtom(terminalsAtom);
   const [, setKernels] = useAtom(kernelsAtom);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
+  const unsavedTabs = useAtomValue(unsavedTabsAtom);
+  /** The tab waiting on an answer to the save prompt, if one is open. */
+  const [pendingClose, setPendingClose] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
 
   const handleTabActivate = (name: string, path: string, type: string, kernelspec: string) => {
     const updatedFileTabs = { ...fileTabsState };
@@ -50,18 +57,17 @@ export default function TabIndex() {
       });
   }
 
-  const handleTabClose = (e: React.MouseEvent, key: string) => {
-    e.stopPropagation();
-
+  const closeTab = (key: string) => {
     const updatedFileTabs: IfileTabDict = Object.assign({}, fileTabsState);
-    if (updatedFileTabs[key].type === 'notebook') {
-      console.log('notebook close signal');
-      const kernelId = notebookKernelMap[key].id;
+    // A notebook tab need not have a kernel: it can be closed while the session is still starting,
+    // or after starting one failed. Then there is nothing to kill and nothing to forget.
+    const kernelId = notebookKernelMap[key]?.id;
+    if (kernelId !== undefined) {
       killKernel(kernelId);
 
       setNotebookKernelMap((prevNotebookKernelMap) => {
         const updatedNotebookKernelMap = { ...prevNotebookKernelMap };
-        delete notebookKernelMap[key];
+        delete updatedNotebookKernelMap[key];
         return updatedNotebookKernelMap;
       });
 
@@ -84,6 +90,48 @@ export default function TabIndex() {
     var updatedterminals = { ...terminals };
     delete updatedterminals[key];
     setTerminals(updatedterminals);
+  };
+
+  const handleTabClose = (e: React.MouseEvent, key: string) => {
+    e.stopPropagation();
+
+    // An unsaved tab is asked about rather than closed: discarding the work has to be an answer,
+    // not a side effect of the click.
+    if (unsavedTabs[key]) {
+      setPendingClose(key);
+      setSaveError('');
+      return;
+    }
+    closeTab(key);
+  };
+
+  const saveAndClose = async () => {
+    if (!pendingClose) {
+      return;
+    }
+    const key = pendingClose;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await unsavedTabs[key]();
+    } catch (error: unknown) {
+      // Left open on the reason the server gave: the editor is holding the only copy of the work.
+      setSaveError(apiErrorMessage(error));
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    setPendingClose(null);
+    closeTab(key);
+  };
+
+  const discardAndClose = () => {
+    if (!pendingClose) {
+      return;
+    }
+    const key = pendingClose;
+    setPendingClose(null);
+    closeTab(key);
   };
 
   return (
@@ -117,6 +165,16 @@ export default function TabIndex() {
           </li>
         ))}
       </ul>
+      {pendingClose && (
+        <UnsavedChangesDialog
+          name={fileTabsState[pendingClose]?.name ?? pendingClose}
+          saving={saving}
+          error={saveError}
+          onSave={saveAndClose}
+          onDiscard={discardAndClose}
+          onCancel={() => setPendingClose(null)}
+        />
+      )}
     </div>
   );
 }

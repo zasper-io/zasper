@@ -20,7 +20,9 @@ interface NotebookCellsProps {
   updateCellSource: (value: string, cellId: string) => void;
   showPrompt: Boolean;
   promptContent: IKernelMessage;
-  submitPrompt: (cellId: string, parentHeader: IKernelMessage, inputValue: string) => void;
+  /** Which cell the kernel is asking input for, so only that cell shows the prompt. */
+  promptCellId: string | undefined;
+  submitPrompt: (parentHeader: IKernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
   requestCompletions: (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
   connection: IKernelConnection;
@@ -53,6 +55,7 @@ export default function NotebookCells(props: NotebookCellsProps) {
           updateCellSource={props.updateCellSource}
           showPrompt={props.showPrompt}
           promptContent={props.promptContent}
+          promptCellId={props.promptCellId}
           submitPrompt={props.submitPrompt}
           toggleShowPrompt={props.toggleShowPrompt}
           requestCompletions={props.requestCompletions}

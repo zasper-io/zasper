@@ -27,14 +27,18 @@ export interface ICellOutput {
 export interface ICell {
   cell_type: CellType;
   /**
-   * Replaced client-side on load: cell ids double as the kernel request msg_id,
-   * so they have to be unique per session rather than per document.
+   * The document's own cell id, from nbformat 4.5 onwards. A cell out of an older notebook has
+   * none, and is given one on load so that React and the kernel have something to key on.
    */
   id: string;
-  execution_count: number;
   source: string;
-  outputs: ICellOutput[];
   metadata: Record<string, unknown>;
+  /** Code cells only, and null until the cell has run. */
+  execution_count?: number | null;
+  /** Code cells only. */
+  outputs?: ICellOutput[];
+  /** Markdown and raw cells only: images pasted into the cell, keyed by name then mime type. */
+  attachments?: Record<string, Record<string, unknown>>;
   /**
    * Client-side only, like IContentEntry.id in contents.ts — the server neither
    * sends nor stores it. Set when a cell's editor needs to be remounted.
@@ -55,7 +59,8 @@ export interface INotebookMetadata {
   name?: string;
   display_name?: string;
   language_info?: ILanguageInfoMetadata;
-  orig_nbformat?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
 }
 
 export interface IKernelspecMetadata {
@@ -65,7 +70,8 @@ export interface IKernelspecMetadata {
 
 export interface ILanguageInfoMetadata {
   name: string;
-  codemirror_mode?: string;
+  /** A mode name, or the object form that IPython writes: `{name: 'ipython', version: 3}`. */
+  codemirror_mode?: string | Record<string, unknown>;
   file_extension?: string;
   mimetype?: string;
   pygments_lexer?: string;

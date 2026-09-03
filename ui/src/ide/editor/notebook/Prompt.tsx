@@ -4,14 +4,14 @@ import { IKernelMessage } from './kernelMessages';
 
 interface PromptProps {
   content: IKernelMessage;
-  submitPrompt: (cellId: string, parentHeader: IKernelMessage, inputValue: string) => void;
+  submitPrompt: (parentHeader: IKernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
 }
 
 /**
- * The reply box for a kernel `input_request` — what `input()` in a cell turns
- * into. The answer is addressed by the requesting message's msg_id, not by cell
- * index, so a stale prompt cannot answer for the wrong cell.
+ * The reply box for a kernel `input_request` — what `input()` in a cell turns into. The reply goes
+ * back with the header of the execution being answered, so it is addressed to a request rather than
+ * to a cell.
  */
 const Prompt = (props: PromptProps) => {
   const [inputValue, setInputValue] = useState('');
@@ -19,11 +19,7 @@ const Prompt = (props: PromptProps) => {
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
       event.preventDefault(); // Prevent form submission refresh
-      props.submitPrompt(
-        props.content.parent_header.msg_id,
-        props.content.parent_header,
-        inputValue
-      );
+      props.submitPrompt(props.content.parent_header, inputValue);
       setInputValue(''); // Clear input after submission
       props.toggleShowPrompt();
     }

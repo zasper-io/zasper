@@ -12,7 +12,6 @@ export function removeAnsiCodes(str: string): string {
 
 export const getTimeStamp = (): string => new Date().toISOString();
 
-/** Cells are matched to kernel replies by using the cell id as the request msg_id. */
 function updateCellById(
   notebook: INotebookModel,
   cellId: string,
@@ -25,29 +24,36 @@ function updateCellById(
 }
 
 function appendOutput(cell: ICell, output: ICellOutput): ICell {
-  if (!cell.outputs.length) cell.outputs = [];
-  cell.outputs.push(output);
+  cell.outputs = [...(cell.outputs ?? []), output];
   return cell;
 }
 
 /**
- * Folds a kernel message into the notebook. Messages that carry no cell output
- * (status, prompts, completions) leave the notebook untouched and are handled by
- * the kernel session hook instead.
+ * Folds a kernel message into the notebook, against the cell whose execution it answers.
+ *
+ * `cellId` is resolved by the kernel session from the reply's `parent_header.msg_id`: a message id
+ * identifies a request, a cell id a cell in the document, which outlives every request against it.
+ * An undefined `cellId`, and a message carrying no cell output (status, prompts, completions),
+ * change nothing here.
  */
 export function applyKernelMessage(
   notebook: INotebookModel,
-  message: IKernelMessage
+  message: IKernelMessage,
+  cellId: string | undefined
 ): INotebookModel {
+  if (!cellId) {
+    return notebook;
+  }
+
   switch (message.header.msg_type) {
     case 'execute_input':
-      return updateCellById(notebook, message.parent_header.msg_id, (cell) => {
+      return updateCellById(notebook, cellId, (cell) => {
         cell.execution_count = message.content.execution_count;
         return cell;
       });
 
     case 'error':
-      return updateCellById(notebook, message.parent_header.msg_id, (cell) =>
+      return updateCellById(notebook, cellId, (cell) =>
         appendOutput(cell, {
           output_type: 'error',
           ename: message.content.ename,
@@ -60,7 +66,7 @@ export function applyKernelMessage(
       if (message.content.name !== 'stdout') {
         return notebook;
       }
-      return updateCellById(notebook, message.parent_header.msg_id, (cell) =>
+      return updateCellById(notebook, cellId, (cell) =>
         appendOutput(cell, {
           text: removeAnsiCodes(message.content.text),
           output_type: 'stream',
@@ -68,12 +74,12 @@ export function applyKernelMessage(
       );
 
     case 'execute_result':
-      return updateCellById(notebook, message.parent_header.msg_id, (cell) =>
+      return updateCellById(notebook, cellId, (cell) =>
         appendOutput(cell, { data: message.content.data, output_type: 'execute_result' })
       );
 
     case 'display_data':
-      return updateCellById(notebook, message.parent_header.msg_id, (cell) =>
+      return updateCellById(notebook, cellId, (cell) =>
         appendOutput(cell, { data: message.content.data })
       );
 
@@ -82,9 +88,15 @@ export function applyKernelMessage(
   }
 }
 
+/**
+ * `msgId` identifies this request and is what the replies will carry in their `parent_header`;
+ * `cellId` says which cell the code came from, and goes in the message metadata where other Jupyter
+ * clients put it.
+ */
 export function buildExecuteRequest(
   sessionId: string,
   userName: string,
+  msgId: string,
   cellId: string,
   source: string
 ): string {
@@ -101,7 +113,7 @@ export function buildExecuteRequest(
     },
     header: {
       date: getTimeStamp(),
-      msg_id: cellId,
+      msg_id: msgId,
       msg_type: 'execute_request',
       session: sessionId,
       username: userName,
@@ -117,10 +129,11 @@ export function buildExecuteRequest(
   });
 }
 
+/** The `parent_header` is what addresses the reply to the request that asked; `msgId` is its own. */
 export function buildInputReply(
   sessionId: string,
   userName: string,
-  cellId: string,
+  msgId: string,
   parentHeader: IKernelMessage,
   inputValue: string
 ): string {
@@ -133,7 +146,7 @@ export function buildInputReply(
     },
     header: {
       date: getTimeStamp(),
-      msg_id: cellId,
+      msg_id: msgId,
       msg_type: 'input_reply',
       session: sessionId,
       username: userName,
@@ -162,12 +175,7 @@ export interface ICompleteReply {
   };
 }
 
-/**
- * Asks the kernel what completes at `cursorPos`. Unlike `execute_request`, which uses the cell
- * id as its `msg_id` so that output can be routed back to the cell, this takes a fresh id per
- * request: several are in flight at once while typing, and each reply has to find its own
- * caller.
- */
+/** Asks the kernel what completes at `cursorPos`. */
 export function buildCompleteRequest(
   sessionId: string,
   userName: string,

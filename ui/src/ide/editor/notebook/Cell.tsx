@@ -37,12 +37,14 @@ interface ICellProps {
   focusedIndex: number;
   setFocusedIndex: (index: number) => void;
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
-  execution_count: number;
+  /** null until the cell has run, -1 while it is running, and absent on a non-code cell. */
+  execution_count: number | null | undefined;
   codeMirrorRefs: React.RefObject<CodeMirrorRef[] | null>;
   updateCellSource: (value: string, cellId: string) => void;
   showPrompt: Boolean;
   promptContent: IKernelMessage;
-  submitPrompt: (cellId: string, parentHeader: IKernelMessage, inputValue: string) => void;
+  promptCellId: string | undefined;
+  submitPrompt: (parentHeader: IKernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
   requestCompletions: (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
   connection: IKernelConnection;
@@ -191,7 +193,8 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
         {props.execution_count === -1 ? (
           <LoaderSvg />
         ) : (
-          <div className="serial-no">[{props.execution_count}]:</div>
+          // A cell that has not run has no count, and shows an empty bracket as Jupyter does.
+          <div className="serial-no">[{props.execution_count ?? ' '}]:</div>
         )}
         <div className="cellEditor">
           <CodeMirror
@@ -225,7 +228,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       {props.showPrompt &&
         props.promptContent &&
         props.promptContent.content &&
-        props.promptContent.parent_header.msg_id === props.cell.id && (
+        props.promptCellId === props.cell.id && (
           <Prompt
             content={props.promptContent}
             submitPrompt={props.submitPrompt}

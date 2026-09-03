@@ -84,6 +84,17 @@
   width: 100%;
 }
 
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.modal-error {
+  color: var(--z-status-error);
+  padding-top: 0;
+}
+
 .update-kernel-popup-form {
   display: flex;
   flex-direction: column;

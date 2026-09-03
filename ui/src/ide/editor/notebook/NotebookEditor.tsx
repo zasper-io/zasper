@@ -4,6 +4,7 @@ import './NotebookEditor.scss';
 
 import { logApiError, saveNotebook } from '@/api';
 import { IfileTab } from '@/store/TabState';
+import { useUnsavedChanges } from '@/store/UnsavedState';
 import BreadCrumb from '../BreadCrumb';
 import { CodeMirrorRef } from './Cell';
 import ErrorDialog from './ErrorDialog';
@@ -46,21 +47,33 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
   }, [data, loadNotebook, startSessionForNotebook]);
 
-  const saveNotebookToDisk = () => {
+  const saveNotebookToDisk = async () => {
     // Merged, not replaced: the server round-trips metadata it does not understand, so replacing
     // the object here would drop language_info and whatever else the file arrived with.
     const metadata: INotebookMetadata = { ...notebook.metadata };
     // Only a kernel that is actually attached: writing the 'none' placeholder would replace the
     // kernel the file remembers with a name that starts nothing.
     if (kernel.kernelName && kernel.kernelName !== NO_KERNEL) {
-      metadata.kernelspec = { name: kernel.kernelName, display_name: kernel.kernelName };
+      const saved = metadata.kernelspec;
+      // Left alone when the file already names the attached kernel: its record carries more than a
+      // name, and rebuilding it from the kernel's name is how `Python 3` became `python3`.
+      if (typeof saved !== 'object' || saved === null || saved.name !== kernel.kernelName) {
+        metadata.kernelspec = {
+          name: kernel.kernelName,
+          display_name: kernel.kernelDisplayName ?? kernel.kernelName,
+        };
+      }
     }
     notebook.metadata = metadata;
 
-    saveNotebook(data.path, notebook).catch(logApiError('Error saving notebook:'));
-
-    return true;
+    const written = notebook;
+    await saveNotebook(data.path, written);
+    // Only once the write succeeded: a notebook the server refused still holds unsaved work.
+    cells.markSaved(written);
   };
+
+  // Registered whether or not this is the active tab: any open tab can be closed.
+  useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
 
   const submitCell = useCallback(
     (source: string, cellId: string) => {
@@ -71,9 +84,13 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     [cells.markCellRunning, kernel.sendExecuteRequest]
   );
 
-  const submitPrompt = (cellId: string, parentHeader: IKernelMessage, inputValue: string) => {
-    cells.clearCellOutputs(cellId);
-    kernel.sendInputReply(cellId, parentHeader, inputValue);
+  const submitPrompt = (parentHeader: IKernelMessage, inputValue: string) => {
+    // Which cell the kernel is waiting on is resolved by the kernel session: the prompt itself
+    // carries a message id, not a cell.
+    if (kernel.promptCellId) {
+      cells.clearCellOutputs(kernel.promptCellId);
+    }
+    kernel.sendInputReply(parentHeader, inputValue);
   };
 
   const submitAllCellsForExecution = useCallback(() => {
@@ -117,7 +134,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const commands = useNotebookCommands({
     cells,
     kernel,
-    saveNotebook: saveNotebookToDisk,
+    // A keystroke has nowhere to report a failed save, so it goes to the console; the close prompt
+    // awaits the same promise and shows the reason instead.
+    saveNotebook: () => {
+      saveNotebookToDisk().catch(logApiError('Error saving notebook:'));
+    },
     submitCell,
     submitAllCells: submitAllCellsForExecution,
     restartKernel,
@@ -180,6 +201,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               updateCellSource={cells.updateCellSource}
               showPrompt={kernel.showPrompt}
               promptContent={kernel.promptContent}
+              promptCellId={kernel.promptCellId}
               submitPrompt={submitPrompt}
               toggleShowPrompt={kernel.toggleShowPrompt}
               requestCompletions={kernel.requestCompletions}

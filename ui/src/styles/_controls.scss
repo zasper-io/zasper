@@ -17,3 +17,19 @@
   background: var(--z-accent-hover);
   box-shadow: var(--z-shadow-medium);
 }
+
+.z-button:disabled {
+  opacity: 0.6;
+}
+
+// The answer that is not being suggested — "Don't Save" beside a "Save". Built out of the neutral
+// tokens rather than a pair of its own, so it follows every theme.
+.z-button-secondary {
+  background: transparent;
+  color: var(--z-fg-default);
+}
+
+.z-button-secondary:hover {
+  background: var(--z-bg-menu-hover);
+  color: var(--z-fg-default);
+}

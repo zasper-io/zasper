@@ -12,6 +12,7 @@ import (
 
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
+	"github.com/zasper-io/zasper/internal/nbformat"
 
 	"github.com/rs/zerolog/log"
 )
@@ -60,16 +61,12 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 		return models.ContentModel{}, err
 	}
 
-	as_version := 4
-	capture_validation_error := false
-
-	nb, err := nbformatReads(
-		content,
-		as_version,
-		capture_validation_error,
-	)
+	nb, err := nbformat.Read([]byte(content))
 	if err != nil {
 		return models.ContentModel{}, err
+	}
+	for _, problem := range nbformat.Validate(nb) {
+		log.Warn().Msgf("%s does not match the notebook format: %s", path, problem)
 	}
 
 	output := models.ContentModel{
@@ -80,20 +77,6 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size()}
 	return output, nil
-}
-
-/*
-A decode failure is returned rather than dropped: encoding/json zeroes the field it could not
-decode and carries on, so discarding the error hands back a well-formed document with empty cells,
-indistinguishable from a genuinely empty notebook.
-*/
-func nbformatReads(data string, version int, capture_validation_error bool) (Notebook, error) {
-	var nb NotebookDisk
-	if err := json.Unmarshal([]byte(data), &nb); err != nil {
-		return Notebook{}, fmt.Errorf("not a valid notebook: %w", err)
-	}
-
-	return parseNotebook(nb), nil
 }
 
 func getDirectoryModel(relativePath string) (models.ContentModel, error) {
@@ -299,9 +282,12 @@ func newUntitledNotebook(payload ContentPayload) models.ContentModel {
 	defer file.Close() // Ensure the file is closed when the function exits
 
 	// Write the default notebook content to the file
-	defaultNotebook := `{	"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 4}`
+	defaultNotebook, err := nbformat.Marshal(nbformat.New())
+	if err != nil {
+		log.Error().Err(err).Msg("Error building the default notebook content")
+	}
 
-	err = os.WriteFile(fileNameWithPath, []byte(defaultNotebook), 0644) // Write the default notebook content to the file
+	err = os.WriteFile(fileNameWithPath, defaultNotebook, 0644)
 	if err != nil {
 		log.Error().Err(err).Msgf("Error writing default notebook content to file: %s", fileNameWithPath)
 	}
@@ -431,7 +417,6 @@ func safeWritePath(path string) (string, error) {
 }
 
 func UpdateNbContent(path, ftype, format string, content interface{}) error {
-	var nb Notebook
 	log.Info().Msgf("Updating notebook content for path: %s", path)
 
 	osPath, err := safeWritePath(path)
@@ -460,15 +445,21 @@ func UpdateNbContent(path, ftype, format string, content interface{}) error {
 		return fmt.Errorf("content is not a valid type (expected string, []byte, or map[string]interface{}), got: %T", content)
 	}
 
-	// Unmarshal the JSON bytes into the Notebook struct
-	if err := json.Unmarshal(contentBytes, &nb); err != nil {
+	// The editor sends the notebook back in the form it received it, so no line joining here.
+	nb, err := nbformat.Unmarshal(contentBytes)
+	if err != nil {
 		return fmt.Errorf("failed to unmarshal content into notebook: %w", err)
 	}
 
-	newNb := convertToNbDisk(nb)
+	// Checked as it will be written, not as the editor sent it: Normalize takes back out what the
+	// editor added, so what is left is a problem in the document itself. Reported and not refused,
+	// because a save is the wrong moment to decline to keep someone's work.
+	disk := nbformat.Normalize(nb)
+	for _, problem := range nbformat.Validate(disk) {
+		log.Warn().Msgf("saving %s with something the notebook format does not allow: %s", path, problem)
+	}
 
-	// Marshal the notebook struct back into JSON (to save the updated notebook)
-	nbJSON, err := json.MarshalIndent(newNb, "", "  ")
+	nbJSON, err := nbformat.Marshal(disk)
 	if err != nil {
 		return fmt.Errorf("failed to marshal notebook: %w", err)
 	}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Provider } from 'jotai';
+import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import NotebookEditor from './NotebookEditor';
@@ -10,6 +10,7 @@ import { ApiError } from '@/api/client';
 import { useRunCommand } from '@/commands/registry';
 import { IKernelspecsState, kernelspecsAtom } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
+import { unsavedTabsAtom } from '@/store/UnsavedState';
 
 /** The installed kernels, as /api/kernelspecs reports them: keyed by name. */
 function installedKernelspecs(...names: string[]): IKernelspecsState {
@@ -59,8 +60,8 @@ vi.mock('@/api', async () => ({
   logApiError: () => () => {},
 }));
 
-// Cell ids are generated on load and used as the kernel request msg_id, so they
-// are made predictable here.
+// Every kernel request is sent under a fresh msg_id, and a cell the file gave no id gets one, both
+// from uuid — made predictable here.
 const { nextId, resetIds } = vi.hoisted(() => {
   let counter = 0;
   return {
@@ -73,7 +74,9 @@ const { nextId, resetIds } = vi.hoisted(() => {
 
 vi.mock('uuid', () => ({ v4: nextId }));
 
-const generatedCellId = 'generated-cell-1';
+// The notebook's cells arrive with their own ids, so the first uuid asked for is the msg_id of the
+// first request sent.
+const firstRequestId = 'generated-cell-1';
 
 interface IFakeSocket {
   url: string;
@@ -139,12 +142,18 @@ const tab: IfileTab = {
   kernelspec: 'python3',
 };
 
-function kernelMessage(msgType: string, cellId: string, content: unknown) {
+/** A message from the kernel, answering the request `requestId` — its `parent_header.msg_id`. */
+function kernelMessage(msgType: string, requestId: string, content: unknown) {
   return {
     header: { msg_type: msgType },
-    parent_header: { msg_id: cellId },
+    parent_header: { msg_id: requestId },
     content,
   };
+}
+
+/** The msg_id of the nth request this socket sent, which its replies will be addressed to. */
+function requestIdOf(socket: IFakeSocket, index: number): string {
+  return JSON.parse(socket.sent[index]).header.msg_id;
 }
 
 /** The run button of the focused cell, which CellButtons renders first. */
@@ -207,6 +216,22 @@ describe('NotebookEditor', () => {
     expect(await screen.findByText('[0]:')).toBeInTheDocument();
   });
 
+  // A new notebook is `"cells": []` on disk; the cell to type into comes from the frontend.
+  it('shows one empty code cell for a notebook that has none', async () => {
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: { ...structuredClone(notebookContent), cells: [] },
+    });
+
+    const { container } = render(<NotebookEditor data={tab} />);
+
+    // An empty bracket, not `[0]:`: the cell has not run.
+    expect(await screen.findByText('[ ]:')).toBeInTheDocument();
+    expect(container.querySelectorAll('.single-line')).toHaveLength(1);
+  });
+
   it('sends an execute request for the cell that was run', async () => {
     const { container } = render(<NotebookEditor data={tab} />);
     await waitFor(() => expect(sockets).toHaveLength(1));
@@ -217,9 +242,12 @@ describe('NotebookEditor', () => {
     await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
     const request = JSON.parse(sockets[0].sent[0]);
     expect(request.header.msg_type).toBe('execute_request');
-    expect(request.header.msg_id).toBe(generatedCellId);
+    expect(request.header.msg_id).toBe(firstRequestId);
     expect(request.header.session).toBe('session-1');
     expect(request.content.code).toBe('print("hi")');
+    // The cell id goes in the metadata, where other Jupyter clients put it; the msg_id identifies
+    // the request, not the cell.
+    expect(request.metadata.cellId).toBe('server-cell-id');
     // The cell waits on the kernel: no execution count, spinner instead.
     expect(container.querySelector('.spinner')).toBeInTheDocument();
   });
@@ -234,33 +262,85 @@ describe('NotebookEditor', () => {
     await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
     const request = JSON.parse(sockets[0].sent[0]);
     expect(request.header.msg_type).toBe('execute_request');
-    expect(request.header.msg_id).toBe(generatedCellId);
+    expect(request.header.msg_id).toBe(firstRequestId);
     expect(request.content.code).toBe('print("hi")');
   });
 
   it('renders kernel output for the cell that requested it', async () => {
-    render(<NotebookEditor data={tab} />);
+    const { container } = render(<NotebookEditor data={tab} />);
     await waitFor(() => expect(sockets).toHaveLength(1));
     await screen.findByText('[0]:');
 
-    sockets[0].receive(kernelMessage('execute_input', generatedCellId, { execution_count: 3 }));
+    fireEvent.click(runButton(container));
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const requestId = requestIdOf(sockets[0], 0);
+
+    sockets[0].receive(kernelMessage('execute_input', requestId, { execution_count: 3 }));
     expect(await screen.findByText('[3]:')).toBeInTheDocument();
 
     sockets[0].receive(
-      kernelMessage('stream', generatedCellId, { name: 'stdout', text: 'hello from kernel' })
+      kernelMessage('stream', requestId, { name: 'stdout', text: 'hello from kernel' })
     );
     expect(await screen.findByText('hello from kernel')).toBeInTheDocument();
   });
 
-  it('ignores output addressed to a cell that is no longer loaded', async () => {
+  // A reply reaches a cell only through the request it answers, so one answering nothing this editor
+  // sent reaches no cell.
+  it('ignores output that answers no request it sent', async () => {
     render(<NotebookEditor data={tab} />);
     await waitFor(() => expect(sockets).toHaveLength(1));
     await screen.findByText('[0]:');
 
-    // 'server-cell-id' is the id the notebook arrived with, before it was replaced.
     sockets[0].receive(kernelMessage('execute_input', 'server-cell-id', { execution_count: 9 }));
     await waitFor(() => expect(screen.queryByText('[9]:')).not.toBeInTheDocument());
     expect(screen.getByText('[0]:')).toBeInTheDocument();
+  });
+
+  // `input()` in a cell: the prompt belongs under the cell whose request the input_request answers,
+  // and the reply is addressed back to that request.
+  it('prompts under the cell the kernel is waiting on, and answers its request', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(runButton(container));
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const requestId = requestIdOf(sockets[0], 0);
+
+    sockets[0].receive(kernelMessage('input_request', requestId, { prompt: 'name: ' }));
+
+    const box = await screen.findByPlaceholderText('Type something and press Enter');
+    fireEvent.change(box, { target: { value: 'Ada' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(2));
+    const reply = JSON.parse(sockets[0].sent[1]);
+    expect(reply.channel).toBe('stdin');
+    expect(reply.header.msg_type).toBe('input_reply');
+    expect(reply.content.value).toBe('Ada');
+    expect(reply.parent_header.msg_id).toBe(requestId);
+    // Its own id, not the id of the request it answers.
+    expect(reply.header.msg_id).not.toBe(requestId);
+  });
+
+  // A request ends when the kernel reports itself idle for it, and stops addressing a cell from then
+  // on — which is why a cell id, reused across every run, cannot serve as the msg_id.
+  it('stops routing a request once the kernel reports it finished', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(runButton(container));
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const requestId = requestIdOf(sockets[0], 0);
+
+    sockets[0].receive(kernelMessage('status', requestId, { execution_state: 'idle' }));
+    sockets[0].receive(
+      kernelMessage('stream', requestId, { name: 'stdout', text: 'too late to show' })
+    );
+
+    await waitFor(() => expect(container.querySelector('.ks-idle')).toBeInTheDocument());
+    expect(screen.queryByText('too late to show')).not.toBeInTheDocument();
   });
 
   it('reflects kernel status changes in the toolbar', async () => {
@@ -495,6 +575,70 @@ describe('NotebookEditor commands', () => {
     expect(saved.metadata.kernelspec).toEqual({ name: 'python3', display_name: 'python3' });
   });
 
+  // A notebook written by Jupyter records more under kernelspec than a name: rebuilding the object
+  // turned `Python 3` into `python3` and dropped `language` on every save of an unmodified file.
+  it('keeps the kernelspec the file came with when it names the attached kernel', async () => {
+    const kernelspec = { name: 'python3', display_name: 'Python 3', language: 'python' };
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: { ...structuredClone(notebookContent), metadata: { kernelspec } },
+    });
+
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:save" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    dispatch();
+
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    expect(saveNotebook.mock.calls[0][1].metadata.kernelspec).toEqual(kernelspec);
+  });
+
+  // A file that names another kernel does get its kernelspec rewritten, and `name` there is the
+  // kernel's id: the display name to write beside it is the installed kernel's own.
+  it('records the display name of the kernel it attached', async () => {
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: {
+        ...structuredClone(notebookContent),
+        metadata: { kernelspec: { name: 'deno', display_name: 'Deno' } },
+      },
+    });
+
+    render(
+      <Provider
+        initialValues={[
+          [
+            kernelspecsAtom,
+            { python3: { name: 'python3', spec: { display_name: 'Python 3' }, resources: {} } },
+          ],
+        ]}
+      >
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:save" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    dispatch();
+
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    expect(saveNotebook.mock.calls[0][1].metadata.kernelspec).toEqual({
+      name: 'python3',
+      display_name: 'Python 3',
+    });
+  });
+
   // A failed read leaves the editor holding its empty starting state, so it has to say why — with
   // the server's own reason, not just the status — and must not write that state over the file.
   it('reports a notebook it could not load, and refuses to save over it', async () => {
@@ -539,6 +683,126 @@ describe('NotebookEditor commands', () => {
 
     dispatch();
 
-    await waitFor(() => expect(screen.getAllByText('[0]:')).toHaveLength(2));
+    // A null count is nbformat's "has not run"; the loaded cell keeps the count the file gave it.
+    await waitFor(() => expect(screen.getByText('[ ]:')).toBeInTheDocument());
+    expect(screen.getByText('[0]:')).toBeInTheDocument();
+  });
+
+  // From nbformat 4.5 the ids belong to the document, and are what another client's diffs and
+  // comments are keyed to, so a file must go back with the ones it arrived with.
+  it('saves the cell ids the file arrived with', async () => {
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:save" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    dispatch();
+
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    expect(saveNotebook.mock.calls[0][1].cells.map((cell: { id: string }) => cell.id)).toEqual([
+      'server-cell-id',
+    ]);
+  });
+});
+
+/** Reads the unsaved tabs the way the tab bar does: from the atom, outside the editor. */
+describe('NotebookEditor unsaved changes', () => {
+  beforeEach(() => {
+    sockets.length = 0;
+    resetIds();
+    getNotebook.mockReset();
+    createSession.mockReset();
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: structuredClone(notebookContent),
+    });
+    createSession.mockResolvedValue(session);
+    saveNotebook.mockReset();
+    saveNotebook.mockResolvedValue(undefined);
+  });
+
+  function Unsaved() {
+    return <div data-testid="unsaved">{Object.keys(useAtomValue(unsavedTabsAtom)).join(',')}</div>;
+  }
+
+  /** The paths the tab bar would prompt about, as one string. */
+  function unsavedPaths(): string {
+    return screen.getByTestId('unsaved').textContent ?? '';
+  }
+
+  async function renderNotebook(commandId: string) {
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id={commandId} />
+        <Unsaved />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+  }
+
+  it('holds nothing unsaved when the file has only just been read', async () => {
+    await renderNotebook('notebook:save');
+
+    expect(unsavedPaths()).toBe('');
+  });
+
+  it('is unsaved as soon as the document changes', async () => {
+    await renderNotebook('notebook:insert-cell-below');
+
+    dispatch();
+
+    await waitFor(() => expect(unsavedPaths()).toBe('notebook.ipynb'));
+  });
+
+  it('is saved again once the write has gone through', async () => {
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:insert-cell-below" />
+        <Dispatcher id="notebook:save" />
+        <Unsaved />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(screen.getAllByText('dispatch')[0]);
+    await waitFor(() => expect(unsavedPaths()).toBe('notebook.ipynb'));
+
+    fireEvent.click(screen.getAllByText('dispatch')[1]);
+
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    await waitFor(() => expect(unsavedPaths()).toBe(''));
+  });
+
+  // The server refused the write, so the editor still holds the only copy.
+  it('stays unsaved when the write failed', async () => {
+    saveNotebook.mockRejectedValue(new ApiError('PUT', '/api/contents', 403, 'read-only'));
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:insert-cell-below" />
+        <Dispatcher id="notebook:save" />
+        <Unsaved />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(screen.getAllByText('dispatch')[0]);
+    await waitFor(() => expect(unsavedPaths()).toBe('notebook.ipynb'));
+
+    fireEvent.click(screen.getAllByText('dispatch')[1]);
+
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    expect(unsavedPaths()).toBe('notebook.ipynb');
   });
 });

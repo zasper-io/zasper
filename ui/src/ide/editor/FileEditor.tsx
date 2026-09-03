@@ -18,6 +18,7 @@ import { useTheme } from '@/themes/useTheme';
 import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '@/store/AppState';
 import BreadCrumb from './BreadCrumb';
 import { IfileTab } from '@/store/TabState';
+import { useUnsavedChanges } from '@/store/UnsavedState';
 
 interface FileEditorProps {
   data: IfileTab;
@@ -25,13 +26,25 @@ interface FileEditorProps {
 
 export default function FileEditor(props: FileEditorProps) {
   const [fileContents, setFileContents] = useState('');
+  /** What the file held when it was last read or written. */
+  const [savedContents, setSavedContents] = useState('');
   const theme = useTheme();
 
+  const saveFileToDisk = useCallback(async () => {
+    // The text that was written, not whatever the editor holds by the time the write returns: a
+    // keystroke made in between leaves the file unsaved again.
+    const written = fileContents;
+    await saveFile(props.data.path, written);
+    setSavedContents(written);
+  }, [fileContents, props.data.path]);
+
   const handleCmdEnter = () => {
-    saveFile(props.data.path, fileContents).catch(logApiError('Error saving file:'));
+    saveFileToDisk().catch(logApiError('Error saving file:'));
 
     return true;
   };
+
+  useUnsavedChanges(props.data.path, fileContents !== savedContents, saveFileToDisk);
 
   const customKeymap = keymap.of([
     {
@@ -41,7 +54,9 @@ export default function FileEditor(props: FileEditorProps) {
   ]);
 
   const FetchFileData = async (path: string) => {
-    setFileContents(await getFileContent(path));
+    const content = await getFileContent(path);
+    setFileContents(content);
+    setSavedContents(content);
   };
 
   useEffect(() => {

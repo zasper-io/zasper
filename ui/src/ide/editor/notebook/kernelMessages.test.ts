@@ -9,7 +9,7 @@ function notebookWith(cellId: string): INotebookModel {
       {
         cell_type: 'code',
         id: cellId,
-        execution_count: 0,
+        execution_count: null,
         source: 'print(1)',
         outputs: [],
         metadata: {},
@@ -22,10 +22,10 @@ function notebookWith(cellId: string): INotebookModel {
   };
 }
 
-function message(msgType: string, cellId: string, content: unknown) {
+function message(msgType: string, content: unknown) {
   return {
     header: { msg_type: msgType },
-    parent_header: { msg_id: cellId },
+    parent_header: { msg_id: 'request-1' },
     content,
   };
 }
@@ -40,7 +40,8 @@ describe('applyKernelMessage', () => {
   it('records the execution count of the requesting cell', () => {
     const updated = applyKernelMessage(
       notebookWith('cell-1'),
-      message('execute_input', 'cell-1', { execution_count: 7 })
+      message('execute_input', { execution_count: 7 }),
+      'cell-1'
     );
     expect(updated.cells[0].execution_count).toBe(7);
   });
@@ -48,7 +49,8 @@ describe('applyKernelMessage', () => {
   it('appends stdout streams with ansi codes removed', () => {
     const updated = applyKernelMessage(
       notebookWith('cell-1'),
-      message('stream', 'cell-1', { name: 'stdout', text: '\x1b[32mhello\x1b[0m' })
+      message('stream', { name: 'stdout', text: '\x1b[32mhello\x1b[0m' }),
+      'cell-1'
     );
     expect(updated.cells[0].outputs).toEqual([{ text: 'hello', output_type: 'stream' }]);
   });
@@ -57,7 +59,8 @@ describe('applyKernelMessage', () => {
     const notebook = notebookWith('cell-1');
     const updated = applyKernelMessage(
       notebook,
-      message('stream', 'cell-1', { name: 'stderr', text: 'boom' })
+      message('stream', { name: 'stderr', text: 'boom' }),
+      'cell-1'
     );
     expect(updated).toBe(notebook);
   });
@@ -65,11 +68,12 @@ describe('applyKernelMessage', () => {
   it('appends errors with their traceback', () => {
     const updated = applyKernelMessage(
       notebookWith('cell-1'),
-      message('error', 'cell-1', {
+      message('error', {
         ename: 'ValueError',
         evalue: 'bad',
         traceback: ['line 1', 'line 2'],
-      })
+      }),
+      'cell-1'
     );
     expect(updated.cells[0].outputs).toEqual([
       { output_type: 'error', ename: 'ValueError', evalue: 'bad', traceback: ['line 1', 'line 2'] },
@@ -80,30 +84,56 @@ describe('applyKernelMessage', () => {
     const data = { 'text/plain': '42' };
     const withResult = applyKernelMessage(
       notebookWith('cell-1'),
-      message('execute_result', 'cell-1', { data })
+      message('execute_result', { data }),
+      'cell-1'
     );
     expect(withResult.cells[0].outputs).toEqual([{ data, output_type: 'execute_result' }]);
 
     const withDisplay = applyKernelMessage(
       notebookWith('cell-1'),
-      message('display_data', 'cell-1', { data })
+      message('display_data', { data }),
+      'cell-1'
     );
     expect(withDisplay.cells[0].outputs).toEqual([{ data }]);
   });
 
-  it('leaves cells belonging to other requests untouched', () => {
+  it('appends to a cell whose outputs the file did not give it', () => {
+    const notebook = notebookWith('cell-1');
+    delete notebook.cells[0].outputs;
+
+    const updated = applyKernelMessage(
+      notebook,
+      message('stream', { name: 'stdout', text: 'hello' }),
+      'cell-1'
+    );
+    expect(updated.cells[0].outputs).toEqual([{ text: 'hello', output_type: 'stream' }]);
+  });
+
+  it('leaves cells other than the one that asked untouched', () => {
     const updated = applyKernelMessage(
       notebookWith('cell-1'),
-      message('execute_input', 'other-cell', { execution_count: 7 })
+      message('execute_input', { execution_count: 7 }),
+      'other-cell'
     );
-    expect(updated.cells[0].execution_count).toBe(0);
+    expect(updated.cells[0].execution_count).toBeNull();
+  });
+
+  it('changes nothing for a reply that belongs to no cell', () => {
+    const notebook = notebookWith('cell-1');
+    const updated = applyKernelMessage(
+      notebook,
+      message('execute_input', { execution_count: 7 }),
+      undefined
+    );
+    expect(updated).toBe(notebook);
   });
 
   it('passes over messages that carry no cell output', () => {
     const notebook = notebookWith('cell-1');
     const updated = applyKernelMessage(
       notebook,
-      message('status', 'cell-1', { execution_state: 'busy' })
+      message('status', { execution_state: 'busy' }),
+      'cell-1'
     );
     expect(updated).toBe(notebook);
   });

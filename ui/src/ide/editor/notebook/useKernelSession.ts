@@ -85,7 +85,10 @@ const disconnectedClient = {
  * kernel messages, and the dialogs driven by kernel state. Messages that mutate
  * cells are handed to `applyMessage`, which the notebook document hook provides.
  */
-export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelMessage) => void) {
+export function useKernelSession(
+  tab: IfileTab,
+  applyMessage: (message: IKernelMessage, cellId: string | undefined) => void
+) {
   const [session, setSession] = useState<ISession | null>();
   const [kernelName, setKernelName] = useState<string>(tab.kernelspec);
   const [kernelStatus, setKernelStatus] = useState('idle');
@@ -94,9 +97,17 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
   const [showErrorDialog, setShowErrorDialog] = useState<boolean>(false);
   const [showPrompt, setShowPrompt] = useState<Boolean>(false);
   const [promptContent, setPromptContent] = useState<IKernelMessage>();
+  // Which cell the kernel is asking input for, resolved from the request the prompt answers.
+  const [promptCellId, setPromptCellId] = useState<string>();
   // Keyed by the request's msg_id, which is what a reply's parent_header carries. A ref rather
   // than state: resolving a promise is not a render, and the callbacks have to survive one.
   const pendingCompletions = useRef(new Map<string, (reply: ICompleteReply) => void>());
+  /*
+   * Which cell each execute_request was sent for, keyed by its msg_id, so a reply can be routed back.
+   * The cell id cannot serve as the msg_id: a cell is run many times over, and one id for all of
+   * those requests makes a previous run's output indistinguishable from this one's.
+   */
+  const executingCells = useRef(new Map<string, string>());
   const [, setKernels] = useAtom(kernelsAtom);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
   const [userName] = useAtom(userNameAtom);
@@ -108,23 +119,35 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
     installedKernels.current = kernelspecs;
   }, [kernelspecs]);
 
+  // What the kernel calls itself, for the record a save leaves in the file: `python3` is an id,
+  // `Python 3` is what a reader sees. Undefined until the kernelspecs have arrived.
+  const kernelDisplayName = kernelspecs[kernelName]?.spec?.display_name;
+
   const toggleKernelSwitcher = () => setShowKernelSwitcher((prev) => !prev);
   const toggleErrorDialog = () => setShowErrorDialog((prev) => !prev);
   const toggleShowPrompt = () => setShowPrompt((prev) => !prev);
 
   const handleMessage = useCallback(
     (message: IKernelMessage) => {
+      const requestId: string | undefined = message.parent_header?.msg_id;
+      const cellId = requestId ? executingCells.current.get(requestId) : undefined;
+
       if (message.header.msg_type === 'input_request') {
         setShowPrompt(true);
         setPromptContent(message);
+        setPromptCellId(cellId);
       }
       if (message.header.msg_type === 'complete_reply') {
         pendingCompletions.current.get(message.parent_header.msg_id)?.(message.content);
       }
       if (message.header.msg_type === 'status') {
         setKernelStatus(message.content.execution_state);
+        // Idle means the kernel has finished with the request and will send nothing further for it.
+        if (message.content.execution_state === 'idle' && requestId) {
+          executingCells.current.delete(requestId);
+        }
       }
-      applyMessage(message);
+      applyMessage(message, cellId);
     },
     [applyMessage]
   );
@@ -269,9 +292,12 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
   const sendExecuteRequest = useCallback(
     (source: string, cellId: string) => {
       if (session && connection && connection.readyState === WebSocket.OPEN) {
+        const msgId = uuidv4();
+        executingCells.current.set(msgId, cellId);
         try {
-          connection.send(buildExecuteRequest(session.id, userName, cellId, source));
+          connection.send(buildExecuteRequest(session.id, userName, msgId, cellId, source));
         } catch (error) {
+          executingCells.current.delete(msgId);
           console.error('Failed to send execute_request message:', error);
         }
       }
@@ -279,9 +305,9 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
     [session, connection, userName]
   );
 
-  const sendInputReply = (cellId: string, parentHeader: IKernelMessage, inputValue: string) => {
+  const sendInputReply = (parentHeader: IKernelMessage, inputValue: string) => {
     if (session) {
-      connection.send(buildInputReply(session.id, userName, cellId, parentHeader, inputValue));
+      connection.send(buildInputReply(session.id, userName, uuidv4(), parentHeader, inputValue));
     }
   };
 
@@ -327,6 +353,7 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
   return {
     session,
     kernelName,
+    kernelDisplayName,
     kernelStatus,
     connection,
     showKernelSwitcher,
@@ -335,6 +362,7 @@ export function useKernelSession(tab: IfileTab, applyMessage: (message: IKernelM
     toggleErrorDialog,
     showPrompt,
     promptContent,
+    promptCellId,
     toggleShowPrompt,
     startTabSession,
     startSessionForNotebook,
