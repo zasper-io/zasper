@@ -8,6 +8,8 @@ export interface IfileTab {
   extension: string | null;
   load_required: boolean;
   kernelspec: string;
+  /** Terminals only: the folder the shell starts in, '' for the project root. */
+  cwd?: string;
 }
 
 export interface IfileTabDict {
@@ -27,3 +29,9 @@ const defaultFileTabState: IfileTabDict = {
 };
 
 export const fileTabsAtom = atom<IfileTabDict>(defaultFileTabState);
+
+/** The path of the tab in front, for the surfaces outside the tab strip that mark it — the file browser. */
+export const activeTabPathAtom = atom<string>((get) => {
+  const active = Object.values(get(fileTabsAtom)).find((tab) => tab.active);
+  return active === undefined ? '' : active.path;
+});

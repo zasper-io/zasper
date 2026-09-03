@@ -1,164 +1,166 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useState } from 'react';
-import { useAtom } from 'jotai';
-import { v4 as uuidv4 } from 'uuid';
+import { useSetAtom } from 'jotai';
 
-import {
-  ContentType,
-  createContent,
-  deleteContent as deleteContentRequest,
-  getDirectory,
-  IContentEntry,
-  logApiError,
-  renameContent as renameContentRequest,
-} from '@/api';
+import { IContentEntry } from '@/api';
+import { baseName } from '@/paths';
+import { useTabActions } from '@/store/TabActions';
 import ContextMenu from '../ContextMenu/ContextMenu';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 import FileItem from './FileItem';
-import { fileUploadParentPathAtom, showFileUploadDialogAtom } from './atoms';
+import RowName from './RowName';
+import TreeStatus from './TreeStatus';
+import { uploadRequestAtom } from './atoms';
+import { describeEntry, rowClassName } from './entryDetails';
+import { useClipboard } from './useClipboard';
+import { useContentActions } from './useContentActions';
+import { useDragSource, useDropTarget } from './useDragDrop';
+import { useFileTree } from './useFileTree';
+import { useRowDelete, useRowRename } from './useRowActions';
+import { useSelection } from './useSelection';
+import { useRowFocus } from './useTreeKeys';
+import { useTreeRoot } from './useTreeRoot';
 
 export interface IDirectoryItemProps {
   parentDir: string;
   data: IContentEntry;
+  /** The tree's own first row, which is the one Tab reaches before anything has been focused. */
+  isFirstRow?: boolean;
   handleTabActivate: (name: string, path: string, type: string, kernelspec: string) => void;
 }
 
 /**
- * A collapsible directory row. Children are fetched on expand rather than up
- * front, and this recurses into itself for nested directories.
+ * A collapsible directory row. What it holds is read on expand rather than up front, and lives in the
+ * tree store rather than here, so a reload can put the same folders back. This recurses into itself
+ * for nested directories.
  */
-const DirectoryItem = ({ parentDir, data, handleTabActivate }: IDirectoryItemProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [content, setContent] = useState(data);
-  const [text, setText] = useState(data.name);
-  const [menuPosition, setMenuPosition] = useState<{
-    xPos: number;
-    yPos: number;
-  } | null>(null);
-  const [isMenuVisible, setIsMenuVisible] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isDeleted, setIsDeleted] = useState(false);
-  const [contentName, setContentName] = useState(content.name);
-  const [, setShowFileUploader] = useAtom(showFileUploadDialogAtom);
-  const [, setFileUploadPath] = useAtom(fileUploadParentPathAtom);
+const DirectoryItem = ({
+  parentDir,
+  data,
+  isFirstRow = false,
+  handleTabActivate,
+}: IDirectoryItemProps) => {
+  const { name, path } = data;
+  const [menuPosition, setMenuPosition] = useState<{ xPos: number; yPos: number } | null>(null);
+  const setUploadRequest = useSetAtom(uploadRequestAtom);
+  const { visibleChildrenOf, isExpanded, toggle } = useFileTree();
+  const { create, copyTo, copyPath } = useContentActions();
+  const { openTerminal } = useTabActions();
+  const clipboard = useClipboard();
+  const selection = useSelection();
+  const { openAsRoot } = useTreeRoot();
+  const dragSource = useDragSource(path);
+  const { isOver, ...dropTarget } = useDropTarget(path);
+  const focusRow = useRowFocus(path, isFirstRow);
+  const scope = selection.scopeFor(path);
+  const rename = useRowRename(parentDir, name, path);
+  const remove = useRowDelete(path, scope);
+  const children = visibleChildrenOf(path);
+  const rowClass =
+    rowClassName(data, false, selection.isSelected(path)) + (isOver ? ' is-drop-target' : '');
 
-  const loadDirectory = async (path: string) => {
-    const directory = await getDirectory(path);
-    directory.content.forEach((item) => {
-      item.id = uuidv4();
-    });
-    setContent(directory);
-  };
-
-  const handleDirectoryClick = async (path: string) => {
-    setIsCollapsed(!isCollapsed);
-    await loadDirectory(path);
-  };
-
-  const createNewFile = async (path: string, contentType: ContentType) => {
-    await createContent(path, contentType).catch(logApiError('Error creating content:'));
-    await loadDirectory(path);
-  };
-
-  const renameContent = async () => {
-    // check if the name is empty
-    await renameContentRequest(parentDir, contentName, text).catch(
-      logApiError('Error renaming content:')
-    );
-    setContentName(text);
-    setIsEditing(false);
-  };
-
-  const deleteContent = async (path: string) => {
-    await deleteContentRequest(path).catch(logApiError('Error deleting content:'));
-    setIsDeleted(true);
-  };
-
-  const fileUploadFlow = () => {
-    setShowFileUploader(true);
-    setFileUploadPath(data.path);
-  };
+  // Everything that acts on this folder as a destination is only offered when it alone is the row
+  // being acted on; the rest of the menu applies to the whole selection.
+  const forThisFolder =
+    scope.length > 1
+      ? []
+      : [
+          { label: 'Rename', action: rename.start },
+          { label: 'Add file', action: () => create(path, 'file') },
+          { label: 'Add Notebook', action: () => create(path, 'notebook') },
+          { label: 'Add Folder', action: () => create(path, 'directory') },
+          { label: 'Upload', action: () => setUploadRequest({ parentDir: path, pending: [] }) },
+          { label: 'Open Terminal Here', action: () => openTerminal(path) },
+          { label: 'Open as Root', action: () => openAsRoot(path) },
+        ];
 
   const menuItems = [
-    { label: 'Rename', action: () => setIsEditing(true) },
+    ...forThisFolder,
+    { label: 'Cut', action: () => clipboard.cut(scope) },
+    { label: 'Copy', action: () => clipboard.copy(scope) },
+    ...(clipboard.held === null ? [] : [{ label: 'Paste', action: () => clipboard.paste(path) }]),
+    { label: 'Duplicate', action: () => copyTo(scope, parentDir) },
+    { label: 'Copy Path', action: () => copyPath(scope) },
     {
-      label: 'Add file',
-      action: (path: string) => createNewFile(path, 'file'),
+      label: scope.length > 1 ? `Delete ${scope.length} Items` : 'Delete Folder',
+      action: remove.ask,
     },
-    {
-      label: 'Add Notebook',
-      action: (path: string) => createNewFile(path, 'notebook'),
-    },
-    {
-      label: 'Add Folder',
-      action: (path: string) => createNewFile(path, 'directory'),
-    },
-    {
-      label: 'Upload File',
-      action: (path: string) => fileUploadFlow(),
-    },
-    { label: 'Delete Folder', action: (path: string) => deleteContent(path) },
   ];
 
-  const handleRightClick = (e: React.MouseEvent, path: string) => {
+  const handleRightClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    setMenuPosition({ xPos: e.pageX, yPos: e.pageY });
-    setIsMenuVisible(true);
+    // Otherwise this also reaches the empty space behind the tree, which has a menu of its own.
+    e.stopPropagation();
+    selection.ensureSelected(path);
+    setMenuPosition({ xPos: e.clientX, yPos: e.clientY });
   };
 
-  if (isDeleted) {
-    return <></>;
-  }
-
   return (
-    <li className="fileItem">
+    <li
+      ref={focusRow.ref}
+      className="fileItem"
+      role="treeitem"
+      aria-expanded={isExpanded(path)}
+      aria-selected={selection.isSelected(path)}
+      tabIndex={focusRow.tabIndex}
+      onFocus={focusRow.onFocus}
+    >
       <a
-        onContextMenu={(e) => handleRightClick(e, data.path)}
-        onClick={() => handleDirectoryClick(data.path)}
+        {...dragSource}
+        {...dropTarget}
+        className={rowClass}
+        title={describeEntry(data)}
+        onContextMenu={handleRightClick}
+        onClick={(event) => {
+          if (!selection.handleClick(path, event)) {
+            toggle(path);
+          }
+        }}
       >
         <img className="directoryIcon" src="./images/editor/directory.svg" alt="" />
-        {isEditing ? (
-          <input
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onBlur={() => setIsEditing(false)}
-            onKeyDown={(e) => e.key === 'Enter' && renameContent()}
-            autoFocus
-          />
-        ) : (
-          <span>{text}</span>
-        )}
+        <RowName name={name} rename={rename} />
+        {data.writable === false && <i className="fas fa-lock rowFlag" aria-label="Read-only" />}
       </a>
-      {isMenuVisible && menuPosition && (
+      {menuPosition && (
         <ContextMenu
           xPos={menuPosition.xPos}
           yPos={menuPosition.yPos}
           items={menuItems}
-          path={data.path}
-          onClose={() => setIsMenuVisible(false)}
+          path={path}
+          onClose={() => setMenuPosition(null)}
         />
       )}
-      <ul className="file-list list-unstyled">
-        {isCollapsed &&
-          content.content !== null &&
-          content.content.map((content, index) =>
-            content.type === 'directory' ? (
+      {remove.asking && (
+        <ConfirmDeleteDialog
+          names={scope.map(baseName)}
+          isFolder
+          deleting={remove.deleting}
+          onConfirm={remove.confirm}
+          onCancel={remove.cancel}
+        />
+      )}
+      {isExpanded(path) && (
+        <ul className="file-list list-unstyled" role="group">
+          {children.map((child) =>
+            child.type === 'directory' ? (
               <DirectoryItem
-                key={content.id}
-                parentDir={data.path}
+                key={child.path}
+                parentDir={path}
                 handleTabActivate={handleTabActivate}
-                data={content}
+                data={child}
               />
             ) : (
               <FileItem
-                parentDir={data.path}
-                key={content.id}
-                content={content}
-                handleFileClick={handleTabActivate}
+                key={child.path}
+                parentDir={path}
+                content={child}
+                onOpen={handleTabActivate}
               />
             )
           )}
-      </ul>
+          <TreeStatus path={path} visible={children.length} />
+        </ul>
+      )}
     </li>
   );
 };

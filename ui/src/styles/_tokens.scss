@@ -33,6 +33,9 @@
   --z-bg-content: #e4e4e5;
   --z-bg-panel: #ffffff;
   --z-bg-panel-alt: #f3f1fd;
+  // A tint of --z-accent, not --z-bg-panel-alt: a selected row has to read against the panel in
+  // every theme, and in the dark one panel-alt is the panel colour.
+  --z-bg-row-selected: #e8e4fb;
   --z-bg-editor: #ffffff;
   --z-bg-tab: #ffffff;
   --z-bg-input: #5f568f;
@@ -176,6 +179,7 @@
   --z-bg-content: #3e3e3e;
   --z-bg-panel: #272727;
   --z-bg-panel-alt: #272727;
+  --z-bg-row-selected: #3a3450;
   --z-bg-editor: #1e1e1e;
   --z-bg-tab: #272727;
   --z-bg-input: #272727;
@@ -275,6 +279,7 @@
   --z-bg-content: #eeeeee;
   --z-bg-panel: #ffffff;
   --z-bg-panel-alt: #eeeeee;
+  --z-bg-row-selected: #e3f2fd; // --jp-brand-color3
   --z-bg-editor: #ffffff;
   --z-bg-tab: #ffffff;
   --z-bg-input: #ffffff;

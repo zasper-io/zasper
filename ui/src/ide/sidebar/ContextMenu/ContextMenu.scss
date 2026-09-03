@@ -1,5 +1,7 @@
 .context-menu {
-  position: absolute;
+  // Fixed, not absolute: the tree it opens over is inside .content-inner, which is
+  // `overflow-y: auto` and would clip the menu and scroll it away from its row.
+  position: fixed;
   background: var(--z-bg-menu);
   color: var(--z-fg-default);
   border: 1px solid var(--z-border-divider);

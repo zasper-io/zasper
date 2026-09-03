@@ -95,6 +95,79 @@
   padding-top: 0;
 }
 
+// The upload dialog: a drop zone, the pickers, and a row per file.
+.uploadBody {
+  padding: 16px;
+}
+
+.uploadDrop {
+  border: 1px dashed var(--z-border-strong);
+  border-radius: 4px;
+  padding: 16px;
+  text-align: center;
+
+  p {
+    margin-bottom: 8px;
+    color: var(--z-fg-muted);
+  }
+
+  &.is-drop-target {
+    border-color: var(--z-accent);
+    background: var(--z-bg-row-selected);
+  }
+}
+
+.uploadPickers {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+}
+
+.uploadList {
+  margin: 16px 0 0;
+  // A folder of any size is a long list, and the dialog is capped at 90vh.
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.uploadRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--z-border-subtle);
+
+  progress {
+    width: 80px;
+  }
+}
+
+// The one part that gives, so a long path is what is cut rather than the state beside it.
+.uploadName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uploadState {
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.uploadReason {
+  color: var(--z-status-error);
+  font-size: var(--z-ui-font-size-sm);
+}
+
 .update-kernel-popup-form {
   display: flex;
   flex-direction: column;

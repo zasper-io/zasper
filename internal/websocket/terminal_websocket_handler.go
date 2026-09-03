@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
 )
 
@@ -85,8 +86,8 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	sessionID := generateSessionID(terminalId)
 	log.Debug().Msgf("Opening terminal session %s for terminal %s", sessionID, terminalId)
 
-	// Start a new TTY session
-	tty, cmd, err := startTTY()
+	// Start a new TTY session, in the folder the client asked for if it asked for one.
+	tty, cmd, err := startTTY(terminalWorkingDir(req.URL.Query().Get("cwd")))
 	if err != nil {
 		sendErrorMessage(connection, fmt.Sprintf("failed to start tty: %s", err))
 		return
@@ -113,8 +114,32 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	log.Debug().Msg("Closing connection...")
 }
 
-// startTTY starts a new terminal session.
-func startTTY() (*os.File, *exec.Cmd, error) {
+/*
+terminalWorkingDir turns the folder the client asked for into an OS path, falling back to the project
+root for anything that is not a folder inside the project. A shell is the one place where landing in
+the wrong directory is worth being careful about, so a bad answer is refused rather than passed on.
+*/
+func terminalWorkingDir(relativePath string) string {
+	if relativePath == "" {
+		return core.Zasper.HomeDir
+	}
+
+	osPath := content.GetSafePath(relativePath)
+	if osPath == "" {
+		log.Warn().Msgf("Terminal asked to start outside the project: %s", relativePath)
+		return core.Zasper.HomeDir
+	}
+
+	info, err := os.Stat(osPath)
+	if err != nil || !info.IsDir() {
+		log.Warn().Msgf("Terminal asked to start somewhere that is not a folder: %s", relativePath)
+		return core.Zasper.HomeDir
+	}
+	return osPath
+}
+
+// startTTY starts a new terminal session in dir.
+func startTTY(dir string) (*os.File, *exec.Cmd, error) {
 
 	terminal := "zsh"
 	osystem := core.Zasper.OSName
@@ -136,6 +161,7 @@ func startTTY() (*os.File, *exec.Cmd, error) {
 	log.Debug().Msgf("Starting new TTY using command '%s' with arguments ['%s']...", terminal, args)
 
 	cmd := exec.Command(terminal, args...)
+	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
 	tty, err := pty.Start(cmd)

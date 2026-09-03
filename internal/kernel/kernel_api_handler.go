@@ -31,6 +31,10 @@ func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
 	log.Debug().Msgf("kernelId : %s", kernelId)
 
 	kernel, err := getKernel(kernelId)
+	if errors.Is(err, ErrKernelNotFound) {
+		zhttp.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error getting kernel: %v", err))
+		return
+	}
 	if err != nil {
 		log.Error().Msgf("Error getting kernel: %v", err)
 		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting kernel: %v", err))
@@ -48,9 +52,13 @@ func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
 	log.Info().Msgf("kernelId : %s", kernelId)
 
 	err := interruptKernel(kernelId)
+	if errors.Is(err, ErrKernelNotFound) {
+		zhttp.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error interrupting kernel: %v", err))
+		return
+	}
 	if err != nil {
-		log.Error().Msgf("Error getting kernel: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting kernel: %v", err))
+		log.Error().Msgf("Error interrupting kernel: %v", err)
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error interrupting kernel: %v", err))
 		return
 	}
 

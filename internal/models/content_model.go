@@ -13,6 +13,9 @@ type ContentModel struct {
 	Writable       bool        `json:"writable"`
 	Hash           int         `json:"hash"`
 	Hash_algorithm string      `json:"hash_algorithm"`
+	// Ignored is what git would not track. Set on listing entries only, since it is a property of
+	// where a file sits rather than of the file, and the file browser dims those rows.
+	Ignored bool `json:"ignored"`
 }
 
 // sort interface

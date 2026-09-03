@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -193,6 +195,7 @@ func TestGetFileModel(t *testing.T) {
 				ContentType:   "file",
 				Created:       time.Now().UTC().Format(time.RFC3339),
 				Last_modified: time.Now().UTC().Format(time.RFC3339),
+				Writable:      true,
 				Size:          int64(22), // Size of the file content
 			},
 			expectedErr: nil,
@@ -208,6 +211,7 @@ func TestGetFileModel(t *testing.T) {
 				ContentType:   "notebook",
 				Created:       time.Now().UTC().Format(time.RFC3339),
 				Last_modified: time.Now().UTC().Format(time.RFC3339),
+				Writable:      true,
 				Size:          int64(2), // Size of the notebook file content
 			},
 			expectedErr: nil,
@@ -231,6 +235,7 @@ func TestGetFileModel(t *testing.T) {
 				ContentType:   "file",
 				Created:       time.Now().UTC().Format(time.RFC3339),
 				Last_modified: time.Now().UTC().Format(time.RFC3339),
+				Writable:      true,
 				Size:          int64(22),
 			},
 			expectedErr: nil,
@@ -256,4 +261,304 @@ func TestGetFileModel(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRenameRefusesToOverwriteASibling(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "keep.txt"), []byte("keep"), 0o644))
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "other.txt"), []byte("other"), 0o644))
+
+	err := rename("", "other.txt", "keep.txt")
+
+	assert.ErrorIs(t, err, errTargetExists)
+	kept, readErr := os.ReadFile(filepath.Join(projectDir, "keep.txt"))
+	assert.NoError(t, readErr)
+	assert.Equal(t, "keep", string(kept), "the existing file should be untouched")
+	assert.FileExists(t, filepath.Join(projectDir, "other.txt"))
+}
+
+func TestRenameReportsWhatWentWrong(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte("hello"), 0o644))
+
+	assert.Error(t, rename("", "notes.txt", "  "), "an empty name is not a rename")
+	assert.Error(t, rename("", "missing.txt", "notes2.txt"))
+	assert.Error(t, rename("", "notes.txt", "../escaped.txt"))
+	assert.NoFileExists(t, filepath.Join(filepath.Dir(projectDir), "escaped.txt"))
+
+	assert.NoError(t, rename("", "notes.txt", "renamed.txt"))
+	assert.FileExists(t, filepath.Join(projectDir, "renamed.txt"))
+}
+
+func TestDeleteFileRemovesANonEmptyDirectory(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	nested := filepath.Join(projectDir, "folder", "inner")
+	assert.NoError(t, os.MkdirAll(nested, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(nested, "notes.txt"), []byte("hello"), 0o644))
+
+	assert.NoError(t, deleteFile("folder"))
+
+	assert.NoDirExists(t, filepath.Join(projectDir, "folder"))
+}
+
+func TestDeleteFileSaysWhenThereIsNothingToDelete(t *testing.T) {
+	projectDirElsewhere(t)
+
+	err := deleteFile("missing.txt")
+
+	assert.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestCreateDirectoryAnswersWithAProjectRelativePath(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "src", "untitled-directory"), 0o755))
+
+	// The client looks the new row up in the listing by the path it is given, and listings are
+	// project-relative.
+	model, err := CreateDirectory(ContentPayload{ParentDir: "src", ContentType: "directory"})
+
+	assert.NoError(t, err)
+	assert.Equal(t, filepath.Join("src", "untitled-directory-1"), model.Path)
+	assert.Equal(t, "untitled-directory-1", model.Name, "the name should be the one that was free")
+	assert.DirExists(t, filepath.Join(projectDir, "src", "untitled-directory-1"))
+}
+
+func TestCreateContentSaysWhenItCouldNotCreateAnything(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+
+	for _, contentType := range []string{"file", "notebook", "directory"} {
+		t.Run(contentType, func(t *testing.T) {
+			// A parent directory that is not there is the everyday version of this: the folder was
+			// deleted in another window while its row was still on screen.
+			_, err := createContent(ContentPayload{ParentDir: "gone", ContentType: contentType})
+			assert.ErrorIs(t, err, os.ErrNotExist)
+
+			// Outside the project is the other: it used to be written to the server's own working
+			// directory, because GetSafePath answered "" and a relative path was joined onto it.
+			_, err = createContent(ContentPayload{ParentDir: "../elsewhere", ContentType: contentType})
+			assert.Error(t, err)
+		})
+	}
+
+	entries, err := os.ReadDir(filepath.Dir(projectDir))
+	assert.NoError(t, err)
+	for _, entry := range entries {
+		assert.NotContains(t, entry.Name(), "ntitled", "nothing should be created outside the project")
+	}
+}
+
+func TestCreateContentAnswersWithWhatIsOnDisk(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+
+	notebook, err := createContent(ContentPayload{ParentDir: "", ContentType: "notebook"})
+	assert.NoError(t, err)
+	assert.Equal(t, "Untitled.ipynb", notebook.Name)
+	// Empty until now: a size and a date the client can show have to come from the file.
+	assert.Greater(t, notebook.Size, int64(0))
+	assert.NotEmpty(t, notebook.Last_modified)
+
+	written, err := os.ReadFile(filepath.Join(projectDir, "Untitled.ipynb"))
+	assert.NoError(t, err)
+	assert.Contains(t, string(written), `"nbformat"`)
+
+	// And the second one is beside it rather than on top of it.
+	second, err := createContent(ContentPayload{ParentDir: "", ContentType: "notebook"})
+	assert.NoError(t, err)
+	assert.Equal(t, "Untitled1.ipynb", second.Name)
+}
+
+func TestMoveContentCarriesAFolderToAnotherFolder(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "src", "inner"), 0o755))
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "lib"), 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "src", "inner", "a.txt"), []byte("a"), 0o644))
+
+	assert.NoError(t, moveContent("src/inner", "lib/inner"))
+
+	assert.FileExists(t, filepath.Join(projectDir, "lib", "inner", "a.txt"))
+	assert.NoDirExists(t, filepath.Join(projectDir, "src", "inner"))
+}
+
+func TestMoveContentRefusesWhatWouldLoseSomething(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "src"), 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "keep.txt"), []byte("keep"), 0o644))
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte("notes"), 0o644))
+
+	assert.ErrorIs(t, moveContent("notes.txt", "keep.txt"), errTargetExists)
+	assert.ErrorIs(t, moveContent("missing.txt", "src/missing.txt"), os.ErrNotExist)
+	assert.ErrorIs(t, moveContent("src", "src/inner"), errIntoItself)
+	assert.Error(t, moveContent("notes.txt", "gone/notes.txt"), "there is no folder to move into")
+	assert.Error(t, moveContent("notes.txt", "../escaped.txt"))
+	assert.NoFileExists(t, filepath.Join(filepath.Dir(projectDir), "escaped.txt"))
+
+	kept, err := os.ReadFile(filepath.Join(projectDir, "keep.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, "keep", string(kept))
+}
+
+func TestCopyContentDuplicatesAFileInPlace(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte("hello"), 0o644))
+
+	first, err := copyContent("notes.txt", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "notes-Copy1.txt", first.Name, "the copy is named the way Jupyter names one")
+	assert.Equal(t, "notes-Copy1.txt", first.Path)
+	assert.Equal(t, "file", first.ContentType)
+
+	copied, err := os.ReadFile(filepath.Join(projectDir, "notes-Copy1.txt"))
+	assert.NoError(t, err)
+	assert.Equal(t, "hello", string(copied))
+
+	// Duplicating again does not land on the first copy.
+	second, err := copyContent("notes.txt", "")
+	assert.NoError(t, err)
+	assert.Equal(t, "notes-Copy2.txt", second.Name)
+	assert.FileExists(t, filepath.Join(projectDir, "notes.txt"), "the original stays where it is")
+}
+
+func TestCopyContentCopiesAWholeTreeIntoAnotherFolder(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "src", "inner"), 0o755))
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "lib"), 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "src", "inner", "a.txt"), []byte("a"), 0o644))
+
+	model, err := copyContent("src", "lib")
+
+	assert.NoError(t, err)
+	assert.Equal(t, "src", model.Name, "nothing in lib was called src, so the copy keeps the name")
+	assert.Equal(t, filepath.Join("lib", "src"), model.Path)
+	assert.Equal(t, "directory", model.ContentType)
+	assert.FileExists(t, filepath.Join(projectDir, "lib", "src", "inner", "a.txt"))
+	assert.DirExists(t, filepath.Join(projectDir, "src", "inner"))
+
+	// A second copy cannot have it, and a folder's name is not split on its dots.
+	again, err := copyContent("src", "lib")
+	assert.NoError(t, err)
+	assert.Equal(t, "src-Copy1", again.Name)
+}
+
+func TestCopyContentRefusesAFolderIntoItself(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "src", "inner"), 0o755))
+
+	// Left to itself, filepath.Walk would keep finding the copy it is making.
+	_, err := copyContent("src", "src/inner")
+
+	assert.ErrorIs(t, err, errIntoItself)
+	assert.NoDirExists(t, filepath.Join(projectDir, "src", "inner", "src"))
+}
+
+func TestCopyContentKeepsALinkAsALink(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	outside := filepath.Join(filepath.Dir(projectDir), "secret.txt")
+	assert.NoError(t, os.WriteFile(outside, []byte("secret"), 0o644))
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "src"), 0o755))
+	assert.NoError(t, os.Symlink(outside, filepath.Join(projectDir, "src", "link.txt")))
+
+	_, err := copyContent("src", "")
+	assert.NoError(t, err)
+
+	// Following the link would copy something from outside the project into it.
+	info, err := os.Lstat(filepath.Join(projectDir, "src-Copy1", "link.txt"))
+	assert.NoError(t, err)
+	assert.NotZero(t, info.Mode()&os.ModeSymlink, "the copy should still be a link")
+}
+
+func TestUploadContentWritesTheFileAndDescribesIt(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "docs"), 0o755))
+
+	model, err := uploadContent("docs", "notes.txt", false, strings.NewReader("hello"))
+
+	assert.NoError(t, err)
+	assert.Equal(t, "notes.txt", model.Name)
+	assert.Equal(t, filepath.Join("docs", "notes.txt"), model.Path)
+	assert.Equal(t, "file", model.ContentType)
+	written, readErr := os.ReadFile(filepath.Join(projectDir, "docs", "notes.txt"))
+	assert.NoError(t, readErr)
+	assert.Equal(t, "hello", string(written))
+}
+
+func TestUploadContentAnswersWithAPathTheBrowserCanUse(t *testing.T) {
+	projectDirElsewhere(t)
+
+	model, err := uploadContent("", "notes.txt", false, strings.NewReader("hello"))
+
+	assert.NoError(t, err)
+	// Not "./notes.txt": the file browser keys its rows on this string.
+	assert.Equal(t, "notes.txt", model.Path)
+}
+
+func TestUploadContentMakesTheFoldersAFolderUploadNeeds(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+
+	model, err := uploadContent("", "notes/img/logo.png", false, strings.NewReader("png"))
+
+	assert.NoError(t, err)
+	assert.Equal(t, "logo.png", model.Name)
+	assert.Equal(t, filepath.Join("notes", "img", "logo.png"), model.Path)
+	assert.FileExists(t, filepath.Join(projectDir, "notes", "img", "logo.png"))
+}
+
+func TestUploadContentRefusesToOverwriteUnlessAsked(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	target := filepath.Join(projectDir, "notes.txt")
+	assert.NoError(t, os.WriteFile(target, []byte("keep"), 0o644))
+
+	_, err := uploadContent("", "notes.txt", false, strings.NewReader("new"))
+
+	assert.ErrorIs(t, err, errTargetExists)
+	kept, readErr := os.ReadFile(target)
+	assert.NoError(t, readErr)
+	assert.Equal(t, "keep", string(kept))
+
+	_, err = uploadContent("", "notes.txt", true, strings.NewReader("new"))
+	assert.NoError(t, err)
+	replaced, readErr := os.ReadFile(target)
+	assert.NoError(t, readErr)
+	assert.Equal(t, "new", string(replaced))
+}
+
+func TestUploadContentLeavesNothingBehindWhenTheBodyBreaks(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+
+	_, err := uploadContent("", "notes.txt", false, iotest.TimeoutReader(strings.NewReader("hello")))
+
+	assert.Error(t, err)
+	assert.NoFileExists(t, filepath.Join(projectDir, "notes.txt"))
+	// Not even the temporary file the bytes were going into.
+	entries, readErr := os.ReadDir(projectDir)
+	assert.NoError(t, readErr)
+	assert.Empty(t, entries)
+}
+
+func TestUploadContentRefusesToClimbOutOfTheProject(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+
+	_, err := uploadContent("", "../escaped.txt", false, strings.NewReader("hello"))
+
+	assert.Error(t, err)
+	assert.NoFileExists(t, filepath.Join(filepath.Dir(projectDir), "escaped.txt"))
+}
+
+func TestUploadContentRefusesSomethingThatIsNotAFileName(t *testing.T) {
+	projectDirElsewhere(t)
+
+	for _, name := range []string{"", ".", "/", "src/"} {
+		_, err := uploadContent("", name, false, strings.NewReader("hello"))
+		assert.Error(t, err, "%q is not a file name", name)
+	}
+}
+
+func TestCreatedModelSaysWhetherItCanBeWritten(t *testing.T) {
+	projectDirElsewhere(t)
+
+	model, err := uploadContent("", "notes.txt", false, strings.NewReader("hello"))
+
+	assert.NoError(t, err)
+	// A directory listing reports this, and a row would otherwise be marked read-only until the next
+	// time the folder was read.
+	assert.True(t, model.Writable)
 }

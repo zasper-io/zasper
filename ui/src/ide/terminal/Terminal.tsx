@@ -36,6 +36,9 @@ export default function TerminalTab({ data }: TerminalTabProps) {
   };
 
   const terminalId = data.name;
+  // A terminal opened from a folder in the file browser starts there; the server falls back to the
+  // project root for anything it cannot use.
+  const cwd = data.cwd ?? '';
 
   useEffect(() => {
     if (terminalRef.current == null) return;
@@ -69,8 +72,9 @@ export default function TerminalTab({ data }: TerminalTabProps) {
       sendSizeToBackend(cols, rows); // Send new size on resize
     });
 
+    const query = cwd === '' ? '' : `?cwd=${encodeURIComponent(cwd)}`;
     socketRef.current = new WebSocket(
-      `${BaseWebSocketUrl}/ws/terminals/${encodeURIComponent(terminalId)}`
+      `${BaseWebSocketUrl}/ws/terminals/${encodeURIComponent(terminalId)}${query}`
     );
 
     socketRef.current.onopen = () => {
@@ -93,7 +97,7 @@ export default function TerminalTab({ data }: TerminalTabProps) {
 
       window.removeEventListener('resize', refit);
     };
-  }, [terminalId, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
+  }, [terminalId, cwd, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
 
   return (
     <div className="tab-content">

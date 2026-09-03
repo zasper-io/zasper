@@ -118,13 +118,14 @@ func main() {
 	router := mux.NewRouter()
 
 	core.Zasper = core.SetUpZasper(version, *cwd, *protected)
-	core.ZasperSession = core.SetUpActiveSessions()
-	content.ZasperActiveWatcherConnections = content.SetUpActiveWatcherConnections()
-	kernel.ZasperPendingKernels = kernel.SetUpStateKernels()
-	kernel.ZasperActiveKernels = kernel.SetUpStateKernels()
-	websocket.ZasperActiveKernelConnections = websocket.SetUpStateKernels()
+	core.SetUpActiveSessions()
+	content.SetUpActiveWatcherConnections()
+	kernel.SetUpStateKernels()
+	websocket.SetUpKernelConnections()
 	// Killing a kernel has to close the sockets its notebooks are listening on.
 	kernel.OnKernelDisconnect(websocket.CloseKernelConnections)
+	// A renamed or moved notebook keeps its session, which is keyed on the path it no longer has.
+	content.OnContentMoved = func(from, to string) { session.RelocateSessions(from, to) }
 	kernel.ProtocolVersion = "5.3"
 
 	// API routes
@@ -152,7 +153,10 @@ func main() {
 	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")
 
 	apiRouter.HandleFunc("/contents/rename", content.ContentRenameAPIHandler).Methods("POST")
+	apiRouter.HandleFunc("/contents/move", content.ContentMoveAPIHandler).Methods("POST")
+	apiRouter.HandleFunc("/contents/copy", content.ContentCopyAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/contents/download", content.ContentDownloadAPIHandler).Methods("GET")
 	apiRouter.HandleFunc("/contents/watch", content.HandleWatchWebSocket).Methods("GET")
 	apiRouter.HandleFunc("/contents/upload", content.UploadFileHandler).Methods("POST")
 

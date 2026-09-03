@@ -3,7 +3,9 @@ package content
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -98,24 +100,47 @@ func getDirectoryModel(relativePath string) (models.ContentModel, error) {
 
 	dir, err := os.Open(abspath)
 	if err != nil {
-		log.Info().Msgf("error getting content data %s", err)
+		return models.ContentModel{}, err
 	}
+	defer dir.Close()
+
 	files, err := dir.Readdir(0)
 	if err != nil {
-		log.Error().Msgf("error getting content data %s", err)
+		return models.ContentModel{}, err
 	}
+
+	// Built once for the whole listing rather than per entry: every entry here shares the same set of
+	// applicable .gitignore files.
+	segments := pathSegments(relativePath)
+	ignores := ignoreMatcherFor(segments)
+	// Everything inside an ignored folder is ignored, whatever the patterns say about the names
+	// themselves.
+	insideIgnored := len(segments) > 0 && ignores.Match(segments, true)
+
 	listOfContents := []models.ContentModel{}
 	for _, v := range files {
-		fileContent, _ := getFileModel(abspath, relativePath, v.Name())
+		fileContent, err := getFileModel(abspath, relativePath, v.Name())
 		if err != nil {
-			log.Info().Msgf("error getting content data %s", err)
+			// A file that has gone between the readdir and the stat is not worth failing the listing
+			// over; it will simply not be in it.
+			log.Debug().Err(err).Msgf("skipping %s in the listing of %s", v.Name(), relativePath)
 			continue
 		}
+		fileContent.Ignored = insideIgnored || ignores.Match(entrySegments(segments, v.Name()), v.IsDir())
 		listOfContents = append(listOfContents, fileContent)
 	}
+
 	sort.Sort(models.ByContentTypeAndName(listOfContents))
 	output.Content = listOfContents
+	output.Writable = isWritable(abspath, info)
 	return output, nil
+}
+
+func entrySegments(dirSegments []string, name string) []string {
+	// A fresh slice each time: appending to dirSegments would hand every entry the same backing array.
+	entry := make([]string, 0, len(dirSegments)+1)
+	entry = append(entry, dirSegments...)
+	return append(entry, name)
 }
 
 func getFileModel(abspath, relativePath, fileName string) (models.ContentModel, error) {
@@ -128,14 +153,7 @@ func getFileModel(abspath, relativePath, fileName string) (models.ContentModel, 
 		log.Info().Msgf("error getting content data %s", err)
 		return models.ContentModel{}, err
 	}
-	extension := filepath.Ext(fileName)
-	contentType := "file"
-	if extension == ".ipynb" {
-		contentType = "notebook"
-	}
-	if info.IsDir() {
-		contentType = "directory"
-	}
+	contentType := contentTypeFor(fileName, info.IsDir())
 
 	path := relativePath + "/" + fileName
 	if relativePath == "." {
@@ -148,9 +166,22 @@ func getFileModel(abspath, relativePath, fileName string) (models.ContentModel, 
 		ContentType:   contentType,
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
-		Size:          info.Size()}
+		Size:          info.Size(),
+		Writable:      isWritable(os_path, info)}
 	return output, nil
 
+}
+
+// contentTypeFor is the one place that decides what the client is looking at, since a listing entry,
+// a newly created file and a copy all have to agree.
+func contentTypeFor(name string, isDir bool) string {
+	if isDir {
+		return "directory"
+	}
+	if filepath.Ext(name) == ".ipynb" {
+		return "notebook"
+	}
+	return "file"
 }
 
 func getFileModelWithContent(path string) (models.ContentModel, error) {
@@ -194,161 +225,398 @@ func readFileContent(path string) (string, error) {
 	return string(file), nil
 }
 
-func createContent(payload ContentPayload) models.ContentModel {
-	if payload.ContentType == "notebook" {
+/*
+Creating something can fail — a read-only filesystem, a full disk, a parent directory that has just
+gone — and the client shows the new row by the path in the answer, so a failure that answered 200
+with a model for a file that is not there left the panel lying.
+*/
+func createContent(payload ContentPayload) (models.ContentModel, error) {
+	switch payload.ContentType {
+	case "notebook":
 		return newUntitledNotebook(payload)
-	} else if payload.ContentType == "directory" {
+	case "directory":
 		return CreateDirectory(payload)
-	} else {
+	default:
 		return newUntitledFile(payload)
 	}
-
 }
 
-// Function to check if the file exists
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return !os.IsNotExist(err)
+// pathExists is about anything answering to the path, a broken symlink included: a name is free only
+// when nothing at all is there.
+func pathExists(osPath string) bool {
+	_, err := os.Lstat(osPath)
+	return err == nil
 }
 
-// Modify the newUntitledFile function to create untitled-1.txt, untitled-2.txt, etc.
-func newUntitledFile(payload ContentPayload) models.ContentModel {
-
-	parentDir := GetSafePath(payload.ParentDir)
-
-	fileNameWithPath := filepath.Join(parentDir, "untitled.txt")
-
-	// Check if the file already exists and if so, increment the file number
-	i := 0
-	for fileExists(fileNameWithPath) {
-		i++
-		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
-		fileNameWithPath = filepath.Join(parentDir, fmt.Sprintf("untitled%d.txt", i))
+// availableName returns the first candidate that names nothing in osDir. Racy by nature, which is
+// why the creators still open with O_EXCL rather than trusting the answer.
+func availableName(osDir string, candidate func(attempt int) string) string {
+	for attempt := 0; ; attempt++ {
+		name := candidate(attempt)
+		if !pathExists(filepath.Join(osDir, name)) {
+			return name
+		}
 	}
+}
 
-	// Create the file with the unique filename
-	file, err := os.OpenFile(fileNameWithPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+// numbered names the first attempt plainly and every later one with a number, which is how both
+// Jupyter's `Untitled1.ipynb` and this project's `untitled-directory-1` are spelled.
+func numbered(base, separator, ext string) func(int) string {
+	return func(attempt int) string {
+		if attempt == 0 {
+			return base + ext
+		}
+		return fmt.Sprintf("%s%s%d%s", base, separator, attempt, ext)
+	}
+}
+
+// createdModel describes what was just written, from the file itself rather than from what was asked
+// for: the path is project-relative like every other path in the API, since the client looks the new
+// row up in the listing by it, and the name is the one that was free.
+func createdModel(contentType, parentDir, name, osPath string) (models.ContentModel, error) {
+	info, err := os.Lstat(osPath)
 	if err != nil {
-		log.Info().Msgf("Error creating file: %s", err)
-	}
-	defer file.Close() // Ensure the file is closed when the function exits
-
-	info, err := os.Lstat(fileNameWithPath)
-
-	if err != nil {
-		log.Info().Msgf("error getting content data %s", err)
+		return models.ContentModel{}, err
 	}
 
-	// Update the model to use the new path and name
-	fileName := filepath.Base(fileNameWithPath)
-	model := models.ContentModel{
-		ContentType:   payload.ContentType,
-		Path:          filepath.Join(payload.ParentDir, fileName),
-		Name:          fileName,
+	return models.ContentModel{
+		ContentType:   contentType,
+		Path:          filepath.Join(parentDir, name),
+		Name:          name,
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
 		Size:          info.Size(),
-	}
-
-	return model
+		// Asked rather than assumed: a directory listing reports this, so an entry that has just been
+		// created should describe itself the same way rather than claiming to be read-only.
+		Writable: isWritable(osPath, info),
+	}, nil
 }
 
-func newUntitledNotebook(payload ContentPayload) models.ContentModel {
-	/*
-		os.O_CREATE: Create the file if it does not exist.
-		os.O_TRUNC: Truncate the file to zero length if it already exists.
-		os.O_RDWR: Open the file for reading and writing.
-	*/
-
-	parentDir := GetSafePath(payload.ParentDir)
-
-	fileNameWithPath := filepath.Join(parentDir, "Untitled.ipynb")
-
-	// Check if the file already exists and if so, increment the file number
-	i := 0
-	for fileExists(fileNameWithPath) {
-		i++
-		// Generate a new filename like "untitled-1.txt", "untitled-2.txt", etc.
-		fileNameWithPath = filepath.Join(parentDir, fmt.Sprintf("Untitled%d.ipynb", i))
-	}
-
-	log.Debug().Msgf("Creating new untitled notebook at fileNameWithPath: %s", fileNameWithPath)
-
-	// Create the file with the unique filename
-	file, err := os.OpenFile(fileNameWithPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+func newUntitledFile(payload ContentPayload) (models.ContentModel, error) {
+	parentDir, err := safeWritePath(payload.ParentDir)
 	if err != nil {
-		log.Info().Msgf("Error creating file: %s", err)
+		return models.ContentModel{}, err
 	}
-	defer file.Close() // Ensure the file is closed when the function exits
 
-	// Write the default notebook content to the file
+	name := availableName(parentDir, numbered("untitled", "", ".txt"))
+	osPath := filepath.Join(parentDir, name)
+
+	// O_EXCL rather than O_TRUNC: availableName looked a moment ago, and truncating a file that has
+	// appeared since would destroy it.
+	file, err := os.OpenFile(osPath, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0644)
+	if err != nil {
+		return models.ContentModel{}, err
+	}
+	if err := file.Close(); err != nil {
+		return models.ContentModel{}, err
+	}
+
+	return createdModel(payload.ContentType, payload.ParentDir, name, osPath)
+}
+
+func newUntitledNotebook(payload ContentPayload) (models.ContentModel, error) {
+	parentDir, err := safeWritePath(payload.ParentDir)
+	if err != nil {
+		return models.ContentModel{}, err
+	}
+
 	defaultNotebook, err := nbformat.Marshal(nbformat.New())
 	if err != nil {
-		log.Error().Err(err).Msg("Error building the default notebook content")
+		return models.ContentModel{}, fmt.Errorf("building the default notebook: %w", err)
 	}
 
-	err = os.WriteFile(fileNameWithPath, defaultNotebook, 0644)
+	name := availableName(parentDir, numbered("Untitled", "", ".ipynb"))
+	osPath := filepath.Join(parentDir, name)
+
+	file, err := os.OpenFile(osPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Error().Err(err).Msgf("Error writing default notebook content to file: %s", fileNameWithPath)
+		return models.ContentModel{}, err
+	}
+	if _, err := file.Write(defaultNotebook); err != nil {
+		file.Close()
+		return models.ContentModel{}, err
+	}
+	if err := file.Close(); err != nil {
+		return models.ContentModel{}, err
 	}
 
-	info, err := os.Lstat(fileNameWithPath)
-
-	if err != nil {
-		log.Info().Msgf("error getting content data %s", err)
-	}
-
-	// Update the model to use the new path and name
-	fileName := filepath.Base(fileNameWithPath)
-	model := models.ContentModel{
-		ContentType:   payload.ContentType,
-		Path:          filepath.Join(payload.ParentDir, fileName),
-		Name:          fileName,
-		Created:       info.ModTime().UTC().Format(time.RFC3339),
-		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
-		Size:          info.Size(),
-	}
-
-	return model
+	return createdModel(payload.ContentType, payload.ParentDir, name, osPath)
 }
 
-// Function to check if a directory exists
-func directoryExists(path string) bool {
-	info, err := os.Stat(path)
+func CreateDirectory(payload ContentPayload) (models.ContentModel, error) {
+	parentDir, err := safeWritePath(payload.ParentDir)
 	if err != nil {
-		return false
+		return models.ContentModel{}, err
 	}
-	return info.IsDir()
+
+	name := availableName(parentDir, numbered("untitled-directory", "-", ""))
+	osPath := filepath.Join(parentDir, name)
+	if err := os.Mkdir(osPath, 0755); err != nil {
+		return models.ContentModel{}, err
+	}
+
+	return createdModel(payload.ContentType, payload.ParentDir, name, osPath)
 }
 
-func CreateDirectory(payload ContentPayload) models.ContentModel {
-	model := models.ContentModel{}
-	model.ContentType = payload.ContentType
-	dirName := "untitled-directory"
-	i := 0
-	dirPath := GetSafePath(filepath.Join(payload.ParentDir, dirName))
-	for directoryExists(dirPath) {
-		i++
-		dirPath = GetSafePath(filepath.Join(payload.ParentDir, fmt.Sprintf("%s-%d", dirName, i)))
-	}
+// errTargetExists is what a rename or a move onto an existing sibling gives back, so the handler can
+// answer with a conflict rather than a generic failure.
+var errTargetExists = errors.New("a file or folder with that name already exists")
 
-	// Create the directory with the unique name
-	err := os.MkdirAll(dirPath, 0755)
-	if err != nil {
-		log.Info().Msgf("Error creating directory: %s", err)
-	}
-	model.Path = dirPath
-	model.Name = filepath.Base(dirName)
+// errIntoItself is a folder moved or copied into its own subtree, which would either be refused by
+// the kernel with a bare EINVAL or, for a copy, recurse until the disk filled.
+var errIntoItself = errors.New("a folder cannot be moved or copied inside itself")
 
-	return model
+// isInside reports whether osPath is the folder itself or something under it, segment by segment
+// rather than by string prefix: `.../projectX-secrets` is not inside `.../projectX`.
+func isInside(osPath, folder string) bool {
+	if osPath == folder {
+		return true
+	}
+	return strings.HasPrefix(osPath, strings.TrimSuffix(folder, string(os.PathSeparator))+string(os.PathSeparator))
 }
 
 func rename(parentDir, oldName, newName string) error {
-	err := os.Rename(GetSafePath(filepath.Join(parentDir, oldName)), GetSafePath(filepath.Join(parentDir, newName)))
-	if err != nil {
-		log.Info().Msgf("error is %s", err)
+	if strings.TrimSpace(newName) == "" {
+		return errors.New("a name is required")
 	}
-	return nil
+
+	// A rename names a sibling. A path here would move the file somewhere else, which is what the
+	// move endpoint is for, and the inline rename box does not read like it can do that.
+	if strings.ContainsAny(newName, `/\`) {
+		return errors.New("a name cannot contain a path separator")
+	}
+
+	return moveContent(filepath.Join(parentDir, oldName), filepath.Join(parentDir, newName))
+}
+
+// moveContent moves a file or folder to another project-relative path, which is both a rename and
+// what a drag between folders or a cut-and-paste does.
+func moveContent(from, to string) error {
+	if strings.TrimSpace(to) == "" {
+		return errors.New("a destination is required")
+	}
+
+	source, err := safeWritePath(from)
+	if err != nil {
+		return err
+	}
+	target, err := safeWritePath(to)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Lstat(source); err != nil {
+		return err
+	}
+	if source == target {
+		return nil
+	}
+	if isInside(target, source) {
+		return errIntoItself
+	}
+	// os.Rename replaces an existing target without a word, which for a file browser means a
+	// mistyped name destroys a sibling.
+	if pathExists(target) {
+		return errTargetExists
+	}
+	// Said plainly, because os.Rename answers a missing destination folder with the same ENOENT it
+	// answers a missing source with.
+	if !pathExists(filepath.Dir(target)) {
+		return fmt.Errorf("there is no folder %s to move into", filepath.Dir(to))
+	}
+
+	return os.Rename(source, target)
+}
+
+/*
+copyContent copies a file or folder into toDir under a free name, which covers duplicating in place
+(toDir being where it already is) as well as pasting elsewhere. The name it took is in the answer,
+since the client has no way to predict it.
+*/
+func copyContent(from, toDir string) (models.ContentModel, error) {
+	source, err := safeWritePath(from)
+	if err != nil {
+		return models.ContentModel{}, err
+	}
+	targetDir, err := safeWritePath(toDir)
+	if err != nil {
+		return models.ContentModel{}, err
+	}
+
+	info, err := os.Lstat(source)
+	if err != nil {
+		return models.ContentModel{}, err
+	}
+	dirInfo, err := os.Stat(targetDir)
+	if err != nil {
+		return models.ContentModel{}, err
+	}
+	if !dirInfo.IsDir() {
+		return models.ContentModel{}, fmt.Errorf("%s is not a folder", toDir)
+	}
+	if info.IsDir() && isInside(targetDir, source) {
+		return models.ContentModel{}, errIntoItself
+	}
+
+	name := availableName(targetDir, copyOf(info.Name(), info.IsDir()))
+	target := filepath.Join(targetDir, name)
+
+	if info.IsDir() {
+		err = copyTree(source, target)
+	} else {
+		err = copyEntry(source, target, info)
+	}
+	if err != nil {
+		// A copy that failed halfway leaves a partial tree behind, which is worse than no copy: it
+		// looks like a complete one.
+		if removeErr := os.RemoveAll(target); removeErr != nil {
+			log.Error().Err(removeErr).Msgf("Failed to clean up the partial copy at %s", target)
+		}
+		return models.ContentModel{}, err
+	}
+
+	return createdModel(contentTypeFor(name, info.IsDir()), toDir, name, target)
+}
+
+// copyOf keeps the name it was given when that name is free, and otherwise spells the copy the way
+// Jupyter does — `notes-Copy1.txt`, then -Copy2. So a copy into another folder arrives under its own
+// name and only a duplicate in place, where the name is by definition taken, is renamed. A folder's
+// name is left whole, since the part after a dot in `my.project` is not an extension.
+func copyOf(name string, isDir bool) func(int) string {
+	ext := ""
+	if !isDir {
+		ext = filepath.Ext(name)
+	}
+	stem := strings.TrimSuffix(name, ext)
+
+	return func(attempt int) string {
+		if attempt == 0 {
+			return name
+		}
+		return fmt.Sprintf("%s-Copy%d%s", stem, attempt, ext)
+	}
+}
+
+func copyTree(source, target string) error {
+	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		destination := filepath.Join(target, relative)
+
+		if info.IsDir() {
+			return os.MkdirAll(destination, info.Mode().Perm())
+		}
+		return copyEntry(path, destination, info)
+	})
+}
+
+func copyEntry(source, target string, info os.FileInfo) error {
+	if info.Mode()&os.ModeSymlink != 0 {
+		// Reproduced as the link it is: following it would pull in whatever it points at, which may be
+		// outside the project entirely.
+		link, err := os.Readlink(source)
+		if err != nil {
+			return err
+		}
+		return os.Symlink(link, target)
+	}
+	if !info.Mode().IsRegular() {
+		// A socket or a device node is not something to reproduce, and skipping one beats failing the
+		// whole copy over it.
+		log.Warn().Msgf("Skipping %s while copying: not a regular file", source)
+		return nil
+	}
+
+	in, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	// O_EXCL: availableName picked a name nothing answered to, and a copy is never meant to land on
+	// top of something.
+	out, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+
+	return out.Close()
+}
+
+/*
+uploadContent writes one uploaded file into the project and describes what it wrote.
+
+`relativePath` is the file's path *within* parentDir, which is how a whole folder arrives: the browser
+hands over `notes/img/logo.png` for a dropped `notes` folder, one request per file, and the folders
+along the way are made here. It is the browser's own string, so it is checked rather than trusted.
+
+The body is written to a temporary file beside the target and renamed into place, so an upload that is
+cancelled or drops halfway leaves nothing behind, and one that is replacing a file does not truncate
+it until every byte has arrived.
+*/
+func uploadContent(parentDir, relativePath string, replace bool, body io.Reader) (models.ContentModel, error) {
+	fromBrowser := filepath.FromSlash(relativePath)
+	relative := filepath.Clean(fromBrowser)
+	name := filepath.Base(relative)
+	// A trailing separator survives neither Clean nor Base, and it means the browser named a folder.
+	if filepath.IsAbs(relative) || name == "." || strings.HasSuffix(fromBrowser, string(os.PathSeparator)) {
+		return models.ContentModel{}, fmt.Errorf("%s is not a file name", relativePath)
+	}
+
+	// Under parentDir, and confirmed to still be inside the project after the join: `..` in the
+	// browser's string is the whole reason this is not filepath.Join on its own.
+	targetDir, err := safeWritePath(filepath.Join(parentDir, filepath.Dir(relative)))
+	if err != nil {
+		return models.ContentModel{}, err
+	}
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		return models.ContentModel{}, err
+	}
+
+	target := filepath.Join(targetDir, name)
+	if !replace && pathExists(target) {
+		return models.ContentModel{}, errTargetExists
+	}
+
+	temporary, err := os.CreateTemp(targetDir, ".zasper-upload-*")
+	if err != nil {
+		return models.ContentModel{}, err
+	}
+	written, err := io.Copy(temporary, body)
+	if closeErr := temporary.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(temporary.Name(), target)
+	}
+	if err != nil {
+		if removeErr := os.Remove(temporary.Name()); removeErr != nil && !os.IsNotExist(removeErr) {
+			log.Error().Err(removeErr).Msgf("Failed to clean up the partial upload at %s", temporary.Name())
+		}
+		return models.ContentModel{}, err
+	}
+
+	// 0600 is what CreateTemp makes; an uploaded file should read like one that was created here.
+	if err := os.Chmod(target, 0o644); err != nil {
+		log.Warn().Err(err).Msgf("Uploaded %s but could not set its mode", target)
+	}
+	log.Debug().Msgf("Uploaded %d bytes to %s", written, target)
+
+	return createdModel(
+		contentTypeFor(name, false),
+		filepath.Join(parentDir, filepath.Dir(relative)),
+		name,
+		target,
+	)
 }
 
 func deleteFile(filename string) error {
@@ -359,10 +627,17 @@ func deleteFile(filename string) error {
 		return err
 	}
 
-	if err := os.Remove(osPath); err != nil {
+	info, err := os.Lstat(osPath)
+	if err != nil {
 		return err
 	}
-	return nil
+
+	// RemoveAll for a directory, because the UI offers "Delete Folder" and os.Remove refuses a
+	// non-empty one. Kept off files so that deleting one that has already gone still says so.
+	if info.IsDir() {
+		return os.RemoveAll(osPath)
+	}
+	return os.Remove(osPath)
 }
 
 func IsDir(path string) bool {

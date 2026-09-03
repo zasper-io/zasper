@@ -33,3 +33,15 @@
   background: var(--z-bg-menu-hover);
   color: var(--z-fg-default);
 }
+
+// A destructive answer — the "Delete" in the file browser's delete prompt. On the error token
+// rather than a red of its own, so it is the same red the status bar reports failures in.
+.z-button-danger {
+  background: var(--z-status-error);
+  border-color: var(--z-status-error);
+}
+
+.z-button-danger:hover {
+  background: var(--z-status-error);
+  filter: brightness(1.15);
+}

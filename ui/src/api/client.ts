@@ -90,6 +90,65 @@ export async function requestEmpty(path: string, options?: RequestOptions): Prom
 }
 
 /**
+ * The response body as bytes, for a download. It goes through fetch like everything else rather than
+ * being handed to the browser as a link, because a link cannot carry the Authorization header a
+ * protected server requires.
+ */
+export async function requestBlob(path: string, options?: RequestOptions): Promise<Blob> {
+  const res = await request(path, options);
+  return res.blob();
+}
+
+export interface UploadOptions {
+  body: FormData;
+  /** How much of the body has gone out, from 0 to 1. */
+  onProgress?: (fraction: number) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * A multipart POST that reports how far it has got. XMLHttpRequest rather than fetch, which has no
+ * upload progress event at all: without one, a large upload is a spinner with nothing behind it.
+ */
+export function requestUpload<T>(path: string, options: UploadOptions): Promise<T> {
+  const { body, onProgress, signal } = options;
+
+  return new Promise<T>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', buildUrl(path, undefined));
+
+    const token = localStorage.getItem('token');
+    if (token !== null) {
+      request.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+    // Content-Type is left to the browser, which is the only thing that knows the multipart boundary.
+
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && onProgress !== undefined) {
+        onProgress(event.loaded / event.total);
+      }
+    });
+    request.addEventListener('load', () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve(JSON.parse(request.responseText) as T);
+      } else {
+        reject(new ApiError('POST', path, request.status, request.responseText));
+      }
+    });
+    request.addEventListener('error', () => {
+      // No status and no body: the request never reached a server that could give either.
+      reject(new ApiError('POST', path, 0, 'The server could not be reached.'));
+    });
+    request.addEventListener('abort', () => {
+      reject(new DOMException('The upload was cancelled.', 'AbortError'));
+    });
+    signal?.addEventListener('abort', () => request.abort());
+
+    request.send(body);
+  });
+}
+
+/**
  * The most specific explanation a failed request carries, for the places that show one to the user.
  * `ApiError.message` is only a status line; the server puts the reason in a JSON `message` field.
  */

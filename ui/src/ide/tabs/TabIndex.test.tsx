@@ -13,6 +13,7 @@ const deleteKernel = vi.fn();
 
 vi.mock('@/api', async () => ({
   deleteKernel: (id: string) => deleteKernel(id),
+  logApiError: () => () => {},
   // Not stubbed: what it reads out of a rejected save is what the prompt shows.
   apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
 }));

@@ -3,14 +3,8 @@ import './Launcher.scss';
 import { BaseApiUrl } from '@/config';
 import { ContentType, createContent, listKernelspecs } from '@/api';
 import { useAtom } from 'jotai';
-import {
-  kernelspecsAtom,
-  terminalsCountAtom,
-  terminalsAtom,
-  fileBrowserReloadCountAtom,
-} from '@/store/AppState';
-import { fileTabsAtom, IfileTab } from '@/store/TabState';
-import getFileExtension from '../utils';
+import { kernelspecsAtom, fileBrowserReloadCountAtom } from '@/store/AppState';
+import { useTabActions } from '@/store/TabActions';
 import { TerminalIcon } from '../icons';
 
 interface LauncherProps {
@@ -21,9 +15,8 @@ interface LauncherProps {
 
 const Launcher: React.FC<LauncherProps> = ({ data }) => {
   const [kernelspecs, setKernelspecs] = useAtom(kernelspecsAtom);
-  const [terminalCount, setTerminalCount] = useAtom(terminalsCountAtom);
-  const [terminals, setTerminals] = useAtom(terminalsAtom);
   const [reloadCount, setReloadCount] = useAtom(fileBrowserReloadCountAtom);
+  const { openTab, openTerminal } = useTabActions();
 
   // Fetch kernelspecs from the API
   const fetchData = useCallback(async () => {
@@ -34,50 +27,10 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
     }
   }, [setKernelspecs]);
 
-  const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
-
-  const handleTabActivate = (name: string, path: string, type: string, kernelspec: string) => {
-    const updatedFileTabs = { ...fileTabsState };
-    const fileTabData: IfileTab = {
-      type,
-      path,
-      name,
-      extension: getFileExtension(name),
-      active: true,
-      load_required: true,
-      kernelspec: kernelspec,
-    };
-
-    Object.keys(updatedFileTabs).forEach((key) => {
-      updatedFileTabs[key] = {
-        ...updatedFileTabs[key],
-        active: false,
-        load_required: false,
-      };
-    });
-    if (updatedFileTabs[path]) {
-      updatedFileTabs[path] = { ...updatedFileTabs[path], active: true };
-    } else {
-      updatedFileTabs[path] = fileTabData;
-    }
-
-    setFileTabsState(updatedFileTabs);
-  };
-
   const createNewNotebook = async (path: string, contentType: ContentType, kernelspec: string) => {
     const created = await createContent(path, contentType);
-    handleTabActivate(created.name, created.path, 'notebook', kernelspec);
+    openTab({ name: created.name, path: created.path, type: 'notebook', kernelspec });
     setReloadCount(reloadCount + 1);
-  };
-
-  // Handle opening a new terminal
-  const openTerminal = () => {
-    const terminalName = 'Terminal ' + (terminalCount + 1);
-    handleTabActivate(terminalName, terminalName, 'terminal', '');
-    setTerminalCount(terminalCount + 1);
-    var updatedterminals = { ...terminals };
-    updatedterminals[terminalName] = { id: terminalName, name: terminalName };
-    setTerminals(updatedterminals);
   };
 
   const getLogoUrl = (resources: Record<string, string>) => {
@@ -127,7 +80,7 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
       <div className="launchSection">
         <h2 className="z-heading">Terminal</h2>
         <div className="launchSection-grid">
-          <div className="launcher-icon" onClick={openTerminal}>
+          <div className="launcher-icon" onClick={() => openTerminal()}>
             <TerminalIcon />
           </div>
         </div>

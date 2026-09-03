@@ -28,23 +28,47 @@ type APIResponse struct {
 	Message string `json:"message"`
 }
 
-var clientsMu sync.Mutex // To handle concurrent access to clients
+// The client connection attached to each kernel. The map was exported and guarded by a package-level
+// mutex the caller had to remember; it is unexported and carries its own lock instead.
+var kernelConnections = struct {
+	mu sync.Mutex
+	by map[string]*kernel.KernelWebSocketConnection
+}{by: map[string]*kernel.KernelWebSocketConnection{}}
 
-var ZasperActiveKernelConnections map[string]*kernel.KernelWebSocketConnection
+// SetUpKernelConnections empties the store, for a server that is starting up.
+func SetUpKernelConnections() {
+	kernelConnections.mu.Lock()
+	defer kernelConnections.mu.Unlock()
 
-func SetUpStateKernels() map[string]*kernel.KernelWebSocketConnection {
-	return make(map[string]*kernel.KernelWebSocketConnection)
+	kernelConnections.by = map[string]*kernel.KernelWebSocketConnection{}
+}
+
+func setKernelConnection(kernelId string, connection *kernel.KernelWebSocketConnection) {
+	kernelConnections.mu.Lock()
+	defer kernelConnections.mu.Unlock()
+
+	kernelConnections.by[kernelId] = connection
+}
+
+// removeKernelConnection takes a connection out and says whether it was the one that took it out, so
+// that it is closed once. Closing is left to the caller: it writes to a socket, which the lock has no
+// business waiting on.
+func removeKernelConnection(kernelId string) (*kernel.KernelWebSocketConnection, bool) {
+	kernelConnections.mu.Lock()
+	defer kernelConnections.mu.Unlock()
+
+	connection, ok := kernelConnections.by[kernelId]
+	if ok {
+		delete(kernelConnections.by, kernelId)
+	}
+	return connection, ok
 }
 
 // CloseKernelConnections drops every client connection attached to a kernel, so
 // notebooks stop listening on channels whose kernel no longer exists. Registered
 // with kernel.OnKernelDisconnect at startup.
 func CloseKernelConnections(kernelId string) {
-	clientsMu.Lock()
-	kwsConn, ok := ZasperActiveKernelConnections[kernelId]
-	delete(ZasperActiveKernelConnections, kernelId)
-	clientsMu.Unlock()
-
+	kwsConn, ok := removeKernelConnection(kernelId)
 	if !ok {
 		return
 	}
@@ -81,7 +105,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 
 	log.Debug().Msgf("kernelName : %s, sessionId : %s", kernelId, sessionId)
 
-	session, ok := core.ZasperSession[sessionId]
+	session, ok := core.GetSession(sessionId)
 
 	log.Debug().Msgf("session %v", session)
 	if !ok {
@@ -90,7 +114,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	kernelManager, ok := kernel.ZasperActiveKernels[kernelId]
+	kernelManager, ok := kernel.ActiveKernel(kernelId)
 
 	if !ok {
 		log.Error().Msg("kernel not found")
@@ -124,9 +148,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	log.Debug().Msg("connecting kernel")
 	kernelConnection.Connect()
 
-	clientsMu.Lock()
-	ZasperActiveKernelConnections[kernelId] = &kernelConnection
-	clientsMu.Unlock()
+	setKernelConnection(kernelId, &kernelConnection)
 
 	var waiter sync.WaitGroup
 	waiter.Add(2)

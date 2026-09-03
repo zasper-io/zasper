@@ -1,18 +1,16 @@
 import { useAtom, useAtomValue } from 'jotai';
 import React from 'react';
-import { fileTabsAtom, IfileTab, IfileTabDict } from '@/store/TabState';
-import { kernelsAtom, notebookKernelMapAtom, terminalsAtom } from '@/store/AppState';
+import { fileTabsAtom, IfileTab } from '@/store/TabState';
+import { useTabActions } from '@/store/TabActions';
 import { unsavedTabsAtom } from '@/store/UnsavedState';
 import getFileExtension, { getIconToLoad } from '../utils';
 import './TabIndex.scss';
-import { apiErrorMessage, deleteKernel } from '@/api';
+import { apiErrorMessage } from '@/api';
 import UnsavedChangesDialog from './UnsavedChangesDialog';
 
 export default function TabIndex() {
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
-  const [terminals, setTerminals] = useAtom(terminalsAtom);
-  const [, setKernels] = useAtom(kernelsAtom);
-  const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
+  const { closeTab } = useTabActions();
   const unsavedTabs = useAtomValue(unsavedTabsAtom);
   /** The tab waiting on an answer to the save prompt, if one is open. */
   const [pendingClose, setPendingClose] = React.useState<string | null>(null);
@@ -45,51 +43,6 @@ export default function TabIndex() {
     }
 
     setFileTabsState(updatedFileTabs);
-  };
-
-  function killKernel(id: string) {
-    deleteKernel(id)
-      .then(() => {
-        console.log('Kernel killed');
-      })
-      .catch((error) => {
-        console.log('Failed to kill kernel', error);
-      });
-  }
-
-  const closeTab = (key: string) => {
-    const updatedFileTabs: IfileTabDict = Object.assign({}, fileTabsState);
-    // A notebook tab need not have a kernel: it can be closed while the session is still starting,
-    // or after starting one failed. Then there is nothing to kill and nothing to forget.
-    const kernelId = notebookKernelMap[key]?.id;
-    if (kernelId !== undefined) {
-      killKernel(kernelId);
-
-      setNotebookKernelMap((prevNotebookKernelMap) => {
-        const updatedNotebookKernelMap = { ...prevNotebookKernelMap };
-        delete updatedNotebookKernelMap[key];
-        return updatedNotebookKernelMap;
-      });
-
-      setKernels((prevKernels) => {
-        const updatedKernels = { ...prevKernels };
-        delete updatedKernels[kernelId];
-        return updatedKernels;
-      });
-    }
-
-    if ('Launcher' in updatedFileTabs) {
-      updatedFileTabs['Launcher']['active'] = true;
-    }
-    Object.keys(updatedFileTabs).forEach((key) => {
-      updatedFileTabs[key] = { ...updatedFileTabs[key], load_required: false };
-    });
-    delete updatedFileTabs[key];
-    setFileTabsState(updatedFileTabs);
-
-    var updatedterminals = { ...terminals };
-    delete updatedterminals[key];
-    setTerminals(updatedterminals);
   };
 
   const handleTabClose = (e: React.MouseEvent, key: string) => {

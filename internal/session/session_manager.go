@@ -3,6 +3,7 @@ package session
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/zasper-io/zasper/internal/core"
@@ -14,7 +15,7 @@ import (
 )
 
 func ListSessions() map[string]models.SessionModel {
-	return core.ZasperSession
+	return core.ListSessions()
 }
 
 func CreateSession(req models.SessionModel) (models.SessionModel, error) {
@@ -23,7 +24,7 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	*/
 	session_id := uuid.New().String()
 	var session models.SessionModel
-	session, ok := core.ZasperSession[req.Id]
+	session, ok := core.GetSession(req.Id)
 	log.Debug().Msgf("creating session %s", req.Kernel.Name)
 	if ok {
 		//do something here
@@ -48,7 +49,9 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 				Connections:    0,
 			},
 		}
-		core.ZasperSession[session_id] = session
+		// Written after the kernel is up, and outside any lock: starting one takes as long as it takes,
+		// and nothing else can read this session before it exists.
+		core.SetSession(session_id, session)
 	}
 
 	return session, nil
@@ -59,17 +62,52 @@ func DeleteSession(req models.SessionModel) error {
 		Deletes a Sesion
 	*/
 	log.Info().Msgf("deleting session %s", req.Id)
-	session, ok := core.ZasperSession[req.Id]
+	// Taken out first, and the kernel stopped only by whoever took it out: two requests deleting the
+	// same session would otherwise both stop the kernel, and both be told it worked.
+	session, ok := core.RemoveSession(req.Id)
 	if !ok {
 		log.Info().Msg("session does not exist")
 		return fmt.Errorf("session %s does not exist", req.Id)
 	}
-	// stop kernel
 	stopKernelForSession(session.Kernel.Id)
-	// delete session
-
-	delete(core.ZasperSession, req.Id)
 	return nil
+}
+
+/*
+RelocateSessions follows a renamed or moved file through the sessions, so the session list stops
+naming a path that no longer exists and a lookup by path still finds the kernel. A running kernel's
+own working directory cannot be changed, so this is the record catching up rather than the kernel
+moving; oldPath may be a folder, in which case every session under it follows.
+*/
+func RelocateSessions(oldPath, newPath string) int {
+	relocated := core.UpdateSessions(func(session models.SessionModel) (models.SessionModel, bool) {
+		moved, ok := relocate(session.Path, oldPath, newPath)
+		if !ok {
+			return session, false
+		}
+		if session.Name == filepath.Base(session.Path) {
+			session.Name = filepath.Base(moved)
+		}
+		session.Path = moved
+		return session, true
+	})
+
+	if relocated > 0 {
+		log.Info().Msgf("Moved %d session(s) from %s to %s", relocated, oldPath, newPath)
+	}
+	return relocated
+}
+
+// relocate rewrites a path that is oldPath or sits under it, by segments rather than by prefix so
+// that `notes2.txt` does not follow `notes.txt`.
+func relocate(path, oldPath, newPath string) (string, bool) {
+	if path == oldPath {
+		return newPath, true
+	}
+	if prefix := oldPath + "/"; strings.HasPrefix(path, prefix) {
+		return newPath + "/" + strings.TrimPrefix(path, prefix), true
+	}
+	return "", false
 }
 
 func startKernelForSession(path string, name string) (string, error) {

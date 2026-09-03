@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
+	"mime"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/zasper-io/zasper/internal/core"
 	zhttp "github.com/zasper-io/zasper/internal/http"
 
 	"github.com/rs/zerolog/log"
@@ -152,6 +151,10 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	if err := deleteFile(body.Path); err != nil {
 		log.Error().Err(err).Msg("Error deleting content")
+		if errors.Is(err, os.ErrNotExist) {
+			zhttp.SendErrorResponse(w, http.StatusNotFound, "Content not found")
+			return
+		}
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))
 		return
 	}
@@ -161,17 +164,66 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 }
 
+/*
+OnContentMoved is called after a file or folder has moved, so whatever else keys on a path can
+follow it — a running notebook's session, above all. A hook the app wires up rather than an import,
+because the content package is about the filesystem and knows nothing about kernels.
+*/
+var OnContentMoved = func(from, to string) {}
+
+func relocateSessions(from, to string) {
+	if from != to {
+		OnContentMoved(from, to)
+	}
+}
+
+// hasTraversal is the guard the handlers here have always spelled inline. GetSafePath refuses an
+// escape anyway; this answers before anything is attempted.
+func hasTraversal(paths ...string) bool {
+	for _, path := range paths {
+		if strings.Contains(path, "..") {
+			return true
+		}
+	}
+	return false
+}
+
+// statusFor keeps the difference between "there is nothing there", "something is already there",
+// "you may not" and "that request made no sense", all of which used to answer 400.
+func statusFor(err error) int {
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return http.StatusNotFound
+	case errors.Is(err, errTargetExists):
+		return http.StatusConflict
+	case errors.Is(err, os.ErrPermission):
+		return http.StatusForbidden
+	default:
+		return http.StatusBadRequest
+	}
+}
+
 func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var contentPayload ContentPayload
-	_ = json.NewDecoder(req.Body).Decode(&contentPayload)
+	if err := json.NewDecoder(req.Body).Decode(&contentPayload); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error creating content: %v", err))
+		return
+	}
 
-	if strings.Contains(contentPayload.ParentDir, "..") {
+	if hasTraversal(contentPayload.ParentDir) {
 		log.Error().Msg("Invalid path")
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
-	data := createContent(contentPayload)
+	data, err := createContent(contentPayload)
+	if err != nil {
+		log.Error().Err(err).Msg("Error creating content")
+		// The reason alone: the file browser shows this sentence to the reader.
+		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(data)
@@ -180,89 +232,175 @@ func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	var renameContentPayload RenameContentPayload
-	_ = json.NewDecoder(req.Body).Decode(&renameContentPayload)
+	if err := json.NewDecoder(req.Body).Decode(&renameContentPayload); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error renaming content: %v", err))
+		return
+	}
 
 	oldName := renameContentPayload.OldName
 	log.Debug().Msgf("old path : %s", oldName)
 
-	if strings.Contains(renameContentPayload.ParentDir, "..") || strings.Contains(oldName, "..") || strings.Contains(renameContentPayload.NewName, "..") {
+	if hasTraversal(renameContentPayload.ParentDir, oldName, renameContentPayload.NewName) {
 		log.Error().Msg("Invalid path")
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
-	rename(renameContentPayload.ParentDir, oldName, renameContentPayload.NewName)
+	if err := rename(renameContentPayload.ParentDir, oldName, renameContentPayload.NewName); err != nil {
+		log.Error().Err(err).Msg("Error renaming content")
+		// The reason alone: the file browser shows this sentence to the reader.
+		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		return
+	}
+
+	relocateSessions(
+		filepath.Join(renameContentPayload.ParentDir, oldName),
+		filepath.Join(renameContentPayload.ParentDir, renameContentPayload.NewName),
+	)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
 
-func NewErrorResponse(w http.ResponseWriter, i int, s string) {
-	panic("unimplemented")
-}
-
-func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse the form data (including file uploads)
-	err := r.ParseMultipartForm(10 << 20) // 10 MB limit for file uploads
-	if err != nil {
-		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+func ContentMoveAPIHandler(w http.ResponseWriter, req *http.Request) {
+	var payload MovePayload
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error moving content: %v", err))
 		return
 	}
 
-	// Get the file from the form input
-	file, fileHeader, err := r.FormFile("file") // "file" is the field name in the form
+	if hasTraversal(payload.From, payload.To) {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
+	if err := moveContent(payload.From, payload.To); err != nil {
+		log.Error().Err(err).Msg("Error moving content")
+		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		return
+	}
+
+	relocateSessions(payload.From, payload.To)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
+func ContentCopyAPIHandler(w http.ResponseWriter, req *http.Request) {
+	var payload CopyPayload
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error copying content: %v", err))
+		return
+	}
+
+	if hasTraversal(payload.From, payload.ToDir) {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
+	data, err := copyContent(payload.From, payload.ToDir)
 	if err != nil {
-		http.Error(w, "Unable to read file", http.StatusBadRequest)
+		log.Error().Err(err).Msg("Error copying content")
+		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(data)
+}
+
+/*
+ContentDownloadAPIHandler sends a file to the browser as an attachment. A GET with the path in the
+query rather than a POST, because a download is a plain read and http.ServeContent can then answer a
+range request — which is how a paused download resumes.
+
+A directory is refused rather than zipped: building an archive of an arbitrary subtree is a different
+feature, and answering with something other than what was asked for is worse than saying no.
+*/
+func ContentDownloadAPIHandler(w http.ResponseWriter, req *http.Request) {
+	relativePath := req.URL.Query().Get("path")
+	if relativePath == "" || hasTraversal(relativePath) {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
+	osPath := GetSafePath(relativePath)
+	if osPath == "" {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
+	info, err := os.Stat(osPath)
+	if err != nil {
+		zhttp.SendErrorResponse(w, statusFor(err), "Content not found")
+		return
+	}
+	if info.IsDir() {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "a folder cannot be downloaded")
+		return
+	}
+
+	file, err := os.Open(osPath)
+	if err != nil {
+		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
 		return
 	}
 	defer file.Close()
 
-	fileName := fileHeader.Filename
-	parentPath := r.FormValue("parentPath")
+	// mime.FormatMediaType encodes a name that is not plain ASCII, which a hand-written
+	// `filename="..."` would either mangle or let a quote out of.
+	name := filepath.Base(osPath)
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	http.ServeContent(w, req, name, info.ModTime(), file)
+}
 
-	// Validate file name to prevent path traversal via the name itself
-	if strings.Contains(fileName, "/") || strings.Contains(fileName, "\\") || strings.Contains(fileName, "..") {
-		http.Error(w, "Invalid file name", http.StatusBadRequest)
+/*
+UploadFileHandler takes one file per request rather than a batch, so that the browser can show a
+progress bar and a reason per file, and so that one refused file does not take the rest of a folder
+with it.
+
+`relative_path` carries the file's path inside `parent_dir` for a folder upload; it defaults to the
+name the multipart part came with. `replace` has to be asked for: answering 409 and letting the client
+offer to replace is the difference between overwriting a file on purpose and doing it by accident.
+*/
+func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
+	// The memory limit, not a size limit: anything past it is spooled to a temp file by net/http.
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Unable to read the upload: %v", err))
 		return
 	}
 
-	// Resolve and validate the destination path to ensure it stays within the home directory
-	baseDir := core.Zasper.HomeDir
-	absBaseDir, err := filepath.Abs(baseDir)
+	file, header, err := r.FormFile("file")
 	if err != nil {
-		http.Error(w, "Unable to resolve base directory", http.StatusInternalServerError)
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "The request carried no file")
+		return
+	}
+	defer file.Close()
+
+	parentDir := r.FormValue("parent_dir")
+	relativePath := r.FormValue("relative_path")
+	if relativePath == "" {
+		relativePath = header.Filename
+	}
+
+	if hasTraversal(parentDir, relativePath) {
+		log.Error().Msg("Invalid path")
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
-	dst := filepath.Join(absBaseDir, parentPath, fileName)
-	absDst, err := filepath.Abs(dst)
+	data, err := uploadContent(parentDir, relativePath, r.FormValue("replace") == "true", file)
 	if err != nil {
-		http.Error(w, "Unable to resolve destination path", http.StatusBadRequest)
+		log.Error().Err(err).Msg("Error uploading content")
+		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
 		return
 	}
 
-	// Ensure the resolved destination path is within the allowed base directory
-	if !strings.HasPrefix(absDst, absBaseDir+string(os.PathSeparator)) && absDst != absBaseDir {
-		http.Error(w, "Invalid destination path", http.StatusBadRequest)
-		return
-	}
-
-	// Save the file to the disk
-	out, err := os.Create(absDst)
-	if err != nil {
-		http.Error(w, "Unable to create file", http.StatusInternalServerError)
-		return
-	}
-	defer out.Close()
-
-	// Copy the uploaded file to the destination file
-	_, err = io.Copy(out, file)
-	if err != nil {
-		http.Error(w, "Error saving file", http.StatusInternalServerError)
-		return
-	}
-
-	// Return success response
-	w.WriteHeader(http.StatusOK)
-	log.Debug().Msgf("File uploaded successfully to %s", absDst)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(data)
 }

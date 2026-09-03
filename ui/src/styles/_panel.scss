@@ -66,11 +66,57 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      // So a trail long enough to fill the banner stops short of the buttons rather than running
+      // under the first one.
+      gap: 8px;
 
-      .projectName {
-        overflow: hidden;
-        text-overflow: ellipsis;
+      // The trail down to the folder in view. Not called `.breadcrumb`, which is Bootstrap's own
+      // component. It gives before the buttons do, and scrolls rather than wraps: the banner is one
+      // row high, and a deep path would otherwise push the buttons off it.
+      .pathTrail {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin: 0;
+        padding: 0;
+        background: none;
+        overflow-x: auto;
         white-space: nowrap;
+        // The strip is scrolled to its end when the root changes; a visible bar in a 24px banner
+        // would take the space the text needs.
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      .crumb {
+        flex: 0 0 auto;
+        background: none;
+        border: none;
+        padding: 0;
+        color: inherit;
+        font-weight: inherit;
+        // Quieter than the folder in view: the trail is where it sits, not what it is.
+        opacity: 0.7;
+
+        &:hover {
+          opacity: 1;
+          text-decoration: underline;
+        }
+      }
+
+      // The folder actually in view, which is not a link to anywhere.
+      .crumb.is-current {
+        opacity: 1;
+      }
+
+      .crumbSeparator {
+        flex: 0 0 auto;
+        opacity: 0.6;
       }
 
       .projectButtons {
@@ -80,11 +126,82 @@
         align-items: center;
         gap: 4px;
 
+        button {
+          flex: 0 0 auto;
+        }
+
         // The new-file / new-folder buttons are <img>, so `fill` above never reaches them;
-        // their white is baked into the file.
+        // their white is baked into the file. Sized here rather than left to the file: the Jupyter
+        // mark is 150px square where the feather icons are ~16px, and a flex row this narrow
+        // answered that by shrinking its button to nothing — the New notebook button was in the
+        // banner and 0px wide.
         img {
+          height: 14px;
+          width: auto;
           filter: var(--z-filter-chrome-icon);
         }
+
+        // The Jupyter mark carries its own orange, which reads on either banner; inverting it
+        // with the rest turns it blue.
+        img.notebookIcon {
+          filter: none;
+        }
+      }
+    }
+
+    // Narrowing the tree rather than acting on it: a filter box, collapse-all and the
+    // hidden-files toggle. Below the banner, whose buttons all change what is on disk.
+    .treeToolbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px 4px 16px;
+      border-bottom: 1px solid var(--z-border);
+      color: var(--z-fg-muted);
+
+      .treeFilter {
+        flex: 1;
+        min-width: 0;
+        height: 20px;
+        font-size: var(--z-ui-font-size);
+        color: var(--z-fg-default);
+        background: var(--z-bg-field);
+        border: 1px solid var(--z-border-field);
+        border-radius: 3px;
+        padding: 0 6px;
+      }
+
+      button[aria-pressed='true'] {
+        color: var(--z-accent);
+      }
+    }
+
+    // Why the last action failed, between the banner and the tree. Below the toolbar that
+    // triggered it, above the rows it is about.
+    .panel-error {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 12px 6px 16px;
+      color: var(--z-status-error);
+      background: var(--z-bg-panel);
+      border-bottom: 1px solid var(--z-border);
+
+      p {
+        flex: 1;
+        margin: 0;
+        // The server's sentence, which can be long, and the panel is narrow.
+        overflow-wrap: anywhere;
+      }
+
+      button {
+        flex: 0 0 auto;
+        background: transparent;
+        border: none;
+        color: var(--z-status-error);
+        padding: 0;
       }
     }
 
@@ -108,6 +225,12 @@
       width: 100%;
       padding: 8px 8px 16px 0;
       overflow-y: auto;
+
+      // A drop here goes to the project root, which has no row of its own to outline.
+      &.is-drop-target {
+        outline: 1px solid var(--z-accent);
+        outline-offset: -1px;
+      }
 
       p {
         font-size: 12px;
@@ -138,6 +261,13 @@
         padding: 0 12px;
       }
 
+      // What the next action applies to. Deliberately quieter than .active and declared before both
+      // it and :hover, which are equally specific: the tab that is open, and the row under the
+      // pointer, both still need to show through a selection.
+      .file-list li a.is-selected {
+        background: var(--z-bg-row-selected);
+      }
+
       .file-list li a:hover {
         background: var(--z-accent);
         color: var(--z-fg-on-accent);
@@ -160,6 +290,52 @@
       .file-list li a.active img {
         margin-right: 8px;
         filter: brightness(500%) contrast(100%);
+      }
+
+      // What git would not track. Dimmed rather than hidden: build output and caches are still
+      // worth opening, they are just rarely the file being looked for.
+      .file-list li a.is-ignored {
+        color: var(--z-fg-subtle);
+      }
+
+      // Sits after .is-ignored so an ignored row that is also open still reads as selected.
+      .file-list li a.active.is-ignored {
+        color: var(--z-fg-on-accent);
+      }
+
+      // Where a drop would land. Outlined rather than filled, so it does not read as one more
+      // selected row while rows are in mid-air.
+      .file-list li a.is-drop-target {
+        outline: 1px solid var(--z-accent);
+        outline-offset: -1px;
+      }
+
+      // The treeitem is the li, since it holds both the row and the row's children — but a ring
+      // around the li would enclose the whole open subtree, so the row inside it wears it instead.
+      .file-list li.fileItem:focus {
+        outline: none;
+      }
+
+      .file-list li.fileItem:focus-visible > a {
+        outline: 2px solid var(--z-accent);
+        outline-offset: -2px;
+      }
+
+      .file-list li a .rowFlag {
+        margin-left: 6px;
+        font-size: 9px;
+        opacity: 0.7;
+      }
+
+      // Why a folder shows no rows — empty, unread, filtered out. Not a row: nothing can be
+      // done to it, so it neither highlights nor takes a click.
+      .file-list li.treeNote {
+        height: var(--z-ui-row-height);
+        line-height: var(--z-ui-row-height);
+        font-size: var(--z-ui-font-size);
+        color: var(--z-fg-muted);
+        font-style: italic;
+        padding: 0 12px;
       }
     }
   }

@@ -25,10 +25,41 @@ type ContentWatchConnection struct {
 	mu            sync.Mutex
 }
 
-var ZasperActiveWatcherConnections map[string]*ContentWatchConnection
+/*
+The open watch connections.
 
-func SetUpActiveWatcherConnections() map[string]*ContentWatchConnection {
-	return make(map[string]*ContentWatchConnection)
+Each connection used to add and remove itself from an exported map under its own `mu`, which is a
+per-connection lock and so guards nothing shared: two clients opening a watch socket at the same time
+were a concurrent map write, which Go answers by killing the server. `mu` is still the connection's
+own, for its socket writes; the store has a lock of its own.
+
+Nothing reads the store yet. It is kept because it is the only record that a connection is open.
+*/
+var watchers = struct {
+	mu sync.Mutex
+	by map[string]*ContentWatchConnection
+}{by: map[string]*ContentWatchConnection{}}
+
+// SetUpActiveWatcherConnections empties the store, for a server that is starting up.
+func SetUpActiveWatcherConnections() {
+	watchers.mu.Lock()
+	defer watchers.mu.Unlock()
+
+	watchers.by = map[string]*ContentWatchConnection{}
+}
+
+func addWatcher(watchId string, connection *ContentWatchConnection) {
+	watchers.mu.Lock()
+	defer watchers.mu.Unlock()
+
+	watchers.by[watchId] = connection
+}
+
+func removeWatcher(watchId string) {
+	watchers.mu.Lock()
+	defer watchers.mu.Unlock()
+
+	delete(watchers.by, watchId)
 }
 
 var upgrader = websocket.Upgrader{
@@ -59,6 +90,9 @@ func HandleWatchWebSocket(w http.ResponseWriter, req *http.Request) {
 
 	// Create the context and cancel function for managing the lifecycle
 	ctx, cancel := context.WithCancel(context.Background())
+	// The watcher goroutine holds an fsnotify handle per open connection, and the client reconnects
+	// whenever the server restarts, so a connection that ends without stopping its watcher leaks one.
+	defer cancel()
 
 	// Create a new ContentWatchConnection
 	contentConnection := &ContentWatchConnection{
@@ -69,10 +103,7 @@ func HandleWatchWebSocket(w http.ResponseWriter, req *http.Request) {
 		PollingCancel: cancel,
 	}
 
-	// Safe add to the global map of active connections
-	contentConnection.mu.Lock()
-	ZasperActiveWatcherConnections[watchId] = contentConnection
-	contentConnection.mu.Unlock()
+	addWatcher(watchId, contentConnection)
 
 	// Start watching a directory
 	go startWatcher(core.Zasper.HomeDir, contentConnection)
@@ -81,17 +112,19 @@ func HandleWatchWebSocket(w http.ResponseWriter, req *http.Request) {
 	for {
 		_, _, err := connection.ReadMessage()
 		if err != nil {
-			log.Warn().Err(err).Msg("Error reading WebSocket message")
+			// A client that navigates away or reloads closes the socket, which is how this loop
+			// normally ends rather than a fault worth warning about.
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				log.Warn().Err(err).Msg("Error reading WebSocket message")
+			}
 			break
 		}
 	}
 
 	// Clean up when the connection closes
-	contentConnection.mu.Lock()
-	delete(ZasperActiveWatcherConnections, watchId)
-	contentConnection.mu.Unlock()
+	removeWatcher(watchId)
 
-	log.Info().Msg("Closing connection...")
+	log.Debug().Msg("Closing connection...")
 }
 
 // startWatcher starts a file watcher to monitor a directory and sends signals to the frontend.
@@ -107,17 +140,14 @@ func startWatcher(directory string, connection *ContentWatchConnection) {
 	// Add the directory to the watcher
 	err = watcher.Add(directory)
 	if err != nil {
-		log.Fatal().Msgf("Failed to watch directory %v", err)
+		log.Error().Err(err).Msgf("Failed to watch directory: %s", directory)
 		return
 	}
 
-	log.Info().Msgf("Watching directory: %s", directory)
-
-	// Recursively add the directory and all subdirectories to the watcher
-	err = addDirsToWatcher(watcher, directory)
-	if err != nil {
-		log.Fatal().Msgf("Failed to watch directory %v", err)
-		return
+	// Recursively add the directory and all subdirectories to the watcher. A directory that cannot be
+	// walked is worth saying so about, but the ones that were added still report what they see.
+	if err := addDirsToWatcher(watcher, directory); err != nil {
+		log.Error().Err(err).Msgf("Failed to watch every subdirectory of: %s", directory)
 	}
 
 	log.Info().Msgf("Watching directory: %s and all its subdirectories", directory)
@@ -125,17 +155,11 @@ func startWatcher(directory string, connection *ContentWatchConnection) {
 	// Handle events
 	for {
 		select {
+		case <-connection.Context.Done():
+			return
 		case event := <-watcher.Events:
-			if event.Op&fsnotify.Write == fsnotify.Write {
-				log.Info().Msgf("Modified file: %s", event.Name)
-				sendReloadSignal(connection)
-			}
-			if event.Op&fsnotify.Create == fsnotify.Create {
-				log.Info().Msgf("Created file: %s", event.Name)
-				sendReloadSignal(connection)
-			}
-			if event.Op&fsnotify.Remove == fsnotify.Remove {
-				log.Info().Msgf("Removed file: %s", event.Name)
+			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove) != 0 {
+				log.Debug().Msgf("%s: %s", event.Op, event.Name)
 				sendReloadSignal(connection)
 			}
 		case err := <-watcher.Errors:
@@ -154,9 +178,11 @@ func addDirsToWatcher(watcher *fsnotify.Watcher, directory string) error {
 		}
 
 		if info.IsDir() {
-			if shouldExclude(path) {
-				log.Info().Msgf("Excluding directory: %s", path)
-				return nil
+			if shouldExclude(directory, path) {
+				log.Debug().Msgf("Excluding directory: %s", path)
+				// Nothing inside an excluded directory is watched either, and node_modules is the
+				// reason: walking it is the expensive part.
+				return filepath.SkipDir
 			}
 
 			// Watch the directory
@@ -165,20 +191,31 @@ func addDirsToWatcher(watcher *fsnotify.Watcher, directory string) error {
 				log.Warn().Err(err).Msgf("Failed to add directory to watcher: %s", path)
 				return err
 			}
-			log.Info().Msgf("Now watching directory: %s", path)
+			log.Debug().Msgf("Now watching directory: %s", path)
 		}
 		return nil
 	})
 	return err
 }
 
-// shouldExclude checks if a directory should be excluded from being watched.
-func shouldExclude(path string) bool {
-	excludedDirs := []string{"node_modules", "build", ".git", ".idea", ".vscode", "dist", "vendor",
-		"venv", "tmp", "temp", "cache", "logs", "test", "tests", "coverage"}
+var excludedDirs = map[string]bool{
+	"node_modules": true, "build": true, ".git": true, ".idea": true, ".vscode": true,
+	"dist": true, "vendor": true, "venv": true, "tmp": true, "temp": true, "cache": true,
+	"logs": true, "test": true, "tests": true, "coverage": true,
+}
 
-	for _, excluded := range excludedDirs {
-		if strings.Contains(path, excluded) {
+// shouldExclude checks if a directory should be excluded from being watched. Segment by segment
+// against the path below the project root: matching the absolute path as a substring threw away
+// every project that happened to live under /tmp, and every folder whose name merely contained one
+// of these.
+func shouldExclude(root, path string) bool {
+	relative, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+
+	for _, segment := range strings.Split(relative, string(filepath.Separator)) {
+		if excludedDirs[segment] {
 			return true
 		}
 	}
@@ -188,7 +225,7 @@ func shouldExclude(path string) bool {
 
 // sendReloadSignal sends a reload signal to the WebSocket connection.
 func sendReloadSignal(connection *ContentWatchConnection) {
-	log.Info().Msg("Sending reload signal...")
+	log.Debug().Msg("Sending reload signal...")
 	connection.mu.Lock()
 	defer connection.mu.Unlock()
 
