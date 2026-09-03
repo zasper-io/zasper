@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, lazy, Suspense } from 'react';
-import CodeMirror, { Prec } from '@uiw/react-codemirror';
+import CodeMirror, { Prec, type Extension } from '@uiw/react-codemirror';
 import { autocompletion } from '@codemirror/autocomplete';
 import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
@@ -14,7 +14,7 @@ import LoaderSvg from './LoaderSvg';
 import Prompt from './Prompt';
 import { kernelCompletionSource, tabCompletionKeymap } from './kernelCompletion';
 import { ICompleteReply, IKernelMessage } from './kernelMessages';
-import { IKernelConnection, INotebookKeyEvent } from './types';
+import { IKernelConnection } from './types';
 
 // react-markdown + remark-math + rehype-katex is the heaviest thing in the
 // notebook and nothing needs it until a markdown cell is actually rendered, so
@@ -24,17 +24,18 @@ const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
 interface ICellProps {
   cell: ICell;
   index: number;
-  submitCell: (source: string, cellId: string) => void;
-  addCellUp: () => void;
-  addCellDown: () => void;
-  copyCellByIndex: (index: number) => void;
-  prevCell: () => void;
-  nextCell: () => void;
-  deleteCell: (index: number) => void;
+  /** Dispatches a notebook command by id, for the cell's own toolbar. */
+  run: (id: string) => void;
+  /**
+   * The notebook's `cell-editor` commands as a CodeMirror extension — Ctrl-Enter, Shift-Enter.
+   * Passed down rather than read from the command registry so that a cell can only ever run its
+   * own notebook's commands.
+   */
+  commandKeymap: Extension;
+  focusNextCell: (addCellIfLast: boolean) => void;
+  focusPreviousCell: () => void;
   focusedIndex: number;
   setFocusedIndex: (index: number) => void;
-  handleKeyDown: (addCell: boolean, event: INotebookKeyEvent) => void;
-  changeCellType: (value: string) => void;
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
   execution_count: number;
   codeMirrorRefs: React.RefObject<CodeMirrorRef[] | null>;
@@ -81,47 +82,20 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
     // props.setFocusedIndex(props.index)
   }, []);
 
+  /**
+   * Moving out of the cell at its top or bottom edge. This stays a local handler rather than a
+   * command: whether an arrow key leaves the cell depends on where the cursor is inside the
+   * document, which is the editor's business and not an action anyone would invoke by name.
+   */
   const handleKeyDownCM = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
-      props.handleKeyDown(false, { key: 'ArrowDown', preventDefault: () => {} });
+      props.focusNextCell(false);
       event.preventDefault();
     } else if (event.key === 'ArrowUp' && cursorPosition === 1) {
-      props.handleKeyDown(false, { key: 'ArrowUp', preventDefault: () => {} });
+      props.focusPreviousCell();
       event.preventDefault();
     }
   };
-
-  const handleCmdEnter = () => {
-    if (props.cell.cell_type === 'code') {
-      props.submitCell(cellContents, props.cell.id);
-    }
-    props.handleKeyDown(true, { key: 'ArrowDown', preventDefault: () => {} });
-    return true;
-  };
-
-  const handleChangeCellType = () => {
-    if (props.cell.cell_type === 'code') {
-      props.changeCellType('markdown');
-    }
-    if (props.cell.cell_type === 'markdown') {
-      props.changeCellType('raw');
-    }
-    if (props.cell.cell_type === 'raw') {
-      props.changeCellType('code');
-    }
-    return true;
-  };
-
-  const customKeymap = keymap.of([
-    {
-      key: 'Shift-Enter',
-      run: handleCmdEnter,
-    },
-    {
-      key: 'Shift-M',
-      run: handleChangeCellType,
-    },
-  ]);
 
   // Code cells complete against the kernel and nothing else: `override` replaces the language's
   // own sources rather than adding to them, which is what we want — a running kernel knows what
@@ -154,18 +128,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       >
         {props.index === props.focusedIndex ? (
           <>
-            <CellButtons
-              index={props.index}
-              cellId={cell.id}
-              code={cellContents}
-              addCellUp={props.addCellUp}
-              addCellDown={props.addCellDown}
-              submitCell={props.submitCell}
-              copyCellByIndex={props.copyCellByIndex}
-              deleteCell={props.deleteCell}
-              nextCell={props.nextCell}
-              prevCell={props.prevCell}
-            />
+            <CellButtons run={props.run} />
             <div className="inner-content">
               {/* A markdown cell has no execution count, but it still needs the gutter a
                   code cell's `[n]:` occupies, or the two cell types sit on different
@@ -179,7 +142,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
                   width="100%"
                   extensions={[
                     markdown({ base: markdownLanguage, codeLanguages: languages }),
-                    [Prec.highest(customKeymap)],
+                    props.commandKeymap,
                   ]}
                   autoFocus={props.index === props.focusedIndex ? true : false}
                   onChange={onChange}
@@ -222,22 +185,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       ref={divRef}
       onFocus={() => props.setFocusedIndex(props.index)}
     >
-      {props.index === props.focusedIndex ? (
-        <CellButtons
-          index={props.index}
-          code={cellContents}
-          cellId={cell.id}
-          submitCell={props.submitCell}
-          addCellUp={props.addCellUp}
-          addCellDown={props.addCellDown}
-          copyCellByIndex={props.copyCellByIndex}
-          deleteCell={props.deleteCell}
-          nextCell={props.nextCell}
-          prevCell={props.prevCell}
-        />
-      ) : (
-        <></>
-      )}
+      {props.index === props.focusedIndex ? <CellButtons run={props.run} /> : <></>}
 
       <div className="inner-content">
         {props.execution_count === -1 ? (
@@ -255,7 +203,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
               python(),
               kernelAutocompletion,
               [Prec.highest(keymap.of(tabCompletionKeymap))],
-              [Prec.highest(customKeymap)],
+              props.commandKeymap,
             ]}
             autoFocus={props.index === props.focusedIndex ? true : false}
             onChange={onChange}

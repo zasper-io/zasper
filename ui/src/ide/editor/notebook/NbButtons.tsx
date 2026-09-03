@@ -1,127 +1,75 @@
 import React from 'react';
 
-import { INotebookModel } from '@/api';
-
 interface NbButtonsProps {
-  saveNotebook: () => void;
-  addCellDown: () => void;
-  cutCell: () => void;
-  copyCell: () => void;
-  pasteCell: () => void;
-  submitCell: (source: string, cellId: string) => void;
-  interruptKernel: () => void;
-  restartKernel: () => void;
-  restartAndExecuteAllCells: () => void;
-  focusedIndex: number;
-  notebook: INotebookModel;
+  /** Dispatches a command by id — see notebookCommands.ts for the ids. */
+  run: (id: string) => void;
+  /** The focused cell's type, for the picker. Empty when there is no focused cell. */
+  cellType: string;
   kernelName: string;
   kernelStatus: string;
-  changeCellType: (value: string) => void;
-  reconnectKernel: () => void;
-  toggleKernelSwitcher: () => void;
 }
 
-function NbButtons(props: NbButtonsProps) {
-  const focusedCell = props.notebook.cells[props.focusedIndex];
-  const options = [
-    { label: 'Code', value: 'code' },
-    { label: 'Markdown', value: 'markdown' },
-    { label: 'Raw', value: 'raw' },
-  ];
+/**
+ * The notebook toolbar. Each button names a command instead of taking a callback of its own, which
+ * is what collapsed this component's props from fifteen to four — and what guarantees the button
+ * and the keyboard shortcut for the same action cannot diverge.
+ */
+const TOOLBAR_BUTTONS: { id: string; title: string; icon: string }[] = [
+  { id: 'notebook:save', title: 'Save Notebook', icon: 'fas fa-save' },
+  { id: 'notebook:insert-cell-below', title: 'Add Cell Below', icon: 'fas fa-plus' },
+  { id: 'notebook:cut-cell', title: 'Cut Cell', icon: 'fas fa-cut' },
+  { id: 'notebook:copy-cell', title: 'Copy Cell', icon: 'fas fa-copy' },
+  { id: 'notebook:paste-cell', title: 'Paste Cell', icon: 'fas fa-paste' },
+  { id: 'notebook:run-cell', title: 'Run Cell', icon: 'fas fa-play' },
+  { id: 'notebook:interrupt-kernel', title: 'Interrupt Kernel', icon: 'fas fa-square' },
+  { id: 'notebook:restart-kernel', title: 'Restart Kernel', icon: 'fas fa-redo' },
+  {
+    id: 'notebook:restart-and-run-all',
+    title: 'Restart Kernel and Execute all Cells',
+    icon: 'fas fa-forward',
+  },
+];
 
+const CELL_TYPES = [
+  { label: 'Code', value: 'code' },
+  { label: 'Markdown', value: 'markdown' },
+  { label: 'Raw', value: 'raw' },
+];
+
+function NbButtons(props: NbButtonsProps) {
   return (
     <div className="text-editor-tool">
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => props.saveNotebook()}
-        title="Save Notebook"
-      >
-        <i className="fas fa-save" />
-      </button>
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => props.addCellDown()}
-        title="Add Cell Below"
-      >
-        <i className="fas fa-plus" />
-      </button>
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => props.cutCell()}
-        title="Cut Cell"
-      >
-        <i className="fas fa-cut" />
-      </button>
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => props.copyCell()}
-        title="Copy Cell"
-      >
-        <i className="fas fa-copy" />
-      </button>
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => props.pasteCell()}
-        title="Paste Cell"
-      >
-        <i className="fas fa-paste" />
-      </button>
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => focusedCell && props.submitCell(focusedCell.source, focusedCell.id)}
-        title="Run Cell"
-      >
-        <i className="fas fa-play" />
-      </button>
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => props.interruptKernel()}
-        title="Interrupt Kernel"
-      >
-        <i className="fas fa-square" />
-      </button>
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => props.restartKernel()}
-        title="Restart Kernel"
-      >
-        <i className="fas fa-redo" />
-      </button>
-      <button
-        type="button"
-        className="editor-button"
-        onClick={() => props.restartAndExecuteAllCells()}
-        title="Restart Kernel and Execute all Cells"
-      >
-        <i className="fas fa-forward" />
-      </button>
+      {TOOLBAR_BUTTONS.map((button) => (
+        <button
+          key={button.id}
+          type="button"
+          className="editor-button"
+          onClick={() => props.run(button.id)}
+          title={button.title}
+        >
+          <i className={button.icon} />
+        </button>
+      ))}
+      {/* The picker's values are the command ids' suffixes, so there is no mapping table. */}
       <select
-        onChange={(e) => props.changeCellType(e.target.value)}
+        onChange={(e) => props.run(`notebook:change-to-${e.target.value}`)}
         className="editor-select"
-        value={focusedCell ? focusedCell.cell_type : ''}
+        value={props.cellType}
       >
-        {options.map((option, index) => (
-          <option key={index} value={option.value}>
+        {CELL_TYPES.map((option) => (
+          <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
       </select>
       <div className="tool-group-end">
-        <button className="editor-button" onClick={props.toggleKernelSwitcher}>
+        <button className="editor-button" onClick={() => props.run('notebook:change-kernel')}>
           {props.kernelName}
         </button>
       </div>
       <div className="kStatus">
         <span className={`kernelStatus ks-${props.kernelStatus}`}></span>
-        <button className="reconnectButton" onClick={props.reconnectKernel}>
+        <button className="reconnectButton" onClick={() => props.run('notebook:reconnect-kernel')}>
           <img
             src="./images/editor/reconnect-icon.svg"
             title="Reconnect Kernel"

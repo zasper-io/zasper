@@ -1,8 +1,10 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Provider } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import NotebookEditor from './NotebookEditor';
+import { useRunCommand } from '@/commands/registry';
 import { IfileTab } from '@/store/TabState';
 
 const notebookContent = {
@@ -136,6 +138,31 @@ function runButton(container: HTMLElement): HTMLElement {
   return container.querySelector('.cellOptions button') as HTMLElement;
 }
 
+/**
+ * Stands in for the keyboard and the command palette: a surface outside the notebook that only
+ * knows a command id, dispatching through the registry the way they do.
+ */
+function Dispatcher({ id }: { id: string }) {
+  const run = useRunCommand();
+  // What the registry answered, so a test can tell a disabled command from an absent one.
+  const [ran, setRan] = React.useState<boolean | null>(null);
+  return (
+    <button type="button" data-ran={String(ran)} onClick={() => setRan(run(id))}>
+      dispatch
+    </button>
+  );
+}
+
+/** Clicks the Dispatcher above, i.e. runs its command id through the registry. */
+function dispatch(): void {
+  fireEvent.click(screen.getByText('dispatch'));
+}
+
+/** True if the last dispatch found an enabled command; false if it was refused. */
+function dispatched(): string | undefined {
+  return (screen.getByText('dispatch') as HTMLButtonElement).dataset.ran;
+}
+
 describe('NotebookEditor', () => {
   beforeEach(() => {
     sockets.length = 0;
@@ -237,5 +264,127 @@ describe('NotebookEditor', () => {
     await waitFor(() => expect(getNotebook).not.toHaveBeenCalled());
     expect(createSession).not.toHaveBeenCalled();
     expect(sockets).toHaveLength(0);
+  });
+});
+
+/**
+ * The notebook's actions as commands, reached the way the keyboard and the palette reach them: by id
+ * through the registry, with no reference to the editor that registered them.
+ *
+ * Each of these wraps in jotai's <Provider> because the registry is a global atom, and one notebook
+ * left over from a previous test would answer for the one under test.
+ */
+describe('NotebookEditor commands', () => {
+  beforeEach(() => {
+    sockets.length = 0;
+    resetIds();
+    getNotebook.mockReset();
+    createSession.mockReset();
+    // Per path, so two notebooks open at once are told apart by their session, and so their cells
+    // are told apart by their source.
+    getNotebook.mockImplementation((path: string) =>
+      Promise.resolve({
+        name: path,
+        type: 'notebook',
+        path,
+        content: {
+          ...structuredClone(notebookContent),
+          cells: [{ ...structuredClone(notebookContent.cells[0]), source: `run("${path}")` }],
+        },
+      })
+    );
+    createSession.mockImplementation((path: string) =>
+      Promise.resolve({ ...session, id: `session-${path}`, path, name: path })
+    );
+  });
+
+  function socketFor(path: string): IFakeSocket {
+    const socket = sockets.find((candidate) =>
+      candidate.url.includes(`session_id=session-${path}`)
+    );
+    if (!socket) {
+      throw new Error(`no socket for ${path}, only: ${sockets.map((s) => s.url).join(', ')}`);
+    }
+    return socket;
+  }
+
+  it('runs the focused cell when a command is dispatched by id', async () => {
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:run-cell" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    dispatch();
+
+    expect(dispatched()).toBe('true');
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const request = JSON.parse(sockets[0].sent[0]);
+    expect(request.header.msg_type).toBe('execute_request');
+    expect(request.content.code).toBe('run("notebook.ipynb")');
+  });
+
+  // The bug this design exists to kill: every open tab stays mounted, only hidden with CSS, so the
+  // window listener that used to live in useNotebookCells fired in all of them at once — Ctrl-B
+  // added a cell to every open notebook. Commands are registered only by the active tab.
+  it('reaches the active notebook only, not the hidden ones', async () => {
+    const hidden: IfileTab = { ...tab, path: 'hidden.ipynb', name: 'hidden.ipynb', active: false };
+
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <NotebookEditor data={hidden} />
+        <Dispatcher id="notebook:run-cell" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText('[0]:')).toHaveLength(2));
+
+    dispatch();
+
+    await waitFor(() => expect(socketFor('notebook.ipynb').sent).toHaveLength(1));
+    expect(JSON.parse(socketFor('notebook.ipynb').sent[0]).content.code).toBe(
+      'run("notebook.ipynb")'
+    );
+    expect(socketFor('hidden.ipynb').sent).toHaveLength(0);
+  });
+
+  it('refuses a command whose notebook has no kernel yet', async () => {
+    // The session never resolves, so the notebook loads but nothing is connected.
+    createSession.mockReturnValue(new Promise(() => {}));
+
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:run-cell" />
+      </Provider>
+    );
+    await screen.findByText('[0]:');
+
+    dispatch();
+
+    // Registered but refused — the palette shows it dimmed rather than hiding it.
+    expect(dispatched()).toBe('false');
+    expect(sockets).toHaveLength(0);
+    // Not merely unsent: no spinner either, because the cell was never marked running.
+    expect(document.querySelector('.spinner')).not.toBeInTheDocument();
+  });
+
+  it('inserts a cell below the focused one', async () => {
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:insert-cell-below" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    dispatch();
+
+    await waitFor(() => expect(screen.getAllByText('[0]:')).toHaveLength(2));
   });
 });

@@ -108,13 +108,6 @@ export function useNotebookCells() {
     setCopiedCell(notebook.cells[focusedIndex]);
   }, [notebook, focusedIndex]);
 
-  const copyCellByIndex = useCallback(
-    (index: number) => {
-      setCopiedCell(notebook.cells[index]);
-    },
-    [notebook]
-  );
-
   /** Copies the focused cell to the clipboard and removes it from the notebook. */
   const cutCell = useCallback(() => {
     setCopiedCell(notebook.cells[focusedIndex]);
@@ -235,22 +228,10 @@ export function useNotebookCells() {
     setFocusedIndex((prev) => Math.min(prev + 1, notebook.cells.length - 1));
   }, [notebook]);
 
-  useEffect(() => {
-    const handleKeyDownNotebook = (event: KeyboardEvent) => {
-      if (event.key === 'a' && event.ctrlKey) {
-        addCellUp(); // Ctrl + A -> Add cell above
-        event.preventDefault();
-      } else if (event.key === 'b' && event.ctrlKey) {
-        addCellDown(); // Ctrl + B -> Add cell below
-        event.preventDefault();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDownNotebook);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDownNotebook);
-    };
-  }, [addCellUp, addCellDown]);
+  // No `keydown` listener here any more. This hook runs once per open notebook and every open tab
+  // stays mounted (see ContentPanel), so a window listener installed here fired for every notebook
+  // at once: Ctrl-B added a cell to all of them. The chords are commands now, registered only by
+  // the active tab — see notebookCommands.ts.
 
   return {
     notebook,
@@ -265,7 +246,8 @@ export function useNotebookCells() {
     addCellDown,
     deleteCell,
     copyCell,
-    copyCellByIndex,
+    /** Exposed so `notebook:paste-cell` can report itself unavailable with nothing to paste. */
+    copiedCell,
     cutCell,
     pasteCell,
     updateCellSource,

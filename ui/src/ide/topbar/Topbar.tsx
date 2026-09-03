@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './Topbar.scss';
 import CommandPalette from './command/CommandPalette';
 import FileAutocomplete from './search/FileSearch';
 import { useAtom } from 'jotai';
 import { protectedStateAtom, userNameAtom } from '@/store/AppState';
 import { useNavigate } from 'react-router-dom';
+
+import { useCommands, useRegisterCommands } from '@/commands/registry';
+import { ICommand } from '@/commands/types';
 
 export default function Topbar() {
   const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
@@ -14,24 +17,9 @@ export default function Topbar() {
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const isPaletteOpen = showCommandPalette || showFileAutocomplete;
 
-  const commands = [
-    {
-      name: 'Open Project',
-      description: 'Open a new project directory',
-      action: () => alert('Opening project...'),
-    },
-    {
-      name: 'Run Command',
-      description: 'Run a custom command in terminal',
-      action: () => alert('Running command...'),
-    },
-    {
-      name: 'Close Editor',
-      description: 'Close the current editor window',
-      action: () => alert('Closing editor...'),
-    },
-    // Add more commands as needed
-  ];
+  // Everything registered right now, which is what the palette lists. Previously three
+  // hardcoded entries whose bodies were alert() calls.
+  const commands = useCommands();
 
   // Toggle functions wrapped in useCallback
   const toggleCommandPalette = useCallback(() => {
@@ -42,14 +30,43 @@ export default function Topbar() {
     setShowFileAutocomplete((prev) => !prev);
   }, []);
 
+  // The two palettes are commands like any other, registered here because this is where their
+  // state lives. Their chords used to be a `keydown` listener of their own.
+  const paletteCommands = useMemo<ICommand[]>(
+    () => [
+      {
+        id: 'palette:open-commands',
+        label: 'Show All Commands',
+        category: 'View',
+        scope: 'app',
+        // Cmd is what every other editor uses on mac, but Ctrl is what this app was bound to
+        // before, so both are accepted and nobody's habit breaks. (Off mac they are the same
+        // chord, and the palette dedupes the display.)
+        keys: ['Mod-Shift-p', 'Ctrl-Shift-p'],
+        execute: toggleCommandPalette,
+      },
+      {
+        id: 'palette:open-files',
+        label: 'Go to File',
+        category: 'View',
+        scope: 'app',
+        keys: ['Mod-Shift-o', 'Ctrl-Shift-o'],
+        execute: toggleFileAutoComplete,
+      },
+    ],
+    [toggleCommandPalette, toggleFileAutoComplete]
+  );
+  useRegisterCommands(paletteCommands);
+
+  // Escape stays a plain listener rather than a command: it is a dismissal, it has to work while
+  // the palette's own input has focus, and it is meaningless when nothing is open.
   useEffect(() => {
+    if (!isPaletteOpen) {
+      return;
+    }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.shiftKey && event.key === 'P') {
-        toggleCommandPalette(); // Open the command palette when the shortcut is pressed
-      } else if (event.ctrlKey && event.shiftKey && event.key === 'O') {
-        toggleFileAutoComplete(); // Open the command palette when the shortcut is pressed
-      } else if (event.key === 'Escape') {
-        setShowCommandPalette(false); // Close palette with Escape key
+      if (event.key === 'Escape') {
+        setShowCommandPalette(false);
         setShowFileAutocomplete(false);
       }
     };
@@ -59,7 +76,7 @@ export default function Topbar() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [toggleCommandPalette, toggleFileAutoComplete]);
+  }, [isPaletteOpen]);
 
   // Clicking away dismisses, as Escape does. Both palettes render inside .searchArea, as does
   // the button that opens them, so one containment check covers all three: a click on the

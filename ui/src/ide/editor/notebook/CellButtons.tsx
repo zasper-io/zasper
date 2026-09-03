@@ -1,55 +1,29 @@
 import React from 'react';
 
 interface CellButtonsProps {
-  index: number;
-  cellId: string;
-  code: string;
-  submitCell: (source: string, cellId: string) => void;
-  copyCellByIndex: (index: number) => void;
-  addCellUp: () => void;
-  addCellDown: () => void;
-  nextCell: () => void;
-  prevCell: () => void;
-  deleteCell: (index: number) => void;
+  /** Dispatches a command by id — see notebookCommands.ts for the ids. */
+  run: (id: string) => void;
 }
 
+/**
+ * The hover toolbar on a cell. It is only ever rendered for the focused cell (see Cell.tsx), so
+ * every button here is an action on the focused cell and needs no index of its own — which is what
+ * lets them all be plain command ids.
+ */
 function CellButtons(props: CellButtonsProps) {
   return (
     <div className="cellOptionsDiv">
       <div className="cellOptions">
-        <button
-          type="button"
-          className="editor-button"
-          onClick={() => props.submitCell(props.code, props.cellId)}
-        >
-          <i className="fas fa-play" />
-        </button>
-        <button
-          type="button"
-          className="editor-button"
-          onClick={() => props.copyCellByIndex(props.index)}
-        >
-          <i className="fas fa-copy" />
-        </button>
-        <button type="button" className="editor-button" onClick={() => props.nextCell()}>
-          <i className="fas fa-forward" />
-        </button>
-        <button type="button" className="editor-button" onClick={() => props.prevCell()}>
-          <i className="fas fa-backward" />
-        </button>
-        <button type="button" className="editor-button" onClick={() => props.addCellUp()}>
-          <IconAddAbove />
-        </button>
-        <button type="button" className="editor-button" onClick={() => props.addCellDown()}>
-          <IconAddBelow />
-        </button>
-        <button
-          type="button"
-          className="editor-button"
-          onClick={() => props.deleteCell(props.index)}
-        >
-          <i className="fas fa-trash" />
-        </button>
+        {CELL_BUTTONS.map((button) => (
+          <button
+            key={button.id}
+            type="button"
+            className="editor-button"
+            onClick={() => props.run(button.id)}
+          >
+            {button.icon}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -113,5 +87,17 @@ const IconAddBelow = ({ size = 16, color = 'currentColor' }) => {
     </svg>
   );
 };
+
+// Below the icon components because it holds elements built from them: a module-level array
+// evaluated above their `const` declarations would read them before they are initialised.
+const CELL_BUTTONS: { id: string; icon: React.ReactNode }[] = [
+  { id: 'notebook:run-cell', icon: <i className="fas fa-play" /> },
+  { id: 'notebook:copy-cell', icon: <i className="fas fa-copy" /> },
+  { id: 'notebook:select-next-cell', icon: <i className="fas fa-forward" /> },
+  { id: 'notebook:select-previous-cell', icon: <i className="fas fa-backward" /> },
+  { id: 'notebook:insert-cell-above', icon: <IconAddAbove /> },
+  { id: 'notebook:insert-cell-below', icon: <IconAddBelow /> },
+  { id: 'notebook:delete-cell', icon: <i className="fas fa-trash" /> },
+];
 
 export default CellButtons;

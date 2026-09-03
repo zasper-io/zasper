@@ -28,6 +28,9 @@ import {
 import { ApiError, getInfo } from '../api';
 import { getTheme } from '../themes';
 import { PanelName } from './sidebar/types';
+import { useAppCommands } from '../commands/appCommands';
+import { useRegisterCommands } from '../commands/registry';
+import { useCommandKeymap } from '../commands/useCommandKeymap';
 
 function IDE() {
   const [theme, setTheme] = useAtom(themeAtom);
@@ -39,29 +42,12 @@ function IDE() {
 
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
 
-  const [fontSize, setFontSize] = useAtom(fontSizeAtom); // Initial font size
+  const [fontSize] = useAtom(fontSizeAtom); // Initial font size
 
-  // Helper function to handle keydown events
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.metaKey) {
-        if (event.key === '+' || event.key === '=') {
-          // Increase font size
-          setFontSize((prevFontSize) => {
-            const newSize = Math.min(prevFontSize + 2, 24);
-            return newSize;
-          });
-        } else if (event.key === '-') {
-          // Decrease font size
-          setFontSize((prevFontSize) => {
-            const newSize = Math.max(prevFontSize - 2, 8);
-            return newSize;
-          });
-        }
-      }
-    },
-    [setFontSize]
-  );
+  // The application's only keyboard dispatcher, and the window-level commands that used to be a
+  // `keydown` listener here. Everything else contributes to the same registry from its own tab.
+  useCommandKeymap();
+  useRegisterCommands(useAppCommands());
 
   const initConfig = useCallback(async () => {
     let info;
@@ -95,16 +81,6 @@ function IDE() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
-
-  useEffect(() => {
-    // Listen to the keydown event
-    window.addEventListener('keydown', handleKeyDown);
-
-    // Clean up the event listener on component unmount
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyDown]);
 
   const getFontClass = (fontSize: number) => {
     return 'zfont-' + fontSize;

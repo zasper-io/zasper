@@ -13,7 +13,9 @@ import NbButtons from './NbButtons';
 import NotebookCells from './NotebookCells';
 import { INotebookMetadata } from '@/api';
 
-import { INotebookKeyEvent } from './types';
+import { useRegisterCommands, useRunCommand } from '@/commands/registry';
+import { useEditorCommandKeymap } from '@/commands/useEditorCommandKeymap';
+import { useNotebookCommands } from './notebookCommands';
 import { useKernelSession } from './useKernelSession';
 import { useNotebookCells } from './useNotebookCells';
 
@@ -99,55 +101,28 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
   };
 
-  const handleKeyDown = (addCell: boolean, event: INotebookKeyEvent) => {
-    const focusedCell = notebook.cells[cells.focusedIndex];
+  // Every action this notebook offers, in one list — this is what the toolbars dispatch, what the
+  // palette lists and what the keyboard resolves. It replaced a `keydown` handler here, another in
+  // useNotebookCells, and a keymap in Cell, which between them disagreed about Shift-Enter and made
+  // a capital M untypable.
+  const commands = useNotebookCommands({
+    cells,
+    kernel,
+    saveNotebook: saveNotebookToDisk,
+    submitCell,
+    submitAllCells: submitAllCellsForExecution,
+    restartKernel,
+    restartAndExecuteAllCells,
+  });
 
-    if (event.key === 'ArrowDown') {
-      cells.focusNextCell(addCell);
-      event.preventDefault();
-    } else if (event.key === 'ArrowUp') {
-      cells.focusPreviousCell();
-      event.preventDefault();
-    }
+  // Only while this is the visible tab: every open notebook stays mounted, so registering
+  // unconditionally is what used to let Ctrl-B add a cell to all of them at once.
+  useRegisterCommands(commands, data.active);
+  const runCommand = useRunCommand();
 
-    // Handle deleting a cell (D, D for delete)
-    if (event.key === 'd' && event.ctrlKey && event.shiftKey) {
-      cells.deleteCell(); // Ctrl + Shift + D -> Delete cell
-      event.preventDefault();
-    }
-
-    // Handle running a cell with Ctrl + Enter (no move) or Shift + Enter (move to next)
-    if (event.key === 'Enter') {
-      if (event.ctrlKey) {
-        submitCell(focusedCell.source, focusedCell.id); // Ctrl + Enter -> Run cell
-      } else if (event.shiftKey) {
-        submitCell(focusedCell.source, focusedCell.id); // Shift + Enter -> Run and move to next
-        cells.goToNextCell(); // Move to next cell after running
-      }
-      event.preventDefault();
-    }
-
-    // Handle cell type change (Y for code, M for markdown)
-    if (event.key === 'y' && event.ctrlKey) {
-      cells.changeCellType('code'); // Ctrl + Y -> Change cell to code
-      event.preventDefault();
-    } else if (event.key === 'm' && event.ctrlKey) {
-      cells.changeCellType('markdown'); // Ctrl + M -> Change cell to markdown
-      event.preventDefault();
-    }
-
-    // Handle saving the notebook with Cmd/Ctrl + S
-    if ((event.key === 's' && event.ctrlKey) || (event.key === 's' && event.metaKey)) {
-      saveNotebookToDisk(); // Ctrl + S (or Cmd + S) -> Save notebook
-      event.preventDefault();
-    }
-
-    // Handle undo (Ctrl + Z)
-    if (event.key === 'z' && event.ctrlKey) {
-      console.log('Undo action'); // Add undo logic here if necessary
-      event.preventDefault();
-    }
-  };
+  // Chords CodeMirror would otherwise consume, handed to the cells' editors directly rather than
+  // through the registry, so a cell can only run its own notebook's commands.
+  const commandKeymap = useEditorCommandKeymap(commands);
 
   return (
     <div className="tab-content">
@@ -159,22 +134,10 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       >
         <BreadCrumb path={data.path} />
         <NbButtons
-          saveNotebook={saveNotebookToDisk}
-          addCellDown={cells.addCellDown}
-          cutCell={cells.cutCell}
-          copyCell={cells.copyCell}
-          pasteCell={cells.pasteCell}
-          submitCell={submitCell}
-          interruptKernel={kernel.interruptKernel}
-          restartKernel={restartKernel}
-          restartAndExecuteAllCells={restartAndExecuteAllCells}
-          focusedIndex={cells.focusedIndex}
-          notebook={notebook}
+          run={runCommand}
+          cellType={notebook.cells[cells.focusedIndex]?.cell_type ?? ''}
           kernelName={kernel.kernelName}
           kernelStatus={kernel.kernelStatus}
-          changeCellType={cells.changeCellType}
-          reconnectKernel={kernel.reconnectKernel}
-          toggleKernelSwitcher={kernel.toggleKernelSwitcher}
         />
 
         <div className="editor-body">
@@ -193,15 +156,10 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
             setFocusedIndex={cells.setFocusedIndex}
             divRefs={cells.divRefs}
             codeMirrorRefs={codeMirrorRefs}
-            submitCell={submitCell}
-            copyCellByIndex={cells.copyCellByIndex}
-            addCellUp={cells.addCellUp}
-            addCellDown={cells.addCellDown}
-            prevCell={cells.goToPreviousCell}
-            nextCell={cells.goToNextCell}
-            deleteCell={cells.deleteCell}
-            handleKeyDown={handleKeyDown}
-            changeCellType={cells.changeCellType}
+            run={runCommand}
+            commandKeymap={commandKeymap}
+            focusNextCell={cells.focusNextCell}
+            focusPreviousCell={cells.focusPreviousCell}
             updateCellSource={cells.updateCellSource}
             showPrompt={kernel.showPrompt}
             promptContent={kernel.promptContent}

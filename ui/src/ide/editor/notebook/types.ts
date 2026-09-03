@@ -8,14 +8,6 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type IKernelConnection = any;
 
-/**
- * The subset of a keyboard event the notebook shortcut handler reads. CodeMirror
- * cells forward synthesised events, so a full React event is not always available.
- */
-export interface INotebookKeyEvent {
-  key: string;
-  ctrlKey?: boolean;
-  shiftKey?: boolean;
-  metaKey?: boolean;
-  preventDefault: () => void;
-}
+// INotebookKeyEvent used to live here: the shape a cell synthesised so it could hand a fake
+// keyboard event up to the notebook's shortcut handler. Both are gone — shortcuts are commands
+// now, and a cell dispatches one by id instead of pretending to be a keypress.

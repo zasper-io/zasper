@@ -78,6 +78,17 @@
   font-size: 12px;
 }
 
+// A command the registry reports as unavailable — no kernel, nothing on the clipboard. Listed
+// rather than hidden, because a greyed row explains itself and a missing one does not.
+.palette-item.disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.palette-item.disabled:hover {
+  background-color: transparent;
+}
+
 // A row's two columns: name plus a secondary line — the command's description, or
 // the file's path. Both ellipsise rather than overflow, because the palette is now
 // only as wide as the search box.
@@ -96,4 +107,15 @@
   white-space: nowrap;
   font-size: 12px;
   opacity: 0.85;
+}
+
+// The keybinding, right-aligned against the panel edge. `flex: 0 0 auto` and no min-width: a row
+// with no binding gives its space back to the description rather than leaving a gap.
+.commandKeys {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 12px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
 }

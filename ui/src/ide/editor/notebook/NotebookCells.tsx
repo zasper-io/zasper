@@ -1,10 +1,11 @@
 import React from 'react';
+import { type Extension } from '@codemirror/state';
 
 import Cell, { CodeMirrorRef } from './Cell';
 import { ICompleteReply, IKernelMessage } from './kernelMessages';
 import { INotebookModel } from '@/api';
 
-import { IKernelConnection, INotebookKeyEvent } from './types';
+import { IKernelConnection } from './types';
 
 interface NotebookCellsProps {
   notebook: INotebookModel;
@@ -12,15 +13,10 @@ interface NotebookCellsProps {
   setFocusedIndex: (index: number) => void;
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
   codeMirrorRefs: React.RefObject<CodeMirrorRef[] | null>;
-  submitCell: (source: string, cellId: string) => void;
-  copyCellByIndex: (index: number) => void;
-  addCellUp: () => void;
-  addCellDown: () => void;
-  prevCell: () => void;
-  nextCell: () => void;
-  deleteCell: () => void;
-  handleKeyDown: (addCell: boolean, event: INotebookKeyEvent) => void;
-  changeCellType: (value: string) => void;
+  run: (id: string) => void;
+  commandKeymap: Extension;
+  focusNextCell: (addCellIfLast: boolean) => void;
+  focusPreviousCell: () => void;
   updateCellSource: (value: string, cellId: string) => void;
   showPrompt: Boolean;
   promptContent: IKernelMessage;
@@ -46,17 +42,12 @@ export default function NotebookCells(props: NotebookCellsProps) {
           index={index}
           cell={cell}
           execution_count={cell.execution_count}
-          submitCell={props.submitCell}
-          copyCellByIndex={props.copyCellByIndex}
-          addCellUp={props.addCellUp}
-          addCellDown={props.addCellDown}
-          prevCell={props.prevCell}
-          nextCell={props.nextCell}
-          deleteCell={props.deleteCell}
+          run={props.run}
+          commandKeymap={props.commandKeymap}
+          focusNextCell={props.focusNextCell}
+          focusPreviousCell={props.focusPreviousCell}
           focusedIndex={props.focusedIndex}
           setFocusedIndex={props.setFocusedIndex}
-          handleKeyDown={props.handleKeyDown}
-          changeCellType={props.changeCellType}
           divRefs={props.divRefs}
           codeMirrorRefs={props.codeMirrorRefs}
           updateCellSource={props.updateCellSource}
