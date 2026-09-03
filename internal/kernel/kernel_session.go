@@ -14,7 +14,11 @@ import (
 	"github.com/go-zeromq/zmq4"
 )
 
-var ProtocolVersion string
+// ProtocolVersion goes in the header of every message this package builds. A kernel rejects a message
+// whose version is empty — jupyter_client's adapter parses it with int() and raises — so this is a
+// constant rather than something main() assigns: any binary that is not the server, a test binary
+// above all, would otherwise send messages no kernel will answer.
+const ProtocolVersion = "5.3"
 
 type KernelSession struct {
 	Key             string

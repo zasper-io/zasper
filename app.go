@@ -64,7 +64,6 @@ func main() {
 
 	core.Zasper = core.SetUpZasper(version, *cwd, *protected)
 	server.SetUp()
-	kernel.ProtocolVersion = "5.3"
 
 	router := server.NewRouter(getSpaHandler())
 

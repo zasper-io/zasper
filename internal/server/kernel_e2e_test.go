@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/models"
 )
@@ -251,7 +252,7 @@ func TestCodeSentOverTheKernelSocketIsExecuted(t *testing.T) {
 		"channel": "shell",
 		"header": map[string]any{
 			"msg_id": msgId, "msg_type": "execute_request", "session": created.Id,
-			"username": "test", "version": "5.2",
+			"username": "test", "version": kernel.ProtocolVersion,
 			"date": time.Now().UTC().Format(time.RFC3339),
 		},
 		"parent_header": map[string]any{},

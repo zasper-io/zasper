@@ -12,6 +12,13 @@ export function removeAnsiCodes(str: string): string {
 
 export const getTimeStamp = (): string => new Date().toISOString();
 
+/**
+ * The Jupyter messaging protocol version, in the header of every message sent from here. Kept equal to
+ * `kernel.ProtocolVersion` on the server, which sends messages of its own on the same sockets; a kernel
+ * rejects a message whose version is missing or unparseable.
+ */
+export const PROTOCOL_VERSION = '5.3';
+
 function updateCellById(
   notebook: INotebookModel,
   cellId: string,
@@ -117,7 +124,7 @@ export function buildExecuteRequest(
       msg_type: 'execute_request',
       session: sessionId,
       username: userName,
-      version: '5.2',
+      version: PROTOCOL_VERSION,
     },
     metadata: {
       deletedCells: [],
@@ -150,7 +157,7 @@ export function buildInputReply(
       msg_type: 'input_reply',
       session: sessionId,
       username: userName,
-      version: '5.2',
+      version: PROTOCOL_VERSION,
     },
     parent_header: parentHeader,
     metadata: {},
@@ -191,7 +198,7 @@ export function buildCompleteRequest(
       msg_type: 'complete_request',
       session: sessionId,
       username: userName,
-      version: '5.2',
+      version: PROTOCOL_VERSION,
     },
     parent_header: {},
     metadata: {},
