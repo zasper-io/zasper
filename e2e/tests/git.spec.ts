@@ -105,7 +105,17 @@ back would leave the repository a commit ahead and the file changed against it. 
 tracked file as the fixture had it, which is also what the specs after this one expect to find.
 */
 test.afterEach(() => {
+  // Back onto main first: these tests switch branch, and a reset would otherwise leave the next spec
+  // wherever this one ended. Forced because the reset that cleans the worktree has not happened yet.
+  git('checkout', '-f', '-q', 'main');
   git('reset', '--hard', '-q', seedCommit);
+
+  // And the branches the panel made, which nothing else here removes.
+  for (const name of git('for-each-ref', '--format=%(refname:short)', 'refs/heads').split('\n')) {
+    if (name !== '' && name !== 'main') {
+      git('branch', '-D', name);
+    }
+  }
 });
 
 test('a file is staged, committed, and then in the history', async ({ page }) => {
@@ -167,6 +177,46 @@ test('a commit takes what is staged and leaves the rest alone', async ({ page })
   // Still changed and still unstaged: the commit went past it.
   expect(git('diff', '--name-only')).toBe('data/table.csv');
   expect(git('diff', '--cached', '--name-only')).toBe('');
+});
+
+test('a branch is created from the menu, switched away from, and deleted', async ({ page }) => {
+  const open = await openPanel(page);
+
+  // The fixture has no remote, so there is nowhere to fetch from and none of it is offered.
+  await expect(open.getByLabel('Fetch')).toHaveCount(0);
+
+  await open.getByLabel('Branch: main').click();
+  await open.getByPlaceholder('Find or create a branch').fill('spec/topic');
+  await open.getByRole('menuitem', { name: 'Create branch spec/topic' }).click();
+
+  // Both places that name a branch. The status bar reads it once on boot and hears about a checkout no
+  // other way, so before phase 2 it went on saying main for the rest of the session.
+  await expect(open.locator('.git-branch')).toHaveText('spec/topic');
+  await expect(page.locator('.statusBar')).toContainText('spec/topic');
+  expect(git('rev-parse', '--abbrev-ref', 'HEAD')).toBe('spec/topic');
+
+  // Made from where HEAD was, so nothing is a change against it.
+  await expect(open.getByText('No changes.')).toBeVisible();
+  expect(git('rev-parse', 'spec/topic')).toBe(seedCommit);
+
+  await open.getByLabel('Branch: spec/topic').click();
+  // Not an exact name: every row carries a Font Awesome glyph, which is a character of the button's
+  // text as far as the accessibility tree is concerned.
+  await open.getByRole('menuitem', { name: 'main' }).click();
+
+  await expect(open.locator('.git-branch')).toHaveText('main');
+  expect(git('rev-parse', '--abbrev-ref', 'HEAD')).toBe('main');
+
+  // And now that it is not checked out, it can go. The menu stays open over the shortened list.
+  await open.getByLabel('Branch: main').click();
+  await open.getByLabel('Delete spec/topic').click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Delete branch');
+  await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
+
+  await expect(open.getByRole('menuitem', { name: 'spec/topic' })).toHaveCount(0);
+  expect(git('for-each-ref', '--format=%(refname:short)', 'refs/heads')).toBe('main');
 });
 
 test('discarding a change asks first, and then puts the file back', async ({ page }) => {

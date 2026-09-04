@@ -3,10 +3,12 @@ import { useCallback, useState } from 'react';
 import './GitPanel.scss';
 
 import { discardFiles, stageFiles, unstageFiles } from '@/api';
+import BranchMenu from './BranchMenu';
 import ChangeList, { IChangeAction } from './ChangeList';
 import CommitBox from './CommitBox';
 import ConfirmDiscardDialog from './ConfirmDiscardDialog';
 import { CommitGraphContainer } from './CommitGraphContainer';
+import SyncActions from './SyncActions';
 import { PanelProps } from '../types';
 import { IGitStatus, useGitStatus } from './useGitStatus';
 
@@ -15,12 +17,13 @@ export default function GitPanel({ hidden }: PanelProps) {
   // The paths a discard has been asked for and not yet confirmed.
   const [pending, setPending] = useState<string[] | null>(null);
   const [historyKey, setHistoryKey] = useState<number>(0);
+  const [branchMenu, setBranchMenu] = useState<boolean>(false);
 
   const disabled = busy || !status.gitAvailable;
 
-  // Staging and discarding cannot add a commit; committing can, and the History below has to show the
-  // commit that was just made from the box above it.
-  const commit: IGitStatus['run'] = useCallback(
+  // Staging and discarding cannot change what the history shows. Committing, pulling and switching
+  // branch all can, and the History below has to show what happened rather than what it read last time.
+  const changesHistory: IGitStatus['run'] = useCallback(
     async (action, success) => {
       const worked = await run(action, success);
       if (worked) {
@@ -87,18 +90,30 @@ export default function GitPanel({ hidden }: PanelProps) {
           why the last read failed are about the whole panel, not the top of it. */}
       {status.isRepository && (
         <div className="git-branch-bar">
-          <span className="git-branch" title={status.upstream || 'No upstream branch'}>
-            <i className="fas fa-code-branch"></i> {status.branch}
-          </span>
-          {status.upstream !== '' && (
-            <span
-              className="git-sync-counts"
-              title={`${status.behind} behind, ${status.ahead} ahead of ${status.upstream}`}
+          {/* The branch name is the button, as it is in every other editor's status bar: what someone
+              wants when they look at which branch they are on is usually another branch. */}
+          <div className="git-branch-picker">
+            <button
+              type="button"
+              className="git-branch"
+              title={status.upstream === '' ? 'No upstream branch' : `Tracking ${status.upstream}`}
+              aria-label={`Branch: ${status.branch}`}
+              aria-expanded={branchMenu}
+              disabled={disabled}
+              onClick={() => setBranchMenu((open) => !open)}
             >
-              <i className="fas fa-arrow-down"></i> {status.behind}
-              <i className="fas fa-arrow-up"></i> {status.ahead}
-            </span>
-          )}
+              <i className="fas fa-code-branch"></i> {status.branch}
+            </button>
+            {branchMenu && (
+              <BranchMenu
+                status={status}
+                busy={busy}
+                run={changesHistory}
+                onClose={() => setBranchMenu(false)}
+              />
+            )}
+          </div>
+          <SyncActions status={status} busy={busy} run={changesHistory} />
         </div>
       )}
 
@@ -126,7 +141,7 @@ export default function GitPanel({ hidden }: PanelProps) {
 
         {status.isRepository && (
           <>
-            <CommitBox status={status} busy={busy} run={commit} />
+            <CommitBox status={status} busy={busy} run={changesHistory} />
 
             {/* Conflicts first: they are the only thing here that blocks a commit. Staging one is how
                 git is told it has been resolved, so that is the action offered. */}

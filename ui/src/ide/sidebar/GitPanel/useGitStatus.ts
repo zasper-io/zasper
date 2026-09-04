@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAtom } from 'jotai';
 import { toast } from 'react-toastify';
 
 import { apiErrorMessage, emptyGitStatus, getGitStatus, GitStatus } from '@/api';
+import { branchNameAtom } from '@/store/AppState';
 import { useContentWatcher } from '../FileBrowser/useContentWatcher';
 
 export interface IGitStatus {
@@ -35,22 +37,38 @@ export function useGitStatus(hidden: boolean): IGitStatus {
   const [loading, setLoading] = useState<boolean>(true);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [, setBranchName] = useAtom(branchNameAtom);
 
   // The watcher callback outlives the renders it was made in, so what it needs to know about the
   // current one it reads through a ref.
   const isHidden = useRef<boolean>(hidden);
   isHidden.current = hidden;
 
+  /*
+   * Takes a status, and tells the status bar which branch this is while it is at it.
+   *
+   * The status bar reads the branch once on boot and has no other way of hearing about a checkout, so
+   * without this it goes on naming the branch that was current when the session started. A panel nobody
+   * opens changes nothing, which is what it did before.
+   */
+  const apply = useCallback(
+    (next: GitStatus) => {
+      setStatus(next);
+      setBranchName(next.branch);
+    },
+    [setBranchName]
+  );
+
   const refresh = useCallback(async () => {
     try {
-      setStatus(await getGitStatus());
+      apply(await getGitStatus());
       setError('');
     } catch (failure) {
       setError(apiErrorMessage(failure));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apply]);
 
   useEffect(() => {
     // Every sidebar panel stays mounted, so the guard is what keeps a panel nobody has opened from
@@ -69,24 +87,27 @@ export function useGitStatus(hidden: boolean): IGitStatus {
     }
   });
 
-  const run = useCallback(async (action: () => Promise<GitStatus>, success?: string) => {
-    setBusy(true);
-    try {
-      setStatus(await action());
-      setError('');
-      if (success !== undefined) {
-        toast.success(success);
+  const run = useCallback(
+    async (action: () => Promise<GitStatus>, success?: string) => {
+      setBusy(true);
+      try {
+        apply(await action());
+        setError('');
+        if (success !== undefined) {
+          toast.success(success);
+        }
+        return true;
+      } catch (failure) {
+        // The server's own words: "Please tell me who you are", or which file is in the way. The panel
+        // used to say "An error occurred while committing changes." and throw the rest away.
+        toast.error(apiErrorMessage(failure));
+        return false;
+      } finally {
+        setBusy(false);
       }
-      return true;
-    } catch (failure) {
-      // The server's own words: "Please tell me who you are", or which file is in the way. The panel
-      // used to say "An error occurred while committing changes." and throw the rest away.
-      toast.error(apiErrorMessage(failure));
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+    },
+    [apply]
+  );
 
   return { status, loading, busy, error, refresh, run };
 }

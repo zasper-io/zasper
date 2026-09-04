@@ -113,6 +113,12 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/git/unstage", gitclient.UnstageHandler).Methods("POST")
 	apiRouter.HandleFunc("/git/discard", gitclient.DiscardHandler).Methods("POST")
 	apiRouter.HandleFunc("/git/commit", gitclient.CommitHandler).Methods("POST")
+	apiRouter.HandleFunc("/git/branches", gitclient.BranchesHandler).Methods("GET")
+	apiRouter.HandleFunc("/git/branches", gitclient.DeleteBranchHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/git/checkout", gitclient.CheckoutHandler).Methods("POST")
+	apiRouter.HandleFunc("/git/fetch", gitclient.FetchHandler).Methods("POST")
+	apiRouter.HandleFunc("/git/pull", gitclient.PullHandler).Methods("POST")
+	apiRouter.HandleFunc("/git/push", gitclient.PushHandler).Methods("POST")
 	// The status bar wants one string on boot and nothing else, so it keeps an endpoint of its own
 	// rather than reading a whole status.
 	apiRouter.HandleFunc("/current-branch", gitclient.BranchHandler).Methods("GET")

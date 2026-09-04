@@ -52,6 +52,30 @@ func post(t *testing.T, srv *httptest.Server, path string, payload any) gitclien
 	return decode[gitclient.StatusResponse](t, body)
 }
 
+// del is post for the one endpoint that deletes, which takes its subject in the body because a branch is
+// called feature/thing as often as not and a slash cannot be half of a path segment.
+func del(t *testing.T, srv *httptest.Server, path string, payload any) gitclient.StatusResponse {
+	t.Helper()
+
+	status, body := call(t, srv, http.MethodDelete, path, payload)
+	require.Equal(t, http.StatusOK, status, "%s answered %d: %s", path, status, body)
+	return decode[gitclient.StatusResponse](t, body)
+}
+
+// branches is the list the branch menu is drawn from.
+func branches(t *testing.T, srv *httptest.Server) []gitclient.Branch {
+	t.Helper()
+	return getJSON[gitclient.BranchesResponse](t, srv, "/api/git/branches").Branches
+}
+
+func branchNames(list []gitclient.Branch) []string {
+	names := make([]string, 0, len(list))
+	for _, branch := range list {
+		names = append(names, branch.Name)
+	}
+	return names
+}
+
 // paths pulls the file names out of one of the status lists, which is what most assertions here are
 // about; the letters are checked where they are the point.
 func paths(changes []gitclient.FileChange) []string {
@@ -423,6 +447,247 @@ func TestAFailedPushStillSaysTheCommitWasMade(t *testing.T) {
 	// It was: the history has it, whatever happened to the push.
 	graph := getJSON[gitclient.CommitGraphResponse](t, srv, "/api/git/log")
 	require.Len(t, graph.Commits, 1)
+}
+
+/*
+Branches, all the way round: listed, made, switched to, and deleted.
+
+Every one of those is new — the panel could read the current branch and nothing else — and they are one
+journey because that is the order they happen in: a branch that cannot be switched to is not worth
+creating, and one that cannot be deleted accumulates.
+*/
+func TestABranchCanBeListedCreatedSwitchedToAndDeleted(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	repo := initRepo(t, project)
+	writeFile(t, project, "notes.txt", "hello")
+	commitFile(t, repo, "notes.txt", "the first one")
+
+	// Whatever init.defaultBranch calls it on this machine.
+	main := gitStatus(t, srv).Branch
+
+	list := branches(t, srv)
+	require.Len(t, list, 1)
+	assert.Equal(t, main, list[0].Name)
+	assert.True(t, list[0].Current)
+	assert.False(t, list[0].IsRemote)
+	assert.Empty(t, list[0].Upstream, "nothing has been pushed, so it tracks nothing")
+
+	status := post(t, srv, "/api/git/checkout", map[string]any{"branch": "topic", "create": true})
+	assert.Equal(t, "topic", status.Branch, "created and switched to in one step")
+	assert.Equal(t, []string{main, "topic"}, branchNames(branches(t, srv)))
+
+	// Deleting the branch that is checked out is git's refusal to make, and its words are what the panel
+	// shows: this package does not repeat the check.
+	code, body := call(t, srv, http.MethodDelete, "/api/git/branches", map[string]any{"name": "topic"})
+	assert.Equal(t, http.StatusConflict, code)
+	assert.Contains(t, string(body), "checked out")
+
+	status = post(t, srv, "/api/git/checkout", map[string]any{"branch": main})
+	assert.Equal(t, main, status.Branch)
+
+	del(t, srv, "/api/git/branches", map[string]any{"name": "topic"})
+	assert.Equal(t, []string{main}, branchNames(branches(t, srv)))
+}
+
+/*
+A checkout that would overwrite uncommitted work is refused, and says which file is in the way.
+
+Left to git deliberately. The alternative — asking first — means either duplicating git's check or
+offering to throw away changes, and a source control panel that loses an edit on a branch switch is worse
+than one that cannot switch.
+*/
+func TestACheckoutThatWouldLoseWorkIsRefused(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	repo := initRepo(t, project)
+	writeFile(t, project, "notes.txt", "hello")
+	commitFile(t, repo, "notes.txt", "the first one")
+	main := gitStatus(t, srv).Branch
+
+	post(t, srv, "/api/git/checkout", map[string]any{"branch": "topic", "create": true})
+	writeFile(t, project, "notes.txt", "the topic version")
+	post(t, srv, "/api/git/stage", map[string]any{"paths": []string{"notes.txt"}})
+	post(t, srv, "/api/git/commit", map[string]any{"message": "on topic"})
+	post(t, srv, "/api/git/checkout", map[string]any{"branch": main})
+
+	writeFile(t, project, "notes.txt", "an edit nobody has committed")
+	code, body := call(t, srv, http.MethodPost, "/api/git/checkout", map[string]any{"branch": "topic"})
+	assert.Equal(t, http.StatusConflict, code)
+	assert.Contains(t, string(body), "notes.txt")
+
+	// Refused, so nothing moved and nothing was lost.
+	status := gitStatus(t, srv)
+	assert.Equal(t, main, status.Branch)
+	contents, err := os.ReadFile(filepath.Join(project, "notes.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "an edit nobody has committed", string(contents))
+}
+
+/*
+A branch name git would read as an option is refused before it reaches a command line.
+
+check-ref-format allows a leading dash, so `git checkout -b -f` is a valid request to make a branch and an
+invalid command to run. The rest of the names here git would refuse itself; they are checked in the same
+place so the panel's answer to all of them is the same.
+*/
+func TestABranchNameGitWouldReadAsAnOptionIsRefused(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	repo := initRepo(t, project)
+	writeFile(t, project, "notes.txt", "hello")
+	commitFile(t, repo, "notes.txt", "the first one")
+
+	for _, name := range []string{"-f", "--force", "bad..name", "with space", "ends.with.a.dot.", ""} {
+		t.Run(name, func(t *testing.T) {
+			code, body := call(t, srv, http.MethodPost, "/api/git/checkout", map[string]any{
+				"branch": name, "create": true,
+			})
+			assert.Equal(t, http.StatusConflict, code, "body was %s", body)
+		})
+	}
+
+	// And a start point cannot be an option either, whatever the branch is called.
+	code, _ := call(t, srv, http.MethodPost, "/api/git/checkout", map[string]any{
+		"branch": "topic", "create": true, "from": "--orphan",
+	})
+	assert.Equal(t, http.StatusConflict, code)
+
+	assert.Len(t, branches(t, srv), 1, "nothing was created")
+}
+
+/*
+A branch that exists only on the remote is checked out as a local branch that follows it.
+
+A fresh clone has one local branch, and every branch a colleague made is a remote-tracking ref. Checking
+one out with plain `git checkout origin/topic` leaves a detached HEAD — a state this panel has nothing to
+say about and most people have to look up how to leave.
+*/
+func TestARemoteBranchIsCheckedOutAsALocalBranchThatFollowsIt(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	initRepo(t, project)
+
+	remotePath := filepath.Join(t.TempDir(), "origin.git")
+	_, err := git.PlainInit(remotePath, true)
+	require.NoError(t, err)
+	gitOutput(t, project, "remote", "add", "origin", remotePath)
+
+	writeFile(t, project, "notes.txt", "hello")
+	post(t, srv, "/api/git/stage", map[string]any{"paths": []string{"notes.txt"}})
+	post(t, srv, "/api/git/commit", map[string]any{"message": "the first one", "push": true})
+
+	// A branch on the remote that was never a branch here, which is what somebody else's work looks like
+	// after a fetch.
+	gitOutput(t, project, "push", "origin", "HEAD:refs/heads/theirs")
+	gitOutput(t, project, "fetch", "origin")
+
+	list := branches(t, srv)
+	assert.Contains(t, branchNames(list), "origin/theirs")
+	for _, branch := range list {
+		if branch.Name == "origin/theirs" {
+			assert.True(t, branch.IsRemote)
+			assert.False(t, branch.Current)
+		}
+	}
+	// origin/HEAD is a symbolic ref naming the remote's default branch, not a branch to offer.
+	assert.NotContains(t, branchNames(list), "origin/HEAD")
+
+	status := post(t, srv, "/api/git/checkout", map[string]any{"branch": "origin/theirs"})
+	assert.Equal(t, "theirs", status.Branch)
+	assert.Equal(t, "origin/theirs", status.Upstream, "and it tracks what it came from")
+}
+
+/*
+Fetch reports what is on the remote without touching the worktree, and pull takes it.
+
+The two are separate buttons for the reason this asserts: a fetch is safe — it answers "what is there?"
+and changes no file anyone is editing — where a pull writes the worktree and can stop halfway with
+conflicts.
+*/
+func TestFetchReportsWhatIsBehindAndPullTakesIt(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	initRepo(t, project)
+
+	remotePath := filepath.Join(t.TempDir(), "origin.git")
+	_, err := git.PlainInit(remotePath, true)
+	require.NoError(t, err)
+	gitOutput(t, project, "remote", "add", "origin", remotePath)
+
+	writeFile(t, project, "notes.txt", "hello")
+	post(t, srv, "/api/git/stage", map[string]any{"paths": []string{"notes.txt"}})
+	post(t, srv, "/api/git/commit", map[string]any{"message": "the first one", "push": true})
+
+	// Somebody else's commit, made in a clone and pushed: the thing there is to fetch.
+	elsewhere := filepath.Join(t.TempDir(), "clone")
+	gitOutput(t, project, "clone", remotePath, elsewhere)
+	writeFile(t, elsewhere, "theirs.txt", "from somebody else")
+	gitOutput(t, elsewhere, "add", "theirs.txt")
+	gitOutput(t, elsewhere, "-c", "user.name=Other", "-c", "user.email=other@example.com",
+		"-c", "commit.gpgsign=false", "commit", "-m", "theirs")
+	gitOutput(t, elsewhere, "push")
+
+	// Nothing has been fetched, so there is nothing the panel could know about it.
+	assert.Zero(t, gitStatus(t, srv).Behind)
+
+	status := post(t, srv, "/api/git/fetch", nil)
+	assert.Equal(t, 1, status.Behind)
+	assert.Zero(t, status.Ahead)
+	assert.NoFileExists(t, filepath.Join(project, "theirs.txt"), "a fetch writes no file in the worktree")
+
+	status = post(t, srv, "/api/git/pull", nil)
+	assert.Zero(t, status.Behind)
+	assert.FileExists(t, filepath.Join(project, "theirs.txt"))
+}
+
+// Pushing what has already been committed, which is the button beside the counts rather than the checkbox
+// on the commit.
+func TestPushSendsCommitsThatWereMadeWithoutIt(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	initRepo(t, project)
+
+	remotePath := filepath.Join(t.TempDir(), "origin.git")
+	_, err := git.PlainInit(remotePath, true)
+	require.NoError(t, err)
+	gitOutput(t, project, "remote", "add", "origin", remotePath)
+
+	writeFile(t, project, "notes.txt", "hello")
+	post(t, srv, "/api/git/stage", map[string]any{"paths": []string{"notes.txt"}})
+	status := post(t, srv, "/api/git/commit", map[string]any{"message": "the first one"})
+	assert.Empty(t, status.Upstream, "committed without pushing, so there is nowhere it is following yet")
+
+	// The first push has to set an upstream, since nothing has given the branch one.
+	status = post(t, srv, "/api/git/push", nil)
+	assert.NotEmpty(t, status.Upstream)
+	assert.Zero(t, status.Ahead)
+
+	remote, err := git.PlainOpen(remotePath)
+	require.NoError(t, err)
+	head, err := remote.Head()
+	require.NoError(t, err)
+	commit, err := remote.CommitObject(head.Hash())
+	require.NoError(t, err)
+	assert.Equal(t, "the first one\n", commit.Message)
+}
+
+// A project with no remote has nothing to sync with, and says so rather than running a git command whose
+// failure would need explaining.
+func TestSyncingIsRefusedWithoutARemote(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	repo := initRepo(t, project)
+	writeFile(t, project, "notes.txt", "hello")
+	commitFile(t, repo, "notes.txt", "the first one")
+
+	for _, path := range []string{"/api/git/fetch", "/api/git/pull", "/api/git/push"} {
+		t.Run(path, func(t *testing.T) {
+			code, body := call(t, srv, http.MethodPost, path, nil)
+			assert.Equal(t, http.StatusConflict, code)
+			assert.Contains(t, string(body), "no remote")
+		})
+	}
 }
 
 func writeFile(t *testing.T, dir, name, contents string) {

@@ -32,7 +32,12 @@ function describeTab(tab: IfileTab | undefined): string {
   }
 }
 
-export default function StatusBar() {
+interface StatusBarProps {
+  /** Opens the source control panel, where the branch can actually be changed. */
+  onBranchClick: () => void;
+}
+
+export default function StatusBar({ onBranchClick }: StatusBarProps) {
   const [indentationMode] = useAtom(indentationModeAtom);
   const [indentationSize] = useAtom(indentationSizeAtom);
   const [linePosition] = useAtom(linePositionAtom);
@@ -61,7 +66,18 @@ export default function StatusBar() {
   return (
     <div className="statusBar">
       <div className="leftStatus">
-        {branchName && <span className="statusItem">{branchName}</span>}
+        {/* Inert text until now. It is the one place the branch is always visible, so it is where people
+            press to change it — the panel it opens is where the branch list lives. */}
+        {branchName && (
+          <button
+            type="button"
+            className="statusItem statusButton"
+            title={`On branch ${branchName} — open source control`}
+            onClick={onBranchClick}
+          >
+            <i className="fas fa-code-branch"></i> {branchName}
+          </button>
+        )}
       </div>
       <div className="rightStatus">
         {isTextEditor && (

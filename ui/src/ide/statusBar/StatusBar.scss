@@ -15,3 +15,20 @@
   padding: 0 10px;
   white-space: nowrap;
 }
+
+// A status item that does something — the branch, which opens source control. Borderless and the same
+// size as the text beside it, so the bar stays a bar rather than growing a button.
+.statusButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+
+  &:hover {
+    background: var(--z-bg-tab-hover);
+  }
+}

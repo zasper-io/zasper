@@ -118,7 +118,7 @@ function IDE() {
           </Panel>
         </PanelGroup>
       </div>
-      <StatusBar />
+      <StatusBar onBranchClick={() => setActivePanel('gitPanel')} />
       {/* The IDE's only toast host. Until now the one container lived in Login, so every toast()
           raised from inside the IDE — a failed commit, a failed save — rendered nowhere at all. */}
       <ToastContainer position="bottom-right" autoClose={4000} newestOnTop />

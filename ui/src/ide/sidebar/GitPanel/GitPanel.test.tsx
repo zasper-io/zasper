@@ -10,6 +10,12 @@ const stageFiles = vi.fn();
 const unstageFiles = vi.fn();
 const discardFiles = vi.fn();
 const commitStaged = vi.fn();
+const getBranches = vi.fn();
+const checkoutBranch = vi.fn();
+const deleteBranch = vi.fn();
+const fetchRemote = vi.fn();
+const pullRemote = vi.fn();
+const pushRemote = vi.fn();
 
 vi.mock('@/api', async () => ({
   getGitStatus: () => getGitStatus(),
@@ -18,6 +24,12 @@ vi.mock('@/api', async () => ({
   unstageFiles: (paths: string[]) => unstageFiles(paths),
   discardFiles: (paths: string[], deleteUntracked: boolean) => discardFiles(paths, deleteUntracked),
   commitStaged: (message: string, options: unknown) => commitStaged(message, options),
+  getBranches: () => getBranches(),
+  checkoutBranch: (...args: unknown[]) => checkoutBranch(...args),
+  deleteBranch: (...args: unknown[]) => deleteBranch(...args),
+  fetchRemote: () => fetchRemote(),
+  pullRemote: () => pullRemote(),
+  pushRemote: () => pushRemote(),
   emptyGitStatus: (await import('@/api/git')).emptyGitStatus,
   apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
 }));
@@ -51,6 +63,13 @@ const empty: GitStatus = {
 
 const aStatus = (overrides: Partial<GitStatus> = {}): GitStatus => ({ ...empty, ...overrides });
 
+/** One of each: the branch that is checked out, another of this repository's, and a colleague's. */
+const theBranches = [
+  { name: 'main', current: true, upstream: 'origin/main', isRemote: false },
+  { name: 'topic', current: false, isRemote: false },
+  { name: 'origin/theirs', current: false, isRemote: true },
+];
+
 beforeEach(() => {
   vi.clearAllMocks();
   getGitStatus.mockResolvedValue(aStatus());
@@ -59,7 +78,19 @@ beforeEach(() => {
   unstageFiles.mockResolvedValue(aStatus());
   discardFiles.mockResolvedValue(aStatus());
   commitStaged.mockResolvedValue(aStatus());
+  getBranches.mockResolvedValue({ branches: theBranches, isRepository: true });
+  checkoutBranch.mockResolvedValue(aStatus({ branch: 'topic' }));
+  deleteBranch.mockResolvedValue(aStatus());
+  fetchRemote.mockResolvedValue(aStatus());
+  pullRemote.mockResolvedValue(aStatus());
+  pushRemote.mockResolvedValue(aStatus());
 });
+
+/** Opens the branch menu, which the branch name in the bar is the button for. */
+async function openBranchMenu(): Promise<void> {
+  fireEvent.click(await screen.findByLabelText('Branch: main'));
+  await waitFor(() => expect(getBranches).toHaveBeenCalled());
+}
 
 describe('GitPanel', () => {
   it('asks the server for nothing while it is hidden', async () => {
@@ -290,6 +321,100 @@ describe('GitPanel', () => {
       target: { value: 'committing the conflict markers' },
     });
     expect(screen.getByRole('button', { name: /^Commit/ })).toBeDisabled();
+  });
+
+  it('lists branches only once the menu is asked for, and switches to the one clicked', async () => {
+    render(<GitPanel hidden={false} />);
+    await waitFor(() => expect(getGitStatus).toHaveBeenCalled());
+    // A repository can have hundreds of remote-tracking refs and the panel draws none of them, so the
+    // list is not part of the status it reads on every change.
+    expect(getBranches).not.toHaveBeenCalled();
+
+    await openBranchMenu();
+    // The one that is checked out is shown and not offered: switching to it does nothing.
+    expect(screen.getByRole('menuitem', { name: /main/ })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: /origin\/theirs/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /topic/ }));
+    await waitFor(() => expect(checkoutBranch).toHaveBeenCalledWith('topic'));
+
+    // Done, so the menu goes: leaving it open over a panel that has just redrawn itself for another
+    // branch is a list of somewhere else.
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText('Find or create a branch')).not.toBeInTheDocument()
+    );
+  });
+
+  it('creates a branch named by what was typed to look for one', async () => {
+    render(<GitPanel hidden={false} />);
+    await openBranchMenu();
+
+    const filter = screen.getByPlaceholderText('Find or create a branch');
+    fireEvent.change(filter, { target: { value: 'topic' } });
+    // An existing name is a name to switch to, so there is nothing to create.
+    expect(screen.queryByText(/^Create branch/)).not.toBeInTheDocument();
+
+    fireEvent.change(filter, { target: { value: 'spec/new-thing' } });
+    fireEvent.click(screen.getByRole('menuitem', { name: /Create branch spec\/new-thing/ }));
+
+    await waitFor(() =>
+      expect(checkoutBranch).toHaveBeenCalledWith('spec/new-thing', { create: true })
+    );
+  });
+
+  it('asks before deleting a branch, and offers no delete for the current one', async () => {
+    render(<GitPanel hidden={false} />);
+    await openBranchMenu();
+
+    // git refuses both of these, so neither is drawn: the branch that is checked out, and a ref that
+    // belongs to the remote.
+    expect(screen.queryByLabelText('Delete main')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Delete origin/theirs')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Delete topic'));
+    expect(await screen.findByText('Delete branch')).toBeInTheDocument();
+    expect(deleteBranch).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    // Unforced, so a branch whose commits are nowhere else is still git's to refuse.
+    await waitFor(() => expect(deleteBranch).toHaveBeenCalledWith('topic', false));
+  });
+
+  it('fetches, pulls and pushes, and counts what each is about', async () => {
+    const behind = aStatus({ hasRemote: true, upstream: 'origin/main', ahead: 1, behind: 2 });
+    getGitStatus.mockResolvedValue(behind);
+    // The panel redraws from whatever each write answers with, and a status with no remote takes these
+    // buttons away — so all three have to still be there to press after the first one.
+    fetchRemote.mockResolvedValue(behind);
+    pullRemote.mockResolvedValue(behind);
+    pushRemote.mockResolvedValue(behind);
+    render(<GitPanel hidden={false} />);
+
+    const pull = await screen.findByLabelText('Pull');
+    const push = screen.getByLabelText('Push');
+    // The counts are the buttons' labels rather than text beside the branch name, which said how far
+    // behind the branch was and gave no way to do anything about it.
+    expect(pull).toHaveTextContent('2');
+    expect(push).toHaveTextContent('1');
+
+    fireEvent.click(screen.getByLabelText('Fetch'));
+    await waitFor(() => expect(fetchRemote).toHaveBeenCalled());
+
+    fireEvent.click(pull);
+    await waitFor(() => expect(pullRemote).toHaveBeenCalled());
+
+    fireEvent.click(push);
+    await waitFor(() => expect(pushRemote).toHaveBeenCalled());
+  });
+
+  it('offers nothing to sync with when there is no remote', async () => {
+    render(<GitPanel hidden={false} />);
+
+    expect(await screen.findByLabelText('Branch: main')).toBeInTheDocument();
+    // All three would be refused by the server, which is a worse way to find out.
+    expect(screen.queryByLabelText('Fetch')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Pull')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Push')).not.toBeInTheDocument();
   });
 
   it('re-reads on demand', async () => {

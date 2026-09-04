@@ -60,6 +60,22 @@ export const emptyGitStatus: GitStatus = {
   conflicted: [],
 };
 
+/**
+ * One ref the panel can switch to.
+ *
+ * Remote-tracking refs are in the same list as this repository's own branches, marked: a fresh clone has
+ * one local branch and everything a colleague made is only listed here, so leaving them out would leave
+ * the menu unable to reach most of the work.
+ */
+export type Branch = {
+  name: string;
+  current: boolean;
+  /** What it tracks, as `origin/main`, absent when it tracks nothing. */
+  upstream?: string;
+  hash?: string;
+  isRemote: boolean;
+};
+
 /** The branch the project is on, empty when the project is not a repository. */
 export async function getCurrentBranch(): Promise<string> {
   const res = await requestJson<{ branch: string; isRepository: boolean }>('/api/current-branch');
@@ -91,6 +107,48 @@ export function discardFiles(paths: string[], deleteUntracked = false): Promise<
     method: 'POST',
     body: { paths, deleteUntracked },
   });
+}
+
+export function getBranches(): Promise<{ branches: Branch[]; isRepository: boolean }> {
+  return requestJson<{ branches: Branch[]; isRepository: boolean }>('/api/git/branches');
+}
+
+/**
+ * Switches branch, making one first when `create` says so. `from` is what a new branch starts at — a
+ * branch, a tag or a commit — and defaults to whatever is checked out.
+ *
+ * A switch that would overwrite uncommitted work fails: git refuses it and names the files in the way,
+ * and that message is what the toast carries.
+ */
+export function checkoutBranch(
+  branch: string,
+  options: { create?: boolean; from?: string } = {}
+): Promise<GitStatus> {
+  return requestJson<GitStatus>('/api/git/checkout', {
+    method: 'POST',
+    body: { branch, create: options.create ?? false, from: options.from ?? '' },
+  });
+}
+
+/** Deletes a local branch. Without `force`, git refuses one whose commits are nowhere else. */
+export function deleteBranch(name: string, force = false): Promise<GitStatus> {
+  return requestJson<GitStatus>('/api/git/branches', {
+    method: 'DELETE',
+    body: { name, force },
+  });
+}
+
+/** Updates the remote's refs and nothing else, which is what makes the ahead/behind counts true. */
+export function fetchRemote(): Promise<GitStatus> {
+  return requestJson<GitStatus>('/api/git/fetch', { method: 'POST' });
+}
+
+export function pullRemote(): Promise<GitStatus> {
+  return requestJson<GitStatus>('/api/git/pull', { method: 'POST' });
+}
+
+export function pushRemote(): Promise<GitStatus> {
+  return requestJson<GitStatus>('/api/git/push', { method: 'POST' });
 }
 
 /** Commits what is staged, and only that, optionally pushing afterwards. */

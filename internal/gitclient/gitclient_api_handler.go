@@ -36,6 +36,11 @@ type CommitGraphResponse struct {
 	IsRepository bool     `json:"isRepository"`
 }
 
+type BranchesResponse struct {
+	Branches     []Branch `json:"branches"`
+	IsRepository bool     `json:"isRepository"`
+}
+
 // notARepository reports whether err is go-git saying there is nothing to open at the path.
 func notARepository(err error) bool {
 	return errors.Is(err, git.ErrRepositoryNotExists)
@@ -171,6 +176,119 @@ func CommitGraphHandler(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, CommitGraphResponse{Commits: commits, IsRepository: true})
 }
 
+func BranchesHandler(w http.ResponseWriter, r *http.Request) {
+	repo, _, ok := repoForRead(w, BranchesResponse{Branches: []Branch{}})
+	if !ok {
+		return
+	}
+
+	branches, err := getBranches(repo)
+	if err != nil {
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error listing branches: %v", err))
+		return
+	}
+
+	sendJSON(w, BranchesResponse{Branches: branches, IsRepository: true})
+}
+
+func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := repoForWrite(w)
+	if !ok {
+		return
+	}
+
+	var request struct {
+		Branch string `json:"branch"`
+		Create bool   `json:"create"`
+		// From is what a new branch starts at — a branch, a tag or a commit. Empty means the commit
+		// that is checked out, which is what `git checkout -b` does on its own.
+		From string `json:"from"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+
+	if err := checkout(r.Context(), repo, root, request.Branch, request.Create, request.From); err != nil {
+		failed(w, err)
+		return
+	}
+	sendStatus(w, r, repo, root)
+}
+
+/*
+DeleteBranchHandler takes the branch in the body rather than in the path.
+
+A branch is called `feature/thing` as often as not, and a name with a slash in it cannot be a path segment
+without encoding a slash — which proxies and routers are entitled to decode again before this handler sees
+it. The content API already deletes with a body for the same reason.
+*/
+func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := repoForWrite(w)
+	if !ok {
+		return
+	}
+
+	var request struct {
+		Name string `json:"name"`
+		// Force is the caller having been told the branch has commits nowhere else, and meaning it.
+		Force bool `json:"force"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+
+	if err := deleteBranch(r.Context(), repo, root, request.Name, request.Force); err != nil {
+		failed(w, err)
+		return
+	}
+	sendStatus(w, r, repo, root)
+}
+
+// The three remote endpoints take no body: which branch and which remote are the repository's own
+// business, and a panel that let the browser choose them would be a worse `git push`.
+
+func FetchHandler(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := repoForWrite(w)
+	if !ok {
+		return
+	}
+
+	if err := fetch(r.Context(), repo, root); err != nil {
+		failed(w, err)
+		return
+	}
+	// The point of a fetch is the ahead/behind counts this recomputes; nothing else about it is visible.
+	sendStatus(w, r, repo, root)
+}
+
+func PullHandler(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := repoForWrite(w)
+	if !ok {
+		return
+	}
+
+	if err := pull(r.Context(), repo, root); err != nil {
+		failed(w, err)
+		return
+	}
+	sendStatus(w, r, repo, root)
+}
+
+func PushHandler(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := repoForWrite(w)
+	if !ok {
+		return
+	}
+
+	if err := pushCurrent(r.Context(), repo, root); err != nil {
+		failed(w, err)
+		return
+	}
+	sendStatus(w, r, repo, root)
+}
+
 // pathsRequest is what the three path-taking endpoints are given.
 type pathsRequest struct {
 	Paths []string `json:"paths"`
@@ -284,13 +402,7 @@ func CommitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if request.Push {
-		branch, err := getCurrentBranch(repo)
-		if err != nil {
-			failed(w, err)
-			return
-		}
-		upstream, _, _ := syncState(r.Context(), root)
-		if err := push(r.Context(), repo, root, branch, upstream); err != nil {
+		if err := pushCurrent(r.Context(), repo, root); err != nil {
 			// Said precisely, because the commit did happen: told only that it failed, the user
 			// commits again and gets an empty second commit or an amend they did not mean.
 			zhttp.SendErrorResponse(w, http.StatusConflict,

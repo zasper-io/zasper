@@ -90,6 +90,22 @@
   padding: 0 16px 16px;
 }
 
+// A question the dialog asks alongside its two buttons — so far only the force half of deleting a
+// branch. The control is the browser's own, tinted: a hand-drawn checkbox would be one more thing to
+// keep working with the keyboard for no gain.
+.modal-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 12px;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+
+  input {
+    accent-color: var(--z-accent);
+  }
+}
+
 .modal-error {
   color: var(--z-status-error);
   padding-top: 0;

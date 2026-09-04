@@ -68,29 +68,144 @@
   font-size: var(--z-ui-font-size);
 }
 
+// The anchor the branch menu hangs from. Nothing above .content-inner scrolls, so the menu can be
+// positioned against this rather than against the viewport the way ContextMenu has to be.
+.git-branch-picker {
+  position: relative;
+  min-width: 0;
+}
+
 .git-branch {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+
+  &:hover:not(:disabled) {
+    color: var(--z-fg-default);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.git-sync-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+// The count belongs to the arrow before it, so the pair reads as one label — 2 to pull, 1 to push.
+.git-sync-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.git-sync-count {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.git-branch-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1000;
+  min-width: 220px;
+  // Wider than the sidebar when the sidebar is narrow, which is the point: a branch called
+  // release/2026-01-candidate is unreadable clipped to 180px.
+  max-width: 320px;
+  padding: 8px;
+  background: var(--z-bg-menu);
+  color: var(--z-fg-default);
+  border: 1px solid var(--z-border-divider);
+  border-radius: 5px;
+  box-shadow: 0px 4px 8px var(--z-shadow-overlay);
+}
+
+.git-branch-filter {
+  margin-bottom: 4px;
+}
+
+.git-branch-list {
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.git-branch-row {
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    background-color: var(--z-bg-menu-hover);
+  }
+}
+
+.git-branch-option {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  color: var(--z-fg-menu-item);
+  font-size: 12px;
+  text-align: left;
+
+  // The branch that is already checked out: shown with a tick and not offered, since switching to it
+  // does nothing.
+  &.is-current {
+    color: var(--z-fg-default);
+    cursor: default;
+  }
+}
+
+.git-branch-option-name {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.git-sync-counts {
+.git-branch-remote {
   flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 2px;
+  font-size: 10px;
+  color: var(--z-fg-subtle);
+}
 
-  // Enough room after each arrow for the count that follows it, without a gap so wide that the
-  // pair stops reading as one thing.
-  i {
-    margin-left: 6px;
-    margin-right: 2px;
+// Dimmed rather than revealed on hover, as .change-action is: a hidden button is one a keyboard user
+// can tab to and not see, and one the row's width jumps for.
+.git-branch-delete {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  opacity: 0.65;
+
+  &:hover:not(:disabled) {
+    opacity: 1;
+    color: var(--z-accent);
   }
 
-  i:first-child {
-    margin-left: 0;
+  &:disabled {
+    opacity: 0.3;
   }
+}
+
+.git-branch-empty {
+  padding: 4px 6px;
+  color: var(--z-fg-muted);
+  font-size: 12px;
 }
 
 // The message and the two ways to use it. Its left edge is .panel-section-body's, so the box lines

@@ -33,3 +33,57 @@ func push(ctx context.Context, repo *git.Repository, root, branch, upstream stri
 	}
 	return write(ctx, root, "push", "--set-upstream", "origin", branch)
 }
+
+// pushCurrent pushes whichever branch is checked out, working out for itself whether it needs an
+// upstream first.
+func pushCurrent(ctx context.Context, repo *git.Repository, root string) error {
+	branch, err := getCurrentBranch(repo)
+	if err != nil {
+		return err
+	}
+	upstream, _, _ := syncState(ctx, root)
+	return push(ctx, repo, root, branch, upstream)
+}
+
+/*
+fetch brings the remote's refs up to date and changes nothing else.
+
+run rather than write, unlike every other command that talks to a remote: a fetch writes no file the user
+is looking at and needs no index lock, and holding one for up to networkTimeout would make a fetch from a
+slow remote the reason a click on Stage does nothing.
+
+No --prune. Fetching is the safe half of syncing — it is what someone presses to find out what is there —
+and pruning deletes refs, which is not a thing to do to somebody as a side effect.
+*/
+func fetch(ctx context.Context, repo *git.Repository, root string) error {
+	if !hasRemote(repo) {
+		return refuse("this repository has no remote to fetch from")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, networkTimeout)
+	defer cancel()
+
+	_, err := run(ctx, root, "fetch")
+	return err
+}
+
+/*
+pull updates the current branch from its upstream.
+
+Plain `git pull`: no --rebase, no --ff-only, so pull.rebase and pull.ff decide what happens, exactly as
+they would in the user's own terminal. Choosing here instead would mean this panel quietly disagreeing
+with the same repository's command line.
+
+A pull can stop halfway and leave conflicts, which is not a failure to hide — the status this answers with
+lists them, and the panel already has a section for them.
+*/
+func pull(ctx context.Context, repo *git.Repository, root string) error {
+	if !hasRemote(repo) {
+		return refuse("this repository has no remote to pull from")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, networkTimeout)
+	defer cancel()
+
+	return write(ctx, root, "pull")
+}
