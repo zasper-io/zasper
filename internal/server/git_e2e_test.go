@@ -478,10 +478,13 @@ func TestABranchCanBeListedCreatedSwitchedToAndDeleted(t *testing.T) {
 	assert.Equal(t, []string{main, "topic"}, branchNames(branches(t, srv)))
 
 	// Deleting the branch that is checked out is git's refusal to make, and its words are what the panel
-	// shows: this package does not repeat the check.
+	// shows: this package does not repeat the check. Which words those are is git's to change — it has
+	// said both "checked out at" and "used by worktree at" — so what is asserted is that it refused, said
+	// which branch, and left it alone.
 	code, body := call(t, srv, http.MethodDelete, "/api/git/branches", map[string]any{"name": "topic"})
 	assert.Equal(t, http.StatusConflict, code)
-	assert.Contains(t, string(body), "checked out")
+	assert.Contains(t, string(body), "topic")
+	assert.Equal(t, []string{main, "topic"}, branchNames(branches(t, srv)))
 
 	status = post(t, srv, "/api/git/checkout", map[string]any{"branch": main})
 	assert.Equal(t, main, status.Branch)
