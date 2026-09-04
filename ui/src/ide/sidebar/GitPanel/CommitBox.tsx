@@ -1,12 +1,10 @@
-import { useState } from 'react';
-
-import { commitStaged, GitStatus } from '@/api';
-import { IGitStatus } from './useGitStatus';
+import { GitStatus } from '@/api';
+import { ICommitAction } from './useCommitAction';
 
 interface CommitBoxProps {
   status: GitStatus;
   busy: boolean;
-  run: IGitStatus['run'];
+  action: ICommitAction;
 }
 
 /**
@@ -17,44 +15,13 @@ interface CommitBoxProps {
  * file in the repository went in. What is committed is what is staged, and the sections above are where
  * that is decided.
  */
-export default function CommitBox({ status, busy, run }: CommitBoxProps) {
-  const [message, setMessage] = useState<string>('');
-
-  const staged = status.staged.length;
-  const conflicted = status.conflicted.length;
-  const ready = message.trim() !== '' && staged > 0 && conflicted === 0 && !busy;
-
-  const commit = async (push: boolean) => {
-    if (!ready) {
-      return;
-    }
-    const done = await run(
-      () => commitStaged(message, { push }),
-      push ? 'Committed and pushed.' : 'Committed.'
-    );
-    // Only on success: a commit refused for a missing identity or a failing hook is one the message
-    // still has to survive.
-    if (done) {
-      setMessage('');
-    }
-  };
-
-  const why = (): string | undefined => {
-    if (conflicted > 0) {
-      return 'Resolve the merge conflicts first';
-    }
-    if (staged === 0) {
-      return 'Nothing is staged';
-    }
-    if (message.trim() === '') {
-      return 'Write a commit message';
-    }
-    return undefined;
-  };
+export default function CommitBox({ status, busy, action }: CommitBoxProps) {
+  const { message, setMessage, ready, reason, commit, box } = action;
 
   return (
     <div className="commit-box">
       <textarea
+        ref={box}
         className="gitpanel-input commit-message-input"
         value={message}
         rows={3}
@@ -76,7 +43,7 @@ export default function CommitBox({ status, busy, run }: CommitBoxProps) {
           type="button"
           className="z-button"
           disabled={!ready}
-          title={why()}
+          title={reason}
           onClick={() => void commit(false)}
         >
           Commit
@@ -86,7 +53,7 @@ export default function CommitBox({ status, busy, run }: CommitBoxProps) {
             type="button"
             className="z-button z-button-secondary"
             disabled={!ready}
-            title={why()}
+            title={reason}
             onClick={() => void commit(true)}
           >
             Commit &amp; Push

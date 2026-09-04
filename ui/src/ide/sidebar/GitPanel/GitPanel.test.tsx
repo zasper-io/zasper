@@ -3,8 +3,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { toast } from 'react-toastify';
+
 import GitPanel from './GitPanel';
 import type { GitStatus } from '@/api';
+import { useCommands, useRunCommand } from '@/commands/registry';
 import { fileTabsAtom } from '@/store/TabState';
 
 const getGitStatus = vi.fn();
@@ -46,7 +49,7 @@ vi.mock('@/api', async () => ({
 
 // The panel raises toasts for what it did; whether they render is IDE.tsx's business, not this test's.
 vi.mock('react-toastify', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const aCommit = {
@@ -93,6 +96,13 @@ const empty: GitStatus = {
 };
 
 const aStatus = (overrides: Partial<GitStatus> = {}): GitStatus => ({ ...empty, ...overrides });
+
+const reveal = vi.fn();
+
+/** The panel as the IDE renders it. Only the command tests care where `reveal` goes. */
+const ThePanel = ({ hidden }: { hidden?: boolean }) => (
+  <GitPanel hidden={hidden ?? false} reveal={reveal} />
+);
 
 /** One of each: the branch that is checked out, another of this repository's, and a colleague's. */
 const theBranches = [
@@ -146,6 +156,36 @@ function withTabs(element: ReactElement) {
   );
 }
 
+/**
+ * The panel and the command palette over one store, a button per registered command.
+ *
+ * The palette is the whole way in for these: there is nothing on the panel that runs them, and the
+ * registry is per-store, so the two have to be rendered under the same Provider to meet at all.
+ */
+function withPalette(hidden = false) {
+  const Palette = () => {
+    const commands = useCommands();
+    const run = useRunCommand();
+
+    return (
+      <>
+        {commands.map((command) => (
+          <button key={command.id} data-testid={command.id} onClick={() => run(command.id)}>
+            {command.label}
+          </button>
+        ))}
+      </>
+    );
+  };
+
+  return render(
+    <Provider>
+      <ThePanel hidden={hidden} />
+      <Palette />
+    </Provider>
+  );
+}
+
 /** Opens the branch menu, which the branch name in the bar is the button for. */
 async function openBranchMenu(): Promise<void> {
   fireEvent.click(await screen.findByLabelText('Branch: main'));
@@ -154,7 +194,7 @@ async function openBranchMenu(): Promise<void> {
 
 describe('GitPanel', () => {
   it('asks the server for nothing while it is hidden', async () => {
-    render(<GitPanel hidden />);
+    render(<ThePanel hidden />);
 
     // Every sidebar panel stays mounted, so an unguarded fetch here is a request on every boot for a
     // panel nobody opened.
@@ -164,8 +204,8 @@ describe('GitPanel', () => {
   });
 
   it('fetches when it is opened', async () => {
-    const { rerender } = render(<GitPanel hidden />);
-    rerender(<GitPanel hidden={false} />);
+    const { rerender } = render(<ThePanel hidden />);
+    rerender(<ThePanel hidden={false} />);
 
     await waitFor(() => expect(getGitStatus).toHaveBeenCalledTimes(1));
     expect(getLog).toHaveBeenCalledTimes(1);
@@ -176,7 +216,7 @@ describe('GitPanel', () => {
       aStatus({ isRepository: false, gitAvailable: true, branch: '' })
     );
     getLog.mockResolvedValue({ commits: [], hasMore: false, isRepository: false });
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     expect(await screen.findByText('This project is not a git repository.')).toBeInTheDocument();
     // Nothing on it could work, so the commit form is not offered.
@@ -186,7 +226,7 @@ describe('GitPanel', () => {
   });
 
   it('shows an empty repository as a repository with no changes', async () => {
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     expect(await screen.findByText('No changes.')).toBeInTheDocument();
     expect(screen.getByText('main')).toBeInTheDocument();
@@ -202,7 +242,7 @@ describe('GitPanel', () => {
       })
     );
     getLog.mockResolvedValue(aPage([aCommit]));
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     expect(await screen.findByText('Staged')).toBeInTheDocument();
     expect(screen.getByText('Changes')).toBeInTheDocument();
@@ -227,7 +267,7 @@ describe('GitPanel', () => {
     // The panel redraws itself from what the write answered with, so both rows have to survive the
     // first click for the second to be there to make.
     stageFiles.mockResolvedValue(both);
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     fireEvent.click(await screen.findByLabelText('Stage b.txt'));
     await waitFor(() => expect(stageFiles).toHaveBeenCalledWith(['b.txt']));
@@ -245,7 +285,7 @@ describe('GitPanel', () => {
         ],
       })
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     fireEvent.click(await screen.findByLabelText('Stage all'));
     await waitFor(() => expect(stageFiles).toHaveBeenCalledWith(['a.txt', 'b.txt']));
@@ -255,7 +295,7 @@ describe('GitPanel', () => {
     getGitStatus.mockResolvedValue(
       aStatus({ untracked: [{ path: 'scratch.txt', staged: '?', worktree: '?' }] })
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     fireEvent.click(await screen.findByLabelText('Discard scratch.txt'));
     expect(await screen.findByText('Discard changes')).toBeInTheDocument();
@@ -273,7 +313,7 @@ describe('GitPanel', () => {
     getGitStatus.mockResolvedValue(
       aStatus({ unstaged: [{ path: 'notes.txt', staged: '', worktree: 'M' }] })
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     fireEvent.click(await screen.findByLabelText('Discard notes.txt'));
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
@@ -289,7 +329,7 @@ describe('GitPanel', () => {
         unstaged: [{ path: 'b.txt', staged: '', worktree: 'M' }],
       })
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     const message = await screen.findByPlaceholderText('Commit message');
     fireEvent.change(message, { target: { value: 'the first one' } });
@@ -307,7 +347,7 @@ describe('GitPanel', () => {
     getGitStatus.mockResolvedValue(
       aStatus({ staged: [{ path: 'a.txt', staged: 'A', worktree: '' }] })
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
     await waitFor(() => expect(getLog).toHaveBeenCalledTimes(1));
 
     getLog.mockResolvedValue(aPage([aCommit]));
@@ -325,7 +365,7 @@ describe('GitPanel', () => {
     getGitStatus.mockResolvedValue(
       aStatus({ unstaged: [{ path: 'b.txt', staged: '', worktree: 'M' }] })
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     const commit = await screen.findByRole('button', { name: /^Commit/ });
     expect(commit).toBeDisabled();
@@ -342,7 +382,7 @@ describe('GitPanel', () => {
     getGitStatus.mockResolvedValue(
       aStatus({ staged: [{ path: 'a.txt', staged: 'A', worktree: '' }] })
     );
-    const { rerender } = render(<GitPanel hidden={false} />);
+    const { rerender } = render(<ThePanel hidden={false} />);
 
     expect(await screen.findByRole('button', { name: /^Commit/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Commit & Push' })).not.toBeInTheDocument();
@@ -355,8 +395,8 @@ describe('GitPanel', () => {
         ahead: 1,
       })
     );
-    rerender(<GitPanel hidden />);
-    rerender(<GitPanel hidden={false} />);
+    rerender(<ThePanel hidden />);
+    rerender(<ThePanel hidden={false} />);
 
     const push = await screen.findByRole('button', { name: 'Commit & Push' });
     fireEvent.change(screen.getByPlaceholderText('Commit message'), {
@@ -374,7 +414,7 @@ describe('GitPanel', () => {
         conflicted: [{ path: 'notes.txt', staged: 'U', worktree: 'U' }],
       })
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     expect(await screen.findByText('Merge conflicts')).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('Commit message'), {
@@ -384,7 +424,7 @@ describe('GitPanel', () => {
   });
 
   it('lists branches only once the menu is asked for, and switches to the one clicked', async () => {
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
     await waitFor(() => expect(getGitStatus).toHaveBeenCalled());
     // A repository can have hundreds of remote-tracking refs and the panel draws none of them, so the
     // list is not part of the status it reads on every change.
@@ -406,7 +446,7 @@ describe('GitPanel', () => {
   });
 
   it('creates a branch named by what was typed to look for one', async () => {
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
     await openBranchMenu();
 
     const filter = screen.getByPlaceholderText('Find or create a branch');
@@ -423,7 +463,7 @@ describe('GitPanel', () => {
   });
 
   it('asks before deleting a branch, and offers no delete for the current one', async () => {
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
     await openBranchMenu();
 
     // git refuses both of these, so neither is drawn: the branch that is checked out, and a ref that
@@ -448,7 +488,7 @@ describe('GitPanel', () => {
     fetchRemote.mockResolvedValue(behind);
     pullRemote.mockResolvedValue(behind);
     pushRemote.mockResolvedValue(behind);
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     const pull = await screen.findByLabelText('Pull');
     const push = screen.getByLabelText('Push');
@@ -468,7 +508,7 @@ describe('GitPanel', () => {
   });
 
   it('offers nothing to sync with when there is no remote', async () => {
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     expect(await screen.findByLabelText('Branch: main')).toBeInTheDocument();
     // All three would be refused by the server, which is a worse way to find out.
@@ -487,7 +527,7 @@ describe('GitPanel', () => {
         { ...aCommit, hash: 'f00', shortHash: 'f00', subject: 'a merge', parents: ['a', 'b'] },
       ])
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     // The three things a row used to have no room for. The old history drew `message -- author`, and a
     // repository with two commits called "wip" was two identical rows.
@@ -500,7 +540,7 @@ describe('GitPanel', () => {
 
   it('asks for another page only when the server said there is one', async () => {
     getLog.mockResolvedValue(aPage([aCommit], true));
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Show more' }));
 
@@ -519,7 +559,7 @@ describe('GitPanel', () => {
 
   it('opens a commit onto the files in it', async () => {
     getLog.mockResolvedValue(aPage([aCommit]));
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     // Not read with the page: thirty rows would be thirty diffs against thirty parents, for something
     // almost none of them are asked about.
@@ -551,7 +591,7 @@ describe('GitPanel', () => {
         unstaged: [{ path: 'src/notes.txt', staged: 'M', worktree: 'M' }],
       })
     );
-    withTabs(<GitPanel hidden={false} />);
+    withTabs(<ThePanel hidden={false} />);
 
     // Staged first, in the order the sections are drawn in.
     const rows = await screen.findAllByText('notes.txt');
@@ -569,7 +609,7 @@ describe('GitPanel', () => {
 
   it('opens a file of a commit against that commit', async () => {
     getLog.mockResolvedValue(aPage([aCommit]));
-    withTabs(<GitPanel hidden={false} />);
+    withTabs(<ThePanel hidden={false} />);
 
     fireEvent.click(await screen.findByText('the first one'));
     fireEvent.click(await screen.findByText('notes.txt'));
@@ -586,7 +626,7 @@ describe('GitPanel', () => {
     getGitStatus.mockResolvedValue(plain);
     getLog.mockResolvedValue({ commits: [], hasMore: false, isRepository: false });
     initRepository.mockResolvedValue(aStatus({ branch: 'main' }));
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Initialise repository' }));
     await waitFor(() => expect(initRepository).toHaveBeenCalled());
@@ -601,7 +641,7 @@ describe('GitPanel', () => {
     getGitStatus.mockResolvedValue(
       aStatus({ isRepository: false, gitAvailable: false, branch: '' })
     );
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
 
     expect(await screen.findByText('This project is not a git repository.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Initialise repository' })).not.toBeInTheDocument();
@@ -609,10 +649,125 @@ describe('GitPanel', () => {
   });
 
   it('re-reads on demand', async () => {
-    render(<GitPanel hidden={false} />);
+    render(<ThePanel hidden={false} />);
     await waitFor(() => expect(getGitStatus).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByTitle('Refresh'));
     await waitFor(() => expect(getGitStatus).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('the git commands', () => {
+  /** One file of each kind, so what a command leaves alone is as visible as what it takes. */
+  const dirty = aStatus({
+    staged: [{ path: 'staged.txt', staged: 'M', worktree: '' }],
+    unstaged: [{ path: 'src/changed.txt', staged: '', worktree: 'M' }],
+    untracked: [{ path: 'new.txt', staged: '', worktree: '?' }],
+    conflicted: [{ path: 'clash.txt', staged: 'U', worktree: 'U' }],
+  });
+
+  it('are all in the palette', async () => {
+    withPalette();
+
+    const labels: Record<string, string> = {
+      'git:stage-all': 'Stage All Changes',
+      'git:commit': 'Commit',
+      'git:fetch': 'Fetch',
+      'git:pull': 'Pull',
+      'git:push': 'Push',
+      'git:checkout-branch': 'Checkout Branch…',
+    };
+    for (const [id, label] of Object.entries(labels)) {
+      expect(await screen.findByTestId(id)).toHaveTextContent(label);
+    }
+  });
+
+  it('are there before anyone has opened the panel, and quiet until used', async () => {
+    withPalette(true);
+
+    expect(await screen.findByTestId('git:stage-all')).toBeInTheDocument();
+    // Registering them must not be what makes a hidden panel talk to the server: for someone who works
+    // from the palette the sidebar may never be opened at all.
+    expect(getGitStatus).not.toHaveBeenCalled();
+  });
+
+  it('stage everything git could be told about, except the conflicts', async () => {
+    getGitStatus.mockResolvedValue(dirty);
+    withPalette(true);
+
+    fireEvent.click(await screen.findByTestId('git:stage-all'));
+
+    // Read when asked, not taken from the panel: the panel was never open, so it holds nothing — and a
+    // list it did hold could be from before a commit made in a terminal.
+    await waitFor(() => expect(stageFiles).toHaveBeenCalledWith(['src/changed.txt', 'new.txt']));
+    // Staging a conflicted file is how git is told it has been resolved, and this one still has the
+    // markers in it.
+    expect(stageFiles).not.toHaveBeenCalledWith(expect.arrayContaining(['clash.txt']));
+  });
+
+  it('say when there is nothing to stage instead of staging nothing', async () => {
+    withPalette();
+
+    fireEvent.click(await screen.findByTestId('git:stage-all'));
+
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith('Nothing to stage.'));
+    expect(stageFiles).not.toHaveBeenCalled();
+  });
+
+  it('commit the message the box holds', async () => {
+    getGitStatus.mockResolvedValue(
+      aStatus({ staged: [{ path: 'a.txt', staged: 'A', worktree: '' }] })
+    );
+    withPalette();
+
+    fireEvent.change(await screen.findByPlaceholderText('Commit message'), {
+      target: { value: 'from the palette' },
+    });
+    fireEvent.click(screen.getByTestId('git:commit'));
+
+    // The same commit the button makes, because it is the same action behind both.
+    await waitFor(() =>
+      expect(commitStaged).toHaveBeenCalledWith('from the palette', { push: false })
+    );
+  });
+
+  it('show the panel rather than commit nothing', async () => {
+    getGitStatus.mockResolvedValue(dirty);
+    withPalette();
+    await screen.findByPlaceholderText('Commit message');
+
+    fireEvent.click(screen.getByTestId('git:commit'));
+
+    // Nothing is written and there is a conflict besides. Why is on the panel — the disabled button's
+    // reason, the conflicts section — so the panel is the answer, with the caret in the box.
+    expect(commitStaged).not.toHaveBeenCalled();
+    expect(reveal).toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByPlaceholderText('Commit message')).toHaveFocus());
+  });
+
+  it('fetch, pull and push', async () => {
+    withPalette();
+
+    fireEvent.click(await screen.findByTestId('git:fetch'));
+    await waitFor(() => expect(fetchRemote).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId('git:pull'));
+    await waitFor(() => expect(pullRemote).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId('git:push'));
+    await waitFor(() => expect(pushRemote).toHaveBeenCalled());
+  });
+
+  it('open the branch menu on the panel', async () => {
+    withPalette();
+    await screen.findByLabelText('Branch: main');
+
+    fireEvent.click(screen.getByTestId('git:checkout-branch'));
+
+    // Which is a menu that reads its own branches and takes the typing, so opening it is the whole
+    // command: there is no second palette for the branch names.
+    expect(reveal).toHaveBeenCalled();
+    expect(await screen.findByLabelText('Find or create a branch')).toBeInTheDocument();
+    await waitFor(() => expect(getBranches).toHaveBeenCalled());
   });
 });

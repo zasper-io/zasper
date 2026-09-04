@@ -9,7 +9,7 @@ read back with `git` at the end, because a panel saying the right thing over a r
 touched is exactly the failure a mock cannot see.
 */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 import { Locator, Page, expect, test } from '@playwright/test';
 
@@ -17,6 +17,9 @@ import { homeDir, projectDir } from '../paths';
 import { inProject, openApp, treeRow } from './helpers';
 
 const FILE = 'notes.txt';
+
+/** A file the fixture does not have, for the tests that need one git has never seen. */
+const UNTRACKED = 'from-the-palette.txt';
 
 /**
  * git in the throwaway project, for reading back what the panel claims to have done.
@@ -92,6 +95,24 @@ function tab(page: Page, name: string): Locator {
   return page.locator('.tab-item').filter({ has: page.getByText(name, { exact: true }) });
 }
 
+/**
+ * Runs a git command through the command palette, which is the only way to reach one.
+ *
+ * Control rather than Meta for the chord, as palette.spec.ts explains: it is registered both ways, and
+ * Control is the spelling that works on a mac and on CI alike.
+ */
+async function runFromPalette(page: Page, query: string): Promise<void> {
+  await page.keyboard.press('Control+Shift+P');
+  const input = page.locator('.palette-input');
+  await expect(input).toBeFocused();
+
+  await input.fill(query);
+  // One match, so what Enter runs is not a matter of ordering.
+  await expect(page.locator('.palette-item')).toHaveCount(1);
+  await input.press('Enter');
+  await expect(input).toHaveCount(0);
+}
+
 /** The commit prepare.cjs seeded, which every test here is reset back to. */
 let seedCommit = '';
 
@@ -119,6 +140,10 @@ test.afterEach(() => {
   // wherever this one ended. Forced because the reset that cleans the worktree has not happened yet.
   git('checkout', '-f', '-q', 'main');
   git('reset', '--hard', '-q', seedCommit);
+
+  // A reset restores tracked files; a file git never got to hear about is left where it is, and the
+  // specs after this one would find it in the tree.
+  rmSync(inProject(UNTRACKED), { force: true });
 
   // And the branches the panel made, which nothing else here removes.
   for (const name of git('for-each-ref', '--format=%(refname:short)', 'refs/heads').split('\n')) {
@@ -315,6 +340,46 @@ test('a diff taller than the pane scrolls', async ({ page }) => {
   // The far end of the file, which is the part that could not be reached. Asserted after the scroll
   // rather than before it because an editor only renders the lines it is showing.
   await expect(merge).toContainText('line 400');
+});
+
+/*
+The same work from the command palette, with source control never opened.
+
+The panel registers these commands while it is mounted and hidden, and while it is hidden it reads
+nothing — so this is the case that says a palette command does not need the panel to have been looked at
+first: it reads for itself, and shows the panel when the answer is on it.
+*/
+test('git is worked from the palette without the panel being opened', async ({ page }) => {
+  await openApp(page);
+
+  // Straight to disk, since the point here is that nothing in the sidebar has been touched.
+  writeFileSync(inProject(FILE), 'edited for the palette\n');
+  writeFileSync(inProject(UNTRACKED), 'and one file git has never seen\n');
+
+  await runFromPalette(page, 'Stage All');
+
+  // Both of them, the untracked one included: `git add` is how a new file is first told to git, and a
+  // "stage all" that skipped it would leave the commit incomplete.
+  await expect
+    .poll(() => git('diff', '--cached', '--name-only').split('\n'))
+    .toEqual([UNTRACKED, FILE].sort());
+  // The file browser is still the panel on screen: staging needed no part of source control.
+  await expect(page.locator('.nav-content:not(.is-hidden)')).toContainText('File explorer');
+
+  await runFromPalette(page, 'Commit');
+
+  // Nothing is written yet, so rather than commit an empty message it shows the box that is empty.
+  const open = panel(page);
+  await expect(open.getByText('Source control')).toBeVisible();
+  await expect(open.getByPlaceholder('Commit message')).toBeFocused();
+  expect(git('log', '-1', '--pretty=%s')).toBe('the fixture project');
+
+  await page.keyboard.type('committed from the palette');
+  await runFromPalette(page, 'Commit');
+
+  await expect(historyRow(page, 'committed from the palette')).toBeVisible();
+  expect(git('log', '-1', '--pretty=%s')).toBe('committed from the palette');
+  expect(git('status', '--porcelain')).toBe('');
 });
 
 test('discarding a change asks first, and then puts the file back', async ({ page }) => {

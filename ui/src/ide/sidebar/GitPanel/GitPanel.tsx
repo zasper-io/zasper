@@ -3,17 +3,29 @@ import { useCallback, useState } from 'react';
 import './GitPanel.scss';
 
 import { discardFiles, initRepository, stageFiles, unstageFiles } from '@/api';
+import { useRegisterCommands } from '@/commands/registry';
 import { useTabActions } from '@/store/TabActions';
 import BranchMenu from './BranchMenu';
 import ChangeList, { IChangeAction } from './ChangeList';
 import CommitBox from './CommitBox';
 import ConfirmDiscardDialog from './ConfirmDiscardDialog';
+import { useGitCommands } from './gitCommands';
 import History from './History';
 import SyncActions from './SyncActions';
 import { PanelProps } from '../types';
+import { useCommitAction } from './useCommitAction';
 import { IGitStatus, useGitStatus } from './useGitStatus';
 
-export default function GitPanel({ hidden }: PanelProps) {
+interface GitPanelProps extends PanelProps {
+  /**
+   * Makes this the sidebar's visible panel. Which panel that is belongs to the IDE, and a command that
+   * answers on the panel — checking out a branch, saying why a commit cannot be made — is worth nothing
+   * while the file browser is on screen.
+   */
+  reveal: () => void;
+}
+
+export default function GitPanel({ hidden, reveal }: GitPanelProps) {
   const { status, loading, busy, error, refresh, run } = useGitStatus(hidden);
   const { openDiff } = useTabActions();
   // The paths a discard has been asked for and not yet confirmed.
@@ -34,6 +46,20 @@ export default function GitPanel({ hidden }: PanelProps) {
       return worked;
     },
     [run]
+  );
+
+  const commit = useCommitAction(status, busy, changesHistory);
+
+  // Registered whether or not this panel is the one on screen: the palette is a way in of its own, and
+  // for someone who works from it the sidebar may never have been opened at all.
+  useRegisterCommands(
+    useGitCommands({
+      busy,
+      run: changesHistory,
+      commit,
+      reveal,
+      openBranchMenu: () => setBranchMenu(true),
+    })
   );
 
   const stage: IChangeAction = {
@@ -158,7 +184,7 @@ export default function GitPanel({ hidden }: PanelProps) {
 
         {status.isRepository && (
           <>
-            <CommitBox status={status} busy={busy} run={changesHistory} />
+            <CommitBox status={status} busy={busy} action={commit} />
 
             {/* Conflicts first: they are the only thing here that blocks a commit. Staging one is how
                 git is told it has been resolved, so that is the action offered. */}

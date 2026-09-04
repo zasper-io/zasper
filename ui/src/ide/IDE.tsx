@@ -102,7 +102,10 @@ function IDE() {
                 <FileBrowser hidden={activePanel !== 'fileBrowser'} reloadCount={reloadCount} />
                 <SettingsPanel hidden={activePanel !== 'settingsPanel'} />
                 <JupyterInfoPanel hidden={activePanel !== 'jupyterInfoPanel'} />
-                <GitPanel hidden={activePanel !== 'gitPanel'} />
+                <GitPanel
+                  hidden={activePanel !== 'gitPanel'}
+                  reveal={() => setActivePanel('gitPanel')}
+                />
                 <DebugPanel hidden={activePanel !== 'debugPanel'} />
                 <DatabasePanel hidden={activePanel !== 'databasePanel'} />
                 <SecretsPanel hidden={activePanel !== 'secretsPanel'} />
