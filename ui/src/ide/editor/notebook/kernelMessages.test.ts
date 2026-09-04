@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyKernelMessage, removeAnsiCodes } from './kernelMessages';
+import { applyKernelMessage, carriesOutput, removeAnsiCodes } from './kernelMessages';
 import { INotebookModel } from '@/api';
 
 function notebookWith(cellId: string): INotebookModel {
@@ -136,5 +136,38 @@ describe('applyKernelMessage', () => {
       'cell-1'
     );
     expect(updated).toBe(notebook);
+  });
+
+  it('replaces what a cell shows for the output a waiting clear was held for', () => {
+    const notebook = applyKernelMessage(
+      notebookWith('cell-1'),
+      message('stream', { name: 'stdout', text: 'frame 1' }),
+      'cell-1'
+    );
+
+    const updated = applyKernelMessage(
+      notebook,
+      message('stream', { name: 'stdout', text: 'frame 2' }),
+      'cell-1',
+      true
+    );
+
+    expect(updated.cells[0].outputs).toEqual([{ text: 'frame 2', output_type: 'stream' }]);
+  });
+});
+
+describe('carriesOutput', () => {
+  // What a clear_output(wait=True) is waiting for, so it has to agree with applyKernelMessage: a
+  // message it drops is not a replacement, and a clear held for one would never be honoured.
+  it('is true of exactly the messages that produce an output', () => {
+    expect(carriesOutput(message('stream', { name: 'stdout', text: 'x' }))).toBe(true);
+    expect(carriesOutput(message('execute_result', { data: {} }))).toBe(true);
+    expect(carriesOutput(message('display_data', { data: {} }))).toBe(true);
+    expect(carriesOutput(message('error', { ename: 'ValueError' }))).toBe(true);
+
+    expect(carriesOutput(message('stream', { name: 'stderr', text: 'x' }))).toBe(false);
+    expect(carriesOutput(message('execute_input', { execution_count: 1 }))).toBe(false);
+    expect(carriesOutput(message('status', { execution_state: 'idle' }))).toBe(false);
+    expect(carriesOutput(message('clear_output', { wait: true }))).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -46,13 +46,14 @@ const session = {
 
 const getNotebook = vi.fn();
 const createSession = vi.fn();
+const deleteSession = vi.fn();
 const saveNotebook = vi.fn();
 
 vi.mock('@/api', async () => ({
   getNotebook: (path: string) => getNotebook(path),
   createSession: (path: string, name: string, type: string, kernelspec: string) =>
     createSession(path, name, type, kernelspec),
-  deleteSession: vi.fn(),
+  deleteSession: (id: string) => deleteSession(id),
   interruptKernel: vi.fn(),
   saveNotebook: (path: string, notebook: unknown) => saveNotebook(path, notebook),
   // Not stubbed: what it extracts from a failed request is what the load-error banner shows.
@@ -192,6 +193,8 @@ describe('NotebookEditor', () => {
     resetIds();
     getNotebook.mockReset();
     createSession.mockReset();
+    deleteSession.mockReset();
+    deleteSession.mockResolvedValue(undefined);
     getNotebook.mockResolvedValue({
       name: tab.name,
       type: tab.type,
@@ -282,6 +285,47 @@ describe('NotebookEditor', () => {
       kernelMessage('stream', requestId, { name: 'stdout', text: 'hello from kernel' })
     );
     expect(await screen.findByText('hello from kernel')).toBeInTheDocument();
+  });
+
+  // A cell that clears its own output — a progress line rewritten in a loop — used to append instead,
+  // leaving every frame of the animation on screen.
+  it('clears a cell output area on clear_output', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(runButton(container));
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const requestId = requestIdOf(sockets[0], 0);
+
+    sockets[0].receive(kernelMessage('stream', requestId, { name: 'stdout', text: 'frame 1' }));
+    expect(await screen.findByText('frame 1')).toBeInTheDocument();
+
+    sockets[0].receive(kernelMessage('clear_output', requestId, { wait: false }));
+    await waitFor(() => expect(screen.queryByText('frame 1')).not.toBeInTheDocument());
+  });
+
+  // wait=True is the whole point of the flag: what is shown stays until there is something to put in
+  // its place, so a cell redrawn on every iteration does not blink empty between frames.
+  it('holds a waiting clear until there is an output to replace what is shown', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(runButton(container));
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const requestId = requestIdOf(sockets[0], 0);
+
+    sockets[0].receive(kernelMessage('stream', requestId, { name: 'stdout', text: 'frame 1' }));
+    expect(await screen.findByText('frame 1')).toBeInTheDocument();
+
+    sockets[0].receive(kernelMessage('clear_output', requestId, { wait: true }));
+    // Still shown: nothing has arrived to take its place.
+    expect(screen.getByText('frame 1')).toBeInTheDocument();
+
+    sockets[0].receive(kernelMessage('stream', requestId, { name: 'stdout', text: 'frame 2' }));
+    expect(await screen.findByText('frame 2')).toBeInTheDocument();
+    expect(screen.queryByText('frame 1')).not.toBeInTheDocument();
   });
 
   // A reply reaches a cell only through the request it answers, so one answering nothing this editor
@@ -418,6 +462,22 @@ describe('NotebookEditor', () => {
     expect(screen.queryByText('Current Kernel : none')).not.toBeInTheDocument();
   });
 
+  // Two modals used to open here — an error dialog and the picker — stacked on one backdrop, and
+  // dismissing either left the other.
+  it('raises one dialog when the kernel cannot be started, with the reason in it', async () => {
+    createSession.mockRejectedValue(
+      new ApiError('POST', '/api/sessions', 500, '{"message":"kernel died on startup"}')
+    );
+
+    render(<NotebookEditor data={tab} />);
+
+    expect(await screen.findByText('Kernel Error')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('kernel died on startup');
+    expect(document.querySelectorAll('.modal')).toHaveLength(1);
+    // And the picker it is: the only useful thing to do next is choose another kernel.
+    expect(screen.getByText('Switch Kernel')).toBeInTheDocument();
+  });
+
   it('does not load or start anything when the tab is already loaded', async () => {
     render(<NotebookEditor data={{ ...tab, load_required: false }} />);
 
@@ -440,6 +500,8 @@ describe('NotebookEditor commands', () => {
     resetIds();
     getNotebook.mockReset();
     createSession.mockReset();
+    deleteSession.mockReset();
+    deleteSession.mockResolvedValue(undefined);
     // Per path, so two notebooks open at once are told apart by their session, and so their cells
     // are told apart by their source.
     getNotebook.mockImplementation((path: string) =>
@@ -512,6 +574,27 @@ describe('NotebookEditor commands', () => {
       'run("notebook.ipynb")'
     );
     expect(socketFor('hidden.ipynb').sent).toHaveLength(0);
+  });
+
+  // The session the notebook is leaving has to end. It used to be abandoned, which left a kernel
+  // running with nothing attached to it and two sessions on one path for the server to choose between.
+  it('ends the old session before switching a notebook to another kernel', async () => {
+    render(
+      <Provider initialValues={[[kernelspecsAtom, installedKernelspecs('python3', 'ir')]]}>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:change-kernel" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+
+    dispatch();
+    const dialog = within(document.querySelector('.modal') as HTMLElement);
+    fireEvent.change(dialog.getByRole('combobox'), { target: { value: 'ir' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Switch Kernel' }));
+
+    await waitFor(() => expect(deleteSession).toHaveBeenCalledWith('session-notebook.ipynb'));
+    await waitFor(() => expect(createSession).toHaveBeenCalledTimes(2));
+    expect(createSession.mock.calls[1][3]).toBe('ir');
   });
 
   it('refuses a command whose notebook has no kernel yet', async () => {
@@ -716,6 +799,8 @@ describe('NotebookEditor unsaved changes', () => {
     resetIds();
     getNotebook.mockReset();
     createSession.mockReset();
+    deleteSession.mockReset();
+    deleteSession.mockResolvedValue(undefined);
     getNotebook.mockResolvedValue({
       name: tab.name,
       type: tab.type,

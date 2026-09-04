@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { apiErrorMessage, getNotebook, ICell, INotebookModel } from '@/api';
 
-import { applyKernelMessage, IKernelMessage } from './kernelMessages';
+import { applyKernelMessage, carriesOutput, IKernelMessage } from './kernelMessages';
 
 const emptyNotebook: INotebookModel = {
   cells: [],
@@ -44,6 +44,12 @@ export function useNotebookCells() {
   const [copiedCell, setCopiedCell] = useState<ICell | null>(null);
   const [cutCellIndex, setCutCellIndex] = useState<number | null>(null);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]);
+  /**
+   * The cells that have seen a `clear_output(wait=True)` and are still waiting for something to
+   * replace what they show. A ref rather than part of the document: it is a message that has been
+   * seen, so it is not the notebook's state and must never reach the file.
+   */
+  const clearWaiting = useRef(new Set<string>());
 
   /**
    * Reads the document into this hook, resolving to it, or to null when it could not be read; it
@@ -192,6 +198,8 @@ export function useNotebookCells() {
 
   /** Clears previous output and shows the running spinner (execution_count -1). */
   const markCellRunning = useCallback((cellId: string) => {
+    // A fresh run, so a clear left waiting by the last one is not waiting for anything any more.
+    clearWaiting.current.delete(cellId);
     setNotebook((prevNotebook) => ({
       ...prevNotebook,
       cells: prevNotebook.cells.map((cell) =>
@@ -209,9 +217,31 @@ export function useNotebookCells() {
     }));
   }, []);
 
-  const applyMessage = useCallback((message: IKernelMessage, cellId: string | undefined) => {
-    setNotebook((prevNotebook) => applyKernelMessage(prevNotebook, message, cellId));
-  }, []);
+  const applyMessage = useCallback(
+    (message: IKernelMessage, cellId: string | undefined) => {
+      if (cellId && message.header.msg_type === 'clear_output') {
+        if (message.content?.wait) {
+          // Held until there is something to replace what is on screen, which is the whole point of
+          // the flag: a progress line rewritten in a loop must not blink empty between the frames.
+          clearWaiting.current.add(cellId);
+        } else {
+          clearWaiting.current.delete(cellId);
+          clearCellOutputs(cellId);
+        }
+        return;
+      }
+
+      // Read outside the updater, and only for a message that will actually produce an output: an
+      // updater has to be pure, and React may call one more than once for a single message.
+      const replaceOutputs =
+        cellId !== undefined && carriesOutput(message) && clearWaiting.current.delete(cellId);
+
+      setNotebook((prevNotebook) =>
+        applyKernelMessage(prevNotebook, message, cellId, replaceOutputs)
+      );
+    },
+    [clearCellOutputs]
+  );
 
   /**
    * Records that `saved` is now what the file holds. It takes the document that was written rather

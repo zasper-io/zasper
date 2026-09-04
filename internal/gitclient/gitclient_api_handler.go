@@ -2,8 +2,11 @@ package gitclient
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/go-git/go-git/v5"
 
 	"github.com/zasper-io/zasper/internal/core"
 	zhttp "github.com/zasper-io/zasper/internal/http"
@@ -17,57 +20,81 @@ type Commit struct {
 	Parents []string `json:"parents"` // Store the hashes of parent commits
 }
 
+/*
+Every read below carries isRepository, because a project directory is not obliged to be under git and
+the frontend has to render something either way. Answering 500 for that said the server was broken when
+it was not, and put three red errors in the console of every session opened on a plain folder.
+*/
+
 type BranchResponse struct {
-	Branch string `json:"branch"`
+	Branch       string `json:"branch"`
+	IsRepository bool   `json:"isRepository"`
+}
+
+type UncommittedFilesResponse struct {
+	Files        []string `json:"files"`
+	IsRepository bool     `json:"isRepository"`
+}
+
+type CommitGraphResponse struct {
+	Commits      []Commit `json:"commits"`
+	IsRepository bool     `json:"isRepository"`
+}
+
+// notARepository reports whether err is go-git saying there is nothing to open at the path.
+func notARepository(err error) bool {
+	return errors.Is(err, git.ErrRepositoryNotExists)
+}
+
+func sendJSON(w http.ResponseWriter, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// The status is already written, so a failure here is the client having gone away rather than
+	// anything this handler can answer differently.
+	_ = json.NewEncoder(w).Encode(payload)
 }
 
 func BranchHandler(w http.ResponseWriter, r *http.Request) {
-	repoPath := core.Zasper.HomeDir
-	branch, err := getCurrentBranch(repoPath)
+	branch, err := getCurrentBranch(core.Zasper.HomeDir)
+	if notARepository(err) {
+		sendJSON(w, BranchResponse{})
+		return
+	}
 	if err != nil {
 		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting current branch: %v", err))
 		return
 	}
 
-	response := BranchResponse{
-		Branch: branch,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	err = json.NewEncoder(w).Encode(response)
-	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error encoding JSON: %v", err))
-	}
+	sendJSON(w, BranchResponse{Branch: branch, IsRepository: true})
 }
 
 func CommitGraphHandler(w http.ResponseWriter, r *http.Request) {
-	repoPath := core.Zasper.HomeDir
-
-	commits, err := getCommitGraph(repoPath)
+	commits, err := getCommitGraph(core.Zasper.HomeDir)
+	if notARepository(err) {
+		sendJSON(w, CommitGraphResponse{Commits: []Commit{}})
+		return
+	}
 	if err != nil {
 		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error fetching commit graph: %v", err))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(commits)
+	sendJSON(w, CommitGraphResponse{Commits: commits, IsRepository: true})
 }
 
 func GetUncommittedFilesHandler(w http.ResponseWriter, r *http.Request) {
-
-	repoPath := core.Zasper.HomeDir
-	// Get uncommitted files
-	uncommittedFiles, err := getUncommittedFiles(repoPath)
+	uncommittedFiles, err := getUncommittedFiles(core.Zasper.HomeDir)
+	if notARepository(err) {
+		sendJSON(w, UncommittedFilesResponse{Files: []string{}})
+		return
+	}
 	if err != nil {
 		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting uncommitted files: %v", err))
 		return
 	}
 
-	// Return the list as a JSON response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(uncommittedFiles)
+	sendJSON(w, UncommittedFilesResponse{Files: uncommittedFiles, IsRepository: true})
 }
 
 // API handler to commit and optionally push changes

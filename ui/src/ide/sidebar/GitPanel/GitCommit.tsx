@@ -5,6 +5,7 @@ import './GitPanel.scss';
 
 export function GitCommit({ hidden }: PanelProps) {
   const [files, setFiles] = useState<string[]>([]);
+  const [isRepository, setIsRepository] = useState<boolean>(true);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [commitMessage, setCommitMessage] = useState<string>('');
   // State for push option
@@ -13,7 +14,9 @@ export function GitCommit({ hidden }: PanelProps) {
   // Function to fetch the list of uncommitted files
   const fetchFiles = async () => {
     try {
-      setFiles(await getUncommittedFiles());
+      const uncommitted = await getUncommittedFiles();
+      setFiles(uncommitted.files);
+      setIsRepository(uncommitted.isRepository);
     } catch (error) {
       console.error('Error fetching files:', error);
       setFiles([]);
@@ -21,8 +24,11 @@ export function GitCommit({ hidden }: PanelProps) {
   };
 
   useEffect(() => {
-    // Refetch when the panel is shown, so the list is not stale from last time.
-    fetchFiles();
+    // Refetch when the panel is shown, so the list is not stale from last time. Sidebar panels all
+    // stay mounted, so the guard is what keeps a source-control panel nobody has opened from asking.
+    if (!hidden) {
+      fetchFiles();
+    }
   }, [hidden]);
 
   const handleCheckboxChange = (file: string) => {
@@ -52,6 +58,18 @@ export function GitCommit({ hidden }: PanelProps) {
         alert('An error occurred while committing changes.');
       });
   };
+
+  // Nothing below can work without a repository, and "No uncommitted files found." over a commit
+  // form is the wrong thing to say about a project that is not under git at all.
+  if (!isRepository) {
+    return (
+      <div className="git-commit-content">
+        <div className="panel-section-body">
+          <p>This project is not a git repository.</p>
+        </div>
+      </div>
+    );
+  }
 
   // No .projectBanner here: that purple bar means "this is the open project", and this
   // panel already has its own title.

@@ -1,9 +1,9 @@
 // The shared modal shell.
 //
-// Four components render this markup — KernelSwitch, ErrorDialog, HelpDialog and
-// FileUpload — so the rules live here rather than in any one of their
-// stylesheets. They used to sit in KernelSwitch.scss, which meant the other
-// three only looked right as long as a notebook happened to be open and that
+// Several components render this markup — KernelSwitch, HelpDialog, FileUpload and
+// UnsavedChangesDialog — so the rules live here rather than in any one of their
+// stylesheets. They used to sit in KernelSwitch.scss, which meant the others
+// only looked right as long as a notebook happened to be open and that
 // file had been imported.
 
 .modal {
@@ -71,7 +71,7 @@
   color: var(--z-fg-default);
 }
 
-// Body layout, shared by KernelSwitch and ErrorDialog.
+// Body layout, shared by KernelSwitch and UnsavedChangesDialog.
 .update-kernel-popup {
   display: flex;
   justify-content: space-between;

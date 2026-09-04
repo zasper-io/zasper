@@ -17,7 +17,7 @@ export default function GitPanel({ hidden }: PanelProps) {
         <GitCommit hidden={hidden} />
         <h2 className="z-subheading panel-section-head">History</h2>
         <div className="panel-section-body">
-          <CommitGraphContainer />
+          <CommitGraphContainer hidden={hidden} />
         </div>
       </div>
     </div>

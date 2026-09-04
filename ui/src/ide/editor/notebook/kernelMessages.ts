@@ -30,8 +30,28 @@ function updateCellById(
   return { ...notebook, cells: updatedCells };
 }
 
-function appendOutput(cell: ICell, output: ICellOutput): ICell {
-  cell.outputs = [...(cell.outputs ?? []), output];
+/**
+ * Whether this message carries something for a cell's output area, i.e. whether
+ * `applyKernelMessage` would add an output for it.
+ *
+ * It is what a `clear_output(wait=True)` is waiting for, so it has to agree with the switch below to
+ * the message: a stream the switch drops is not the replacement the clear was holding out for.
+ */
+export function carriesOutput(message: IKernelMessage): boolean {
+  switch (message.header.msg_type) {
+    case 'error':
+    case 'execute_result':
+    case 'display_data':
+      return true;
+    case 'stream':
+      return message.content.name === 'stdout';
+    default:
+      return false;
+  }
+}
+
+function appendOutput(cell: ICell, output: ICellOutput, replace: boolean): ICell {
+  cell.outputs = replace ? [output] : [...(cell.outputs ?? []), output];
   return cell;
 }
 
@@ -42,11 +62,17 @@ function appendOutput(cell: ICell, output: ICellOutput): ICell {
  * identifies a request, a cell id a cell in the document, which outlives every request against it.
  * An undefined `cellId`, and a message carrying no cell output (status, prompts, completions),
  * change nothing here.
+ *
+ * `replaceOutputs` means a `clear_output(wait=True)` came before this message and this is what it was
+ * waiting for: the output area is replaced rather than added to, which is how a cell rewritten in a
+ * loop does not blink empty between the clear and the next frame. The flag is the caller's because
+ * whether a clear is outstanding is a message that has been seen, not anything the document holds.
  */
 export function applyKernelMessage(
   notebook: INotebookModel,
   message: IKernelMessage,
-  cellId: string | undefined
+  cellId: string | undefined,
+  replaceOutputs: boolean = false
 ): INotebookModel {
   if (!cellId) {
     return notebook;
@@ -61,12 +87,16 @@ export function applyKernelMessage(
 
     case 'error':
       return updateCellById(notebook, cellId, (cell) =>
-        appendOutput(cell, {
-          output_type: 'error',
-          ename: message.content.ename,
-          evalue: message.content.evalue,
-          traceback: message.content.traceback,
-        })
+        appendOutput(
+          cell,
+          {
+            output_type: 'error',
+            ename: message.content.ename,
+            evalue: message.content.evalue,
+            traceback: message.content.traceback,
+          },
+          replaceOutputs
+        )
       );
 
     case 'stream':
@@ -74,20 +104,28 @@ export function applyKernelMessage(
         return notebook;
       }
       return updateCellById(notebook, cellId, (cell) =>
-        appendOutput(cell, {
-          text: removeAnsiCodes(message.content.text),
-          output_type: 'stream',
-        })
+        appendOutput(
+          cell,
+          {
+            text: removeAnsiCodes(message.content.text),
+            output_type: 'stream',
+          },
+          replaceOutputs
+        )
       );
 
     case 'execute_result':
       return updateCellById(notebook, cellId, (cell) =>
-        appendOutput(cell, { data: message.content.data, output_type: 'execute_result' })
+        appendOutput(
+          cell,
+          { data: message.content.data, output_type: 'execute_result' },
+          replaceOutputs
+        )
       );
 
     case 'display_data':
       return updateCellById(notebook, cellId, (cell) =>
-        appendOutput(cell, { data: message.content.data })
+        appendOutput(cell, { data: message.content.data }, replaceOutputs)
       );
 
     default:

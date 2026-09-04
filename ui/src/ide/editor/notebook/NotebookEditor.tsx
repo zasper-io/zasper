@@ -7,7 +7,6 @@ import { IfileTab } from '@/store/TabState';
 import { useUnsavedChanges } from '@/store/UnsavedState';
 import BreadCrumb from '../BreadCrumb';
 import { CodeMirrorRef } from './Cell';
-import ErrorDialog from './ErrorDialog';
 import { IKernelMessage } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
@@ -174,11 +173,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           {kernel.showKernelSwitcher && (
             <KernelSwitcher
               kernelName={kernel.kernelName}
+              error={kernel.kernelError}
               toggleKernelSwitcher={kernel.toggleKernelSwitcher}
               changeKernel={kernel.changeKernel}
             />
           )}
-          {kernel.showErrorDialog && <ErrorDialog toggleErrorDialog={kernel.toggleErrorDialog} />}
 
           {/* The cells are not offered for editing once a read failed: they would be the empty
               starting state rather than the file. */}

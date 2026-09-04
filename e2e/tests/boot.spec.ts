@@ -34,21 +34,10 @@ test('the project the server was started in is what the app shows', async ({ pag
   // With nothing open, the Launcher is the whole content area.
   await expect(page.locator('.LauncherArea')).toBeVisible();
 
-  /*
-   * Nothing in the console and nothing refused, except what a project that is not a git repository
-   * already does: the Git panel asks for the branch, the uncommitted files and the commit graph on
-   * boot even while it is hidden, and all three answer 500 rather than "there is no repository here".
-   * Named rather than allowed in general, so anything else that starts failing fails this spec.
-   */
-  const known = /\/api\/(current-branch|uncommitted-files|commit-graph)/;
-  expect(
-    failures.console.filter((line) => !known.test(line)),
-    'the console carried errors'
-  ).toEqual([]);
-  expect(
-    failures.requests.filter((line) => !known.test(line)),
-    'requests failed'
-  ).toEqual([]);
+  // Nothing in the console and nothing refused. The fixture project is not a git repository, which
+  // used to put three 500s here.
+  expect(failures.console, 'the console carried errors').toEqual([]);
+  expect(failures.requests, 'requests failed').toEqual([]);
 });
 
 test('a folder opens and its contents are listed', async ({ page }) => {

@@ -3,7 +3,14 @@ import { useAtom } from 'jotai';
 import { w3cwebsocket as W3CWebSocket } from 'websocket';
 import { v4 as uuidv4 } from 'uuid';
 
-import { createSession, deleteSession, interruptKernel, INotebookMetadata, ISession } from '@/api';
+import {
+  apiErrorMessage,
+  createSession,
+  deleteSession,
+  interruptKernel,
+  INotebookMetadata,
+  ISession,
+} from '@/api';
 import { BaseWebSocketUrl } from '@/config';
 import {
   IKernelspecsState,
@@ -105,7 +112,12 @@ export function useKernelSession(
   // Also in a ref, because the socket's message handler is set once and outlives every render.
   const liveWidgets = useRef<WidgetBridge | null>(null);
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
-  const [showErrorDialog, setShowErrorDialog] = useState<boolean>(false);
+  /*
+   * Why the last attempt to start a kernel failed, '' when none has. Shown inside the picker rather
+   * than in a dialog of its own: a failure and "choose a kernel" are the same moment, and raising one
+   * modal for each stacked two on one backdrop with the reason behind the choice.
+   */
+  const [kernelError, setKernelError] = useState<string>('');
   const [showPrompt, setShowPrompt] = useState<Boolean>(false);
   const [promptContent, setPromptContent] = useState<IKernelMessage>();
   // Which cell the kernel is asking input for, resolved from the request the prompt answers.
@@ -135,7 +147,6 @@ export function useKernelSession(
   const kernelDisplayName = kernelspecs[kernelName]?.spec?.display_name;
 
   const toggleKernelSwitcher = () => setShowKernelSwitcher((prev) => !prev);
-  const toggleErrorDialog = () => setShowErrorDialog((prev) => !prev);
   const toggleShowPrompt = () => setShowPrompt((prev) => !prev);
 
   const handleMessage = useCallback(
@@ -242,6 +253,7 @@ export function useKernelSession(
   const startSession = useCallback(
     async (path: string, name: string, type: string, kernelspec: string) => {
       setKernelName(kernelspec);
+      setKernelError('');
 
       if (kernelspec === NO_KERNEL) {
         setShowKernelSwitcher(true);
@@ -260,8 +272,9 @@ export function useKernelSession(
 
         return data;
       } catch (error: unknown) {
-        setShowErrorDialog(true);
-        console.log('error starting session:', error);
+        // Recorded rather than shown: the caller decides what to raise, and the only useful thing to
+        // raise is the picker.
+        setKernelError(apiErrorMessage(error));
         throw error;
       }
     },
@@ -287,7 +300,29 @@ export function useKernelSession(
     [startTabSession, tab.kernelspec]
   );
 
-  const changeKernel = (value: string) => {
+  /** Moves this notebook to another kernel, ending the session it was on first. */
+  const changeKernel = async (value: string) => {
+    toggleKernelSwitcher();
+
+    // Picking the kernel that is already running is a no-op, unless there is no session on it — which
+    // is how the picker offers a second try at a kernel that failed to start.
+    if (kernelName === value && session) {
+      return;
+    }
+
+    if (session) {
+      // Before the new session, not after: the server finds a session by path, so an abandoned one
+      // leaves a kernel running with nothing attached to it and makes a reopened notebook's lookup
+      // ambiguous — which of the two sessions on that path it joins comes down to the kernel name it
+      // asks for, and that is the *old* kernel until the file is saved again.
+      try {
+        await deleteSession(session.id);
+      } catch (error) {
+        console.error('Error deleting the previous session:', error);
+      }
+      setSession(null);
+    }
+
     if (tab.path in notebookKernelMap) {
       const kernelId = notebookKernelMap[tab.path].id;
 
@@ -303,11 +338,8 @@ export function useKernelSession(
         return updated;
       });
     }
-    if (kernelName !== value) {
-      setKernelName(value);
-      startTabSession(value);
-    }
-    toggleKernelSwitcher();
+
+    startTabSession(value);
   };
 
   const interrupt = () => {
@@ -409,8 +441,7 @@ export function useKernelSession(
     widgets,
     showKernelSwitcher,
     toggleKernelSwitcher,
-    showErrorDialog,
-    toggleErrorDialog,
+    kernelError,
     showPrompt,
     promptContent,
     promptCellId,

@@ -1,9 +1,11 @@
 package gitclient
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
@@ -16,12 +18,19 @@ func getCurrentBranch(repoPath string) (string, error) {
 
 	// Get the current branch reference
 	head, err := repo.Head()
-	if err != nil {
-		return "", err
+	if err == nil {
+		return head.Name().Short(), nil
 	}
 
-	// Return the name of the branch
-	return head.Name().Short(), nil
+	// A repository with no commits in it has no HEAD to resolve, but HEAD still names the branch the
+	// first commit will land on, which is the one `git status` reports. Reading it is what keeps a
+	// freshly `git init`ed project from looking like a broken repository.
+	if errors.Is(err, plumbing.ErrReferenceNotFound) {
+		if unborn, refErr := repo.Reference(plumbing.HEAD, false); refErr == nil {
+			return unborn.Target().Short(), nil
+		}
+	}
+	return "", err
 }
 
 func getCommitGraph(repoPath string) ([]Commit, error) {
@@ -33,6 +42,10 @@ func getCommitGraph(repoPath string) ([]Commit, error) {
 
 	// Get the HEAD reference to start from the latest commit
 	ref, err := repo.Head()
+	if errors.Is(err, plumbing.ErrReferenceNotFound) {
+		// A repository with nothing committed to it yet: an empty history rather than a failure.
+		return []Commit{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +104,7 @@ func getUncommittedFiles(repoPath string) ([]string, error) {
 	}
 
 	// Collect the list of modified or untracked files
-	var uncommittedFiles []string
+	uncommittedFiles := []string{}
 	for file, state := range status {
 		if state.Worktree != git.Unmodified { // Filter out unmodified files
 			uncommittedFiles = append(uncommittedFiles, file)

@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/models"
@@ -64,6 +65,41 @@ func requireKernel(t *testing.T) string {
 
 	t.Skip("no runnable Python kernelspec is installed")
 	return ""
+}
+
+/*
+slowKernelspec installs a kernelspec that waits before launching `name`'s kernel, and answers with its
+name.
+
+The wait stands in for a cold machine, or an interpreter that imports something large before ipykernel
+runs: the process is spawned at once and binds its ports six seconds later, so every dial and every
+message in between lands on nothing.
+*/
+func slowKernelspec(t *testing.T, name string) string {
+	t.Helper()
+
+	spec := kernelspec.GetAllSpecs()[name].Spec
+	require.NotEmpty(t, spec.Argv, "kernelspec %s has no argv", name)
+
+	root := t.TempDir()
+	dir := filepath.Join(root, "kernels", "slow-python")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+
+	// The real argv is passed through as positional arguments, `{connection_file}` among them: the
+	// launcher replaces that one by exact match on an element, wherever it is.
+	argv := append([]string{"/bin/sh", "-c", "sleep 6; exec \"$@\"", "sh"}, spec.Argv...)
+	kernelJson, err := json.Marshal(map[string]any{
+		"argv": argv, "display_name": "slow python", "language": "python",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.json"), kernelJson, 0o644))
+
+	// Prepended rather than replacing, so the machine's own kernels are still there afterwards.
+	restore := core.Zasper.JupyterPath
+	core.Zasper.JupyterPath = append([]string{root}, restore...)
+	t.Cleanup(func() { core.Zasper.JupyterPath = restore })
+
+	return "slow-python"
 }
 
 // startSession creates a notebook and a session on it, the way opening a notebook in the file browser
@@ -269,44 +305,37 @@ func TestOpeningARunningNotebookAgainJoinsItsSession(t *testing.T) {
 	assert.NotEqual(t, created.Kernel.Id, other.Kernel.Id)
 }
 
-/*
-A cell is executed over the kernel websocket and the answer comes back.
-
-The whole path: the shell channel carries the request, the kernel evaluates it, and iopub carries the
-result to the socket the notebook is listening on. Every piece of this is mocked in the frontend tests.
-*/
-func TestCodeSentOverTheKernelSocketIsExecuted(t *testing.T) {
-	srv, project := testServer(t)
-	kernelName := requireKernel(t)
-
-	created := startSession(t, srv, project, kernelName, "notes.ipynb")
-
-	conn, _, err := websocket.DefaultDialer.Dial(
-		wsURL(t, srv, "/ws/kernels/"+created.Kernel.Id+"/channels")+"?session_id="+created.Id, nil)
-	require.NoError(t, err)
-	defer conn.Close()
+// executeOverSocket sends an execute_request the way the notebook editor does, and answers with the id
+// its replies will name as their parent.
+func executeOverSocket(t *testing.T, conn *websocket.Conn, sessionId, code string) string {
+	t.Helper()
 
 	msgId := uuid.New().String()
 	require.NoError(t, conn.WriteJSON(map[string]any{
 		"channel": "shell",
 		"header": map[string]any{
-			"msg_id": msgId, "msg_type": "execute_request", "session": created.Id,
+			"msg_id": msgId, "msg_type": "execute_request", "session": sessionId,
 			"username": "test", "version": kernel.ProtocolVersion,
 			"date": time.Now().UTC().Format(time.RFC3339),
 		},
 		"parent_header": map[string]any{},
 		"metadata":      map[string]any{},
 		"content": map[string]any{
-			"code": "1 + 1", "silent": false, "store_history": true,
+			"code": code, "silent": false, "store_history": true,
 			"user_expressions": map[string]any{}, "allow_stdin": true, "stop_on_error": true,
 		},
 	}))
+	return msgId
+}
 
-	// Read until the result arrives rather than reading a fixed number of messages: a kernel also
-	// reports its status and echoes the input, and how many of those come first is not fixed.
-	require.NoError(t, conn.SetReadDeadline(time.Now().Add(30*time.Second)))
-	var result map[string]any
-	for result == nil {
+// awaitExecuteResult reads until the execute_result answering msgId arrives, and answers with its
+// content. It reads rather than counting: a kernel also reports its status and echoes the input, and how
+// many of those come first is not fixed.
+func awaitExecuteResult(t *testing.T, conn *websocket.Conn, msgId string, within time.Duration) map[string]any {
+	t.Helper()
+
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(within)))
+	for {
 		_, raw, err := conn.ReadMessage()
 		require.NoError(t, err, "no execute_result arrived")
 
@@ -324,10 +353,64 @@ func TestCodeSentOverTheKernelSocketIsExecuted(t *testing.T) {
 
 		if message.Header.MsgType == "execute_result" && message.ParentHeader.MsgId == msgId {
 			assert.Equal(t, "iopub", message.Channel)
-			result = message.Content
+			return message.Content
 		}
 	}
+}
 
+/*
+A cell is executed over the kernel websocket and the answer comes back.
+
+The whole path: the shell channel carries the request, the kernel evaluates it, and iopub carries the
+result to the socket the notebook is listening on. Every piece of this is mocked in the frontend tests.
+*/
+func TestCodeSentOverTheKernelSocketIsExecuted(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+
+	conn, _, err := websocket.DefaultDialer.Dial(
+		wsURL(t, srv, "/ws/kernels/"+created.Kernel.Id+"/channels")+"?session_id="+created.Id, nil)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	msgId := executeOverSocket(t, conn, created.Id, "1 + 1")
+
+	result := awaitExecuteResult(t, conn, msgId, 30*time.Second)
+	data, ok := result["data"].(map[string]any)
+	require.True(t, ok, "the result carried no data: %v", result)
+	assert.Equal(t, "2", data["text/plain"])
+}
+
+/*
+A kernel slow to come up still answers the first cell run against it.
+
+Everything here used to be timed for a kernel listening within about two seconds, which is what a user
+on a cold machine does not have: the sockets stopped retrying their dial after two and a half and were
+left connected to nothing, and the handshake sent one kernel_info_request, waited two seconds and
+forwarded the client's execute_request whether the kernel had answered or not. The cell then ran and
+published its result to a subscription that did not exist yet — ZeroMQ drops what nobody is subscribed
+to — so the notebook waited forever for output that had already been thrown away.
+
+The request is sent the moment the socket opens, which is a user running a cell on a notebook that has
+just been opened, and the whole point is that it is sent long before the kernel exists.
+*/
+func TestAKernelSlowToStartStillAnswersTheFirstCellRun(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := slowKernelspec(t, requireKernel(t))
+
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+
+	conn, _, err := websocket.DefaultDialer.Dial(
+		wsURL(t, srv, "/ws/kernels/"+created.Kernel.Id+"/channels")+"?session_id="+created.Id, nil)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	msgId := executeOverSocket(t, conn, created.Id, "1 + 1")
+
+	// Room for the kernel's own six seconds on top of what a kernel start costs anyway.
+	result := awaitExecuteResult(t, conn, msgId, 60*time.Second)
 	data, ok := result["data"].(map[string]any)
 	require.True(t, ok, "the result carried no data: %v", result)
 	assert.Equal(t, "2", data["text/plain"])
