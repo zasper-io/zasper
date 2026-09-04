@@ -1,5 +1,7 @@
 import { atom } from 'jotai';
 
+import { DiffTarget } from '@/api';
+
 export interface IfileTab {
   type: string;
   path: string;
@@ -10,6 +12,13 @@ export interface IfileTab {
   kernelspec: string;
   /** Terminals only: the folder the shell starts in, '' for the project root. */
   cwd?: string;
+  /**
+   * Diffs only: which comparison this tab is of.
+   *
+   * The file's own path is in here rather than in `path`, because `path` is the key a tab is stored
+   * under: a diff sharing it would be the same tab as the editor for the same file.
+   */
+  diff?: DiffTarget;
 }
 
 export interface IfileTabDict {

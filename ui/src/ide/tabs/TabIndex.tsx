@@ -104,7 +104,13 @@ export default function TabIndex() {
                 )
               }
             >
-              <img className="tabIcon" src={getIconToLoad(fileTabsState[key].name)} alt="" />
+              {/* The file's own name for a diff: its tab is named `notes.txt (diff)`, whose
+                  extension is `txt (diff)` and whose icon is therefore the unknown one. */}
+              <img
+                className="tabIcon"
+                src={getIconToLoad(fileTabsState[key].diff?.path ?? fileTabsState[key].name)}
+                alt=""
+              />
               {fileTabsState[key].name}
               {fileTabsState[key].name !== 'Launcher' && (
                 <span className="editor-button">

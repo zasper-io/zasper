@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { apiErrorMessage, CommitDetail, getCommitDetail } from '@/api';
 import { baseName, parentDirOf } from '@/paths';
+import { useTabActions } from '@/store/TabActions';
 
 interface CommitFilesProps {
   hash: string;
@@ -17,6 +18,7 @@ interface CommitFilesProps {
 export default function CommitFiles({ hash }: CommitFilesProps) {
   const [detail, setDetail] = useState<CommitDetail | null>(null);
   const [error, setError] = useState<string>('');
+  const { openDiff } = useTabActions();
 
   useEffect(() => {
     // A row opened and closed again while the request was in flight would otherwise set state on a
@@ -71,12 +73,16 @@ export default function CommitFiles({ hash }: CommitFilesProps) {
               >
                 {file.status}
               </span>
-              <span
+              {/* Opens the commit against its parent, which is what `git show` compares and what a
+                  file listed under a commit means. */}
+              <button
+                type="button"
                 className="commit-file-name"
                 title={file.from === undefined ? file.path : `${file.from} → ${file.path}`}
+                onClick={() => openDiff({ path: file.path, ref: hash, from: file.from })}
               >
                 {baseName(file.path)}
-              </span>
+              </button>
               <span className="commit-file-dir">{parentDirOf(file.path)}</span>
               {/* Nothing for a binary file: git counts no lines in a PNG, and "+0 −0" says it changed
                   by nothing rather than by something uncountable. */}

@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 
+import DiffTab from './DiffTab';
 import FileEditor from './FileEditor';
 import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
@@ -26,6 +27,11 @@ export default function Editor(props: EditorProps) {
   }
   if (props.data.type === 'notebook') {
     return <NotebookEditor data={props.data} />;
+  }
+  // A diff tab that has lost the comparison it was about has nothing to show, and cannot get it back
+  // from its own path: that is the tab's key, not the file's.
+  if (props.data.type === 'diff' && props.data.diff !== undefined) {
+    return <DiffTab data={props.data} target={props.data.diff} />;
   }
   if (props.data.type === 'terminal') {
     return (

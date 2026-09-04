@@ -286,6 +286,54 @@ func InitHandler(w http.ResponseWriter, r *http.Request) {
 	sendStatus(w, r, repo, root)
 }
 
+/*
+DiffHandler answers the two sides of one file's comparison.
+
+Not a repository is a 404 here rather than a state to render, for the same reason as CommitDetailHandler:
+nothing asks for a diff except a panel that has just been shown the file in a status or a commit read
+from this same repository.
+*/
+func DiffHandler(w http.ResponseWriter, r *http.Request) {
+	repo, root, err := openRepo()
+	if notARepository(err) {
+		zhttp.SendErrorResponse(w, http.StatusNotFound, "This project is not a git repository.")
+		return
+	}
+	if err != nil {
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
+		return
+	}
+
+	query := r.URL.Query()
+	path, err := relPath(root, query.Get("path"))
+	if err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	// Confined like any other path from a request: it names the original side, so it reads a blob.
+	from := ""
+	if raw := query.Get("from"); raw != "" {
+		if from, err = relPath(root, raw); err != nil {
+			zhttp.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
+	diff, err := getDiff(repo, root, path, from, query.Get("staged") == "true", query.Get("ref"))
+	var missing *missingPath
+	var unknown *notFound
+	if errors.As(err, &missing) || errors.As(err, &unknown) {
+		zhttp.SendErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if err != nil {
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the comparison: %v", err))
+		return
+	}
+
+	sendJSON(w, diff)
+}
+
 func BranchesHandler(w http.ResponseWriter, r *http.Request) {
 	repo, _, ok := repoForRead(w, BranchesResponse{Branches: []Branch{}})
 	if !ok {

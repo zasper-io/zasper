@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import './GitPanel.scss';
 
 import { discardFiles, initRepository, stageFiles, unstageFiles } from '@/api';
+import { useTabActions } from '@/store/TabActions';
 import BranchMenu from './BranchMenu';
 import ChangeList, { IChangeAction } from './ChangeList';
 import CommitBox from './CommitBox';
@@ -14,6 +15,7 @@ import { IGitStatus, useGitStatus } from './useGitStatus';
 
 export default function GitPanel({ hidden }: PanelProps) {
   const { status, loading, busy, error, refresh, run } = useGitStatus(hidden);
+  const { openDiff } = useTabActions();
   // The paths a discard has been asked for and not yet confirmed.
   const [pending, setPending] = useState<string[] | null>(null);
   const [historyKey, setHistoryKey] = useState<number>(0);
@@ -166,6 +168,9 @@ export default function GitPanel({ hidden }: PanelProps) {
               side="staged"
               disabled={disabled}
               actions={[stage]}
+              // The unstaged comparison, which for a conflicted file is the version being merged into
+              // against the markers git wrote into the working copy.
+              onSelect={(change) => openDiff({ path: change.path, from: change.from })}
             />
             <ChangeList
               title="Staged"
@@ -173,6 +178,11 @@ export default function GitPanel({ hidden }: PanelProps) {
               side="staged"
               disabled={disabled}
               actions={[unstage]}
+              // Each section opens the diff it is about: what a commit would record here, and what it
+              // would leave behind in the two below.
+              onSelect={(change) =>
+                openDiff({ path: change.path, staged: true, from: change.from })
+              }
             />
             <ChangeList
               title="Changes"
@@ -180,6 +190,7 @@ export default function GitPanel({ hidden }: PanelProps) {
               side="worktree"
               disabled={disabled}
               actions={[discard, stage]}
+              onSelect={(change) => openDiff({ path: change.path, from: change.from })}
             />
             <ChangeList
               title="Untracked"
@@ -187,6 +198,7 @@ export default function GitPanel({ hidden }: PanelProps) {
               side="worktree"
               disabled={disabled}
               actions={[discard, stage]}
+              onSelect={(change) => openDiff({ path: change.path })}
             />
 
             {!loading && nothingToDo && (

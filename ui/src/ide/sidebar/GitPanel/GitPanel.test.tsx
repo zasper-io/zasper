@@ -1,8 +1,11 @@
+import type { ReactElement } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import GitPanel from './GitPanel';
 import type { GitStatus } from '@/api';
+import { fileTabsAtom } from '@/store/TabState';
 
 const getGitStatus = vi.fn();
 const getLog = vi.fn();
@@ -34,6 +37,9 @@ vi.mock('@/api', async () => ({
   fetchRemote: () => fetchRemote(),
   pullRemote: () => pullRemote(),
   pushRemote: () => pushRemote(),
+  // Not the panel's own, but the tab actions it opens diffs through are in its tree.
+  deleteKernel: vi.fn(),
+  logApiError: () => () => {},
   emptyGitStatus: (await import('@/api/git')).emptyGitStatus,
   apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
 }));
@@ -112,6 +118,33 @@ beforeEach(() => {
   pullRemote.mockResolvedValue(aStatus());
   pushRemote.mockResolvedValue(aStatus());
 });
+
+/**
+ * The panel with the diff tabs it has opened beside it, in a store of its own.
+ *
+ * A click on a file name has no effect inside the panel at all — what it does is open a tab — so the
+ * tabs have to be readable from here for the assertion to be about anything.
+ */
+function withTabs(element: ReactElement) {
+  const OpenDiffs = () => {
+    const tabs = useAtomValue(fileTabsAtom);
+    return (
+      <span data-testid="diffs">
+        {Object.values(tabs)
+          .filter((tab) => tab.type === 'diff')
+          .map((tab) => `${tab.path} ${JSON.stringify(tab.diff)}`)
+          .join(',')}
+      </span>
+    );
+  };
+
+  return render(
+    <Provider>
+      {element}
+      <OpenDiffs />
+    </Provider>
+  );
+}
 
 /** Opens the branch menu, which the branch name in the bar is the button for. */
 async function openBranchMenu(): Promise<void> {
@@ -502,6 +535,50 @@ describe('GitPanel', () => {
     expect(screen.getByText('binary')).toBeInTheDocument();
     // The rest of the message, which the row itself shows only the first line of.
     expect(screen.getByText('and more said about it underneath')).toBeInTheDocument();
+  });
+
+  /*
+   * Which comparison a row opens is decided by the section it is in.
+   *
+   * A file staged and then edited again is in two sections, and they are two different pairs of
+   * documents: what a commit would record, and what it would leave behind. A row opening the wrong one
+   * shows a plausible diff of the wrong thing.
+   */
+  it('opens the comparison the section is about', async () => {
+    getGitStatus.mockResolvedValue(
+      aStatus({
+        staged: [{ path: 'src/notes.txt', staged: 'M', worktree: 'M' }],
+        unstaged: [{ path: 'src/notes.txt', staged: 'M', worktree: 'M' }],
+      })
+    );
+    withTabs(<GitPanel hidden={false} />);
+
+    // Staged first, in the order the sections are drawn in.
+    const rows = await screen.findAllByText('notes.txt');
+    fireEvent.click(rows[0]);
+    expect(screen.getByTestId('diffs')).toHaveTextContent(
+      'diff:staged:src/notes.txt {"path":"src/notes.txt","staged":true}'
+    );
+
+    fireEvent.click(rows[1]);
+    // Two tabs, not one reopened: the same file compared two ways is two things to look at.
+    expect(screen.getByTestId('diffs')).toHaveTextContent(
+      'diff:worktree:src/notes.txt {"path":"src/notes.txt"}'
+    );
+  });
+
+  it('opens a file of a commit against that commit', async () => {
+    getLog.mockResolvedValue(aPage([aCommit]));
+    withTabs(<GitPanel hidden={false} />);
+
+    fireEvent.click(await screen.findByText('the first one'));
+    fireEvent.click(await screen.findByText('notes.txt'));
+
+    // The commit, not the working tree: what a file listed under a commit means is what that commit did
+    // to it.
+    expect(screen.getByTestId('diffs')).toHaveTextContent(
+      'diff:abc1234def5678:src/notes.txt {"path":"src/notes.txt","ref":"abc1234def5678"}'
+    );
   });
 
   it('offers to make a plain folder a repository', async () => {

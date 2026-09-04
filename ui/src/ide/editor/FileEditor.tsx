@@ -1,15 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { python } from '@codemirror/lang-python';
-import { html } from '@codemirror/lang-html';
 import { go } from '@codemirror/lang-go';
-import { less } from '@codemirror/lang-less';
-import { sass } from '@codemirror/lang-sass';
-import { json } from '@codemirror/lang-json';
-import { javascript } from '@codemirror/lang-javascript';
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import { getFileContent, logApiError, saveFile } from '@/api';
 
@@ -17,6 +9,7 @@ import { useAtom } from 'jotai';
 import { useTheme } from '@/themes/useTheme';
 import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '@/store/AppState';
 import BreadCrumb from './BreadCrumb';
+import languageFor from './language';
 import { IfileTab } from '@/store/TabState';
 import { useUnsavedChanges } from '@/store/UnsavedState';
 
@@ -65,36 +58,8 @@ export default function FileEditor(props: FileEditorProps) {
     }
   }, [props.data]);
 
-  const getExtensionToLoad = () => {
-    switch (props.data.extension) {
-      case 'go':
-      case 'mod':
-        return go();
-      case 'python':
-        return python();
-      case 'js':
-        return javascript();
-      case 'json':
-        return json();
-      case 'ts':
-        return javascript({ jsx: false, typescript: true });
-      case 'tsx':
-        return javascript({ jsx: true, typescript: true });
-      case 'jsx':
-        return javascript({ jsx: false, typescript: false });
-      case 'html':
-        return html();
-      case 'css':
-        return less();
-      case 'sass':
-      case 'scss':
-        return sass();
-      case 'md':
-      case 'markdown':
-        return markdown({ base: markdownLanguage, codeLanguages: languages });
-    }
-    return go();
-  };
+  // Go for anything unrecognised, which is what this has always fallen back to.
+  const getExtensionToLoad = () => languageFor(props.data.extension) ?? go();
   const [, setLinePosition] = useAtom(linePositionAtom);
   const [, setColumnPosition] = useAtom(columnPositionAtom);
   const [indentationSize] = useAtom(indentationSizeAtom);

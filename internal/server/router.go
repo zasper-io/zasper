@@ -110,6 +110,7 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/git/status", gitclient.StatusHandler).Methods("GET")
 	apiRouter.HandleFunc("/git/log", gitclient.LogHandler).Methods("GET")
 	apiRouter.HandleFunc("/git/commit/{hash}", gitclient.CommitDetailHandler).Methods("GET")
+	apiRouter.HandleFunc("/git/diff", gitclient.DiffHandler).Methods("GET")
 	apiRouter.HandleFunc("/git/stage", gitclient.StageHandler).Methods("POST")
 	apiRouter.HandleFunc("/git/unstage", gitclient.UnstageHandler).Methods("POST")
 	apiRouter.HandleFunc("/git/discard", gitclient.DiscardHandler).Methods("POST")

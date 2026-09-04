@@ -35,13 +35,25 @@ const tabs: IfileTabDict = {
 
 /** The open tabs, the name each shows, and which notebooks still hold a kernel. */
 function Harness() {
-  const { closeDeleted, renameTab } = useTabActions();
+  const { closeDeleted, renameTab, openDiff } = useTabActions();
   const openTabs = useAtomValue(fileTabsAtom);
   const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
 
   return (
     <div>
       <span data-testid="tabs">{Object.keys(openTabs).join(',')}</span>
+      <span data-testid="targets">
+        {Object.values(openTabs)
+          .filter((openTab) => openTab.diff !== undefined)
+          .map((openTab) => JSON.stringify(openTab.diff))
+          .join(',')}
+      </span>
+      <span data-testid="extensions">
+        {Object.values(openTabs)
+          .filter((openTab) => openTab.diff !== undefined)
+          .map((openTab) => String(openTab.extension))
+          .join(',')}
+      </span>
       <span data-testid="names">
         {Object.values(openTabs)
           .map((openTab) => openTab.name)
@@ -56,6 +68,18 @@ function Harness() {
       </button>
       <button type="button" onClick={() => renameTab('notes.txt', 'todo.txt')}>
         rename notes
+      </button>
+      <button type="button" onClick={() => openDiff({ path: 'notes.txt' })}>
+        diff notes
+      </button>
+      <button type="button" onClick={() => openDiff({ path: 'notes.txt', staged: true })}>
+        diff notes staged
+      </button>
+      <button
+        type="button"
+        onClick={() => openDiff({ path: 'notes.txt', ref: 'abc1234def5678', from: 'old.txt' })}
+      >
+        diff notes at a commit
       </button>
     </div>
   );
@@ -103,6 +127,48 @@ describe('useTabActions', () => {
     expect(text('tabs')).toBe('Launcher,notes.txt,lib/main.py,lib/demo.ipynb');
     // The kernel belongs to the notebook, not to the path it had.
     expect(text('kernels')).toBe('lib/demo.ipynb');
+  });
+
+  /*
+   * A diff opens beside the editor for the same file rather than instead of it.
+   *
+   * Tabs are keyed by path, so a diff keyed by the file's own path would be that file's editor: the
+   * click would bring the editor forward and nothing else would happen.
+   */
+  it('opens a diff without disturbing the editor for the same file', () => {
+    renderHarness();
+
+    fireEvent.click(screen.getByText('diff notes'));
+
+    expect(text('tabs')).toBe(
+      'Launcher,notes.txt,src/main.py,src/demo.ipynb,diff:worktree:notes.txt'
+    );
+    expect(text('names')).toContain('notes.txt (diff)');
+    expect(text('targets')).toBe('{"path":"notes.txt"}');
+    // The file's extension, not the tab name's: the name ends in `(diff)`, and the status bar prints
+    // whatever this says the tab holds.
+    expect(text('extensions')).toBe('txt');
+  });
+
+  // Two comparisons of one file are two pairs of documents, so they are two tabs.
+  it('keeps the staged and unstaged diffs of one file apart', () => {
+    renderHarness();
+
+    fireEvent.click(screen.getByText('diff notes'));
+    fireEvent.click(screen.getByText('diff notes staged'));
+
+    expect(text('tabs')).toContain('diff:worktree:notes.txt,diff:staged:notes.txt');
+    expect(text('names')).toContain('notes.txt (diff),notes.txt (staged)');
+  });
+
+  it('names a commit diff after the commit, and carries the name the file had', () => {
+    renderHarness();
+
+    fireEvent.click(screen.getByText('diff notes at a commit'));
+
+    // The short hash, because the whole one is longer than the tab it would be written in.
+    expect(text('names')).toContain('notes.txt (abc1234)');
+    expect(text('targets')).toBe('{"path":"notes.txt","ref":"abc1234def5678","from":"old.txt"}');
   });
 
   it('relabels a renamed tab', () => {

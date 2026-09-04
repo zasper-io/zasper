@@ -1,6 +1,6 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 
-import { deleteKernel, logApiError } from '@/api';
+import { deleteKernel, DiffTarget, logApiError } from '@/api';
 import getFileExtension from '@/ide/utils';
 import { baseName, isInside, rewritePath } from '@/paths';
 import { kernelsAtom, notebookKernelMapAtom, terminalsAtom, terminalsCountAtom } from './AppState';
@@ -13,11 +13,34 @@ export interface IOpenTab {
   type: string;
   kernelspec?: string;
   cwd?: string;
+  diff?: DiffTarget;
+  /** Which language this holds, when the tab's name is not the file name it can be read from. */
+  extension?: string | null;
+}
+
+/**
+ * The key a diff tab is stored under, which is not the path of the file it is about.
+ *
+ * Tabs are keyed by path, so a diff keyed by the file's path would collide with the editor for that
+ * file — clicking a change in the panel would bring the editor forward and nothing else. Naming the
+ * comparison as well as the file also means the staged and unstaged diffs of one file are two tabs,
+ * which they have to be: they are different pairs of documents.
+ *
+ * The cost of a synthetic key is that a diff tab is not rewritten when the file is renamed or closed
+ * when it is deleted, since both walk the tabs by path. A stale diff is a tab showing a comparison
+ * that was true when it was opened, which is what any diff already is.
+ */
+export function diffTabKey(target: DiffTarget): string {
+  const against =
+    target.ref !== undefined ? target.ref : target.staged === true ? 'staged' : 'worktree';
+  return `diff:${against}:${target.path}`;
 }
 
 export interface ITabActions {
   /** Opens a tab, or brings it to the front when that path is already open. */
   openTab: (tab: IOpenTab) => void;
+  /** Opens the two sides of one file's comparison, or brings that comparison to the front. */
+  openDiff: (target: DiffTarget) => void;
   /** Opens a new terminal, in `cwd` if one is given. */
   openTerminal: (cwd?: string) => void;
   /** Closes a tab and releases whatever it was holding. */
@@ -56,7 +79,7 @@ export function useTabActions(): ITabActions {
           ? ({
               ...tab,
               kernelspec: tab.kernelspec ?? 'none',
-              extension: getFileExtension(tab.name),
+              extension: tab.extension ?? getFileExtension(tab.name),
               active: true,
               load_required: true,
             } satisfies IfileTab)
@@ -119,6 +142,26 @@ export function useTabActions(): ITabActions {
 
   return {
     openTab,
+
+    openDiff: (target: DiffTarget) => {
+      // Which comparison, in the tab name: two diffs of one file are two tabs, and a strip of tabs all
+      // called `notes.txt (diff)` cannot be told apart.
+      const against =
+        target.ref !== undefined
+          ? target.ref.slice(0, 7)
+          : target.staged === true
+            ? 'staged'
+            : 'diff';
+      openTab({
+        name: `${baseName(target.path)} (${against})`,
+        path: diffTabKey(target),
+        type: 'diff',
+        diff: target,
+        // From the file rather than from the name, which ends in the comparison: the status bar prints
+        // this, and `txt (diff)` is not a kind of file.
+        extension: getFileExtension(baseName(target.path)),
+      });
+    },
 
     openTerminal: (cwd?: string) => {
       // Numbered rather than named after the folder: the tab is keyed by this name, and two

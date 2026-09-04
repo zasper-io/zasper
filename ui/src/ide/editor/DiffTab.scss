@@ -1,0 +1,70 @@
+// Which two versions are on screen, in the strip under the breadcrumb. Measured like .breadcrumbArea
+// above it, so the two read as one header rather than two bands.
+.diff-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--z-border-breadcrumb);
+  background: var(--z-bg-editor);
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+}
+
+.diff-side {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-arrow {
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.diff-refresh {
+  margin-left: auto;
+  color: inherit;
+}
+
+// What the comparison leaves out, or why there is nothing in it. Above the diff rather than over it:
+// these are things to read once, not to dismiss.
+.diff-note {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--z-border-breadcrumb);
+  background: var(--z-bg-notice);
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+}
+
+.diff-error {
+  color: var(--z-status-error);
+}
+
+// No padding-bottom of the .editor-body2 kind: a MergeView is two editors that scroll together, and
+// 500px of empty space under them is 500px of nothing to scroll past, twice.
+.diff-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--z-bg-editor);
+  color: var(--z-fg-editor);
+
+  // The view is only scrollable if something gives it a height, which the package's own docs say and
+  // its base theme deliberately leaves alone.
+  .cm-mergeView {
+    height: 100%;
+  }
+
+  .cm-mergeViewEditors {
+    height: 100%;
+  }
+
+  .cm-editor {
+    height: 100%;
+  }
+}

@@ -82,6 +82,16 @@ async function editAndSave(page: Page, text: string): Promise<void> {
   await page.getByLabel('Source control').click();
 }
 
+/**
+ * An editor tab, by the whole of the name on it.
+ *
+ * Exact, because the tabs this is asked about are `notes.txt` and `notes.txt (diff)`: a substring match
+ * for the first of those is both of them.
+ */
+function tab(page: Page, name: string): Locator {
+  return page.locator('.tab-item').filter({ has: page.getByText(name, { exact: true }) });
+}
+
 /** The commit prepare.cjs seeded, which every test here is reset back to. */
 let seedCommit = '';
 
@@ -229,6 +239,42 @@ test('a branch is created from the menu, switched away from, and deleted', async
 
   await expect(open.getByRole('menuitem', { name: 'spec/topic' })).toHaveCount(0);
   expect(git('for-each-ref', '--format=%(refname:short)', 'refs/heads')).toBe('main');
+});
+
+/*
+A change opens as the two versions of it, side by side.
+
+For real rather than against mocks because a MergeView is two CodeMirror editors that cannot mount under
+jsdom at all: the frontend test of the diff tab asserts on what the view was handed and stops there. This
+is the only place that says the diff is on screen.
+*/
+test('a change opens as a diff of what the file was against what it is', async ({ page }) => {
+  const open = await openPanel(page);
+  await editAndSave(page, 'edited by the git spec');
+
+  await open.locator('.change-name').filter({ hasText: FILE }).click();
+
+  // A tab of its own, beside the editor for the same file rather than instead of it: tabs are keyed by
+  // path, so a diff keyed by the file's own path would have been that editor.
+  await expect(tab(page, `${FILE} (diff)`)).toBeVisible();
+  await expect(tab(page, FILE)).toBeVisible();
+
+  const body = page.locator('.diff-body');
+  // Two editors, which is what a side-by-side diff is.
+  await expect(body.locator('.cm-editor')).toHaveCount(2);
+  // The index on the left and the file on disk on the right, which is what an unstaged change is.
+  await expect(body).toContainText('A plain file');
+  await expect(body).toContainText('edited by the git spec');
+  await expect(page.locator('.diff-head')).toContainText('Working tree');
+
+  // And the staged comparison of the same file is a second diff: HEAD against the index is a different
+  // pair of documents, so it cannot be the same tab.
+  await open.getByLabel(`Stage ${FILE}`).click();
+  await expect(open.getByText('Staged')).toBeVisible();
+  await open.locator('.change-name').filter({ hasText: FILE }).click();
+
+  await expect(tab(page, `${FILE} (staged)`)).toBeVisible();
+  await expect(tab(page, `${FILE} (diff)`)).toBeVisible();
 });
 
 test('discarding a change asks first, and then puts the file back', async ({ page }) => {

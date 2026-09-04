@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +74,12 @@ func branches(t *testing.T, srv *httptest.Server) []gitclient.Branch {
 func history(t *testing.T, srv *httptest.Server, query string) gitclient.LogResponse {
 	t.Helper()
 	return getJSON[gitclient.LogResponse](t, srv, "/api/git/log"+query)
+}
+
+// diff is the two sides of one file's comparison, which is what a diff tab is drawn from.
+func diff(t *testing.T, srv *httptest.Server, query string) gitclient.DiffResponse {
+	t.Helper()
+	return getJSON[gitclient.DiffResponse](t, srv, "/api/git/diff"+query)
 }
 
 // commitDetail is what a row of the history expands into.
@@ -886,6 +893,79 @@ func TestAPlainFolderCanBeMadeIntoARepository(t *testing.T) {
 	code, body := call(t, srv, http.MethodPost, "/api/git/init", nil)
 	assert.Equal(t, http.StatusConflict, code)
 	assert.Contains(t, string(body), "already")
+}
+
+/*
+A file's comparison, over the endpoint a diff tab is drawn from.
+
+The pair of documents themselves are covered by unit tests in the gitclient package; what is here is the
+wiring a browser goes through — the query that says which pair, and the two ways of asking for a
+comparison that cannot be made.
+*/
+func TestADiffAnswersTheTwoSidesOfOneFile(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	repo := initRepo(t, project)
+	writeFile(t, project, "notes.txt", "hello\n")
+	commitFile(t, repo, "notes.txt", "the first one")
+	writeFile(t, project, "notes.txt", "hello again\n")
+
+	// What a commit would leave behind: the index against the file on disk.
+	unstaged := diff(t, srv, "?path=notes.txt")
+	assert.Equal(t, "hello\n", unstaged.Original)
+	assert.Equal(t, "hello again\n", unstaged.Modified)
+	assert.False(t, unstaged.IsBinary)
+	assert.False(t, unstaged.IsNotebook)
+
+	// And what it would record: HEAD against the index, which is the same pair only until something is
+	// staged and edited again.
+	post(t, srv, "/api/git/stage", map[string]any{"paths": []string{"notes.txt"}})
+	staged := diff(t, srv, "?path=notes.txt&staged=true")
+	assert.Equal(t, "hello\n", staged.Original)
+	assert.Equal(t, "hello again\n", staged.Modified)
+
+	// A commit, against its parent, which is what a file clicked in the history means.
+	post(t, srv, "/api/git/commit", map[string]any{"message": "the second one"})
+	head := gitOutput(t, project, "rev-parse", "HEAD")
+	shown := diff(t, srv, "?path=notes.txt&ref="+head)
+	assert.Equal(t, "hello\n", shown.Original)
+	assert.Equal(t, "hello again\n", shown.Modified)
+
+	// A path neither side has, which is what a stale row in the panel asks about.
+	code, _ := call(t, srv, http.MethodGet, "/api/git/diff?path=never-existed.txt", nil)
+	assert.Equal(t, http.StatusNotFound, code)
+
+	// And a path outside the repository, which is the reason every path in this package is confined
+	// before it reaches git: without it, a diff is a way to read any file on the machine.
+	code, _ = call(t, srv, http.MethodGet, "/api/git/diff?path=../../etc/passwd", nil)
+	assert.Equal(t, http.StatusBadRequest, code)
+}
+
+/*
+A notebook is compared as its cell sources.
+
+The one thing about the diff endpoint that is specific to this application: a raw .ipynb comparison is
+renumbered execution counts and base64 output data, so running a notebook and changing no code shows as a
+changed file. Here the code is identical on both sides and the file is not.
+*/
+func TestANotebookDiffIsAboutTheCodeAndNotTheOutputs(t *testing.T) {
+	srv, project := testServer(t)
+	repo := initRepo(t, project)
+
+	notebook := func(count int, output string) string {
+		return `{"cells":[{"cell_type":"code","execution_count":` + strconv.Itoa(count) +
+			`,"id":"aaaa1111","metadata":{},"outputs":[{"output_type":"stream","name":"stdout","text":["` +
+			output + `\n"]}],"source":["print(1)\n"]}],"metadata":{},"nbformat":4,"nbformat_minor":5}`
+	}
+
+	writeFile(t, project, "analysis.ipynb", notebook(1, "one"))
+	commitFile(t, repo, "analysis.ipynb", "the first one")
+	writeFile(t, project, "analysis.ipynb", notebook(9, "one and then some"))
+
+	shown := diff(t, srv, "?path=analysis.ipynb")
+	assert.True(t, shown.IsNotebook, "the tab has to be able to say it is not showing the whole file")
+	assert.Equal(t, "# %% [1] code\nprint(1)\n", shown.Original)
+	assert.Equal(t, shown.Original, shown.Modified, "nothing about the code changed")
 }
 
 func writeFile(t *testing.T, dir, name, contents string) {

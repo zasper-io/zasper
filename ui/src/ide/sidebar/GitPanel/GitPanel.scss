@@ -310,7 +310,11 @@
   width: 100%;
   height: var(--z-ui-control-height);
   padding: 0 8px;
-  border: 1px solid var(--z-border-divider);
+  // Spelled out rather than inherited: a control with no colours of its own is the browser's white box
+  // with black text in it, which under a dark theme is the one bright rectangle in the sidebar.
+  background: var(--z-bg-field);
+  color: var(--z-fg-field);
+  border: 1px solid var(--z-border-field);
   border-radius: 4px;
   font-size: var(--z-ui-font-size);
   margin-bottom: 8px;
@@ -422,13 +426,27 @@
   gap: 6px;
   font-size: 11px;
   color: var(--z-fg-default);
+
+  // The whole row lights up rather than the name inside it, as a change row does: the row is what
+  // there is to aim at.
+  &:hover {
+    background: var(--z-bg-row-selected);
+  }
 }
 
+// A button, like .change-name is, and stripped back to text for the same reason: what it opens is the
+// diff, and the name of the file is the whole of the target.
 .commit-file-name {
   flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
 .commit-file-dir {

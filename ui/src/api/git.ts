@@ -44,6 +44,38 @@ export type CommitDetail = Commit & {
 };
 
 /**
+ * The two sides of one file's comparison, rather than a patch.
+ *
+ * Two whole documents because the viewer is a CodeMirror `MergeView`, which computes the difference
+ * itself and needs both texts to do it. An absent side is an empty document, which is what makes an
+ * added file read as all additions and a deleted one as all deletions with no flag for either.
+ */
+export type DiffDocuments = {
+  path: string;
+  /** The other name a renamed file had, absent for everything else. */
+  from?: string;
+  original: string;
+  modified: string;
+  /** Says the documents are empty because there was nothing readable to show, not because the file is. */
+  isBinary: boolean;
+  /** Says both sides are cell sources: outputs and execution counts are not in either of them. */
+  isNotebook: boolean;
+  /** The same for a file the server would not send, so the tab can say why it is empty. */
+  tooLarge: boolean;
+};
+
+/** Which comparison of which file, as the diff tab and the panel rows both name one. */
+export type DiffTarget = {
+  path: string;
+  /** HEAD against the index — what a commit would record — rather than the index against the disk. */
+  staged?: boolean;
+  /** A commit, when the comparison is that commit against its first parent. */
+  ref?: string;
+  /** The name a renamed file had, so the original side is read from it rather than read as absent. */
+  from?: string;
+};
+
+/**
  * One path that differs from HEAD. `staged` and `worktree` are git's own letters — M, A, D, R, C, ?,
  * U — or empty where that side of the index is unmodified, so either can be tested for truth.
  */
@@ -133,6 +165,21 @@ export function getLog(options: { limit?: number; skip?: number } = {}): Promise
 /** One commit and the files in it. A hash the repository does not have answers 404. */
 export function getCommitDetail(hash: string): Promise<CommitDetail> {
   return requestJson<CommitDetail>(`/api/git/commit/${encodeURIComponent(hash)}`);
+}
+
+/**
+ * The two sides of one file's comparison. A path neither side has answers 404, which is what a row
+ * clicked after the file behind it was committed or discarded elsewhere gets.
+ */
+export function getDiff(target: DiffTarget): Promise<DiffDocuments> {
+  return requestJson<DiffDocuments>('/api/git/diff', {
+    query: {
+      path: target.path,
+      staged: target.staged ? true : undefined,
+      ref: target.ref,
+      from: target.from,
+    },
+  });
 }
 
 /**
