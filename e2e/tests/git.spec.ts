@@ -277,6 +277,46 @@ test('a change opens as a diff of what the file was against what it is', async (
   await expect(tab(page, `${FILE} (diff)`)).toBeVisible();
 });
 
+/*
+A diff of more than fits on screen can be scrolled through.
+
+A MergeView keeps its two editors at their natural height so the sides cannot drift apart, and scrolls
+the pair as one element. Anything with a height of its own between the pane and them is therefore a lid:
+the editors grow past it, the pane clips what sticks out, and the rest of the file cannot be reached.
+Nothing but a browser can see that, since it is entirely a question of resolved heights.
+*/
+test('a diff taller than the pane scrolls', async ({ page }) => {
+  const open = await openPanel(page);
+
+  // Straight to disk and then a refresh, rather than through the editor: what this needs is a few
+  // hundred lines, which is a long time to spend typing.
+  const lines = Array.from({ length: 400 }, (_, index) => `line ${index + 1}`);
+  writeFileSync(inProject(FILE), `${lines.join('\n')}\n`);
+  await open.getByTitle('Refresh').click();
+
+  await open.locator('.change-name').filter({ hasText: FILE }).click();
+
+  const merge = page.locator('.cm-mergeView');
+  await expect(merge).toBeVisible();
+
+  const room = await merge.evaluate((el) => ({
+    content: el.scrollHeight,
+    visible: el.clientHeight,
+    pane: el.parentElement?.clientHeight ?? 0,
+  }));
+  // Bounded by the pane, and holding more than that: the two halves of being scrollable at all.
+  expect(room.visible).toBe(room.pane);
+  expect(room.content).toBeGreaterThan(room.visible);
+
+  await merge.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  expect(await merge.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  // The far end of the file, which is the part that could not be reached. Asserted after the scroll
+  // rather than before it because an editor only renders the lines it is showing.
+  await expect(merge).toContainText('line 400');
+});
+
 test('discarding a change asks first, and then puts the file back', async ({ page }) => {
   const open = await openPanel(page);
 

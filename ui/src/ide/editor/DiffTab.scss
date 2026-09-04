@@ -54,17 +54,13 @@
   background-color: var(--z-bg-editor);
   color: var(--z-fg-editor);
 
-  // The view is only scrollable if something gives it a height, which the package's own docs say and
-  // its base theme deliberately leaves alone.
+  // The whole view scrolls as one, and it is only scrollable if something gives it a height — which the
+  // package's own docs say and its base theme deliberately leaves alone.
+  //
+  // Only this element. A MergeView pins its editors to `height: auto !important` so that the two sides
+  // cannot drift apart, so anything with a height of its own between here and them is a lid: the pair
+  // grow past it, and the scroll container above sees nothing to scroll.
   .cm-mergeView {
-    height: 100%;
-  }
-
-  .cm-mergeViewEditors {
-    height: 100%;
-  }
-
-  .cm-editor {
     height: 100%;
   }
 }
