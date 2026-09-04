@@ -5,7 +5,9 @@ import GitPanel from './GitPanel';
 import type { GitStatus } from '@/api';
 
 const getGitStatus = vi.fn();
-const getCommitGraph = vi.fn();
+const getLog = vi.fn();
+const getCommitDetail = vi.fn();
+const initRepository = vi.fn();
 const stageFiles = vi.fn();
 const unstageFiles = vi.fn();
 const discardFiles = vi.fn();
@@ -19,7 +21,9 @@ const pushRemote = vi.fn();
 
 vi.mock('@/api', async () => ({
   getGitStatus: () => getGitStatus(),
-  getCommitGraph: () => getCommitGraph(),
+  getLog: (options: unknown) => getLog(options),
+  getCommitDetail: (hash: string) => getCommitDetail(hash),
+  initRepository: () => initRepository(),
   stageFiles: (paths: string[]) => stageFiles(paths),
   unstageFiles: (paths: string[]) => unstageFiles(paths),
   discardFiles: (paths: string[], deleteUntracked: boolean) => discardFiles(paths, deleteUntracked),
@@ -40,12 +44,33 @@ vi.mock('react-toastify', () => ({
 }));
 
 const aCommit = {
-  hash: 'abc123',
-  message: 'the first one',
+  hash: 'abc1234def5678',
+  shortHash: 'abc1234',
+  subject: 'the first one',
   author: 'Test',
-  date: '2026-01-02',
+  date: '2026-01-02T03:04:05Z',
   parents: [] as string[],
 };
+
+/** The same commit with what it changed, which is what a row expands into. */
+const itsFiles = {
+  ...aCommit,
+  body: 'and more said about it underneath',
+  files: [
+    { path: 'src/notes.txt', status: 'M', insertions: 3, deletions: 1, isBinary: false },
+    { path: 'logo.png', status: 'A', insertions: 0, deletions: 0, isBinary: true },
+  ],
+  insertions: 3,
+  deletions: 1,
+  truncated: false,
+};
+
+/** A page of the history, as the server sends it. */
+const aPage = (commits: (typeof aCommit)[], hasMore = false) => ({
+  commits,
+  hasMore,
+  isRepository: true,
+});
 
 const empty: GitStatus = {
   isRepository: true,
@@ -73,7 +98,9 @@ const theBranches = [
 beforeEach(() => {
   vi.clearAllMocks();
   getGitStatus.mockResolvedValue(aStatus());
-  getCommitGraph.mockResolvedValue({ commits: [], isRepository: true });
+  getLog.mockResolvedValue(aPage([]));
+  getCommitDetail.mockResolvedValue(itsFiles);
+  initRepository.mockResolvedValue(aStatus());
   stageFiles.mockResolvedValue(aStatus());
   unstageFiles.mockResolvedValue(aStatus());
   discardFiles.mockResolvedValue(aStatus());
@@ -100,7 +127,7 @@ describe('GitPanel', () => {
     // panel nobody opened.
     await waitFor(() => expect(screen.getByText('Source control')).toBeInTheDocument());
     expect(getGitStatus).not.toHaveBeenCalled();
-    expect(getCommitGraph).not.toHaveBeenCalled();
+    expect(getLog).not.toHaveBeenCalled();
   });
 
   it('fetches when it is opened', async () => {
@@ -108,14 +135,14 @@ describe('GitPanel', () => {
     rerender(<GitPanel hidden={false} />);
 
     await waitFor(() => expect(getGitStatus).toHaveBeenCalledTimes(1));
-    expect(getCommitGraph).toHaveBeenCalledTimes(1);
+    expect(getLog).toHaveBeenCalledTimes(1);
   });
 
   it('says a project is not a repository rather than that it has nothing to commit', async () => {
     getGitStatus.mockResolvedValue(
       aStatus({ isRepository: false, gitAvailable: true, branch: '' })
     );
-    getCommitGraph.mockResolvedValue({ commits: [], isRepository: false });
+    getLog.mockResolvedValue({ commits: [], hasMore: false, isRepository: false });
     render(<GitPanel hidden={false} />);
 
     expect(await screen.findByText('This project is not a git repository.')).toBeInTheDocument();
@@ -141,7 +168,7 @@ describe('GitPanel', () => {
         untracked: [{ path: 'scratch.txt', staged: '?', worktree: '?' }],
       })
     );
-    getCommitGraph.mockResolvedValue({ commits: [aCommit], isRepository: true });
+    getLog.mockResolvedValue(aPage([aCommit]));
     render(<GitPanel hidden={false} />);
 
     expect(await screen.findByText('Staged')).toBeInTheDocument();
@@ -155,7 +182,7 @@ describe('GitPanel', () => {
     // the case where the bare name would not be enough.
     expect(screen.getAllByText('notes.txt')).toHaveLength(2);
     expect(screen.getAllByText('src')).toHaveLength(2);
-    expect(await screen.findByText(/the first one -- Test/)).toBeInTheDocument();
+    expect(await screen.findByText('the first one')).toBeInTheDocument();
   });
 
   it('stages and unstages the path the button belongs to', async () => {
@@ -248,9 +275,9 @@ describe('GitPanel', () => {
       aStatus({ staged: [{ path: 'a.txt', staged: 'A', worktree: '' }] })
     );
     render(<GitPanel hidden={false} />);
-    await waitFor(() => expect(getCommitGraph).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(getLog).toHaveBeenCalledTimes(1));
 
-    getCommitGraph.mockResolvedValue({ commits: [aCommit], isRepository: true });
+    getLog.mockResolvedValue(aPage([aCommit]));
     fireEvent.change(await screen.findByPlaceholderText('Commit message'), {
       target: { value: 'the first one' },
     });
@@ -258,7 +285,7 @@ describe('GitPanel', () => {
 
     // The history is its own read, so without this it stayed as it was when the panel was opened —
     // empty, directly under the box that had just committed.
-    expect(await screen.findByText(/the first one -- Test/)).toBeInTheDocument();
+    expect(await screen.findByText('the first one')).toBeInTheDocument();
   });
 
   it('will not commit without a message or without anything staged', async () => {
@@ -415,6 +442,93 @@ describe('GitPanel', () => {
     expect(screen.queryByLabelText('Fetch')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Pull')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Push')).not.toBeInTheDocument();
+  });
+
+  it('tells one commit from another, which the old list could not', async () => {
+    // Against the real clock rather than a fixed date, so the wording does not go stale: two hours ago
+    // is two hours ago whenever this runs.
+    const twoHoursAgo = new Date(Date.now() - 2 * 3600 * 1000).toISOString();
+    getLog.mockResolvedValue(
+      aPage([
+        { ...aCommit, date: twoHoursAgo },
+        { ...aCommit, hash: 'f00', shortHash: 'f00', subject: 'a merge', parents: ['a', 'b'] },
+      ])
+    );
+    render(<GitPanel hidden={false} />);
+
+    // The three things a row used to have no room for. The old history drew `message -- author`, and a
+    // repository with two commits called "wip" was two identical rows.
+    expect(await screen.findByText('abc1234')).toBeInTheDocument();
+    expect(screen.getByText('2 hours ago')).toBeInTheDocument();
+    expect(screen.getAllByText('Test')).toHaveLength(2);
+    // The one row in a list with no lanes whose diff is against one parent of two.
+    expect(screen.getByText('merge')).toBeInTheDocument();
+  });
+
+  it('asks for another page only when the server said there is one', async () => {
+    getLog.mockResolvedValue(aPage([aCommit], true));
+    render(<GitPanel hidden={false} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Show more' }));
+
+    // Skipping what is already on screen: go-git's log has no offset, so the page after the first is
+    // the server walking past it.
+    await waitFor(() => expect(getLog).toHaveBeenCalledWith({ limit: 30, skip: 1 }));
+
+    getLog.mockResolvedValue(aPage([aCommit]));
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }));
+    // Gone, because the server said so. Deciding from a full page instead would leave a history whose
+    // length is a multiple of the page size ending in a button with nothing behind it.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument()
+    );
+  });
+
+  it('opens a commit onto the files in it', async () => {
+    getLog.mockResolvedValue(aPage([aCommit]));
+    render(<GitPanel hidden={false} />);
+
+    // Not read with the page: thirty rows would be thirty diffs against thirty parents, for something
+    // almost none of them are asked about.
+    expect(getCommitDetail).not.toHaveBeenCalled();
+
+    fireEvent.click(await screen.findByText('the first one'));
+    await waitFor(() => expect(getCommitDetail).toHaveBeenCalledWith('abc1234def5678'));
+
+    expect(await screen.findByText('notes.txt')).toBeInTheDocument();
+    expect(screen.getByText('+3')).toBeInTheDocument();
+    expect(screen.getByText('−1')).toBeInTheDocument();
+    // git counts no lines in a PNG, so saying "+0 −0" would report it as changed by nothing.
+    expect(screen.getByText('binary')).toBeInTheDocument();
+    // The rest of the message, which the row itself shows only the first line of.
+    expect(screen.getByText('and more said about it underneath')).toBeInTheDocument();
+  });
+
+  it('offers to make a plain folder a repository', async () => {
+    const plain = aStatus({ isRepository: false, gitAvailable: true, branch: '' });
+    getGitStatus.mockResolvedValue(plain);
+    getLog.mockResolvedValue({ commits: [], hasMore: false, isRepository: false });
+    initRepository.mockResolvedValue(aStatus({ branch: 'main' }));
+    render(<GitPanel hidden={false} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Initialise repository' }));
+    await waitFor(() => expect(initRepository).toHaveBeenCalled());
+
+    // The panel is now a panel over a repository, drawn from what the write answered with rather than
+    // from a status read chasing it.
+    expect(await screen.findByLabelText('Branch: main')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Commit message')).toBeInTheDocument();
+  });
+
+  it('does not offer to make a repository with no git to make one with', async () => {
+    getGitStatus.mockResolvedValue(
+      aStatus({ isRepository: false, gitAvailable: false, branch: '' })
+    );
+    render(<GitPanel hidden={false} />);
+
+    expect(await screen.findByText('This project is not a git repository.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Initialise repository' })).not.toBeInTheDocument();
+    expect(screen.getByText(/No git binary was found/)).toBeInTheDocument();
   });
 
   it('re-reads on demand', async () => {

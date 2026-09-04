@@ -108,7 +108,8 @@ func NewRouter(spa http.Handler) *mux.Router {
 
 	// git
 	apiRouter.HandleFunc("/git/status", gitclient.StatusHandler).Methods("GET")
-	apiRouter.HandleFunc("/git/log", gitclient.CommitGraphHandler).Methods("GET")
+	apiRouter.HandleFunc("/git/log", gitclient.LogHandler).Methods("GET")
+	apiRouter.HandleFunc("/git/commit/{hash}", gitclient.CommitDetailHandler).Methods("GET")
 	apiRouter.HandleFunc("/git/stage", gitclient.StageHandler).Methods("POST")
 	apiRouter.HandleFunc("/git/unstage", gitclient.UnstageHandler).Methods("POST")
 	apiRouter.HandleFunc("/git/discard", gitclient.DiscardHandler).Methods("POST")
@@ -119,6 +120,7 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/git/fetch", gitclient.FetchHandler).Methods("POST")
 	apiRouter.HandleFunc("/git/pull", gitclient.PullHandler).Methods("POST")
 	apiRouter.HandleFunc("/git/push", gitclient.PushHandler).Methods("POST")
+	apiRouter.HandleFunc("/git/init", gitclient.InitHandler).Methods("POST")
 	// The status bar wants one string on boot and nothing else, so it keeps an endpoint of its own
 	// rather than reading a whole status.
 	apiRouter.HandleFunc("/current-branch", gitclient.BranchHandler).Methods("GET")

@@ -6,19 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/gorilla/mux"
 
 	zhttp "github.com/zasper-io/zasper/internal/http"
 )
-
-type Commit struct {
-	Hash    string   `json:"hash"`
-	Message string   `json:"message"`
-	Author  string   `json:"author"`
-	Date    string   `json:"date"`
-	Parents []string `json:"parents"` // Store the hashes of parent commits
-}
 
 /*
 Every read below carries isRepository, because a project directory is not obliged to be under git and
@@ -31,8 +25,15 @@ type BranchResponse struct {
 	IsRepository bool   `json:"isRepository"`
 }
 
-type CommitGraphResponse struct {
+/*
+LogResponse is one page of the history.
+
+HasMore rather than a total: counting a history means walking all of it, which is what this endpoint was
+changed to stop doing. The panel only needs to know whether to offer another page.
+*/
+type LogResponse struct {
 	Commits      []Commit `json:"commits"`
+	HasMore      bool     `json:"hasMore"`
 	IsRepository bool     `json:"isRepository"`
 }
 
@@ -161,19 +162,128 @@ func BranchHandler(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, BranchResponse{Branch: branch, IsRepository: true})
 }
 
-func CommitGraphHandler(w http.ResponseWriter, r *http.Request) {
-	repo, _, ok := repoForRead(w, CommitGraphResponse{Commits: []Commit{}})
+/*
+LogHandler answers a page of the history.
+
+Paged because the panel shows a screenful and the old endpoint walked to the root commit for every read
+— on every commit, pull and branch switch, in a repository as long as this one's.
+*/
+func LogHandler(w http.ResponseWriter, r *http.Request) {
+	repo, _, ok := repoForRead(w, LogResponse{Commits: []Commit{}})
 	if !ok {
 		return
 	}
 
-	commits, err := getCommitGraph(repo)
+	limit := intParam(r, "limit", defaultLogLimit, 1, maxLogLimit)
+	skip := intParam(r, "skip", 0, 0, 0)
+
+	commits, hasMore, err := getLog(repo, limit, skip)
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error fetching commit graph: %v", err))
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the history: %v", err))
 		return
 	}
 
-	sendJSON(w, CommitGraphResponse{Commits: commits, IsRepository: true})
+	sendJSON(w, LogResponse{Commits: commits, HasMore: hasMore, IsRepository: true})
+}
+
+/*
+intParam reads a bounded number from the query.
+
+Bounded rather than trusted: limit is how many commits this process assembles into one response, so a
+request asking for a hundred million of them is a request to walk the whole history — the thing paging is
+here to prevent. A value that will not parse is the default rather than a 400, since a missing page size
+is not worth failing a read over. max of 0 means no ceiling, which is right for an offset.
+*/
+func intParam(r *http.Request, name string, fallback, min, max int) int {
+	raw := r.URL.Query().Get(name)
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	if value < min {
+		return min
+	}
+	if max > 0 && value > max {
+		return max
+	}
+	return value
+}
+
+/*
+CommitDetailHandler answers with one commit and the files in it, which is what a row of the history
+expands into.
+
+The one read that does not carry isRepository: an empty commit is not a state to render, and nothing asks
+about a commit it did not just see in a history read from this same repository. So a project that is not
+under git is a 404 here like any other commit that is not there.
+*/
+func CommitDetailHandler(w http.ResponseWriter, r *http.Request) {
+	repo, _, err := openRepo()
+	if notARepository(err) {
+		zhttp.SendErrorResponse(w, http.StatusNotFound, "This project is not a git repository.")
+		return
+	}
+	if err != nil {
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
+		return
+	}
+
+	detail, err := getCommitDetail(r.Context(), repo, mux.Vars(r)["hash"])
+	var missing *notFound
+	if errors.As(err, &missing) {
+		// The one read here that is genuinely absent rather than empty: a panel left open across a rebase
+		// asks about commits that no longer exist, and that is a 404 rather than a fault.
+		zhttp.SendErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if err != nil {
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the commit: %v", err))
+		return
+	}
+
+	sendJSON(w, detail)
+}
+
+/*
+InitHandler makes the project a repository.
+
+Run rather than reimplemented with go-git so init.defaultBranch is honoured — go-git's PlainInit hardcodes
+master, and a project whose first branch is not the one every other tool on the machine would have made is
+a surprise nobody asked this panel for. Templates and hooks come along for the same reason.
+*/
+func InitHandler(w http.ResponseWriter, r *http.Request) {
+	if !Available() {
+		zhttp.SendErrorResponse(w, http.StatusConflict, "Git is not installed, so a repository cannot be created from here.")
+		return
+	}
+
+	_, _, err := openRepo()
+	if err == nil {
+		// Including a project inside someone else's checkout, where this would make a second repository
+		// nested in the first. The panel does not offer the button in that case; a request carrying it is
+		// stale.
+		zhttp.SendErrorResponse(w, http.StatusConflict, "This project is already in a git repository.")
+		return
+	}
+	if !notARepository(err) {
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
+		return
+	}
+
+	if err := initRepository(r.Context(), projectDir()); err != nil {
+		failed(w, err)
+		return
+	}
+
+	repo, root, err := openRepo()
+	if err != nil {
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("The repository was created but could not be opened: %v", err))
+		return
+	}
+	sendStatus(w, r, repo, root)
 }
 
 func BranchesHandler(w http.ResponseWriter, r *http.Request) {

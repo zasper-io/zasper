@@ -68,6 +68,49 @@ func branches(t *testing.T, srv *httptest.Server) []gitclient.Branch {
 	return getJSON[gitclient.BranchesResponse](t, srv, "/api/git/branches").Branches
 }
 
+// history is one page of the log, which is how the panel reads it: query and all, since the paging is
+// half of what these tests are about.
+func history(t *testing.T, srv *httptest.Server, query string) gitclient.LogResponse {
+	t.Helper()
+	return getJSON[gitclient.LogResponse](t, srv, "/api/git/log"+query)
+}
+
+// commitDetail is what a row of the history expands into.
+func commitDetail(t *testing.T, srv *httptest.Server, hash string) gitclient.CommitDetail {
+	t.Helper()
+	return getJSON[gitclient.CommitDetail](t, srv, "/api/git/commit/"+hash)
+}
+
+func subjects(commits []gitclient.Commit) []string {
+	lines := make([]string, 0, len(commits))
+	for _, commit := range commits {
+		lines = append(lines, commit.Subject)
+	}
+	return lines
+}
+
+func filePaths(files []gitclient.CommitFile) []string {
+	names := make([]string, 0, len(files))
+	for _, file := range files {
+		names = append(names, file.Path)
+	}
+	return names
+}
+
+// fileIn finds one file of a commit by the name it has afterwards, so an assertion says which file it is
+// about rather than which position it came in.
+func fileIn(t *testing.T, detail gitclient.CommitDetail, path string) gitclient.CommitFile {
+	t.Helper()
+
+	for _, file := range detail.Files {
+		if file.Path == path {
+			return file
+		}
+	}
+	require.FailNowf(t, "missing file", "%s is not among %v", path, filePaths(detail.Files))
+	return gitclient.CommitFile{}
+}
+
 func branchNames(list []gitclient.Branch) []string {
 	names := make([]string, 0, len(list))
 	for _, branch := range list {
@@ -133,7 +176,7 @@ func TestAProjectThatIsNotAGitRepositoryIsAStateAndNotAnError(t *testing.T) {
 	assert.Empty(t, status.Unstaged)
 	assert.Empty(t, status.Untracked)
 
-	graph := getJSON[gitclient.CommitGraphResponse](t, srv, "/api/git/log")
+	graph := history(t, srv, "")
 	assert.False(t, graph.IsRepository)
 	assert.Empty(t, graph.Commits)
 
@@ -155,7 +198,7 @@ func TestARepositoryWithNothingCommittedYetHasABranchAndNoHistory(t *testing.T) 
 	require.NoError(t, err)
 	assert.Equal(t, head.Target().Short(), branch.Branch)
 
-	graph := getJSON[gitclient.CommitGraphResponse](t, srv, "/api/git/log")
+	graph := history(t, srv, "")
 	assert.True(t, graph.IsRepository)
 	assert.Empty(t, graph.Commits, "a repository with no commits has an empty history")
 
@@ -176,10 +219,10 @@ func TestARepositoryWithHistoryAnswersItsBranchCommitsAndChanges(t *testing.T) {
 	assert.True(t, branch.IsRepository)
 	assert.NotEmpty(t, branch.Branch)
 
-	graph := getJSON[gitclient.CommitGraphResponse](t, srv, "/api/git/log")
+	graph := history(t, srv, "")
 	assert.True(t, graph.IsRepository)
 	require.Len(t, graph.Commits, 1)
-	assert.Equal(t, "the first one", graph.Commits[0].Message)
+	assert.Equal(t, "the first one", graph.Commits[0].Subject)
 	assert.Empty(t, graph.Commits[0].Parents, "the first commit has no parent")
 
 	// Committed, so nothing is outstanding.
@@ -228,9 +271,9 @@ func TestOnlyWhatIsStagedIsCommitted(t *testing.T) {
 	assert.Empty(t, status.Staged)
 	assert.Equal(t, []string{"other.txt"}, paths(status.Unstaged), "the file that was not staged is still outstanding")
 
-	graph := getJSON[gitclient.CommitGraphResponse](t, srv, "/api/git/log")
+	graph := history(t, srv, "")
 	require.Len(t, graph.Commits, 3)
-	assert.Contains(t, graph.Commits[0].Message, "just the one")
+	assert.Contains(t, graph.Commits[0].Subject, "just the one")
 
 	// And the commit really contains one file, which is the part the status cannot show.
 	changed := gitOutput(t, project, "show", "--name-only", "--format=", "HEAD")
@@ -445,7 +488,7 @@ func TestAFailedPushStillSaysTheCommitWasMade(t *testing.T) {
 	assert.Contains(t, string(body), "commit was made")
 
 	// It was: the history has it, whatever happened to the push.
-	graph := getJSON[gitclient.CommitGraphResponse](t, srv, "/api/git/log")
+	graph := history(t, srv, "")
 	require.Len(t, graph.Commits, 1)
 }
 
@@ -691,6 +734,158 @@ func TestSyncingIsRefusedWithoutARemote(t *testing.T) {
 			assert.Contains(t, string(body), "no remote")
 		})
 	}
+}
+
+/*
+The history a page at a time.
+
+The old endpoint walked to the root commit on every read — on boot, on every commit, and on every
+filesystem event the panel noticed — and sent all of it to a list that draws a screenful. The paging is
+what this asserts; the order is asserted with it, because a page of the wrong end of the history would
+satisfy every count here.
+*/
+func TestTheHistoryIsPagedNewestFirstAndSaysWhenThereIsMore(t *testing.T) {
+	srv, project := testServer(t)
+	repo := initRepo(t, project)
+
+	for _, message := range []string{"one", "two", "three", "four", "five"} {
+		writeFile(t, project, "notes.txt", message)
+		commitFile(t, repo, "notes.txt", message)
+	}
+
+	first := history(t, srv, "?limit=2")
+	require.Len(t, first.Commits, 2)
+	assert.True(t, first.HasMore)
+	assert.Equal(t, []string{"five", "four"}, subjects(first.Commits), "newest first, as git logs it")
+
+	second := history(t, srv, "?limit=2&skip=2")
+	assert.Equal(t, []string{"three", "two"}, subjects(second.Commits))
+	assert.True(t, second.HasMore)
+
+	// The last page says so, which is what takes the "Show more" button away.
+	last := history(t, srv, "?limit=2&skip=4")
+	assert.Equal(t, []string{"one"}, subjects(last.Commits))
+	assert.False(t, last.HasMore)
+
+	// Past the end is empty rather than an error: a panel asking for another page of a history that has
+	// been rewritten under it is not a fault.
+	assert.Empty(t, history(t, srv, "?skip=99").Commits)
+
+	// A page size that will not parse is the default rather than a 400, since a bad query string is not
+	// worth failing a read over.
+	whole := history(t, srv, "?limit=nonsense")
+	assert.Len(t, whole.Commits, 5)
+	assert.False(t, whole.HasMore)
+}
+
+/*
+What one commit changed, which is what a row of the history expands into.
+
+Every letter git can report about a file in a commit, in one commit: something added, something modified,
+something deleted, and something renamed. The counts are the other half — a row saying only that a file
+changed is the history the panel already had.
+*/
+func TestACommitSaysWhichFilesItChangedAndByHowMuch(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	repo := initRepo(t, project)
+
+	writeFile(t, project, "notes.txt", "one\ntwo\nthree\n")
+	writeFile(t, project, "old-name.txt", "moved unchanged\n")
+	writeFile(t, project, "doomed.txt", "not for long\n")
+	commitFile(t, repo, ".", "the first one")
+
+	// The root commit, which has no parent to be diffed against: every file in it is an addition, which
+	// is what git says about one too.
+	head := gitOutput(t, project, "rev-parse", "HEAD")
+	root := commitDetail(t, srv, head)
+	assert.Equal(t, "the first one", root.Subject)
+	assert.Equal(t, head[:7], root.ShortHash)
+	assert.Equal(t, []string{"doomed.txt", "notes.txt", "old-name.txt"}, filePaths(root.Files))
+	assert.Equal(t, "A", fileIn(t, root, "notes.txt").Status)
+	assert.Equal(t, 3, fileIn(t, root, "notes.txt").Insertions)
+	assert.Zero(t, fileIn(t, root, "notes.txt").Deletions)
+	assert.Equal(t, 5, root.Insertions, "three lines and one each in the other two")
+
+	_, err := time.Parse(time.RFC3339, root.Date)
+	assert.NoError(t, err, "the date has to be one a browser can parse; %q is not", root.Date)
+
+	// Now one of each.
+	writeFile(t, project, "notes.txt", "one\ntwo changed\nthree\nfour\n")
+	writeFile(t, project, "fresh.txt", "new\n")
+	gitOutput(t, project, "rm", "-q", "doomed.txt")
+	gitOutput(t, project, "mv", "old-name.txt", "new-name.txt")
+	post(t, srv, "/api/git/stage", map[string]any{"paths": []string{"."}})
+	post(t, srv, "/api/git/commit", map[string]any{"message": "one of each"})
+
+	detail := commitDetail(t, srv, gitOutput(t, project, "rev-parse", "HEAD"))
+	assert.Equal(t, "one of each", detail.Subject)
+	assert.Equal(t, "A", fileIn(t, detail, "fresh.txt").Status)
+	assert.Equal(t, "D", fileIn(t, detail, "doomed.txt").Status)
+	assert.Equal(t, 1, fileIn(t, detail, "doomed.txt").Deletions)
+
+	modified := fileIn(t, detail, "notes.txt")
+	assert.Equal(t, "M", modified.Status)
+	assert.Equal(t, 2, modified.Insertions, "one line changed and one added")
+	assert.Equal(t, 1, modified.Deletions)
+
+	// A rename is one file with two names, not a delete and an add: told those, the panel would say a
+	// commit that moved a notebook deleted it.
+	renamed := fileIn(t, detail, "new-name.txt")
+	assert.Equal(t, "R", renamed.Status)
+	assert.Equal(t, "old-name.txt", renamed.From)
+	assert.Zero(t, renamed.Insertions, "the contents did not change")
+
+	assert.NotEmpty(t, detail.Parents, "everything after the first commit has a parent")
+	assert.False(t, detail.Truncated)
+}
+
+// A commit that is not there is the caller's mistake, not the server's: a panel left open across a rebase
+// asks about commits that no longer exist.
+func TestACommitThatIsNotThereIsNotFound(t *testing.T) {
+	srv, project := testServer(t)
+
+	// Before there is a repository at all, which is the same answer: there is no such commit here.
+	code, _ := call(t, srv, http.MethodGet, "/api/git/commit/HEAD", nil)
+	assert.Equal(t, http.StatusNotFound, code)
+
+	repo := initRepo(t, project)
+	writeFile(t, project, "notes.txt", "hello")
+	commitFile(t, repo, "notes.txt", "the first one")
+
+	code, body := call(t, srv, http.MethodGet, "/api/git/commit/0000000000000000000000000000000000000000", nil)
+	assert.Equal(t, http.StatusNotFound, code)
+	assert.Contains(t, string(body), "not a commit")
+}
+
+/*
+A plain folder becomes a repository.
+
+The panel had nothing to offer someone who opened Zasper on a directory that was not under git, which is
+every new project: it said "This project is not a git repository." and stopped there.
+*/
+func TestAPlainFolderCanBeMadeIntoARepository(t *testing.T) {
+	srv, project := testServer(t)
+	requireGit(t)
+	writeFile(t, project, "notes.txt", "hello")
+
+	assert.False(t, gitStatus(t, srv).IsRepository)
+
+	status := post(t, srv, "/api/git/init", nil)
+	assert.True(t, status.IsRepository)
+	assert.NotEmpty(t, status.Branch, "a repository with no commits still has the branch the first one will land on")
+	assert.Equal(t, []string{"notes.txt"}, paths(status.Untracked), "what was already in the folder is untracked")
+	assert.Empty(t, history(t, srv, "").Commits)
+
+	// Usable, not merely present: staging is the next thing the panel offers.
+	status = post(t, srv, "/api/git/stage", map[string]any{"paths": []string{"notes.txt"}})
+	assert.Equal(t, []string{"notes.txt"}, paths(status.Staged))
+
+	// And a second one is refused rather than nesting a repository inside a repository, which is a
+	// situation nobody recovers from by clicking.
+	code, body := call(t, srv, http.MethodPost, "/api/git/init", nil)
+	assert.Equal(t, http.StatusConflict, code)
+	assert.Contains(t, string(body), "already")
 }
 
 func writeFile(t *testing.T, dir, name, contents string) {

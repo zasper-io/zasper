@@ -1,50 +1,3 @@
-.graph-container {
-  display: flex;
-  flex-direction: column;
-  align-items: start;
-  background-color: var(--z-bg-panel);
-  border-radius: 8px;
-  color: var(--z-fg-default);
-  position: relative;
-  width: 100%;
-}
-
-.commit-node {
-  height: 40px;
-  background-color: var(--z-brand);
-  color: var(--z-fg-on-accent);
-  padding: 10px;
-  border-radius: 8px;
-  box-shadow: var(--z-shadow-medium);
-  margin-bottom: 10px;
-  width: '200px';
-}
-
-.commit-message {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.commit-hash {
-  font-size: 12px;
-}
-
-.commit-node.main {
-  background-color: var(--z-git-branch-1);
-}
-
-.commit-node.feature-xyz {
-  background-color: var(--z-git-branch-2);
-}
-
-.connection-line {
-  background-color: var(--z-border-strong);
-  z-index: 0;
-  height: 2px;
-  transform-origin: top left;
-}
-
 // The refresh button, in the panel's title strip. .content-head is already a space-between row,
 // so this only has to be a row itself.
 .git-head-actions {
@@ -363,61 +316,151 @@
   margin-bottom: 8px;
 }
 
-.git-graph-svg {
-  background-color: var(--z-bg-panel);
-  border-radius: 8px;
+// "Loading…", "No history.", and why a read failed: one line, quiet, where a row would be.
+.git-history-note {
+  margin: 0;
+  padding: 2px 0;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
 }
 
-.commit-node {
-  fill: var(--z-git-node);
-  stroke: var(--z-bg-panel);
-  font-size: 12px;
-  color: var(--z-fg-on-accent);
-  cursor: pointer;
-  transition: transform 0.2s;
+// A row of the history. Two lines rather than one, which is what makes room for the hash and the date
+// the old list had nowhere to put: the panel is 240px wide by default and a subject fills it.
+.commit-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  width: 100%;
+  padding: 4px 4px 4px 0;
+  border: none;
+  background: none;
+  color: var(--z-fg-default);
+  font-size: var(--z-ui-font-size);
+  text-align: left;
 
   &:hover {
-    transform: scale(1.1);
+    background: var(--z-bg-row-selected);
+  }
+
+  // The row is open, and the file list below belongs to it.
+  &[aria-expanded='true'] {
+    color: var(--z-accent);
   }
 }
 
-.commit-edge {
-  stroke: var(--z-git-node);
-  stroke-width: 2px;
-}
-
-.commit-row {
-  display: flex;
-  align-items: center;
-  position: relative;
-  margin-bottom: 12px;
-}
-
-.commit-circle {
-  width: 12px;
-  height: 12px;
-  background-color: var(--z-git-node);
-  border-radius: 50%;
-  position: relative;
-  z-index: 1;
-}
-
-.commit-line {
-  width: 2px;
-  // Reaches the next circle: one .commit-row is 12px of margin plus the 12px circle.
-  height: 24px;
-  background-color: var(--z-git-node);
-  position: absolute;
-  left: 5px;
-  top: 12px;
-}
-
-.commit-text {
-  margin-left: 12px;
-  color: var(--z-fg-default);
-  font-size: var(--z-ui-font-size);
-  cursor: pointer;
-  white-space: nowrap;
+.commit-subject {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Everything about the commit that is not its message, on one quiet line under it.
+.commit-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--z-fg-subtle);
+  font-size: 11px;
+}
+
+// Monospace, because this is the one thing in the panel meant to be read character by character and
+// compared against something in a terminal.
+.commit-short-hash {
+  flex: 0 0 auto;
+  font-family: monospace;
+}
+
+// The author is what gives way when the row is narrow: the hash and the date are fixed width and the
+// name is the one part that can be arbitrarily long.
+.commit-author {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-when {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 6px;
+}
+
+.commit-merge {
+  flex: 0 0 auto;
+  padding: 0 3px;
+  border: 1px solid var(--z-border-divider);
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+// What the open row changed, indented so the rows below it still read as a list.
+.commit-detail {
+  padding: 2px 0 6px 12px;
+  border-left: 2px solid var(--z-border-divider);
+  margin-left: 2px;
+}
+
+.commit-detail-note {
+  margin: 0;
+  color: var(--z-fg-muted);
+  font-size: 11px;
+}
+
+// The rest of the message, kept as it was written: a body is wrapped by hand and often a list.
+.commit-body {
+  margin: 0 0 4px;
+  color: var(--z-fg-muted);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.commit-file {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--z-fg-default);
+}
+
+.commit-file-name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-file-dir {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--z-fg-subtle);
+}
+
+.commit-file-counts,
+.commit-file-binary {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  color: var(--z-fg-subtle);
+}
+
+.commit-insertions {
+  color: var(--z-git-added);
+}
+
+.commit-deletions {
+  color: var(--z-git-deleted);
+}
+
+.git-history-more {
+  margin-top: 6px;
+}
+
+// The one action a project that is not under git has, under the sentence saying so.
+.git-init p {
+  margin-bottom: 8px;
 }

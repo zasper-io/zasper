@@ -1,15 +1,47 @@
 import { requestJson } from './client';
 
-/** One entry of the history. */
+/**
+ * One entry of the history.
+ *
+ * `subject` is the first line and `body` whatever is under it, split by the server the way git splits it:
+ * the panel draws one line per commit, and cutting a whole message to fit put half of a merge commit's
+ * conflict notes into a 200px row. `date` is RFC 3339, so `new Date(commit.date)` works — the old
+ * endpoint sent Go's own time format, which no browser can parse.
+ */
 export type Commit = {
   hash: string;
-  message: string;
+  shortHash: string;
+  subject: string;
+  body?: string;
   author: string;
+  email?: string;
   date: string;
   parents: string[];
 };
 
-export type CommitGraph = { commits: Commit[]; isRepository: boolean };
+/** One page of the history. `hasMore` is what decides whether another page is offered. */
+export type GitLog = { commits: Commit[]; hasMore: boolean; isRepository: boolean };
+
+/** One file of a commit. `status` is git's letter: A, M, D or R. */
+export type CommitFile = {
+  path: string;
+  /** Where a rename came from, absent for everything else. */
+  from?: string;
+  status: string;
+  insertions: number;
+  deletions: number;
+  /** Says the counts are meaningless rather than zero: git counts no lines in a PNG. */
+  isBinary: boolean;
+};
+
+/** One commit and what it changed, which is what a row of the history expands into. */
+export type CommitDetail = Commit & {
+  files: CommitFile[];
+  insertions: number;
+  deletions: number;
+  /** Says the file list was cut short, so part of a commit is not shown as all of it. */
+  truncated: boolean;
+};
 
 /**
  * One path that differs from HEAD. `staged` and `worktree` are git's own letters — M, A, D, R, C, ?,
@@ -86,8 +118,31 @@ export function getGitStatus(): Promise<GitStatus> {
   return requestJson<GitStatus>('/api/git/status');
 }
 
-export function getCommitGraph(): Promise<CommitGraph> {
-  return requestJson<CommitGraph>('/api/git/log');
+/**
+ * One page of the history, newest first.
+ *
+ * Paged because the old endpoint walked to the root commit every time it was asked — on boot, and again
+ * after every commit, pull and branch switch.
+ */
+export function getLog(options: { limit?: number; skip?: number } = {}): Promise<GitLog> {
+  return requestJson<GitLog>('/api/git/log', {
+    query: { limit: options.limit, skip: options.skip },
+  });
+}
+
+/** One commit and the files in it. A hash the repository does not have answers 404. */
+export function getCommitDetail(hash: string): Promise<CommitDetail> {
+  return requestJson<CommitDetail>(`/api/git/commit/${encodeURIComponent(hash)}`);
+}
+
+/**
+ * Makes the project directory a repository, answering with the status it is then in.
+ *
+ * The server runs `git init` rather than creating one itself, so `init.defaultBranch` decides what the
+ * first branch is called — the machine's own answer, not this panel's.
+ */
+export function initRepository(): Promise<GitStatus> {
+  return requestJson<GitStatus>('/api/git/init', { method: 'POST' });
 }
 
 export function stageFiles(paths: string[]): Promise<GitStatus> {

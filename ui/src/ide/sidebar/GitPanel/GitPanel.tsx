@@ -2,12 +2,12 @@ import { useCallback, useState } from 'react';
 
 import './GitPanel.scss';
 
-import { discardFiles, stageFiles, unstageFiles } from '@/api';
+import { discardFiles, initRepository, stageFiles, unstageFiles } from '@/api';
 import BranchMenu from './BranchMenu';
 import ChangeList, { IChangeAction } from './ChangeList';
 import CommitBox from './CommitBox';
 import ConfirmDiscardDialog from './ConfirmDiscardDialog';
-import { CommitGraphContainer } from './CommitGraphContainer';
+import History from './History';
 import SyncActions from './SyncActions';
 import { PanelProps } from '../types';
 import { IGitStatus, useGitStatus } from './useGitStatus';
@@ -134,8 +134,23 @@ export default function GitPanel({ hidden }: PanelProps) {
         {/* Nothing below can work without a repository, and "No changes" over a commit form is the
             wrong thing to say about a project that is not under git at all. */}
         {!loading && !status.isRepository && (
-          <div className="panel-section-body">
+          <div className="panel-section-body git-init">
             <p>This project is not a git repository.</p>
+            {status.gitAvailable ? (
+              // The whole of `git init` from here, since the alternative for someone in a browser is a
+              // terminal. What the first branch is called is the machine's answer and not this panel's,
+              // which is why the server runs git rather than creating the repository itself.
+              <button
+                type="button"
+                className="z-button"
+                disabled={busy}
+                onClick={() => void changesHistory(initRepository, 'Created an empty repository.')}
+              >
+                Initialise repository
+              </button>
+            ) : (
+              <p>No git binary was found, so one cannot be created from here.</p>
+            )}
           </div>
         )}
 
@@ -184,7 +199,7 @@ export default function GitPanel({ hidden }: PanelProps) {
 
         <h2 className="z-subheading panel-section-head">History</h2>
         <div className="panel-section-body">
-          <CommitGraphContainer hidden={hidden} reloadKey={historyKey} />
+          <History hidden={hidden} reloadKey={historyKey} />
         </div>
       </div>
 

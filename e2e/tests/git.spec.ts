@@ -45,7 +45,7 @@ function panel(page: Page): Locator {
  * assertion after that then reads a repository nothing has happened to yet.
  */
 function historyRow(page: Page, subject: string): Locator {
-  return panel(page).locator('.commit-text').filter({ hasText: subject });
+  return panel(page).locator('.commit-summary').filter({ hasText: subject });
 }
 
 async function openPanel(page: Page): Promise<Locator> {
@@ -154,6 +154,18 @@ test('a file is staged, committed, and then in the history', async ({ page }) =>
   // And git agrees, which is the assertion no mocked test can make.
   expect(git('log', '-1', '--pretty=%s')).toBe('staged from the panel');
   expect(git('status', '--porcelain')).toBe('');
+
+  // The row names the commit the way anything outside this panel does, which the old history — a flat
+  // `message -- author`, with no hash and no date — gave no way to do.
+  const row = historyRow(page, 'staged from the panel');
+  await expect(row).toContainText(git('rev-parse', '--short', 'HEAD'));
+  await expect(row).toContainText('just now');
+
+  // And opens onto what it changed, which is a read of its own against the commit's parent.
+  await row.click();
+  const detail = panel(page).locator('.commit-detail');
+  await expect(detail.locator('.commit-file')).toHaveCount(1);
+  await expect(detail).toContainText(FILE);
 });
 
 test('a commit takes what is staged and leaves the rest alone', async ({ page }) => {

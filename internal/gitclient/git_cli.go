@@ -134,6 +134,17 @@ func write(ctx context.Context, root string, args ...string) error {
 }
 
 /*
+initRepository creates a repository in dir.
+
+Not a write in the sense the lock is about — there is no index yet, and nothing else in this package can
+be running against a repository that does not exist — so it does not take it.
+*/
+func initRepository(ctx context.Context, dir string) error {
+	_, err := run(ctx, dir, "init")
+	return err
+}
+
+/*
 pathArgs puts the paths after `--`.
 
 A file called `-f`, or one called `HEAD`, is a file and not an option or a revision, and git only knows

@@ -36,6 +36,18 @@ func openRepo() (*git.Repository, string, error) {
 }
 
 /*
+projectDir is the directory Zasper was opened on.
+
+The one thing in this package that is about the project rather than the repository, and it is here so it
+stays the only one: everything else takes a root, which is what makes the tests able to work on a
+directory of their own. A new repository goes here and not at the worktree root, because there is no
+worktree yet.
+*/
+func projectDir() string {
+	return core.Zasper.HomeDir
+}
+
+/*
 relPath confines a path from a request to the repository, and answers with it relative to the root,
 which is the form git wants.
 

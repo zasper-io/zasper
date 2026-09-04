@@ -149,12 +149,6 @@
   --z-status-disconnected: #888888;
   --z-status-error: #aa1a1a;
 
-  // --- Git graph ----------------------------------------------------------
-  --z-git-node: #6a0dad;
-  // Branch swatches, cycled by index so the graph does not run out of colours.
-  --z-git-branch-1: #3498db;
-  --z-git-branch-2: #f39c12;
-
   // The status letter beside a changed file in the source control panel. Not the kernel-status
   // tokens: those are a running/stopped traffic light and would tie a red D to a dead kernel.
   --z-git-modified: #a06000;
@@ -240,10 +234,6 @@
 
   --z-scrollbar-thumb: #1c1c1c;
   --z-scrollbar-track: #313131;
-
-  --z-git-node: #b06ee0; // lifted off the dark panel background
-  --z-git-branch-1: #4aa8e8;
-  --z-git-branch-2: #f5b333;
 
   --z-git-modified: #e2b341;
   --z-git-added: #4ac26b;
@@ -379,11 +369,6 @@
   --z-status-busy: #d32f2f;
   --z-status-disconnected: #757575;
   --z-status-error: #c62828;
-
-  // --- Git graph ----------------------------------------------------------
-  --z-git-node: #1976d2;
-  --z-git-branch-1: #388e3c;
-  --z-git-branch-2: #f57c00;
 
   --z-git-modified: #ef6c00;
   --z-git-added: #2e7d32;
