@@ -229,8 +229,9 @@ with the app:
   shows the "run the cell again" placeholder rather than a frozen widget. `ManagerBase` has
   `get_state`, so this is a save-path change rather than new protocol work.
 - **No rendermime.** Outputs inside an Output widget render through `OutputBundles`, so they support
-  exactly what a cell supports: `text/html` (scripts re-executed), `image/png`, `text/plain`, and
-  nested widgets. No LaTeX, SVG or JSON renderers, and no mime-renderer extensions.
+  exactly what a cell supports: nested widgets, `application/vnd.plotly.v1+json`, `text/html` (scripts
+  re-executed), `image/png`, `text/plain` and `application/json`. No LaTeX, SVG or markdown renderers,
+  and no mime-renderer extensions.
 - **No embedding or HTML export** (`@jupyter-widgets/html-manager`'s other half).
 - **One Output widget per request.** `captures` maps a request's `msg_id` to a single comm id, so two
   Output widgets capturing the same cell — nested `with out1:` inside `with out2:` — both claim it and
