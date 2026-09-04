@@ -231,6 +231,45 @@ func TestARenamedNotebookKeepsItsSession(t *testing.T) {
 }
 
 /*
+Asking for a notebook that is already running joins its session rather than starting a second kernel.
+
+This is what a reloaded page does: it has no session id, only the path it is open on. Left to start a
+kernel of its own it would abandon the running one — with the notebook's variables, and the widgets
+its outputs name, still inside it.
+*/
+func TestOpeningARunningNotebookAgainJoinsItsSession(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+
+	// The same request the reloaded page sends: a path and a kernel name, and nothing else.
+	status, body := call(t, srv, http.MethodPost, "/api/sessions", map[string]any{
+		"path": "notes.ipynb", "name": "notes.ipynb", "type": "notebook",
+		"kernel": map[string]string{"name": kernelName},
+	})
+	require.Equal(t, http.StatusCreated, status, "body was %s", body)
+
+	rejoined := decode[models.SessionModel](t, body)
+	assert.Equal(t, created.Id, rejoined.Id)
+	assert.Equal(t, created.Kernel.Id, rejoined.Kernel.Id)
+
+	// One kernel, and one session on it: a second of either is one nothing is listening to.
+	status, body = call(t, srv, http.MethodGet, "/api/kernels", nil)
+	require.Equal(t, http.StatusOK, status)
+	assert.Len(t, decode[[]models.KernelModel](t, body), 1)
+
+	status, body = call(t, srv, http.MethodGet, "/api/sessions", nil)
+	require.Equal(t, http.StatusOK, status)
+	assert.Len(t, decode[map[string]models.SessionModel](t, body), 1)
+
+	// A different notebook is a different session, path being what a session is found by.
+	other := startSession(t, srv, project, kernelName, "other.ipynb")
+	assert.NotEqual(t, created.Id, other.Id)
+	assert.NotEqual(t, created.Kernel.Id, other.Kernel.Id)
+}
+
+/*
 A cell is executed over the kernel websocket and the answer comes back.
 
 The whole path: the shell channel carries the request, the kernel evaluates it, and iopub carries the

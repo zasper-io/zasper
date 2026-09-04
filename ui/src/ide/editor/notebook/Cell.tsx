@@ -14,7 +14,7 @@ import LoaderSvg from './LoaderSvg';
 import Prompt from './Prompt';
 import { kernelCompletionSource, tabCompletionKeymap } from './kernelCompletion';
 import { ICompleteReply, IKernelMessage } from './kernelMessages';
-import { IKernelConnection } from './types';
+import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
 
 // react-markdown + remark-math + rehype-katex is the heaviest thing in the
 // notebook and nothing needs it until a markdown cell is actually rendered, so
@@ -47,7 +47,7 @@ interface ICellProps {
   submitPrompt: (parentHeader: IKernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
   requestCompletions: (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
-  connection: IKernelConnection;
+  widgets: WidgetBridge | null;
 }
 
 export interface CodeMirrorRef {
@@ -239,7 +239,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
           so an empty one is a tinted strip under every un-run cell. */}
       {cell.outputs && cell.outputs.length > 0 && (
         <div className="inner-text">
-          <CellOutput data={cell} connection={props.connection} />
+          <CellOutput data={cell} widgets={props.widgets} />
         </div>
       )}
     </div>

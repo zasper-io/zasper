@@ -13,10 +13,13 @@ import {
   userNameAtom,
 } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
+import { WidgetBridge } from '@/ide/widgets/widgetBridge';
 import {
+  buildWidgetMessage,
   buildCompleteRequest,
   buildExecuteRequest,
   buildInputReply,
+  decodeBuffers,
   ICompleteReply,
   IKernelMessage,
 } from './kernelMessages';
@@ -93,6 +96,14 @@ export function useKernelSession(
   const [kernelName, setKernelName] = useState<string>(tab.kernelspec);
   const [kernelStatus, setKernelStatus] = useState('idle');
   const [connection, setConnection] = useState<IKernelWebSocketClient>(disconnectedClient);
+  /*
+   * The widget runtime for the kernel behind the current socket, null until one has been connected.
+   * Widget models belong to a kernel, so every connection gets its own and a replaced one lets go of
+   * the models it was holding.
+   */
+  const [widgets, setWidgets] = useState<WidgetBridge | null>(null);
+  // Also in a ref, because the socket's message handler is set once and outlives every render.
+  const liveWidgets = useRef<WidgetBridge | null>(null);
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
   const [showErrorDialog, setShowErrorDialog] = useState<boolean>(false);
   const [showPrompt, setShowPrompt] = useState<Boolean>(false);
@@ -140,12 +151,23 @@ export function useKernelSession(
       if (message.header.msg_type === 'complete_reply') {
         pendingCompletions.current.get(message.parent_header.msg_id)?.(message.content);
       }
+      if (WidgetBridge.handles(message.header.msg_type)) {
+        liveWidgets.current?.handleKernelMessage({
+          ...message,
+          buffers: decodeBuffers(message.buffers),
+        });
+      }
       if (message.header.msg_type === 'status') {
         setKernelStatus(message.content.execution_state);
         // Idle means the kernel has finished with the request and will send nothing further for it.
         if (message.content.execution_state === 'idle' && requestId) {
           executingCells.current.delete(requestId);
         }
+      }
+      // An Output widget entered while the cell was running holds the output of it, and a cell whose
+      // output a widget is holding shows none of its own.
+      if (liveWidgets.current?.captureOutput(message)) {
+        return;
       }
       applyMessage(message, cellId);
     },
@@ -165,7 +187,32 @@ export function useKernelSession(
             newSession.id
         );
 
+        // Only once the socket is open: a widget output on a page that has just been reloaded asks
+        // the kernel about the widgets it already has, and a question sent before the socket is up is
+        // a question nobody hears.
         client.onopen = () => {
+          const bridge = new WidgetBridge((msgType, content, metadata, buffers) => {
+            const msgId = uuidv4();
+            try {
+              client.send(
+                buildWidgetMessage(
+                  newSession.id,
+                  userName,
+                  msgId,
+                  msgType,
+                  content,
+                  metadata,
+                  buffers
+                )
+              );
+            } catch (error) {
+              console.error('Failed to send a widget message:', error);
+            }
+            return msgId;
+          });
+          liveWidgets.current = bridge;
+          setWidgets(bridge);
+
           setKernelStatus('connected');
           resolve(client);
         };
@@ -186,8 +233,11 @@ export function useKernelSession(
         };
       });
     },
-    [handleMessage]
+    [handleMessage, userName]
   );
+
+  // A tab closing, or a kernel being replaced, takes its widgets with it.
+  useEffect(() => () => widgets?.dispose(), [widgets]);
 
   const startSession = useCallback(
     async (path: string, name: string, type: string, kernelspec: string) => {
@@ -356,6 +406,7 @@ export function useKernelSession(
     kernelDisplayName,
     kernelStatus,
     connection,
+    widgets,
     showKernelSwitcher,
     toggleKernelSwitcher,
     showErrorDialog,

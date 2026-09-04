@@ -165,6 +165,76 @@ export function buildInputReply(
 }
 
 /**
+ * Binary buffers travel as base64 strings in the JSON message, in the order the kernel sent them:
+ * the socket carries text, and the server marshals the frames past a message's content that way.
+ * Widget libraries put array data in them — a bqplot figure's x and y arrive here and nowhere else.
+ */
+export function decodeBuffers(buffers: string[] | null | undefined): ArrayBuffer[] {
+  return (buffers ?? []).map((encoded) => {
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes.buffer;
+  });
+}
+
+function encodeBuffers(buffers: (ArrayBuffer | ArrayBufferView)[]): string[] {
+  return buffers.map((buffer) => {
+    const bytes =
+      buffer instanceof ArrayBuffer
+        ? new Uint8Array(buffer)
+        : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    let binary = '';
+    // A chunk at a time: fromCharCode applied to a whole array overruns the argument stack, and a
+    // widget's buffers are as big as the data it is drawing.
+    const chunk = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
+    }
+    return btoa(binary);
+  });
+}
+
+/**
+ * The message types widgets send: a comm's open, update and close, and the question a page that has
+ * been reloaded asks about the comms already there.
+ */
+export type WidgetMessageType = 'comm_open' | 'comm_msg' | 'comm_close' | 'comm_info_request';
+
+/**
+ * A message from a widget: the widget protocol's open, update and close, addressed to a comm rather
+ * than to a cell, or a request for the comms a kernel has. `metadata` carries the widget protocol's
+ * own version, which a kernel checks.
+ */
+export function buildWidgetMessage(
+  sessionId: string,
+  userName: string,
+  msgId: string,
+  msgType: WidgetMessageType,
+  content: unknown,
+  metadata: unknown,
+  buffers: (ArrayBuffer | ArrayBufferView)[]
+): string {
+  return JSON.stringify({
+    buffers: encodeBuffers(buffers),
+    channel: 'shell',
+    content,
+    header: {
+      date: getTimeStamp(),
+      msg_id: msgId,
+      msg_type: msgType,
+      session: sessionId,
+      username: userName,
+      version: PROTOCOL_VERSION,
+    },
+    metadata: metadata ?? {},
+    parent_header: {},
+  });
+}
+
+/**
  * The content of a `complete_reply`. `matches` are whole replacement texts, not suffixes —
  * completing `np.ar` returns `np.arange`, not `ange` — and they replace the source between
  * `cursor_start` and `cursor_end`.

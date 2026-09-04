@@ -31,6 +31,12 @@ export default defineConfig({
     // The Go binary embeds ui/build (see spa.go), so keep the CRA output path.
     outDir: 'build',
     emptyOutDir: true,
+    commonjsOptions: {
+      // @jupyter-widgets/controls is ESM but reads its own version with a CommonJS require(), which
+      // rollup would otherwise leave as a call to a function the browser does not have. Vite's dev
+      // server already handles it; this is only for the build.
+      transformMixedEsModules: true,
+    },
   },
   test: {
     globals: true,

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
 )
@@ -31,6 +32,53 @@ func stored(t *testing.T, id string) models.SessionModel {
 	session, ok := core.GetSession(id)
 	assert.True(t, ok, "no session %s", id)
 	return session
+}
+
+// running registers a session on a path and a kernel, as CreateSession would have.
+func running(id, path, kernelName string) models.SessionModel {
+	session := models.SessionModel{
+		Id:     id,
+		Name:   filepath.Base(path),
+		Path:   path,
+		Kernel: models.KernelModel{Id: id + "-kernel", Name: kernelName},
+	}
+	core.SetSession(id, session)
+	return session
+}
+
+func TestARequestNamingASessionJoinsIt(t *testing.T) {
+	sessionsFor(t)
+	session := running("a", "notes.ipynb", "python3")
+
+	// By id, which is the one case that says nothing about paths or kernels.
+	found, ok := runningSessionFor(models.SessionModel{Id: "a"})
+	require.True(t, ok)
+	assert.Equal(t, session, found)
+}
+
+func TestARequestForADifferentKernelStartsItsOwnSession(t *testing.T) {
+	sessionsFor(t)
+	running("a", "notes.ipynb", "python3")
+
+	// Switching a notebook's kernel is asking for a different kernel, not for the one already there.
+	_, ok := runningSessionFor(models.SessionModel{Path: "notes.ipynb", Kernel: models.KernelModel{Name: "julia"}})
+	assert.False(t, ok)
+	// And the session that is there is left alone: it is still running.
+	_, still := core.GetSession("a")
+	assert.True(t, still)
+}
+
+// A session whose kernel died is not one to join, and not one to leave behind either: it would shadow
+// the session about to be started on the same notebook.
+func TestASessionThatOutlivedItsKernelIsDropped(t *testing.T) {
+	sessionsFor(t)
+	running("a", "notes.ipynb", "python3")
+
+	_, ok := runningSessionFor(models.SessionModel{Path: "notes.ipynb", Kernel: models.KernelModel{Name: "python3"}})
+	assert.False(t, ok)
+
+	_, still := core.GetSession("a")
+	assert.False(t, still, "the stale session should have been dropped")
 }
 
 func TestRelocateSessionsFollowsARenamedNotebook(t *testing.T) {

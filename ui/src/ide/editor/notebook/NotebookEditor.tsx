@@ -205,7 +205,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               submitPrompt={submitPrompt}
               toggleShowPrompt={kernel.toggleShowPrompt}
               requestCompletions={kernel.requestCompletions}
-              connection={kernel.connection}
+              widgets={kernel.widgets}
             />
           )}
         </div>

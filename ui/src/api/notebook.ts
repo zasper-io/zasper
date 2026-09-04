@@ -1,9 +1,7 @@
 // The nbformat document, as it arrives from /api/contents and goes back on save.
 //
 // These live here rather than under ide/editor/notebook/ because api/contents.ts
-// needs them, and api/ must not import from the component tree. The notebook
-// feature's own view-model types (key events, the kernel connection handle) stay
-// in ide/editor/notebook/types.ts.
+// needs them, and api/ must not import from the component tree.
 
 export type CellType = 'code' | 'markdown' | 'raw' | string;
 

@@ -4,8 +4,7 @@ import { type Extension } from '@codemirror/state';
 import Cell, { CodeMirrorRef } from './Cell';
 import { ICompleteReply, IKernelMessage } from './kernelMessages';
 import { INotebookModel } from '@/api';
-
-import { IKernelConnection } from './types';
+import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
 
 interface NotebookCellsProps {
   notebook: INotebookModel;
@@ -25,7 +24,7 @@ interface NotebookCellsProps {
   submitPrompt: (parentHeader: IKernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
   requestCompletions: (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
-  connection: IKernelConnection;
+  widgets: WidgetBridge | null;
 }
 
 /** Renders the notebook body: one <Cell> per cell, in document order. */
@@ -59,7 +58,7 @@ export default function NotebookCells(props: NotebookCellsProps) {
           submitPrompt={props.submitPrompt}
           toggleShowPrompt={props.toggleShowPrompt}
           requestCompletions={props.requestCompletions}
-          connection={props.connection}
+          widgets={props.widgets}
         />
       ))}
     </>

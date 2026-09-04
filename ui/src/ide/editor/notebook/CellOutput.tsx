@@ -2,8 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AnsiUp } from 'ansi_up';
 
 import { ICell, ICellOutput } from '@/api';
-import { WidgetRenderer } from '@/ide/widgets/WidgetRenderer';
-import { IKernelConnection } from './types';
+import WidgetRenderer, { type WidgetSource } from '@/ide/widgets/WidgetRenderer';
 
 /**
  * Renders an HTML output bundle and then re-executes any <script> it contains.
@@ -35,109 +34,114 @@ const HTMLWithScripts = ({ html }: { html: string }) => {
   return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
-interface CellOutputProps {
-  data: ICell;
-  connection: IKernelConnection;
+interface OutputBundlesProps {
+  outputs: ICellOutput[];
+  widgets: WidgetSource | null;
 }
 
 /**
- * The output area of a single cell. Each bundle is dispatched on the richest
- * representation the kernel sent, in Jupyter's preference order: widget, HTML,
- * image, then plain text.
+ * A list of output bundles, each dispatched on the richest representation the kernel sent, in
+ * Jupyter's preference order: widget, HTML, image, then plain text.
+ *
+ * Exported because a cell is not the only place outputs are shown: ipywidgets' Output widget holds
+ * some of its own, and renders them through here so that they look like every other output.
  */
-const CellOutput = ({ data, connection }: CellOutputProps) => {
+export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
   const ansi_up = new AnsiUp();
 
-  if (!data) {
-    return null;
-  }
+  return (
+    <>
+      {outputs.map((output: ICellOutput, index: number) => {
+        if (output.output_type === 'error') {
+          const { ename, evalue, traceback } = output;
+          const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
 
-  const { outputs } = data;
-  if (outputs && outputs.length > 0) {
-    return (
-      <>
-        {outputs.map((output: ICellOutput, index: number) => {
-          if (output.output_type === 'error') {
-            const { ename, evalue, traceback } = output;
-            const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
+          return (
+            <div key={index}>
+              <h6>
+                {ename}: {evalue}
+              </h6>
+              <pre>
+                <div dangerouslySetInnerHTML={{ __html: tracebackHtml }} />
+              </pre>
+            </div>
+          );
+        }
 
+        const { text, 'text/plain': textPlain, data: outputData } = output;
+
+        if (text) {
+          const textHtml = ansi_up.ansi_to_html(text);
+          return (
+            <pre key={index}>
+              <div dangerouslySetInnerHTML={{ __html: textHtml }} />
+            </pre>
+          );
+        }
+
+        if (textPlain) {
+          const textPlainHtml = ansi_up.ansi_to_html(textPlain);
+          return (
+            <pre key={index}>
+              <div dangerouslySetInnerHTML={{ __html: textPlainHtml }} />
+            </pre>
+          );
+        }
+
+        if (outputData) {
+          const {
+            'text/html': htmlContent,
+            'image/png': imageContent,
+            'text/plain': textPlainData,
+            'application/vnd.jupyter.widget-view+json': widgetData,
+          } = outputData;
+
+          if (widgetData) {
+            return <WidgetRenderer key={index} modelId={widgetData.model_id} widgets={widgets} />;
+          }
+
+          if (htmlContent) {
+            return <HTMLWithScripts key={index} html={htmlContent} />;
+          }
+
+          if (imageContent) {
+            const blob = `data:image/png;base64,${imageContent}`;
             return (
               <div key={index}>
-                <h6>
-                  {ename}: {evalue}
-                </h6>
-                <pre>
-                  <div dangerouslySetInnerHTML={{ __html: tracebackHtml }} />
-                </pre>
+                <img src={blob} alt="cell output" />
               </div>
             );
           }
 
-          const { text, 'text/plain': textPlain, data: outputData } = output;
-
-          if (text) {
-            const textHtml = ansi_up.ansi_to_html(text);
+          if (textPlainData) {
+            const textPlainDataHtml = ansi_up.ansi_to_html(textPlainData);
             return (
               <pre key={index}>
-                <div dangerouslySetInnerHTML={{ __html: textHtml }} />
+                <div dangerouslySetInnerHTML={{ __html: textPlainDataHtml }} />
               </pre>
             );
           }
+        }
 
-          if (textPlain) {
-            const textPlainHtml = ansi_up.ansi_to_html(textPlain);
-            return (
-              <pre key={index}>
-                <div dangerouslySetInnerHTML={{ __html: textPlainHtml }} />
-              </pre>
-            );
-          }
+        // Fallback if output type is unrecognized
+        return <p key={index}>{JSON.stringify(output)}</p>;
+      })}
+    </>
+  );
+};
 
-          if (outputData) {
-            const {
-              'text/html': htmlContent,
-              'image/png': imageContent,
-              'text/plain': textPlainData,
-              'application/vnd.jupyter.widget-view+json': widgetData,
-            } = outputData;
+interface CellOutputProps {
+  data: ICell;
+  widgets: WidgetSource | null;
+}
 
-            if (widgetData) {
-              return (
-                <WidgetRenderer key={index} modelId={widgetData.model_id} connection={connection} />
-              );
-            }
-
-            if (htmlContent) {
-              return <HTMLWithScripts key={index} html={htmlContent} />;
-            }
-
-            if (imageContent) {
-              const blob = `data:image/png;base64,${imageContent}`;
-              return (
-                <div key={index}>
-                  <img src={blob} alt="cell output" />
-                </div>
-              );
-            }
-
-            if (textPlainData) {
-              const textPlainDataHtml = ansi_up.ansi_to_html(textPlainData);
-              return (
-                <pre key={index}>
-                  <div dangerouslySetInnerHTML={{ __html: textPlainDataHtml }} />
-                </pre>
-              );
-            }
-          }
-
-          // Fallback if output type is unrecognized
-          return <p key={index}>{JSON.stringify(output)}</p>;
-        })}
-      </>
-    );
+/** The output area of a single cell. */
+const CellOutput = ({ data, widgets }: CellOutputProps) => {
+  const outputs = data?.outputs;
+  if (!outputs || outputs.length === 0) {
+    return null;
   }
-
-  return null;
+  return <OutputBundles outputs={outputs} widgets={widgets} />;
 };
 
 export default CellOutput;

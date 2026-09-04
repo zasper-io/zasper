@@ -48,6 +48,27 @@ func GetSession(sessionId string) (models.SessionModel, bool) {
 	return session, ok
 }
 
+/*
+SessionForPath answers with a session running the file at path, and on the kernel named — an empty
+kernelName matching whichever kernel it is on.
+
+This is how a notebook is found again: a page that has been reloaded, or a second tab opened on the
+same file, has no session id to go by and would otherwise start a second kernel on the same notebook
+and leave the first running with nothing on it. The kernel is part of the question because switching
+a notebook's kernel is asking for a different one, not for the one already there.
+*/
+func SessionForPath(path, kernelName string) (models.SessionModel, bool) {
+	sessions.mu.RLock()
+	defer sessions.mu.RUnlock()
+
+	for _, session := range sessions.by {
+		if session.Path == path && (kernelName == "" || session.Kernel.Name == kernelName) {
+			return session, true
+		}
+	}
+	return models.SessionModel{}, false
+}
+
 func SetSession(sessionId string, session models.SessionModel) {
 	sessions.mu.Lock()
 	defer sessions.mu.Unlock()

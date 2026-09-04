@@ -20,11 +20,15 @@ type (
 		MsgId        string        `json:"msg_id"`
 		MsgType      string        `json:"msg_type"`
 		Content      interface{}   `json:"content"`
-		Buffers      []byte        `json:"buffers"`
-		Metadata     interface{}   `json:"metadata"`
-		Tracker      int           `json:"tracker"`
-		Error        error         `json:"error"`
-		Channel      string        `json:"channel"`
+		// The raw frames a message carries after its content: one per binary buffer, in order. Widget
+		// libraries put array data in them (bqplot sends every mark's x and y this way), so dropping
+		// them leaves a widget whose state arrived and whose data did not. Marshalled as an array of
+		// base64 strings, which is what Go does with [][]byte and what the frontend decodes.
+		Buffers  [][]byte    `json:"buffers"`
+		Metadata interface{} `json:"metadata"`
+		Tracker  int         `json:"tracker"`
+		Error    error       `json:"error"`
+		Channel  string      `json:"channel"`
 	}
 )
 
@@ -61,7 +65,7 @@ func (ks *KernelSession) MessageFromString(value string) Message {
 	msg.MsgId = msg.Header.MsgID
 	msg.Content = make(map[string]interface{})
 	msg.Metadata = make(map[string]interface{})
-	msg.Buffers = []byte{}
+	msg.Buffers = [][]byte{}
 	return msg
 }
 

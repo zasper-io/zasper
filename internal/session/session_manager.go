@@ -18,43 +18,69 @@ func ListSessions() map[string]models.SessionModel {
 	return core.ListSessions()
 }
 
+// CreateSession starts a session on a new kernel, or answers with the one the file is already running
+// on: see runningSessionFor.
 func CreateSession(req models.SessionModel) (models.SessionModel, error) {
-	/*
-		Creates a new Sesion
-	*/
-	session_id := uuid.New().String()
-	var session models.SessionModel
-	session, ok := core.GetSession(req.Id)
 	log.Debug().Msgf("creating session %s", req.Kernel.Name)
-	if ok {
-		//do something here
-		log.Debug().Msg("session exists")
-	} else {
-		kernelId, err := startKernelForSession(req.Path, req.Kernel.Name)
-		if err != nil {
-			return session, err
-		}
-		log.Debug().Msgf("started kernel with id %s", kernelId)
-		// pendingSessions.update()
-		session = models.SessionModel{
-			Id:          session_id,
-			Name:        req.Name,
-			SessionType: req.SessionType,
-			Path:        req.Path,
-			Kernel: models.KernelModel{
-				Id:             kernelId,
-				Name:           req.Kernel.Name,
-				LastActivity:   time.Now().UTC().String(),
-				ExecutionState: "",
-				Connections:    0,
-			},
-		}
-		// Written after the kernel is up, and outside any lock: starting one takes as long as it takes,
-		// and nothing else can read this session before it exists.
-		core.SetSession(session_id, session)
+
+	if session, ok := runningSessionFor(req); ok {
+		log.Debug().Msgf("session %s is already running %s", session.Id, session.Path)
+		return session, nil
 	}
 
+	kernelId, err := startKernelForSession(req.Path, req.Kernel.Name)
+	if err != nil {
+		return models.SessionModel{}, err
+	}
+	log.Debug().Msgf("started kernel with id %s", kernelId)
+
+	session_id := uuid.New().String()
+	session := models.SessionModel{
+		Id:          session_id,
+		Name:        req.Name,
+		SessionType: req.SessionType,
+		Path:        req.Path,
+		Kernel: models.KernelModel{
+			Id:             kernelId,
+			Name:           req.Kernel.Name,
+			LastActivity:   time.Now().UTC().String(),
+			ExecutionState: "",
+			Connections:    0,
+		},
+	}
+	// Written after the kernel is up, and outside any lock: starting one takes as long as it takes,
+	// and nothing else can read this session before it exists.
+	core.SetSession(session_id, session)
+
 	return session, nil
+}
+
+/*
+runningSessionFor finds the session a request is asking to join rather than to start: the one it names
+by id, or the one already running the same file on the same kernel.
+
+Joining is Jupyter's own answer to a second request for a notebook that is running, and what lets a
+page that has been reloaded pick up where it was — the kernel still holds the state the notebook was
+built on, including the widgets in its outputs. Without it a reload starts a second kernel on the same
+notebook and abandons the first.
+*/
+func runningSessionFor(req models.SessionModel) (models.SessionModel, bool) {
+	if session, ok := core.GetSession(req.Id); ok {
+		return session, true
+	}
+
+	session, ok := core.SessionForPath(req.Path, req.Kernel.Name)
+	if !ok {
+		return models.SessionModel{}, false
+	}
+	if _, alive := kernel.ActiveKernel(session.Kernel.Id); !alive {
+		// The session outlived its kernel, which died on its own or was killed from outside. Nothing
+		// can be run on it, so it goes rather than shadowing the session about to replace it.
+		log.Info().Msgf("session %s outlived its kernel; dropping it", session.Id)
+		core.RemoveSession(session.Id)
+		return models.SessionModel{}, false
+	}
+	return session, true
 }
 
 func DeleteSession(req models.SessionModel) error {

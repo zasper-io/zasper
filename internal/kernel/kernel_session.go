@@ -87,7 +87,7 @@ func (ks *KernelSession) Send(
 	msgOrType interface{},
 	content interface{},
 	parent MessageHeader,
-	buffers []byte,
+	buffers [][]byte,
 	track bool,
 	header MessageHeader,
 	metadata map[string]interface{},
@@ -109,7 +109,7 @@ func (ks *KernelSession) Send(
 	log.Debug().Msgf("message is %+v", msg)
 
 	if buffers == nil {
-		buffers = []byte{}
+		buffers = [][]byte{}
 	}
 
 	if ks.AdaptVersion != "" {
@@ -146,18 +146,21 @@ func (ks *KernelSession) serialize(msg Message) [][]byte {
 
 	realMessage := [][]byte{
 		json_packer(msg.Header),
-		json_packer(msg.Header),
+		json_packer(msg.ParentHeader),
 		json_packer(msg.Metadata),
 		json_packer(msg.Content),
 	}
 	to_send := [][]byte{}
 	log.Debug().Msgf("real message is %s", realMessage)
+	// Signed over those four frames only. Buffers are appended after the signature is taken, which is
+	// what the protocol says and what a kernel checks.
 	signature := ks.sign(realMessage)
 
 	log.Debug().Msgf("signature is %s", signature)
 	to_send = append(to_send, []byte(DELIM))
 	to_send = append(to_send, []byte(signature))
 	to_send = append(to_send, realMessage...)
+	to_send = append(to_send, msg.Buffers...)
 	log.Debug().Msgf("after signing message is %s", realMessage)
 	return to_send
 }
@@ -223,6 +226,13 @@ func (ks *KernelSession) Deserialize(zmsg zmq4.Msg, chanel string) []byte {
 	err = json.Unmarshal(frames[i+5], &kernelResponseMsg.Content)
 	if err != nil {
 		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling Content: %w", err)
+	}
+
+	// Anything past the content is a binary buffer, and belongs to whoever asked for the message:
+	// widget state names its buffers by position (`buffer_paths`), so they travel on and are not read
+	// here.
+	if len(frames) > i+6 {
+		kernelResponseMsg.Buffers = frames[i+6:]
 	}
 
 	kernelResponseMsg.Channel = chanel
