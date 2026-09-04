@@ -1,4 +1,5 @@
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
@@ -21,11 +22,19 @@ import 'katex/dist/katex.min.css';
  * loads it with React.lazy.
  *
  * `rehypeRaw` is what allows raw HTML inside a markdown cell, matching Jupyter.
+ *
+ * `remarkGfm` is not optional either: react-markdown speaks plain CommonMark, which has no tables,
+ * strikethrough, task lists or bare-URL links. Jupyter renders all four — JupyterLab runs marked with
+ * GFM on — so without it a table in a markdown cell comes out as one paragraph of pipes.
  */
 const MarkdownRenderer = ({ source }: { source: string }) => (
-  <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>
-    {source}
-  </Markdown>
+  // The wrapper is the styling hook: markdown produces plain h1/table/blockquote with no classes of
+  // their own, so this is what NotebookEditor.scss can reach them through.
+  <div className="zasper-markdown">
+    <Markdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>
+      {source}
+    </Markdown>
+  </div>
 );
 
 export default MarkdownRenderer;

@@ -49,6 +49,7 @@
     "react-toastify": "10.0.5",
     "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "requirejs": "^2.3.8",
     "swiper": "^12.1.2",

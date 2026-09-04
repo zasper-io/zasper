@@ -330,6 +330,39 @@ table.dataframe td {
   border-right: 1px solid var(--z-df-border);
 }
 
+/* ===== Rendered markdown ===== */
+
+.zasper-markdown {
+  table {
+    border-collapse: collapse;
+    margin-bottom: 12px;
+    font-size: var(--z-ui-font-size);
+    background-color: var(--z-df-bg);
+    color: var(--z-df-fg);
+    border: 1px solid var(--z-df-border);
+  }
+
+  th,
+  td {
+    padding: 4px 8px;
+    border: 1px solid var(--z-df-border);
+  }
+
+  th {
+    text-align: left;
+    background-color: var(--z-df-header-bg);
+    color: var(--z-df-header-fg);
+  }
+
+  tbody tr:nth-child(odd) {
+    background-color: var(--z-df-row-odd);
+  }
+
+  tbody tr:nth-child(even) {
+    background-color: var(--z-df-row-even);
+  }
+}
+
 .error-head {
   background-color: var(--z-status-error) !important;
 }
