@@ -33,3 +33,11 @@ zasper_go
 examples
 ui/public/zasper
 kernelConnection.json
+
+# `go build .` at the root, named after the module
+/zasper
+
+# local only
+/.claude/
+/ui/FILEBROWSER-TODO.md
+/ui/LAYOUT-TODO.md

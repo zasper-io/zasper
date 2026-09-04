@@ -2,20 +2,26 @@ package gitclient
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-func getCurrentBranch(repoPath string) (string, error) {
-	// Open the current Git repository (use the path to your repo)
-	repo, err := git.PlainOpen(repoPath) // The "." means it will open the Git repo from the current directory
-	if err != nil {
-		return "", err
+// hasUnbornHead reports whether the repository has no commit yet, which several commands have to be
+// told apart from an ordinary repository: HEAD names a branch that does not exist.
+func hasUnbornHead(repo *git.Repository) (bool, error) {
+	_, err := repo.Head()
+	if err == nil {
+		return false, nil
 	}
+	if errors.Is(err, plumbing.ErrReferenceNotFound) {
+		return true, nil
+	}
+	return false, err
+}
 
+func getCurrentBranch(repo *git.Repository) (string, error) {
 	// Get the current branch reference
 	head, err := repo.Head()
 	if err == nil {
@@ -33,13 +39,7 @@ func getCurrentBranch(repoPath string) (string, error) {
 	return "", err
 }
 
-func getCommitGraph(repoPath string) ([]Commit, error) {
-	// Open existing git repository
-	repo, err := git.PlainOpen(repoPath)
-	if err != nil {
-		return nil, err
-	}
-
+func getCommitGraph(repo *git.Repository) ([]Commit, error) {
 	// Get the HEAD reference to start from the latest commit
 	ref, err := repo.Head()
 	if errors.Is(err, plumbing.ErrReferenceNotFound) {
@@ -83,89 +83,9 @@ func getCommitGraph(repoPath string) ([]Commit, error) {
 	return commits, nil
 }
 
-// Function to get a list of uncommitted files
-func getUncommittedFiles(repoPath string) ([]string, error) {
-	// Open the git repository
-	repo, err := git.PlainOpen(repoPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the current working tree
-	w, err := repo.Worktree()
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the status of the files in the repository
-	status, err := w.Status()
-	if err != nil {
-		return nil, err
-	}
-
-	// Collect the list of modified or untracked files
-	uncommittedFiles := []string{}
-	for file, state := range status {
-		if state.Worktree != git.Unmodified { // Filter out unmodified files
-			uncommittedFiles = append(uncommittedFiles, file)
-		}
-	}
-
-	return uncommittedFiles, nil
-}
-
-// Function to commit specific files
-func commitSpecificFiles(repoPath string, files []string, message string) error {
-	// Open the git repository
-	repo, err := git.PlainOpen(repoPath)
-	if err != nil {
-		return err
-	}
-
-	// Get the current working tree
-	w, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-
-	// Add the selected files
-	for _, file := range files {
-		_, err = w.Add(file)
-		if err != nil {
-			return fmt.Errorf("failed to add file %s: %v", file, err)
-		}
-	}
-
-	// Commit the changes
-	_, err = w.Commit(message, &git.CommitOptions{
-		All: true,
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Function to push changes to remote
-func pushChanges(repoPath string) error {
-	// Open the git repository
-	repo, err := git.PlainOpen(repoPath)
-	if err != nil {
-		return err
-	}
-
-	// Get the remote (assuming "origin" as the remote name)
-	remote, err := repo.Remote("origin")
-	if err != nil {
-		return fmt.Errorf("failed to get remote: %v", err)
-	}
-
-	// Push changes to the remote repository
-	err = remote.Push(&git.PushOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to push changes: %v", err)
-	}
-
-	return nil
+// hasRemote reports whether there is anywhere to push to, which is what decides whether the panel
+// offers to.
+func hasRemote(repo *git.Repository) bool {
+	remotes, err := repo.Remotes()
+	return err == nil && len(remotes) > 0
 }

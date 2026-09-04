@@ -45,12 +45,191 @@
   transform-origin: top left;
 }
 
-// No height and no scrollbar of its own — the panel's .content-inner is the one scroll area.
-// Horizontal padding comes from .panel-section-head and .panel-section-body, so the headings
-// and their content share one left edge.
-.git-commit-content {
-  width: 100%;
-  padding-bottom: 12px;
+// The refresh button, in the panel's title strip. .content-head is already a space-between row,
+// so this only has to be a row itself.
+.git-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--z-fg-muted);
+}
+
+// Which branch this is, above the scroll area rather than in it: it is about the whole panel.
+// Measured like .treeToolbar, whose place in the file browser this takes.
+.git-branch-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 12px 4px 16px;
+  border-bottom: 1px solid var(--z-border);
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+}
+
+.git-branch {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-sync-counts {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  // Enough room after each arrow for the count that follows it, without a gap so wide that the
+  // pair stops reading as one thing.
+  i {
+    margin-left: 6px;
+    margin-right: 2px;
+  }
+
+  i:first-child {
+    margin-left: 0;
+  }
+}
+
+// The message and the two ways to use it. Its left edge is .panel-section-body's, so the box lines
+// up with the section headings below it.
+.commit-box {
+  padding: 8px 16px 4px;
+}
+
+// Qualified, because .gitpanel-input below sets the one-line height every other control in the panel
+// wants and a commit message needs room for a body.
+.commit-box .commit-message-input {
+  height: auto;
+  padding: 4px 8px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 18px;
+}
+
+.commit-actions {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+// A section heading that also carries the section's bulk actions — "Stage all" beside "Changes".
+// .panel-section-head supplies the padding and the colour.
+.change-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.change-count {
+  margin-left: 4px;
+  color: var(--z-fg-subtle);
+}
+
+.change-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--z-ui-row-height);
+  padding: 0 12px 0 16px;
+  font-size: var(--z-ui-font-size);
+  color: var(--z-fg-default);
+
+  &:hover {
+    background: var(--z-bg-row-selected);
+  }
+}
+
+// The whole name is one button so the click target is the row's text rather than the file name
+// alone, and so a keyboard reaches it.
+.change-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  overflow: hidden;
+}
+
+.change-file {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Where the file is, which matters when two sections both hold a notes.txt. Quieter than the name
+// and the first thing to give up room.
+.change-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--z-fg-subtle);
+  font-size: 11px;
+}
+
+.change-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--z-fg-muted);
+}
+
+.change-action {
+  // Hidden until the row is under the pointer would mean the row's width changed on hover, and a
+  // keyboard user could reach a button they cannot see; dimmed says the same thing and holds still.
+  opacity: 0.65;
+
+  &:hover:not(:disabled) {
+    opacity: 1;
+    color: var(--z-accent);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+  }
+}
+
+// Git's own letter. One character wide and fixed, so the letters line up down the section however
+// long the names are.
+.change-badge {
+  flex: 0 0 auto;
+  width: 12px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.change-badge-M,
+.change-badge-R,
+.change-badge-C {
+  color: var(--z-git-modified);
+}
+
+.change-badge-A {
+  color: var(--z-git-added);
+}
+
+.change-badge-D {
+  color: var(--z-git-deleted);
+}
+
+.change-badge-U {
+  color: var(--z-git-conflict);
+}
+
+.change-badge-untracked {
+  color: var(--z-fg-subtle);
 }
 
 // Also the "Select Kernel" / "Switch Kernel" button in KernelSwitch. It is a

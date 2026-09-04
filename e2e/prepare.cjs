@@ -69,6 +69,40 @@ function resetWorkspace() {
   fs.cpSync(fixture, project, { recursive: true });
 }
 
+/*
+Makes the throwaway project a repository of its own, with one commit in it.
+
+Not optional. The server finds the repository a project is inside by walking up from it, and .tmp is
+inside this checkout — so without a .git of its own, the git panel would be showing, staging and
+committing *this repository*. git.spec.ts checks for it before it touches anything, but the real
+defence is that it is always here.
+
+The throwaway HOME and no system config, so none of the developer's git settings reach it: a global
+commit.gpgsign, a global core.hooksPath from a husky install, or a template directory would each
+break a commit the suite has to be able to make. -b main so the branch name does not depend on
+init.defaultBranch, since a spec asserts on it.
+*/
+function seedRepository() {
+  const gitEnv = { ...process.env, HOME: home, GIT_CONFIG_NOSYSTEM: '1' };
+
+  const git = (...args) => {
+    try {
+      execFileSync('git', args, { cwd: project, env: gitEnv, stdio: 'pipe' });
+    } catch (error) {
+      const said = error.stderr?.toString().trim();
+      fail(`git ${args.join(' ')} failed: ${said || error.message}`);
+    }
+  };
+
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.name', 'Zasper E2E');
+  git('config', 'user.email', 'e2e@example.com');
+  git('config', 'commit.gpgsign', 'false');
+  git('config', 'core.hooksPath', path.join('.git', 'hooks'));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'the fixture project');
+}
+
 /**
  * Where the kernelspecs are on this machine: asked of Jupyter itself when there is a jupyter to ask,
  * which is what the server does (see utils.GetJupyterPath), and the usual places when there is not.
@@ -166,6 +200,7 @@ function seedKernelspec() {
 
 buildServer();
 resetWorkspace();
+seedRepository();
 
 const seeded = seedKernelspec();
 console.log(`e2e setup: project ${project}`);

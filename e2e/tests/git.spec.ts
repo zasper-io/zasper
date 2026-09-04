@@ -1,0 +1,189 @@
+/*
+A change's whole life in the source control panel: edited in the editor, staged, committed, and then in
+the history under the box that committed it.
+
+Worth running for real rather than only against mocks. Every frontend test of this panel answers its own
+api calls, so none of them can catch the two bugs this journey is here to keep fixed: a commit that takes
+more than what was staged, and a staged file the panel does not show at all. What git itself thinks is
+read back with `git` at the end, because a panel saying the right thing over a repository that was never
+touched is exactly the failure a mock cannot see.
+*/
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+
+import { Locator, Page, expect, test } from '@playwright/test';
+
+import { homeDir, projectDir } from '../paths';
+import { inProject, openApp, treeRow } from './helpers';
+
+const FILE = 'notes.txt';
+
+/**
+ * git in the throwaway project, for reading back what the panel claims to have done.
+ *
+ * The same environment prepare.cjs seeded the repository with, so this reads the identity and settings
+ * the server's own git calls see rather than the developer's.
+ */
+function git(...args: string[]): string {
+  return execFileSync('git', args, {
+    cwd: projectDir,
+    env: { ...process.env, HOME: homeDir, GIT_CONFIG_NOSYSTEM: '1' },
+    encoding: 'utf8',
+  }).trim();
+}
+
+/** The open panel, so a locator cannot match the file browser that is still mounted beside it. */
+function panel(page: Page): Locator {
+  return page.locator('.nav-content:not(.is-hidden)');
+}
+
+/**
+ * A row of the history, by its subject.
+ *
+ * The row and not the panel's text: a message typed into the commit box is the text content of the
+ * textarea holding it, so a plain text match for one finds it before the commit is even sent — and every
+ * assertion after that then reads a repository nothing has happened to yet.
+ */
+function historyRow(page: Page, subject: string): Locator {
+  return panel(page).locator('.commit-text').filter({ hasText: subject });
+}
+
+async function openPanel(page: Page): Promise<Locator> {
+  await openApp(page);
+  await page.getByLabel('Source control').click();
+
+  const open = panel(page);
+  await expect(open.getByText('Source control')).toBeVisible();
+  return open;
+}
+
+/**
+ * Opens the file, replaces everything in it, and saves, leaving source control open again.
+ *
+ * The sidebar shows one panel at a time, so the tree cannot be reached while source control is: the
+ * journey a user makes is over to the explorer and back. Select-all then type, so what the repository
+ * differs by afterwards is known exactly rather than being the fixture with something appended wherever
+ * the click happened to land the cursor. The wait is on disk, because the panel reads its status from
+ * the server and asserting on it before the write has landed is a race.
+ */
+async function editAndSave(page: Page, text: string): Promise<void> {
+  await page.getByLabel('File explorer').click();
+  await treeRow(page, FILE).click();
+
+  const editor = page.locator('.cm-content');
+  await expect(editor).toContainText('A plain file');
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type(text);
+  await page.keyboard.press('ControlOrMeta+s');
+
+  await expect.poll(() => readFileSync(inProject(FILE), 'utf8')).toBe(text);
+
+  await page.getByLabel('Source control').click();
+}
+
+/** The commit prepare.cjs seeded, which every test here is reset back to. */
+let seedCommit = '';
+
+test.beforeAll(() => {
+  /*
+   * The repository has to be the project's own. The server finds the one a project is inside by walking
+   * up from it, and e2e/.tmp is inside this checkout — so if prepare.cjs had not run, everything below
+   * would be staging and committing into the repository being worked on.
+   */
+  expect(
+    existsSync(inProject('.git')),
+    'the throwaway project is not a repository of its own; prepare.cjs did not run'
+  ).toBe(true);
+
+  seedCommit = git('rev-parse', 'HEAD');
+});
+
+/*
+Back to the seeded commit, not just the file's old contents: these tests commit, so putting the text
+back would leave the repository a commit ahead and the file changed against it. A reset restores every
+tracked file as the fixture had it, which is also what the specs after this one expect to find.
+*/
+test.afterEach(() => {
+  git('reset', '--hard', '-q', seedCommit);
+});
+
+test('a file is staged, committed, and then in the history', async ({ page }) => {
+  const open = await openPanel(page);
+
+  // Which branch, above the sections rather than in them: prepare.cjs asked for main by name so this
+  // does not depend on the developer's init.defaultBranch.
+  await expect(open.locator('.git-branch')).toHaveText('main');
+  await expect(open.getByText('No changes.')).toBeVisible();
+  await expect(historyRow(page, 'the fixture project')).toBeVisible();
+
+  await editAndSave(page, 'edited by the git spec');
+
+  // There with nothing pressed to make it appear: the panel reads the status itself, where the old one
+  // showed whatever it had been told once.
+  await expect(open.getByText('Changes')).toBeVisible();
+
+  await open.getByLabel(`Stage ${FILE}`).click();
+
+  // The section that used to be empty whatever was in it, because the panel filtered on the worktree
+  // side of the index and a staged file is unmodified there.
+  await expect(open.getByText('Staged')).toBeVisible();
+  await expect(open.getByLabel(`Unstage ${FILE}`)).toBeVisible();
+  expect(git('diff', '--cached', '--name-only')).toBe(FILE);
+
+  await open.getByPlaceholder('Commit message').fill('staged from the panel');
+  await open.getByRole('button', { name: 'Commit', exact: true }).click();
+
+  // In the list directly below the box that made it, which needs a read of its own: without one the
+  // history stayed as it was when the panel was opened.
+  await expect(historyRow(page, 'staged from the panel')).toBeVisible();
+  await expect(open.getByText('No changes.')).toBeVisible();
+  // Emptied only on success, so a commit git refused keeps the message that was written for it.
+  await expect(open.getByPlaceholder('Commit message')).toHaveValue('');
+
+  // And git agrees, which is the assertion no mocked test can make.
+  expect(git('log', '-1', '--pretty=%s')).toBe('staged from the panel');
+  expect(git('status', '--porcelain')).toBe('');
+});
+
+test('a commit takes what is staged and leaves the rest alone', async ({ page }) => {
+  const open = await openPanel(page);
+
+  // Two changed files, one staged. The panel used to send a list of files and then commit with go-git's
+  // All, so ticking one of these committed both; what is committed is now what is staged, and there is
+  // nothing in the UI that can say otherwise.
+  await editAndSave(page, 'edited by the git spec');
+  writeFileSync(inProject('data', 'table.csv'), 'left,behind\n1,2\n');
+
+  await open.getByLabel(`Stage ${FILE}`).click();
+  await expect(open.getByLabel(`Unstage ${FILE}`)).toBeVisible();
+
+  await open.getByPlaceholder('Commit message').fill('one file only');
+  await open.getByRole('button', { name: 'Commit', exact: true }).click();
+
+  await expect(historyRow(page, 'one file only')).toBeVisible();
+
+  expect(git('show', '--pretty=', '--name-only', 'HEAD')).toBe(FILE);
+  // Still changed and still unstaged: the commit went past it.
+  expect(git('diff', '--name-only')).toBe('data/table.csv');
+  expect(git('diff', '--cached', '--name-only')).toBe('');
+});
+
+test('discarding a change asks first, and then puts the file back', async ({ page }) => {
+  const open = await openPanel(page);
+
+  await editAndSave(page, 'thrown away by the git spec');
+  await expect(open.getByLabel(`Discard ${FILE}`)).toBeVisible();
+
+  await open.getByLabel(`Discard ${FILE}`).click();
+
+  // There is no undo and git keeps no copy of an uncommitted change, so the dialog is the only thing
+  // between a click and lost work.
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Discard changes');
+  await expect(dialog).toContainText(FILE);
+  await dialog.getByRole('button', { name: 'Discard', exact: true }).click();
+
+  await expect(open.getByText('No changes.')).toBeVisible();
+  expect(git('status', '--porcelain')).toBe('');
+});

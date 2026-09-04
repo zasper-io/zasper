@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAtom } from 'jotai';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { themeAtom } from '../store/Settings';
 
 import NavigationPanel from './sidebar/NavigationPanel/NavigationPanel';
@@ -117,6 +119,9 @@ function IDE() {
         </PanelGroup>
       </div>
       <StatusBar />
+      {/* The IDE's only toast host. Until now the one container lived in Login, so every toast()
+          raised from inside the IDE — a failed commit, a failed save — rendered nowhere at all. */}
+      <ToastContainer position="bottom-right" autoClose={4000} newestOnTop />
     </div>
   );
 }
