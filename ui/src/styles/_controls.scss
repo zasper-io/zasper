@@ -161,6 +161,13 @@
   background-color: var(--z-status-busy);
 }
 
+// A kernel that is up and has published nothing yet — the moment between being launched and saying
+// anything. Grey rather than the busy colour: nothing is running in it, and red beside a kernel that has
+// just been started reads as a fault.
+.ks-starting {
+  background-color: var(--z-status-disconnected);
+}
+
 .ks-connected {
   background-color: var(--z-status-idle);
 }

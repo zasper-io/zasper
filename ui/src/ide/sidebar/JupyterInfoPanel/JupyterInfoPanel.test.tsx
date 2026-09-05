@@ -35,8 +35,20 @@ vi.mock('react-toastify', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-const python = { name: 'python3', id: 'kernel-1' };
-const r = { name: 'ir', id: 'kernel-2' };
+/**
+ * A kernel as `/api/kernels` sends it. The three server-side fields are here because the panel renders
+ * them: a kernel nothing in this window is attached to has nothing else to show a state from.
+ */
+const kernelModel = (name: string, id: string, state = '', connections = 0) => ({
+  name,
+  id,
+  execution_state: state,
+  last_activity: new Date(Date.now() - 3 * 60_000).toISOString(),
+  connections,
+});
+
+const python = kernelModel('python3', 'kernel-1', 'idle', 1);
+const r = kernelModel('ir', 'kernel-2');
 
 /** A session as the server sends it, keyed by session id. */
 const sessionFor = (kernel: typeof python, path: string) => ({
@@ -224,16 +236,48 @@ describe('JupyterInfoPanel', () => {
     expect(screen.getByText('R')).toBeInTheDocument();
   });
 
-  it('shows a status dot only for a kernel this window is attached to', async () => {
-    listKernels.mockResolvedValue([python, r]);
+  it('prefers this window\u2019s own reading of a kernel to the server\u2019s', async () => {
+    // The same `status` messages, heard twice: this window hears them as they are published, the server
+    // through a poll that is up to five seconds old. Where they disagree the local one is the newer.
+    listKernels.mockResolvedValue([python]);
     const { container } = renderPanel({ statuses: { 'kernel-1': 'busy' } });
     await screen.findByText('Python 3');
 
-    // Not a green dot for the second one: the server reports no execution state at all, so a dot
-    // there would be a state the panel invented.
+    expect(container.querySelector('.kernelStatus')?.className).toContain('ks-busy');
+  });
+
+  it('shows the server\u2019s state for a kernel this window is not attached to', async () => {
+    // The whole point of reading the server: this used to be the row with no dot, because the only
+    // state the panel had came from the notebook this window had open.
+    listKernels.mockResolvedValue([kernelModel('ir', 'kernel-2', 'busy')]);
+    const { container } = renderPanel({ statuses: {} });
+    await screen.findByText('R');
+
+    expect(container.querySelector('.kernelStatus')?.className).toContain('ks-busy');
+  });
+
+  it('draws no dot when neither this window nor the server knows', async () => {
+    listKernels.mockResolvedValue([python, r]);
+    const { container } = renderPanel({ statuses: {} });
+    await screen.findByText('Python 3');
+
+    // `r` has no execution state, and inventing an idle dot for it would be the panel claiming
+    // something about a kernel nothing has ever heard from.
     const dots = container.querySelectorAll('.kernelStatus');
     expect(dots).toHaveLength(1);
-    expect(dots[0].className).toContain('ks-busy');
+    expect(dots[0].className).toContain('ks-idle');
+  });
+
+  it('says how long since a kernel last said anything, and how much is on it', async () => {
+    listKernels.mockResolvedValue([python]);
+    renderPanel();
+
+    // Short enough to sit beside two buttons in a 22px row; the row's tooltip says it in full, along
+    // with the client count, which is how an abandoned kernel is told from one in use.
+    expect(await screen.findByText('3m')).toBeInTheDocument();
+    const row = screen.getByTitle(/^src\/demo\.ipynb/);
+    expect(row.getAttribute('title')).toContain('Kernel is idle');
+    expect(row.getAttribute('title')).toContain('1 client attached');
   });
 
   it('opens the notebook a kernel is running', async () => {

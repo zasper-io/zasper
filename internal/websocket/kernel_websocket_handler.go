@@ -45,9 +45,14 @@ func SetUpKernelConnections() {
 
 func setKernelConnection(kernelId string, connection *kernel.KernelWebSocketConnection) {
 	kernelConnections.mu.Lock()
-	defer kernelConnections.mu.Unlock()
-
 	kernelConnections.by[kernelId] = connection
+	kernelConnections.mu.Unlock()
+
+	// One connection per kernel id, so a set makes the count 1 and a remove makes it 0 — it is a count
+	// of the clients this server is forwarding to, not of the browser windows that know the kernel
+	// exists. Told to the kernel store outside the lock: that call takes a lock of its own, and one held
+	// while another is taken is the shape a deadlock needs.
+	kernel.SetKernelConnections(kernelId, 1)
 }
 
 // removeKernelConnection takes a connection out and says whether it was the one that took it out, so
@@ -55,11 +60,16 @@ func setKernelConnection(kernelId string, connection *kernel.KernelWebSocketConn
 // business waiting on.
 func removeKernelConnection(kernelId string) (*kernel.KernelWebSocketConnection, bool) {
 	kernelConnections.mu.Lock()
-	defer kernelConnections.mu.Unlock()
-
 	connection, ok := kernelConnections.by[kernelId]
 	if ok {
 		delete(kernelConnections.by, kernelId)
+	}
+	kernelConnections.mu.Unlock()
+
+	if ok {
+		// A no-op for a kernel that has already been taken out of the store, which is the usual way
+		// round: a kernel is stopped and its connections are closed because it was.
+		kernel.SetKernelConnections(kernelId, 0)
 	}
 	return connection, ok
 }
@@ -158,4 +168,14 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 
 	go kernelConnection.ReadMessagesFromClient(&waiter)
 	go kernelConnection.WriteMessages(&waiter)
+
+	// Waited on rather than left to finish on its own: the response has been hijacked by the upgrade, so
+	// this goroutine has nothing else to do, and both of those return as soon as the client goes away.
+	// Nothing used to notice that — the connection stayed in the store, its polling was never cancelled,
+	// and /api/kernels went on reporting a client that had closed its tab.
+	waiter.Wait()
+	if _, ok := removeKernelConnection(kernelId); ok {
+		log.Debug().Msgf("client for kernel %s went away", kernelId)
+		kernelConnection.Close()
+	}
 }

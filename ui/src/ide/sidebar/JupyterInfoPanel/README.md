@@ -6,12 +6,10 @@
 ┌ Jupyter info ───────────────────── ⟳ ┐   content-head: refresh
 ├──────────────────────────────────────┤
 │ ▾ Running kernels               2    │   PanelSection: collapsible, counted
-│     ● Python 3     src/demo.ipynb    │   ● only for a kernel this window is attached to
-│                            ⏸  ⏻      │   Interrupt · Shut down
-│       R            stats.ipynb       │   no dot: nothing here knows its state
-│                            ⏸  ⏻      │
+│   ● Python 3  src/demo.ipynb  now ⏸⏻ │   ● busy/idle · when it last spoke · Interrupt, Shut down
+│   ● R         stats.ipynb     2h  ⏸⏻ │   idle two hours, nothing attached: an abandoned kernel
 │ ▾ Terminals                     1    │
-│       Terminal 1                     │   opens the tab it is for
+│     Terminal 1                       │   opens the tab it is for
 │ ▸ Available kernels             3    │   reference material, so folded
 └──────────────────────────────────────┘
 ```
@@ -50,10 +48,12 @@ this panel.
 | [ConfirmShutdownDialog.tsx](ConfirmShutdownDialog.tsx) | The dialog in front of losing everything a kernel holds in memory.            |
 
 Outside this directory: [api/kernels.ts](../../../api/kernels.ts) and
-[api/sessions.ts](../../../api/sessions.ts) are the typed clients, `kernelStatusAtom` in
-[store/AppState.tsx](../../../store/AppState.tsx) is how the dot gets here, and `.kernelStatus` with its
-`.ks-*` colours is in [styles/\_controls.scss](../../../styles/_controls.scss) beside `.z-button`, since
-the notebook toolbar draws the same dot.
+[api/sessions.ts](../../../api/sessions.ts) are the typed clients, [dates.ts](../dates.ts) writes the
+`3m` and the tooltip's full date (shared with the git history), `kernelStatusAtom` in
+[store/AppState.tsx](../../../store/AppState.tsx) is how this window's own dot gets here, and
+`.kernelStatus` with its `.ks-*` colours is in
+[styles/\_controls.scss](../../../styles/_controls.scss) beside `.z-button`, since the notebook toolbar
+draws the same dot.
 
 ## useJupyterInfo
 
@@ -83,20 +83,44 @@ exactly the change worth showing. It returns whether the action worked, because 
 to do afterwards: on a successful shutdown it prunes `notebookKernelMapAtom`, or a notebook goes on
 sending execute requests to a kernel that is gone and hears nothing back.
 
-## The status dot
+## The status dot, and the stamp beside it
 
-The dot is client state, and deliberately absent rather than guessed.
+Two sources for one dot, and no dot at all where neither knows.
 
-`KernelManager.LastActivity`, `ExecutionState` and `Connections` are declared in
-[kernel_manager.go](../../../../../internal/kernel/kernel_manager.go) and **never written**, so
-`/api/kernels` answers `""`, `""` and `0` for every kernel. They are left out of `IKernel` on purpose: a
-field in the type is an invitation to render one of those.
+**This window's own reading comes first.** `kernelStatus` in
+[useKernelSession](../../editor/notebook/useKernelSession.ts) is computed from the IOPub `status`
+messages the notebook's own socket carries, and used to be trapped in that component; two effects mirror
+it into `kernelStatusAtom` by kernel id — one writing, one deleting on unmount — rather than touching the
+five call sites that set it. It is the newer of the two: it arrives as the kernel publishes, where the
+server's copy is up to one poll old.
 
-What is real is the `kernelStatus` [useKernelSession](../../editor/notebook/useKernelSession.ts) computes
-from IOPub `status` messages, which used to be trapped in that component. Two effects mirror it into
-`kernelStatusAtom` by kernel id — one writing, one deleting on unmount — rather than touching the five
-call sites that set it. **A kernel missing from that map gets no dot at all**, because a green one there
-would be a state the panel invented about a kernel nothing in this window is attached to.
+**The server answers for every other kernel**, which is the reason this panel reads it at all.
+`KernelManager.LastActivity`, `ExecutionState` and `Connections` in
+[kernel_manager.go](../../../../../internal/kernel/kernel_manager.go) were declared and never written —
+`/api/kernels` answered `""`, `""` and `0` for every kernel, so a kernel this window had not opened could
+only be listed, never described.
+
+They are written now, by a watcher the server keeps on each kernel for as long as it runs:
+[kernel_activity.go](../../../../../internal/kernel/kernel_activity.go) subscribes to the kernel's iopub
+channel when the kernel starts, records the timestamp on every message and the state on every `status`,
+and is cancelled when the kernel is stopped. A kernel says what it is doing on iopub and nowhere else, so
+something has to be listening — and leaving that to the client connections, which is where this started,
+made the answer only as good as whoever happened to be attached: the subscription goes with the browser
+tab, so a tab closed between a request's `busy` and its `idle` left the kernel reported busy for the rest
+of its life. Those are exactly the kernels this panel is for. iopub is a broadcast, so a subscriber of the
+server's own costs the kernel nothing; jupyter_server answers the same question the same way.
+`Connections` comes from the websocket layer instead, and is 0 or 1 — one client connection per kernel id
+— which is how a row says that nothing is listening to a kernel that is still running.
+
+`starting` is therefore only the moment between a kernel being launched and its first message, and
+`.ks-starting` is grey rather than red: nothing is running in it yet.
+
+**Where neither source has a state, the row has no dot.** A green one would be the panel inventing
+something about a kernel it has never heard from.
+
+The stamp on the right is `shortAgo` from [dates.ts](../dates.ts) — `now`, `3m`, `2h`, `8w`, because two
+buttons are already in a 22px row. The row's tooltip says it in full, along with the kernel id, its state
+and how many clients are on it: the fields that matter but have no room.
 
 ## Interrupt and shut down
 
@@ -113,22 +137,20 @@ npx playwright test jupyterinfo.spec.ts           # from e2e/, after `npm run bu
 ```
 
 [JupyterInfoPanel.test.tsx](JupyterInfoPanel.test.tsx) mocks `@/api` and covers the hidden gate and the
-poll, the sections and their counts, folding, the display name and its fallback, the dot's absence for
-an unattached kernel, opening a notebook and a terminal, interrupt, the shutdown dialog and the prune
-behind it, a failed shutdown leaving the binding alone, and a failed read landing in the panel rather
-than a toast.
+poll, the sections and their counts, folding, the display name and its fallback, which of the two status
+sources wins and the row that gets no dot because neither knows, the `3m` stamp and what the tooltip adds
+to it, opening a notebook and a terminal, interrupt, the shutdown dialog and the prune behind it, a failed
+shutdown leaving the binding alone, and a failed read landing in the panel rather than a toast.
 
 [e2e/tests/jupyterinfo.spec.ts](../../../../../e2e/tests/jupyterinfo.spec.ts) is the part no mock can
-reach: it starts a real kernel, checks the panel names it and its notebook, shuts it down from the
+reach: it starts a real kernel, reloads the page so that nothing in the window is attached to it, checks
+that the panel still names it, dates it and draws its state from the server alone, shuts it down from the
 panel, and reads `GET /api/kernels` back to confirm the process is gone.
 [kernelreuse.spec.ts](../../../../../e2e/tests/kernelreuse.spec.ts) covers the other half of that
 lifecycle — a closed tab's kernel surviving, and a reopened notebook still knowing what `x` was.
 
 ## Not implemented
 
-- **Kernel state from the server** — `last_activity`, `execution_state`, `connections`. Wiring them up
-  is Go work in `internal/kernel`, and would let the panel show busy/idle for kernels this window is not
-  attached to.
 - **A terminals endpoint.** The server has a registry of terminal sessions in
   [terminal_websocket_handler.go](../../../../../internal/websocket/terminal_websocket_handler.go), but its
   keys are generated ids unrelated to the tab names, so there is no way to reattach to a terminal whose

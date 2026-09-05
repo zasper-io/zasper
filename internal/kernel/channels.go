@@ -131,13 +131,23 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 				}
 				log.Debug().Msgf("channel: [%s] [%s] %s\n", socketName, zmsg.Frames[0], zmsg.Frames[1])
 
+				payload := kwsConn.Session.Deserialize(zmsg, socketName)
+
 				if socketName == "iopub" {
 					// Before the send rather than after: what the handshake is waiting for is that the
 					// kernel's publications reach this socket, not that this one reaches the client.
 					kwsConn.iopubArrived()
 				}
 
-				kwsConn.Send <- kwsConn.Session.Deserialize(zmsg, socketName)
+				// On the context as well, because the send blocks until WriteMessages takes it and
+				// WriteMessages is gone the moment the client is: without this a browser tab that closed
+				// left four pollers parked on this line, holding five sockets on a kernel nobody was
+				// listening to, and cancelling the context could not free them.
+				select {
+				case kwsConn.Send <- payload:
+				case <-kwsConn.Context.Done():
+					return
+				}
 			}
 		}
 	}()

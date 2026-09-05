@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fullDate, relativeDate } from './dates';
+import { fullDate, relativeDate, shortAgo } from './dates';
 
 /** A fixed present, so the scale below is the thing being tested rather than the clock. */
 const now = new Date('2026-06-15T12:00:00Z');
@@ -38,6 +38,27 @@ describe('relativeDate', () => {
   it('answers with nothing for a date it cannot read', () => {
     expect(relativeDate('', now)).toBe('');
     expect(relativeDate('not a date', now)).toBe('');
+  });
+});
+
+describe('shortAgo', () => {
+  it('says the same thing in the width a kernel row has for it', () => {
+    expect(shortAgo(before(5), now)).toBe('now');
+    expect(shortAgo(before(90), now)).toBe('1m');
+    expect(shortAgo(before(45 * 60), now)).toBe('45m');
+    expect(shortAgo(before(3 * 3600), now)).toBe('3h');
+    expect(shortAgo(before(2 * 86400), now)).toBe('2d');
+    expect(shortAgo(before(20 * 86400), now)).toBe('2w');
+    // No months or years: a kernel that has been idle for a hundred days is `14w`, and the row's
+    // tooltip is where anyone reading that goes next.
+    expect(shortAgo(before(100 * 86400), now)).toBe('14w');
+  });
+
+  it('answers with nothing for a date it cannot read', () => {
+    // Which is what the server sent for every kernel until it wrote the field at all, so a row would
+    // otherwise carry the word `Invalid`.
+    expect(shortAgo('', now)).toBe('');
+    expect(shortAgo('not a date', now)).toBe('');
   });
 });
 

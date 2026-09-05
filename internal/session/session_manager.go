@@ -40,10 +40,13 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 		Name:        req.Name,
 		SessionType: req.SessionType,
 		Path:        req.Path,
+		// A snapshot, taken when the session was made and never updated: what a kernel is doing now is
+		// /api/kernels' answer, and this is here because Jupyter's session model carries it. RFC 3339
+		// rather than time.Time.String(), which is Go's own format and which `new Date` cannot read.
 		Kernel: models.KernelModel{
 			Id:             kernelId,
 			Name:           req.Kernel.Name,
-			LastActivity:   time.Now().UTC().String(),
+			LastActivity:   time.Now().UTC().Format(time.RFC3339),
 			ExecutionState: "",
 			Connections:    0,
 		},

@@ -19,10 +19,22 @@ function panel(page: Page): Locator {
   return page.locator('.nav-content:not(.is-hidden)');
 }
 
+/** A kernel as the server reports it: the three fields it used to declare and never write. */
+interface KernelModel {
+  id: string;
+  name: string;
+  execution_state: string;
+  last_activity: string;
+  connections: number;
+}
+
+async function kernelModels(request: APIRequestContext): Promise<KernelModel[]> {
+  return (await (await request.get('/api/kernels')).json()) as KernelModel[];
+}
+
 /** How many kernels the server is running, which is the only answer that counts here. */
 async function runningKernels(request: APIRequestContext): Promise<number> {
-  const running = (await (await request.get('/api/kernels')).json()) as unknown[];
-  return running.length;
+  return (await kernelModels(request)).length;
 }
 
 /**
@@ -70,6 +82,12 @@ test('a running kernel is named with its notebook, and shut down from the panel'
   // Starting a kernel takes seconds, and until it is up there is nothing for the panel to be right about.
   await expect.poll(() => runningKernels(request), { timeout: 60_000 }).toBe(1);
 
+  // The notebook's socket, counted. The three fields below were declared and never written, so this and
+  // the two after the reload are the assertions that the server answers with anything at all.
+  await expect
+    .poll(async () => (await kernelModels(request))[0].connections, { timeout: 30_000 })
+    .toBe(1);
+
   /*
    * Reloaded before the panel is read, on purpose.
    *
@@ -78,12 +96,37 @@ test('a running kernel is named with its notebook, and shut down from the panel'
    * went on running — and only a read of the server survives that.
    */
   await page.reload();
+
+  /*
+   * The client the kernel had is gone with the page that held it, and the kernel is not: `connections`
+   * back to 0 is the server noticing, which nothing used to do — a closed tab left its connection in the
+   * store forever, polling a kernel with nobody to forward to.
+   */
+  await expect.poll(async () => (await kernelModels(request))[0].connections).toBe(0);
+
+  /*
+   * Idle, with nothing attached to have heard it say so. The server keeps its own subscription to every
+   * kernel it runs, which is what makes this answerable at all — and `idle` rather than "whatever the
+   * kernel last published" is the assertion on purpose: leaving it to the client connections is what left
+   * a kernel reported busy forever, on the `busy` of a request whose `idle` arrived after the tab had
+   * closed. Polled because it is the kernel that decides when to say it.
+   */
+  await expect.poll(async () => (await kernelModels(request))[0].execution_state).toBe('idle');
+  const model = (await kernelModels(request))[0];
+  expect(Number.isNaN(Date.parse(model.last_activity))).toBe(false);
+
   await page.getByLabel('Jupyter info').click();
   const open = panel(page);
 
   const row = open.locator('.panel-row').filter({ hasText: NOTEBOOK });
   await expect(row.locator('.panel-row-label')).toHaveText(displayName);
   await expect(row.locator('.panel-row-meta')).toHaveText(NOTEBOOK);
+
+  // Both from the server alone: this window has never been attached to this kernel, so the dot and the
+  // stamp are the ones it could not draw at all before.
+  await expect(row.locator('.kernelStatus')).toHaveClass(/ks-idle/);
+  await expect(row.locator('.panel-row-time')).toHaveText(/^(now|[0-9]+m)$/);
+  await expect(row.locator('.panel-row-name')).toHaveAttribute('title', /0 clients attached/);
 
   // Counted in the heading, and the list of what could be started stays folded: it is reference material.
   await expect(open.getByRole('button', { name: /Running kernels/ })).toContainText('1');

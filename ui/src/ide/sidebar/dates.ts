@@ -1,6 +1,9 @@
-// How a commit's date is written in the history: roughly, on the row, and exactly in its tooltip.
-// The server sends RFC 3339, so `new Date` can read it — the endpoint this replaces sent Go's own
-// time format, which is why the old history showed no date at all.
+// When something happened, written for a sidebar: roughly on the row, exactly in its tooltip. A commit
+// in the history and a kernel's last activity both want this, which is why it sits above the two panels
+// rather than in either.
+//
+// Everything here takes RFC 3339, so `new Date` can read it — the history's endpoint used to send Go's
+// own time format, which is why it showed no date at all.
 
 const MINUTE = 60;
 const HOUR = 60 * MINUTE;
@@ -49,6 +52,34 @@ export function relativeDate(iso: string, now: Date = new Date()): string {
     return ago(seconds, MONTH, 'month');
   }
   return ago(seconds, YEAR, 'year');
+}
+
+/**
+ * The same thing in the room a 22px row has left for it: `now`, `3m`, `2h`, `5d`, `8w`.
+ *
+ * A kernel row already carries a name, the notebook the kernel is running and two buttons, and
+ * "3 minutes ago" beside those takes the width the path needs. The row says it in full in its tooltip.
+ */
+export function shortAgo(iso: string, now: Date = new Date()): string {
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) {
+    return '';
+  }
+
+  const seconds = (now.getTime() - when.getTime()) / 1000;
+  if (seconds < MINUTE) {
+    return 'now';
+  }
+  if (seconds < HOUR) {
+    return `${Math.floor(seconds / MINUTE)}m`;
+  }
+  if (seconds < DAY) {
+    return `${Math.floor(seconds / HOUR)}h`;
+  }
+  if (seconds < WEEK) {
+    return `${Math.floor(seconds / DAY)}d`;
+  }
+  return `${Math.floor(seconds / WEEK)}w`;
 }
 
 /** The same moment exactly, in the reader's own locale, for the tooltip the row carries. */

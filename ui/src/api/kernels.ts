@@ -7,16 +7,31 @@ export async function listKernelspecs(): Promise<IKernelspecsState> {
 }
 
 /**
+ * A kernel as `/api/kernels` reports it, in the server's own snake case.
+ *
+ * `IKernel` is the pair every other endpoint sends — a name and an id — and these three are what the
+ * server knows about a kernel that this window may have nothing to do with.
+ */
+export interface IKernelModel extends IKernel {
+  /** RFC 3339, UTC. When the kernel last published anything, or when it started if it never has. */
+  last_activity: string;
+  /**
+   * `starting`, `busy` or `idle` — Jupyter's own names, and the last thing the kernel itself said rather
+   * than a guess about what it is doing. `starting` only for the moment between a kernel being launched
+   * and its first message; the server listens to every kernel it runs, so this is answered for a kernel
+   * no window has ever opened.
+   */
+  execution_state: string;
+  /** Clients this server is forwarding to, which is 0 for a kernel whose notebook has been closed. */
+  connections: number;
+}
+
+/**
  * Every kernel this server is running, which is not the same as every kernel this browser tab started
  * one of. A reload loses the second list and not the first.
- *
- * The model also carries `last_activity`, `execution_state` and `connections`. They are left out of
- * `IKernel` on purpose: `KernelManager` declares all three and writes none of them, so the server
- * answers with an empty string, an empty string and a zero — and a field in the type is an invitation
- * to render one of those.
  */
-export function listKernels(): Promise<IKernel[]> {
-  return requestJson<IKernel[]>('/api/kernels');
+export function listKernels(): Promise<IKernelModel[]> {
+  return requestJson<IKernelModel[]>('/api/kernels');
 }
 
 export function interruptKernel(kernelId: string): Promise<void> {

@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,9 +27,18 @@ type KernelManager struct {
 	Provisioner    provisioner.LocalProvisioner
 	Kernelspec     string
 
+	// What /api/kernels reports about a kernel nobody in a given window is attached to: when it last
+	// said anything, whether it is busy, and how many clients are on it. Written by the supervisor and
+	// not from here — a stored manager is held by value, so these are set by putting a changed copy
+	// back rather than by touching the one a caller happens to hold. See recordKernelActivity.
 	LastActivity   string
 	ExecutionState string
 	Connections    int
+
+	// Stops the activity watcher that writes the two fields above. Unexported and held here rather than
+	// in a map of its own, so that whoever takes a kernel out of the store has what it takes to stop
+	// listening to it in the same hand.
+	stopWatching context.CancelFunc
 
 	KernelId     string
 	ShuttingDown bool

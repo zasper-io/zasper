@@ -66,11 +66,12 @@ independently scrolling lists in a 300px sidebar is four places to lose a file.
 | [SyncActions.tsx](SyncActions.tsx)                             | Fetch, pull and push, with the ahead/behind counts as the labels.                     |
 | [History.tsx](History.tsx)                                     | The paged log, and which row is open.                                                 |
 | [CommitFiles.tsx](CommitFiles.tsx)                             | One commit's files, read when its row is opened.                                      |
-| [dates.ts](dates.ts)                                           | "just now", "3 days ago", and the full date for the tooltip.                          |
 | [ConfirmDiscardDialog.tsx](ConfirmDiscardDialog.tsx)           | The dialog in front of losing uncommitted work.                                       |
 | [ConfirmDeleteBranchDialog.tsx](ConfirmDeleteBranchDialog.tsx) | The same in front of deleting a branch, with the force case.                          |
 
-Outside this directory: [api/git.ts](../../../api/git.ts) is the typed client for every endpoint,
+Outside this directory: [dates.ts](../dates.ts) writes "just now", "3 days ago" and the full date for
+the tooltip — it sits a level up because the Jupyter info panel dates a kernel's last activity with it.
+[api/git.ts](../../../api/git.ts) is the typed client for every endpoint,
 [editor/DiffTab.tsx](../../editor/DiffTab.tsx) draws a comparison, `diffTabKey` and `openDiff` in
 [store/TabActions.ts](../../../store/TabActions.ts) open one, and the branch in
 [statusBar/StatusBar.tsx](../../statusBar/StatusBar.tsx) is a button that reveals this panel.

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 
-import { apiErrorMessage, ISession, listKernels, listSessions } from '@/api';
-import { IKernel } from '@/store/AppState';
+import { apiErrorMessage, IKernelModel, ISession, listKernels, listSessions } from '@/api';
 
 /** A kernel the server is running, and the session that says what it is running for. */
-export interface IRunningKernel extends IKernel {
+export interface IRunningKernel extends IKernelModel {
   /** Absent for a kernel with nothing attached to it, which is a kernel nobody can reach. */
   session?: ISession;
 }

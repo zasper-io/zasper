@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { apiErrorMessage, Commit, getLog } from '@/api';
 import CommitFiles from './CommitFiles';
-import { fullDate, relativeDate } from './dates';
+import { fullDate, relativeDate } from '../dates';
 import { PanelProps } from '../types';
 
 interface HistoryProps extends PanelProps {

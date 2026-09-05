@@ -1,12 +1,14 @@
 package kernel
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
@@ -56,6 +58,58 @@ func setActiveKernel(kernelId string, km KernelManager) {
 	defer kernels.mu.Unlock()
 
 	kernels.by[kernelId] = km
+}
+
+/*
+updateActiveKernel changes one field of a stored manager, and does nothing at all for a kernel that is
+not running: a message about a kernel that has just stopped must not put it back in the store as an
+entry with nothing in it but the field being written.
+
+A manager is held by value, so this is the read-modify-write the rest of the file avoids by never
+updating one in place — hence the write lock rather than a read lock and an assignment.
+*/
+func updateActiveKernel(kernelId string, change func(*KernelManager)) {
+	kernels.mu.Lock()
+	defer kernels.mu.Unlock()
+
+	km, ok := kernels.by[kernelId]
+	if !ok {
+		return
+	}
+	change(&km)
+	kernels.by[kernelId] = km
+}
+
+// RFC 3339, because the browser is what reads it: `time.Time.String()` is Go's own format and
+// `new Date` cannot parse it.
+func activityStamp() string {
+	return time.Now().UTC().Format(time.RFC3339)
+}
+
+/*
+recordKernelActivity notes that a kernel has just said something, and what it said it was doing.
+
+An empty state leaves the last one standing: only a status message says what a kernel is doing, and
+every other message is activity and nothing else. Called from the kernel's activity watcher, which is
+the only thing that hears either — see kernel_activity.go.
+*/
+func recordKernelActivity(kernelId string, state string) {
+	stamp := activityStamp()
+	updateActiveKernel(kernelId, func(km *KernelManager) {
+		km.LastActivity = stamp
+		if state != "" {
+			km.ExecutionState = state
+		}
+	})
+}
+
+// SetKernelConnections records how many clients are attached to a kernel. Called by the websocket
+// layer, which owns those connections; counting them from here would mean importing it, and it
+// already imports this package.
+func SetKernelConnections(kernelId string, count int) {
+	updateActiveKernel(kernelId, func(km *KernelManager) {
+		km.Connections = count
+	})
 }
 
 // removeActiveKernel takes a kernel out and says whether it was the one that took it out, so that two
@@ -150,6 +204,7 @@ func KillKernelById(kernelId string) error {
 	}
 
 	NotifyDisconnect(km.KernelId)
+	stopWatchingKernel(km)
 	killKernel(km.Provisioner.Pid)
 
 	// The session outlives its kernel otherwise, so /api/sessions would keep
@@ -231,9 +286,23 @@ func StartKernelManager(kernelPath string, kernelName string, env map[string]str
 		return "", err
 	}
 
+	// `starting` is Jupyter's own name for a kernel that is up and has published nothing yet, which is
+	// what this is for the moment: the watcher below is dialling, and the state changes on the kernel's
+	// first status message.
+	km.ExecutionState = "starting"
+	km.LastActivity = activityStamp()
+
+	// Not the request's context: this outlives the request that started the kernel by as long as the
+	// kernel runs, and is cancelled by whichever call stops it.
+	watching, stopWatching := context.WithCancel(context.Background())
+	km.stopWatching = stopWatching
+
 	// Stored once the kernel is up, and outside the lock: launching a process takes as long as it takes,
 	// and nothing can look this kernel up before it exists.
 	setActiveKernel(kernelId, km)
+
+	// Started after the store entry, because what it records is dropped for a kernel that is not in it.
+	go watchKernelActivity(watching, km)
 
 	return kernelId, nil
 }
@@ -247,6 +316,7 @@ func StopKernelManager(kernelId string) error {
 	}
 
 	NotifyDisconnect(kernelId)
+	stopWatchingKernel(km)
 
 	if err := km.StopKernel(kernelId); err != nil {
 		// The kernel is unusable either way, and it is already out of the store.

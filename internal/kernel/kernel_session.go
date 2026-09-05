@@ -173,6 +173,51 @@ func (ks *KernelSession) sign(msg_list [][]byte) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
+/*
+PublishedState answers what a kernel has just said it is doing, and empty for a message that says nothing
+about it: a `status` is the only kind that carries a state, and every other kind is activity and nothing
+more.
+
+Reads as little of the message as it takes to know, rather than going through Deserialize. This is on the
+activity watcher's path — every message every running cell publishes — and Deserialize's work is the JSON
+a browser is sent, which on that path there is nobody to send. jupyter_server's own watcher is careful in
+the same place and the same way: the header first, and the content only for a status.
+*/
+func (ks *KernelSession) PublishedState(zmsg zmq4.Msg) string {
+	frames := zmsg.Frames
+
+	// The zmq identities come first and there can be any number of them, so the delimiter is where the
+	// message starts. A frame list without one, or with less behind it than a signature and the four
+	// frames it covers, is not a message this can read.
+	i := 0
+	for i < len(frames) && string(frames[i]) != DELIM {
+		i++
+	}
+	if i+5 >= len(frames) {
+		return ""
+	}
+
+	if len(ks.Key) != 0 && !hmac.Equal(frames[i+1], []byte(ks.sign(frames[i+2:i+6]))) {
+		log.Error().Msg("ignoring a published message that is not signed with this kernel's key")
+		return ""
+	}
+
+	var header MessageHeader
+	if err := json.Unmarshal(frames[i+2], &header); err != nil || header.MsgType != "status" {
+		return ""
+	}
+
+	// Only the one field, so that a status message whose content is some other shape than expected says
+	// nothing rather than being an error worth reporting.
+	var content struct {
+		ExecutionState string `json:"execution_state"`
+	}
+	if err := json.Unmarshal(frames[i+5], &content); err != nil {
+		return ""
+	}
+	return content.ExecutionState
+}
+
 func (ks *KernelSession) Deserialize(zmsg zmq4.Msg, chanel string) []byte {
 
 	msg := zmsg.Bytes()

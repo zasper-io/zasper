@@ -287,6 +287,14 @@
       font-size: 11px;
     }
 
+    // When the row's subject last did anything. Sits between the name and the buttons and never gives
+    // up its width — it is three characters wide, and the path beside it is what shrinks.
+    .panel-row-time {
+      flex: 0 0 auto;
+      color: var(--z-fg-subtle);
+      font-size: 11px;
+    }
+
     .panel-row-actions {
       flex: 0 0 auto;
       display: flex;
