@@ -45,3 +45,44 @@
   background: var(--z-status-error);
   filter: brightness(1.15);
 }
+
+// A kernel's state as a colour: the dot in the notebook toolbar, and the same dot beside a running
+// kernel in the Jupyter info panel. Two features want it, so it is here rather than in either one's
+// stylesheet.
+//
+// A state with no rule below — `interrupted`, which the notebook sets after an interrupt — is an
+// outlined dot with no fill, which is a fair reading of "no longer doing what it was".
+.kernelStatus {
+  flex: 0 0 auto;
+  height: 14px;
+  width: 14px;
+  border-radius: 7px;
+  border: 1px solid var(--z-border-kernel-status);
+  box-shadow: 3px 3px 10px 3px var(--z-shadow-ambient);
+}
+
+// For a 22px sidebar row, where the toolbar's dot and its ambient shadow are both too much. What
+// centres it is the `.panel-row-dot` slot it sits in: the row itself aligns on the baseline, which for
+// an empty box is its bottom edge.
+.kernelStatus-sm {
+  height: 8px;
+  width: 8px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.ks-idle {
+  background-color: var(--z-status-idle);
+}
+
+.ks-busy {
+  background-color: var(--z-status-busy);
+}
+
+.ks-connected {
+  background-color: var(--z-status-idle);
+}
+
+.ks-disconnected {
+  background-color: var(--z-status-disconnected);
+}

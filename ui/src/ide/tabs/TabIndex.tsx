@@ -90,8 +90,10 @@ export default function TabIndex() {
   return (
     <div className="tabHeader">
       <ul className="nav">
-        {Object.keys(fileTabsState).map((key, index) => (
-          <li key={index} className="nav-item tab-item" role="presentation">
+        {Object.keys(fileTabsState).map((key) => (
+          // Keyed by path, as the tab content is: by index, closing a tab moves every tab after it
+          // into the DOM node of its neighbour.
+          <li key={key} className="nav-item tab-item" role="presentation">
             <button
               type="button"
               className={fileTabsState[key].active ? 'nav-link active' : 'nav-link'}

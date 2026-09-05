@@ -45,12 +45,14 @@ const session = {
 };
 
 const getNotebook = vi.fn();
+const sessionForPath = vi.fn();
 const createSession = vi.fn();
 const deleteSession = vi.fn();
 const saveNotebook = vi.fn();
 
 vi.mock('@/api', async () => ({
   getNotebook: (path: string) => getNotebook(path),
+  sessionForPath: (path: string) => sessionForPath(path),
   createSession: (path: string, name: string, type: string, kernelspec: string) =>
     createSession(path, name, type, kernelspec),
   deleteSession: (id: string) => deleteSession(id),
@@ -82,6 +84,7 @@ const firstRequestId = 'generated-cell-1';
 interface IFakeSocket {
   url: string;
   sent: string[];
+  closed: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   receive: (message: any) => void;
 }
@@ -97,6 +100,7 @@ const { sockets, FakeSocket } = vi.hoisted(() => {
     onerror: ((error: unknown) => void) | null = null;
     onclose: (() => void) | null = null;
     sent: string[] = [];
+    closed = false;
 
     constructor(readonly url: string) {
       sockets.push(this);
@@ -107,7 +111,9 @@ const { sockets, FakeSocket } = vi.hoisted(() => {
       this.sent.push(message);
     }
 
-    close() {}
+    close() {
+      this.closed = true;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     receive(message: any) {
@@ -192,6 +198,9 @@ describe('NotebookEditor', () => {
     sockets.length = 0;
     resetIds();
     getNotebook.mockReset();
+    sessionForPath.mockReset();
+    // No session on this path, i.e. a notebook being opened for the first time.
+    sessionForPath.mockResolvedValue(undefined);
     createSession.mockReset();
     deleteSession.mockReset();
     deleteSession.mockResolvedValue(undefined);
@@ -217,6 +226,56 @@ describe('NotebookEditor', () => {
     );
     expect(sockets[0].url).toContain('/ws/kernels/kernel-1/channels?session_id=session-1');
     expect(await screen.findByText('[0]:')).toBeInTheDocument();
+  });
+
+  /*
+   * Reopening a notebook whose kernel outlived its tab, which is what closing a tab now leaves behind.
+   * Both the tab and the file say `python3`, and neither gets a say: the session's kernel is the one
+   * asked for, because that name is what makes the server hand back the session it already has.
+   */
+  it('joins the session already running the notebook', async () => {
+    sessionForPath.mockResolvedValue({ ...session, kernel: { id: 'kernel-9', name: 'deno' } });
+
+    render(<NotebookEditor data={tab} />);
+
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    expect(sessionForPath).toHaveBeenCalledWith('notebook.ipynb');
+    expect(createSession).toHaveBeenCalledWith(
+      'notebook.ipynb',
+      'notebook.ipynb',
+      'notebook',
+      'deno'
+    );
+  });
+
+  // Asking is not required to start: before kernels outlived tabs there was nothing to ask.
+  it('starts the notebook’s own kernel when it cannot ask what is running', async () => {
+    sessionForPath.mockRejectedValue(new ApiError('GET', '/api/sessions', 500, 'nope'));
+
+    render(<NotebookEditor data={tab} />);
+
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    expect(createSession).toHaveBeenCalledWith(
+      'notebook.ipynb',
+      'notebook.ipynb',
+      'notebook',
+      'python3'
+    );
+  });
+
+  /*
+   * The kernel survives the tab; the socket does not. Nothing else closes one — the server keeps a
+   * kernel whose client has gone away — so a notebook opened and closed all afternoon would hold a
+   * socket for every time.
+   */
+  it('closes the kernel socket when the notebook goes away, and leaves the session alone', async () => {
+    const { unmount } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+
+    unmount();
+
+    expect(sockets[0].closed).toBe(true);
+    expect(deleteSession).not.toHaveBeenCalled();
   });
 
   // A new notebook is `"cells": []` on disk; the cell to type into comes from the frontend.
@@ -499,6 +558,9 @@ describe('NotebookEditor commands', () => {
     sockets.length = 0;
     resetIds();
     getNotebook.mockReset();
+    sessionForPath.mockReset();
+    // No session on this path, i.e. a notebook being opened for the first time.
+    sessionForPath.mockResolvedValue(undefined);
     createSession.mockReset();
     deleteSession.mockReset();
     deleteSession.mockResolvedValue(undefined);
@@ -798,6 +860,9 @@ describe('NotebookEditor unsaved changes', () => {
     sockets.length = 0;
     resetIds();
     getNotebook.mockReset();
+    sessionForPath.mockReset();
+    // No session on this path, i.e. a notebook being opened for the first time.
+    sessionForPath.mockResolvedValue(undefined);
     createSession.mockReset();
     deleteSession.mockReset();
     deleteSession.mockResolvedValue(undefined);

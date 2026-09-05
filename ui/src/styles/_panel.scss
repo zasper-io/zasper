@@ -205,12 +205,133 @@
       }
     }
 
-    // A group of related rows inside a panel, e.g. "Kernelspecs" in the Jupyter info panel.
+    // A group of related rows inside a panel, e.g. "Running kernels" in the Jupyter info panel.
     // Deliberately quiet — the panel already has a title.
     .panel-section-head {
       flex: 0 0 auto;
       padding: 12px 16px 4px;
       color: var(--z-fg-muted);
+    }
+
+    // The heading of a section that can be folded away. Stripped back to its text, because what it
+    // has to look like is a heading; that it is a button is how a keyboard reaches it.
+    .panel-section-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      padding: 0;
+      border: none;
+      background: none;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+
+      &:hover {
+        color: var(--z-fg-default);
+      }
+
+      // Fixed, so the titles line up whichever way the chevron points.
+      i {
+        flex: 0 0 auto;
+        width: 8px;
+        font-size: 9px;
+      }
+    }
+
+    // How many rows the section holds, shown whether it is folded or not: a section with nothing in it
+    // is worth knowing about without unfolding it.
+    .panel-section-count {
+      margin-left: 4px;
+      color: var(--z-fg-subtle);
+    }
+
+    // A flat row inside a panel — a changed file, a running kernel. Shared rather than restated per
+    // panel, because both want the same thing: one row height, a name that fills it, and dimmed icon
+    // buttons pinned right. Unlike `.file-list li a` below it needs no anchor, which is precisely
+    // what the Jupyter info panel's rows were missing when they had none of this.
+    .panel-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: var(--z-ui-row-height);
+      padding: 0 12px 0 16px;
+      font-size: var(--z-ui-font-size);
+      color: var(--z-fg-default);
+
+      &:hover {
+        background: var(--z-bg-row-selected);
+      }
+    }
+
+    // The whole name is one button, so the click target is the row's text rather than its first word,
+    // and so a keyboard reaches it.
+    .panel-row-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      background: none;
+      border: none;
+      padding: 0;
+      color: inherit;
+      text-align: left;
+      overflow: hidden;
+    }
+
+    // The dot's place in a row, held whether or not there is a dot to draw. A kernel this window knows
+    // nothing about gets no dot, and without the slot its name would start 14px left of the one above.
+    .panel-row-dot {
+      flex: 0 0 8px;
+      display: flex;
+      align-self: center;
+    }
+
+    // What the row is, and the last thing to give up room.
+    .panel-row-label {
+      flex: 0 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    // Where it is or what it belongs to — the file's directory, the notebook a kernel runs. Quieter
+    // than the label and the first thing to be clipped, because the label is what identifies the row.
+    //
+    // Four, rather than the 1 the label has: shrunk at the same rate a long path clips the name beside
+    // it to `exampl…`, and half of two useless halves is worse than a clipped path beside a whole name.
+    .panel-row-meta {
+      flex: 0 4 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--z-fg-subtle);
+      font-size: 11px;
+    }
+
+    .panel-row-actions {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--z-fg-muted);
+    }
+
+    .panel-row-action {
+      // Hidden until the row is under the pointer would mean the row's width changed on hover, and a
+      // keyboard user could reach a button they cannot see; dimmed says the same thing and holds still.
+      opacity: 0.65;
+
+      &:hover:not(:disabled) {
+        opacity: 1;
+        color: var(--z-accent);
+      }
+
+      &:disabled {
+        opacity: 0.3;
+      }
     }
 
     // The content under one of those headings, indented to match it. .content-inner has no

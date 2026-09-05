@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { kernelsAtom, notebookKernelMapAtom } from './AppState';
+import { notebookKernelMapAtom } from './AppState';
 import { useTabActions } from './TabActions';
 import { fileTabsAtom, IfileTab, IfileTabDict } from './TabState';
 
@@ -35,7 +35,7 @@ const tabs: IfileTabDict = {
 
 /** The open tabs, the name each shows, and which notebooks still hold a kernel. */
 function Harness() {
-  const { closeDeleted, renameTab, openDiff } = useTabActions();
+  const { closeTab, closeDeleted, renameTab, openDiff } = useTabActions();
   const openTabs = useAtomValue(fileTabsAtom);
   const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
 
@@ -60,8 +60,14 @@ function Harness() {
           .join(',')}
       </span>
       <span data-testid="kernels">{Object.keys(notebookKernelMap).join(',')}</span>
+      <button type="button" onClick={() => closeTab('src/demo.ipynb')}>
+        close demo
+      </button>
       <button type="button" onClick={() => closeDeleted('src')}>
         delete src
+      </button>
+      <button type="button" onClick={() => closeDeleted('src/demo.ipynb')}>
+        delete demo
       </button>
       <button type="button" onClick={() => renameTab('src', 'lib')}>
         rename src
@@ -91,7 +97,6 @@ function renderHarness() {
       initialValues={[
         [fileTabsAtom, { ...tabs }],
         [notebookKernelMapAtom, { 'src/demo.ipynb': { name: 'python3', id: 'kernel-1' } }],
-        [kernelsAtom, { 'kernel-1': { name: 'python3', id: 'kernel-1' } }],
       ]}
     >
       <Harness />
@@ -107,6 +112,31 @@ describe('useTabActions', () => {
   beforeEach(() => {
     deleteKernel.mockReset();
     deleteKernel.mockResolvedValue(undefined);
+  });
+
+  /*
+   * What JupyterLab does, and the reason the binding is kept: the notebook can be reopened, and opening
+   * it asks the server what is already running that path.
+   */
+  it('closes a notebook tab without touching its kernel', () => {
+    renderHarness();
+
+    fireEvent.click(screen.getByText('close demo'));
+
+    expect(text('tabs')).toBe('Launcher,notes.txt,src/main.py');
+    expect(deleteKernel).not.toHaveBeenCalled();
+    expect(text('kernels')).toBe('src/demo.ipynb');
+  });
+
+  // A kernel outlives its tab, so the delete cannot look at the tabs to find it.
+  it('kills a deleted notebook’s kernel even though its tab was closed first', () => {
+    renderHarness();
+
+    fireEvent.click(screen.getByText('close demo'));
+    fireEvent.click(screen.getByText('delete demo'));
+
+    expect(deleteKernel).toHaveBeenCalledWith('kernel-1');
+    expect(text('kernels')).toBe('');
   });
 
   it('closes every tab inside a deleted folder, and kills their kernels', () => {

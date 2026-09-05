@@ -49,14 +49,14 @@ export default function ChangeList(props: ChangeListProps) {
     <>
       <h2 className="z-subheading panel-section-head change-list-head">
         <span>
-          {props.title} <span className="change-count">{changes.length}</span>
+          {props.title} <span className="panel-section-count">{changes.length}</span>
         </span>
-        <span className="change-actions">
+        <span className="panel-row-actions">
           {actions.map((action) => (
             <button
               key={action.label}
               type="button"
-              className="editor-button change-action"
+              className="editor-button panel-row-action"
               // "Stage all", from "Stage": one label per action rather than two to keep in step.
               title={`${action.label} all`}
               aria-label={`${action.label} all`}
@@ -75,23 +75,23 @@ export default function ChangeList(props: ChangeListProps) {
           const directory = parentDirOf(change.path);
 
           return (
-            <li key={`${side}:${change.path}`} className="change-row">
+            <li key={`${side}:${change.path}`} className="panel-row">
               <button
                 type="button"
-                className="change-name"
+                className="panel-row-name"
                 title={change.from === undefined ? change.path : `${change.from} → ${change.path}`}
                 onClick={() => onSelect?.(change)}
               >
-                <span className="change-file">{baseName(change.path)}</span>
-                {directory !== '' && <span className="change-dir">{directory}</span>}
+                <span className="panel-row-label">{baseName(change.path)}</span>
+                {directory !== '' && <span className="panel-row-meta">{directory}</span>}
               </button>
 
-              <span className="change-actions">
+              <span className="panel-row-actions">
                 {actions.map((action) => (
                   <button
                     key={action.label}
                     type="button"
-                    className="editor-button change-action"
+                    className="editor-button panel-row-action"
                     title={`${action.label} ${change.path}`}
                     aria-label={`${action.label} ${change.path}`}
                     disabled={disabled}

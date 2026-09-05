@@ -215,30 +215,8 @@
   gap: 10px;
 }
 
-.kernelStatus {
-  flex: 0 0 auto;
-  height: 14px;
-  width: 14px;
-  border-radius: 7px;
-  border: 1px solid var(--z-border-kernel-status);
-  box-shadow: 3px 3px 10px 3px var(--z-shadow-ambient);
-}
-
-.ks-idle {
-  background-color: var(--z-status-idle);
-}
-
-.ks-busy {
-  background-color: var(--z-status-busy);
-}
-
-.ks-connected {
-  background-color: var(--z-status-idle);
-}
-
-.ks-disconnected {
-  background-color: var(--z-status-disconnected);
-}
+// The status dot and its .ks-* colours are in styles/_controls.scss: the Jupyter info panel shows the
+// same dot for the same states, so it is not this notebook's to own.
 
 // A toolbar button like the rest of them, sized to the status dot beside it.
 .reconnectButton {

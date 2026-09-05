@@ -3,7 +3,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { deleteKernel, DiffTarget, logApiError } from '@/api';
 import getFileExtension from '@/ide/utils';
 import { baseName, isInside, rewritePath } from '@/paths';
-import { kernelsAtom, notebookKernelMapAtom, terminalsAtom, terminalsCountAtom } from './AppState';
+import { notebookKernelMapAtom, terminalsAtom, terminalsCountAtom } from './AppState';
 import { fileTabsAtom, IfileTab, IfileTabDict } from './TabState';
 
 /** What a caller has to say to open a tab; the rest of IfileTab follows from it. */
@@ -43,7 +43,10 @@ export interface ITabActions {
   openDiff: (target: DiffTarget) => void;
   /** Opens a new terminal, in `cwd` if one is given. */
   openTerminal: (cwd?: string) => void;
-  /** Closes a tab and releases whatever it was holding. */
+  /**
+   * Closes a tab. A notebook's kernel keeps running, as it does in JupyterLab: reopening the notebook
+   * plugs back into that session, with everything still in memory.
+   */
   closeTab: (path: string) => void;
   /** After a delete on disk: closes the tab, and every tab inside it if it was a folder. */
   closeDeleted: (path: string) => void;
@@ -61,7 +64,6 @@ export function useTabActions(): ITabActions {
   const setFileTabs = useSetAtom(fileTabsAtom);
   const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
   const setNotebookKernelMap = useSetAtom(notebookKernelMapAtom);
-  const setKernels = useSetAtom(kernelsAtom);
   const setTerminals = useSetAtom(terminalsAtom);
   const terminalCount = useAtomValue(terminalsCountAtom);
   const setTerminalCount = useSetAtom(terminalsCountAtom);
@@ -89,8 +91,9 @@ export function useTabActions(): ITabActions {
   };
 
   /**
-   * Kills the kernels those tabs were running. A notebook tab need not have one: it can be closed
-   * while the session is still starting, or after starting one failed.
+   * Kills the kernels running those paths. Only a deleted file's, now: closing a tab leaves its kernel
+   * alive. A path need not have one — a notebook can be closed while its session is still starting, or
+   * after starting one failed.
    */
   const releaseKernels = (paths: string[]) => {
     const ids = paths
@@ -106,18 +109,12 @@ export function useTabActions(): ITabActions {
       paths.forEach((path) => delete next[path]);
       return next;
     });
-    setKernels((previous) => {
-      const next = { ...previous };
-      ids.forEach((id) => delete next[id]);
-      return next;
-    });
   };
 
   const removeTabs = (paths: string[]) => {
     if (paths.length === 0) {
       return;
     }
-    releaseKernels(paths);
 
     setFileTabs((previous) => {
       const next: IfileTabDict = {};
@@ -174,8 +171,14 @@ export function useTabActions(): ITabActions {
 
     closeTab: (path: string) => removeTabs([path]),
 
-    closeDeleted: (path: string) =>
-      removeTabs(Object.keys(fileTabs).filter((key) => isInside(key, path))),
+    closeDeleted: (path: string) => {
+      // The one close that does take the kernel with it: the file is gone, so there is no reopening the
+      // notebook to reach the kernel again, and a session on a path that no longer exists is one the
+      // server would hand back to a new file of the same name. Walking the kernels rather than the tabs
+      // because a kernel now outlives its tab — the notebook may have been closed hours ago.
+      releaseKernels(Object.keys(notebookKernelMap).filter((key) => isInside(key, path)));
+      removeTabs(Object.keys(fileTabs).filter((key) => isInside(key, path)));
+    },
 
     renameTab: (oldPath: string, newPath: string) => {
       setFileTabs((previous) => {

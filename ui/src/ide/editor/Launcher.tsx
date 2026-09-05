@@ -1,8 +1,8 @@
-import React, { useEffect, useCallback } from 'react';
+import React from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '@/config';
-import { ContentType, createContent, listKernelspecs } from '@/api';
-import { useAtom } from 'jotai';
+import { ContentType, createContent } from '@/api';
+import { useAtom, useAtomValue } from 'jotai';
 import { kernelspecsAtom, fileBrowserReloadCountAtom } from '@/store/AppState';
 import { useTabActions } from '@/store/TabActions';
 import { TerminalIcon } from '../icons';
@@ -14,18 +14,11 @@ interface LauncherProps {
 }
 
 const Launcher: React.FC<LauncherProps> = ({ data }) => {
-  const [kernelspecs, setKernelspecs] = useAtom(kernelspecsAtom);
+  // Read on boot by IDE.tsx, not here: the Jupyter info panel wants the same list, and a list fetched
+  // by whichever tab is open is one that is missing when that tab is not.
+  const kernelspecs = useAtomValue(kernelspecsAtom);
   const [reloadCount, setReloadCount] = useAtom(fileBrowserReloadCountAtom);
   const { openTab, openTerminal } = useTabActions();
-
-  // Fetch kernelspecs from the API
-  const fetchData = useCallback(async () => {
-    try {
-      setKernelspecs(await listKernelspecs());
-    } catch (error) {
-      console.error('Error fetching kernelspecs:', error);
-    }
-  }, [setKernelspecs]);
 
   const createNewNotebook = async (path: string, contentType: ContentType, kernelspec: string) => {
     const created = await createContent(path, contentType);
@@ -37,11 +30,6 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
     const logoPath = resources['logo-svg'] || resources['logo-64x64'] || resources['logo-32x32'];
     return `${BaseApiUrl}${logoPath}`;
   };
-
-  // Fetch kernelspecs on component mount
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   return (
     <div className="LauncherArea">

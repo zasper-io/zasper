@@ -26,10 +26,6 @@ export interface IKernelspecsState {
   [key: string]: IKernelspec;
 }
 
-export interface IKernelsState {
-  [key: string]: IKernel;
-}
-
 export interface INotebookKernelMap {
   [key: string]: IKernel;
 }
@@ -42,8 +38,16 @@ export const zasperVersionAtom = atom<string>('');
 export const projectNameAtom = atom<string>('');
 export const protectedStateAtom = atom<boolean>(false);
 export const kernelspecsAtom = atom<IKernelspecsState>({});
-export const kernelsAtom = atom<IKernelsState>({});
 export const notebookKernelMapAtom = atom<INotebookKernelMap>({});
+/**
+ * Busy, idle, connected or disconnected, by kernel id, for the kernels this window has a socket to.
+ *
+ * There is no server-side answer to draw on: `KernelManager.ExecutionState` is declared and never
+ * written, so `/api/kernels` reports an empty string for every kernel. What a notebook works out from
+ * its own IOPub `status` messages is therefore the only state there is, and this is how it reaches the
+ * Jupyter info panel. A kernel missing from here is one nothing is known about, not an idle one.
+ */
+export const kernelStatusAtom = atom<Record<string, string>>({});
 export const terminalsAtom = atom<ITerminalsState>({});
 export const terminalsCountAtom = atom<number>(0);
 export const userNameAtom = atom<string>('');

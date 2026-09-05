@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
 import { w3cwebsocket as W3CWebSocket } from 'websocket';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -10,12 +10,13 @@ import {
   interruptKernel,
   INotebookMetadata,
   ISession,
+  sessionForPath,
 } from '@/api';
 import { BaseWebSocketUrl } from '@/config';
 import {
   IKernelspecsState,
-  kernelsAtom,
   kernelspecsAtom,
+  kernelStatusAtom,
   notebookKernelMapAtom,
   userNameAtom,
 } from '@/store/AppState';
@@ -49,12 +50,23 @@ export const NO_KERNEL = 'none';
  * Only the Launcher's "new notebook" knows a kernel up front; every other way of opening one passes
  * 'none', so `metadata.kernelspec` is the only record of the kernel the file was saved with.
  * Returns 'none' when there is no usable answer, which is what raises the picker.
+ *
+ * `running` is the kernel of a session already on this file, when there is one.
  */
 export function kernelToStart(
   tabKernelspec: string,
   metadata: INotebookMetadata,
-  installed: IKernelspecsState
+  installed: IKernelspecsState,
+  running?: string
 ): string {
+  // The kernel already running this notebook outranks everything below, because it is not an opinion
+  // about which kernel to use but a fact about which one is in use. Asking for any other name starts a
+  // second kernel beside it and leaves everything the first one holds unreachable — and a reopened
+  // notebook whose file names no kernel gets no picker, since the question is already answered.
+  if (running !== undefined && running !== '' && running !== NO_KERNEL) {
+    return running;
+  }
+
   // A kernel chosen for this tab outranks the file: for a notebook created from the Launcher the
   // file names none at all.
   if (tabKernelspec !== '' && tabKernelspec !== NO_KERNEL) {
@@ -131,8 +143,8 @@ export function useKernelSession(
    * those requests makes a previous run's output indistinguishable from this one's.
    */
   const executingCells = useRef(new Map<string, string>());
-  const [, setKernels] = useAtom(kernelsAtom);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
+  const setKernelStatuses = useSetAtom(kernelStatusAtom);
   const [userName] = useAtom(userNameAtom);
   const [kernelspecs] = useAtom(kernelspecsAtom);
   // In a ref because `startSessionForNotebook` reads it: as a dependency it would rebuild that
@@ -250,6 +262,55 @@ export function useKernelSession(
   // A tab closing, or a kernel being replaced, takes its widgets with it.
   useEffect(() => () => widgets?.dispose(), [widgets]);
 
+  /*
+   * And it lets go of the socket. Nothing else closes one: the kernel survives its client going away,
+   * which is the whole point of a tab closing without killing anything, so a socket nobody closes is a
+   * socket nobody ever closes — one per open, and a reconnect left the one it replaced running.
+   *
+   * `onclose` goes first. It reports `disconnected`, which is true of the socket and not of the kernel:
+   * on a reconnect it would overwrite the state of the connection that has just replaced this one, and
+   * on a closed tab it would be the last thing the Jupyter info panel heard about a kernel that is
+   * running perfectly well.
+   */
+  useEffect(() => {
+    if (connection === disconnectedClient) {
+      return;
+    }
+    return () => {
+      connection.onclose = () => {};
+      connection.close();
+    };
+  }, [connection]);
+
+  /*
+   * Publish this kernel's state for anything outside the notebook that wants it — the Jupyter info
+   * panel, so far.
+   *
+   * From one effect rather than from each of the five places that set `kernelStatus`: those are
+   * scattered across the socket's lifecycle and an interrupt, and a mirror written by hand at each is
+   * one that will be forgotten at the sixth. The entry is dropped when this notebook lets go of the
+   * kernel, since a status nobody is maintaining is worse than none.
+   */
+  const kernelId = session?.kernel.id;
+  useEffect(() => {
+    if (kernelId === undefined) {
+      return;
+    }
+    setKernelStatuses((previous) => ({ ...previous, [kernelId]: kernelStatus }));
+  }, [kernelId, kernelStatus, setKernelStatuses]);
+
+  useEffect(() => {
+    if (kernelId === undefined) {
+      return;
+    }
+    return () =>
+      setKernelStatuses((previous) => {
+        const next = { ...previous };
+        delete next[kernelId];
+        return next;
+      });
+  }, [kernelId, setKernelStatuses]);
+
   const startSession = useCallback(
     async (path: string, name: string, type: string, kernelspec: string) => {
       setKernelName(kernelspec);
@@ -265,7 +326,6 @@ export function useKernelSession(
 
         setSession(data);
 
-        setKernels((prev) => ({ ...prev, [data.kernel.id]: data.kernel }));
         setNotebookKernelMap((prev) => ({ ...prev, [data.path]: data.kernel }));
 
         setConnection(await startWebSocket(data));
@@ -278,7 +338,7 @@ export function useKernelSession(
         throw error;
       }
     },
-    [setKernels, setNotebookKernelMap, startWebSocket]
+    [setNotebookKernelMap, startWebSocket]
   );
 
   /** Starts a session for this tab, falling back to the kernel picker on failure. */
@@ -292,12 +352,29 @@ export function useKernelSession(
     [startSession, tab.path, tab.name, tab.type]
   );
 
-  /** Starts the session for a notebook just read, on the kernel `kernelToStart` picks for it. */
+  /**
+   * Starts the session for a notebook just read — or rejoins the one already running that file.
+   *
+   * Closing a tab leaves the kernel alive, so opening a notebook is as often as not a matter of
+   * finding what is already there: the session it was on, with everything still in memory. The POST
+   * that follows is what actually joins it; the server answers a request for a path it is already
+   * running with that session rather than a second one, and starts a fresh kernel if the one it
+   * remembers has died.
+   */
   const startSessionForNotebook = useCallback(
-    (metadata: INotebookMetadata) => {
-      startTabSession(kernelToStart(tab.kernelspec, metadata, installedKernels.current));
+    async (metadata: INotebookMetadata) => {
+      // Failing to ask is not failing to start: with no answer this falls back to what the tab and the
+      // file say, which is all there was to go on before kernels outlived their tabs.
+      const running = await sessionForPath(tab.path).catch((error) => {
+        console.error('Failed to look for a session already running this notebook:', error);
+        return undefined;
+      });
+
+      startTabSession(
+        kernelToStart(tab.kernelspec, metadata, installedKernels.current, running?.kernel.name)
+      );
     },
-    [startTabSession, tab.kernelspec]
+    [startTabSession, tab.kernelspec, tab.path]
   );
 
   /** Moves this notebook to another kernel, ending the session it was on first. */
@@ -324,17 +401,9 @@ export function useKernelSession(
     }
 
     if (tab.path in notebookKernelMap) {
-      const kernelId = notebookKernelMap[tab.path].id;
-
       setNotebookKernelMap((prev) => {
         const updated = { ...prev };
         delete updated[tab.path];
-        return updated;
-      });
-
-      setKernels((prev) => {
-        const updated = { ...prev };
-        delete updated[kernelId];
         return updated;
       });
     }

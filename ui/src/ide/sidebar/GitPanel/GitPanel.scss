@@ -138,8 +138,8 @@
   color: var(--z-fg-subtle);
 }
 
-// Dimmed rather than revealed on hover, as .change-action is: a hidden button is one a keyboard user
-// can tab to and not see, and one the row's width jumps for.
+// Dimmed rather than revealed on hover, as .panel-row-action is: a hidden button is one a keyboard
+// user can tab to and not see, and one the row's width jumps for.
 .git-branch-delete {
   flex: 0 0 auto;
   padding: 0 6px;
@@ -192,83 +192,10 @@
   gap: 8px;
 }
 
-.change-count {
-  margin-left: 4px;
-  color: var(--z-fg-subtle);
-}
-
-.change-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: var(--z-ui-row-height);
-  padding: 0 12px 0 16px;
-  font-size: var(--z-ui-font-size);
-  color: var(--z-fg-default);
-
-  &:hover {
-    background: var(--z-bg-row-selected);
-  }
-}
-
-// The whole name is one button so the click target is the row's text rather than the file name
-// alone, and so a keyboard reaches it.
-.change-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  background: none;
-  border: none;
-  padding: 0;
-  color: inherit;
-  text-align: left;
-  overflow: hidden;
-}
-
-.change-file {
-  flex: 0 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-// Where the file is, which matters when two sections both hold a notes.txt. Quieter than the name
-// and the first thing to give up room.
-.change-dir {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--z-fg-subtle);
-  font-size: 11px;
-}
-
-.change-actions {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--z-fg-muted);
-}
-
-.change-action {
-  // Hidden until the row is under the pointer would mean the row's width changed on hover, and a
-  // keyboard user could reach a button they cannot see; dimmed says the same thing and holds still.
-  opacity: 0.65;
-
-  &:hover:not(:disabled) {
-    opacity: 1;
-    color: var(--z-accent);
-  }
-
-  &:disabled {
-    opacity: 0.3;
-  }
-}
-
+// The row, its name and its actions are `.panel-row*` in styles/_panel.scss: the Jupyter info panel
+// wants the same row, and a second copy of it is a second thing to keep in step. What stays here is
+// the part only a change has — git's letter.
+//
 // Git's own letter. One character wide and fixed, so the letters line up down the section however
 // long the names are.
 .change-badge {

@@ -22,12 +22,13 @@ import './IDE.scss';
 import {
   fileBrowserReloadCountAtom,
   fontSizeAtom,
+  kernelspecsAtom,
   projectNameAtom,
   protectedStateAtom,
   userNameAtom,
   zasperVersionAtom,
 } from '../store/AppState';
-import { ApiError, getInfo } from '../api';
+import { ApiError, getInfo, listKernelspecs, logApiError } from '../api';
 import { getTheme } from '../themes';
 import { PanelName } from './sidebar/types';
 import { useAppCommands } from '../commands/appCommands';
@@ -41,6 +42,7 @@ function IDE() {
   const [, setProtectedState] = useAtom(protectedStateAtom);
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
+  const [, setKernelspecs] = useAtom(kernelspecsAtom);
 
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
 
@@ -76,6 +78,15 @@ function IDE() {
   useEffect(() => {
     initConfig();
   }, [initConfig]);
+
+  // Read once for the whole session rather than by whoever happens to want them first. The launcher
+  // used to fetch them, so the Jupyter info panel listed no kernels at all until the launcher had
+  // rendered — and none again once its tab was closed.
+  useEffect(() => {
+    listKernelspecs()
+      .then(setKernelspecs)
+      .catch(logApiError('Failed to read the installed kernels:'));
+  }, [setKernelspecs]);
 
   // Publish the active theme as `data-theme` on <html>. Every colour in the app
   // resolves through the custom properties keyed off this attribute (see

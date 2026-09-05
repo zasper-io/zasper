@@ -53,4 +53,37 @@ describe('kernelToStart', () => {
     expect(kernelToStart('deno', python3, installed('python3', 'deno'))).toBe('deno');
     expect(kernelToStart('', python3, installed('python3'))).toBe('python3');
   });
+
+  /*
+   * Closing a tab leaves the kernel running, so a reopened notebook is usually being asked about a
+   * kernel that is already answering. Joining it is the whole behaviour: any other name starts a second
+   * kernel and abandons everything the first one holds.
+   */
+  describe('when a kernel is already running the notebook', () => {
+    it('joins it', () => {
+      expect(kernelToStart('none', python3, installed('python3', 'deno'), 'deno')).toBe('deno');
+    });
+
+    // Even against a kernel chosen for the tab: that was a choice, this is what is running.
+    it('joins it over the tab’s kernel and the file’s', () => {
+      expect(kernelToStart('python3', python3, installed('python3', 'deno'), 'deno')).toBe('deno');
+    });
+
+    // No picker for a notebook that is already running, whatever its file does or does not say.
+    it('joins it when the file names no kernel', () => {
+      expect(kernelToStart('none', {}, installed('deno'), 'deno')).toBe('deno');
+    });
+
+    // A kernel that is not installed here is still running, and its session is still the one to join.
+    it('joins it when it is not in the installed list', () => {
+      expect(kernelToStart('none', python3, installed('python3'), 'deno')).toBe('deno');
+    });
+
+    // No session on the path: nothing to join, so the file and the tab decide as before.
+    it('is ignored when there is nothing running', () => {
+      expect(kernelToStart('none', python3, installed('python3'), undefined)).toBe('python3');
+      expect(kernelToStart('none', python3, installed('python3'), '')).toBe('python3');
+      expect(kernelToStart('none', python3, installed('python3'), 'none')).toBe('python3');
+    });
+  });
 });

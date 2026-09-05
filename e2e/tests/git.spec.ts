@@ -277,7 +277,7 @@ test('a change opens as a diff of what the file was against what it is', async (
   const open = await openPanel(page);
   await editAndSave(page, 'edited by the git spec');
 
-  await open.locator('.change-name').filter({ hasText: FILE }).click();
+  await open.locator('.panel-row-name').filter({ hasText: FILE }).click();
 
   // A tab of its own, beside the editor for the same file rather than instead of it: tabs are keyed by
   // path, so a diff keyed by the file's own path would have been that editor.
@@ -296,7 +296,7 @@ test('a change opens as a diff of what the file was against what it is', async (
   // pair of documents, so it cannot be the same tab.
   await open.getByLabel(`Stage ${FILE}`).click();
   await expect(open.getByText('Staged')).toBeVisible();
-  await open.locator('.change-name').filter({ hasText: FILE }).click();
+  await open.locator('.panel-row-name').filter({ hasText: FILE }).click();
 
   await expect(tab(page, `${FILE} (staged)`)).toBeVisible();
   await expect(tab(page, `${FILE} (diff)`)).toBeVisible();
@@ -319,7 +319,7 @@ test('a diff taller than the pane scrolls', async ({ page }) => {
   writeFileSync(inProject(FILE), `${lines.join('\n')}\n`);
   await open.getByTitle('Refresh').click();
 
-  await open.locator('.change-name').filter({ hasText: FILE }).click();
+  await open.locator('.panel-row-name').filter({ hasText: FILE }).click();
 
   const merge = page.locator('.cm-mergeView');
   await expect(merge).toBeVisible();

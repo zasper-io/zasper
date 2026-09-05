@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import TabIndex from './TabIndex';
 import { ApiError } from '@/api/client';
-import { INotebookKernelMap, kernelsAtom, notebookKernelMapAtom } from '@/store/AppState';
+import { INotebookKernelMap, notebookKernelMapAtom } from '@/store/AppState';
 import { fileTabsAtom, IfileTab, IfileTabDict } from '@/store/TabState';
 import { SaveTab, unsavedTabsAtom } from '@/store/UnsavedState';
 
@@ -177,7 +177,6 @@ describe('TabIndex', () => {
           initialValues={[
             [fileTabsAtom, { Launcher: launcher, 'demo.ipynb': notebookTab }],
             [notebookKernelMapAtom, notebookKernelMap],
-            [kernelsAtom, { 'kernel-1': { name: 'python3', id: 'kernel-1' } }],
             [unsavedTabsAtom, {}],
           ]}
         >
@@ -191,16 +190,18 @@ describe('TabIndex', () => {
       return screen.queryByRole('button', { name: /demo\.ipynb/ });
     }
 
-    it('kills the kernel it was running and forgets it', () => {
+    // The behaviour JupyterLab has: the tab goes, the kernel stays, and reopening the notebook joins
+    // the session it is still on rather than starting a second kernel beside it.
+    it('leaves the kernel running, and remembers it', () => {
       const { container } = renderNotebookTab({
         'demo.ipynb': { name: 'python3', id: 'kernel-1' },
       });
 
       clickClose(container);
 
-      expect(deleteKernel).toHaveBeenCalledWith('kernel-1');
       expect(tabForDemo()).not.toBeInTheDocument();
-      expect(screen.getByTestId('kernels')).toBeEmptyDOMElement();
+      expect(deleteKernel).not.toHaveBeenCalled();
+      expect(screen.getByTestId('kernels')).toHaveTextContent('demo.ipynb');
     });
 
     // Closed while the session was still starting, or after starting one failed.
