@@ -5,6 +5,24 @@ import { deleteRequestAtom, renameRequestAtom } from './atoms';
 import { useContentActions } from './useContentActions';
 import { useSelection } from './useSelection';
 
+/** What a notebook is called, whatever else it is called. */
+const NOTEBOOK_EXTENSION = '.ipynb';
+
+/**
+ * The name a submitted box asks for.
+ *
+ * Only a notebook has anything added: nothing that opens a notebook — this editor included — recognises
+ * one by anything but its extension, so a name typed without it would make a file that cannot be opened
+ * as what it was created as. A file and a folder are named exactly as typed, `Makefile` included, and an
+ * extension typed here already is not doubled.
+ */
+function nameToSubmit(typed: string, extension: string): string {
+  if (extension === '' || typed.trim() === '' || typed.toLowerCase().endsWith(extension)) {
+    return typed;
+  }
+  return typed + extension;
+}
+
 export interface IRowRename {
   isEditing: boolean;
   text: string;
@@ -22,23 +40,35 @@ export interface IRowRename {
 export function useRowRename(parentDir: string, name: string, path: string): IRowRename {
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(name);
+  // What the submitted name must end in, which is only ever anything while a new notebook is being
+  // named: an edit of a name that exists is taken as typed, extension and all.
+  const [extension, setExtension] = useState('');
   const [renameRequest, setRenameRequest] = useAtom(renameRequestAtom);
   const { rename } = useContentActions();
 
-  const start = useCallback(() => {
-    setText(name);
+  const open = useCallback((initial: string, ending = '') => {
+    setText(initial);
+    setExtension(ending);
     setIsEditing(true);
-  }, [name]);
+  }, []);
+
+  const start = useCallback(() => open(name), [open, name]);
 
   // Asked for from outside the row: by a create, since the server named it `untitled` and this is the
-  // moment to say what it is, or by F2, which is handled for the tree as a whole.
+  // moment to say what it is, or by F2, which is handled for the tree as a whole. A create opens the
+  // box empty — there is nothing there worth keeping — where F2 offers the current name to edit.
   useEffect(() => {
-    if (renameRequest !== path) {
+    if (renameRequest?.path !== path) {
       return;
     }
-    setRenameRequest('');
-    start();
-  }, [renameRequest, path, setRenameRequest, start]);
+    const { naming, contentType } = renameRequest;
+    setRenameRequest(null);
+    if (naming) {
+      open('', contentType === 'notebook' ? NOTEBOOK_EXTENSION : '');
+    } else {
+      open(name);
+    }
+  }, [renameRequest, path, name, setRenameRequest, open]);
 
   return {
     isEditing,
@@ -48,7 +78,7 @@ export function useRowRename(parentDir: string, name: string, path: string): IRo
     cancel: () => setIsEditing(false),
     submit: async () => {
       setIsEditing(false);
-      await rename(parentDir, name, text);
+      await rename(parentDir, name, nameToSubmit(text, extension));
     },
   };
 }

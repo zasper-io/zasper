@@ -11,7 +11,7 @@ around: a control with no area, and a row wider than the panel holding it.
 */
 import { Locator, Page, expect, test } from '@playwright/test';
 
-import { openApp, treeRow } from './helpers';
+import { fileTree, openApp, treeRow } from './helpers';
 
 /** Small, on purpose: this is the "did it render at all" threshold, not a design review. */
 const MIN_SIZE = 8;
@@ -84,6 +84,30 @@ test('nothing in the file browser is wider than the file browser', async ({ page
       Math.round(sidebar!.x + sidebar!.width)
     );
   }
+});
+
+test('a rename box is the size of the row it is in', async ({ page }) => {
+  await openApp(page);
+  const before = await treeRow(page, 'notes.txt').locator('a').boundingBox();
+
+  await treeRow(page, 'notes.txt').focus();
+  await page.keyboard.press('F2');
+
+  // Unstyled, the box took the browser's own font and padding and stood taller than the 22px row, so
+  // renaming anything shoved every row below it down the panel.
+  const box = page.locator('input.rowNameInput');
+  await expect(box).toBeVisible();
+  // The row is found by the box it now holds: while the box is open the row shows no name to find it by.
+  const after = await fileTree(page).locator('a:has(input.rowNameInput)').boundingBox();
+  expect(after!.height).toBe(before!.height);
+  expect(await unclickable(box), 'the rename box').toEqual([]);
+
+  // And inside the row, which is what keeps it inside the panel: the icon in front of it is what the
+  // width has to leave room for.
+  const field = await box.boundingBox();
+  expect(Math.round(field!.x + field!.width)).toBeLessThanOrEqual(
+    Math.round(after!.x + after!.width)
+  );
 });
 
 test('every control in the notebook toolbar can be clicked', async ({ page }) => {

@@ -482,16 +482,104 @@ describe('FileBrowser', () => {
       expect(createContent).toHaveBeenCalledWith('', 'file');
     });
 
-    it('opens the rename box on what it made, since the server picked the name', async () => {
+    it('opens an empty name box on what it made, with the server name only as a placeholder', async () => {
       await renderBrowser();
       creates({ name: 'untitled-directory', path: 'untitled-directory', type: 'directory' });
 
       fireEvent.click(screen.getByTitle('New folder'));
 
       const input = (await within(tree).findByRole('textbox')) as HTMLInputElement;
-      expect(input.value).toBe('untitled-directory');
+      // Empty, so the name is typed rather than typed over: `untitled-directory` is nobody's answer.
+      expect(input.value).toBe('');
+      expect(input.placeholder).toBe('untitled-directory');
       // And only that row: the rest of the tree is not waiting to be renamed.
       expect(within(tree).getAllByRole('textbox')).toHaveLength(1);
+    });
+
+    /** Creates through the toolbar and submits `typed` in the box that opens. */
+    async function nameIt(button: string, typed: string) {
+      fireEvent.click(screen.getByTitle(button));
+      const input = await within(tree).findByRole('textbox');
+      fireEvent.change(input, { target: { value: typed } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+    }
+
+    it('renames what it made to whatever is typed into the empty box', async () => {
+      await renderBrowser();
+      creates({ name: 'untitled.txt', path: 'untitled.txt', type: 'file' });
+
+      await nameIt('New file', 'todo.txt');
+
+      // The rename is against the name on disk, not against the empty box it was typed into.
+      await waitFor(() =>
+        expect(renameContent).toHaveBeenCalledWith('', 'untitled.txt', 'todo.txt')
+      );
+    });
+
+    it('takes a file name exactly as typed, extension or none', async () => {
+      await renderBrowser();
+      creates({ name: 'untitled.txt', path: 'untitled.txt', type: 'file' });
+
+      // Not `Makefile.txt`: the type it was created as is not a claim about what it is called.
+      await nameIt('New file', 'Makefile');
+
+      await waitFor(() =>
+        expect(renameContent).toHaveBeenCalledWith('', 'untitled.txt', 'Makefile')
+      );
+    });
+
+    it('ends a notebook in .ipynb even when the name typed does not', async () => {
+      await renderBrowser();
+      creates({ name: 'Untitled.ipynb', path: 'Untitled.ipynb', type: 'notebook' });
+
+      // Nothing that opens a notebook, this editor included, knows one by anything but its extension.
+      await nameIt('New notebook', 'analysis');
+
+      await waitFor(() =>
+        expect(renameContent).toHaveBeenCalledWith('', 'Untitled.ipynb', 'analysis.ipynb')
+      );
+    });
+
+    it('does not double the extension a notebook name already has', async () => {
+      await renderBrowser();
+      creates({ name: 'Untitled.ipynb', path: 'Untitled.ipynb', type: 'notebook' });
+
+      await nameIt('New notebook', 'analysis.ipynb');
+
+      await waitFor(() =>
+        expect(renameContent).toHaveBeenCalledWith('', 'Untitled.ipynb', 'analysis.ipynb')
+      );
+    });
+
+    it('renames a notebook later to exactly what was asked for, extension and all', async () => {
+      await renderBrowser();
+      creates({ name: 'Untitled.ipynb', path: 'Untitled.ipynb', type: 'notebook' });
+      fireEvent.click(screen.getByTitle('New notebook'));
+      fireEvent.keyDown(await within(tree).findByRole('textbox'), { key: 'Escape' });
+
+      // An edit of a name that exists is not a naming: what is typed is what is meant, and the box
+      // showed the extension it is dropping.
+      openMenu('Untitled.ipynb', 'Rename');
+      const input = within(tree).getByRole('textbox');
+      fireEvent.change(input, { target: { value: 'notes' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      await waitFor(() =>
+        expect(renameContent).toHaveBeenCalledWith('', 'Untitled.ipynb', 'notes')
+      );
+    });
+
+    it('says a name is required rather than renaming to nothing', async () => {
+      await renderBrowser();
+      creates({ name: 'untitled.txt', path: 'untitled.txt', type: 'file' });
+
+      fireEvent.click(screen.getByTitle('New file'));
+      fireEvent.keyDown(await within(tree).findByRole('textbox'), { key: 'Enter' });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('A name is required.');
+      expect(renameContent).not.toHaveBeenCalled();
+      // What the server made is still there under the name it gave it, waiting to be renamed again.
+      expect(within(tree).getByText('untitled.txt')).toBeInTheDocument();
     });
 
     it('says why when the create fails', async () => {

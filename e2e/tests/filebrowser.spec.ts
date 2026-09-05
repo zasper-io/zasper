@@ -1,6 +1,6 @@
 /*
-A file's whole life in the file browser: created from the banner, renamed with the keyboard, deleted
-through the dialog that asks first.
+A file's whole life in the file browser: created from the banner and named in the box that opens empty,
+renamed with the keyboard, deleted through the dialog that asks first.
 
 The tree and the disk are asserted separately at every step. A row that says the right thing over a
 file that was never touched is the failure this catches, and it is the one a mocked test cannot: every
@@ -17,25 +17,33 @@ test('a notebook is created, renamed and deleted from the tree', async ({ page }
 
   await page.getByTitle('New notebook').click();
 
-  // A create offers the rename straight away, so the name is a decision rather than a default nobody
-  // meant to keep. Escape takes what the server chose.
-  await expect(renameBox(page)).toHaveValue('Untitled.ipynb');
-  await renameBox(page).press('Escape');
+  // A create asks for the name straight away, and asks with an empty box: `Untitled.ipynb` is what is
+  // on disk, shown greyed as the placeholder, not something to select and type over.
+  await expect(renameBox(page)).toHaveValue('');
+  await expect(renameBox(page)).toHaveAttribute('placeholder', 'Untitled.ipynb');
+  // Without the extension, which a notebook gets anyway: nothing that opens one knows it by anything
+  // else, so `work` here would be a notebook that will not open as one.
+  await renameBox(page).fill('work');
+  await renameBox(page).press('Enter');
 
-  await expect(treeRow(page, 'Untitled.ipynb')).toBeVisible();
-  expect(existsSync(inProject('Untitled.ipynb'))).toBe(true);
+  await expect(treeRow(page, 'work.ipynb')).toBeVisible();
+  expect(existsSync(inProject('work.ipynb'))).toBe(true);
+  // Nothing named after nobody's default is left behind.
+  expect(existsSync(inProject('Untitled.ipynb'))).toBe(false);
 
   // F2 on the focused row, not a click: a click on a notebook opens it, and this journey is about the
   // tree. Focus is what the tree's keyboard acts on, so the row takes it first.
-  await treeRow(page, 'Untitled.ipynb').focus();
+  await treeRow(page, 'work.ipynb').focus();
   await page.keyboard.press('F2');
+  // F2 still offers the name there is: this is an edit of something named, not a naming.
+  await expect(renameBox(page)).toHaveValue('work.ipynb');
   await renameBox(page).fill('renamed.ipynb');
   await renameBox(page).press('Enter');
 
   await expect(treeRow(page, 'renamed.ipynb')).toBeVisible();
-  await expect(treeRow(page, 'Untitled.ipynb')).toHaveCount(0);
+  await expect(treeRow(page, 'work.ipynb')).toHaveCount(0);
   expect(existsSync(inProject('renamed.ipynb'))).toBe(true);
-  expect(existsSync(inProject('Untitled.ipynb'))).toBe(false);
+  expect(existsSync(inProject('work.ipynb'))).toBe(false);
 
   await treeRow(page, 'renamed.ipynb').focus();
   await page.keyboard.press('Delete');

@@ -403,6 +403,28 @@
         height: 14px;
       }
 
+      // The rename box, which stands where the name it replaces stood. Unstyled it took the browser's
+      // own font, padding and border and stood taller than the 22px row, so naming a file shoved the
+      // rows below it about. The width leaves room for the icon in front of it — 18px and a 6px gap —
+      // because 100% would push the row past the edge of the panel.
+      .file-list li a input.rowNameInput {
+        width: calc(100% - 24px);
+        height: 18px;
+        vertical-align: middle;
+        box-sizing: border-box;
+        padding: 0 4px;
+        font: inherit;
+        font-size: var(--z-ui-font-size);
+        line-height: 18px;
+        color: var(--z-fg-default);
+        background: var(--z-bg-field);
+        border: 1px solid var(--z-accent);
+        border-radius: 3px;
+        // The accent border already says where the typing is going; the browser's own ring on top of
+        // it lands outside the row.
+        outline: none;
+      }
+
       .file-list li a.active {
         background: var(--z-accent);
         color: var(--z-fg-on-accent);

@@ -143,7 +143,8 @@ export function useTreeKeys(): (event: React.KeyboardEvent) => void {
         if (here === undefined) {
           return;
         }
-        setRenameRequest(here.path);
+        // No `naming`: there is a name here already, and F2 is asking to edit it.
+        setRenameRequest({ path: here.path });
         break;
       case 'Delete':
       case 'Backspace':

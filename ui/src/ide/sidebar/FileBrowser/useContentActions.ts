@@ -20,7 +20,7 @@ import { useTreeEdits } from './useFileTree';
 const INTO_ITSELF = 'A folder cannot be moved or copied inside itself.';
 
 export interface IContentActions {
-  /** Creates an untitled file, folder or notebook and offers to rename it. */
+  /** Creates a file, folder or notebook and opens an empty name box on it. */
   create: (parentDir: string, contentType: ContentType) => Promise<boolean>;
   /** Renames on disk, taking any open tab with it. False when nothing happened. */
   rename: (parentDir: string, oldName: string, newName: string) => Promise<boolean>;
@@ -90,7 +90,10 @@ export function useContentActions(): IContentActions {
 
       // Opens the folder it went into, so that the new row can be seen; the root is always open.
       await (parentDir === '' ? read('') : expand(parentDir));
-      setRenameRequest(created.path);
+      // `naming`, so the box opens empty: what is on disk is the server's `untitled.txt`, which is not
+      // a name anyone would keep, and offering it back only asks to have it typed over. The type goes
+      // with it because a notebook has to keep its extension whatever is typed.
+      setRenameRequest({ path: created.path, naming: true, contentType });
       return true;
     },
 

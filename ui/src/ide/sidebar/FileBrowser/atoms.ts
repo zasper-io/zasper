@@ -4,7 +4,7 @@
 
 import { atom } from 'jotai';
 
-import { IContentEntry } from '@/api';
+import { ContentType, IContentEntry } from '@/api';
 import { IPendingUpload } from './uploads';
 
 export interface IUploadRequest {
@@ -153,13 +153,25 @@ export const extendSelectionAtom = atom(null, (get, set, path: string) => {
   set(selectedPathsAtom, rows.slice(Math.min(from, to), Math.max(from, to) + 1));
 });
 
+export interface IRenameRequest {
+  /** The row whose rename box should open. */
+  path: string;
+  /**
+   * True when the name on disk is the one the server invented, so the box opens empty: `untitled.txt`
+   * is nobody's answer to what the file is called, and starting with it there means every new file is
+   * named by selecting it and typing over it.
+   */
+  naming?: boolean;
+  /** What was just created, which is what says whether the name needs an extension keeping. */
+  contentType?: ContentType;
+}
+
 /**
- * A path whose row should open its rename box. Set by a create — the server picks the name, so
- * `untitled.txt` is never what was wanted — and by F2, neither of which happens in the row itself: the
- * row does not exist yet in the first case, and the keyboard is handled for the tree as a whole in the
- * second.
+ * A row that should open its rename box, or null. Set by a create and by F2, neither of which happens
+ * in the row itself: the row does not exist yet in the first case, and the keyboard is handled for the
+ * tree as a whole in the second.
  */
-export const renameRequestAtom = atom<string>('');
+export const renameRequestAtom = atom<IRenameRequest | null>(null);
 
 /** A path whose row should ask whether to delete, for the same reason: F2's neighbour on the keyboard. */
 export const deleteRequestAtom = atom<string>('');
