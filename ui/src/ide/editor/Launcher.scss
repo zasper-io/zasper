@@ -13,6 +13,10 @@ $launcher-gutter: 32px;
   padding: $launcher-gutter 0;
   background: var(--z-bg-editor);
   color: var(--z-fg-default);
+  // Content, not chrome — set once here so everything in the launcher inherits it, tiles and
+  // notice alike, rather than each one naming a size.
+  font-size: var(--z-font-size-body);
+  line-height: var(--z-line-height-body);
 }
 
 .launcher-title {
@@ -55,10 +59,6 @@ $launcher-gutter: 32px;
   background-color: var(--z-bg-launcher-tile-hover);
 }
 
-.terminalIconImage {
-  height: 44px;
-}
-
 .resourceLogoImage {
   height: 44px;
 }
@@ -66,7 +66,6 @@ $launcher-gutter: 32px;
 .noKernelsFound {
   margin-top: 16px;
   padding: 16px 16px 8px;
-  font-size: var(--z-ui-font-size);
   background: var(--z-bg-notice);
   color: var(--z-fg-default);
   border-radius: 6px;
@@ -89,8 +88,9 @@ $launcher-gutter: 32px;
   }
 }
 
+// Inherits the launcher's body size. Whole pixels per line, because a name long enough to wrap
+// is the common case in a 132px tile.
 .kernelspecDisplayName {
-  font-size: var(--z-ui-font-size);
-  line-height: 18px;
+  line-height: 20px;
   font-weight: 400;
 }

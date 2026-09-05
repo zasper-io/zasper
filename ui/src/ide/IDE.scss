@@ -8,21 +8,6 @@
   white-space: nowrap;
 }
 
-.theme-btn {
-  border: 1px solid var(--z-accent);
-  border-radius: 10px;
-  text-align: center;
-  padding: 6px 14px;
-  font-size: var(--z-ui-font-size);
-  line-height: 18px;
-  color: var(--z-accent);
-}
-
-.theme-btn:hover {
-  background-color: var(--z-accent-hover);
-  color: var(--z-fg-on-accent);
-}
-
 // The terminal owns the whole pane. Padding is symmetric and lives on the container
 // only: xterm's FitAddon measures the element it was opened on, so padding on
 // .terminalArea itself makes the fit calculation disagree with the visible box.
@@ -166,20 +151,9 @@
   }
 }
 
-.editor-button {
-  background: none;
-  color: inherit;
-  border: none;
-  padding: 0;
-}
-
-.editor-button-right {
-  background: none;
-  color: inherit;
-  border: none;
-  padding: 0;
-  float: right;
-}
+// `.editor-button` was here: a reset, handed to every icon button in the app, which left each one
+// the size of its own glyph. `.z-icon-button` in `styles/_controls.scss` replaces it and gives them
+// a hit area. `.editor-button-right` went with it, unused by anything.
 
 // Editor tab strip. Bootstrap supplies .nav-link's box model; we restyle it.
 //
@@ -194,11 +168,24 @@
   box-sizing: border-box;
   background: var(--z-bg-tab-inactive);
 
-  // The close × inherits the tab's colour; --z-fg-subtle is picked to sit on a *panel*, and
-  // on the purple tab it comes out at 1.16:1.
-  i {
+  // The close cross inherits the tab's colour, which is the point of drawing icons in
+  // `currentColor`: --z-fg-subtle is picked to sit on a *panel*, and on the purple tab it
+  // comes out at 1.16:1.
+  //
+  // 18px, and the one stated exception to `.z-icon-button`'s 22px: the cross has to fit inside the
+  // tab beside a name, and a 22px box would set the strip's height instead of the label doing it.
+  .tab-close {
     margin-left: 8px;
-    font-size: 11px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+
+  // A file-type mark says what the file is, but the tab strip is the one surface where its hue
+  // is not readable — the light theme's is purple. On a tab the mark is lettering only.
+  .file-mark {
+    color: currentColor;
+    opacity: 0.85;
   }
 }
 
@@ -219,12 +206,6 @@
 }
 
 // The modal shell lives in styles/_modal.scss — four components share it.
-
-// directory.svg is an <img> with fill="#5f568f" baked in, so CSS `fill` cannot reach it.
-// A filter is the only lever that works on an <img>.
-.directoryIcon {
-  filter: var(--z-img-icon-filter);
-}
 
 .help-section {
   width: 100%;

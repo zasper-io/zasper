@@ -10,7 +10,7 @@ exactly the failure a mock cannot see.
 */
 import { APIRequestContext, Locator, Page, expect, test } from '@playwright/test';
 
-import { installedKernels, openApp } from './helpers';
+import { installedKernels, openApp, toolbarButton } from './helpers';
 
 const NOTEBOOK = 'Untitled.ipynb';
 
@@ -65,7 +65,7 @@ test('a running kernel is named with its notebook, and shut down from the panel'
     .locator('.launcher-icon')
     .first()
     .click();
-  await expect(page.getByTitle('Run Cell')).toBeVisible();
+  await expect(toolbarButton(page, 'Run Cell')).toBeVisible();
 
   // Starting a kernel takes seconds, and until it is up there is nothing for the panel to be right about.
   await expect.poll(() => runningKernels(request), { timeout: 60_000 }).toBe(1);

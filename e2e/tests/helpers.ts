@@ -34,6 +34,16 @@ export function renameBox(page: Page): Locator {
   return fileTree(page).getByRole('textbox');
 }
 
+/**
+ * A button in the notebook's own toolbar, by its tooltip.
+ *
+ * Scoped to the toolbar because the focused cell's hover buttons name the same actions — "Run Cell"
+ * on its own is the toolbar's button and the cell's, which are the same command from two places.
+ */
+export function toolbarButton(page: Page, title: string): Locator {
+  return page.locator('.text-editor-tool').getByTitle(title);
+}
+
 /** A path inside the throwaway project, for the assertions that only disk can answer. */
 export function inProject(...parts: string[]): string {
   return join(projectDir, ...parts);

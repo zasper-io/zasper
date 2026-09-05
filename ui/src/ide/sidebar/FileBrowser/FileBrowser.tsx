@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAtom, useSetAtom } from 'jotai';
 
+import { Icon } from '@/ide/icons';
 import { useTabActions } from '@/store/TabActions';
 import ContextMenu from '../ContextMenu/ContextMenu';
 import Breadcrumb from './Breadcrumb';
@@ -94,36 +95,44 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
         <div className="projectBanner">
           <Breadcrumb />
           <div className="projectButtons">
-            <button className="editor-button" onClick={() => create(root, 'file')} title="New file">
-              <img src="./images/editor/feather-file-plus.svg" alt="" />
+            <button
+              className="z-icon-button on-chrome"
+              onClick={() => create(root, 'file')}
+              title="New file"
+            >
+              <Icon name="file-plus" />
             </button>
             <button
-              className="editor-button"
+              className="z-icon-button on-chrome"
               onClick={() => create(root, 'notebook')}
               title="New notebook"
             >
-              <img className="notebookIcon" src="./images/editor/jupyter-icon.svg" alt="" />
+              <Icon name="notebook-pen" />
             </button>
             <button
-              className="editor-button"
+              className="z-icon-button on-chrome"
               onClick={() => create(root, 'directory')}
               title="New folder"
             >
-              <img src="./images/editor/feather-folder-plus.svg" alt="" />
+              <Icon name="folder-plus" />
             </button>
-            <button className="editor-button" onClick={() => uploadTo(root)} title="Upload file">
-              <i className="fas fa-upload"></i>
+            <button
+              className="z-icon-button on-chrome"
+              onClick={() => uploadTo(root)}
+              title="Upload file"
+            >
+              <Icon name="upload" />
             </button>
             {/* The watcher misses whatever its exclusion list covers — anything with `test`, `dist`
                 or `tmp` anywhere in its path — so there has to be a way to ask. */}
-            <button className="editor-button" onClick={() => refresh()} title="Refresh">
-              <i className="fas fa-sync"></i>
+            <button className="z-icon-button on-chrome" onClick={() => refresh()} title="Refresh">
+              <Icon name="refresh-cw" />
             </button>
           </div>
         </div>
         <div className="treeToolbar">
           <input
-            className="treeFilter"
+            className="z-field treeFilter"
             type="search"
             value={filter}
             placeholder="Filter"
@@ -131,28 +140,33 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
             onChange={(e) => setFilter(e.target.value)}
           />
           <button
-            className="editor-button"
+            className="z-icon-button"
             onClick={collapseAll}
             title="Collapse all folders"
             aria-label="Collapse all folders"
           >
-            <i className="fas fa-angle-double-up"></i>
+            <Icon name="chevrons-up" />
           </button>
           <button
-            className="editor-button"
+            className="z-icon-button"
             onClick={() => setShowHidden(!showHidden)}
             title={showHidden ? 'Hide hidden files' : 'Show hidden files'}
             aria-label="Show hidden files"
             aria-pressed={showHidden}
           >
-            <i className={showHidden ? 'fas fa-eye' : 'fas fa-eye-slash'}></i>
+            <Icon name={showHidden ? 'eye' : 'eye-off'} />
           </button>
         </div>
         {error !== '' && (
           <div className="panel-error" role="alert">
             <p>{error}</p>
-            <button type="button" aria-label="Dismiss" onClick={() => setError('')}>
-              <i className="fas fa-times-circle"></i>
+            <button
+              type="button"
+              className="z-icon-button"
+              aria-label="Dismiss"
+              onClick={() => setError('')}
+            >
+              <Icon name="x" />
             </button>
           </div>
         )}

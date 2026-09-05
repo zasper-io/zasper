@@ -1,12 +1,14 @@
 import { FileChange } from '@/api';
+import type { IconName } from '@/ide/icons';
+import { Icon } from '@/ide/icons';
 import { baseName, parentDirOf } from '@/paths';
 
 /** One button offered on every row of a section, and on the heading for all of them at once. */
 export interface IChangeAction {
   /** Names the button, for its tooltip and for anything reading the panel aloud. */
   label: string;
-  /** A Font Awesome class, as everywhere else in the sidebar. */
-  icon: string;
+  /** Which glyph the button wears — a key of the icon table in src/ide/icons/icons.ts. */
+  icon: IconName;
   run: (paths: string[]) => void;
 }
 
@@ -47,7 +49,7 @@ export default function ChangeList(props: ChangeListProps) {
 
   return (
     <>
-      <h2 className="z-subheading panel-section-head change-list-head">
+      <h2 className="z-label panel-section-head change-list-head">
         <span>
           {props.title} <span className="panel-section-count">{changes.length}</span>
         </span>
@@ -56,14 +58,14 @@ export default function ChangeList(props: ChangeListProps) {
             <button
               key={action.label}
               type="button"
-              className="editor-button panel-row-action"
+              className="z-icon-button panel-row-action"
               // "Stage all", from "Stage": one label per action rather than two to keep in step.
               title={`${action.label} all`}
               aria-label={`${action.label} all`}
               disabled={disabled}
               onClick={() => action.run(everything)}
             >
-              <i className={action.icon} />
+              <Icon name={action.icon} />
             </button>
           ))}
         </span>
@@ -91,13 +93,13 @@ export default function ChangeList(props: ChangeListProps) {
                   <button
                     key={action.label}
                     type="button"
-                    className="editor-button panel-row-action"
+                    className="z-icon-button panel-row-action"
                     title={`${action.label} ${change.path}`}
                     aria-label={`${action.label} ${change.path}`}
                     disabled={disabled}
                     onClick={() => action.run([change.path])}
                   >
-                    <i className={action.icon} />
+                    <Icon name={action.icon} />
                   </button>
                 ))}
                 <span

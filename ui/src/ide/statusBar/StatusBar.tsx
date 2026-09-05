@@ -13,6 +13,7 @@ import {
   linePositionAtom,
 } from '@/store/AppState';
 import { getCurrentBranch, logApiError } from '@/api';
+import { Icon } from '@/ide/icons';
 import { fileTabsAtom, IfileTab } from '@/store/TabState';
 
 /** What the status bar calls the thing in the active tab. */
@@ -75,17 +76,19 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
             title={`On branch ${branchName} — open source control`}
             onClick={onBranchClick}
           >
-            <i className="fas fa-code-branch"></i> {branchName}
+            <Icon name="git-branch" /> {branchName}
           </button>
         )}
       </div>
       <div className="rightStatus">
         {isTextEditor && (
           <>
-            <span className="statusItem">
+            {/* Tabular figures: these change on every keystroke, and proportional ones make
+                `Col 9` narrower than `Col 10`, which shifts everything to their right. */}
+            <span className="statusItem z-tabular">
               Ln {linePosition}, Col {columnPosition}
             </span>
-            <span className="statusItem">
+            <span className="statusItem z-tabular">
               {indentationMode}: {indentationSize}
             </span>
             <span className="statusItem">{encoding}</span>

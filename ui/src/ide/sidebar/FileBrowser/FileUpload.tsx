@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAtom } from 'jotai';
+import { Icon } from '@/ide/icons';
 
 import { uploadRequestAtom } from './atoms';
 import { IPendingUpload, pendingFromDrop, pendingFromFiles } from './uploads';
@@ -53,11 +54,11 @@ function FileUpload() {
             Upload
             <button
               type="button"
-              className="modal-btn-close"
+              className="z-icon-button on-chrome modal-btn-close"
               aria-label="Close"
               onClick={() => setRequest(null)}
             >
-              <i className="fas fa-times-circle"></i>
+              <Icon name="x" />
             </button>
           </div>
           <div className="modal-body uploadBody">
@@ -107,11 +108,7 @@ function FileUpload() {
                     {upload.reason !== '' && <span className="uploadReason">{upload.reason}</span>}
                     <span className="uploadState">{WORDING[upload.state]}</span>
                     {upload.state === 'taken' && (
-                      <button
-                        type="button"
-                        className="editor-button"
-                        onClick={() => queue.replace(upload.relativePath)}
-                      >
+                      <button type="button" onClick={() => queue.replace(upload.relativePath)}>
                         Replace
                       </button>
                     )}

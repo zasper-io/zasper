@@ -3,10 +3,29 @@ import React from 'react';
 import { fileTabsAtom, IfileTab } from '@/store/TabState';
 import { useTabActions } from '@/store/TabActions';
 import { unsavedTabsAtom } from '@/store/UnsavedState';
-import getFileExtension, { getIconToLoad } from '../utils';
+import getFileExtension from '../utils';
 import './TabIndex.scss';
 import { apiErrorMessage } from '@/api';
+import { FileMark, Icon } from '@/ide/icons';
 import UnsavedChangesDialog from './UnsavedChangesDialog';
+
+/**
+ * What a tab wears in front of its name.
+ *
+ * Only a file gets a file-type mark; the other two kinds of tab are not files, and a launcher
+ * keeps the product logo because that is what it is.
+ */
+function TabMark({ tab }: { tab: IfileTab }) {
+  if (tab.type === 'launcher') {
+    return <img className="tabIcon" src="./images/logo-icon.svg" alt="" />;
+  }
+  if (tab.type === 'terminal') {
+    return <Icon name="terminal" className="tabIcon" />;
+  }
+  // The file's own name for a diff: its tab is named `notes.txt (diff)`, whose extension is
+  // `txt (diff)` and which would therefore get the mark for an unknown type.
+  return <FileMark name={tab.diff?.path ?? tab.name} className="tabIcon" />;
+}
 
 export default function TabIndex() {
   const [fileTabsState, setFileTabsState] = useAtom(fileTabsAtom);
@@ -106,20 +125,20 @@ export default function TabIndex() {
                 )
               }
             >
-              {/* The file's own name for a diff: its tab is named `notes.txt (diff)`, whose
-                  extension is `txt (diff)` and whose icon is therefore the unknown one. */}
-              <img
-                className="tabIcon"
-                src={getIconToLoad(fileTabsState[key].diff?.path ?? fileTabsState[key].name)}
-                alt=""
-              />
-              {fileTabsState[key].name}
+              <TabMark tab={fileTabsState[key]} />
+              {/* The name is an element of its own so that the mark's lettering is not part of it:
+                  a bare text node makes the tab read as `txtnotes.txt` to anything matching on
+                  text, and `.panel-row-name` in the sidebar's rows is the same idea. */}
+              <span className="tabName">{fileTabsState[key].name}</span>
               {fileTabsState[key].name !== 'Launcher' && (
-                <span className="editor-button">
-                  <i
-                    className="fas fa-times-circle"
-                    onClick={async (e) => await handleTabClose(e, key)}
-                  />
+                // The handler is on the span rather than on the icon: an <Icon> is a glyph and
+                // takes no events, and a <button> cannot be nested in the tab's own button.
+                <span
+                  className="z-icon-button tab-close"
+                  title="Close"
+                  onClick={async (e) => await handleTabClose(e, key)}
+                >
+                  <Icon name="x" size={12} />
                 </span>
               )}
             </button>

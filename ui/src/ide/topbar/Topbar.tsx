@@ -6,6 +6,7 @@ import { protectedStateAtom, userNameAtom } from '@/store/AppState';
 import { useNavigate } from 'react-router-dom';
 
 import { useCommands, useRegisterCommands } from '@/commands/registry';
+import { Icon } from '@/ide/icons';
 import { ICommand } from '@/commands/types';
 
 export default function Topbar() {
@@ -132,7 +133,7 @@ export default function Topbar() {
         )}
         {/* Outside the button, and painted over the palette, so the same magnifier sits in the
             same place whether the button or the palette's input is the field on screen. */}
-        <img className="searchIcon" src="./images/icons/search.svg" alt="" />
+        <Icon name="search" size={14} className="searchIcon" />
       </div>
       <div className="topBar-side topBar-side-end">
         <div className="userName">
@@ -154,8 +155,13 @@ const LogoutButton = () => {
   };
 
   return (
-    <button className="logoutButton" onClick={logout}>
-      <img src="./images/icons/logout.svg" alt="" />
+    <button
+      className="z-icon-button on-chrome logoutButton"
+      onClick={logout}
+      title="Log out"
+      aria-label="Log out"
+    >
+      <Icon name="log-out" />
     </button>
   );
 };

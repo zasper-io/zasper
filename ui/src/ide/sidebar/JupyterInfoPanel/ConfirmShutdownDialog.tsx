@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Icon } from '@/ide/icons';
 
 interface ConfirmShutdownDialogProps {
   /** What the kernel is called, as the row shows it. */
@@ -37,12 +38,12 @@ export default function ConfirmShutdownDialog(props: ConfirmShutdownDialogProps)
             Shut down kernel
             <button
               type="button"
-              className="modal-btn-close"
+              className="z-icon-button on-chrome modal-btn-close"
               aria-label="Close"
               disabled={shuttingDown}
               onClick={onCancel}
             >
-              <i className="fas fa-times-circle"></i>
+              <Icon name="x" />
             </button>
           </div>
           <div className="modal-body">

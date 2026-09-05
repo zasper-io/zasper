@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from '@/ide/icons';
 
 import {
   apiErrorMessage,
@@ -120,7 +121,7 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
   return (
     <div className="git-branch-menu" ref={menu}>
       <input
-        className="gitpanel-input git-branch-filter"
+        className="z-field git-branch-filter"
         value={filter}
         autoFocus
         placeholder="Find or create a branch"
@@ -161,7 +162,7 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
               disabled={disabled}
               onClick={() => void create()}
             >
-              <i className="fas fa-plus"></i>
+              <Icon name="plus" />
               <span className="git-branch-option-name">Create branch {wanted}</span>
             </button>
           </li>
@@ -179,7 +180,7 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
               disabled={disabled || branch.current}
               onClick={() => void switchTo(branch)}
             >
-              <i className={branch.current ? 'fas fa-check' : 'fas fa-code-branch'}></i>
+              <Icon name={branch.current ? 'check' : 'git-branch'} />
               <span className="git-branch-option-name">{branch.name}</span>
               {branch.isRemote && <span className="git-branch-remote">remote</span>}
             </button>
@@ -189,13 +190,13 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
             {!branch.isRemote && !branch.current && (
               <button
                 type="button"
-                className="editor-button git-branch-delete"
+                className="z-icon-button git-branch-delete"
                 title={`Delete ${branch.name}`}
                 aria-label={`Delete ${branch.name}`}
                 disabled={disabled}
                 onClick={() => setPending(branch.name)}
               >
-                <i className="fas fa-trash"></i>
+                <Icon name="trash-2" />
               </button>
             )}
           </li>

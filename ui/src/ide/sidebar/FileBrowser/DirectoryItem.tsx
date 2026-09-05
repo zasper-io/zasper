@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useSetAtom } from 'jotai';
 
 import { IContentEntry } from '@/api';
+import { Icon } from '@/ide/icons';
 import { baseName } from '@/paths';
 import { useTabActions } from '@/store/TabActions';
 import ContextMenu from '../ContextMenu/ContextMenu';
@@ -117,9 +118,13 @@ const DirectoryItem = ({
           }
         }}
       >
-        <img className="directoryIcon" src="./images/editor/directory.svg" alt="" />
+        <Icon name="folder" />
         <RowName name={name} rename={rename} />
-        {data.writable === false && <i className="fas fa-lock rowFlag" aria-label="Read-only" />}
+        {data.writable === false && (
+          <span className="rowFlag" role="img" aria-label="Read-only" title="Read-only">
+            <Icon name="lock" size={12} />
+          </span>
+        )}
       </a>
       {menuPosition && (
         <ContextMenu

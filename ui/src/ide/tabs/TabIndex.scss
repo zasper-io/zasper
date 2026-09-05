@@ -1,4 +1,9 @@
+// The mark, icon or logo in front of a tab's name — see TabMark in TabIndex.tsx.
 .tabIcon {
-  height: 14px;
   margin-right: 6px;
+}
+
+// Only the launcher's logo is an <img>, and it is the one that needs a height.
+img.tabIcon {
+  height: 14px;
 }

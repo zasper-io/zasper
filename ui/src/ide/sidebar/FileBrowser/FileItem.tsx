@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useAtomValue } from 'jotai';
 
 import { IContentEntry } from '@/api';
-import { getIconToLoad } from '@/ide/utils';
+import { FileMark, Icon } from '@/ide/icons';
 import { baseName } from '@/paths';
 import { activeTabPathAtom } from '@/store/TabState';
 import ContextMenu from '../ContextMenu/ContextMenu';
@@ -80,9 +80,15 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: IFileItemP
         }}
         onContextMenu={handleRightClick}
       >
-        <img src={getIconToLoad(name)} alt="" />
+        <FileMark name={name} />
         <RowName name={name} rename={rename} />
-        {content.writable === false && <i className="fas fa-lock rowFlag" aria-label="Read-only" />}
+        {content.writable === false && (
+          // The lock is the only icon in the tree that is information rather than decoration, so
+          // unlike <Icon> itself it needs a name of its own.
+          <span className="rowFlag" role="img" aria-label="Read-only" title="Read-only">
+            <Icon name="lock" size={12} />
+          </span>
+        )}
       </a>
       {/* A sibling of the row, not a child of it: inside the link, a click on a menu item counted
           as a click on the file. */}

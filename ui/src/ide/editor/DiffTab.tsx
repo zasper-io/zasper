@@ -5,6 +5,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, lineNumbers } from '@codemirror/view';
 
 import { apiErrorMessage, DiffDocuments, DiffTarget, getDiff } from '@/api';
+import { Icon } from '@/ide/icons';
 import getFileExtension from '@/ide/utils';
 import { IfileTab } from '@/store/TabState';
 import { useTheme } from '@/themes/useTheme';
@@ -120,16 +121,16 @@ export default function DiffTab(props: DiffTabProps) {
 
         <div className="diff-head">
           <span className="diff-side">{left}</span>
-          <i className="fas fa-arrow-right diff-arrow" />
+          <Icon name="arrow-right" className="diff-arrow" />
           <span className="diff-side">{right}</span>
           <button
             type="button"
-            className="editor-button diff-refresh"
+            className="z-icon-button diff-refresh"
             title="Refresh"
             aria-label="Refresh"
             onClick={() => setReloads((count) => count + 1)}
           >
-            <i className="fas fa-sync" />
+            <Icon name="refresh-cw" />
           </button>
         </div>
 

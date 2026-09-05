@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Icon } from '@/ide/icons';
 
 interface ConfirmDeleteDialogProps {
   /** Everything about to go: one name, or several when a selection is being deleted. */
@@ -41,12 +42,12 @@ export default function ConfirmDeleteDialog(props: ConfirmDeleteDialogProps) {
             {several ? 'Delete items' : props.isFolder ? 'Delete folder' : 'Delete file'}
             <button
               type="button"
-              className="modal-btn-close"
+              className="z-icon-button on-chrome modal-btn-close"
               aria-label="Close"
               disabled={deleting}
               onClick={onCancel}
             >
-              <i className="fas fa-times-circle"></i>
+              <Icon name="x" />
             </button>
           </div>
           <div className="modal-body">

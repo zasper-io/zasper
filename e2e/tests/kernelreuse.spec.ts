@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 
 import { APIRequestContext, expect, Page, test } from '@playwright/test';
 
-import { fileTree, inProject, installedKernels, openApp, treeRow } from './helpers';
+import { fileTree, inProject, installedKernels, openApp, toolbarButton, treeRow } from './helpers';
 
 const NOTEBOOK = 'Untitled.ipynb';
 
@@ -43,7 +43,7 @@ function savedCellCount(): number {
 async function runUntilAnswered(page: Page, cell: number, answer: string): Promise<void> {
   const output = page.locator('.single-line').nth(cell).locator('.inner-text');
   await expect(async () => {
-    await page.getByTitle('Run Cell').click();
+    await toolbarButton(page, 'Run Cell').click();
     await expect(output).toContainText(answer, { timeout: 5_000 });
   }).toPass({ timeout: 60_000 });
 }
@@ -73,7 +73,7 @@ test('a closed notebook keeps its kernel, and reopening it joins the same sessio
     .locator('.launcher-icon')
     .first()
     .click();
-  await expect(page.getByTitle('Run Cell')).toBeVisible();
+  await expect(toolbarButton(page, 'Run Cell')).toBeVisible();
 
   const editor = page.locator('.cellEditor .cm-content').first();
   await editor.click();
@@ -82,7 +82,7 @@ test('a closed notebook keeps its kernel, and reopening it joins the same sessio
 
   // Saved before the tab is closed, so the close is a close rather than an answer to the unsaved-work
   // prompt.
-  await page.getByTitle('Save Notebook').click();
+  await toolbarButton(page, 'Save Notebook').click();
   await expect
     .poll(savedCellCount, { message: 'the save did not reach the file' })
     .toBeGreaterThan(0);
@@ -91,7 +91,7 @@ test('a closed notebook keeps its kernel, and reopening it joins the same sessio
   expect(started, 'the notebook did not start a kernel').toBeTruthy();
 
   const tab = page.locator('.tabHeader .nav-link', { hasText: NOTEBOOK });
-  await tab.locator('.fa-times-circle').click();
+  await tab.locator('.tab-close').click();
   await expect(tab).toHaveCount(0);
 
   /*
@@ -103,14 +103,14 @@ test('a closed notebook keeps its kernel, and reopening it joins the same sessio
   expect(await runningKernelIds(request), 'closing the tab killed the kernel').toEqual([started]);
 
   await treeRow(page, NOTEBOOK).click();
-  await expect(page.getByTitle('Run Cell')).toBeVisible();
+  await expect(toolbarButton(page, 'Run Cell')).toBeVisible();
   // The session answers which kernel this notebook is on, so there is nothing to ask about.
   await expect(page.getByText('Select Kernel')).toHaveCount(0);
   expect(await runningKernelIds(request), 'reopening started a second kernel').toEqual([started]);
 
   // And it is the same kernel in the sense that matters: `x` was set in a tab that no longer exists.
   await page.locator('.cellEditor .cm-content').first().click();
-  await page.getByTitle('Add Cell Below').click();
+  await toolbarButton(page, 'Add Cell Below').click();
   const second = page.locator('.cellEditor .cm-content').nth(1);
   await second.click();
   await page.keyboard.type('x + 1');
@@ -125,10 +125,10 @@ test('a closed notebook keeps its kernel, and reopening it joins the same sessio
   await page.reload();
   await expect(fileTree(page)).toBeVisible();
   await treeRow(page, NOTEBOOK).click();
-  await expect(page.getByTitle('Run Cell')).toBeVisible();
+  await expect(toolbarButton(page, 'Run Cell')).toBeVisible();
 
   await page.locator('.cellEditor .cm-content').first().click();
-  await page.getByTitle('Add Cell Below').click();
+  await toolbarButton(page, 'Add Cell Below').click();
   await page.locator('.cellEditor .cm-content').nth(1).click();
   await page.keyboard.type('x + 2');
   await runUntilAnswered(page, 1, '43');

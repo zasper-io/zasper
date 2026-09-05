@@ -1,5 +1,8 @@
 import React from 'react';
 
+import type { IconName } from '@/ide/icons';
+import { Icon } from '@/ide/icons';
+
 interface NbButtonsProps {
   /** Dispatches a command by id — see notebookCommands.ts for the ids. */
   run: (id: string) => void;
@@ -14,19 +17,21 @@ interface NbButtonsProps {
  * is what collapsed this component's props from fifteen to four — and what guarantees the button
  * and the keyboard shortcut for the same action cannot diverge.
  */
-const TOOLBAR_BUTTONS: { id: string; title: string; icon: string }[] = [
-  { id: 'notebook:save', title: 'Save Notebook', icon: 'fas fa-save' },
-  { id: 'notebook:insert-cell-below', title: 'Add Cell Below', icon: 'fas fa-plus' },
-  { id: 'notebook:cut-cell', title: 'Cut Cell', icon: 'fas fa-cut' },
-  { id: 'notebook:copy-cell', title: 'Copy Cell', icon: 'fas fa-copy' },
-  { id: 'notebook:paste-cell', title: 'Paste Cell', icon: 'fas fa-paste' },
-  { id: 'notebook:run-cell', title: 'Run Cell', icon: 'fas fa-play' },
-  { id: 'notebook:interrupt-kernel', title: 'Interrupt Kernel', icon: 'fas fa-square' },
-  { id: 'notebook:restart-kernel', title: 'Restart Kernel', icon: 'fas fa-redo' },
+const TOOLBAR_BUTTONS: { id: string; title: string; icon: IconName }[] = [
+  { id: 'notebook:save', title: 'Save Notebook', icon: 'save' },
+  { id: 'notebook:insert-cell-below', title: 'Add Cell Below', icon: 'plus' },
+  { id: 'notebook:cut-cell', title: 'Cut Cell', icon: 'scissors' },
+  { id: 'notebook:copy-cell', title: 'Copy Cell', icon: 'copy' },
+  { id: 'notebook:paste-cell', title: 'Paste Cell', icon: 'clipboard-paste' },
+  { id: 'notebook:run-cell', title: 'Run Cell', icon: 'play' },
+  // A stop square for interrupt, as every player has: the kernel keeps its variables, so this
+  // is a stop rather than the power-off the Jupyter info panel offers.
+  { id: 'notebook:interrupt-kernel', title: 'Interrupt Kernel', icon: 'square' },
+  { id: 'notebook:restart-kernel', title: 'Restart Kernel', icon: 'rotate-cw' },
   {
     id: 'notebook:restart-and-run-all',
     title: 'Restart Kernel and Execute all Cells',
-    icon: 'fas fa-forward',
+    icon: 'fast-forward',
   },
 ];
 
@@ -43,17 +48,17 @@ function NbButtons(props: NbButtonsProps) {
         <button
           key={button.id}
           type="button"
-          className="editor-button"
+          className="z-icon-button"
           onClick={() => props.run(button.id)}
           title={button.title}
         >
-          <i className={button.icon} />
+          <Icon name={button.icon} />
         </button>
       ))}
       {/* The picker's values are the command ids' suffixes, so there is no mapping table. */}
       <select
         onChange={(e) => props.run(`notebook:change-to-${e.target.value}`)}
-        className="editor-select"
+        className="z-field editor-select"
         value={props.cellType}
       >
         {CELL_TYPES.map((option) => (
@@ -63,18 +68,19 @@ function NbButtons(props: NbButtonsProps) {
         ))}
       </select>
       <div className="tool-group-end">
-        <button className="editor-button" onClick={() => props.run('notebook:change-kernel')}>
+        <button className="kernelNameButton" onClick={() => props.run('notebook:change-kernel')}>
           {props.kernelName}
         </button>
       </div>
       <div className="kStatus">
         <span className={`kernelStatus ks-${props.kernelStatus}`}></span>
-        <button className="reconnectButton" onClick={() => props.run('notebook:reconnect-kernel')}>
-          <img
-            src="./images/editor/reconnect-icon.svg"
-            title="Reconnect Kernel"
-            alt="Reconnect"
-          ></img>
+        <button
+          className="z-icon-button"
+          onClick={() => props.run('notebook:reconnect-kernel')}
+          title="Reconnect Kernel"
+          aria-label="Reconnect Kernel"
+        >
+          <Icon name="plug-zap" />
         </button>
       </div>
     </div>

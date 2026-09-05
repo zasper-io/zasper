@@ -21,9 +21,9 @@ function tab(page: Page, name: string): Locator {
   return page.locator('.tab-item').filter({ hasText: name });
 }
 
-/** The × on a tab. The icon rather than the button around it: the handler is on the icon. */
+/** The × on a tab. A span rather than a button: a button cannot nest in the tab's own button. */
 function closeButton(page: Page, name: string): Locator {
-  return tab(page, name).locator('.editor-button i');
+  return tab(page, name).locator('.tab-close');
 }
 
 /**

@@ -1,4 +1,5 @@
 import { fetchRemote, GitStatus, pullRemote, pushRemote } from '@/api';
+import { Icon } from '@/ide/icons';
 import { IGitStatus } from './useGitStatus';
 
 interface SyncActionsProps {
@@ -30,36 +31,36 @@ export default function SyncActions({ status, busy, run }: SyncActionsProps) {
     <div className="git-sync-actions">
       <button
         type="button"
-        className="editor-button git-sync-action"
+        className="z-icon-button git-sync-action"
         title={`Fetch from the remote (${tracking})`}
         aria-label="Fetch"
         disabled={disabled}
         onClick={() => void run(fetchRemote)}
       >
-        <i className="fas fa-cloud-download-alt"></i>
+        <Icon name="cloud-download" />
       </button>
 
       <button
         type="button"
-        className="editor-button git-sync-action"
+        className="z-icon-button git-sync-action"
         title={`Pull ${status.behind} commits from ${tracking}`}
         aria-label="Pull"
         disabled={disabled}
         onClick={() => void run(pullRemote, 'Pulled.')}
       >
-        <i className="fas fa-arrow-down"></i>
+        <Icon name="arrow-down" />
         {status.behind > 0 && <span className="git-sync-count">{status.behind}</span>}
       </button>
 
       <button
         type="button"
-        className="editor-button git-sync-action"
+        className="z-icon-button git-sync-action"
         title={`Push ${status.ahead} commits to ${tracking}`}
         aria-label="Push"
         disabled={disabled}
         onClick={() => void run(pushRemote, 'Pushed.')}
       >
-        <i className="fas fa-arrow-up"></i>
+        <Icon name="arrow-up" />
         {status.ahead > 0 && <span className="git-sync-count">{status.ahead}</span>}
       </button>
     </div>

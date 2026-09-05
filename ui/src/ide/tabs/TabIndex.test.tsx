@@ -71,7 +71,7 @@ function tabForNotes(): HTMLElement | null {
 
 /** Clicks the close cross on the `notes.txt` tab. */
 function clickClose(container: HTMLElement) {
-  const crosses = container.querySelectorAll('.editor-button i');
+  const crosses = container.querySelectorAll('.tab-close');
   // Only the closable tabs have one, and Launcher is not closable.
   expect(crosses).toHaveLength(1);
   fireEvent.click(crosses[0]);

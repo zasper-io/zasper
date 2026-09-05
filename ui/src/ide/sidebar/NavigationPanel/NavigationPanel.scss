@@ -11,24 +11,19 @@
 }
 
 // Near-square and flush, so the active marker reads as a full-height bar.
+//
+// `color` has to be stated: a <button> does not inherit it from the page, and the icon inside
+// is drawn in `currentColor`, so without this the rail would be UA black in every theme.
 .navButton {
   border: none;
   padding: 0;
   height: 40px;
   width: 44px;
   background-color: transparent;
+  color: var(--z-fg-icon);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-// One box for every icon in the rail — the components in ide/icons each carry a different
-// fractional intrinsic size, which renders ragged and unaligned. `viewBox` and the default
-// `preserveAspectRatio` fit each drawing without distorting it, and 18px inside 44x40 centres
-// on whole pixels so the thin strokes stay crisp.
-.navButton svg {
-  width: 18px;
-  height: 18px;
 }
 
 // The 4px marker is inside the 44px width, so an active button does not shift its icon.
@@ -37,10 +32,4 @@
   border-left: 4px solid var(--z-border-navbutton-active);
   padding-right: 4px;
   background-color: var(--z-bg-navbutton-active);
-}
-
-.help-icon {
-  text-align: center;
-  font-size: 15px;
-  color: var(--z-fg-icon);
 }

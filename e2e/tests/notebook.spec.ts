@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
 
-import { fileTree, inProject, installedKernels, openApp, treeRow } from './helpers';
+import { fileTree, inProject, installedKernels, openApp, toolbarButton, treeRow } from './helpers';
 
 const NOTEBOOK = 'Untitled.ipynb';
 
@@ -49,7 +49,7 @@ test('a cell is run, and its output survives a save and a reload', async ({ page
     .first()
     .click();
 
-  await expect(page.getByTitle('Run Cell')).toBeVisible();
+  await expect(toolbarButton(page, 'Run Cell')).toBeVisible();
   await expect(treeRow(page, NOTEBOOK)).toBeVisible();
 
   // A new notebook is written with no cells at all; the blank one here is the editor's, and only
@@ -69,11 +69,11 @@ test('a cell is run, and its output survives a save and a reload', async ({ page
    */
   const output = page.locator('.inner-text');
   await expect(async () => {
-    await page.getByTitle('Run Cell').click();
+    await toolbarButton(page, 'Run Cell').click();
     await expect(output).toContainText('2', { timeout: 5_000 });
   }).toPass({ timeout: 60_000 });
 
-  await page.getByTitle('Save Notebook').click();
+  await toolbarButton(page, 'Save Notebook').click();
   await expect
     .poll(savedOutputCount, { message: 'the save did not reach the file' })
     .toBeGreaterThan(0);

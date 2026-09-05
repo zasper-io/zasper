@@ -2,13 +2,8 @@ import React, { useState } from 'react';
 import HelpDialog from '../HelpDialog/HelpDialog';
 
 import './NavigationPanel.scss';
-import {
-  FileBrowserIcon,
-  GitPanelIcon,
-  HelpIcon,
-  JupyterInfoPanelIcon,
-  SettingsPanelIcon,
-} from '@/ide/icons';
+import type { IconName } from '@/ide/icons';
+import { Icon } from '@/ide/icons';
 import { PanelName } from '../types';
 
 interface NavigationPanelProps {
@@ -16,11 +11,15 @@ interface NavigationPanelProps {
   setActivePanel: (panelName: PanelName) => void;
 }
 
-const NAV_ITEMS: { name: PanelName; label: string; icon: React.ReactNode }[] = [
-  { name: 'fileBrowser', label: 'File explorer', icon: <FileBrowserIcon /> },
-  { name: 'gitPanel', label: 'Source control', icon: <GitPanelIcon /> },
-  { name: 'jupyterInfoPanel', label: 'Jupyter info', icon: <JupyterInfoPanelIcon /> },
-  { name: 'settingsPanel', label: 'Settings', icon: <SettingsPanelIcon /> },
+// 18px rather than the 16px an icon takes elsewhere: the rail is the one place an icon is the
+// whole control rather than a marker beside a word.
+const RAIL_ICON_SIZE = 18;
+
+const NAV_ITEMS: { name: PanelName; label: string; icon: IconName }[] = [
+  { name: 'fileBrowser', label: 'File explorer', icon: 'files' },
+  { name: 'gitPanel', label: 'Source control', icon: 'git-branch' },
+  { name: 'jupyterInfoPanel', label: 'Jupyter info', icon: 'cpu' },
+  { name: 'settingsPanel', label: 'Settings', icon: 'settings' },
 ];
 
 // Which button is highlighted comes from the parent, which also decides which panel is
@@ -42,18 +41,18 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
           title={item.label}
           aria-label={item.label}
         >
-          {item.icon}
+          <Icon name={item.icon} size={RAIL_ICON_SIZE} />
         </button>
       ))}
 
       {/* Help icon button */}
       <button
-        className="navButton mt-auto help-icon"
+        className="navButton mt-auto"
         onClick={toggleHelpDialog}
         title="Help"
         aria-label="Help"
       >
-        <HelpIcon />
+        <Icon name="circle-help" size={RAIL_ICON_SIZE} />
       </button>
 
       {showHelpDialog && <HelpDialog toggleHelpDialog={toggleHelpDialog} />}

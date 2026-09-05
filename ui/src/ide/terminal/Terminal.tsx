@@ -47,12 +47,22 @@ export default function TerminalTab({ data }: TerminalTabProps) {
     // baked into the XTerm instance. Keeping it in CSS means switching themes
     // repaints the terminal instead of disposing and rebuilding it, so the
     // scrollback and the shell session survive.
+    // xterm wants a string, not a custom property, so the token is read rather than restated:
+    // the terminal has to use the same mono face as the notebook beside it. Whitespace is
+    // collapsed because the declaration wraps in _tokens.scss, and xterm builds a canvas font
+    // string from this. The fallback is for a jsdom test, where no stylesheet is loaded.
+    const mono =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--z-mono-font-family')
+        .replace(/\s+/g, ' ')
+        .trim() || 'monospace';
+
     const terminal = new XTerm({
       theme: {
         background: 'rgba(0, 0, 0, 0)',
       },
       allowTransparency: true,
-      fontFamily: 'Monospace',
+      fontFamily: mono,
       allowProposedApi: true,
     });
 

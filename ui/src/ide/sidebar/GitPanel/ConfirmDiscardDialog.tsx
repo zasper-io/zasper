@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Icon } from '@/ide/icons';
 
 interface ConfirmDiscardDialogProps {
   /** Paths git knows about: discarding one puts back what was committed or staged. */
@@ -43,12 +44,12 @@ export default function ConfirmDiscardDialog(props: ConfirmDiscardDialogProps) {
             Discard changes
             <button
               type="button"
-              className="modal-btn-close"
+              className="z-icon-button on-chrome modal-btn-close"
               aria-label="Close"
               disabled={discarding}
               onClick={onCancel}
             >
-              <i className="fas fa-times-circle"></i>
+              <Icon name="x" />
             </button>
           </div>
           <div className="modal-body">

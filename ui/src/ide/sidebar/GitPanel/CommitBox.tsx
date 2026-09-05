@@ -22,7 +22,7 @@ export default function CommitBox({ status, busy, action }: CommitBoxProps) {
     <div className="commit-box">
       <textarea
         ref={box}
-        className="gitpanel-input commit-message-input"
+        className="z-field commit-message-input"
         value={message}
         rows={3}
         placeholder="Commit message"

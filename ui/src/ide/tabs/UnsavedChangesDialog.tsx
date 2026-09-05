@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Icon } from '@/ide/icons';
 
 interface UnsavedChangesDialogProps {
   /** The tab's name, as the tab bar shows it. */
@@ -36,12 +37,12 @@ export default function UnsavedChangesDialog(props: UnsavedChangesDialogProps) {
             Unsaved changes
             <button
               type="button"
-              className="modal-btn-close"
+              className="z-icon-button on-chrome modal-btn-close"
               aria-label="Close"
               disabled={saving}
               onClick={onCancel}
             >
-              <i className="fas fa-times-circle"></i>
+              <Icon name="x" />
             </button>
           </div>
           <div className="modal-body">

@@ -1,3 +1,4 @@
+import { Icon } from '@/ide/icons';
 import { IKernelspecsState } from '@/store/AppState';
 import { IRunningKernel } from './useJupyterInfo';
 
@@ -66,23 +67,23 @@ export default function KernelList(props: KernelListProps) {
             <span className="panel-row-actions">
               <button
                 type="button"
-                className="editor-button panel-row-action"
+                className="z-icon-button panel-row-action"
                 title={`Interrupt ${label}`}
                 aria-label={`Interrupt ${label}`}
                 disabled={disabled}
                 onClick={() => props.onInterrupt(kernel)}
               >
-                <i className="fas fa-pause" />
+                <Icon name="pause" />
               </button>
               <button
                 type="button"
-                className="editor-button panel-row-action"
+                className="z-icon-button panel-row-action"
                 title={`Shut down ${label}`}
                 aria-label={`Shut down ${label}`}
                 disabled={disabled}
                 onClick={() => props.onShutdown(kernel)}
               >
-                <i className="fas fa-power-off" />
+                <Icon name="power" />
               </button>
             </span>
           </li>

@@ -9,10 +9,29 @@
   color: var(--z-fg-subtle);
 }
 
-// Icon glyphs, so a step above the chrome text.
-.text-editor-tool .editor-button {
+// A <button> does not inherit `color`, and every icon in here is drawn in `currentColor`. One step
+// darker than the strip's own --z-fg-subtle: an action is readable, the labels around it are quiet.
+.text-editor-tool .z-icon-button {
   color: var(--z-fg-muted);
-  font-size: 12px;
+}
+
+// What kernel this notebook is on, and the way to change it. A text button, so it is not
+// `.z-icon-button`; it takes the same 24px box as the cell-type picker beside it so the two read as
+// one strip of controls. `font: inherit` because a <button> inherits neither family nor size, and
+// this one was rendering the kernel's name in the browser's default face.
+.kernelNameButton {
+  height: var(--z-ui-control-height);
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--z-fg-muted);
+  font: inherit;
+}
+
+.kernelNameButton:hover {
+  background: var(--z-bg-menu-hover);
+  color: var(--z-fg-default);
 }
 
 .tool-group-end {
@@ -49,9 +68,10 @@
   display: flex;
   align-items: center;
   // Sized to keep the bar 22px tall: half of it overhangs the cell above, so .single-line's
-  // bottom margin has to clear 11px.
-  gap: 10px;
-  padding: 2px 8px;
+  // bottom margin has to clear 11px. Which is why the buttons in here have no padding above or
+  // below them — they *are* the 22px, rather than sitting inside it.
+  gap: 6px;
+  padding: 0 4px;
   border: 1px solid var(--z-border-divider);
   border-radius: 4px;
   background: var(--z-bg-cell);
@@ -59,37 +79,17 @@
   box-shadow: var(--z-shadow-low);
 }
 
-// One box for the Font Awesome glyphs and the inline SVGs from CellButtons alike.
-.cellOptions .editor-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  font-size: 13px;
-  color: var(--z-fg-muted);
+// Was one 16px box per button — the icon and nothing around it — in a strip that appears on hover
+// over a cell and then has to be hit. `.z-icon-button` gives them the 22px the strip is tall, and
+// their ink comes from the strip's own `color`, so there is nothing left to state here.
 
-  svg {
-    display: block;
-    width: 16px;
-    height: 16px;
-  }
-}
-
-.cellOptions .editor-button:hover {
-  color: var(--z-fg-default);
-}
-
-// Also used by the kernel switcher and NbButtons. Don't add Bootstrap's `.form-select`
-// alongside it: that class's padding and line-height overflow this 24px box.
+// A `.z-field` with a width: the picker holds "Markdown" and a kernel's full name, so it is sized
+// for the longest of them rather than by whichever is selected. Used by the kernel switcher as well
+// as NbButtons. Don't add Bootstrap's `.form-select` alongside it: that class's padding and
+// line-height overflow the field's 24px box.
 .editor-select {
   width: 180px;
-  height: var(--z-ui-control-height);
   font-weight: 300;
-  font-size: var(--z-ui-font-size);
-  background-color: var(--z-bg-field);
-  color: var(--z-fg-field);
-  border: 1px solid var(--z-border-field);
 }
 
 .activeCell {
@@ -172,7 +172,12 @@
   }
 
   // Bootstrap sizes `pre` at 0.875em, which off 13px is a fractional 11.375px.
+  //
+  // The family is named rather than left to the browser's `<pre>` default, so that output uses
+  // the same mono face as the code above it that produced it. Columns in a printed DataFrame
+  // only line up if both agree, and before this each machine chose its own.
   pre {
+    font-family: var(--z-mono-font-family);
     font-size: var(--z-ui-font-size);
     white-space: pre-wrap;
   }
@@ -219,23 +224,8 @@
 // same dot for the same states, so it is not this notebook's to own.
 
 // A toolbar button like the rest of them, sized to the status dot beside it.
-.reconnectButton {
-  flex: 0 0 auto;
-  border: none;
-  background: none;
-  padding: 0;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.reconnectButton img {
-  display: block;
-  width: 15px;
-  height: 15px;
-}
+// `.reconnectButton` was here, restating a 16px box beside the kernel dot. It is a
+// `.z-icon-button` in the toolbar like every other action in it.
 
 .svgContainer {
   height: 20px;
@@ -311,6 +301,12 @@ table.dataframe td {
 /* ===== Rendered markdown ===== */
 
 .zasper-markdown {
+  // A rendered markdown cell is the one part of a notebook that is prose, so it takes the content
+  // size rather than the chrome's. Code cells and output stay at --z-ui-font-size beside it:
+  // output has to line up with the code that produced it, and that is a monospace grid.
+  font-size: var(--z-font-size-body);
+  line-height: var(--z-line-height-body);
+
   table {
     border-collapse: collapse;
     margin-bottom: 12px;

@@ -4,6 +4,7 @@ import './GitPanel.scss';
 
 import { discardFiles, initRepository, stageFiles, unstageFiles } from '@/api';
 import { useRegisterCommands } from '@/commands/registry';
+import { Icon } from '@/ide/icons';
 import { useTabActions } from '@/store/TabActions';
 import BranchMenu from './BranchMenu';
 import ChangeList, { IChangeAction } from './ChangeList';
@@ -64,17 +65,17 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
 
   const stage: IChangeAction = {
     label: 'Stage',
-    icon: 'fas fa-plus',
+    icon: 'plus',
     run: (paths) => void run(() => stageFiles(paths)),
   };
   const unstage: IChangeAction = {
     label: 'Unstage',
-    icon: 'fas fa-minus',
+    icon: 'minus',
     run: (paths) => void run(() => unstageFiles(paths)),
   };
   const discard: IChangeAction = {
     label: 'Discard',
-    icon: 'fas fa-undo',
+    icon: 'undo-2',
     run: (paths) => setPending(paths),
   };
 
@@ -102,14 +103,14 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
         <div className="z-label">Source control</div>
         <div className="git-head-actions">
           <button
-            className="editor-button"
+            className="z-icon-button"
             title="Refresh"
             onClick={() => {
               refresh();
               setHistoryKey((key) => key + 1);
             }}
           >
-            <i className="fas fa-sync"></i>
+            <Icon name="refresh-cw" />
           </button>
         </div>
       </div>
@@ -130,7 +131,7 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
               disabled={disabled}
               onClick={() => setBranchMenu((open) => !open)}
             >
-              <i className="fas fa-code-branch"></i> {status.branch}
+              <Icon name="git-branch" /> {status.branch}
             </button>
             {branchMenu && (
               <BranchMenu
@@ -235,7 +236,7 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
           </>
         )}
 
-        <h2 className="z-subheading panel-section-head">History</h2>
+        <h2 className="z-label panel-section-head">History</h2>
         <div className="panel-section-body">
           <History hidden={hidden} reloadKey={historyKey} />
         </div>

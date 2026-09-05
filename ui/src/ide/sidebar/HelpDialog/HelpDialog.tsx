@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAtom } from 'jotai';
+import { Icon } from '@/ide/icons';
 import { zasperVersionAtom } from '@/store/AppState';
 import './HelpDialog.scss';
 
@@ -22,12 +23,12 @@ function HelpDialog(props: ModalProps) {
             Help
             <button
               type="button"
-              className="modal-btn-close"
+              className="z-icon-button on-chrome modal-btn-close"
               aria-label="Close"
               onClick={props.toggleHelpDialog}
             >
               {' '}
-              <i className="fas fa-times-circle"></i>{' '}
+              <Icon name="x" />{' '}
             </button>
           </div>
           <div className="modal-body">

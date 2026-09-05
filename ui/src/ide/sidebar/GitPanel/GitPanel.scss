@@ -56,15 +56,22 @@
 }
 
 // The count belongs to the arrow before it, so the pair reads as one label — 2 to pull, 1 to push.
+//
+// Which makes this the one icon button that is not square: it stays 22px tall, and the width is a
+// minimum rather than a size, because a `2` beside the arrow has to fit inside the button it counts
+// for and not next to it.
 .git-sync-action {
-  display: inline-flex;
-  align-items: center;
+  width: auto;
+  min-width: 22px;
+  padding: 0 3px;
   gap: 3px;
 }
 
 .git-sync-count {
   font-size: 11px;
   line-height: 1;
+  // The arrow beside it must not move when 9 commits behind becomes 10.
+  font-variant-numeric: tabular-nums;
 }
 
 .git-branch-menu {
@@ -85,6 +92,7 @@
 }
 
 .git-branch-filter {
+  width: 100%;
   margin-bottom: 4px;
 }
 
@@ -141,13 +149,11 @@
 // Dimmed rather than revealed on hover, as .panel-row-action is: a hidden button is one a keyboard
 // user can tab to and not see, and one the row's width jumps for.
 .git-branch-delete {
-  flex: 0 0 auto;
-  padding: 0 6px;
   opacity: 0.65;
 
   &:hover:not(:disabled) {
     opacity: 1;
-    color: var(--z-accent);
+    color: var(--z-fg-accent);
   }
 
   &:disabled {
@@ -167,13 +173,14 @@
   padding: 8px 16px 4px;
 }
 
-// Qualified, because .gitpanel-input below sets the one-line height every other control in the panel
-// wants and a commit message needs room for a body.
+// Qualified, because `.z-field` sets the one-line height every other control in the panel wants and
+// a commit message needs room for a body.
 .commit-box .commit-message-input {
+  width: 100%;
   height: auto;
+  margin-bottom: 8px;
   padding: 4px 8px;
   resize: vertical;
-  font-family: inherit;
   line-height: 18px;
 }
 
@@ -228,24 +235,11 @@
 }
 
 // Also the "Select Kernel" / "Switch Kernel" button in KernelSwitch. It is a
-// primary action, so it follows --z-accent; it used to be filled with --z-brand,
-// which is pinned to Zasper purple for the wordmark and does not move with the
-// theme.
-// The commit-message box. Previously styled with .command-palette-input, which
-// meant the git panel broke if the command palette was restyled.
-.gitpanel-input {
-  width: 100%;
-  height: var(--z-ui-control-height);
-  padding: 0 8px;
-  // Spelled out rather than inherited: a control with no colours of its own is the browser's white box
-  // with black text in it, which under a dark theme is the one bright rectangle in the sidebar.
-  background: var(--z-bg-field);
-  color: var(--z-fg-field);
-  border: 1px solid var(--z-border-field);
-  border-radius: 4px;
-  font-size: var(--z-ui-font-size);
-  margin-bottom: 8px;
-}
+// primary action, so it follows --z-accent; it used to be filled with a purple
+// pinned to the wordmark, which did not move with the theme.
+// `.gitpanel-input` was here: the field box, stated for this panel's two fields, which is now
+// `.z-field` in styles/_controls.scss. Both of them keep the one thing that was theirs — the room
+// below them — beside where each is used.
 
 // "Loading…", "No history.", and why a read failed: one line, quiet, where a row would be.
 .git-history-note {
@@ -276,7 +270,7 @@
 
   // The row is open, and the file list below belongs to it.
   &[aria-expanded='true'] {
-    color: var(--z-accent);
+    color: var(--z-fg-accent);
   }
 }
 
@@ -299,7 +293,7 @@
 // compared against something in a terminal.
 .commit-short-hash {
   flex: 0 0 auto;
-  font-family: monospace;
+  font-family: var(--z-mono-font-family);
 }
 
 // The author is what gives way when the row is narrow: the hash and the date are fixed width and the

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icon } from '@/ide/icons';
 
 interface ConfirmDeleteBranchDialogProps {
   name: string;
@@ -42,12 +43,12 @@ export default function ConfirmDeleteBranchDialog(props: ConfirmDeleteBranchDial
             Delete branch
             <button
               type="button"
-              className="modal-btn-close"
+              className="z-icon-button on-chrome modal-btn-close"
               aria-label="Close"
               disabled={deleting}
               onClick={onCancel}
             >
-              <i className="fas fa-times-circle"></i>
+              <Icon name="x" />
             </button>
           </div>
           <div className="modal-body">

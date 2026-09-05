@@ -16,6 +16,16 @@ import { fileTree, openApp, treeRow } from './helpers';
 /** Small, on purpose: this is the "did it render at all" threshold, not a design review. */
 const MIN_SIZE = 8;
 
+/**
+ * The size an icon button is designed to be, which is the row it sits in. A different question from
+ * MIN_SIZE above — that one asks whether a control rendered at all, this one asks whether it is the
+ * size the styleguide says — and the reason it is asserted is that the rule was written down for a
+ * year and kept nowhere: `.editor-button` was a reset, so every toolbar button was as big as its
+ * glyph. The three deliberate departures each say so in the stylesheet and are excluded by name
+ * below.
+ */
+const HIT_AREA = 22;
+
 /** Whatever names a control in a failure message: its title, its label, or the text on it. */
 async function describe(control: Locator): Promise<string> {
   const title = await control.getAttribute('title');
@@ -118,6 +128,48 @@ test('every control in the notebook toolbar can be clicked', async ({ page }) =>
     []
   );
   expect(await unclickable(page.locator('.text-editor-tool select')), 'the cell type').toEqual([]);
+});
+
+test('every icon button is the size the styleguide says', async ({ page }) => {
+  await openApp(page);
+  await openNotebook(page);
+
+  // Named exceptions, not a blanket allowance: the close cross on a tab is 18px so that it does not
+  // set the strip's height, and a git sync arrow is 22px tall but wider when it carries a count.
+  const buttons = page.locator('.z-icon-button:visible:not(.tab-close):not(.git-sync-action)');
+  // The toolbars are on screen, so there is something to measure; a passing empty list would be the
+  // failure mode of this test.
+  expect(await buttons.count()).toBeGreaterThan(4);
+
+  const undersized: string[] = [];
+  for (const button of await buttons.all()) {
+    const box = await button.boundingBox();
+    const name = await describe(button);
+    if (box === null) {
+      undersized.push(`${name}: not rendered`);
+    } else if (Math.round(box.width) < HIT_AREA || Math.round(box.height) < HIT_AREA) {
+      undersized.push(`${name}: ${Math.round(box.width)}x${Math.round(box.height)}`);
+    }
+  }
+  expect(undersized).toEqual([]);
+});
+
+test('every field is the same box', async ({ page }) => {
+  await openApp(page);
+  await openNotebook(page);
+
+  // What `.z-field` exists to answer for. Not the height: the tree's filter is deliberately 4px
+  // shorter, and a commit message is as tall as it needs to be. What must not drift is the surface —
+  // four separate statements of it are what this replaced, and the one that drifts is invisible until
+  // somebody opens a dark theme and finds one white rectangle in the sidebar.
+  const boxes = await page.locator('.z-field').evaluateAll((fields) =>
+    fields.map((field) => {
+      const style = getComputedStyle(field);
+      return [style.backgroundColor, style.color, style.borderColor, style.borderRadius].join(' ');
+    })
+  );
+  expect(boxes.length).toBeGreaterThan(1);
+  expect(new Set(boxes).size, boxes.join('\n')).toBe(1);
 });
 
 test('the tab bar and the notebook toolbar stay inside the content area', async ({ page }) => {

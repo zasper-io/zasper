@@ -103,13 +103,7 @@
       left: 12px;
       top: 50%;
       transform: translateY(-50%);
-      // Square rather than the file's 14.963x15.468: at width alone the height came out
-      // 13.4375 and centring put the glyph on a fractional y. The 3% squash is invisible.
-      width: 13px;
-      height: 13px;
-      // search.svg bakes in fill:#ffffff, so it disappears on a theme with a light topbar.
-      // Same filter the project banner's white icons use.
-      filter: var(--z-filter-chrome-icon);
+      color: var(--z-fg-on-chrome);
       z-index: 10000;
       pointer-events: none;
     }
@@ -121,9 +115,10 @@
     height: 100%;
   }
 
+  // `color` is stated because a <button> does not inherit it, and the icon inside is drawn in
+  // `currentColor`.
+  // Place only: the box, the white ink and the hover are `.z-icon-button.on-chrome`.
   .logoutButton {
-    background: none;
-    border: none;
     margin-left: 12px;
   }
 }

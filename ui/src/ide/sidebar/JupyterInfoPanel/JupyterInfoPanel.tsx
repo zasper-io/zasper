@@ -8,6 +8,7 @@ import {
   notebookKernelMapAtom,
   terminalsAtom,
 } from '@/store/AppState';
+import { Icon } from '@/ide/icons';
 import { useTabActions } from '@/store/TabActions';
 import ConfirmShutdownDialog from './ConfirmShutdownDialog';
 import KernelList, { kernelLabel } from './KernelList';
@@ -72,8 +73,8 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
         <div className="z-label">Jupyter info</div>
         {/* The list is polled while the panel is open, but a shutdown from a terminal is worth being
             able to confirm without waiting for the next tick. */}
-        <button className="editor-button" title="Refresh" onClick={refresh}>
-          <i className="fas fa-sync"></i>
+        <button className="z-icon-button" title="Refresh" onClick={refresh}>
+          <Icon name="refresh-cw" />
         </button>
       </div>
 

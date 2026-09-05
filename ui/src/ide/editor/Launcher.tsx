@@ -5,7 +5,7 @@ import { ContentType, createContent } from '@/api';
 import { useAtom, useAtomValue } from 'jotai';
 import { kernelspecsAtom, fileBrowserReloadCountAtom } from '@/store/AppState';
 import { useTabActions } from '@/store/TabActions';
-import { TerminalIcon } from '../icons';
+import { Icon } from '../icons';
 
 interface LauncherProps {
   data: {
@@ -69,7 +69,8 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
         <h2 className="z-heading">Terminal</h2>
         <div className="launchSection-grid">
           <div className="launcher-icon" onClick={() => openTerminal()}>
-            <TerminalIcon />
+            {/* 44px, the height of the kernelspec logos beside it — this tile is one of the grid. */}
+            <Icon name="terminal" size={44} />
           </div>
         </div>
       </div>

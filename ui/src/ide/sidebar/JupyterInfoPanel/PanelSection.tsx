@@ -1,4 +1,5 @@
 import { ReactNode, useState } from 'react';
+import { Icon } from '@/ide/icons';
 
 interface PanelSectionProps {
   title: string;
@@ -24,14 +25,15 @@ export default function PanelSection(props: PanelSectionProps) {
 
   return (
     <>
-      <h2 className="z-subheading panel-section-head">
+      <h2 className="z-label panel-section-head">
         <button
           type="button"
           className="panel-section-toggle"
           aria-expanded={open}
           onClick={() => setOpen((shown) => !shown)}
         >
-          <i className={open ? 'fas fa-chevron-down' : 'fas fa-chevron-right'} aria-hidden="true" />
+          {/* 12px: a chevron points at something rather than being the thing. */}
+          <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
           <span>
             {title} <span className="panel-section-count">{count}</span>
           </span>
