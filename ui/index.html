@@ -1,5 +1,11 @@
 <!doctype html>
-<html lang="en">
+<!--
+  The default theme, spelled out here as well as in src/themes/index.ts, because IDE.tsx cannot write
+  these attributes until it has read the config: without them the first paint of every boot is the
+  purple in `:root`, and the window changes colour once the config arrives. Keep in step with
+  `defaultTheme`. /login has no config to read at all, so this is the theme it always renders in.
+-->
+<html lang="en" data-theme="light" data-accent="teal">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.ico" />
@@ -15,7 +21,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
 

@@ -1,12 +1,25 @@
 // Zasper design tokens.
 //
 // Every colour in the UI resolves through one of these custom properties, so a
-// theme is a set of values rather than a set of override rules. Light is the
-// default in `:root`; a theme only has to restate what it changes.
+// theme is a set of values rather than a set of override rules. A component reads
+// `--z-*` and nothing else; where a value comes from is this layer's business.
 //
-// Adding a theme means adding one `[data-theme='name']` block below (or shipping
-// the same block from a plugin stylesheet) — no component SCSS has to change.
-// `themeAtom` writes the active name to `data-theme` on <html>; see IDE.tsx.
+// There are two ways to add one, and the cheap one is not here:
+//
+//   * A *hue* — nine values in $accents in _accents.scss, which makes both a light
+//     and a dark theme out of them. That is where the shipped themes come from.
+//   * A *palette*, when the point is not the brand colour: the two blocks below
+//     that are not generated — `[data-theme='dark']`, which is grey rather than
+//     tinted, and `[data-theme='jupyterlab']`, which imitates somebody else's
+//     Material palette. Those are hand-written and restate only what they change.
+//
+// `:root` is the light values the app shipped with, in Zasper purple. It is no
+// longer a theme anyone can select: it is the floor, and it shows through where no
+// accent is set — the moment before the config has been read, and /login, which
+// renders before there is a config to read.
+//
+// IDE.tsx writes both attributes on <html>: `data-theme` for the polarity and
+// `data-accent` for the hue. src/themes/index.ts turns one stored name into the two.
 
 // --- Chrome type and density --------------------------------------------------
 //
@@ -17,11 +30,34 @@
 // are VS Code's numbers. Anything in the chrome with a literal font-size larger
 // than these is a bug. Smaller is fine — 11–12px captions are deliberate.
 :root {
+  // Inter for chrome and prose, JetBrains Mono for code, output and the terminal.
+  //
+  // Both are loaded from Google Fonts in index.html, and both carry a full system stack
+  // behind them on purpose: this is a desktop IDE that has to open offline, and the
+  // single-family declaration this replaces fell all the way back to `sans-serif` —
+  // Times on some machines — whenever that request failed.
+  --z-ui-font-family:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  // The app had no monospace family at all before this, so code and terminal output took
+  // whatever each machine called `monospace` and a notebook did not look the same on two
+  // of them. `ui-monospace` first, because a system that has a good mono knows its name.
+  --z-mono-font-family:
+    'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono',
+    monospace;
   --z-ui-font-size: 13px;
   // Status bar, panel title strips, captions.
   --z-ui-font-size-sm: 11px;
   --z-ui-line-height: 1.4;
-  // One row of a tree or list.
+  // Content, one step above the chrome: the launcher, the login card, a rendered markdown
+  // cell — surfaces that are read rather than scanned, and the reason for having two sizes at
+  // all. The chrome is not one of them; 13px there was never the complaint. The steps in
+  // _typography.scss are measured against this, so moving it means revisiting them.
+  --z-font-size-body: 14px;
+  // Looser than the chrome's 1.4, because these are lines of prose and not rows of a list.
+  --z-line-height-body: 1.5;
+  // One row of a tree or list. VS Code's number, and it was compared against 24px on the prototype's
+  // shell page rather than assumed: 24 buys air one row at a time and charges two rows out of every
+  // twenty for it, in a panel whose job is to show a directory at a glance. Kept at 22.
   --z-ui-row-height: 22px;
   // Selects, inputs and buttons sitting in the chrome.
   --z-ui-control-height: 24px;
@@ -52,6 +88,12 @@
   --z-bg-menu-hover: #f0f0f0;
   --z-fg-menu-item: #473990;
 
+  // An icon button's hover, on a coloured chrome surface rather than on a panel. Not a fixed
+  // white wash: `jupyterlab`'s chrome is light, so white over it is invisible, and that theme
+  // takes a black one instead. --z-bg-menu-hover is the panel version and reads as a hole
+  // punched in a coloured bar.
+  --z-bg-hover-on-chrome: rgba(255, 255, 255, 0.16);
+
   // --- Chrome (topbar / tabs / banner) ------------------------------------
   --z-bg-topbar: #473990;
   --z-bg-banner: #553b9e;
@@ -63,8 +105,9 @@
   --z-bg-tab-hover: #553b9e;
   --z-bg-navbutton-active: #c3c1f4;
   // The accent, as in the dark and Jupyter themes — a near-black marker on the lavender
-  // active fill reads as a chip stuck to the icon rather than as a selection.
-  --z-border-navbutton-active: var(--z-accent);
+  // active fill reads as a chip stuck to the icon rather than as a selection. The ink
+  // form of it, because that is what a 2px marker is.
+  --z-border-navbutton-active: var(--z-fg-accent);
 
   // --- Launcher -----------------------------------------------------------
   --z-bg-launcher-tile: #f3f2f6;
@@ -88,17 +131,11 @@
   // its own foreground and we deliberately don't rebuild the instance on a theme
   // switch (see Terminal.tsx). Split out of --z-fg-on-chrome for that reason.
   --z-fg-on-terminal: #ffffff;
+  // The few controls whose icon is the whole control — the sidebar rail, the topbar
+  // buttons. Every icon is drawn in `currentColor` (see .z-icon), so this is their text
+  // colour, which a <button> does not inherit.
   --z-fg-icon: #564d7b;
   --z-fg-field: #4b3e88;
-  // Inline SVG icons (src/ide/icons). `-contrast` is for icons sitting on a
-  // coloured tile, which need full contrast rather than the muted default.
-  --z-fg-svg: #272727;
-  --z-fg-svg-contrast: #000000;
-  // Applied to <img>-based icons, whose fill is baked into the file.
-  --z-img-icon-filter: none;
-  // feather-file-plus.svg and feather-folder-plus.svg are drawn in #fff for the
-  // purple project banner, so a theme with a light banner has to invert them.
-  --z-filter-chrome-icon: none;
   // The topbar wordmark. Both shipped variants have the fill baked in, so the
   // theme chooses a file rather than recolouring one. Absolute path: this resolves
   // against the server root (public/images), not against this stylesheet.
@@ -117,10 +154,15 @@
   --z-border-indent-guide: #dcdcdc;
 
   // --- Accent -------------------------------------------------------------
-  --z-brand: #5f568f; // Zasper purple; intentionally theme-independent
   --z-accent: #583bd8;
   --z-accent-hover: #6f57da; // lighter, for chrome that lifts on hover
   --z-accent-active: #5136c5; // darker, for filled buttons that press in
+  // The accent when it is *ink* rather than a fill — accent-coloured text, and the
+  // markers a pixel or two wide that read as ink too. Separate from --z-accent
+  // because --z-accent has to carry white text, so in a dark theme the two want
+  // opposite ends of the ramp: 6.93:1 here on the panel, and the dark block below
+  // lightens it rather than inheriting this.
+  --z-fg-accent: #583bd8;
   --z-fg-serial-no: #473990;
 
   // --- Scrollbars ---------------------------------------------------------
@@ -155,6 +197,29 @@
   --z-git-added: #1a7f37;
   --z-git-deleted: #aa1a1a;
   --z-git-conflict: #9a3412;
+
+  // --- File-type marks ----------------------------------------------------
+  // The mark in front of a file name (src/ide/icons/FileMark.tsx). Each one starts as the
+  // language's own colour — GitHub's linguist palette, which is where a `.py` being blue and a
+  // notebook being orange comes from — and is then darkened just far enough to clear 4.5:1 on
+  // --z-bg-panel, because at 9px a mark is small text and the rule at the top of this file
+  // applies to it too. Nothing here is derived from --z-accent: these say what a file *is*, and
+  // must not move when the brand colour does.
+  //
+  // A hue only earns a token if it is the language's and people know it. Prose, config and shell
+  // scripts take --z-fg-subtle instead — see .file-mark-plain.
+  --z-mark-python: #3572a5; // as-is, 5.12:1
+  --z-mark-notebook: #c7530a; // from #da5b0b, 3.83:1
+  --z-mark-json: #957116; // from #b0861a, 3.35:1
+  --z-mark-javascript: #85770b; // from #f1e05a, which is 1.35:1 on white and unreadable
+  --z-mark-typescript: #3178c6; // as-is, 4.53:1
+  --z-mark-react: #0481a3; // from #61dafb, 1.62:1
+  --z-mark-go: #0081a1; // from #00add8, 2.64:1
+  --z-mark-html: #d7411c; // from #e34c26, 3.94:1
+  --z-mark-css: #563d7c; // as-is, 8.92:1
+  --z-mark-c: #555555; // as-is, 7.46:1
+  --z-mark-cpp: #e91050; // from #f34b7d, 3.44:1
+  --z-mark-java: #a46a17; // from #b07219, 3.99:1
 
   // --- Login ----------------------------------------------------------------
   // /login is its own surface — a full-bleed marketing panel next to the form —
@@ -196,8 +261,13 @@
   --z-bg-menu: #181818;
   --z-bg-menu-hover: #515151;
   --z-fg-menu-item: #f0f0f0;
+  --z-bg-hover-on-chrome: rgba(255, 255, 255, 0.16);
 
   --z-bg-topbar: #303030;
+  // Was missing, so the dark theme's status bar was inheriting `:root`'s purple — the
+  // one surface in the window that never went dark. Found by porting the accents: the
+  // light themes set both bars from one step, and dark only answered for one of them.
+  --z-bg-statusbar: #303030;
   --z-bg-banner: #3f3855;
   --z-bg-palette: #353535;
   --z-bg-palette-hover: #515151;
@@ -216,9 +286,6 @@
   --z-fg-subtle: #969696; // was #8b8b8b, 4.38:1 on --z-bg-panel; now 5.05:1
   --z-fg-icon: #e2e2e2;
   --z-fg-field: #e2e2e2;
-  --z-fg-svg: #d2d2d2;
-  --z-fg-svg-contrast: #ffffff;
-  --z-img-icon-filter: brightness(1.9) saturate(0.7);
 
   --z-border: #4f4f4f;
   --z-border-strong: #636262;
@@ -232,6 +299,11 @@
   --z-border-indent-guide: #3f3f3f;
   --z-fg-serial-no: #e2e2e2;
 
+  // The accent as ink, lightened: `:root`'s #583bd8 is 2.16:1 on this panel, which is
+  // where every `color: var(--z-accent)` in the app landed before the token was split.
+  // 5.71:1. The fill keeps the inherited purple, because that carries white text.
+  --z-fg-accent: #a294f0;
+
   --z-scrollbar-thumb: #1c1c1c;
   --z-scrollbar-track: #313131;
 
@@ -239,6 +311,22 @@
   --z-git-added: #4ac26b;
   --z-git-deleted: #e5534b;
   --z-git-conflict: #f0883e;
+
+  // The same hues lightened rather than darkened, to clear 4.5:1 on the dark panel. Four of them
+  // are the language's untouched colour, which only works here: #f1e05a is 11:1 on #272727 and
+  // 1.35:1 on white, so a mark is one of the few things this theme gets to state more boldly.
+  --z-mark-python: #5392c8;
+  --z-mark-notebook: #ec620c;
+  --z-mark-json: #b1871a;
+  --z-mark-javascript: #f1e05a;
+  --z-mark-typescript: #5390d4;
+  --z-mark-react: #61dafb;
+  --z-mark-go: #00add8;
+  --z-mark-html: #e76544;
+  --z-mark-css: #9b82c1;
+  --z-mark-c: #8d8d8d;
+  --z-mark-cpp: #f35181;
+  --z-mark-java: #c37e1c;
 
   // Drop shadows barely read against dark surfaces, so lean on them harder.
   --z-shadow-low: 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -297,6 +385,8 @@
   --z-bg-notice: #f5f5f5;
   --z-bg-menu-hover: #e0e0e0;
   --z-fg-menu-item: #212121;
+  // Black rather than white: this theme's chrome is #f5f5f5.
+  --z-bg-hover-on-chrome: rgba(0, 0, 0, 0.08);
 
   // --- Chrome -------------------------------------------------------------
   // The menu bar, status bar and tab strip are all light here, which is why
@@ -327,13 +417,10 @@
   --z-fg-on-chrome: #212121;
   --z-fg-icon: #616161;
   --z-fg-field: #212121;
-  --z-fg-svg: #616161;
   // --jp-cell-inprompt-font-color is #307fc1 (4.26:1 on white); nudged darker.
   --z-fg-serial-no: #1f6fb2;
   // The full-colour wordmark, since this is the first theme with a light topbar.
   --z-logo: url('/images/logo.svg');
-  // Those two banner icons are pure white, so inverting gives pure black.
-  --z-filter-chrome-icon: invert(1);
 
   // --- Borders ------------------------------------------------------------
   // --jp-border-color1/2/3 = #bdbdbd / #e0e0e0 / #eeeeee.
@@ -349,13 +436,14 @@
   --z-border-indent-guide: #e0e0e0;
 
   // --- Accent -------------------------------------------------------------
-  // --z-brand stays Zasper purple on purpose; only the interaction accent moves
-  // to JupyterLab's blue ramp. Both hover and active go *darker* here (the light
-  // theme lightens on hover) because white text on brand-color1 (#2196f3) is
-  // only 3.0:1.
+  // JupyterLab's own blue ramp. Both hover and active go *darker* here because white
+  // text on brand-color1 (#2196f3) is only 3.0:1 — which is the direction the four
+  // generated light themes ended up taking as well, for the same reason.
   --z-accent: #1976d2; // --jp-brand-color0
   --z-accent-hover: #1565c0;
   --z-accent-active: #0d47a1;
+  // Ink can stay on brand-color0: 4.60:1 on white.
+  --z-fg-accent: #1976d2;
 
   // --- Scrollbars ---------------------------------------------------------
   --z-scrollbar-thumb: #bdbdbd;

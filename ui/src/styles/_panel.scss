@@ -60,7 +60,9 @@
       width: 100%;
       height: 24px;
       background-color: var(--z-bg-banner);
-      padding: 0 1rem;
+      // 4px on the right rather than 16: an icon button is a 22px box with its glyph inset inside
+      // it, so the padding the last icon needs is already part of the button.
+      padding: 0 4px 0 1rem;
       color: var(--z-fg-on-chrome);
       font-weight: 400;
       display: flex;
@@ -119,33 +121,20 @@
         opacity: 0.6;
       }
 
+      // `color` rather than `fill`, and one declaration for all five buttons: the icons are drawn
+      // in `currentColor`, so a theme with a light banner needs nothing here. What this replaces
+      // was three <img> files with their white baked in, an `invert(1)` filter to undo it, and an
+      // exception for the Jupyter mark — which is 150px square where the others were ~16px, and
+      // shrank its own button to 0px wide in this flex row.
+      // No gap: five buttons in a 240px banner, and each one already carries 3px of space around
+      // its glyph. The hover square is what separates them, which is more legible than 4px of
+      // banner between two icons that have no edges of their own.
       .projectButtons {
         flex: 0 0 auto;
-        fill: var(--z-fg-on-chrome);
+        color: var(--z-fg-on-chrome);
         display: flex;
         align-items: center;
-        gap: 4px;
-
-        button {
-          flex: 0 0 auto;
-        }
-
-        // The new-file / new-folder buttons are <img>, so `fill` above never reaches them;
-        // their white is baked into the file. Sized here rather than left to the file: the Jupyter
-        // mark is 150px square where the feather icons are ~16px, and a flex row this narrow
-        // answered that by shrinking its button to nothing — the New notebook button was in the
-        // banner and 0px wide.
-        img {
-          height: 14px;
-          width: auto;
-          filter: var(--z-filter-chrome-icon);
-        }
-
-        // The Jupyter mark carries its own orange, which reads on either banner; inverting it
-        // with the rest turns it blue.
-        img.notebookIcon {
-          filter: none;
-        }
+        gap: 0;
       }
     }
 
@@ -160,20 +149,12 @@
       border-bottom: 1px solid var(--z-border);
       color: var(--z-fg-muted);
 
+      // A `.z-field`, minus 4px: the toolbar has to stay the height of the banner above it, and
+      // this is the one field in the app that is not a control on its own line.
       .treeFilter {
         flex: 1;
         min-width: 0;
         height: 20px;
-        font-size: var(--z-ui-font-size);
-        color: var(--z-fg-default);
-        background: var(--z-bg-field);
-        border: 1px solid var(--z-border-field);
-        border-radius: 3px;
-        padding: 0 6px;
-      }
-
-      button[aria-pressed='true'] {
-        color: var(--z-accent);
       }
     }
 
@@ -195,18 +176,14 @@
         // The server's sentence, which can be long, and the panel is narrow.
         overflow-wrap: anywhere;
       }
-
-      button {
-        flex: 0 0 auto;
-        background: transparent;
-        border: none;
-        color: var(--z-status-error);
-        padding: 0;
-      }
     }
 
     // A group of related rows inside a panel, e.g. "Running kernels" in the Jupyter info panel.
     // Deliberately quiet — the panel already has a title.
+    //
+    // Sized by `.z-label` at the call sites, not by the content steps: this is chrome, and the
+    // panel it names is 240px wide. It shares the panel title strip's treatment for the same
+    // reason VS Code's do — the two never appear at the same depth, so position tells them apart.
     .panel-section-head {
       flex: 0 0 auto;
       padding: 12px 16px 4px;
@@ -232,18 +209,17 @@
       }
 
       // Fixed, so the titles line up whichever way the chevron points.
-      i {
-        flex: 0 0 auto;
-        width: 8px;
-        font-size: 9px;
+      .z-icon {
+        flex: 0 0 12px;
       }
     }
 
     // How many rows the section holds, shown whether it is folded or not: a section with nothing in it
-    // is worth knowing about without unfolding it.
+    // is worth knowing about without unfolding it. Tabular, because it changes where it stands.
     .panel-section-count {
       margin-left: 4px;
       color: var(--z-fg-subtle);
+      font-variant-numeric: tabular-nums;
     }
 
     // A flat row inside a panel — a changed file, a running kernel. Shared rather than restated per
@@ -326,7 +302,7 @@
 
       &:hover:not(:disabled) {
         opacity: 1;
-        color: var(--z-accent);
+        color: var(--z-fg-accent);
       }
 
       &:disabled {
@@ -349,7 +325,7 @@
 
       // A drop here goes to the project root, which has no row of its own to outline.
       &.is-drop-target {
-        outline: 1px solid var(--z-accent);
+        outline: 1px solid var(--z-fg-accent);
         outline-offset: -1px;
       }
 
@@ -395,12 +371,13 @@
         cursor: pointer;
       }
 
-      // Scaled with the row: an 18px icon in a 22px row leaves no breathing space.
-      .file-list li a img {
+      // One box for whatever stands in front of a name — a folder icon, an image icon, a
+      // file-type mark. 18px because the rename input below is sized against it, and because the
+      // marks have to share a left edge with each other however wide their lettering is.
+      .file-list li a > .z-icon,
+      .file-list li a > .file-mark {
         margin-right: 6px;
-        min-width: 18px;
-        max-width: 18px;
-        height: 14px;
+        width: 18px;
       }
 
       // The rename box, which stands where the name it replaces stood. Unstyled it took the browser's
@@ -418,7 +395,7 @@
         line-height: 18px;
         color: var(--z-fg-default);
         background: var(--z-bg-field);
-        border: 1px solid var(--z-accent);
+        border: 1px solid var(--z-fg-accent);
         border-radius: 3px;
         // The accent border already says where the typing is going; the browser's own ring on top of
         // it lands outside the row.
@@ -430,9 +407,14 @@
         color: var(--z-fg-on-accent);
       }
 
-      .file-list li a.active img {
-        margin-right: 8px;
-        filter: brightness(500%) contrast(100%);
+      // The two surfaces where a mark's own colour is wrong: a hovered or open row is filled with
+      // the accent, and a language hue on top of it reads at about 2:1. The honest cost of colouring
+      // marks at all, and the whole of it — every other surface needs no rule, because the marks
+      // are text and text inherits.
+      .file-list li a:hover .file-mark,
+      .file-list li a.active .file-mark {
+        color: currentColor;
+        opacity: 0.85;
       }
 
       // What git would not track. Dimmed rather than hidden: build output and caches are still
@@ -449,7 +431,7 @@
       // Where a drop would land. Outlined rather than filled, so it does not read as one more
       // selected row while rows are in mid-air.
       .file-list li a.is-drop-target {
-        outline: 1px solid var(--z-accent);
+        outline: 1px solid var(--z-fg-accent);
         outline-offset: -1px;
       }
 
@@ -460,13 +442,12 @@
       }
 
       .file-list li.fileItem:focus-visible > a {
-        outline: 2px solid var(--z-accent);
+        outline: 2px solid var(--z-fg-accent);
         outline-offset: -2px;
       }
 
       .file-list li a .rowFlag {
         margin-left: 6px;
-        font-size: 9px;
         opacity: 0.7;
       }
 

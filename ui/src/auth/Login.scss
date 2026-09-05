@@ -98,9 +98,13 @@ section#header-login-signup {
   justify-content: center;
 }
 
+// A card someone reads once, not a panel they scan, so it takes the content size — the labels,
+// the help text and the link under the button all inherit it.
 .login-signup-form-wraper {
   width: 79%;
   margin: 0 auto;
+  font-size: var(--z-font-size-body);
+  line-height: var(--z-line-height-body);
 }
 
 .login-signup-form-wraper label {
@@ -109,6 +113,10 @@ section#header-login-signup {
   margin-bottom: 13px;
 }
 
+// Not a `.z-field`: these are a form on a page rather than controls in a 240px panel, so they are
+// measured at the page's scale — 12px of padding and a 10px radius against the field's 3px. The
+// colours are the same tokens, which is what matters, and this page renders before there is a config
+// to read so it is also the one screen that only ever sees the fallback theme.
 .login-signup-form-wraper input {
   width: 100%;
   padding: 12px 15px;
@@ -130,7 +138,7 @@ section#header-login-signup {
 }
 
 .login-signup-form-wraper a {
-  color: var(--z-accent);
+  color: var(--z-fg-accent);
   font-weight: 500;
 }
 

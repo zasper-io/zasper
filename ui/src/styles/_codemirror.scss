@@ -15,6 +15,20 @@
   border: none;
 }
 
+// The one place the editor's font is named — and both halves of the selector are load-bearing.
+// It has to be `.cm-scroller`, because CodeMirror's base theme sets the family there and an
+// explicit rule on the element beats a value inherited from `.cm-editor` (same trap as
+// `line-height` in _base.scss). And it needs the ancestor, because that base rule is emitted as
+// `.ͼ1 .cm-scroller` — two classes, so a bare `.cm-scroller` loses to it. Matching its
+// specificity is enough to win: style-mod inserts CodeMirror's <style> as the first child of
+// <head> precisely so app styles can override it.
+//
+// A theme extension can outrank even this; see themes/index.ts, which unsets the family the
+// vscode themes ship for that reason.
+.cm-editor .cm-scroller {
+  font-family: var(--z-mono-font-family);
+}
+
 .cm-focused {
   // CodeMirror injects its own `.cm-focused { outline: 1px dotted }` at runtime, so
   // !important is load-order insurance rather than a specificity hack.

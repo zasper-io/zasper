@@ -1,0 +1,230 @@
+@use 'sass:color';
+@use 'sass:map';
+@use 'sass:math';
+
+// The accent layer: four hues, one mapping, eight themes.
+//
+// A theme is one name — `teal-dark` — and that name is taken apart into the two attributes this file
+// keys on: `data-accent` for the hue, `data-theme` for the polarity. The split is real rather than
+// tidy: the nine ramp steps are a function of the hue alone, and which step each token takes is a
+// function of the polarity alone. Writing the eight combinations out would be eight places to keep in
+// step. `src/themes/index.ts` is the seam that joins the name to the two attributes.
+//
+// Loaded after _tokens.scss, whose `:root` holds the purple the app shipped with. That purple is now
+// a fallback rather than a theme: it shows through only where no accent is set — before the config
+// has been read, and on /login, which renders before there is a config to read.
+//
+// The shortlist is not a free choice. --z-status-idle is green, --z-status-busy red, --z-git-modified
+// amber, --z-git-added green, --z-git-deleted red: an accent in one of those hues stops state from
+// meaning state. That leaves cool, neutral, and the ecosystem's orange.
+//
+// Adding a hue is nine values in $accents and two entries in src/themes/index.ts. Nothing else — both
+// the ramps and both mappings below are generated from this map.
+
+$accents: (
+  // Cool, and not owned by another editor. Kept firmly on the blue side of teal so that nothing in
+  // it can be mistaken for --z-status-idle.
+  'teal': (
+      '50': #eaf5f4,
+      '100': #cfe9e7,
+      '200': #a3d5d1,
+      '400': #2c8f88,
+      '500': #127a73,
+      '600': #0c6862,
+      '700': #0a5651,
+      '800': #084541,
+      '900': #063733,
+    ),
+  // VS Code's blue, near enough: instantly legible as chrome, and anonymous for exactly the same
+  // reason. It collides with the Python-blue `py` mark, which is the mark's problem to lose — a mark
+  // says what a file is and does not move (see --z-mark-* in _tokens.scss).
+  'blue': (
+      '50': #eef4fc,
+      '100': #d8e6f8,
+      '200': #aecdf0,
+      '400': #3b86d4,
+      '500': #1a6fbf,
+      '600': #0f5da6,
+      '700': #0d4d8a,
+      '800': #0b3e6f,
+      '900': #092f55,
+    ),
+  // No hue at all: graphite chrome, and the only colours left on screen are the ones that mean
+  // something. What it costs is every accent that is one pixel wide — the active cell's border, the
+  // rename outline. A filled row is unaffected, because that reads as a surface and not as a colour.
+  'slate': (
+      '50': #f1f3f5,
+      '100': #e3e6ea,
+      '200': #c8cdd5,
+      '400': #697485,
+      '500': #556070,
+      '600': #454f5e,
+      '700': #39414e,
+      '800': #2d343e,
+      '900': #232830,
+    ),
+  // The ecosystem's orange, one hue away from --z-git-modified: look at a modified file's `M` while
+  // this is on. It is the loudest of the four as chrome, and the reason the hue is called `orange`
+  // rather than `jupyter` is the JupyterLab theme, which is a different thing — an imitation of
+  // JupyterLab's own Material palette rather than Zasper's chrome in Jupyter's colour.
+  'orange': (
+      '50': #fef2e8,
+      '100': #fbdfc8,
+      '200': #f6c398,
+      '400': #e2762a,
+      '500': #cd5f14,
+      '600': #b35110,
+      '700': #95430d,
+      '800': #78360a,
+      '900': #5e2b08,
+    )
+);
+
+// The panel the dark mixes below are tinted against: --z-bg-panel in [data-theme='dark'].
+$dark-panel: #272727;
+
+// A hue laid over the dark panel, at whole channel values. Rounded because mix() keeps its
+// arithmetic — `rgb(76.4, 48.52, 30.16)` is legal CSS and is also a colour nobody can read back
+// out of the built stylesheet or paste into a design tool.
+@function tint($hue, $weight) {
+  $mixed: color.mix($hue, $dark-panel, $weight);
+  @return rgb(
+    math.round(color.channel($mixed, 'red', $space: rgb)),
+    math.round(color.channel($mixed, 'green', $space: rgb)),
+    math.round(color.channel($mixed, 'blue', $space: rgb))
+  );
+}
+
+// --- The ramps ----------------------------------------------------------------
+//
+// Nine steps, --a-50 (palest) to --a-900 (darkest). A hue is these nine values and nothing else,
+// which is what keeps a fifth one cheap. Nothing outside this file reads --a-*: a component reads a
+// --z-* token, and the mappings below are the only place a step is chosen.
+
+@each $name, $ramp in $accents {
+  [data-accent='#{$name}'] {
+    @each $step, $value in $ramp {
+      --a-#{$step}: #{$value};
+    }
+  }
+}
+
+// --- The accent, in both polarities -------------------------------------------
+//
+// The one part of the mapping that does not depend on the polarity, because what constrains it does
+// not either: --z-fg-on-accent is white in every theme, so a fill has to be dark enough to carry
+// white text. --a-600 is 5.12:1 (orange) to 8.29:1 (slate), and hover and active therefore go
+// *darker* rather than lighter — the app's `jupyterlab` theme already made that trade, for the same
+// reason. Against the dark panel a-600 reads at 1.80:1 to 2.92:1, which is where VS Code's own dark
+// primary button (#0e639c, 2.61:1) and the purple this replaces (2.16:1) both sit.
+//
+// Left out of the two blocks below on purpose: with them, dark stated the ink and forgot the fill,
+// and four dark themes quietly kept a purple button.
+
+[data-accent] {
+  --z-accent: var(--a-600);
+  --z-accent-hover: var(--a-700);
+  --z-accent-active: var(--a-800);
+}
+
+// --- What a brand colour drives, in the four light themes ---------------------
+//
+// Twenty-six tokens, which is the useful half of this file: before the list was written down, the
+// answer to "what does the brand colour control?" was "twenty-six tokens, spread across a
+// stylesheet, no two derived from each other".
+//
+// Scoped to [data-theme='light'] so that dark does not have to restate nineteen greys to undo it.
+
+[data-theme='light'][data-accent] {
+  // Tints: the surfaces that are "this belongs to the brand" rather than white.
+  --z-bg-panel-alt: var(--a-50);
+  --z-bg-row-selected: var(--a-100);
+  // Today #eaf3fb — a pale blue, and the one this list nearly missed. It only showed up under the
+  // orange themes, where an orange window had a blue block in the middle of every notebook. The code
+  // cell above it stays neutral at --z-bg-cell, which is today's relationship kept.
+  --z-bg-cell-output: var(--a-50);
+  --z-border: var(--a-100);
+  --z-border-breadcrumb: var(--a-100);
+  --z-bg-navbutton-active: var(--a-200);
+
+  // Chrome, and it is four coloured surfaces on purpose — the alternative was mocked as a switch that
+  // greyed all four and kept the hue for the accent alone, and it was turned down: the chrome is where
+  // a theme is visible, and a light window whose only colour is a selected row has no theme in it.
+  // Three steps rather than one, because they are not one surface: the topbar and the status bar
+  // bracket the window at --a-800, the banner and the modal header sit one step in at --a-700, and the
+  // palette is a well in the topbar, so it is lighter than the bar it sits in and not darker.
+  --z-bg-topbar: var(--a-800);
+  --z-bg-statusbar: var(--a-800);
+  --z-bg-banner: var(--a-700);
+  --z-bg-modal-header: var(--a-700);
+  --z-bg-palette: var(--a-700);
+  --z-bg-input: var(--a-700);
+  --z-bg-palette-hover: var(--a-600);
+  --z-bg-terminal: var(--a-900);
+
+  // Tabs keep today's relationship, where the inactive tab is the brighter one. It looks backwards
+  // written down, and it was asked properly rather than left as an oddity: the design prototype's
+  // styleguide mocked all three treatments at the same size — this one, the two steps swapped, and the
+  // active tab taking the editor's own surface as every other editor does — and this one won. A strip
+  // is two tabs wide rather than twenty and the active tab is the one whose content is on screen, so
+  // nothing is actually ambiguous in place; `.nav-link.active`'s weight carries what the ramp step
+  // does not. The alternatives each cost something: swapping puts hover and active on one value, and
+  // the editor surface takes the label off white, which is what every coloured chrome surface here has
+  // in common.
+  //
+  // One step of it did have to move: the prototype had the inactive tab at --a-400, where white tab
+  // text is 3.06:1 (orange) to 4.73:1 (slate) and three of the four fail AA — a regression against
+  // today's purple #7651db, which is 5.29:1. At --a-600 the range is 5.12:1 to 8.29:1, and the
+  // active tab stays one step darker, as the banner is one step from the topbar.
+  --z-bg-tab-inactive: var(--a-600);
+  --z-bg-tab-active: var(--a-700);
+  --z-bg-tab-hover: var(--a-700);
+
+  // Ink. --a-800 on white is 8.19:1 (orange) to 11.29:1 (slate); the serial number sits on the
+  // cell's own grey and takes one step less.
+  --z-fg-icon: var(--a-800);
+  --z-fg-field: var(--a-800);
+  --z-fg-menu-item: var(--a-800);
+  --z-fg-serial-no: var(--a-700);
+
+  // The accent as *ink* — accent-coloured text, and the markers a pixel or two wide that read as ink
+  // too. A separate token from the fill above because in a dark theme the two want opposite ends of
+  // the ramp; here they happen to agree.
+  --z-fg-accent: var(--a-600);
+  --z-border-cell: var(--a-700);
+  --z-border-active-cell: var(--a-600);
+
+  // Today this is #8f54a0 — a magenta that belongs to no other token in the app. Folded back into
+  // the ramp, which is a change of one pixel-wide surface and the smallest honest improvement here.
+  --z-scrollbar-thumb: var(--a-600);
+
+  // /login's hero panel. Included because the login page has no config to read and therefore always
+  // renders at index.html's default attributes — so without this it is the one screen that stayed
+  // purple, next to a teal link and a teal button. Dark is not mapped for the same reason: nothing
+  // ever sets it there.
+  --z-bg-login-hero: linear-gradient(133deg, var(--a-600) 0%, var(--a-900) 100%);
+}
+
+// --- And in the four dark ones -----------------------------------------------
+//
+// Dark's chrome is already grey; the hue survives in three tinted surfaces and in the accent. That
+// asymmetry is the app's own and is kept deliberately: it was the strongest argument the `neutral
+// chrome` proposal had, and that proposal was turned down for light. So the two polarities go on
+// disagreeing — light chrome carries the hue, dark chrome stays grey — rather than one of them winning.
+
+[data-theme='dark'][data-accent] {
+  // The fill is shared with light, above; the ink is what flips. --a-200 is 8.11:1 to 9.28:1 on the
+  // panel, where the fill's --a-600 would be about 1.3:1 — and the app had been living without the
+  // distinction, painting every `color: var(--z-accent)` at 2.16:1 in this theme.
+  --z-fg-accent: var(--a-200);
+}
+
+// The three tinted surfaces, mixed rather than picked so that a fifth hue is nine values and not
+// twelve. Baked at build time: nothing downstream needs color-mix().
+@each $name, $ramp in $accents {
+  [data-theme='dark'][data-accent='#{$name}'] {
+    --z-bg-banner: #{tint(map.get($ramp, '700'), 34%)};
+    --z-bg-modal-header: #{tint(map.get($ramp, '700'), 34%)};
+    --z-bg-row-selected: #{tint(map.get($ramp, '600'), 30%)};
+  }
+}

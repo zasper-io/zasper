@@ -29,7 +29,7 @@ import {
   zasperVersionAtom,
 } from '../store/AppState';
 import { ApiError, getInfo, listKernelspecs, logApiError } from '../api';
-import { getTheme } from '../themes';
+import { applyTheme, getTheme } from '../themes';
 import { PanelName } from './sidebar/types';
 import { useAppCommands } from '../commands/appCommands';
 import { useRegisterCommands } from '../commands/registry';
@@ -88,11 +88,11 @@ function IDE() {
       .catch(logApiError('Failed to read the installed kernels:'));
   }, [setKernelspecs]);
 
-  // Publish the active theme as `data-theme` on <html>. Every colour in the app
-  // resolves through the custom properties keyed off this attribute (see
-  // styles/_tokens.scss), so this one write repaints the whole UI.
+  // Publish the active theme to <html>, as the hue and the polarity it is made of.
+  // Every colour in the app resolves through the custom properties keyed off those
+  // two attributes (see styles/_accents.scss), so this repaints the whole UI.
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    applyTheme(getTheme(theme));
   }, [theme]);
 
   const getFontClass = (fontSize: number) => {

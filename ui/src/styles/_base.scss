@@ -6,7 +6,7 @@
 // places that are document text — notebook output, the launcher, the login card — set
 // their own size.
 body {
-  font-family: 'Ubuntu', sans-serif;
+  font-family: var(--z-ui-font-family);
   font-size: var(--z-ui-font-size);
   font-weight: 400;
   line-height: var(--z-ui-line-height);
@@ -50,14 +50,20 @@ select {
   color: var(--z-fg-default);
 }
 
-// Inline SVG icons (src/ide/icons). Icon.tsx sets these classes instead of computing a
-// fill in JS, so icons repaint when `data-theme` changes without a component re-render.
+// Every icon in the app (src/ide/icons). Lucide draws with a stroke and no fill, and the
+// stroke is `currentColor`, so an icon is the colour of the row, button or banner it sits
+// in and no surface needs a rule to recolour it — which is the whole gain over the <img>
+// icons this replaced, where 21 of 30 files had a fill baked in and a selected row had to
+// fake white with `filter: brightness(500%)`.
+//
+// Set here rather than on the elements themselves so an icon repaints on a theme switch
+// without a component re-render.
 .z-icon {
-  fill: var(--z-fg-svg);
-}
-
-.z-icon-contrast {
-  fill: var(--z-fg-svg-contrast);
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  // Text in a row sits on a baseline and an icon has none, so it is centred by hand.
+  vertical-align: -3px;
 }
 
 /* ===== Scrollbars ===== */

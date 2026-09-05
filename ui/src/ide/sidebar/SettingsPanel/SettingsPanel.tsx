@@ -22,7 +22,7 @@ export default function SettingsPanel({ hidden }: PanelProps) {
       <div className="content-inner">
         {/* A section heading, not a .projectBanner — that purple bar means "this is the
             open project" everywhere else. */}
-        <h2 className="z-subheading panel-section-head">Appearance</h2>
+        <h2 className="z-label panel-section-head">Appearance</h2>
         <div className="panel-section-body settings-field">
           <label className="settings-field-label" htmlFor="settings-theme">
             Theme

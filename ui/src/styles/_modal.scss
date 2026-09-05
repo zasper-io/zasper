@@ -52,14 +52,13 @@
   border-radius: 4px 4px 0px 0px;
 }
 
+// Place only: it is a `.z-icon-button.on-chrome` at the call sites, so the box, the ink and the
+// hover come from there. 5px centres a 22px button in the 32px header, and puts its glyph exactly
+// where the 16px cross used to sit.
 .modal-btn-close {
   position: absolute;
-  right: 8px;
-  top: 4px;
-  font-size: 16px;
-  background: transparent;
-  border: none;
-  color: var(--z-fg-on-accent);
+  right: 5px;
+  top: 5px;
 }
 
 // The one part that scrolls, once a dialog's content exceeds the 90vh cap.
@@ -128,7 +127,7 @@
   }
 
   &.is-drop-target {
-    border-color: var(--z-accent);
+    border-color: var(--z-fg-accent);
     background: var(--z-bg-row-selected);
   }
 }

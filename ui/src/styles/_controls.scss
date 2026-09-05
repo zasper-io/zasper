@@ -46,6 +46,88 @@
   filter: brightness(1.15);
 }
 
+// The field box — the tree's filter, the commit message, the branch filter, the cell-type and
+// kernel pickers. Stated once because the app stated it four times, and it has to be stated at all
+// for the reason `.gitpanel-input` gave when it was one of the four: a control with no colours of
+// its own is the browser's white box with black text in it, which under a dark theme is the one
+// bright rectangle in the sidebar.
+//
+// A site keeps only what differs. Two things are deliberately not this box and say so where they
+// are: the settings panel's `.select`, whose border belongs to the wrapper that draws its arrow
+// rather than to the control inside it, and /login's inputs, which are a form on a page rather than
+// a control in a panel and are measured at the page's scale.
+.z-field {
+  height: var(--z-ui-control-height);
+  padding: 0 6px;
+  background: var(--z-bg-field);
+  color: var(--z-fg-field);
+  border: 1px solid var(--z-border-field);
+  border-radius: 3px;
+  font: inherit;
+}
+
+// The border, and not `outline: none` with it — which is what the design prototype had, and it is
+// wrong: the browser's focus ring is the only thing a keyboard user has on a 20px filter box. This
+// is the accent as ink, the same "you are here" the focused cell's border draws.
+.z-field:focus {
+  border-color: var(--z-accent);
+}
+
+// An icon on its own, which is most of the buttons in this app: every toolbar, every row action,
+// every dialog's close cross.
+//
+// It replaces `.editor-button` in `ide/IDE.scss`, which was a reset and nothing more —
+// `background: none; border: none; padding: 0` — so a button's hit area was whatever the glyph
+// inside it happened to measure, 16px, in a 22px row. 22x22 is the design prototype's one settled
+// rule the app was not keeping: a control is at least the row it sits in, which is also the
+// smallest square a pointer finds without aiming at it.
+//
+// Three places are deliberately smaller or wider and each says so where it happens: `.tab-close`
+// in IDE.scss, `.cellOptions` in NotebookEditor.scss, and `.git-sync-action`, which carries a
+// count beside its arrow. `e2e/tests/layout.spec.ts` measures the rest.
+.z-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  // Dimmed rather than hidden until hover: a button that appears on hover cannot be found by a
+  // keyboard, and a row whose width changes under the pointer is worse than a quiet button.
+  opacity: 0.75;
+}
+
+.z-icon-button:hover:not(:disabled) {
+  opacity: 1;
+  background: var(--z-bg-menu-hover);
+}
+
+.z-icon-button:disabled {
+  opacity: 0.3;
+}
+
+// On a coloured chrome surface — the file browser's banner, a dialog's header — where the ink is
+// white and the panel hover would read as a hole cut in the bar.
+.z-icon-button.on-chrome {
+  color: var(--z-fg-on-chrome);
+}
+
+.z-icon-button.on-chrome:hover:not(:disabled) {
+  background: var(--z-bg-hover-on-chrome);
+}
+
+// A toggle that is on — the file browser's hidden-files eye. Colour rather than a pressed-in box,
+// because at 22px a border is most of the button.
+.z-icon-button[aria-pressed='true'] {
+  opacity: 1;
+  color: var(--z-fg-accent);
+}
+
 // A kernel's state as a colour: the dot in the notebook toolbar, and the same dot beside a running
 // kernel in the Jupyter info panel. Two features want it, so it is here rather than in either one's
 // stylesheet.
@@ -85,4 +167,84 @@
 
 .ks-disconnected {
   background-color: var(--z-status-disconnected);
+}
+
+// A file-type mark: the box a 16px icon would get, filled with two or three characters in the
+// mono face instead of a drawing. Shared, because the file browser and the tab strip both want
+// it — see src/ide/icons/FileMark.tsx for which type gets which.
+//
+// One size for every type, which was the part that was wrong before rather than the colour: the
+// files this replaced ran from 2.927px wide to 2500px, one of them declared no width at all, and
+// `_panel.scss` had to force `height: 14px` on every one of them.
+.file-mark {
+  display: inline-block;
+  width: 18px;
+  text-align: center;
+  font-family: var(--z-mono-font-family);
+  font-size: 9px;
+  font-weight: 700;
+  // Two characters is the common case and three has to fit the same box; JetBrains Mono is not
+  // narrow, so the tracking comes out of the gaps rather than out of the width.
+  letter-spacing: -0.05em;
+  // The mark is 9px inside a 22px row and there is no glyph beside it to sit level with, so it
+  // takes the row's line box rather than the mono face's own.
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
+// The cost of a coloured mark, stated rather than hidden: on a selected row and on a tab the
+// mark's own colour is unreadable against the accent, so those two surfaces override it. That is
+// one rule per surface — the honest version of what `filter: brightness(500%)` was doing — and it
+// is why an icon that inherits `currentColor` needs no rule at all.
+.file-mark-python {
+  color: var(--z-mark-python);
+}
+
+.file-mark-notebook {
+  color: var(--z-mark-notebook);
+}
+
+.file-mark-json {
+  color: var(--z-mark-json);
+}
+
+.file-mark-javascript {
+  color: var(--z-mark-javascript);
+}
+
+.file-mark-typescript {
+  color: var(--z-mark-typescript);
+}
+
+.file-mark-react {
+  color: var(--z-mark-react);
+}
+
+.file-mark-go {
+  color: var(--z-mark-go);
+}
+
+.file-mark-c {
+  color: var(--z-mark-c);
+}
+
+.file-mark-cpp {
+  color: var(--z-mark-cpp);
+}
+
+.file-mark-java {
+  color: var(--z-mark-java);
+}
+
+.file-mark-html {
+  color: var(--z-mark-html);
+}
+
+.file-mark-css {
+  color: var(--z-mark-css);
+}
+
+// Prose, config, a shell script: colour here would compete with the colour that means something.
+.file-mark-plain {
+  color: var(--z-fg-subtle);
 }

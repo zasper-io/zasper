@@ -1,8 +1,7 @@
 // The type scale.
 //
 // Every heading in the app picks one of these instead of a literal font-size, so a
-// new section heading matches the ones beside it. Sizes are the ones already in use
-// across the tree, collapsed to four steps.
+// new section heading matches the ones beside it.
 //
 // This layer exists because the scale used to be applied but never defined:
 // `font-h3`, `font-h5`, `font-h6`, `font-p`, `fontw-300` and `fontw-500` appeared in
@@ -15,47 +14,66 @@
 // Colours are not set here. A heading inherits the colour of whatever surface it is
 // on, which is what lets the same class sit on a panel and on the editor.
 //
-// The four steps were one notch larger (28/20/16/12) when the body was 14px. They came
-// down with it, so the same relationship to body text survives the density change — a
-// heading is meant to read as a heading, not as a large heading. Weight does as much of
-// the work as size here, which is why 17 and 14 are far enough apart to be distinct.
+// These are the *content* steps, and they are measured against --z-font-size-body (14px)
+// rather than the 13px chrome: everything that wears one sits on a surface that is read —
+// the launcher, the login card, a rendered markdown cell. Roughly 1.2 between steps, and
+// weight carries as much of the difference as size does.
+//
+// A heading in the *chrome* is none of these. The strip at the top of a sidebar panel and
+// the fold headings inside it are `.z-label` at 11px, because the chrome stays 13/11 and a
+// 17px "Changes" over 13px rows reads as a different application. Which of the two scales a
+// surface belongs to is the only question to settle before adding a heading.
 
 // Page title: one per screen, the largest thing on it.
 .z-title {
-  font-size: 24px;
-  line-height: 32px;
+  font-size: 28px;
+  line-height: 36px;
   font-weight: 300;
+  // At this size Inter's default spacing is loose. Only the title is tracked in: the negative
+  // value that tightens 28px would close up 20px too far.
+  letter-spacing: -0.02em;
   margin: 0;
 
   // For the emphasised word inside a title, e.g. "Welcome to **zasper**".
   strong,
   b {
-    font-weight: 500;
+    font-weight: 600;
   }
 }
 
 // Section heading: the major divisions of a screen ("Notebook", "Terminal").
 .z-heading {
-  font-size: 17px;
-  line-height: 24px;
-  font-weight: 400;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
-// Group heading: a labelled group inside a panel or a section.
+// Group heading: a labelled group inside a content section.
 .z-subheading {
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 17px;
+  line-height: 24px;
   font-weight: 500;
   margin: 0;
 }
 
 // The smallest step, for the strip at the top of a sidebar panel and anything else
 // that names a region rather than titling it.
+//
+// Uppercase is what keeps it distinct from ordinary chrome text at the same size, without
+// spending a weight or a colour that already means something else in a panel.
 .z-label {
   font-size: var(--z-ui-font-size-sm);
   line-height: 16px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+// For a number that changes in place: the status bar's line and column, a section's count.
+// Proportional figures make `Ln 9` a different width from `Ln 10`, so everything after it
+// shifts on a keystroke.
+.z-tabular {
+  font-variant-numeric: tabular-nums;
 }

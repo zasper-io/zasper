@@ -19,6 +19,9 @@
 // with hardcoded colours, and because every component stylesheet is imported
 // globally it beat the token-driven `select` rule in styles/_base.scss — which
 // is why dropdowns elsewhere in the app stayed light in the dark theme.
+// Not a `.z-field`, and this is the one control in a panel that is not: the box is the wrapper,
+// because the custom arrow has to sit inside the border and a native <select> cannot hold it. The
+// colours are the field's tokens all the same.
 .select {
   display: grid;
   grid-template-areas: 'select';
@@ -86,7 +89,7 @@
     left: -1px;
     right: -1px;
     bottom: -1px;
-    border: 2px solid var(--z-accent);
+    border: 2px solid var(--z-fg-accent);
     border-radius: inherit;
   }
 }

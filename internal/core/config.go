@@ -174,7 +174,10 @@ func GetTheme() (string, error) {
 	}
 
 	if config.Theme == "" {
-		config.Theme = "light"
+		// The name of a theme in ui/src/themes, which is the only place that knows what one means:
+		// the server stores the string and hands it back. An unknown name resolves to the same
+		// default there, so this staying in step is a nicety rather than a correctness requirement.
+		config.Theme = "teal-light"
 		err = WriteConfig(config)
 		if err != nil {
 			return "", err
