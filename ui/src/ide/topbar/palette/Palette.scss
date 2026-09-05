@@ -1,9 +1,7 @@
 // The floating palette widget: a search box over a keyboard-navigable list.
 //
-// Two topbar features render it — CommandPalette (commands) and FileSearch (files) —
-// which is why it lives beside them both as palette.scss rather than inside
-// command/ as CommandPalette.scss. Both import it. Class names are `palette-*` for
-// the same reason: the shape belongs to neither feature.
+// Class names are `palette-*` rather than `command-*` because the list holds both
+// commands and files, in two headed sections — the shape belongs to neither kind.
 //
 // One exception to that: `.palette-input` is styled in Topbar.scss, alongside the
 // .openCommandPaletteButton it stands exactly on top of. Two sets of declarations for one
@@ -19,7 +17,7 @@
   top: 0;
   left: 0;
   right: 0;
-  max-height: 300px;
+  max-height: 400px;
   background-color: var(--z-bg-palette);
   box-shadow: var(--z-shadow-medium);
   border-radius: 2px;
@@ -29,18 +27,55 @@
   box-sizing: border-box;
 }
 
+// One scroll box over both sections rather than one each: two panes that scroll
+// independently would give each of them about four visible rows.
+//
+// Tall enough for both sections at full stretch — 12 rows of 26px under two 20px
+// headings, the most the cap in Palette.tsx allows — because a Files heading that
+// only exists below the fold is the merge not working. Commands-only mode is
+// uncapped and does scroll.
 .palette-list {
-  max-height: 200px;
+  max-height: 360px;
   overflow-y: auto;
-  padding: 0;
-  margin: 0;
-  list-style: none;
 }
 
 // The gap between input and list belongs to the list, not the input: with nothing
 // to show, the panel is then exactly the button it covers rather than 4px taller.
 .palette-list:not(:empty) {
   margin-top: 4px;
+}
+
+.palette-group {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+// What tells a command row from a file row. Sticky, because the section a row is in
+// is the thing the eye loses first when the list is scrolled.
+.palette-heading {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 20px;
+  padding: 0 8px;
+  background-color: var(--z-bg-palette);
+  color: var(--z-fg-on-chrome);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+// `6 of 31`, shown only when the cap has bitten: a section that is dropping matches
+// says so, rather than looking like the whole answer.
+.palette-heading-count {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 // The palette floats over the topbar and shares its background, so its rows are

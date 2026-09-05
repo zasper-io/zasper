@@ -99,14 +99,16 @@ function tab(page: Page, name: string): Locator {
  * Runs a git command through the command palette, which is the only way to reach one.
  *
  * Control rather than Meta for the chord, as palette.spec.ts explains: it is registered both ways, and
- * Control is the spelling that works on a mac and on CI alike.
+ * Control is the spelling that works on a mac and on CI alike. The `>` the chord fills in is kept: the
+ * palette searches the project's files as well, and a query left to match those too would depend on
+ * what the files here are called.
  */
 async function runFromPalette(page: Page, query: string): Promise<void> {
   await page.keyboard.press('Control+Shift+P');
   const input = page.locator('.palette-input');
   await expect(input).toBeFocused();
 
-  await input.fill(query);
+  await input.fill(`>${query}`);
   // One match, so what Enter runs is not a matter of ordering.
   await expect(page.locator('.palette-item')).toHaveCount(1);
   await input.press('Enter');

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './Topbar.scss';
-import CommandPalette from './command/CommandPalette';
-import FileAutocomplete from './search/FileSearch';
+import Palette, { COMMANDS_ONLY } from './palette/Palette';
 import { useAtom } from 'jotai';
 import { protectedStateAtom, userNameAtom } from '@/store/AppState';
 import { useNavigate } from 'react-router-dom';
@@ -10,28 +9,32 @@ import { useCommands, useRegisterCommands } from '@/commands/registry';
 import { ICommand } from '@/commands/types';
 
 export default function Topbar() {
-  const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
-  const [showFileAutocomplete, setShowFileAutocomplete] = useState<boolean>(false);
+  // The query the palette is showing, or null when it is closed. One piece of state rather than a
+  // flag per palette, because there is one palette now: the two chords differ only in what they
+  // type into it.
+  const [paletteQuery, setPaletteQuery] = useState<string | null>(null);
   const [userName] = useAtom(userNameAtom);
   const [protectedState] = useAtom(protectedStateAtom);
   const searchAreaRef = useRef<HTMLDivElement>(null);
-  const isPaletteOpen = showCommandPalette || showFileAutocomplete;
+  const isPaletteOpen = paletteQuery !== null;
 
   // Everything registered right now, which is what the palette lists. Previously three
   // hardcoded entries whose bodies were alert() calls.
   const commands = useCommands();
 
-  // Toggle functions wrapped in useCallback
-  const toggleCommandPalette = useCallback(() => {
-    setShowCommandPalette((prev) => !prev);
+  const closePalette = useCallback(() => setPaletteQuery(null), []);
+
+  // Opens the palette with `query` already in the field, or closes it when that is what it is
+  // already showing — so a chord pressed twice dismisses, as both of them used to.
+  const togglePalette = useCallback((query: string) => {
+    setPaletteQuery((current) => (current === query ? null : query));
   }, []);
 
-  const toggleFileAutoComplete = useCallback(() => {
-    setShowFileAutocomplete((prev) => !prev);
-  }, []);
+  const openCommands = useCallback(() => togglePalette(COMMANDS_ONLY), [togglePalette]);
+  const openFiles = useCallback(() => togglePalette(''), [togglePalette]);
 
-  // The two palettes are commands like any other, registered here because this is where their
-  // state lives. Their chords used to be a `keydown` listener of their own.
+  // Both ways into the palette are commands like any other, registered here because this is where
+  // its state lives. Their chords used to be a `keydown` listener of their own.
   const paletteCommands = useMemo<ICommand[]>(
     () => [
       {
@@ -43,7 +46,7 @@ export default function Topbar() {
         // before, so both are accepted and nobody's habit breaks. (Off mac they are the same
         // chord, and the palette dedupes the display.)
         keys: ['Mod-Shift-p', 'Ctrl-Shift-p'],
-        execute: toggleCommandPalette,
+        execute: openCommands,
       },
       {
         id: 'palette:open-files',
@@ -51,10 +54,10 @@ export default function Topbar() {
         category: 'View',
         scope: 'app',
         keys: ['Mod-Shift-o', 'Ctrl-Shift-o'],
-        execute: toggleFileAutoComplete,
+        execute: openFiles,
       },
     ],
-    [toggleCommandPalette, toggleFileAutoComplete]
+    [openCommands, openFiles]
   );
   useRegisterCommands(paletteCommands);
 
@@ -66,8 +69,7 @@ export default function Topbar() {
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setShowCommandPalette(false);
-        setShowFileAutocomplete(false);
+        closePalette();
       }
     };
 
@@ -76,11 +78,11 @@ export default function Topbar() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isPaletteOpen]);
+  }, [isPaletteOpen, closePalette]);
 
-  // Clicking away dismisses, as Escape does. Both palettes render inside .searchArea, as does
-  // the button that opens them, so one containment check covers all three: a click on the
-  // button falls through to its own toggle instead of being closed and reopened.
+  // Clicking away dismisses, as Escape does. The palette renders inside .searchArea, as does
+  // the button that opens it, so one containment check covers both: a click on the button falls
+  // through to its own toggle instead of being closed and reopened.
   //
   // `mousedown` rather than `click`, so the palette is gone before the thing underneath takes
   // focus — a click into a notebook cell should land in the cell.
@@ -92,8 +94,7 @@ export default function Topbar() {
       if (searchAreaRef.current?.contains(event.target as Node)) {
         return;
       }
-      setShowCommandPalette(false);
-      setShowFileAutocomplete(false);
+      closePalette();
     };
 
     document.addEventListener('mousedown', handleMouseDown);
@@ -101,7 +102,7 @@ export default function Topbar() {
     return () => {
       document.removeEventListener('mousedown', handleMouseDown);
     };
-  }, [isPaletteOpen]);
+  }, [isPaletteOpen, closePalette]);
 
   return (
     // A three-part flex row, not a 12-column grid: the two side groups flex equally, so the
@@ -115,15 +116,19 @@ export default function Topbar() {
       </div>
       <div className="searchArea" ref={searchAreaRef}>
         <div className="search-wraper">
-          <button className="openCommandPaletteButton" onClick={toggleFileAutoComplete}>
-            Type your search here
+          <button className="openCommandPaletteButton" onClick={openFiles}>
+            Search files and commands
           </button>
         </div>
-        {showCommandPalette && (
-          <CommandPalette commands={commands} onClose={() => setShowCommandPalette(false)} />
-        )}
-        {showFileAutocomplete && (
-          <FileAutocomplete onClose={() => setShowFileAutocomplete(false)} />
+        {/* Keyed by the starting query, so a chord pressed while the palette is already open
+            refills the field rather than leaving what was typed there. */}
+        {paletteQuery !== null && (
+          <Palette
+            key={paletteQuery}
+            commands={commands}
+            initialQuery={paletteQuery}
+            onClose={closePalette}
+          />
         )}
         {/* Outside the button, and painted over the palette, so the same magnifier sits in the
             same place whether the button or the palette's input is the field on screen. */}

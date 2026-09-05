@@ -70,8 +70,9 @@ func GetFileSuggestions(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 
-		// Check if the file name contains the query
-		if strings.Contains(info.Name(), query) {
+		// Case-insensitively: the palette matches its commands that way, and one query box whose two
+		// halves disagree about whether `README` and `readme` are the same word is a bug report.
+		if strings.Contains(strings.ToLower(info.Name()), strings.ToLower(query)) {
 
 			relPath, _ := getRelativePath(path)
 
