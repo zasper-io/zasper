@@ -34,15 +34,16 @@
   color: var(--z-fg-default);
 }
 
-// A destructive answer — the "Delete" in the file browser's delete prompt. On the error token
-// rather than a red of its own, so it is the same red the status bar reports failures in.
+// A destructive answer — the "Delete" in the file browser's delete prompt. On `--z-bg-danger` and not
+// `--z-status-error`: this red is behind white text, and the token that reports failures as ink has to
+// lighten in the dark theme, which is the opposite of what a fill under `--z-fg-on-accent` needs.
 .z-button-danger {
-  background: var(--z-status-error);
-  border-color: var(--z-status-error);
+  background: var(--z-bg-danger);
+  border-color: var(--z-bg-danger);
 }
 
 .z-button-danger:hover {
-  background: var(--z-status-error);
+  background: var(--z-bg-danger);
   filter: brightness(1.15);
 }
 

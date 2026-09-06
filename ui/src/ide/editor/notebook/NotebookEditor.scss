@@ -337,6 +337,9 @@ table.dataframe td {
   }
 }
 
+// The kernel switcher's header when the kernel could not be reached — `.modal-head` with the modal
+// header's purple swapped for red, keeping its white `--z-fg-on-accent` label. A fill under white text,
+// so `--z-bg-danger` and not `--z-status-error`; the `!important` is only there to beat `.modal-head`.
 .error-head {
-  background-color: var(--z-status-error) !important;
+  background-color: var(--z-bg-danger) !important;
 }

@@ -189,7 +189,18 @@
   --z-status-idle: #139513;
   --z-status-busy: #fb3636;
   --z-status-disconnected: #888888;
+  // Red as *ink*: an output's `ename`, `.panel-error`, `.modal-error`, `.diff-error`, the border on
+  // `.notebookLoadError`. It has to be dark enough to read on a light panel and light enough to read
+  // on a dark one, which is why the dark theme is the one theme that overrides it.
   --z-status-error: #aa1a1a;
+
+  // Red as a *fill* under white text: `.z-button-danger` and `.error-head`. Split out of
+  // `--z-status-error`, which was doing both jobs and cannot: ink wants to lighten as the surface
+  // darkens, a fill under `--z-fg-on-accent` wants to stay dark. Sharing one name meant the dark
+  // theme could only fix one of them, and lightening it for the ink dropped the Delete button's label
+  // from 7.31:1 to 3.70:1. No theme overrides this one — the button is its own surface, so 7.31:1
+  // holds everywhere and a per-theme value would only make a destructive red drift.
+  --z-bg-danger: #aa1a1a;
 
   // The status letter beside a changed file in the source control panel. Not the kernel-status
   // tokens: those are a running/stopped traffic light and would tie a red D to a dead kernel.
@@ -311,6 +322,22 @@
   --z-git-added: #4ac26b;
   --z-git-deleted: #e5534b;
   --z-git-conflict: #f0883e;
+
+  // The one kernel-status colour this theme has to override, and the only one: `:root`'s #aa1a1a is
+  // 2.04:1 on the panel above, so every place the app spends this red as *ink* was unreadable here —
+  // `.modal-error`, `.panel-error`, `.diff-error` and an output's `ename`.
+  //
+  // Measured against the four surfaces red ink lands on in this theme — the cell output #353535, the
+  // panel and modal #272727, the notice #2d2d2d, the cell #343434 behind `.notebookLoadError`'s border.
+  // `--z-git-deleted`'s #e5534b was the obvious pick, since it is this theme's red already, and it does
+  // not clear AA: 3.31:1 on the cell output. #f28b82 is the first step light enough to pass on all four,
+  // measured 5.13 / 6.25 / 5.77 / 5.21. It is lighter than the git red on purpose — a D beside a filename is one
+  // glyph next to its own row, an `ename` is a sentence someone has to read.
+  //
+  // The other three stay inherited on purpose. Idle, busy and disconnected are a dot with a border, so
+  // they are a fill and not ink, and the dot is 8px — a lightened green there would read as a
+  // different state rather than the same one on a dark panel.
+  --z-status-error: #f28b82;
 
   // The same hues lightened rather than darkened, to clear 4.5:1 on the dark panel. Four of them
   // are the language's untouched colour, which only works here: #f1e05a is 11:1 on #272727 and
