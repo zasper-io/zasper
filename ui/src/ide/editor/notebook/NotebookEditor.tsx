@@ -166,6 +166,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           run={runCommand}
           cellType={notebook.cells[cells.focusedIndex]?.cell_type ?? ''}
           kernelName={kernel.kernelName}
+          kernelDisplayName={kernel.kernelDisplayName}
           kernelStatus={kernel.kernelStatus}
         />
 

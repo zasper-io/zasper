@@ -1,63 +1,91 @@
 // Notebook editor: cell chrome, kernel status and DataFrame output.
 
+// A 30px band, the same height as the tab strip and the breadcrumb above it, and on the panel's
+// surface rather than the editor's: the toolbar is chrome. It had no fill at all, so it was the
+// notebook's own background with a rule under it, and in a dark theme the band and the cells it sits
+// over were the same colour.
+//
+// The ink is --z-fg-icon, which is what every button in here draws with: `.z-icon-button` is
+// `color: inherit`, so the strip states it once. A second rule used to set the buttons one step
+// darker than the strip on the grounds that a <button> does not inherit `color` — it does here, and
+// two values for one row of controls is what made the toolbar look like two toolbars.
 .text-editor-tool {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 4px 12px;
-  border-bottom: 1px solid var(--z-border-divider);
-  color: var(--z-fg-subtle);
+  // 2px, with `.sep` between the groups. At 24px between every control the nine buttons were spaced
+  // exactly as far apart as the groups they belong to, so the row said nothing about which action
+  // goes with which and ran a third of the way across the pane.
+  gap: 2px;
+  height: 30px;
+  padding: 0 8px;
+  background: var(--z-bg-panel);
+  border-bottom: 1px solid var(--z-border);
+  color: var(--z-fg-icon);
 }
 
-// A <button> does not inherit `color`, and every icon in here is drawn in `currentColor`. One step
-// darker than the strip's own --z-fg-subtle: an action is readable, the labels around it are quiet.
-.text-editor-tool .z-icon-button {
-  color: var(--z-fg-muted);
+// What separates the groups: save · edit a cell · run it · what the cell is and what it runs on.
+.text-editor-tool .sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--z-border);
 }
 
-// What kernel this notebook is on, and the way to change it. A text button, so it is not
-// `.z-icon-button`; it takes the same 24px box as the cell-type picker beside it so the two read as
-// one strip of controls. `font: inherit` because a <button> inherits neither family nor size, and
-// this one was rendering the kernel's name in the browser's default face.
-.kernelNameButton {
-  height: var(--z-ui-control-height);
-  padding: 0 6px;
-  border: none;
-  border-radius: 4px;
-  background: none;
+// What kernel this notebook is on, what it is doing, and the way to change it — one control where
+// there were three elements: a label, a dot in a flex wrapper of its own, and a third wrapper whose
+// only declaration was the `margin-left: auto` that pushed them right. A pill because this is the
+// one thing in the toolbar that is a state rather than an action, and still a button, because the
+// readout is where anyone would click to change what it reads.
+//
+// `font: inherit` because a <button> inherits neither family nor size, and this one was rendering
+// the kernel's name in the browser's default face.
+.kernel-pill {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  // A hairline as well as the fill, which the drawing does not have: in the dark theme
+  // --z-bg-panel-alt *is* --z-bg-panel (#272727 both, and _tokens.scss says so where it explains
+  // --z-bg-row-selected), so the fill alone drew nothing and the pill was a name floating in the
+  // strip. border-box, so the border does not make the row 24px.
+  border: 1px solid var(--z-border);
+  border-radius: 11px;
+  background: var(--z-bg-panel-alt);
   color: var(--z-fg-muted);
   font: inherit;
 }
 
-.kernelNameButton:hover {
+.kernel-pill:hover {
   background: var(--z-bg-menu-hover);
   color: var(--z-fg-default);
-}
-
-.tool-group-end {
-  margin-left: auto;
 }
 
 // `.notebookLoadError` was here — a bordered box in the middle of the pane, in place of the cells. It
 // is a `.z-notice.z-notice-error` (styles/_states.scss) at the top of the pane instead, which is where
 // this app puts the reason something failed, and it has somewhere to put the one action there is.
 
-// Overlaid on the cell's top edge rather than stacked above it, so taking focus does not
-// reflow the cell.
+// Centred on the cell's top-right corner rather than stacked above the cell or tucked inside it, so
+// taking focus does not reflow the notebook. -12px is half the bar's own height, which is what the
+// comment on `.cellOptions` below has always claimed and what the 24px of top padding on the cell
+// silently replaced: with the bar sitting *inside* the cell it covered the first line of the code
+// unless the cell was padded away from it.
 .cellOptionsDiv {
   position: absolute;
-  top: 2px;
-  right: 15px;
-  // transform: translateY(-50%);
+  top: -12px;
+  right: 0;
   z-index: 2;
 }
 
 .cellOptions {
   display: flex;
   align-items: center;
-  // Sized to keep the bar 22px tall: half of it overhangs the cell above, so .single-line's
-  // bottom margin has to clear 11px. Which is why the buttons in here have no padding above or
-  // below them — they *are* the 22px, rather than sitting inside it.
+  // 24px tall: seven 22px buttons and a 1px border either side. Half of it overhangs the cell above,
+  // so .single-line's bottom margin has to clear 12px. Which is why the buttons in here have no
+  // padding above or below them — they *are* the 22px, rather than sitting inside it.
   gap: 6px;
   padding: 0 4px;
   border: 1px solid var(--z-border-divider);
@@ -80,39 +108,35 @@
   width: 110px;
 }
 
-.activeCell {
-  border-color: var(--z-border-active-cell);
-}
-
 .editor-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  // 16px matches the toolbar and breadcrumb above, so the cells share their left edge.
-  padding: 12px 16px;
+  // 16px matches the toolbar and breadcrumb above, so the cells share their left edge. The 40px at
+  // the bottom is room to scroll past the last cell: without it the cell you are typing in is pinned
+  // to the bottom edge of the pane, which is where a scrollbar and a status bar already are.
+  padding: 12px 16px 40px;
   background-color: var(--z-bg-editor);
   color: var(--z-fg-editor);
 
+  // A row, not a card. This was --z-bg-cell behind a 2px border with 24px of padding above and below
+  // it, which is 64px of chrome per cell and a second surface between the notebook and the code box
+  // inside it — three fills stacked where the drawing has two. The cell is the gutter and the code
+  // beside it; what has an edge is the code.
   .single-line {
     // The anchor for .cellOptionsDiv.
     position: relative;
-    gap: 8px;
-    padding: 24px 10px;
-    min-height: 35px;
-    // Has to clear the 11px of .cellOptions that overhangs this cell's top edge, so the two
-    // numbers are coupled: shrinking one means checking the other.
-    margin: 0 0 16px;
-    background: var(--z-bg-cell);
-    // Transparent but always present, so .activeCell colouring it does not resize the cell.
-    border: 2px solid transparent;
-    border-radius: 4px;
+    // 12px, and it is the number .cellOptions is centred on the cell's top edge against: half of a
+    // 24px bar overhangs the cell above, so this has to clear 12px. Shrinking one means the other.
+    margin: 0 0 12px;
   }
 
   .single-line .inner-content {
     display: flex;
   }
 
-  // A fixed gutter, so `[1]:` and `[10]:` put their editors on the same left edge.
+  // A fixed gutter, so `[1]:` and `[10]:` put their editors on the same left edge — and the same 44px
+  // .inner-text is indented by, so output lines up with the code that produced it.
   // .cell-gutter is the empty one a markdown cell renders in place of an execution count;
   // .cell-spinner is the one a cell that is running renders instead.
   .serial-no,
@@ -123,10 +147,21 @@
     padding-right: 4px;
   }
 
+  // The execution count: a number that changes in place beside a column of other numbers, which is
+  // the clearest case in the app for the mono face and tabular figures. It was Inter at 700 — a bold
+  // proportional `[10]:` over a bold proportional `[9]:`, so the brackets moved from row to row.
+  //
+  // --z-fg-serial-no rather than the --z-fg-subtle the drawing spends, because the token is already
+  // here and the JupyterLab theme sets it to that palette's blue prompt, which is the one thing a
+  // reader coming from JupyterLab looks for. The weight is the drawing's.
   .serial-no {
     color: var(--z-fg-serial-no);
-    font-size: var(--z-ui-font-size);
-    font-weight: 700;
+    font-family: var(--z-mono-font-family);
+    font-size: var(--z-ui-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    // Stated because the editor pane is `font-weight: 300` (.main-content in ide/IDE.scss), and 300
+    // at 11px is a count you have to look for. The 700 this replaced was the other answer to that.
+    font-weight: 400;
     // Aligned to the first line of code beside it: 5px is .cm-editor's border plus
     // .cm-content's padding, 21px its line box at the 14px default.
     line-height: 21px;
@@ -136,7 +171,6 @@
   .cellEditor {
     flex: 1;
     min-width: 0; // stop a long line from widening the cell instead of scrolling
-    padding: 0 5px;
   }
 }
 
@@ -201,18 +235,47 @@
   }
 }
 
+// The code box, and the only edge in a cell. The left border is 2px because it is the one that says
+// which cell the keyboard is in; the other three are 1px, so an inactive cell is a box and an active
+// one is the same box with a coloured edge, at the same size.
+//
+// The fill is --z-bg-cell, which is the cell's own surface and the one the card above used to spend.
+// CodeMirror's vscode themes bring a background of their own — #ffffff light, #1e1e1e dark — and both
+// of them are the notebook's own colour, so the box that holds the code was the same fill as the pane
+// around it and only its border said where it started. Ours wins on load order, not specificity:
+// style-mod inserts CodeMirror's <style> as the first child of <head> for exactly this.
 .cellEditor .cm-editor {
-  border: 1px solid var(--z-border-cell);
-  border-radius: 2px;
+  border: 1px solid var(--z-border);
+  border-left: 2px solid var(--z-border);
+  border-radius: 4px;
+  background: var(--z-bg-cell);
 }
 
-.kStatus {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+// The fold gutter, which is the only gutter a cell has — `lineNumbers: false` in Cell.tsx. It carries
+// the vscode theme's own fill, so with the box tinted it was an 11px strip of the notebook's white
+// down the inside of every cell's left edge.
+.cellEditor .cm-gutters {
+  background: transparent;
+  border: none;
 }
 
-// The status dot and its .ks-* colours are in styles/_controls.scss: the Jupyter info panel shows the
+// Which cell the keyboard is in. The left edge only: a full accent border around a code block makes
+// the code look like an error, and this is what the drawing settled on.
+//
+// It was `.activeCell { border-color: var(--z-border-active-cell) }` on the cell, and it drew nothing
+// at all — `.editor-body .single-line` set `border: 2px solid transparent` and is two classes, so the
+// transparent border won and the active cell had no marking of any kind. Every test of the notebook
+// passed: which cell is focused is state React holds, so `.activeCell` was on the right element in
+// every unit test while nothing on screen said so.
+.activeCell .cm-editor {
+  border-left-color: var(--z-accent);
+}
+
+// `.kStatus` was here — a flex row holding the status dot and the reconnect button, beside a separate
+// `.tool-group-end` holding the kernel's name. The dot belongs with the name it is the state of, so it
+// is inside `.kernel-pill` above and the reconnect button is one more action in the strip.
+//
+// The dot itself and its .ks-* colours are in styles/_controls.scss: the Jupyter info panel shows the
 // same dot for the same states, so it is not this notebook's to own.
 
 // A toolbar button like the rest of them, sized to the status dot beside it.

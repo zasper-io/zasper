@@ -237,6 +237,72 @@ test('the tab bar and the notebook toolbar stay inside the content area', async 
 });
 
 /*
+ * The cell the keyboard is in says so.
+ *
+ * Here for the same reason as the test below, and from a worse version of it: `.activeCell` set
+ * `border-color` on the cell, while `.editor-body .single-line` set `border: 2px solid transparent`
+ * — two classes against one, so the transparent border won and the focused cell was marked in
+ * nothing at all. Every unit test of the notebook passed, because which cell is focused is state
+ * React holds and the class was on the right element the whole time; what no unit test can see is
+ * that the class resolved to `rgba(0, 0, 0, 0)`.
+ *
+ * Read off one cell in both states rather than two cells in one, so what is asserted is the change
+ * and not a difference between a markdown cell and a code cell.
+ */
+test('the focused cell is marked, and marking it does not move it', async ({ page }) => {
+  await openApp(page);
+  await openNotebook(page);
+
+  const code = page.locator('.single-line').nth(1);
+  const editor = code.locator('.cm-editor');
+  const edges = () =>
+    editor.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { left: style.borderLeftColor, top: style.borderTopColor };
+    });
+
+  /** The box, without its `y`: the cell above swaps its rendered markdown for its source when it
+      takes focus, so where this cell sits down the page is not this test's business. */
+  const size = async () => {
+    const box = (await editor.boundingBox())!;
+    return { x: box.x, width: box.width, height: box.height };
+  };
+
+  await editor.locator('.cm-content').click();
+  await expect(code).toHaveClass(/activeCell/);
+  const active = await edges();
+  const box = await size();
+
+  // The markdown cell above, which takes focus from the code cell without any of it landing in a
+  // text editor.
+  await page.locator('.single-line').first().click();
+  await expect(code).not.toHaveClass(/activeCell/);
+  const idle = await edges();
+
+  // The accent, resolved through the page so the assertion names the token rather than a hex value
+  // that eight themes disagree about.
+  const accent = await page.locator('.editor-body').evaluate((el) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--z-accent)';
+    el.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  });
+
+  expect(active.left, 'the focused cell is not marked in the accent').toBe(accent);
+  expect(idle.left, 'an unfocused cell is marked as though it were focused').not.toBe(accent);
+  // The left edge only: a full accent border around a block of code reads as an error, and this is
+  // what the prototype settled on.
+  expect(active.top, 'the accent is drawn around the cell rather than down its left edge').toBe(
+    idle.top
+  );
+  // And the same size on the same left edge, so taking focus does not shift the code under the
+  // pointer: the accent replaces the 2px border's colour rather than adding to it.
+  expect(await size()).toEqual(box);
+});
+
+/*
  * A tab fills its strip, top and bottom.
  *
  * The vertical counterpart of the test above, and it is here because this went wrong unnoticed:

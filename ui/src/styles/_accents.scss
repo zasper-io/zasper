@@ -195,8 +195,6 @@ $dark-panel: #272727;
   // too. A separate token from the fill above because in a dark theme the two want opposite ends of
   // the ramp; here they happen to agree.
   --z-fg-accent: var(--a-600);
-  --z-border-cell: var(--a-700);
-  --z-border-active-cell: var(--a-600);
 
   // Today this is #8f54a0 — a magenta that belongs to no other token in the app. Folded back into
   // the ramp, which is a change of one pixel-wide surface and the smallest honest improvement here.
