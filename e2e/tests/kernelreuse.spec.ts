@@ -90,7 +90,7 @@ test('a closed notebook keeps its kernel, and reopening it joins the same sessio
   const [started] = await runningKernelIds(request);
   expect(started, 'the notebook did not start a kernel').toBeTruthy();
 
-  const tab = page.locator('.tabHeader .nav-link', { hasText: NOTEBOOK });
+  const tab = page.locator('.tabHeader .tab', { hasText: NOTEBOOK });
   await tab.locator('.tab-close').click();
   await expect(tab).toHaveCount(0);
 

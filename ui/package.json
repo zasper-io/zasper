@@ -54,7 +54,6 @@
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "requirejs": "^2.3.8",
-    "swiper": "^12.1.2",
     "uuid": "14.0.2",
     "websocket": "1.0.34"
   },

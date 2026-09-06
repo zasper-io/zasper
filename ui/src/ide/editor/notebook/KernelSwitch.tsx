@@ -64,17 +64,24 @@ function KernelSwitcher(props: ModalProps) {
               <div className="update-kernel-popup-right">
                 <p>Current Kernel : {props.kernelName}</p>
                 <div className="update-kernel-popup-form">
-                  <select
-                    onChange={(e) => setSelectedKernel(e.target.value)}
-                    className="z-field editor-select"
-                    value={selectedKernel}
-                  >
-                    {Object.keys(kernelspecs).map((option, index) => (
-                      <option key={index} value={kernelspecs[option].name}>
-                        {kernelspecs[option].name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="z-form-field">
+                    <label className="z-form-label" htmlFor="kernelSwitchSelect">
+                      Kernel
+                    </label>
+                    <div className="z-select">
+                      <select
+                        id="kernelSwitchSelect"
+                        onChange={(e) => setSelectedKernel(e.target.value)}
+                        value={selectedKernel}
+                      >
+                        {Object.keys(kernelspecs).map((option, index) => (
+                          <option key={index} value={kernelspecs[option].name}>
+                            {kernelspecs[option].name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   <button className="z-button" onClick={() => props.changeKernel(selectedKernel)}>
                     {props.kernelName === NO_KERNEL ? 'Select Kernel' : 'Switch Kernel'}
                   </button>

@@ -41,7 +41,14 @@ body {
 a {
   text-decoration: none;
   display: inline-block;
-  transition: all 0.3s ease-in-out;
+  // Two properties rather than `all`, which is what this was and which animated every property a
+  // state class put on a link. A file-tree row is an `<a>`, so `.is-drop-target`'s outline faded in
+  // over 300ms on a row and appeared at once on the panel behind it — the same rule, two behaviours,
+  // and the slow one is on the element the pointer is actually over. Hover's fill and ink are what
+  // the transition was for, and they keep it.
+  transition:
+    background-color 0.3s ease-in-out,
+    color 0.3s ease-in-out;
 }
 
 // Native selects don't inherit.

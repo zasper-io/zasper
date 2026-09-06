@@ -10,7 +10,10 @@ $launcher-gutter: 32px;
   overflow-y: auto;
 
   width: 100%;
-  padding: $launcher-gutter 0;
+  // Bottom only. The title carries its own top padding, so the first thing on the page is 24px
+  // from the tab strip; the gutter here is the air after the last section's rule, which a scroll
+  // needs an end to.
+  padding: 0 0 $launcher-gutter;
   background: var(--z-bg-editor);
   color: var(--z-fg-default);
   // Content, not chrome — set once here so everything in the launcher inherits it, tiles and
@@ -20,7 +23,7 @@ $launcher-gutter: 32px;
 }
 
 .launcher-title {
-  padding: 0 $launcher-gutter 16px;
+  padding: 24px $launcher-gutter 16px;
   border-bottom: 1px solid var(--z-border-subtle);
 }
 
@@ -37,7 +40,9 @@ $launcher-gutter: 32px;
   margin-top: 12px;
 }
 
-// A flex column: logo area on top, name under it, both centred.
+// A flex column: logo area on top, name under it, both centred. A <button>, so the tile can be
+// reached by a keyboard — it was a `<div onClick>`, which is a whole grid of controls that Tab
+// walked straight past — which is why `font` and `text-align` are restated here.
 .launcher-icon {
   display: flex;
   flex-direction: column;
@@ -50,6 +55,7 @@ $launcher-gutter: 32px;
   border-radius: 5px;
   background-color: var(--z-bg-launcher-tile);
   color: var(--z-fg-default);
+  font: inherit;
   text-align: center;
   box-shadow: var(--z-shadow-low);
   cursor: pointer;
@@ -59,38 +65,45 @@ $launcher-gutter: 32px;
   background-color: var(--z-bg-launcher-tile-hover);
 }
 
-.resourceLogoImage {
+// The kernel's own logo and the one glyph we draw ourselves, at one size: a tile is one row of one
+// grid, so the 44px belongs to the box rather than to either picture. Stated here and not as a
+// `size` prop, which is what the terminal tile passed while the logos took it from CSS.
+.kernelSpecIconArea img,
+.launcher-icon > .z-icon {
+  width: 44px;
   height: 44px;
 }
 
+// The tile's caption. Inherits the launcher's body size; whole pixels per line, because a name long
+// enough to wrap is the common case in a 132px tile.
+.launcher-icon-label {
+  line-height: 20px;
+  font-weight: 400;
+}
+
+// The tile grid when there is nothing to put in it — the same notice box as every other failure on
+// screen. `60ch` because this one is read: it is three sentences and a command, not a status line.
 .noKernelsFound {
-  margin-top: 16px;
-  padding: 16px 16px 8px;
+  max-width: 60ch;
+  margin-top: 12px;
+  padding: 12px 16px;
   background: var(--z-bg-notice);
   color: var(--z-fg-default);
   border-radius: 6px;
   font-weight: 300;
 
   code {
-    width: 100%;
     display: block;
-    padding: 10px;
+    margin: 8px 0;
+    padding: 8px 10px;
+    border-radius: 4px;
     background-color: var(--z-bg-code);
-    margin-bottom: 10px;
+    font-family: var(--z-mono-font-family);
+    font-size: var(--z-ui-font-size);
   }
-}
 
-// No fixed heights on either of these: the tile sizes to them, not the other way round.
-.kernelSpecIconArea {
-  img {
-    height: 44px;
-    width: 44px;
+  p {
+    margin: 0;
+    color: var(--z-fg-muted);
   }
-}
-
-// Inherits the launcher's body size. Whole pixels per line, because a name long enough to wrap
-// is the common case in a 132px tile.
-.kernelspecDisplayName {
-  line-height: 20px;
-  font-weight: 400;
 }

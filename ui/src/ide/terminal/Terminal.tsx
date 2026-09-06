@@ -10,6 +10,7 @@ import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
 import { BaseWebSocketUrl } from '@/config';
 import { IfileTab } from '@/store/TabState';
+import { terminalTheme } from './theme';
 
 interface TerminalTabProps {
   data: IfileTab;
@@ -43,24 +44,18 @@ export default function TerminalTab({ data }: TerminalTabProps) {
   useEffect(() => {
     if (terminalRef.current == null) return;
 
-    // The background is drawn by .terminalArea from --z-bg-terminal rather than
-    // baked into the XTerm instance. Keeping it in CSS means switching themes
-    // repaints the terminal instead of disposing and rebuilding it, so the
-    // scrollback and the shell session survive.
-    // xterm wants a string, not a custom property, so the token is read rather than restated:
-    // the terminal has to use the same mono face as the notebook beside it. Whitespace is
-    // collapsed because the declaration wraps in _tokens.scss, and xterm builds a canvas font
-    // string from this. The fallback is for a jsdom test, where no stylesheet is loaded.
+    // xterm draws to a canvas, so it wants strings and not custom properties: everything below is read
+    // off this element rather than restated here. Custom properties inherit, so the sixteen ANSI
+    // colours come from the `.terminalContainer` scope around it and the rest from `:root`.
+    //
+    // Whitespace is collapsed because the mono declaration wraps in _tokens.scss and xterm builds a
+    // canvas font string out of it. The fallback is for a jsdom test, where no stylesheet is loaded.
+    const style = getComputedStyle(terminalRef.current);
     const mono =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue('--z-mono-font-family')
-        .replace(/\s+/g, ' ')
-        .trim() || 'monospace';
+      style.getPropertyValue('--z-mono-font-family').replace(/\s+/g, ' ').trim() || 'monospace';
 
     const terminal = new XTerm({
-      theme: {
-        background: 'rgba(0, 0, 0, 0)',
-      },
+      theme: terminalTheme(style),
       allowTransparency: true,
       fontFamily: mono,
       allowProposedApi: true,

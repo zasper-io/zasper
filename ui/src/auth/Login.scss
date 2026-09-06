@@ -1,33 +1,59 @@
 // /login.
 //
+// The one screen that is not the IDE: no rail, no sidebar, no status bar, and — until the theme was
+// remembered in localStorage (src/themes/index.ts) — no theme either, which is why every reader saw
+// index.html's teal here whatever they had chosen.
+//
+// It is also the only page in the app that used Bootstrap's `.navbar`, `.container`, `.row` and
+// `.col-12`, and it was the whole reason three partials were still compiled: 21.6 kB for one screen
+// whose layout is a centred column with a two-div flex row inside it. Those class names are gone and
+// the rules below are on the page's own, which is what the design prototype drew them against.
 
-section#header-login-signup {
+.login-page {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: var(--z-bg-login-page);
-  height: auto;
+  // Content, not chrome: this page is read once, and the labels, the button and the slider all
+  // inherit it from here.
+  font-size: var(--z-font-size-body);
+  line-height: var(--z-line-height-body);
+}
+
+// One logo, on the left, which is all the `.navbar` ever held. The measure below is `.container`'s —
+// 1140px and 12px of gutter — kept because the decoration behind the card is sized against it.
+.login-header {
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 12px;
 }
 
 .login-section {
-  margin-top: 100px;
-  padding-bottom: 100px;
-}
-
-.login-section .col-12 {
+  // The decoration hangs off this: it used to hang off `.col-12`, which was this element wearing a
+  // grid class that no longer exists.
   position: relative;
+  width: 100%;
+  max-width: 1140px;
+  margin: 100px auto;
+  padding: 0 12px;
 }
 
-.login-section .col-12:after {
+// The plinth the card appears to stand on. `shape.svg` is one path in one flat `#e5e4ea`, so it is
+// used as a mask and painted from a token: as a background it was a pale lavender slab, which nobody
+// noticed while this page was always light and which is a lit shelf in a dark room now that it is not.
+.login-section:after {
   content: '';
   position: absolute;
   left: 50%;
   bottom: -48px;
   width: 100%;
   height: 116px;
-  background: url(shape.svg);
+  background: var(--z-bg-login-plinth);
+  mask: url(shape.svg) no-repeat center / contain;
+  -webkit-mask: url(shape.svg) no-repeat center / contain;
   transform: translate(-50%, 10px);
   z-index: 0;
-  background-size: contain;
-  background-repeat: no-repeat;
 }
 
 .login-signup-wraper {
@@ -38,6 +64,7 @@ section#header-login-signup {
   border-radius: 40px;
   overflow: hidden;
   box-shadow: var(--z-shadow-login);
+  // Above the decoration, which is drawn behind and below the card.
   position: relative;
   z-index: 1;
 }
@@ -48,19 +75,19 @@ section#header-login-signup {
 
 /* ===== Hero (left half) ===== */
 
+// The dark end of the accent ramp in both polarities — see the `[data-accent]` block in
+// styles/_accents.scss. It was a purple gradient nobody chose, next to a teal link and a teal button.
 .login-signup-content {
   background: var(--z-bg-login-hero);
-  padding: 50px 40px;
+  color: var(--z-fg-on-accent);
+  padding: 40px;
   display: flex;
   align-items: center;
+  text-align: center;
 }
 
 .login-signup-content > div {
   width: 100%;
-}
-
-.login-section-image {
-  text-align: center;
 }
 
 .login-section-image img {
@@ -69,21 +96,56 @@ section#header-login-signup {
   margin: 0 auto;
 }
 
-.login-signup-content-slider {
-  color: var(--z-fg-on-accent);
+// Four sentences in one cell, so the box is as tall as the tallest of them and nothing below it moves
+// when the sentence changes. `grid-area: 1 / 1` on every child is the whole of the stacking.
+.login-slider {
+  display: grid;
   width: 70%;
-  margin: 0 auto;
-  margin-top: 30px;
+  margin: 24px auto 0;
+  padding: 0;
+  list-style: none;
 }
 
-// The slides were marked up with Tailwind class names (text-xl, font-semibold,
-// py-6, mt-10) from an abandoned Tailwind attempt, so they rendered unstyled.
 .login-slider-text {
-  margin-top: 2.5rem;
-  padding: 1.5rem 0;
-  text-align: center;
+  grid-area: 1 / 1;
   font-size: 1.25rem;
   font-weight: 600;
+  opacity: 0;
+  // 10s for four slides, and each one's turn starts at its own `animation-delay` (Login.tsx). This
+  // replaces swiper, which was 3.8 MB installed and 88 kB of the login chunk for the same fade.
+  animation: login-slide 10s linear infinite;
+}
+
+// A quarter of the loop each, with the fade inside its own share: two sentences are never both
+// readable, and the gap between them is the 2% at either end rather than an empty beat.
+@keyframes login-slide {
+  0% {
+    opacity: 0;
+  }
+  2% {
+    opacity: 1;
+  }
+  23% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+// What swiper's autoplay had no answer for. The first sentence stays, which is the honest still frame
+// of a rotator: the other three are in the DOM and in source order for anything that reads the page.
+@media (prefers-reduced-motion: reduce) {
+  .login-slider-text {
+    animation: none;
+  }
+
+  .login-slider-text:first-child {
+    opacity: 1;
+  }
 }
 
 /* ===== Form (right half) ===== */
@@ -91,20 +153,16 @@ section#header-login-signup {
 // Centres the form against the hero on the left: the two halves are `width: 50%` of a flex
 // row, so this one is as tall as the hero image but its content is only ~160px.
 .login-signup-form {
-  padding: 40px 40px;
+  padding: 40px;
   background: var(--z-bg-panel);
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-// A card someone reads once, not a panel they scan, so it takes the content size — the labels,
-// the help text and the link under the button all inherit it.
 .login-signup-form-wraper {
   width: 79%;
   margin: 0 auto;
-  font-size: var(--z-font-size-body);
-  line-height: var(--z-line-height-body);
 }
 
 .login-signup-form-wraper label {
@@ -115,8 +173,7 @@ section#header-login-signup {
 
 // Not a `.z-field`: these are a form on a page rather than controls in a 240px panel, so they are
 // measured at the page's scale — 12px of padding and a 10px radius against the field's 3px. The
-// colours are the same tokens, which is what matters, and this page renders before there is a config
-// to read so it is also the one screen that only ever sees the fallback theme.
+// colours are the same tokens, which is the part that matters.
 .login-signup-form-wraper input {
   width: 100%;
   padding: 12px 15px;
@@ -125,6 +182,7 @@ section#header-login-signup {
   border-radius: 10px;
   background: var(--z-bg-field);
   color: var(--z-fg-default);
+  font: inherit;
 }
 
 .login-signup-form-wraper p {
@@ -147,11 +205,11 @@ section#header-login-signup {
   background: var(--z-accent);
   width: 100%;
   padding: 10px;
+  font: inherit;
   font-size: 15px;
   font-weight: 400;
   border-radius: 10px;
-  margin-top: 15px;
-  margin-bottom: 10px;
+  margin: 15px 0 10px;
   color: var(--z-fg-on-accent);
 }
 

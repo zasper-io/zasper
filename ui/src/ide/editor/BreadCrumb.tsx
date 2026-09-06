@@ -12,12 +12,12 @@ export default function BreadCrumb(props: BreadCrumbProps) {
 
   return (
     <div className="breadcrumbArea">
+      {/* The label stays: it is what names the trail to a screen reader, and it is the one thing
+          here that was never Bootstrap's. The two class names were — see Editor.scss. */}
       <nav aria-label="breadcrumb">
-        <ol className="breadcrumb">
+        <ol>
           {crumbs.map((item, index) => (
-            <li key={index} className="breadcrumb-item">
-              {item}
-            </li>
+            <li key={index}>{item}</li>
           ))}
         </ol>
       </nav>

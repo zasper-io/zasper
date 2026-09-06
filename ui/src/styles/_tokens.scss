@@ -14,12 +14,15 @@
 //     Material palette. Those are hand-written and restate only what they change.
 //
 // `:root` is the light values the app shipped with, in Zasper purple. It is no
-// longer a theme anyone can select: it is the floor, and it shows through where no
-// accent is set — the moment before the config has been read, and /login, which
-// renders before there is a config to read.
+// longer a theme anyone can select: it is the floor, and it shows through only
+// where no accent is set, which today is nowhere — index.html ships both
+// attributes and main.tsx overwrites them from localStorage before the first
+// render. Kept as the floor anyway: a token that exists here and in no theme is a
+// token that is missing, and this file is where that shows.
 //
-// IDE.tsx writes both attributes on <html>: `data-theme` for the polarity and
-// `data-accent` for the hue. src/themes/index.ts turns one stored name into the two.
+// main.tsx writes both attributes on <html> at boot and IDE.tsx again whenever the
+// theme changes: `data-theme` for the polarity, `data-accent` for the hue.
+// src/themes/index.ts turns one stored name into the two.
 
 // --- Chrome type and density --------------------------------------------------
 //
@@ -247,6 +250,15 @@
   --z-git-deleted: #aa1a1a;
   --z-git-conflict: #9a3412;
 
+  // The same two colours as a *tint* under a changed line in a diff, where the code keeps the editor's
+  // own ink because a diff is read as code. Derived rather than restated, and that is what makes them
+  // worth naming at all: `--z-git-added` is a different green in each of the three palettes below, and a
+  // custom property resolves where it is used, so these two follow every one of them. No theme block
+  // states either — a diff and a status letter disagreeing about what added means is the defect this
+  // replaces, the MergeView package's own green and red.
+  --z-bg-diff-added: color-mix(in srgb, var(--z-git-added) 14%, transparent);
+  --z-bg-diff-deleted: color-mix(in srgb, var(--z-git-deleted) 14%, transparent);
+
   // --- File-type marks ----------------------------------------------------
   // The mark in front of a file name (src/ide/icons/FileMark.tsx). Each one starts as the
   // language's own colour — GitHub's linguist palette, which is where a `.py` being blue and a
@@ -272,10 +284,16 @@
 
   // --- Login ----------------------------------------------------------------
   // /login is its own surface — a full-bleed marketing panel next to the form —
-  // so it gets its own tokens rather than reusing the IDE chrome.
+  // so it gets its own tokens rather than reusing the IDE chrome. All three are
+  // taken off the accent ramp in _accents.scss; these are the purple they were,
+  // and the last place in the app it survives.
   --z-bg-login-page: linear-gradient(119deg, #ffffff 0%, #d6d4e0 100%);
   --z-bg-login-hero: linear-gradient(133deg, #594c91 0%, #221c3c 100%);
   --z-shadow-login: 0px 3px 36px #d6d0e8;
+  // The plinth under the card, one shade lighter than the page it sits on. This is `auth/shape.svg`'s
+  // own fill, which the asset no longer decides: it is a mask now, because a colour baked into an SVG
+  // cannot follow a theme.
+  --z-bg-login-plinth: #e5e4ea;
 
   // --- DataFrame output ---------------------------------------------------
   // Ten `--z-df-*` were here, and every one of them resolved into a name this file already had once
@@ -312,9 +330,10 @@
   // nowhere lighter to go and still be read; VS Code Light+ had already given up on four of them.
   // Bright means brighter only where there is room above the threshold, which is the dark theme.
   //
-  // The terminal is the second consumer and does not read these yet: xterm draws to a canvas, so it
-  // takes a palette of strings at construction and would need re-theming on a theme change rather
-  // than a CSS rule. That is why these are named for ANSI rather than for cell output.
+  // The terminal is the second consumer and it does not read *these*: it is the one surface in the app
+  // that is dark in every theme, so it takes the on-dark sixteen instead — `ansi-on-dark` below, and
+  // the `.terminalContainer` scope that hands them to it. Which is why these are named for ANSI rather
+  // than for cell output: the slot is the shared thing, and the value belongs to the surface.
   --z-ansi-black: #000000; // 18.87:1
   --z-ansi-red: #cd3131; // 4.62:1
   --z-ansi-green: #008100; // from #00bc00, 2.30:1
@@ -331,6 +350,35 @@
   --z-ansi-bright-magenta: #bc05bc; // 4.85:1
   --z-ansi-bright-cyan: #047895; // from #0598bc, 3.03:1
   --z-ansi-bright-white: #6e6e6e; // from #a5a5a5, 2.21:1
+}
+
+// The same sixteen slots on a dark surface, which two things in the app need: the dark theme's output
+// box, and the terminal in *every* theme. A mixin rather than a second set of names, because they are
+// not a second palette — they are these values, and a light theme's terminal asking for
+// `--z-ansi-black` and getting #000000 on a near-black panel is the whole reason this exists.
+//
+// VS Code Dark+, on the dark theme's #353535 output surface. Six of the sixteen arrive readable and are
+// left alone; the rest lighten. "Black" is a grey here, which is the slot rule above: a program that
+// prints black on a dark terminal is unreadable by its own choice, and the app is not obliged to repeat
+// it. Every terminal surface is darker than #353535 — --a-900 in the four light themes, #2b2a2a and
+// #212121 in the other two — so each ratio below is a floor rather than the number.
+@mixin ansi-on-dark {
+  --z-ansi-black: #9e9e9e; // from #000000, 1.71:1
+  --z-ansi-red: #e18383; // from #cd3131, 2.38:1
+  --z-ansi-green: #0dbc79; // 4.96:1
+  --z-ansi-yellow: #e5e510; // 9.08:1
+  --z-ansi-blue: #65a1e3; // from #2472c8, 2.52:1
+  --z-ansi-magenta: #d47fd4; // from #bc3fbc, 2.67:1
+  --z-ansi-cyan: #11abd1; // from #11a8cd, 4.38:1
+  --z-ansi-white: #e5e5e5; // 9.74:1
+  --z-ansi-bright-black: #9e9e9e; // from #666666, 2.14:1
+  --z-ansi-bright-red: #f47878; // from #f14c4c, 3.43:1
+  --z-ansi-bright-green: #23d18b; // 6.17:1
+  --z-ansi-bright-yellow: #f5f543; // 10.53:1
+  --z-ansi-bright-blue: #5ca1ee; // from #3b8eea, 3.65:1
+  --z-ansi-bright-magenta: #d97bd9; // from #d670d6, 4.18:1
+  --z-ansi-bright-cyan: #29b8db; // 5.24:1
+  --z-ansi-bright-white: #ffffff; // 12.27:1
 }
 
 [data-theme='dark'] {
@@ -451,27 +499,12 @@
 
   --z-bg-login-page: linear-gradient(119deg, #2a2a2a 0%, #171720 100%);
   --z-shadow-login: 0px 3px 36px #000000;
+  // Still one shade lighter than the page below the card, which here is a very dark grey rather than a
+  // pale one. The panel's own surface, so the plinth and the form half read as the same material.
+  --z-bg-login-plinth: #272727;
 
-  // VS Code Dark+, on this theme's #353535 output surface. Six of the sixteen arrive readable and are
-  // left alone; the rest lighten. "Black" is a grey here, which is the slot rule above: a program that
-  // prints black on a dark terminal is unreadable by its own choice, and the app is not obliged to
-  // repeat it.
-  --z-ansi-black: #9e9e9e; // from #000000, 1.71:1
-  --z-ansi-red: #e18383; // from #cd3131, 2.38:1
-  --z-ansi-green: #0dbc79; // 4.96:1
-  --z-ansi-yellow: #e5e510; // 9.08:1
-  --z-ansi-blue: #65a1e3; // from #2472c8, 2.52:1
-  --z-ansi-magenta: #d47fd4; // from #bc3fbc, 2.67:1
-  --z-ansi-cyan: #11abd1; // from #11a8cd, 4.38:1
-  --z-ansi-white: #e5e5e5; // 9.74:1
-  --z-ansi-bright-black: #9e9e9e; // from #666666, 2.14:1
-  --z-ansi-bright-red: #f47878; // from #f14c4c, 3.43:1
-  --z-ansi-bright-green: #23d18b; // 6.17:1
-  --z-ansi-bright-yellow: #f5f543; // 10.53:1
-  --z-ansi-bright-blue: #5ca1ee; // from #3b8eea, 3.65:1
-  --z-ansi-bright-magenta: #d97bd9; // from #d670d6, 4.18:1
-  --z-ansi-bright-cyan: #29b8db; // 5.24:1
-  --z-ansi-bright-white: #ffffff; // 12.27:1
+  // This theme's output box is #353535, which is what the sixteen above were measured against.
+  @include ansi-on-dark;
 }
 
 // JupyterLab (light). Values come from JupyterLab's own `--jp-*` variables, so
@@ -587,6 +620,8 @@
   --z-bg-login-page: linear-gradient(119deg, #ffffff 0%, #eeeeee 100%);
   --z-bg-login-hero: linear-gradient(133deg, #2196f3 0%, #0d47a1 100%);
   --z-shadow-login: 0px 3px 36px #e0e0e0;
+  // Material grey 100, which is where this theme's page ends: the plinth is one step off it either way.
+  --z-bg-login-plinth: #f5f5f5;
 
   // --- ANSI ---------------------------------------------------------------
   // JupyterLab's own nbconvert palette, on this theme's #ffffff output surface, so a notebook opened
@@ -608,4 +643,20 @@
   --z-ansi-bright-magenta: #a03196; // 6.22:1
   --z-ansi-bright-cyan: #228282; // from #258f8f, 3.89:1
   --z-ansi-bright-white: #6f7687; // from #a1a6b2, 2.44:1
+}
+
+// --- The one surface that is dark in every theme ------------------------------
+//
+// The terminal. `--z-bg-terminal` is --a-900 in the four light themes and a near-black grey in the other
+// two, and that was asked as a question rather than inherited: a light window is allowed one dark panel,
+// because a shell prints for a shell's palette and nothing else on screen is that. What it costs is the
+// sixteen — the light themes' set is measured against a pale output box, so `--z-ansi-black` there is
+// #000000, and it would be black ink on #063733.
+//
+// A scope and not a component rule: nothing here declares anything but values, which is this layer's
+// business. It is what the terminal reads, too — Terminal.tsx takes the sixteen off `.terminalArea` with
+// getComputedStyle, the way it already takes the mono family, because xterm draws to a canvas and wants
+// strings. Inherited, so either element answers.
+.terminalContainer {
+  @include ansi-on-dark;
 }

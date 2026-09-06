@@ -108,14 +108,14 @@ export default function TabIndex() {
 
   return (
     <div className="tabHeader">
-      <ul className="nav">
+      <ul className="tabList">
         {Object.keys(fileTabsState).map((key) => (
           // Keyed by path, as the tab content is: by index, closing a tab moves every tab after it
           // into the DOM node of its neighbour.
-          <li key={key} className="nav-item tab-item" role="presentation">
+          <li key={key} className="tab-item" role="presentation">
             <button
               type="button"
-              className={fileTabsState[key].active ? 'nav-link active' : 'nav-link'}
+              className={fileTabsState[key].active ? 'tab is-active' : 'tab'}
               onClick={async () =>
                 await handleTabActivate(
                   fileTabsState[key].name,
@@ -130,6 +130,12 @@ export default function TabIndex() {
                   a bare text node makes the tab read as `txtnotes.txt` to anything matching on
                   text, and `.panel-row-name` in the sidebar's rows is the same idea. */}
               <span className="tabName">{fileTabsState[key].name}</span>
+              {/* Unsaved, said as a dot rather than in the name: the name is already fighting an
+                  ellipsis for room, and until now nothing on the strip said it at all — the first a
+                  tab told anyone was the dialog that opens when it is closed. */}
+              {unsavedTabs[key] !== undefined && (
+                <span className="tab-dirty" title="Unsaved changes" />
+              )}
               {fileTabsState[key].name !== 'Launcher' && (
                 // The handler is on the span rather than on the icon: an <Icon> is a glyph and
                 // takes no events, and a <button> cannot be nested in the tab's own button.

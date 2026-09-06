@@ -11,8 +11,9 @@
 // step. `src/themes/index.ts` is the seam that joins the name to the two attributes.
 //
 // Loaded after _tokens.scss, whose `:root` holds the purple the app shipped with. That purple is now
-// a fallback rather than a theme: it shows through only where no accent is set — before the config
-// has been read, and on /login, which renders before there is a config to read.
+// a fallback rather than a theme: it shows through only where no accent is set, and nothing is left in
+// that state — main.tsx applies the remembered theme before the first render, which is how /login,
+// having no config of its own to read, ends up in the reader's colours.
 //
 // The shortlist is not a free choice. --z-status-idle is green, --z-status-busy red, --z-git-modified
 // amber, --z-git-added green, --z-git-deleted red: an accent in one of those hues stops state from
@@ -169,7 +170,7 @@ $dark-panel: #272727;
   // styleguide mocked all three treatments at the same size — this one, the two steps swapped, and the
   // active tab taking the editor's own surface as every other editor does — and this one won. A strip
   // is two tabs wide rather than twenty and the active tab is the one whose content is on screen, so
-  // nothing is actually ambiguous in place; `.nav-link.active`'s weight carries what the ramp step
+  // nothing is actually ambiguous in place; `.tab.is-active`'s weight carries what the ramp step
   // does not. The alternatives each cost something: swapping puts hover and active on one value, and
   // the editor surface takes the label off white, which is what every coloured chrome surface here has
   // in common.
@@ -201,10 +202,23 @@ $dark-panel: #272727;
   // the ramp, which is a change of one pixel-wide surface and the smallest honest improvement here.
   --z-scrollbar-thumb: var(--a-600);
 
-  // /login's hero panel. Included because the login page has no config to read and therefore always
-  // renders at index.html's default attributes — so without this it is the one screen that stayed
-  // purple, next to a teal link and a teal button. Dark is not mapped for the same reason: nothing
-  // ever sets it there.
+  // /login's page, and the shadow the card sits in. White to the palest tint of the hue, which is
+  // what the purple these replace was: #d6d4e0 and #d6d0e8, two hand-mixed lavenders a step apart
+  // that no other token in the app used. One step for both, because at 36px of blur nobody can see
+  // the difference between them.
+  --z-bg-login-page: linear-gradient(119deg, #ffffff 0%, var(--a-100) 100%);
+  --z-shadow-login: 0px 3px 36px var(--a-100);
+  // The plinth, a step paler than the page's far end so that it reads as a lit shape and not as a
+  // shadow — which is the relationship #e5e4ea had to the lavender it stood on.
+  --z-bg-login-plinth: var(--a-50);
+}
+
+// The hero, in both polarities. Not in either mapping above because --a-600 to --a-900 is dark
+// either way — the panel carries white text on it, so it wants the dark end of the ramp whichever
+// end the chrome is taking. The page behind it is the light mapping's above and [data-theme='dark']'s
+// grey in _tokens.scss, which is the app's own asymmetry: light chrome carries the hue, dark stays
+// grey.
+[data-accent] {
   --z-bg-login-hero: linear-gradient(133deg, var(--a-600) 0%, var(--a-900) 100%);
 }
 

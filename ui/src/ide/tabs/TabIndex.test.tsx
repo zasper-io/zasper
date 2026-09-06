@@ -92,6 +92,20 @@ describe('TabIndex', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  // The dot is the strip's only sign of unsaved work. Queried by its title rather than its class,
+  // because the title is the whole of what it says — a 6px circle has no text.
+  it('marks a tab with unsaved changes', () => {
+    renderTabs(() => Promise.resolve());
+
+    expect(screen.getByTitle('Unsaved changes')).toBeInTheDocument();
+  });
+
+  it('marks nothing when every tab matches its file', () => {
+    renderTabs();
+
+    expect(screen.queryByTitle('Unsaved changes')).not.toBeInTheDocument();
+  });
+
   describe('closing a tab with unsaved changes', () => {
     it('asks before closing it, naming the file', () => {
       const save = vi.fn<SaveTab>(() => Promise.resolve());

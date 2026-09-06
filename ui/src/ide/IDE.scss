@@ -66,10 +66,8 @@
   flex-direction: column;
 }
 
-.tab-item {
-  font-size: var(--z-ui-font-size);
-  line-height: 20px;
-}
+// The tab strip is tabs/TabIndex.scss now, with the component that renders it: `.tabHeader`,
+// `.tab-item` and the rules that were `.nav-link` here.
 
 // No `width: 100%` next to the 1px margins — that made this 2px wider than the resizable
 // panel holding it and put a horizontal scrollbar under every tab. A block-level flex column
@@ -86,18 +84,6 @@
   flex-direction: column;
   overflow: hidden;
   background-color: var(--z-bg-content);
-
-  .tabHeader {
-    flex: 0 0 auto;
-    min-height: 28px;
-    overflow-x: auto;
-    white-space: nowrap;
-
-    .nav {
-      display: flex;
-      flex-wrap: nowrap;
-    }
-  }
 
   // One .tabContent per open tab; all but the active one carry .is-hidden. Everything below
   // this gets its height from the `display: flex` here — see .is-hidden in styles/_base.scss.
@@ -131,11 +117,9 @@
     flex-direction: column;
   }
 
-  .window-tab {
-    border-bottom: 0;
-    margin-bottom: 1px;
-    gap: 4px;
-  }
+  // `.window-tab` was here — `border-bottom: 0`, which is what an override of Bootstrap's
+  // `.nav-tabs` looks like. Nothing in src has rendered the class, and the partial it was arguing
+  // with is gone.
 
   .editor-body2 {
     flex: 1;
@@ -155,49 +139,40 @@
 // the size of its own glyph. `.z-icon-button` in `styles/_controls.scss` replaces it and gives them
 // a hit area. `.editor-button-right` went with it, unused by anything.
 
-// Editor tab strip. Bootstrap supplies .nav-link's box model; we restyle it.
+// The sidebar's edge, and the only control in the app that another package drew: react-resizable-
+// panels' `<PanelResizeHandle />` renders a bare div, so this seam had no rule of its own at all.
 //
-// Chrome, so it reads --z-fg-on-chrome rather than --z-fg-on-accent: identical in light and
-// dark today, but a theme with a light tab strip needs dark tab labels.
-.nav-link {
-  font-weight: 300;
-  border: 1px solid var(--z-border);
-  border-radius: 2px 5px 0px 0px;
-  padding: 3px 8px;
-  color: var(--z-fg-on-chrome);
-  box-sizing: border-box;
-  background: var(--z-bg-tab-inactive);
-
-  // The close cross inherits the tab's colour, which is the point of drawing icons in
-  // `currentColor`: --z-fg-subtle is picked to sit on a *panel*, and on the purple tab it
-  // comes out at 1.16:1.
-  //
-  // 18px, and the one stated exception to `.z-icon-button`'s 22px: the cross has to fit inside the
-  // tab beside a name, and a 22px box would set the strip's height instead of the label doing it.
-  .tab-close {
-    margin-left: 8px;
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-  }
-
-  // A file-type mark says what the file is, but the tab strip is the one surface where its hue
-  // is not readable — the light theme's is purple. On a tab the mark is lettering only.
-  .file-mark {
-    color: currentColor;
-    opacity: 0.85;
-  }
+// Two of the three things it was missing turned out not to be missing. The pointer target is not 1px:
+// the library adds a hit margin of 5px either side (15 on a coarse pointer), and it sets
+// `cursor: ew-resize` globally while a handle is hovered or dragged. What was actually absent is
+// anything visible — the div has no width, so the seam on screen is `.main-content`'s 1px margin —
+// and any answer to focus, which matters because the handle is a `role="separator"` with `tabindex=0`
+// that resizes on arrow keys. A keyboard could reach it and nothing on screen moved.
+//
+// 4px at rest in the surface behind it, so it reads as the gap it already was, and the accent when it
+// is live. Filled rather than outlined, which is the opposite of the drop target's answer and for the
+// same reason: this element *is* 4px wide, so a 1px ring inside it would be the whole element anyway.
+.panelResizeHandle {
+  flex: 0 0 auto;
+  width: 4px;
+  background: var(--z-bg-content);
 }
 
-.nav-link:hover {
-  color: var(--z-fg-on-chrome);
-  background: var(--z-bg-tab-hover);
-}
-
-.nav-link.active {
-  color: var(--z-fg-on-chrome);
-  font-weight: 400;
-  background: var(--z-bg-tab-active);
+// `hover` and `drag` are the library's own two states, off `data-resize-handle-state`; the third is
+// `inactive`. Focus is ours, and takes the same fill: a 4px strip cannot wear a ring that is not
+// simply the strip.
+//
+// The `outline: none` is the one in this app that is not a mistake, and it took a browser to find:
+// with the fill alone, what a focused handle actually showed was Chromium's own `1px auto`
+// ring in `rgb(0, 95, 204)`, drawn over the fill and outside the strip, so the seam went *blue* in
+// all eight themes and the accent underneath was never seen. This does not remove the indicator, it
+// replaces it — a full-height 4px bar in the accent is more visible than a 2px ring, and it is what
+// hover shows, which for a separator with no other state is the honest answer.
+.panelResizeHandle[data-resize-handle-state='hover'],
+.panelResizeHandle[data-resize-handle-state='drag'],
+.panelResizeHandle:focus-visible {
+  background: var(--z-fg-accent);
+  outline: none;
 }
 
 // `.list-group-item` was here, giving Bootstrap's list rows the panel's surface. Nothing in the app

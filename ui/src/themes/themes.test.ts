@@ -5,9 +5,9 @@ A theme is one stored name that has to come apart into the two attributes the st
 the failure mode is silent: a name that resolves to a `data-accent` with no ramp behind it, or a stored
 name that no longer exists, paints an app with half its colours missing rather than throwing.
 */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { applyTheme, defaultTheme, getTheme, themes } from '.';
+import { applyTheme, defaultTheme, getTheme, rememberTheme, storedTheme, themes } from '.';
 
 /** The hues in styles/_accents.scss. This list failing is the port having drifted apart. */
 const HUES = ['teal', 'blue', 'slate', 'orange'];
@@ -76,5 +76,40 @@ describe('applyTheme', () => {
 
     expect(root.dataset.theme).toBe('jupyterlab');
     expect(root.dataset.accent).toBeUndefined();
+  });
+});
+
+// The copy of the config's theme that /login reads, because /login has no config: it renders before
+// there is a token to read one with.
+describe('the remembered theme', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('comes back as the theme it was stored as', () => {
+    rememberTheme('orange-dark');
+    expect(storedTheme().id).toBe('orange-dark');
+  });
+
+  it('is the default when nothing has been stored, or when what was is gone', () => {
+    expect(storedTheme().id).toBe(defaultTheme.id);
+    rememberTheme('purple-light');
+    expect(storedTheme().id).toBe(defaultTheme.id);
+  });
+
+  it('is a cache and not a requirement: neither call throws when storage is unavailable', () => {
+    // Private browsing, and a quota that is full. A theme id is not worth a blank page.
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+
+    expect(storedTheme().id).toBe(defaultTheme.id);
+    expect(() => rememberTheme('blue-dark')).not.toThrow();
+
+    getItem.mockRestore();
+    setItem.mockRestore();
   });
 });

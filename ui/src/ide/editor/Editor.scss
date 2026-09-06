@@ -1,24 +1,46 @@
 .breadcrumbArea {
   // A navigable path, not a caption: the same kind of text as the tab label above it and the
   // toolbar below it.
+  flex: 0 0 auto;
   height: 26px;
   display: flex;
   align-items: center;
   background: var(--z-bg-editor);
-  font-weight: 400;
   padding: 0 12px;
   border-bottom: 1px solid var(--z-border-breadcrumb);
   font-size: var(--z-ui-font-size);
   color: var(--z-fg-muted);
+  // Against `.main-content`'s 300, which is chrome's weight and too light for a path that is read
+  // rather than scanned. The prototype's version has no such declaration because its mock has
+  // nothing setting 300 above it.
+  font-weight: 400;
 
-  // The list is the whole content of this strip, so it owns no outer spacing. Bootstrap's
-  // `.breadcrumb` is `margin-bottom: 1rem`, and in a centred flex row that margin counts as
-  // part of the item being centred — it pushes the crumbs up under the tab bar.
-  .breadcrumb {
-    margin: 0;
-    padding: 0;
+  // The list is the whole content of this strip, so it owns no outer spacing. `.breadcrumb` was
+  // Bootstrap's, and this block had to undo its `margin-bottom: 1rem` — in a centred flex row that
+  // margin counts as part of the item being centred, so it pushed the crumbs up under the tab strip.
+  // The partial went with the rest of it; the list resets itself here.
+  ol {
     display: flex;
     align-items: center;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
     line-height: 1;
+  }
+
+  // The separator, and the whole of what `breadcrumb` was imported for: 993 minified bytes of
+  // Bootstrap for one slash, which it drew as `.breadcrumb-item::before`. Generated rather than
+  // written into the markup because it belongs to the gap between two crumbs and not to either of
+  // them — the first crumb has no separator, which is what `li + li` says.
+  li + li::before {
+    content: '/';
+    margin-right: 4px;
+    color: var(--z-fg-subtle);
+  }
+
+  // The file itself, at the end of the trail: the one segment that is not a folder.
+  li:last-child {
+    color: var(--z-fg-default);
   }
 }

@@ -28,7 +28,7 @@ import {
   zasperVersionAtom,
 } from '../store/AppState';
 import { ApiError, getInfo, listKernelspecs, logApiError } from '../api';
-import { applyTheme, getTheme } from '../themes';
+import { applyTheme, getTheme, rememberTheme } from '../themes';
 import { PanelName } from './sidebar/types';
 import { useAppCommands } from '../commands/appCommands';
 import { useRegisterCommands } from '../commands/registry';
@@ -90,8 +90,13 @@ function IDE() {
   // Publish the active theme to <html>, as the hue and the polarity it is made of.
   // Every colour in the app resolves through the custom properties keyed off those
   // two attributes (see styles/_accents.scss), so this repaints the whole UI.
+  //
+  // Remembered as well as applied, because main.tsx applies what is remembered before anything
+  // renders — which is the only theme /login will ever see.
   useEffect(() => {
-    applyTheme(getTheme(theme));
+    const resolved = getTheme(theme);
+    applyTheme(resolved);
+    rememberTheme(resolved.id);
   }, [theme]);
 
   const getFontClass = (fontSize: number) => {
@@ -122,7 +127,7 @@ function IDE() {
               </div>
             </div>
           </Panel>
-          <PanelResizeHandle />
+          <PanelResizeHandle className="panelResizeHandle" />
           <Panel defaultSize={80} minSize={50}>
             <div className={'main-content ' + getFontClass(fontSize)}>
               <TabIndex />

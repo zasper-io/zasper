@@ -44,20 +44,19 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
         {Object.keys(kernelspecs).length > 0 ? (
           <div className="launchSection-grid">
             {Object.keys(kernelspecs).map((key) => (
-              <div
+              <button
+                type="button"
                 className="launcher-icon"
                 key={key}
                 onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
               >
                 <div className="kernelSpecIconArea">
-                  <img
-                    className="resourceLogoImage"
-                    src={getLogoUrl(kernelspecs[key].resources)}
-                    alt="logo"
-                  />
+                  {/* The one picture on screen from outside the icon set, and it stays: a kernel's
+                      logo is its identity. `alt=""` because the name is under it. */}
+                  <img src={getLogoUrl(kernelspecs[key].resources)} alt="" />
                 </div>
-                <div className="kernelspecDisplayName">{kernelspecs[key].spec.display_name}</div>
-              </div>
+                <div className="launcher-icon-label">{kernelspecs[key].spec.display_name}</div>
+              </button>
             ))}
           </div>
         ) : (
@@ -68,34 +67,36 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
       <div className="launchSection">
         <h2 className="z-heading">Terminal</h2>
         <div className="launchSection-grid">
-          <div className="launcher-icon" onClick={() => openTerminal()}>
-            {/* 44px, the height of the kernelspec logos beside it — this tile is one of the grid. */}
-            <Icon name="terminal" size={44} />
-          </div>
+          <button type="button" className="launcher-icon" onClick={() => openTerminal()}>
+            {/* Sized to 44px in CSS, beside the kernel logos: a tile is one row of one grid. */}
+            <Icon name="terminal" />
+            <div className="launcher-icon-label">Terminal</div>
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
+// A notice rather than a tile, because there is nothing here to click. No glyph in the heading: the
+// `❌` that was here was the app's last emoji standing in for an icon, and a red mark beside a
+// sentence beginning "No kernels available" is the sentence twice.
 const NoKernelsFound: React.FC = () => {
   return (
     <div className="noKernelsFound">
-      <h3 className="z-subheading">❌ No kernels available</h3>
-      <p>Please install a kernel to create a new notebook.</p>
-      <code>
-        pip install ipykernel
-        <br />
-      </code>
+      <h3 className="z-subheading">No kernels available</h3>
+      <p>Zasper found no Jupyter kernel to run a notebook on. Install one:</p>
+      <code>pip install ipykernel</code>
       <p>
-        Check docs on our{' '}
+        Then refresh, or read{' '}
         <a
           href="https://zasper.io/docs/installing-jupyter-kernels"
           target="_blank"
           rel="noreferrer"
         >
-          website
+          installing Jupyter kernels
         </a>
+        .
       </p>
     </div>
   );

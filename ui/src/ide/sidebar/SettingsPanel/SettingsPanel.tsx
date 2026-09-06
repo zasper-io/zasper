@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAtom } from 'jotai';
 import { themeAtom } from '@/store/Settings';
-import './SettingsPanel.scss';
 import { logApiError, modifyConfig } from '@/api';
 import { PanelProps } from '../types';
 import { themes } from '@/themes';
@@ -23,11 +22,11 @@ export default function SettingsPanel({ hidden }: PanelProps) {
         {/* A section heading, not a .projectBanner — that purple bar means "this is the
             open project" everywhere else. */}
         <h2 className="z-label panel-section-head">Appearance</h2>
-        <div className="panel-section-body settings-field">
-          <label className="settings-field-label" htmlFor="settings-theme">
+        <div className="panel-section-body z-form-field">
+          <label className="z-form-label" htmlFor="settings-theme">
             Theme
           </label>
-          <div className="select">
+          <div className="z-select">
             {/* Driven by the theme registry, so a new theme shows up here
                 without touching this component. */}
             <select id="settings-theme" value={theme} onChange={(e) => changeTheme(e)}>

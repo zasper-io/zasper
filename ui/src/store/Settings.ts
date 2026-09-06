@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 
-import { defaultTheme } from '../themes';
+import { defaultTheme, storedTheme } from '../themes';
 
 export const settingsAtom = atom({
   theme: defaultTheme.id,
@@ -12,5 +12,11 @@ export const settingsAtom = atom({
   tabSize: '4',
 });
 
-/** A theme id from the registry (src/themes). IDE.tsx publishes it to <html>. */
-export const themeAtom = atom(defaultTheme.id);
+/**
+ * A theme id from the registry (src/themes). IDE.tsx publishes it to <html>.
+ *
+ * Starts at what this browser last applied rather than at the default, so the atom agrees with the
+ * attributes main.tsx has already written and `GET /api/config` confirms the theme instead of
+ * changing it.
+ */
+export const themeAtom = atom(storedTheme().id);

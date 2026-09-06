@@ -219,11 +219,8 @@
       padding: 8px 8px 16px 0;
       overflow-y: auto;
 
-      // A drop here goes to the project root, which has no row of its own to outline.
-      &.is-drop-target {
-        outline: 1px solid var(--z-fg-accent);
-        outline-offset: -1px;
-      }
+      // A drop here goes to the project root, which has no row of its own to outline. The outline
+      // itself is `.is-drop-target` in styles/_states.scss, shared with the row and the upload zone.
 
       p {
         font-size: 12px;
@@ -324,12 +321,9 @@
         color: var(--z-fg-on-accent);
       }
 
-      // Where a drop would land. Outlined rather than filled, so it does not read as one more
-      // selected row while rows are in mid-air.
-      .file-list li a.is-drop-target {
-        outline: 1px solid var(--z-fg-accent);
-        outline-offset: -1px;
-      }
+      // Where a drop would land was here, and it was the same two declarations as the panel body
+      // above it. Both are `.is-drop-target` in styles/_states.scss now, which is where the reason
+      // for outlining rather than filling is written down.
 
       // The treeitem is the li, since it holds both the row and the row's children — but a ring
       // around the li would enclose the whole open subtree, so the row inside it wears it instead.

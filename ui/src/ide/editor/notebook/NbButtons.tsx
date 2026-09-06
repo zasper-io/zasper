@@ -55,18 +55,22 @@ function NbButtons(props: NbButtonsProps) {
           <Icon name={button.icon} />
         </button>
       ))}
-      {/* The picker's values are the command ids' suffixes, so there is no mapping table. */}
-      <select
-        onChange={(e) => props.run(`notebook:change-to-${e.target.value}`)}
-        className="z-field editor-select"
-        value={props.cellType}
-      >
-        {CELL_TYPES.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      {/* The picker's values are the command ids' suffixes, so there is no mapping table. A toolbar
+          control carries its name rather than showing one — the row beside it is icon buttons with
+          `title` — and this had neither, so it was announced as "combo box" and nothing more. */}
+      <div className="z-select editor-select">
+        <select
+          onChange={(e) => props.run(`notebook:change-to-${e.target.value}`)}
+          aria-label="Cell type"
+          value={props.cellType}
+        >
+          {CELL_TYPES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="tool-group-end">
         <button className="kernelNameButton" onClick={() => props.run('notebook:change-kernel')}>
           {props.kernelName}

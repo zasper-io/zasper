@@ -54,7 +54,7 @@ export default function ConfirmDeleteBranchDialog(props: ConfirmDeleteBranchDial
                 Nothing is deleted from any commit that is also on another branch.
               </p>
             </div>
-            <label className="modal-choice">
+            <label className="z-checkbox modal-choice">
               <input
                 type="checkbox"
                 checked={force}

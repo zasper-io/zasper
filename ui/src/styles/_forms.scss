@@ -1,0 +1,118 @@
+// A label above a control, the select the app draws itself, and the one checkbox in the app.
+//
+// The pair was named once — `.settings-field` / `.settings-field-label`, in a stylesheet that belonged to
+// the settings panel — so that was the only place where the gap between a label and its control was a
+// decision rather than whatever margin happened to be beside it. The kernel switcher's select had no
+// label at all, which is a control announced as "combo box" and nothing else.
+//
+// Two things the drawing counted as this pair that are not: the commit box, which has a placeholder
+// because it is a one-field form under its own heading, and `.modal-choice`, which is the checkbox at the
+// bottom of this file. `.z-form-help` is drawn and is not here, for the reason the tooltip is not either:
+// nothing in the app has a help line yet, and a rule with no consumer is a rule nobody checks.
+
+.z-form-field {
+  margin-bottom: 12px;
+}
+
+.z-form-field:last-child {
+  margin-bottom: 0;
+}
+
+.z-form-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+}
+
+// A control in a form fills the column it is in rather than taking a width of its own: a panel is 248px
+// and a dialog is 600px, and a control sized in `ch` is wrong in one of them. `.z-select` was
+// `min-width: 15ch; max-width: 30ch`, which its only caller then undid on the spot.
+.z-form-field .z-field,
+.z-form-field .z-select {
+  width: 100%;
+}
+
+// The one select the app draws itself, because the arrow has to sit inside the border and a native
+// <select> cannot hold it there. It was `.select` — a name that generic, declared in one panel's
+// stylesheet and imported globally, is a rule waiting for the next `<div class="select">`.
+//
+// Three radii and a second border colour went into this control: 0.25em on the box, 5px on the <select>
+// inside it, and --z-border where every other control in the app takes --z-border-field. It is the
+// field's border at the field's radius now, because that is what it is.
+.z-select {
+  display: grid;
+  grid-template-areas: 'select';
+  align-items: center;
+  // An explicit height, because the <select> inside cannot supply one: Chromium ignores `line-height` on
+  // a native select, so a line-height-only control clips its own option text.
+  height: var(--z-ui-control-height);
+  border: 1px solid var(--z-border-field);
+  border-radius: 3px;
+  font-size: var(--z-ui-font-size);
+  cursor: pointer;
+}
+
+.z-select select,
+.z-select::after {
+  grid-area: select;
+}
+
+.z-select select {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 10px;
+  border: none;
+  border-radius: inherit;
+  background: var(--z-bg-field);
+  color: var(--z-fg-field);
+  font: inherit;
+  font-size: inherit;
+  cursor: inherit;
+  // The reset that was missing, under a comment that claimed to be doing it ("a reset of styles, including
+  // removing the default dropdown arrow"). Two declarations had to be wrong together for that to go
+  // unnoticed, and they were: with no `appearance` reset the platform drew its own arrow, and a `z-index: 1`
+  // on the select — "stack above the custom arrow", and it meant it — put an opaque background over the
+  // triangle below. So the control the app drew itself showed the arrow it was drawn to replace.
+  appearance: none;
+  // The focus ring is the box's, drawn by :focus-within below.
+  outline: none;
+}
+
+// The arrow. A clip-path rather than a glyph, so it takes --z-fg-icon like every other mark in the chrome.
+.z-select::after {
+  content: '';
+  justify-self: end;
+  width: 0.8em;
+  height: 0.5em;
+  margin-right: 8px;
+  background: var(--z-fg-icon);
+  clip-path: polygon(100% 0%, 0 0%, 50% 100%);
+}
+
+// What `.z-field:focus` is for a field. This was `select:focus + .focus`, an "interim solution until
+// :focus-within has better support" over a sibling no component has ever rendered — so the app's only
+// custom control showed no focus at all.
+.z-select:focus-within {
+  border-color: var(--z-accent);
+}
+
+// The one checkbox in the app: the force half of deleting a branch. Native, because a hand-drawn box is a
+// thing to keep working with a keyboard for one use, and the OS's own is the right size at the wrong one —
+// 13px text beside a 16px box that took the OS's blue in all nine themes until `accent-color`.
+.z-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+}
+
+.z-checkbox input {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--z-accent);
+}

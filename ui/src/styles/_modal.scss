@@ -132,20 +132,11 @@
   padding: 0 16px 16px;
 }
 
-// A question the dialog asks alongside its two buttons — so far only the force half of deleting a
-// branch. The control is the browser's own, tinted: a hand-drawn checkbox would be one more thing to
-// keep working with the keyboard for no gain.
+// Where a question the dialog asks alongside its two buttons sits — so far only the force half of
+// deleting a branch. What it looks like is `.z-checkbox` in _forms.scss; this is the padding, the way
+// `.modal-btn-close` is the position and nothing else.
 .modal-choice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   padding: 0 16px 12px;
-  color: var(--z-fg-muted);
-  font-size: var(--z-ui-font-size);
-
-  input {
-    accent-color: var(--z-accent);
-  }
 }
 
 .modal-error {
@@ -169,8 +160,12 @@
     color: var(--z-fg-muted);
   }
 
+  // The outline is `.is-drop-target` in _states.scss, shared with the file tree. What stays here is
+  // the fill, which the tree deliberately does not take: this is a box that exists to be dropped on
+  // and has nothing behind it to be mistaken for a selected row. The `border-color: var(--z-fg-accent)`
+  // that was here went — the dashed border is the resting affordance, and recolouring it said the same
+  // thing the outline was already saying, 1px further out.
   &.is-drop-target {
-    border-color: var(--z-fg-accent);
     background: var(--z-bg-row-selected);
   }
 }
@@ -231,4 +226,11 @@
   flex-direction: column;
   align-items: start;
   gap: 16px;
+}
+
+// The 180px `.editor-select` used to give this select, kept as the dialog's own measure now that the
+// control is `.z-select` and fills whatever it is in. Without a width it would be as wide as the longest
+// kernel name — `python3` in a 600px dialog.
+.update-kernel-popup-form .z-form-field {
+  width: 180px;
 }

@@ -102,8 +102,44 @@ test('a chosen theme survives a reload', async ({ page }) => {
   // same, not that it comes back with the right attributes on it.
   const [topbar] = await resolve(page, ['--z-bg-topbar']);
 
+  // The browser's copy of the choice is dropped first, or this passes on the cache alone: main.tsx
+  // applies `zasper.theme` before the first render, so the assertion below would hold even if the
+  // config file had never been written. What is being tested here is that the server remembered.
+  await page.evaluate(() => localStorage.removeItem('zasper.theme'));
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'orange');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await resolve(page, ['--z-bg-topbar'])).toEqual([topbar]);
+});
+
+/*
+The one screen with no config to read. /login renders before there is a token to fetch one with, so it
+took whatever index.html said — teal, for everybody — while the IDE beside it was in the theme that had
+been chosen. It follows the choice now because main.tsx applies the copy in localStorage before the
+first render, and this is the only place that can be checked: no unit test can see a second route
+picking up a theme a different route saved.
+*/
+test('the login page follows the theme the IDE was left in', async ({ page }) => {
+  await openApp(page);
+  await openSettings(page);
+  await chooseTheme(page, 'orange-dark');
+
+  await page.goto('/login');
+  await expect(page.locator('.login-signup-wraper')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-accent', 'orange');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  // The hero is the dark end of the hue's ramp in both polarities: #b35110 to #5e2b08 for orange, and
+  // the purple it used to be in every theme is now only the fallback in _tokens.scss.
+  const hero = await page
+    .locator('.login-signup-content')
+    .evaluate((panel) => getComputedStyle(panel).backgroundImage);
+  expect(hero).toContain('rgb(179, 81, 16)');
+  expect(hero).toContain('rgb(94, 43, 8)');
+
+  // Bootstrap's grid and navbar were here and nowhere else, and left with this page.
+  expect(await page.locator('.container, .row, .col-12, .navbar, .mx-auto').count()).toBe(0);
+
+  // Back to the IDE for the afterEach, which resets the theme through the settings panel.
+  await openApp(page);
 });

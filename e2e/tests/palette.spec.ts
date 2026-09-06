@@ -102,7 +102,7 @@ test('one query answers with both a command and a file, and opens the file', asy
     await page.locator(palette).press('Enter');
 
     await expect(page.locator(palette)).toHaveCount(0);
-    await expect(page.locator('.tabHeader .nav-link', { hasText: file })).toHaveCount(1);
+    await expect(page.locator('.tabHeader .tab', { hasText: file })).toHaveCount(1);
   } finally {
     rmSync(inProject(file), { force: true });
   }

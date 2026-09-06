@@ -60,10 +60,14 @@ async function openNotebook(page: Page): Promise<void> {
 
   // A notebook that names no kernel asks which one to use. Dismissed rather than answered: a kernel
   // would be a process to clean up, and the toolbar is on screen either way.
+  //
+  // Waited for rather than looked at. The dialog is rendered once the notebook has loaded, so an
+  // `isVisible()` on the way past is false as often as not — and the dialog then opens over whatever
+  // the test does next, which is how it reads as a click that never lands.
   const picker = page.locator('.modal').filter({ hasText: 'Select Kernel' });
-  if (await picker.isVisible()) {
-    await picker.getByRole('button', { name: 'Close' }).click();
-  }
+  await expect(picker).toBeVisible();
+  await picker.getByRole('button', { name: 'Close' }).click();
+  await expect(picker).toHaveCount(0);
   await expect(page.locator('.text-editor-tool')).toBeVisible();
 }
 
@@ -154,22 +158,73 @@ test('every icon button is the size the styleguide says', async ({ page }) => {
   expect(undersized).toEqual([]);
 });
 
+/** The surface of a control: the four things that must not drift between two of them. */
+function surfaces(controls: Locator): Promise<string[]> {
+  return controls.evaluateAll((found) =>
+    found.map((control) => {
+      const style = getComputedStyle(control);
+      return [style.backgroundColor, style.color, style.borderColor, style.borderRadius].join(' ');
+    })
+  );
+}
+
 test('every field is the same box', async ({ page }) => {
   await openApp(page);
-  await openNotebook(page);
 
   // What `.z-field` exists to answer for. Not the height: the tree's filter is deliberately 4px
   // shorter, and a commit message is as tall as it needs to be. What must not drift is the surface —
   // four separate statements of it are what this replaced, and the one that drifts is invisible until
   // somebody opens a dark theme and finds one white rectangle in the sidebar.
-  const boxes = await page.locator('.z-field').evaluateAll((fields) =>
-    fields.map((field) => {
-      const style = getComputedStyle(field);
-      return [style.backgroundColor, style.color, style.borderColor, style.borderRadius].join(' ');
-    })
-  );
+  //
+  // Two panels, because the sidebar shows one at a time and the fields are in different ones: the
+  // tree's filter here, the commit box after the click. Comparing across the two is the point — the
+  // drift this catches is between stylesheets, and no view holds both.
+  const boxes = await surfaces(page.locator('.treeFilter'));
+  await page.getByLabel('Source control').click();
+  await expect(page.locator('.commit-message-input')).toBeVisible();
+  boxes.push(...(await surfaces(page.locator('.commit-message-input'))));
+
   expect(boxes.length).toBeGreaterThan(1);
   expect(new Set(boxes).size, boxes.join('\n')).toBe(1);
+});
+
+test('every select is the same box', async ({ page }) => {
+  await openApp(page);
+  await openNotebook(page);
+
+  // The same question for `.z-select`, which is the app drawing a control the platform draws
+  // differently on every OS. Both of these are on screen at once — the notebook's cell-type picker in
+  // the editor, the theme picker in the sidebar — so the comparison is of what a user sees together.
+  await page.getByLabel('Settings').click();
+  await expect(page.locator('#settings-theme')).toBeVisible();
+
+  const wrappers = page.locator('.z-select');
+  expect(await wrappers.count()).toBeGreaterThan(1);
+
+  // Read off both halves, because the control is two elements: the border and the radius belong to the
+  // wrapper — the arrow has to sit inside them, which is why the wrapper exists — and the fill and the
+  // ink belong to the <select>. Not the wrapper's `color`: it is inherited from whatever the control
+  // was dropped into and nothing draws with it, so comparing it would fail on the toolbar's dimmed
+  // chrome and mean nothing.
+  //
+  // `appearance` is in the list because it is the declaration this control went years without: with the
+  // platform drawing its own arrow, the triangle beside it was decoration under an opaque background.
+  const boxes = await wrappers.evaluateAll((found) =>
+    found.map((wrapper) => {
+      const box = getComputedStyle(wrapper);
+      const select = getComputedStyle(wrapper.querySelector('select')!);
+      return [
+        box.borderColor,
+        box.borderRadius,
+        box.height,
+        select.backgroundColor,
+        select.color,
+        select.appearance,
+      ].join(' ');
+    })
+  );
+  expect(new Set(boxes).size, boxes.join('\n')).toBe(1);
+  expect(boxes[0]).toContain('none');
 });
 
 test('the tab bar and the notebook toolbar stay inside the content area', async ({ page }) => {
@@ -178,5 +233,32 @@ test('the tab bar and the notebook toolbar stay inside the content area', async 
 
   for (const selector of ['.tabHeader', '.text-editor-tool']) {
     expect(await overflow(page.locator(selector)), `${selector} overflows`).toBeLessThanOrEqual(0);
+  }
+});
+
+/*
+ * A tab fills its strip, top and bottom.
+ *
+ * The vertical counterpart of the test above, and it is here because this went wrong unnoticed:
+ * removing Bootstrap's `nav` partial took the box model out from under the tab strip, and what was
+ * left was a 20px tab hanging from the top of a 30px bar with a band of bare chrome beneath it. Every
+ * other assertion about the strip — its colours, its weights, its ellipsis — went on passing, because
+ * each of them reads one tab and none of them reads it against the bar it sits in.
+ */
+test('every tab fills the height of the tab strip', async ({ page }) => {
+  await openApp(page);
+  await openNotebook(page);
+
+  const strip = await page.locator('.tabHeader').boundingBox();
+  const tabs = await page.locator('.tab').all();
+  expect(tabs.length).toBeGreaterThan(1);
+  for (const tab of tabs) {
+    const name = (await tab.locator('.tabName').textContent()) ?? '';
+    const box = await tab.boundingBox();
+    expect(box!.y, `${name} does not start at the top of the strip`).toBeCloseTo(strip!.y, 0);
+    expect(box!.y + box!.height, `${name} does not reach the bottom of the strip`).toBeCloseTo(
+      strip!.y + strip!.height,
+      0
+    );
   }
 });

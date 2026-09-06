@@ -51,5 +51,62 @@
   // grow past it, and the scroll container above sees nothing to scroll.
   .cm-mergeView {
     height: 100%;
+
+    // What a change is, said the way the source control panel beside it says the same thing. This was
+    // the one place in the app where added and removed were not --z-git-added and --z-git-deleted:
+    // @codemirror/merge answers its own, and answers it four times — a brown and a green at 8% under
+    // the lines, a red and a green underline under the changed words, #e43 and #2b2 for the 3px gutter
+    // strip, and a grey band for the lines it folds away. So a file listed as `M` in one panel opened
+    // into a diff in a different palette, in a theme neither of them had heard of.
+    //
+    // Nothing below is a new colour: --z-bg-diff-added and --z-bg-diff-deleted (styles/_tokens.scss)
+    // are those two tokens at 14%, a tint under code that keeps the editor's own ink, because a diff is
+    // read as code. The word-level marks and the gutter take the tokens solid — they are two pixels of
+    // ink each, and a tint at that size is nothing.
+    //
+    // Four classes deep because the package's are three, and a base theme is a stylesheet like any
+    // other: a tie goes to whichever loaded last, which is not a thing to leave to a bundler.
+    .cm-merge-a .cm-changedLine {
+      background-color: var(--z-bg-diff-deleted);
+    }
+
+    .cm-merge-b .cm-changedLine {
+      background-color: var(--z-bg-diff-added);
+    }
+
+    // A 2px rule under the words that differ inside a changed line, which is the package's own idea and
+    // a good one: it says *which* part changed without taking the syntax colour off the code.
+    .cm-merge-a .cm-changedText {
+      background: linear-gradient(var(--z-git-deleted), var(--z-git-deleted)) bottom / 100% 2px
+        no-repeat;
+    }
+
+    .cm-merge-b .cm-changedText {
+      background: linear-gradient(var(--z-git-added), var(--z-git-added)) bottom / 100% 2px
+        no-repeat;
+    }
+
+    .cm-merge-a .cm-changedLineGutter {
+      background: var(--z-git-deleted);
+    }
+
+    .cm-merge-b .cm-changedLineGutter {
+      background: var(--z-git-added);
+    }
+
+    // The runs of unchanged lines, folded away by `collapseUnchanged` and clickable. A surface rather
+    // than the package's grey gradient, and the panel's alternate one because that is what this app
+    // already uses for a band inside a body.
+    .cm-collapsedLines {
+      background: var(--z-bg-panel-alt);
+      color: var(--z-fg-muted);
+    }
+
+    // The gap one side is given opposite a change on the other, so the two stay level. The package
+    // leaves it transparent, which reads as the editor having stopped; on a surface it reads as the
+    // side with nothing in it, which is what it is.
+    .cm-mergeSpacer {
+      background: var(--z-bg-panel-alt);
+    }
   }
 }

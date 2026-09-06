@@ -120,3 +120,31 @@ export function applyTheme(theme: ZasperTheme, root: HTMLElement = document.docu
     root.dataset.accent = theme.accent;
   }
 }
+
+/**
+ * ~/.zasper/config.json stays the record of the chosen theme; this is a copy of it the app can read
+ * without waiting for a request.
+ *
+ * Two screens need that. /login has no config to read at all — it renders before there is a token to
+ * read one with — so without this it drew whatever index.html happens to say, which is why the page
+ * used to be teal for everybody. And the IDE painted the default for as long as `GET /api/config`
+ * took, then repainted, which is a flash of the wrong colours on every boot.
+ */
+const STORAGE_KEY = 'zasper.theme';
+
+/** The last theme this browser applied, or the default. Never throws: a theme id is not worth a boot. */
+export function storedTheme(): ZasperTheme {
+  try {
+    return getTheme(localStorage.getItem(STORAGE_KEY) ?? '');
+  } catch {
+    return defaultTheme;
+  }
+}
+
+export function rememberTheme(id: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, id);
+  } catch {
+    // Private browsing, or a full quota. The config file is still the record; this is only a cache.
+  }
+}

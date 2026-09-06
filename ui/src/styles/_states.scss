@@ -120,3 +120,16 @@
   padding: 0 8px;
   white-space: nowrap;
 }
+
+// Where a drop would land, said once. Three rules said it before, on three elements: a tree row, the
+// tree's own background for a drop that goes to the project root, and the upload dialog's zone. The
+// first two were the same two declarations written twice; the third added a `border-color` on a box
+// that already had a dashed border, which is the state saying the same thing as the affordance.
+//
+// Outlined rather than filled, and inset, because a fill would read as one more selected row while
+// rows are in mid-air — and because an outline takes no space, so nothing on screen moves when it
+// appears. `--z-fg-accent` is what the app already means by "this one".
+.is-drop-target {
+  outline: 1px solid var(--z-fg-accent);
+  outline-offset: -1px;
+}

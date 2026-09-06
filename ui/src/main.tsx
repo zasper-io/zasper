@@ -6,10 +6,17 @@ import { createRoot } from 'react-dom/client';
 import 'react-toastify/dist/ReactToastify.css';
 import './styles/index.scss';
 import App from './App';
+import { applyTheme, storedTheme } from './themes';
 
 const container = document.getElementById('root');
 if (container === null) {
   throw new Error('Root container #root is missing from index.html');
 }
+
+// Before the first render, and for every route rather than for the IDE alone: index.html carries
+// `data-theme="light" data-accent="teal"` so that a page always has colours, and this is where they
+// become the reader's own. /login has no other way to a theme, and the IDE no longer paints teal for
+// the length of a request before repainting.
+applyTheme(storedTheme());
 
 createRoot(container).render(<App />);

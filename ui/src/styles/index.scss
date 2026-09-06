@@ -10,13 +10,15 @@
 //   5. Typography — the type scale every heading picks a step from.
 //   6. CodeMirror — overrides for the editor's own classes, in every editor.
 //   7. Controls   — buttons and inputs used across features.
-//   8. States     — nothing here, loading, failed. Before panel and modal
+//   8. Forms      — a label above one of those controls, the select the app draws
+//                   itself, and the checkbox. After controls, which it sizes.
+//   9. States     — nothing here, loading, failed. Before panel and modal
 //                   because both of them contain one.
-//   9. Panel      — chrome shared by every sidebar panel, and the flat row that
+//  10. Panel      — chrome shared by every sidebar panel, and the flat row that
 //                   the overlays below also use.
-//  10. Overlays   — the one floating surface: palette, menus, toast. After panel
+//  11. Overlays   — the one floating surface: palette, menus, toast. After panel
 //                   because `.z-overlay .panel-row` has to outrank the row.
-//  11. Modal      — the dialog shell, shared by four components. Last of the
+//  12. Modal      — the dialog shell, shared by four components. Last of the
 //                   three, because a dialog is an overlay with a backdrop.
 //
 // Per-component SCSS is imported by its own component and lands after all of
@@ -34,6 +36,7 @@
 @import 'typography';
 @import 'codemirror';
 @import 'controls';
+@import 'forms';
 @import 'states';
 @import 'panel';
 @import 'overlays';

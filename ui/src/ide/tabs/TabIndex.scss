@@ -1,6 +1,123 @@
-// The mark, icon or logo in front of a tab's name — see TabMark in TabIndex.tsx.
+// The editor's tab strip.
+//
+// These rules were `.nav-link` in ide/IDE.scss, which is a name that says nav rather than tab, and
+// Bootstrap's `nav` partial supplied the box model under them: 3,515 minified bytes for `.nav`'s
+// `display: flex` and a padding this file overrode anyway. Removing it is the tenth partial to go and
+// the only one that needed markup changed — `ul.nav > li.nav-item > button.nav-link` is `ul.tabList >
+// li.tab-item > button.tab` now, `.active` is `.is-active` like every other state in the app, and
+// `.nav-item` is gone because the partial gave it nothing outside `.nav-tabs`. What the partial also
+// carried was `.tab-content > .tab-pane`, and the app's `.tab-content` is a pane of its own with no
+// `.tab-pane` inside it, so that pair was never doing anything either.
+//
+// That the *inactive* tab is the brighter one was asked in the design prototype with all three
+// treatments drawn at one size, and it closed on this one — see the note beside --z-bg-tab-inactive in
+// styles/_accents.scss.
+
+.tabHeader {
+  flex: 0 0 auto;
+  // Not `height`: a strip with more tabs than fit scrolls, and on a platform whose scrollbar takes
+  // room the bar has to be able to grow rather than squeeze the tabs. A floor, so what sets the
+  // strip's height is the tab in it — see `.tab-item`.
+  min-height: 30px;
+  overflow-x: auto;
+  background: var(--z-bg-topbar);
+}
+
+.tabList {
+  display: flex;
+  align-items: stretch;
+  // The gap is the chrome behind the strip showing through, which is what separates two tabs now that
+  // neither has a border. It replaces a 1px --z-border and a `2px 5px 0 0` radius: a tab that is a
+  // rectangle in the bar's own colour needs no outline to be a tab.
+  gap: 1px;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// The strip's height, stated on the row, with the button stretching into it. The drawing says it once
+// as `height: 30px` on a `.tabHeader` whose tabs are its own children; the port has a `<ul>` in
+// between and a `.tabHeader` that scrolls. Removing Bootstrap's `nav` took the box model out from
+// under all three and nothing put a height back, so a tab was its own 20px of line-height hanging
+// from the top of a 30px strip with a band of bare chrome under it. Stretching it down from the strip
+// is the other way to do this, and it is the wrong one: the strip is `min-height` so that a scrollbar
+// can make it taller, and a stretched tab would give that scrollbar its own height instead.
+.tab-item {
+  display: flex;
+  min-height: 30px;
+  font-size: var(--z-ui-font-size);
+  line-height: 20px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  // Less room on the right, where the close cross has its own 18px box.
+  padding: 0 8px 0 10px;
+  // A long file name is cut, not allowed to push the strip: an ellipsis keeps the tabs before and
+  // after it reachable.
+  max-width: 200px;
+  border: 0;
+  background: var(--z-bg-tab-inactive);
+  // Chrome, so it reads --z-fg-on-chrome rather than --z-fg-on-accent: identical in light and dark
+  // today, but a theme with a light tab strip needs dark tab labels. It is also what ruled out giving
+  // the active tab the editor's own surface, which would have put this white label on white.
+  color: var(--z-fg-on-chrome);
+  font: inherit;
+
+  // The close cross inherits the tab's colour, which is the point of drawing icons in
+  // `currentColor`: --z-fg-subtle is picked to sit on a *panel*, and on a coloured tab it comes out
+  // at 1.16:1.
+  //
+  // 18px, and the one stated exception to `.z-icon-button`'s 22px: the cross has to fit inside the
+  // tab beside a name, and a 22px box would set the strip's height instead of the label doing it.
+  .tab-close {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+
+  // A file-type mark says what the file is, but the tab strip is the one surface where its hue is not
+  // readable — every theme's strip is the accent's own dark step. On a tab the mark is lettering only.
+  .file-mark {
+    color: currentColor;
+    opacity: 0.85;
+  }
+}
+
+.tabName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 6px of `currentColor`, so it is the tab's own ink at any weight: a dot is not a second colour on a
+// strip that has no room for one.
+.tab-dirty {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+.tab:hover {
+  background: var(--z-bg-tab-hover);
+}
+
+.tab.is-active {
+  background: var(--z-bg-tab-active);
+  // The one thing that says "this one" without spending a colour, and what keeps the strip readable
+  // in a theme whose two tab steps are a single ramp step apart.
+  font-weight: 500;
+}
+
+// The mark, icon or logo in front of a tab's name — see TabMark in TabIndex.tsx. No margin: the tab
+// is a flex row with a gap of its own.
 .tabIcon {
-  margin-right: 6px;
+  flex: 0 0 auto;
 }
 
 // Only the launcher's logo is an <img>, and it is the one that needs a height.

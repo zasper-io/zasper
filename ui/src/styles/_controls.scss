@@ -47,16 +47,15 @@
   filter: brightness(1.15);
 }
 
-// The field box — the tree's filter, the commit message, the branch filter, the cell-type and
-// kernel pickers. Stated once because the app stated it four times, and it has to be stated at all
-// for the reason `.gitpanel-input` gave when it was one of the four: a control with no colours of
-// its own is the browser's white box with black text in it, which under a dark theme is the one
-// bright rectangle in the sidebar.
+// The field box — the tree's filter, the commit message, the branch filter. Stated once because the
+// app stated it four times, and it has to be stated at all for the reason `.gitpanel-input` gave when
+// it was one of the four: a control with no colours of its own is the browser's white box with black
+// text in it, which under a dark theme is the one bright rectangle in the sidebar.
 //
-// A site keeps only what differs. Two things are deliberately not this box and say so where they
-// are: the settings panel's `.select`, whose border belongs to the wrapper that draws its arrow
-// rather than to the control inside it, and /login's inputs, which are a form on a page rather than
-// a control in a panel and are measured at the page's scale.
+// A site keeps only what differs. Two things are deliberately not this box and say so where they are:
+// `.z-select` in _forms.scss — every select in the app, whose border belongs to the wrapper that draws
+// its arrow rather than to the control inside it — and /login's inputs, which are a form on a page
+// rather than a control in a panel and are measured at the page's scale.
 .z-field {
   height: var(--z-ui-control-height);
   padding: 0 6px;

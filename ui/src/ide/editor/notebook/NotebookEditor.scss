@@ -71,13 +71,13 @@
 // over a cell and then has to be hit. `.z-icon-button` gives them the 22px the strip is tall, and
 // their ink comes from the strip's own `color`, so there is nothing left to state here.
 
-// A `.z-field` with a width: the picker holds "Markdown" and a kernel's full name, so it is sized
-// for the longest of them rather than by whichever is selected. Used by the kernel switcher as well
-// as NbButtons. Don't add Bootstrap's `.form-select` alongside it: that class's padding and
-// line-height overflow the field's 24px box.
+// The cell-type picker's width, which is all this is now that the control is a `.z-select`. It was
+// 180px and shared with the kernel switcher, wide enough for a kernel's full name; the switcher keeps
+// that measure in _modal.scss and the toolbar's longest option is "Markdown", so it takes the width it
+// needs. Sized for the longest option rather than the selected one, so the toolbar does not reflow
+// when the focused cell changes.
 .editor-select {
-  width: 180px;
-  font-weight: 300;
+  width: 110px;
 }
 
 .activeCell {
