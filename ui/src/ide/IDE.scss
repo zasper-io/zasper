@@ -200,10 +200,8 @@
   background: var(--z-bg-tab-active);
 }
 
-.list-group-item {
-  background-color: var(--z-bg-panel);
-  color: var(--z-fg-default);
-}
+// `.list-group-item` was here, giving Bootstrap's list rows the panel's surface. Nothing in the app
+// has rendered that class for a long time, so it went with the partial.
 
 // The modal shell lives in styles/_modal.scss — four components share it.
 

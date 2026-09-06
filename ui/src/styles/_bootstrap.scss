@@ -51,14 +51,18 @@ $utilities: $zasper-utilities;
 @import 'bootstrap/scss/grid';
 
 // Components in use.
-@import 'bootstrap/scss/transitions'; // .fade/.collapse, required by modal
-@import 'bootstrap/scss/buttons'; // .btn, .btn-sm, .btn-danger
-@import 'bootstrap/scss/close'; // .btn-close
-@import 'bootstrap/scss/forms'; // .form-check*, .form-select
+//
+// Five partials were dropped here at once — transitions, buttons, close, forms and list-group — and
+// the census is why: not one `.fade`, `.collapse`, `.btn*`, `.btn-close`, `.form-*` or `.list-group*`
+// appears in any className in src. They were 48,408 bytes of the 96,896 this file contributed, so a
+// third of the whole stylesheet went with five lines and no markup change. What replaced them was
+// already here: `.z-button*` and `.z-icon-button` in _controls.scss, `.modal-btn-close` in _modal.scss
+// (the app's own, never Bootstrap's), and `.z-field` for every select and input. `transitions` carried
+// the comment "required by modal", which was not true: modal.scss declares the `.modal.fade`
+// selectors itself and only needs `$transition-*` from variables.
 @import 'bootstrap/scss/nav'; // .nav, .nav-item, .nav-link, .tab-content
 @import 'bootstrap/scss/navbar'; // .navbar, .navbar-brand
 @import 'bootstrap/scss/breadcrumb'; // .breadcrumb, .breadcrumb-item
-@import 'bootstrap/scss/list-group'; // .list-group-item
 @import 'bootstrap/scss/modal'; // .modal, .modal-body, .modal-dialog-centered
 
 // Generates the utility classes (.mt-auto, .mx-auto, …). Must come last so the utilities win
