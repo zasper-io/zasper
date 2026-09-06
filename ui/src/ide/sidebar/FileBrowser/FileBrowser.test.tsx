@@ -419,6 +419,21 @@ describe('FileBrowser', () => {
       expect(within(tree).getByText('src')).toBeInTheDocument();
     });
 
+    // The regression that closed the overlay family's dismissal rule. A row's dialog is rendered inside
+    // the row, so Escape pressed in it reached the tree's own keyboard handler first, which cleared the
+    // selection and then stopped the key: no keyboard could dismiss this dialog. Pressed *at the
+    // dialog* and not at the window, because firing at the window is exactly what hid it.
+    it('closes on Escape pressed inside it, which the tree used to swallow', async () => {
+      await renderBrowser();
+      openMenu('notes.txt', 'Delete');
+
+      fireEvent.keyDown(screen.getByText('Cancel'), { key: 'Escape' });
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(deleteContent).not.toHaveBeenCalled();
+      expect(within(tree).getByText('notes.txt')).toBeInTheDocument();
+    });
+
     it('warns that a folder takes everything inside it', async () => {
       await renderBrowser();
 
@@ -434,6 +449,29 @@ describe('FileBrowser', () => {
       fireEvent.contextMenu(row('notes.txt'));
 
       fireEvent.keyDown(window, { key: 'Escape' });
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    // Same swallow, and the menu is where it would have been noticed second: its items are buttons now,
+    // so one of them can hold the focus when Escape arrives.
+    it('closes on Escape pressed on one of its own items', async () => {
+      await renderBrowser();
+      fireEvent.contextMenu(row('notes.txt'));
+
+      fireEvent.keyDown(screen.getByText('Rename'), { key: 'Escape' });
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    // And the way it actually happens in a browser, which no jsdom test would have thought to try: a
+    // right-click leaves the focus on the row, so Escape arrives at the tree from the row rather than
+    // from the menu. It is still the menu's.
+    it('closes on Escape while the row it belongs to holds the focus', async () => {
+      await renderBrowser();
+      fireEvent.contextMenu(row('notes.txt'));
+
+      fireEvent.keyDown(row('notes.txt').closest('li') as HTMLElement, { key: 'Escape' });
 
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });

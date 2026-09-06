@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape } from '@/ide/overlays';
 
 import { uploadRequestAtom } from './atoms';
 import { IPendingUpload, pendingFromDrop, pendingFromFiles } from './uploads';
@@ -34,6 +35,11 @@ function FileUpload() {
   const queue = useUploadQueue(parentDir, request?.pending ?? NOTHING);
   const conflicts = queue.uploads.filter((upload) => upload.state === 'taken');
 
+  // Not held open mid-upload, unlike the dialogs that ask a question: this one reports, the button
+  // underneath already closes it while files are going up, and what has arrived stays arrived.
+  const close = useCallback(() => setRequest(null), [setRequest]);
+  useDismissOnEscape(close);
+
   const choose = (event: React.ChangeEvent<HTMLInputElement>) => {
     queue.add(pendingFromFiles(event.target.files));
     // So that choosing the same file again is a change, and re-uploads it.
@@ -56,7 +62,7 @@ function FileUpload() {
               type="button"
               className="z-icon-button on-chrome modal-btn-close"
               aria-label="Close"
-              onClick={() => setRequest(null)}
+              onClick={close}
             >
               <Icon name="x" />
             </button>
@@ -126,7 +132,7 @@ function FileUpload() {
                 Replace all
               </button>
             )}
-            <button type="button" onClick={() => setRequest(null)}>
+            <button type="button" onClick={close}>
               {queue.isSending ? 'Cancel' : 'Close'}
             </button>
           </div>

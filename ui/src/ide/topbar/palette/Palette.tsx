@@ -107,7 +107,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
   };
 
   return (
-    <div className="palette">
+    <div className="z-overlay palette">
       <input
         type="text"
         className="palette-input"
@@ -129,11 +129,11 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
               className={rowClass(selectedIndex === index, isDisabled(command))}
               onClick={() => activate({ kind: 'command', command })}
             >
-              <div className="commandName">{command.label}</div>
-              <div className="commandDescription">{command.description ?? command.category}</div>
+              <span className="panel-row-label">{command.label}</span>
+              <span className="panel-row-meta">{command.description ?? command.category}</span>
               {/* Rendered from the same binding strings the keyboard dispatches, so the two cannot
                   disagree. Deduped: off mac, `Mod-` and `Ctrl-` spellings collapse to one chord. */}
-              <div className="commandKeys">{formatKeys(command.keys)}</div>
+              <span className="panel-row-keys">{formatKeys(command.keys)}</span>
             </li>
           ))}
         </Section>
@@ -144,10 +144,10 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
               className={rowClass(selectedIndex === shownCommands.length + index, false)}
               onClick={() => activate({ kind: 'file', file })}
             >
-              <div className="commandName">{file.name}</div>
+              <span className="panel-row-label">{file.name}</span>
               {/* Where it is, and nothing when that is nowhere: a file in the project root has a
                   path equal to its name, and printing both spelled every such row out twice. */}
-              <div className="commandDescription">{file.path === file.name ? '' : file.path}</div>
+              <span className="panel-row-meta">{file.path === file.name ? '' : file.path}</span>
             </li>
           ))}
         </Section>
@@ -176,11 +176,11 @@ function Section({ title, shown, found, children }: SectionProps) {
   }
   return (
     <>
-      <div className="palette-heading">
+      <div className="z-overlay-group z-label">
         <span>{title}</span>
-        {found > shown && <span className="palette-heading-count">{`${shown} of ${found}`}</span>}
+        {found > shown && <span className="panel-section-count">{`${shown} of ${found}`}</span>}
       </div>
-      <ul className="palette-group">{children}</ul>
+      <ul className="z-overlay-list">{children}</ul>
     </>
   );
 }
@@ -200,8 +200,12 @@ function isDisabled(command: ICommand): boolean {
   return command.isEnabled ? !command.isEnabled() : false;
 }
 
+// `.panel-row` and its two menu states, which is the whole of what a palette row is now: `.palette-item`
+// was a 26px row in `--z-fg-on-chrome`, `.selected` and `:hover` were one colour, and `.disabled` said
+// what `.is-disabled` says. `is-selected` is the keyboard's row and is a stronger fill than hover, so
+// moving the mouse no longer looks like it moved the selection.
 function rowClass(selected: boolean, disabled: boolean): string {
-  return ['palette-item', selected ? 'selected' : '', disabled ? 'disabled' : '']
+  return ['panel-row', selected ? 'is-selected' : '', disabled ? 'is-disabled' : '']
     .filter(Boolean)
     .join(' ');
 }

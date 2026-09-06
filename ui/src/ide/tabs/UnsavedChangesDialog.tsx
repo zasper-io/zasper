@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape } from '@/ide/overlays';
 
 interface UnsavedChangesDialogProps {
   /** The tab's name, as the tab bar shows it. */
@@ -17,17 +17,7 @@ interface UnsavedChangesDialogProps {
 export default function UnsavedChangesDialog(props: UnsavedChangesDialogProps) {
   const { saving, onCancel } = props;
 
-  useEffect(() => {
-    // Escape means cancel, as it does for the command palette. Ignored mid-save: the write is
-    // already on its way.
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !saving) {
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', dismiss);
-    return () => window.removeEventListener('keydown', dismiss);
-  }, [saving, onCancel]);
+  useDismissOnEscape(onCancel, !saving);
 
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-labelledby="unsavedChangesTitle">

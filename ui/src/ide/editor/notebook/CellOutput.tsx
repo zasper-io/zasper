@@ -50,6 +50,11 @@ interface OutputBundlesProps {
  */
 export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
   const ansi_up = new AnsiUp();
+  // Classes rather than `style="color:rgb(187,0,0)"`, which is what this emits by default: an escape
+  // code the kernel sent used to arrive as a literal colour from a 16-colour terminal palette that no
+  // theme could reach. The map from `.ansi-*-fg` to --z-ansi-* is in NotebookEditor.scss. Bold, faint,
+  // italic and underline are still inline, and so is 24-bit colour, which is a colour rather than a slot.
+  ansi_up.use_classes = true;
 
   return (
     <>
@@ -59,10 +64,10 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
           const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
 
           return (
-            <div key={index}>
-              <h6>
+            <div key={index} className="output-error">
+              <span className="ename">
                 {ename}: {evalue}
-              </h6>
+              </span>
               <pre>
                 <div dangerouslySetInnerHTML={{ __html: tracebackHtml }} />
               </pre>

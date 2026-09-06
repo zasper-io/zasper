@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape } from '@/ide/overlays';
 import { IKernelspecsState, kernelspecsAtom } from '@/store/AppState';
 import { NO_KERNEL } from './useKernelSession';
 
@@ -28,12 +29,16 @@ function KernelSwitcher(props: ModalProps) {
       ? 'Select Kernel'
       : 'Switch Kernel';
 
+  // Escape leaves the notebook with the kernel it already has, which for a failure to start is none —
+  // the toolbar's kernel name is the way back in, so this is a dismissal and not a decision avoided.
+  useDismissOnEscape(props.toggleKernelSwitcher);
+
   return (
-    <div className="modal" id="exampleModal" aria-labelledby="exampleModalLabel">
+    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="kernelSwitchTitle">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           {/* Red-headed when this was raised by a failure rather than asked for. */}
-          <div className={hasError ? 'modal-head error-head' : 'modal-head'}>
+          <div className={hasError ? 'modal-head error-head' : 'modal-head'} id="kernelSwitchTitle">
             {title}
             <button
               type="button"

@@ -10,7 +10,6 @@ import { ICell } from '@/api';
 import { useTheme } from '@/themes/useTheme';
 import CellButtons from './CellButtons';
 import CellOutput from './CellOutput';
-import LoaderSvg from './LoaderSvg';
 import Prompt from './Prompt';
 import { kernelCompletionSource, tabCompletionKeymap } from './kernelCompletion';
 import { ICompleteReply, IKernelMessage } from './kernelMessages';
@@ -191,7 +190,10 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
 
       <div className="inner-content">
         {props.execution_count === -1 ? (
-          <LoaderSvg />
+          // Waiting on the kernel, in the gutter where the count will land.
+          <div className="cell-spinner">
+            <span className="z-spinner" />
+          </div>
         ) : (
           // A cell that has not run has no count, and shows an empty bracket as Jupyter does.
           <div className="serial-no">[{props.execution_count ?? ' '}]:</div>

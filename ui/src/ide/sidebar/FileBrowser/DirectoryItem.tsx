@@ -85,6 +85,7 @@ const DirectoryItem = ({
     {
       label: scope.length > 1 ? `Delete ${scope.length} Items` : 'Delete Folder',
       action: remove.ask,
+      danger: true,
     },
   ];
 

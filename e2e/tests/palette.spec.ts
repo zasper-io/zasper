@@ -40,7 +40,7 @@ test('a command run from the palette changes the app', async ({ page }) => {
   // what the project happens to be called.
   await page.locator(palette).fill('>increase font');
 
-  const matches = page.locator('.palette-item');
+  const matches = page.locator('.palette-list .panel-row');
   await expect(matches).toHaveCount(1);
   await expect(matches).toContainText('Increase Font Size');
 
@@ -59,11 +59,13 @@ test('the palette lists what is registered, and Escape dismisses it', async ({ p
   // per-component: the font sizes come from useAppCommands, the two ways into the palette from the
   // Topbar itself. Uncapped, because `>` alone is the browse-the-whole-registry view.
   for (const label of ['Increase Font Size', 'Decrease Font Size', 'Go to File']) {
-    await expect(page.locator('.palette-item').filter({ hasText: label })).toHaveCount(1);
+    await expect(page.locator('.palette-list .panel-row').filter({ hasText: label })).toHaveCount(
+      1
+    );
   }
 
   await page.locator(palette).fill('no such command exists');
-  await expect(page.locator('.palette-item')).toHaveCount(0);
+  await expect(page.locator('.palette-list .panel-row')).toHaveCount(0);
   // Enter with nothing selected does nothing at all, rather than running whatever was selected before
   // the query narrowed past it.
   await page.locator(palette).press('Enter');
@@ -88,11 +90,11 @@ test('one query answers with both a command and a file, and opens the file', asy
     // The `>` gone, so this is the query the topbar's search box would send.
     await page.locator(palette).fill('increase');
 
-    await expect(page.locator('.palette-heading')).toHaveText(['Commands', 'Files']);
+    await expect(page.locator('.z-overlay-group')).toHaveText(['Commands', 'Files']);
     await expect(
-      page.locator('.palette-item').filter({ hasText: 'Increase Font Size' })
+      page.locator('.palette-list .panel-row').filter({ hasText: 'Increase Font Size' })
     ).toHaveCount(1);
-    await expect(page.locator('.palette-item').filter({ hasText: file })).toHaveCount(1);
+    await expect(page.locator('.palette-list .panel-row').filter({ hasText: file })).toHaveCount(1);
 
     // One command matches, so the second row is the file: Enter on it opens the file rather than
     // running the command above it.

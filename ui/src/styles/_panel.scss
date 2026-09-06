@@ -158,25 +158,9 @@
       }
     }
 
-    // Why the last action failed, between the banner and the tree. Below the toolbar that
-    // triggered it, above the rows it is about.
-    .panel-error {
-      flex: 0 0 auto;
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      padding: 6px 12px 6px 16px;
-      color: var(--z-status-error);
-      background: var(--z-bg-panel);
-      border-bottom: 1px solid var(--z-border);
-
-      p {
-        flex: 1;
-        margin: 0;
-        // The server's sentence, which can be long, and the panel is narrow.
-        overflow-wrap: anywhere;
-      }
-    }
+    // `.panel-error` was here — why the last action failed, between the banner and the tree. It is
+    // `.z-notice.z-notice-error` in styles/_states.scss now, which four panels and two editors share,
+    // and which carries the red in the icon and the 2px edge rather than in the whole sentence.
 
     // A group of related rows inside a panel, e.g. "Running kernels" in the Jupyter info panel.
     // Deliberately quiet — the panel already has a title.
@@ -220,102 +204,6 @@
       margin-left: 4px;
       color: var(--z-fg-subtle);
       font-variant-numeric: tabular-nums;
-    }
-
-    // A flat row inside a panel — a changed file, a running kernel. Shared rather than restated per
-    // panel, because both want the same thing: one row height, a name that fills it, and dimmed icon
-    // buttons pinned right. Unlike `.file-list li a` below it needs no anchor, which is precisely
-    // what the Jupyter info panel's rows were missing when they had none of this.
-    .panel-row {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      height: var(--z-ui-row-height);
-      padding: 0 12px 0 16px;
-      font-size: var(--z-ui-font-size);
-      color: var(--z-fg-default);
-
-      &:hover {
-        background: var(--z-bg-row-selected);
-      }
-    }
-
-    // The whole name is one button, so the click target is the row's text rather than its first word,
-    // and so a keyboard reaches it.
-    .panel-row-name {
-      flex: 1 1 auto;
-      min-width: 0;
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-      background: none;
-      border: none;
-      padding: 0;
-      color: inherit;
-      text-align: left;
-      overflow: hidden;
-    }
-
-    // The dot's place in a row, held whether or not there is a dot to draw. A kernel this window knows
-    // nothing about gets no dot, and without the slot its name would start 14px left of the one above.
-    .panel-row-dot {
-      flex: 0 0 8px;
-      display: flex;
-      align-self: center;
-    }
-
-    // What the row is, and the last thing to give up room.
-    .panel-row-label {
-      flex: 0 1 auto;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    // Where it is or what it belongs to — the file's directory, the notebook a kernel runs. Quieter
-    // than the label and the first thing to be clipped, because the label is what identifies the row.
-    //
-    // Four, rather than the 1 the label has: shrunk at the same rate a long path clips the name beside
-    // it to `exampl…`, and half of two useless halves is worse than a clipped path beside a whole name.
-    .panel-row-meta {
-      flex: 0 4 auto;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--z-fg-subtle);
-      font-size: 11px;
-    }
-
-    // When the row's subject last did anything. Sits between the name and the buttons and never gives
-    // up its width — it is three characters wide, and the path beside it is what shrinks.
-    .panel-row-time {
-      flex: 0 0 auto;
-      color: var(--z-fg-subtle);
-      font-size: 11px;
-    }
-
-    .panel-row-actions {
-      flex: 0 0 auto;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--z-fg-muted);
-    }
-
-    .panel-row-action {
-      // Hidden until the row is under the pointer would mean the row's width changed on hover, and a
-      // keyboard user could reach a button they cannot see; dimmed says the same thing and holds still.
-      opacity: 0.65;
-
-      &:hover:not(:disabled) {
-        opacity: 1;
-        color: var(--z-fg-accent);
-      }
-
-      &:disabled {
-        opacity: 0.3;
-      }
     }
 
     // The content under one of those headings, indented to match it. .content-inner has no
@@ -459,16 +347,160 @@
         opacity: 0.7;
       }
 
-      // Why a folder shows no rows — empty, unread, filtered out. Not a row: nothing can be
-      // done to it, so it neither highlights nor takes a click.
-      .file-list li.treeNote {
-        height: var(--z-ui-row-height);
-        line-height: var(--z-ui-row-height);
-        font-size: var(--z-ui-font-size);
-        color: var(--z-fg-muted);
-        font-style: italic;
+      // Why a folder shows no rows — empty, unread, filtered out. `.treeNote` was seven properties
+      // here; it is `.z-note` in styles/_states.scss now, and this is all that was ever the tree's:
+      // a tree row is indented by the `<a>` inside it, and a note has no `<a>` to be indented by.
+      .file-list li.z-note {
         padding: 0 12px;
       }
     }
   }
+}
+
+/* ===== The row ============================================================ */
+//
+// A flat row — a changed file, a running kernel, a command in the palette, an item in a context menu.
+// Shared rather than restated per surface, because they all want the same thing: one row height, a name
+// that fills it, and dimmed icon buttons pinned right. Unlike `.file-list li a` above it needs no
+// anchor, which is precisely what the Jupyter info panel's rows were missing when they had none of this.
+//
+// **Not nested under `.navigation`**, unlike everything above, and that is the one exception this file
+// makes. It was nested until the overlays were ported: the command palette hangs off the topbar, which
+// is not inside the sidebar, so a row could not follow it there. Two things fall out of un-nesting it,
+// and both are wanted — the row is reachable wherever a row is drawn, and `.z-overlay .panel-row`
+// outranks it, so an overlay's own hover wins on specificity rather than on the order of two imports.
+//
+// The three row shapes it replaced are named where they were deleted: `.palette-item` at 26px,
+// `.context-menu-item` at 12px with 4px of padding, and `.git-branch-option` at 12px inside a menu.
+.panel-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--z-ui-row-height);
+  padding: 0 12px 0 16px;
+  font-size: var(--z-ui-font-size);
+  color: var(--z-fg-default);
+
+  &:hover {
+    background: var(--z-bg-row-selected);
+  }
+}
+
+// The whole name is one button, so the click target is the row's text rather than its first word,
+// and so a keyboard reaches it. A row whose *whole* surface is the target — a menu item, a palette
+// row — has no need of it and does not carry one.
+.panel-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  overflow: hidden;
+}
+
+// The dot's place in a row, held whether or not there is a dot to draw. A kernel this window knows
+// nothing about gets no dot, and without the slot its name would start 14px left of the one above.
+.panel-row-dot {
+  flex: 0 0 8px;
+  display: flex;
+  align-self: center;
+}
+
+// What the row is, and the last thing to give up room.
+//
+// This is the prototype's `.panel-row-name`, and the two names crossed over: in the app `-name` is the
+// button and `-label` is the text inside it, so the drawing's span is this one.
+.panel-row-label {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Where it is or what it belongs to — the file's directory, the notebook a kernel runs. Quieter
+// than the label and the first thing to be clipped, because the label is what identifies the row.
+//
+// Four, rather than the 1 the label has: shrunk at the same rate a long path clips the name beside
+// it to `exampl…`, and half of two useless halves is worse than a clipped path beside a whole name.
+.panel-row-meta {
+  flex: 0 4 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--z-fg-subtle);
+  font-size: 11px;
+}
+
+// When the row's subject last did anything. Sits between the name and the buttons and never gives
+// up its width — it is three characters wide, and the path beside it is what shrinks.
+.panel-row-time {
+  flex: 0 0 auto;
+  color: var(--z-fg-subtle);
+  font-size: 11px;
+}
+
+// The chord that would do the same thing, which only a palette row carries. It takes the *place* of the
+// actions rather than sitting beside them, so a row's right edge is one thing: a palette row has nothing
+// to press and a panel row has no chord. Tabular, because a column of chords is read down.
+//
+// It was `.commandKeys`, one of the three classes a palette row invented; the other two were a name and
+// a meta, which is to say it was a row.
+.panel-row-keys {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 8px;
+  white-space: nowrap;
+  color: var(--z-fg-subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-row-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--z-fg-muted);
+}
+
+.panel-row-action {
+  // Hidden until the row is under the pointer would mean the row's width changed on hover, and a
+  // keyboard user could reach a button they cannot see; dimmed says the same thing and holds still.
+  opacity: 0.65;
+
+  &:hover:not(:disabled) {
+    opacity: 1;
+    color: var(--z-fg-accent);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+  }
+}
+
+// Two states that only a row in a menu needs.
+//
+// A row that destroys something: Delete in a tree row's menu, which looked exactly like Rename. Ink and
+// not a fill — a filled red row in a menu reads as an error that has already happened, which is the same
+// call the notice band and the toast make.
+.panel-row.is-danger {
+  color: var(--z-status-error);
+}
+
+// Something that cannot be done right now — a command with no kernel. Listed rather than hidden, because
+// "Restart kernel, greyed out" answers the question that a missing row only raises. It replaced
+// `.palette-item.disabled`, which said this in the same two declarations.
+.panel-row.is-disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.panel-row.is-disabled:hover {
+  background: transparent;
 }

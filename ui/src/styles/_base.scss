@@ -79,13 +79,19 @@ select {
 
 // Editor font size, driven by fontSizeAtom (Cmd +/-) via getFontClass().
 //
-// Keep this scoped to `.cm-editor` when adding a size. IDE.tsx puts the class on
-// `.main-content`, which also contains the tab strip, the notebook toolbar, the launcher and
-// the terminal, so an unscoped `font-size` resizes all of that with the code.
+// Keep this scoped when adding a size. IDE.tsx puts the class on `.main-content`, which also contains
+// the tab strip, the notebook toolbar, the launcher and the terminal, so an unscoped `font-size` resizes
+// all of that with the code.
+//
+// `.inner-text` is the second one: a cell's output box was pinned at --z-ui-font-size while the code
+// above it had all nine of these, so the character cell in a printed table or a traceback lined up with
+// the code at one setting out of nine. Everything in the box takes its size from here — a `<pre>`, a
+// printed DataFrame, an `ename` — so none of them states one.
 $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 
 @each $size in $font-sizes {
-  .zfont-#{$size} .cm-editor {
+  .zfont-#{$size} .cm-editor,
+  .zfont-#{$size} .inner-text {
     font-size: #{$size}px;
   }
 }

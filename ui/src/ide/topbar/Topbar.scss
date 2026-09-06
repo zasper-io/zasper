@@ -95,16 +95,19 @@
     // it — that is how the palette ends up exactly as wide as the button.
     position: relative;
 
-    // Above .palette's 9999 rather than inside either field, so one magnifier serves the
+    // One step above the palette rather than inside either field, so one magnifier serves the
     // button and the palette input that covers it. Not a pointer target: a click on the
     // glyph belongs to whichever of the two is underneath it.
+    //
+    // This was a literal 10000 — above every other thing in the application, dialogs and toasts
+    // included, to win against one panel at 9999. The step is what it always meant.
     .searchIcon {
       position: absolute;
       left: 12px;
       top: 50%;
       transform: translateY(-50%);
       color: var(--z-fg-on-chrome);
-      z-index: 10000;
+      z-index: calc(var(--z-layer-palette) + 1);
       pointer-events: none;
     }
   }

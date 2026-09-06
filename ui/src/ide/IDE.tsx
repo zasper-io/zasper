@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useAtom } from 'jotai';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { themeAtom } from '../store/Settings';
 
 import NavigationPanel from './sidebar/NavigationPanel/NavigationPanel';

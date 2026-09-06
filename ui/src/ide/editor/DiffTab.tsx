@@ -134,23 +134,40 @@ export default function DiffTab(props: DiffTabProps) {
           </button>
         </div>
 
-        {from !== undefined && <p className="diff-note">Renamed from {from}.</p>}
+        {from !== undefined && (
+          <div className="z-notice">
+            <p>Renamed from {from}.</p>
+          </div>
+        )}
         {documents?.isNotebook === true && (
-          <p className="diff-note">
-            Cell sources only. Outputs, execution counts and metadata are left out, so this is a
-            diff of the code and not of the file.
-          </p>
+          <div className="z-notice">
+            <p>
+              Cell sources only. Outputs, execution counts and metadata are left out, so this is a
+              diff of the code and not of the file.
+            </p>
+          </div>
         )}
         {documents?.isBinary === true && (
-          <p className="diff-note">
-            This is a binary file, so there is nothing to compare line by line.
-          </p>
+          <div className="z-notice">
+            <p>This is a binary file, so there is nothing to compare line by line.</p>
+          </div>
         )}
         {documents?.tooLarge === true && (
-          <p className="diff-note">This file is too large to compare.</p>
+          <div className="z-notice">
+            <p>This file is too large to compare.</p>
+          </div>
         )}
-        {error !== '' && <p className="diff-note diff-error">{error}</p>}
-        {unchanged && <p className="diff-note">No changes.</p>}
+        {error !== '' && (
+          <div className="z-notice z-notice-error">
+            <Icon name="circle-alert" size={14} />
+            <p>{error}</p>
+          </div>
+        )}
+        {unchanged && (
+          <div className="z-notice">
+            <p>No changes.</p>
+          </div>
+        )}
 
         <div className="diff-body" ref={container} />
       </div>

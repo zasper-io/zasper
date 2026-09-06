@@ -22,16 +22,21 @@ export default function TreeStatus({ path, visible }: TreeStatusProps) {
     return null;
   }
   if (isLoading(path) && !hasRead(path)) {
-    return <li className="treeNote">Loading…</li>;
+    return (
+      <li className="z-note">
+        <span className="z-spinner" />
+        Loading…
+      </li>
+    );
   }
   if (!hasRead(path)) {
     // The message strip above says what the server said; this only says that the tree is not it.
-    return <li className="treeNote">Could not be read</li>;
+    return <li className="z-note">Could not be read</li>;
   }
   if (childrenOf(path).length > 0) {
     // There is something here, and the reader's own settings are why it cannot be seen.
-    return <li className="treeNote">{filter === '' ? 'Only hidden files' : 'No matches here'}</li>;
+    return <li className="z-note">{filter === '' ? 'Only hidden files' : 'No matches here'}</li>;
   }
 
-  return <li className="treeNote">Empty</li>;
+  return <li className="z-note">Empty</li>;
 }

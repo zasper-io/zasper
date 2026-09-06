@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape } from '@/ide/overlays';
 
 interface ConfirmDiscardDialogProps {
   /** Paths git knows about: discarding one puts back what was committed or staged. */
@@ -26,15 +26,7 @@ function summarise(names: string[]): string {
 export default function ConfirmDiscardDialog(props: ConfirmDiscardDialogProps) {
   const { tracked, untracked, discarding, onCancel } = props;
 
-  useEffect(() => {
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !discarding) {
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', dismiss);
-    return () => window.removeEventListener('keydown', dismiss);
-  }, [discarding, onCancel]);
+  useDismissOnEscape(onCancel, !discarding);
 
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-labelledby="confirmDiscardTitle">

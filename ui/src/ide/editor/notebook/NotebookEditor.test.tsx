@@ -311,7 +311,7 @@ describe('NotebookEditor', () => {
     // the request, not the cell.
     expect(request.metadata.cellId).toBe('server-cell-id');
     // The cell waits on the kernel: no execution count, spinner instead.
-    expect(container.querySelector('.spinner')).toBeInTheDocument();
+    expect(container.querySelector('.z-spinner')).toBeInTheDocument();
   });
 
   it('runs the focused cell from the toolbar', async () => {
@@ -344,6 +344,60 @@ describe('NotebookEditor', () => {
       kernelMessage('stream', requestId, { name: 'stdout', text: 'hello from kernel' })
     );
     expect(await screen.findByText('hello from kernel')).toBeInTheDocument();
+  });
+
+  // A colour the kernel asked for has to arrive as a class, not as `style="color:rgb(0,187,0)"`: an
+  // inline colour is a 16-colour terminal palette baked into the output, which no theme can reach and
+  // no contrast rule can touch. --z-ansi-* in styles/_tokens.scss is the other half.
+  it('renders an ansi colour in stream output as a class rather than an inline colour', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(runButton(container));
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const requestId = requestIdOf(sockets[0], 0);
+
+    sockets[0].receive(
+      kernelMessage('stream', requestId, { name: 'stdout', text: '\x1b[32mpassed\x1b[0m' })
+    );
+
+    const coloured = await waitFor(() => {
+      const found = container.querySelector('.ansi-green-fg');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    expect(coloured.textContent).toBe('passed');
+    expect(coloured.getAttribute('style')).toBeNull();
+  });
+
+  // An error output is the app's failure shape — a red `ename` and a 2px edge — and the traceback under
+  // it keeps the editor's ink, because 40 lines of red is 40 lines nobody reads.
+  it('renders an error output as a named error, not as a heading', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(runButton(container));
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const requestId = requestIdOf(sockets[0], 0);
+
+    sockets[0].receive(
+      kernelMessage('error', requestId, {
+        ename: 'KeyError',
+        evalue: "'b-03'",
+        traceback: ['Traceback (most recent call last):', '  File "<ipython-input-1>", line 1'],
+      })
+    );
+
+    const box = await waitFor(() => {
+      const found = container.querySelector('.output-error');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    expect(box.querySelector('.ename')?.textContent).toBe("KeyError: 'b-03'");
+    expect(box.querySelector('h6')).toBeNull();
+    expect(box.textContent).toContain('File "<ipython-input-1>", line 1');
   });
 
   // A cell that clears its own output — a progress line rewritten in a loop — used to append instead,
@@ -659,6 +713,26 @@ describe('NotebookEditor commands', () => {
     expect(createSession.mock.calls[1][3]).toBe('ir');
   });
 
+  // It had no keyboard dismissal at all until the overlays were ported, along with two of the other
+  // seven dialogs: the close cross was the only way out of it.
+  it('closes the kernel switcher on Escape, leaving the kernel it already has', async () => {
+    render(
+      <Provider initialValues={[[kernelspecsAtom, installedKernelspecs('python3', 'ir')]]}>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:change-kernel" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    dispatch();
+    expect(document.querySelector('.modal')).not.toBeNull();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(document.querySelector('.modal')).toBeNull();
+    expect(deleteSession).not.toHaveBeenCalled();
+    expect(createSession).toHaveBeenCalledTimes(1);
+  });
+
   it('refuses a command whose notebook has no kernel yet', async () => {
     // The session never resolves, so the notebook loads but nothing is connected.
     createSession.mockReturnValue(new Promise(() => {}));
@@ -677,7 +751,7 @@ describe('NotebookEditor commands', () => {
     expect(dispatched()).toBe('false');
     expect(sockets).toHaveLength(0);
     // Not merely unsent: no spinner either, because the cell was never marked running.
-    expect(document.querySelector('.spinner')).not.toBeInTheDocument();
+    expect(document.querySelector('.z-spinner')).not.toBeInTheDocument();
   });
 
   // The server round-trips metadata it does not understand, so a save must not be the place it gets

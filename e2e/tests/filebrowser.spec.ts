@@ -70,6 +70,36 @@ test('a delete that is cancelled leaves the file alone', async ({ page }) => {
   expect(existsSync(inProject('notes.txt'))).toBe(true);
 });
 
+/*
+The overlay family's dismissal rule, in the one place it was broken: a row's menu and its delete dialog
+are rendered inside the row, and the tree's own Escape used to clear the selection and then stop the key
+before the window listener that closes them ever saw it.
+
+Written as an e2e test as well as a mocked one because the case that hid it is where the focus is. A
+right-click leaves the focus on the row rather than in the menu, which is a thing a browser does and a
+fireEvent does not.
+*/
+test('Escape closes a row menu and a dialog, and the backdrop closes nothing', async ({ page }) => {
+  await openApp(page);
+
+  await treeRow(page, 'notes.txt').click({ button: 'right' });
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+
+  await treeRow(page, 'notes.txt').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  // A dialog is a question, so it keeps its answer: a press on the backdrop is not one.
+  await page.mouse.click(60, 820);
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(existsSync(inProject('notes.txt'))).toBe(true);
+});
+
 test('the filter hides the rows that do not match, and nothing else', async ({ page }) => {
   await openApp(page);
 

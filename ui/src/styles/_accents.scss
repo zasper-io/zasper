@@ -152,14 +152,16 @@ $dark-panel: #272727;
   // a theme is visible, and a light window whose only colour is a selected row has no theme in it.
   // Three steps rather than one, because they are not one surface: the topbar and the status bar
   // bracket the window at --a-800, the banner and the modal header sit one step in at --a-700, and the
-  // palette is a well in the topbar, so it is lighter than the bar it sits in and not darker.
+  // search field is a well in the topbar, so it is lighter than the bar it sits in and not darker.
+  //
+  // `--z-bg-palette` was the same step as --z-bg-input and `--z-bg-palette-hover` was --a-600, because an
+  // open palette used to be a chrome-coloured panel with its own hover. It is the overlay surface now;
+  // the field over it is the only part still on the ramp, which is what --z-bg-input already said.
   --z-bg-topbar: var(--a-800);
   --z-bg-statusbar: var(--a-800);
   --z-bg-banner: var(--a-700);
   --z-bg-modal-header: var(--a-700);
-  --z-bg-palette: var(--a-700);
   --z-bg-input: var(--a-700);
-  --z-bg-palette-hover: var(--a-600);
   --z-bg-terminal: var(--a-900);
 
   // Tabs keep today's relationship, where the inactive tab is the brighter one. It looks backwards
@@ -182,9 +184,10 @@ $dark-panel: #272727;
 
   // Ink. --a-800 on white is 8.19:1 (orange) to 11.29:1 (slate); the serial number sits on the
   // cell's own grey and takes one step less.
+  // `--z-fg-menu-item` was here at --a-800, which made Rename and Delete in a context menu read as
+  // links. A menu row is `.panel-row` now and takes --z-fg-default, like every other row in the app.
   --z-fg-icon: var(--a-800);
   --z-fg-field: var(--a-800);
-  --z-fg-menu-item: var(--a-800);
   --z-fg-serial-no: var(--a-700);
 
   // The accent as *ink* — accent-coloured text, and the markers a pixel or two wide that read as ink

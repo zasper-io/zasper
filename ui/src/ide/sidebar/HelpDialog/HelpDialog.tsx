@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape } from '@/ide/overlays';
 import { zasperVersionAtom } from '@/store/AppState';
 import './HelpDialog.scss';
 
@@ -15,11 +16,15 @@ function HelpDialog(props: ModalProps) {
   // styles/_base.scss), and the visible display value belongs to the section's stylesheet.
   const [activeSection, setActiveSection] = useState<HelpSection>('general');
 
+  useDismissOnEscape(props.toggleHelpDialog);
+
   return (
-    <div className="modal" id="exampleModal" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    // It was `aria-hidden="true"` with Bootstrap's example ids, which said the opposite of what is
+    // true: a rendered dialog, and the only thing on screen worth reading.
+    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
-          <div className="modal-head">
+          <div className="modal-head" id="helpDialogTitle">
             Help
             <button
               type="button"

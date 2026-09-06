@@ -79,7 +79,8 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
       </div>
 
       {error !== '' && (
-        <div className="panel-error">
+        <div className="z-notice z-notice-error">
+          <Icon name="circle-alert" size={14} />
           <p>{error}</p>
         </div>
       )}
@@ -100,7 +101,17 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
             />
           ) : (
             <div className="panel-section-body">
-              <p>{loading ? 'Loading…' : 'No kernels running.'}</p>
+              {loading ? (
+                // The spinner is for the first read and not for a refresh: this panel re-reads every
+                // five seconds, and a list that flashes twelve times a minute is worse than a list
+                // that is briefly stale. `loading` is only true before the first answer arrives.
+                <p className="z-note">
+                  <span className="z-spinner" />
+                  Loading…
+                </p>
+              ) : (
+                <p className="z-note">No kernels running.</p>
+              )}
             </div>
           )}
         </PanelSection>
@@ -126,7 +137,7 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
             <div className="panel-section-body">
               {/* Said of this window, because that is all this list knows: terminals are tracked as
                   tabs, and the server has no endpoint that would report the rest. */}
-              <p>No terminals open in this window.</p>
+              <p className="z-note">No terminals open in this window.</p>
             </div>
           )}
         </PanelSection>

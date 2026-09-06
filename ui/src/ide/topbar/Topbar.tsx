@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useCommands, useRegisterCommands } from '@/commands/registry';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 import { ICommand } from '@/commands/types';
 
 export default function Topbar() {
@@ -62,48 +63,13 @@ export default function Topbar() {
   );
   useRegisterCommands(paletteCommands);
 
-  // Escape stays a plain listener rather than a command: it is a dismissal, it has to work while
-  // the palette's own input has focus, and it is meaningless when nothing is open.
-  useEffect(() => {
-    if (!isPaletteOpen) {
-      return;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closePalette();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isPaletteOpen, closePalette]);
-
-  // Clicking away dismisses, as Escape does. The palette renders inside .searchArea, as does
-  // the button that opens it, so one containment check covers both: a click on the button falls
-  // through to its own toggle instead of being closed and reopened.
+  // The palette is not a question either, so it dismisses both ways — and Escape stays a dismissal
+  // rather than becoming a command, because it has to work while the palette's own input has focus.
   //
-  // `mousedown` rather than `click`, so the palette is gone before the thing underneath takes
-  // focus — a click into a notebook cell should land in the cell.
-  useEffect(() => {
-    if (!isPaletteOpen) {
-      return;
-    }
-    const handleMouseDown = (event: MouseEvent) => {
-      if (searchAreaRef.current?.contains(event.target as Node)) {
-        return;
-      }
-      closePalette();
-    };
-
-    document.addEventListener('mousedown', handleMouseDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-    };
-  }, [isPaletteOpen, closePalette]);
+  // The containment check is `.searchArea` and not the palette itself: the button that opens it is in
+  // there too, so a press on that falls through to its own toggle instead of being closed and reopened.
+  useDismissOnEscape(closePalette, isPaletteOpen);
+  useDismissOnPressOutside(searchAreaRef, closePalette, isPaletteOpen);
 
   return (
     // A three-part flex row, not a 12-column grid: the two side groups flex equally, so the

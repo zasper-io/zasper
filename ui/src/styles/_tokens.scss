@@ -63,6 +63,28 @@
   --z-ui-control-height: 24px;
 }
 
+// --- The stack ----------------------------------------------------------------
+//
+// What floats over what, named once. Also not a theme property, and the reason it is a scale rather
+// than a number per component is the order the numbers it replaces added up to: the palette was 9999
+// and a toast was 9999 too, so which of them won was DOM order; a dialog was Bootstrap's 1055, *under*
+// both of them; the two menus were 1000; and `.searchIcon` in Topbar.scss was 10000 — above every
+// other thing in the application — to keep one magnifier over two stacked fields.
+//
+// The order below is the one the app actually wants, and it is arguable in exactly one place: a toast
+// sits on top of a dialog because it is the only overlay nobody asked for, so it is the only one that
+// can arrive while another is open. A menu is at the bottom because it is opened *from* something.
+//
+// Thousands apart, and not 1/2/3/4, because a component inside one of these sometimes needs a step of
+// its own — the topbar's magnifier is `calc(var(--z-layer-palette) + 1)` — and because the terminal's
+// own stylesheet uses up to 100 for xterm's internals.
+:root {
+  --z-layer-menu: 1000;
+  --z-layer-palette: 2000;
+  --z-layer-dialog: 3000;
+  --z-layer-toast: 4000;
+}
+
 :root {
   // --- Surfaces -----------------------------------------------------------
   --z-bg-app: #e4e4e5;
@@ -84,9 +106,21 @@
   --z-bg-cell-output: #eaf3fb;
   --z-bg-code: #f4f4f4;
   --z-bg-notice: #eaeaea;
-  --z-bg-menu: #ffffff;
+
+  // The one surface for everything that floats: a menu, the open palette, a dialog, a toast. It takes
+  // the panel's value on purpose — how far off the page a floating thing sits is said by its border
+  // and its shadow, not by a colour nothing else in the window has.
+  //
+  // `--z-bg-menu` was here, and it was `#181818` in the dark theme: the surface meant to be *above*
+  // the window was darker than the editor (`#1e1e1e`) and the panel (`#272727`) it floats over.
+  // `--z-fg-menu-item` went with it — a menu row is `.panel-row` now, so it takes --z-fg-default like
+  // every other row, and in the light theme this token was the accent, which made Rename and Delete
+  // read as links.
+  --z-bg-overlay: #ffffff;
+  // Hover *in* an overlay, and the weaker of the two row fills. The distinction is only needed there:
+  // the palette is the one surface where a pointer and the keyboard can point at different rows, and
+  // giving both the same fill means moving the mouse looks like it moved the selection.
   --z-bg-menu-hover: #f0f0f0;
-  --z-fg-menu-item: #473990;
 
   // An icon button's hover, on a coloured chrome surface rather than on a panel. Not a fixed
   // white wash: `jupyterlab`'s chrome is light, so white over it is invisible, and that theme
@@ -98,8 +132,11 @@
   --z-bg-topbar: #473990;
   --z-bg-banner: #553b9e;
   --z-bg-statusbar: #473990;
-  --z-bg-palette: #5f568f;
-  --z-bg-palette-hover: #4b4373;
+  // `--z-bg-palette` and `--z-bg-palette-hover` were here, and they were the palette drawn as a well in
+  // the topbar: a chrome-coloured panel with rows of white ink. An open palette is `--z-bg-overlay` with
+  // a chrome-coloured input over it now, so the only chrome left in it is the field, which takes
+  // --z-bg-input like the button it stands on. The hover was the second one to go: it existed because a
+  // panel's hover fill turned a chrome row near-white while its text stayed white.
   --z-bg-tab-inactive: #7651db;
   --z-bg-tab-active: #553b9e;
   --z-bg-tab-hover: #553b9e;
@@ -189,9 +226,10 @@
   --z-status-idle: #139513;
   --z-status-busy: #fb3636;
   --z-status-disconnected: #888888;
-  // Red as *ink*: an output's `ename`, `.panel-error`, `.modal-error`, `.diff-error`, the border on
-  // `.notebookLoadError`. It has to be dark enough to read on a light panel and light enough to read
-  // on a dark one, which is why the dark theme is the one theme that overrides it.
+  // Red as *ink*: an output's `ename` (NotebookEditor.scss), `.modal-error` and `.uploadReason`
+  // (_modal.scss), and a `.z-notice-error`'s icon and 2px edge (_states.scss). It has to be dark enough
+  // to read on a light panel and light enough to read on a dark one, which is why the dark theme is the
+  // one theme that overrides it.
   --z-status-error: #aa1a1a;
 
   // Red as a *fill* under white text: `.z-button-danger` and `.error-head`. Split out of
@@ -240,15 +278,59 @@
   --z-shadow-login: 0px 3px 36px #d6d0e8;
 
   // --- DataFrame output ---------------------------------------------------
-  --z-df-bg: #ffffff;
-  --z-df-fg: #333333;
-  --z-df-header-bg: #f2f2f2;
-  --z-df-header-fg: #202020;
-  --z-df-header-rule: #388e3c;
-  --z-df-row-even: #f9f9f9;
-  --z-df-row-odd: #ffffff;
-  --z-df-row-hover: #f1f1f1;
-  --z-df-border: #dddddd;
+  // Ten `--z-df-*` were here, and every one of them resolved into a name this file already had once
+  // anyone looked. `--z-df-bg` was #ffffff inside a --z-bg-cell-output box, so a printed table was a
+  // white card on a blue tint; `--z-df-header-rule` was #388e3c, green spent as decoration in an app
+  // where green means an idle kernel, and no theme overrode it, so a dark DataFrame carried the light
+  // theme's green at 2.4:1. The table is the surface of the box it lands in now — see
+  // `table.dataframe` in NotebookEditor.scss. The argument for keeping them was that pandas' own HTML
+  // looks like that everywhere else a notebook is opened; the dark theme beat it.
+
+  // --- ANSI ---------------------------------------------------------------
+  // The sixteen colours a program can ask for. A kernel writes them into its output as escape codes
+  // and `ansi_up` used to turn them into `style="color:rgb(…)"` — a 16-colour terminal palette baked
+  // into the HTML, on a surface chosen for text, that no theme could reach. This is the last defect
+  // of that kind in the app, and the same one as a `fill=` inside an icon.
+  //
+  // Unlike the DataFrame above, this palette is *not* the app's to invent: red here is the program
+  // saying red, so each theme takes the palette its own users already know — VS Code's Light+ below,
+  // Dark+ in the dark theme, JupyterLab's own nbconvert palette in the JupyterLab one — and then
+  // does the one thing those palettes do not: clears 4.5:1 on the surface the text actually lands on,
+  // --z-bg-cell-output. The hue and saturation are kept and the lightness moves, which is how the
+  // file-type marks above were treated and for the same reason. A `// from` note records the original
+  // and the ratio it failed at.
+  //
+  // The surface below is #eaf5f4, the teal accent's --a-50, because in a light theme the output box is
+  // the accent's palest step (see _accents.scss) and teal's is the darkest of the four. Everything here
+  // therefore clears 4.5:1 under all four: the slate, blue and orange tints are lighter, so dark ink on
+  // them reads better rather than worse.
+  //
+  // Two consequences worth stating. A colour name here names a *slot*, not a value: on a dark surface
+  // "black" has to be a light grey to be read at all, and on a light one "white" is a dark grey — VS
+  // Code's own light palette had already made white #555555. And on a light surface eight of the
+  // sixteen collapse into four pairs, because a colour that is already as dark as it needs to be has
+  // nowhere lighter to go and still be read; VS Code Light+ had already given up on four of them.
+  // Bright means brighter only where there is room above the threshold, which is the dark theme.
+  //
+  // The terminal is the second consumer and does not read these yet: xterm draws to a canvas, so it
+  // takes a palette of strings at construction and would need re-theming on a theme change rather
+  // than a CSS rule. That is why these are named for ANSI rather than for cell output.
+  --z-ansi-black: #000000; // 18.87:1
+  --z-ansi-red: #cd3131; // 4.62:1
+  --z-ansi-green: #008100; // from #00bc00, 2.30:1
+  --z-ansi-yellow: #707300; // from #949800, 2.79:1
+  --z-ansi-blue: #0451a5; // 6.92:1
+  --z-ansi-magenta: #bc05bc; // 4.85:1
+  --z-ansi-cyan: #047895; // from #0598bc, 3.03:1
+  --z-ansi-white: #555555; // 6.70:1
+  --z-ansi-bright-black: #666666; // 5.16:1
+  --z-ansi-bright-red: #cd3131; // 4.62:1
+  --z-ansi-bright-green: #0c800c; // from #14ce14, 1.91:1
+  --z-ansi-bright-yellow: #707300; // from #b5ba00, 1.89:1
+  --z-ansi-bright-blue: #0451a5; // 6.92:1
+  --z-ansi-bright-magenta: #bc05bc; // 4.85:1
+  --z-ansi-bright-cyan: #047895; // from #0598bc, 3.03:1
+  --z-ansi-bright-white: #6e6e6e; // from #a5a5a5, 2.21:1
 }
 
 [data-theme='dark'] {
@@ -269,9 +351,10 @@
   --z-bg-cell-output: #353535;
   --z-bg-code: #3d3d3d;
   --z-bg-notice: #2d2d2d;
-  --z-bg-menu: #181818;
+  // The panel's value, which is the whole point of the name: the `#181818` this replaces was two steps
+  // below the editor it floated over, so a menu in the dark theme read as a hole rather than as a card.
+  --z-bg-overlay: #272727;
   --z-bg-menu-hover: #515151;
-  --z-fg-menu-item: #f0f0f0;
   --z-bg-hover-on-chrome: rgba(255, 255, 255, 0.16);
 
   --z-bg-topbar: #303030;
@@ -280,8 +363,6 @@
   // light themes set both bars from one step, and dark only answered for one of them.
   --z-bg-statusbar: #303030;
   --z-bg-banner: #3f3855;
-  --z-bg-palette: #353535;
-  --z-bg-palette-hover: #515151;
   --z-bg-tab-inactive: #545454;
   --z-bg-tab-active: #424242;
   --z-bg-tab-hover: #424242;
@@ -325,10 +406,10 @@
 
   // The one kernel-status colour this theme has to override, and the only one: `:root`'s #aa1a1a is
   // 2.04:1 on the panel above, so every place the app spends this red as *ink* was unreadable here —
-  // `.modal-error`, `.panel-error`, `.diff-error` and an output's `ename`.
+  // `.modal-error`, `.uploadReason` and an output's `ename`.
   //
   // Measured against the four surfaces red ink lands on in this theme — the cell output #353535, the
-  // panel and modal #272727, the notice #2d2d2d, the cell #343434 behind `.notebookLoadError`'s border.
+  // panel and modal #272727, the notice #2d2d2d behind a `.z-notice-error`, the cell #343434.
   // `--z-git-deleted`'s #e5534b was the obvious pick, since it is this theme's red already, and it does
   // not clear AA: 3.31:1 on the cell output. #f28b82 is the first step light enough to pass on all four,
   // measured 5.13 / 6.25 / 5.77 / 5.21. It is lighter than the git red on purpose — a D beside a filename is one
@@ -371,14 +452,26 @@
   --z-bg-login-page: linear-gradient(119deg, #2a2a2a 0%, #171720 100%);
   --z-shadow-login: 0px 3px 36px #000000;
 
-  --z-df-bg: #1e1e1e;
-  --z-df-fg: #d4d4d4;
-  --z-df-header-bg: #252526;
-  --z-df-header-fg: #ffffff;
-  --z-df-row-even: #1e1e1e;
-  --z-df-row-odd: #2a2a2a;
-  --z-df-row-hover: #3a3d41;
-  --z-df-border: #333333;
+  // VS Code Dark+, on this theme's #353535 output surface. Six of the sixteen arrive readable and are
+  // left alone; the rest lighten. "Black" is a grey here, which is the slot rule above: a program that
+  // prints black on a dark terminal is unreadable by its own choice, and the app is not obliged to
+  // repeat it.
+  --z-ansi-black: #9e9e9e; // from #000000, 1.71:1
+  --z-ansi-red: #e18383; // from #cd3131, 2.38:1
+  --z-ansi-green: #0dbc79; // 4.96:1
+  --z-ansi-yellow: #e5e510; // 9.08:1
+  --z-ansi-blue: #65a1e3; // from #2472c8, 2.52:1
+  --z-ansi-magenta: #d47fd4; // from #bc3fbc, 2.67:1
+  --z-ansi-cyan: #11abd1; // from #11a8cd, 4.38:1
+  --z-ansi-white: #e5e5e5; // 9.74:1
+  --z-ansi-bright-black: #9e9e9e; // from #666666, 2.14:1
+  --z-ansi-bright-red: #f47878; // from #f14c4c, 3.43:1
+  --z-ansi-bright-green: #23d18b; // 6.17:1
+  --z-ansi-bright-yellow: #f5f543; // 10.53:1
+  --z-ansi-bright-blue: #5ca1ee; // from #3b8eea, 3.65:1
+  --z-ansi-bright-magenta: #d97bd9; // from #d670d6, 4.18:1
+  --z-ansi-bright-cyan: #29b8db; // 5.24:1
+  --z-ansi-bright-white: #ffffff; // 12.27:1
 }
 
 // JupyterLab (light). Values come from JupyterLab's own `--jp-*` variables, so
@@ -410,8 +503,10 @@
   --z-bg-cell-output: #ffffff; // output areas are --jp-layout-color0
   --z-bg-code: #f5f5f5;
   --z-bg-notice: #f5f5f5;
+  // --jp-layout-color0, which is this theme's panel and its overlay both — JupyterLab raises a menu
+  // with a border and a shadow, exactly as the rule here says.
+  --z-bg-overlay: #ffffff;
   --z-bg-menu-hover: #e0e0e0;
-  --z-fg-menu-item: #212121;
   // Black rather than white: this theme's chrome is #f5f5f5.
   --z-bg-hover-on-chrome: rgba(0, 0, 0, 0.08);
 
@@ -421,8 +516,6 @@
   --z-bg-topbar: #f5f5f5;
   --z-bg-banner: #eeeeee;
   --z-bg-statusbar: #f5f5f5;
-  --z-bg-palette: #ffffff;
-  --z-bg-palette-hover: #e0e0e0;
   --z-bg-tab-inactive: #e0e0e0;
   --z-bg-tab-active: #ffffff;
   --z-bg-tab-hover: #eeeeee;
@@ -495,12 +588,24 @@
   --z-bg-login-hero: linear-gradient(133deg, #2196f3 0%, #0d47a1 100%);
   --z-shadow-login: 0px 3px 36px #e0e0e0;
 
-  // --- DataFrame output ---------------------------------------------------
-  --z-df-fg: #212121;
-  --z-df-header-bg: #eeeeee;
-  --z-df-header-fg: #212121;
-  --z-df-header-rule: #1976d2;
-  --z-df-row-even: #fafafa;
-  --z-df-row-hover: #e3f2fd;
-  --z-df-border: #e0e0e0;
+  // --- ANSI ---------------------------------------------------------------
+  // JupyterLab's own nbconvert palette, on this theme's #ffffff output surface, so a notebook opened
+  // here and in JupyterLab colours its traceback the same. Eleven of the sixteen darken to clear
+  // 4.5:1 on white: JupyterLab's normal set was drawn against its own greys, not against paper.
+  --z-ansi-black: #3e424d; // 10.04:1
+  --z-ansi-red: #e02e29; // from #e75c58, 3.46:1
+  --z-ansi-green: #008843; // from #00a250, 3.34:1
+  --z-ansi-yellow: #8d7317; // from #ddb62b, 1.94:1
+  --z-ansi-blue: #0474e1; // from #208ffb, 3.29:1
+  --z-ansi-magenta: #c539b5; // from #d160c4, 3.40:1
+  --z-ansi-cyan: #2d8283; // from #60c6c8, 2.02:1
+  --z-ansi-white: #7c7660; // from #c5c1b4, 1.80:1
+  --z-ansi-bright-black: #282c36; // 13.96:1
+  --z-ansi-bright-red: #b22b31; // 6.40:1
+  --z-ansi-bright-green: #007427; // 5.95:1
+  --z-ansi-bright-yellow: #9b6d10; // from #b27d12, 3.60:1
+  --z-ansi-bright-blue: #0065ca; // 5.65:1
+  --z-ansi-bright-magenta: #a03196; // 6.22:1
+  --z-ansi-bright-cyan: #228282; // from #258f8f, 3.89:1
+  --z-ansi-bright-white: #6f7687; // from #a1a6b2, 2.44:1
 }

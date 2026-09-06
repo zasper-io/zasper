@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape } from '@/ide/overlays';
 
 interface ConfirmDeleteDialogProps {
   /** Everything about to go: one name, or several when a selection is being deleted. */
@@ -24,15 +24,7 @@ export default function ConfirmDeleteDialog(props: ConfirmDeleteDialogProps) {
   const { deleting, names, onCancel } = props;
   const several = names.length > 1;
 
-  useEffect(() => {
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !deleting) {
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', dismiss);
-    return () => window.removeEventListener('keydown', dismiss);
-  }, [deleting, onCancel]);
+  useDismissOnEscape(onCancel, !deleting);
 
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-labelledby="confirmDeleteTitle">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { apiErrorMessage, Commit, getLog } from '@/api';
+import { Icon } from '@/ide/icons';
 import CommitFiles from './CommitFiles';
 import { fullDate, relativeDate } from '../dates';
 import { PanelProps } from '../types';
@@ -72,18 +73,24 @@ export default function History({ hidden, reloadKey }: HistoryProps) {
 
   if (error !== '') {
     return (
-      <div className="panel-error">
+      <div className="z-notice z-notice-error">
+        <Icon name="circle-alert" size={14} />
         <p>{error}</p>
       </div>
     );
   }
   if (commits === null) {
-    return <p className="git-history-note">Loading…</p>;
+    return (
+      <p className="z-note">
+        <span className="z-spinner" />
+        Loading…
+      </p>
+    );
   }
   // Covers both a project that is not a repository and one whose first commit has not happened yet;
   // the panel above says which.
   if (commits.length === 0) {
-    return <p className="git-history-note">No history.</p>;
+    return <p className="z-note">No history.</p>;
   }
 
   return (

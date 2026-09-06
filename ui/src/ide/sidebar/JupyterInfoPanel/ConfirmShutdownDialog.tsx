@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape } from '@/ide/overlays';
 
 interface ConfirmShutdownDialogProps {
   /** What the kernel is called, as the row shows it. */
@@ -20,15 +20,7 @@ interface ConfirmShutdownDialogProps {
 export default function ConfirmShutdownDialog(props: ConfirmShutdownDialogProps) {
   const { name, path, shuttingDown, onCancel } = props;
 
-  useEffect(() => {
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !shuttingDown) {
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', dismiss);
-    return () => window.removeEventListener('keydown', dismiss);
-  }, [shuttingDown, onCancel]);
+  useDismissOnEscape(onCancel, !shuttingDown);
 
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-labelledby="confirmShutdownTitle">

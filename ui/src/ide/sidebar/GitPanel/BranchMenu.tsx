@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 
 import {
   apiErrorMessage,
@@ -55,29 +56,11 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
   }, [load]);
 
   // Dismissed the way the file browser's context menu is: Escape, or a press anywhere outside. Held open
-  // while the delete dialog is up, whose own Escape closes that instead.
-  useEffect(() => {
-    if (pending !== null) {
-      return;
-    }
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    const dismissOnPressOutside = (event: MouseEvent) => {
-      if (menu.current !== null && !menu.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', dismiss);
-    window.addEventListener('mousedown', dismissOnPressOutside);
-    return () => {
-      window.removeEventListener('keydown', dismiss);
-      window.removeEventListener('mousedown', dismissOnPressOutside);
-    };
-  }, [onClose, pending]);
+  // while the delete dialog is up, whose own Escape closes that instead — this is the one place the
+  // family's "topmost" wins by an overlay standing down rather than by a stack of layers.
+  const open = pending === null;
+  useDismissOnEscape(onClose, open);
+  useDismissOnPressOutside(menu, onClose, open);
 
   const wanted = filter.trim();
   const matching = branches.filter((branch) =>
@@ -119,7 +102,7 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
   };
 
   return (
-    <div className="git-branch-menu" ref={menu}>
+    <div className="z-overlay z-menu git-branch-menu" ref={menu}>
       <input
         className="z-field git-branch-filter"
         value={filter}
@@ -147,32 +130,33 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
       />
 
       {error !== '' && (
-        <div className="panel-error">
+        <div className="z-notice z-notice-error">
+          <Icon name="circle-alert" size={14} />
           <p>{error}</p>
         </div>
       )}
 
-      <ul className="git-branch-list list-unstyled noborder-list" role="menu">
+      <ul className="z-overlay-list git-branch-list" role="menu">
         {canCreate && (
-          <li className="git-branch-row" role="none">
+          <li className="panel-row" role="none">
             <button
               type="button"
-              className="git-branch-option git-branch-create"
+              className="panel-row-name"
               role="menuitem"
               disabled={disabled}
               onClick={() => void create()}
             >
               <Icon name="plus" />
-              <span className="git-branch-option-name">Create branch {wanted}</span>
+              <span className="panel-row-label">Create branch {wanted}</span>
             </button>
           </li>
         )}
 
         {matching.map((branch) => (
-          <li key={branch.name} className="git-branch-row" role="none">
+          <li key={branch.name} className="panel-row" role="none">
             <button
               type="button"
-              className={branch.current ? 'git-branch-option is-current' : 'git-branch-option'}
+              className="panel-row-name"
               role="menuitem"
               title={
                 branch.upstream === undefined ? branch.name : `${branch.name} → ${branch.upstream}`
@@ -181,8 +165,8 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
               onClick={() => void switchTo(branch)}
             >
               <Icon name={branch.current ? 'check' : 'git-branch'} />
-              <span className="git-branch-option-name">{branch.name}</span>
-              {branch.isRemote && <span className="git-branch-remote">remote</span>}
+              <span className="panel-row-label">{branch.name}</span>
+              {branch.isRemote && <span className="panel-row-meta">remote</span>}
             </button>
 
             {/* Only this repository's own branches, and never the one that is checked out: git refuses
@@ -190,7 +174,7 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
             {!branch.isRemote && !branch.current && (
               <button
                 type="button"
-                className="z-icon-button git-branch-delete"
+                className="z-icon-button panel-row-action"
                 title={`Delete ${branch.name}`}
                 aria-label={`Delete ${branch.name}`}
                 disabled={disabled}
@@ -203,7 +187,7 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
         ))}
 
         {!loading && matching.length === 0 && !canCreate && (
-          <li className="git-branch-empty" role="none">
+          <li className="z-note" role="none">
             No branches match.
           </li>
         )}

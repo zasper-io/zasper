@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Icon } from '@/ide/icons';
+import { useDismissOnEscape } from '@/ide/overlays';
 
 interface ConfirmDeleteBranchDialogProps {
   name: string;
@@ -20,15 +21,7 @@ export default function ConfirmDeleteBranchDialog(props: ConfirmDeleteBranchDial
   const { name, deleting, onCancel } = props;
   const [force, setForce] = useState<boolean>(false);
 
-  useEffect(() => {
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !deleting) {
-        onCancel();
-      }
-    };
-    window.addEventListener('keydown', dismiss);
-    return () => window.removeEventListener('keydown', dismiss);
-  }, [deleting, onCancel]);
+  useDismissOnEscape(onCancel, !deleting);
 
   return (
     <div

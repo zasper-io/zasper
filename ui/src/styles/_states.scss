@@ -1,0 +1,122 @@
+// What a pane says when it has nothing, is waiting, or failed.
+//
+// Three names, and the count they replace is the argument for having them: seven "nothing here"
+// messages in six shapes — `.treeNote` (22px, italic, 12px indent), `.git-history-note` (13px),
+// `.commit-detail-note` (11px), `.git-branch-empty` (12px, inside an overlay), `.diff-note` (the only
+// one with a surface of its own) and a bare `<p>` three times. The word "Loading…" was four of the
+// seven, in four sizes. None of that was a decision; it was six places writing the same sentence.
+//
+// Not in _panel.scss, which is nested under `.navigation` and so cannot reach the diff tab or the
+// notebook, and not in _controls.scss, which is buttons and fields. A state is neither.
+
+// A row-height line where a row would be: same height, same ink, so a panel with nothing in it is not
+// a different shape from a panel with one thing in it.
+//
+// No horizontal padding, unlike the prototype's version, and this is the one thing the port changed:
+// every container this lands in — `.panel-section-body`, `.content-inner`, `.commit-detail` — already
+// indents its rows, so a padding here would be added to that one. Where a container does *not* indent,
+// the exception is stated there; the file tree is the only such place, because its rows take their
+// indent from the `<a>` inside them and a note has no `<a>`.
+//
+// Not italic. The app's only use of italic was this message, and it read as an aside rather than as a
+// state.
+.z-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--z-ui-row-height);
+  margin: 0;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+}
+
+// 12px of `currentColor`, so it takes the ink of the note it stands in: a spinner is the sentence's
+// punctuation, not a graphic of its own.
+//
+// This replaces LoaderSvg.tsx — 26 lines of inline SVG with `fill="blue"` and `fill="#fff"` baked in,
+// the last two literal colours below the token layer, animated with SMIL. `animation` rather than
+// `<animateTransform>` because SMIL cannot be slowed by `prefers-reduced-motion`.
+.z-spinner {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: z-spin 0.7s linear infinite;
+}
+
+@keyframes z-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Slowed rather than stopped: a still ring is a ring, and the reader loses the one thing it says.
+@media (prefers-reduced-motion: reduce) {
+  .z-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+// Failure is a band and not a note, because something going wrong is worth a surface. It spans the
+// pane it belongs to, under the control that caused it — five shapes did this before: `.panel-error`,
+// `.notebookLoadError`, `.diff-error` (a colour on a note), an output's `ename`, and a toast.
+//
+// The bottom border was not in the drawing and both real sites needed it: `.panel-error` and `.diff-note`
+// each drew one, because a band whose fill is a near-neighbour of the panel's has to say where it ends.
+.z-notice {
+  flex: 0 0 auto;
+  display: flex;
+  // Wraps because one band has to span both a 240px panel and a 1400px diff tab, and in the panel
+  // there is no room beside the message for an action.
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 16px;
+  margin: 0;
+  background: var(--z-bg-notice);
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+  border-bottom: 1px solid var(--z-border);
+
+  // The server's sentence, which can be long, in a panel that is 240px wide. `flex: 1` so that an
+  // action or a dismiss beside it lands at the band's right edge without a class of its own.
+  //
+  // The `min-width` is what decides where the wrap above happens: the message keeps at least 60% of
+  // the band, so in the sidebar the action drops to a line of its own instead of squeezing "This
+  // project is not a git repository." into three. In a diff tab 60% is most of a pane, so nothing
+  // wraps and the action stays beside the message.
+  p {
+    flex: 1;
+    min-width: 60%;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+// The red is the icon and the 2px edge, never the message: a sentence in red says "error" twice. The
+// edge and the padding add up to the 16px above, so the text starts on the panel's own indent whether
+// the band is an error or not.
+.z-notice-error {
+  border-left: 2px solid var(--z-status-error);
+  padding-left: 14px;
+}
+
+.z-notice-error .z-icon {
+  color: var(--z-status-error);
+}
+
+// Room for a `.z-button` in the band, for the failure that has an answer — "Initialise repository",
+// "Open as text". Pinned right, and 20px so it does not make the band taller than its own message.
+//
+// A band gets one and a note does not, which is the line this phase draws: nothing-here is not a
+// problem, so it is not offered a fix.
+.z-notice-action {
+  flex: 0 0 auto;
+  margin-left: auto;
+  height: 20px;
+  padding: 0 8px;
+  white-space: nowrap;
+}

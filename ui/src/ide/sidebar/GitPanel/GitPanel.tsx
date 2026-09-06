@@ -147,13 +147,15 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
       )}
 
       {error !== '' && (
-        <div className="panel-error">
+        <div className="z-notice z-notice-error">
+          <Icon name="circle-alert" size={14} />
           <p>{error}</p>
         </div>
       )}
 
       {status.isRepository && !status.gitAvailable && (
-        <div className="panel-error">
+        <div className="z-notice z-notice-error">
+          <Icon name="circle-alert" size={14} />
           <p>No git binary was found, so changes can be listed but not changed.</p>
         </div>
       )}
@@ -163,22 +165,33 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
         {/* Nothing below can work without a repository, and "No changes" over a commit form is the
             wrong thing to say about a project that is not under git at all. */}
         {!loading && !status.isRepository && (
-          <div className="panel-section-body git-init">
-            <p>This project is not a git repository.</p>
+          // A band and not a note, because this one has an answer, and the band is the shape with
+          // somewhere to put it. Not an error: a folder that is not a repository is a fact about the
+          // folder, so it gets the branch glyph and no red.
+          <div className="z-notice">
+            <Icon name="git-branch" size={14} />
             {status.gitAvailable ? (
-              // The whole of `git init` from here, since the alternative for someone in a browser is a
-              // terminal. What the first branch is called is the machine's answer and not this panel's,
-              // which is why the server runs git rather than creating the repository itself.
-              <button
-                type="button"
-                className="z-button"
-                disabled={busy}
-                onClick={() => void changesHistory(initRepository, 'Created an empty repository.')}
-              >
-                Initialise repository
-              </button>
+              <>
+                <p>This project is not a git repository.</p>
+                {/* The whole of `git init` from here, since the alternative for someone in a browser is
+                    a terminal. What the first branch is called is the machine's answer and not this
+                    panel's, which is why the server runs git rather than creating the repository. */}
+                <button
+                  type="button"
+                  className="z-button z-button-secondary z-notice-action"
+                  disabled={busy}
+                  onClick={() =>
+                    void changesHistory(initRepository, 'Created an empty repository.')
+                  }
+                >
+                  Initialise
+                </button>
+              </>
             ) : (
-              <p>No git binary was found, so one cannot be created from here.</p>
+              <p>
+                This project is not a git repository, and no git binary was found, so one cannot be
+                created from here.
+              </p>
             )}
           </div>
         )}
@@ -230,7 +243,7 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
 
             {!loading && nothingToDo && (
               <div className="panel-section-body">
-                <p>No changes.</p>
+                <p className="z-note">No changes.</p>
               </div>
             )}
           </>

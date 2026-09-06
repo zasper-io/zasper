@@ -1,25 +1,17 @@
+// The menu is `.z-overlay.z-menu` in styles/_overlays.scss and its items are `.panel-row`, so what is
+// left here is the one thing that belongs to this component: where it is.
+//
+// What went: `background: var(--z-bg-menu)`, a `--z-border-divider` hairline, a hand-written
+// `0px 4px 8px var(--z-shadow-overlay)`, `border-radius: 5px` and `z-index: 1000` — all of which the
+// surface now says once for four components — and `.context-menu-item`, which was a 12px row with 4px of
+// padding and `--z-fg-menu-item` ink, sitting in a sidebar full of 22px rows.
+//
+// One thing was found and not kept: the width was `width: 12 0px`, which is invalid, so it never applied
+// and the menu has always auto-sized. `.z-menu`'s `min-width: 168px` is the width it should have had.
+
+// Fixed, not absolute: the tree it opens over is inside .content-inner, which is `overflow-y: auto` and
+// would clip the menu and scroll it away from its row. The top and left come from the pointer, in
+// ContextMenu.tsx, which is also where they are clamped to the window.
 .context-menu {
-  // Fixed, not absolute: the tree it opens over is inside .content-inner, which is
-  // `overflow-y: auto` and would clip the menu and scroll it away from its row.
   position: fixed;
-  background: var(--z-bg-menu);
-  color: var(--z-fg-default);
-  border: 1px solid var(--z-border-divider);
-  box-shadow: 0px 4px 8px var(--z-shadow-overlay);
-  z-index: 1000;
-  // NB: this was `width: 12 0px` — invalid, so it never applied and the menu has
-  // always auto-sized to its items. Left auto rather than pinning it now.
-  border-radius: 5px;
-}
-
-.context-menu-item {
-  padding: 4px 12px;
-  cursor: pointer;
-  color: var(--z-fg-menu-item);
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.context-menu-item:hover {
-  background-color: var(--z-bg-menu-hover);
 }

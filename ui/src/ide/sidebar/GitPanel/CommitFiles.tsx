@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { apiErrorMessage, CommitDetail, getCommitDetail } from '@/api';
+import { Icon } from '@/ide/icons';
 import { baseName, parentDirOf } from '@/paths';
 import { useTabActions } from '@/store/TabActions';
 
@@ -48,10 +49,20 @@ export default function CommitFiles({ hash }: CommitFilesProps) {
   }, [hash]);
 
   if (error !== '') {
-    return <p className="commit-detail-note">{error}</p>;
+    return (
+      <div className="z-notice z-notice-error">
+        <Icon name="circle-alert" size={14} />
+        <p>{error}</p>
+      </div>
+    );
   }
   if (detail === null) {
-    return <p className="commit-detail-note">Loading…</p>;
+    return (
+      <p className="z-note">
+        <span className="z-spinner" />
+        Loading…
+      </p>
+    );
   }
 
   return (
@@ -62,7 +73,7 @@ export default function CommitFiles({ hash }: CommitFilesProps) {
       )}
 
       {detail.files.length === 0 ? (
-        <p className="commit-detail-note">No files changed.</p>
+        <p className="z-note">No files changed.</p>
       ) : (
         <ul className="commit-files list-unstyled noborder-list">
           {detail.files.map((file) => (
@@ -100,7 +111,7 @@ export default function CommitFiles({ hash }: CommitFilesProps) {
       )}
 
       {detail.truncated && (
-        <p className="commit-detail-note">Only the first {detail.files.length} files are listed.</p>
+        <p className="z-note">Only the first {detail.files.length} files are listed.</p>
       )}
     </div>
   );

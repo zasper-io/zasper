@@ -91,11 +91,11 @@ describe('Palette', () => {
   it('handles keyboard navigation', () => {
     renderPalette({ initialQuery: '>' });
     // The first match is selected on open, so Enter alone runs it.
-    expect(screen.getByText('Open File').parentElement).toHaveClass('selected');
+    expect(screen.getByText('Open File').parentElement).toHaveClass('is-selected');
     fireEvent.keyDown(input(), { key: 'ArrowDown' });
-    expect(screen.getByText('Save File').parentElement).toHaveClass('selected');
+    expect(screen.getByText('Save File').parentElement).toHaveClass('is-selected');
     fireEvent.keyDown(input(), { key: 'ArrowUp' });
-    expect(screen.getByText('Open File').parentElement).toHaveClass('selected');
+    expect(screen.getByText('Open File').parentElement).toHaveClass('is-selected');
   });
 
   it('executes the selected command on Enter', () => {
@@ -131,7 +131,7 @@ describe('Palette', () => {
     const disabled = command({ id: 'nb:restart', label: 'Restart Kernel', isEnabled: () => false });
     renderPalette({ commands: [disabled], initialQuery: '>', onClose });
 
-    expect(screen.getByText('Restart Kernel').parentElement).toHaveClass('disabled');
+    expect(screen.getByText('Restart Kernel').parentElement).toHaveClass('is-disabled');
     fireEvent.click(screen.getByText('Restart Kernel'));
 
     expect(disabled.execute).not.toHaveBeenCalled();

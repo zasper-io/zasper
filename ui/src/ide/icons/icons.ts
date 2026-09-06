@@ -9,6 +9,7 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronsUp,
+  CircleAlert,
   CircleHelp,
   ClipboardPaste,
   CloudDownload,
@@ -127,6 +128,8 @@ export const ICONS = {
 
   // --- Everywhere ----------------------------------------------------------
   x: X, // fa-times-circle: close a tab, dismiss a dialog
+  // The one glyph in a `.z-notice-error`, which is where the app now says something failed.
+  'circle-alert': CircleAlert,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

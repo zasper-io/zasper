@@ -4,12 +4,6 @@ import { ICell, ICellOutput, INotebookModel } from '@/api';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type IKernelMessage = any;
 
-/** Strips the SGR colour escapes kernels embed in stream output. */
-export function removeAnsiCodes(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*m/g, '');
-}
-
 export const getTimeStamp = (): string => new Date().toISOString();
 
 /**
@@ -107,7 +101,12 @@ export function applyKernelMessage(
         appendOutput(
           cell,
           {
-            text: removeAnsiCodes(message.content.text),
+            // Kept as the kernel sent it, escapes and all. `removeAnsiCodes` was here, stripping
+            // every SGR colour out of stdout before it was stored — which threw away a coloured test
+            // run or a progress bar, and wrote the stripped text into the .ipynb, where Jupyter's own
+            // format keeps the escapes. It existed because there was nowhere for those colours to
+            // land; CellOutput.tsx resolves them through --z-ansi-* now.
+            text: message.content.text,
             output_type: 'stream',
           },
           replaceOutputs

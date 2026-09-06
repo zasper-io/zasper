@@ -77,8 +77,13 @@ export function useTreeKeys(): (event: React.KeyboardEvent) => void {
   };
 
   return (event: React.KeyboardEvent) => {
-    // The rename box is inside a row, and its keys are its own.
-    if ((event.target as HTMLElement).tagName === 'INPUT') {
+    const target = event.target as HTMLElement;
+    // The rename box is inside a row, and its keys are its own. So are a dialog's and a menu's, for the
+    // same reason and a worse consequence: a row's delete confirmation and its context menu are
+    // rendered inside the row, so a key pressed in one arrives here too — and Escape used to clear the
+    // selection and then stopPropagation() it, which is where the dismissal that was meant to close the
+    // dialog went. It could not be closed by keyboard at all. See ide/overlays.ts.
+    if (target.tagName === 'INPUT' || target.closest('[role="dialog"], [role="menu"]') !== null) {
       return;
     }
 
@@ -155,6 +160,13 @@ export function useTreeKeys(): (event: React.KeyboardEvent) => void {
         break;
 
       case 'Escape':
+        // Only when nothing is floating. A right-click leaves the focus on the row, not in the menu it
+        // opened, so the target check above cannot tell those apart — and Escape with a menu or a dialog
+        // up is dismissing that, never clearing the selection behind it. What floats is the whole
+        // window's business, which is why this asks the document rather than any state of the tree's.
+        if (document.querySelector('[role="menu"], [role="dialog"]') !== null) {
+          return;
+        }
         selection.clear();
         break;
 

@@ -628,7 +628,7 @@ describe('GitPanel', () => {
     initRepository.mockResolvedValue(aStatus({ branch: 'main' }));
     render(<ThePanel hidden={false} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Initialise repository' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Initialise' }));
     await waitFor(() => expect(initRepository).toHaveBeenCalled());
 
     // The panel is now a panel over a repository, drawn from what the write answered with rather than
@@ -643,9 +643,12 @@ describe('GitPanel', () => {
     );
     render(<ThePanel hidden={false} />);
 
-    expect(await screen.findByText('This project is not a git repository.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Initialise repository' })).not.toBeInTheDocument();
-    expect(screen.getByText(/No git binary was found/)).toBeInTheDocument();
+    // One sentence rather than two, because the band is one line of message with the action pinned
+    // to its right, and there is no action here — so the reason is mid-sentence and lower case.
+    expect(
+      await screen.findByText(/This project is not a git repository, and no git binary was found/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Initialise' })).not.toBeInTheDocument();
   });
 
   it('re-reads on demand', async () => {

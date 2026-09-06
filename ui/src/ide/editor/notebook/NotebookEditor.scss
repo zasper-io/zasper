@@ -38,21 +38,9 @@
   margin-left: auto;
 }
 
-// Shown in place of the cells when the file could not be read.
-.notebookLoadError {
-  margin: 16px;
-  padding: 12px 16px;
-  border: 1px solid var(--z-status-error);
-  border-radius: 4px;
-  background: var(--z-bg-cell);
-  color: var(--z-fg-default);
-
-  p {
-    margin: 4px 0 0;
-    color: var(--z-fg-muted);
-    font-size: var(--z-ui-font-size);
-  }
-}
+// `.notebookLoadError` was here — a bordered box in the middle of the pane, in place of the cells. It
+// is a `.z-notice.z-notice-error` (styles/_states.scss) at the top of the pane instead, which is where
+// this app puts the reason something failed, and it has somewhere to put the one action there is.
 
 // Overlaid on the cell's top edge rather than stacked above it, so taking focus does not
 // reflow the cell.
@@ -125,9 +113,10 @@
   }
 
   // A fixed gutter, so `[1]:` and `[10]:` put their editors on the same left edge.
-  // .cell-gutter is the empty one a markdown cell renders in place of an execution count.
+  // .cell-gutter is the empty one a markdown cell renders in place of an execution count;
+  // .cell-spinner is the one a cell that is running renders instead.
   .serial-no,
-  .svgContainer,
+  .cell-spinner,
   .cell-gutter {
     flex: 0 0 44px;
     text-align: right;
@@ -160,9 +149,15 @@
   position: relative;
   background: var(--z-bg-cell-output);
   border-radius: 2px;
-  // Whole pixels per line, so a multi-line traceback doesn't stack fractional baselines and
-  // leave the cell a fractional height. Move this if --z-ui-font-size moves.
-  line-height: 18px;
+  // 1.5, the same ratio `.cm-editor` uses, so a printed line is exactly as tall as a line of the code
+  // that printed it. Every size in the `.zfont-*` scale is even, so every one of them is a whole
+  // number of pixels per line — which is the reason for the ratio: a fractional line box stacks
+  // fractional baselines down a 40-line traceback.
+  //
+  // The size itself comes from `.zfont-*` in styles/_base.scss. This box used to be pinned at
+  // --z-ui-font-size while the code above it had nine sizes on Cmd +/-, so the character cell lined up
+  // at one setting out of nine.
+  line-height: 1.5;
 
   // Bootstrap's reboot puts a bottom margin on all three; this box's padding is the spacing.
   pre,
@@ -171,26 +166,23 @@
     margin: 0;
   }
 
-  // Bootstrap sizes `pre` at 0.875em, which off 13px is a fractional 11.375px.
+  // The family is named rather than left to the browser's `<pre>` default, so that output uses the
+  // same mono face as the code above it that produced it. `font-size: inherit` beats Bootstrap's
+  // 0.875em, which was a fractional 11.375px off 13px, and takes the box's own size from `.zfont-*`
+  // rather than pinning one.
   //
-  // The family is named rather than left to the browser's `<pre>` default, so that output uses
-  // the same mono face as the code above it that produced it. Columns in a printed DataFrame
-  // only line up if both agree, and before this each machine chose its own.
+  // The old comment gave the reason for the family as "columns in a printed DataFrame only line up if
+  // both agree". A DataFrame is a `<table>`, so it never took the face — see `table.dataframe` below,
+  // where the columns are lined up by `tabular-nums` instead.
   pre {
     font-family: var(--z-mono-font-family);
-    font-size: var(--z-ui-font-size);
+    font-size: inherit;
     white-space: pre-wrap;
   }
 
-  // The `ename: evalue` line of an error output. Bootstrap makes headings 16px on a 1.2 line
-  // box; both are wrong here, and the 1.2 is fractional at this size.
-  h6 {
-    font-size: var(--z-ui-font-size);
-    line-height: inherit;
-    font-weight: 700;
-    color: var(--z-status-error);
-    margin-bottom: 4px;
-  }
+  // `h6` was the `ename: evalue` line, in red, and CellOutput.tsx does not render one any more: an
+  // error output is `.output-error` below. The margin reset above still names it, because a library's
+  // HTML output can contain one.
 
   p {
     color: var(--z-fg-muted);
@@ -227,75 +219,116 @@
 // `.reconnectButton` was here, restating a 16px box beside the kernel dot. It is a
 // `.z-icon-button` in the toolbar like every other action in it.
 
-.svgContainer {
+// Where a cell's execution count goes while it is running. `.svgContainer` and `.spinner` were here,
+// boxing LoaderSvg.tsx; the ring is `.z-spinner` in styles/_states.scss now, and this only has to put
+// it in the gutter. Right-aligned like the `[11]:` it stands in for, not centred: a spinner that moves
+// when the count arrives reads as two different things happening.
+.cell-spinner {
   height: 20px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
 }
 
-.spinner {
-  margin: 0px;
+// An error output: the `ename` and the traceback the kernel sent. The red this file spends is the 2px
+// edge and the name, and none of it lands on the traceback — the same rule the notice band and the toast
+// follow, because a traceback is code, read line by line, and 40 lines of red is 40 lines nobody reads.
+//
+// What colour is *in* a traceback is IPython's: it marks the exception, the file and the frame in ANSI,
+// and the map below resolves those through the token layer, so they are the kernel's decision rendered
+// readably rather than the app's decision made twice.
+//
+// It replaced an `<h6>` and a bare `<pre>`, which had no edge and no relation to how the rest of the app
+// reports a failure.
+.output-error {
+  border-left: 2px solid var(--z-status-error);
+  padding-left: 8px;
+}
+
+// The mono face because it names a Python class, and no size of its own: the box it is in is sized by
+// `.zfont-*`, so the name matches the traceback under it at every setting.
+//
+// The prototype also drew `.output-error .frame` for the `File "…", line 12` lines in --z-fg-muted.
+// There is no such class here and nothing to hang one on: telling a frame line from a source line means
+// parsing the traceback, and the kernel has already said which is which — in ANSI, which the map below
+// now resolves through the token layer.
+.output-error .ename {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--z-status-error);
+  font-family: var(--z-mono-font-family);
+  font-weight: 700;
+}
+
+// The sixteen colours a program can ask for, resolved through --z-ansi-* in styles/_tokens.scss. This
+// is what `ansi_up.use_classes = true` in CellOutput.tsx buys: the same escape code used to arrive as
+// `style="color:rgb(187,0,0)"` in the HTML, which no theme could reach and no contrast rule could touch.
+//
+// Scoped to `.inner-text` on purpose. An `.ansi-red-fg` in the wild is not necessarily ours — a library
+// that emits its own HTML output can use the same class names, and this file has no business colouring
+// anything outside the box it owns. 24-bit colour still arrives inline, because a kernel that names an
+// exact colour is not asking for a palette slot.
+$ansi-slots:
+  'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'bright-black',
+  'bright-red', 'bright-green', 'bright-yellow', 'bright-blue', 'bright-magenta', 'bright-cyan',
+  'bright-white';
+
+@each $slot in $ansi-slots {
+  .inner-text .ansi-#{$slot}-fg {
+    color: var(--z-ansi-#{$slot});
+  }
+
+  .inner-text .ansi-#{$slot}-bg {
+    background-color: var(--z-ansi-#{$slot});
+  }
 }
 
 /* ===== Pandas DataFrame output ===== */
 
+// A printed DataFrame, with no palette of its own. It had ten tokens; every one of them was a name this
+// app already had, and `--z-df-bg: #ffffff` inside a --z-bg-cell-output box made the table a white card
+// on a tint. The table is the surface of the box it lands in now: no background and no colour anywhere
+// below, so it takes --z-bg-cell-output and --z-fg-editor from the box like every other output.
+//
+// `tabular-nums` is what lines the columns up, and it is the older half of the fix: the mono face on
+// `pre` above never reached a `<table>`, so a printed table of numbers was the one output in the app set
+// in a proportional font. Lining up is all that was ever wanted, and this does it without making the
+// column *names* monospace.
 table.dataframe {
   border-collapse: collapse;
   min-width: 40%;
-  background-color: var(--z-df-bg);
-  color: var(--z-df-fg);
-  font-size: var(--z-ui-font-size);
-  border: 1px solid var(--z-df-border);
-  border-radius: 8px;
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
   overflow: hidden;
+  font-variant-numeric: tabular-nums;
 }
 
+// On `thead` rather than on `th`: a row's index is a `<th>` too, so a rule per cell draws this line down
+// the side of the table as well as under the header.
 table.dataframe thead {
-  background-color: var(--z-df-header-bg);
-  color: var(--z-df-header-fg);
-  text-align: right;
+  border-bottom: 1px solid var(--z-border-strong);
+}
+
+table.dataframe th,
+table.dataframe td {
   padding: 4px 8px;
-  font-weight: bold;
-  border-bottom: 2px solid var(--z-df-header-rule);
+  border-right: 1px solid var(--z-border);
+  text-align: right;
+  white-space: nowrap;
 }
 
 table.dataframe th {
-  background-color: var(--z-df-header-bg);
-  color: var(--z-df-header-fg);
-  text-align: right;
-  padding: 4px 8px;
-  border-right: 1px solid var(--z-df-border);
-  font-weight: normal;
-  white-space: nowrap;
+  font-weight: 500;
 }
 
-table.dataframe tbody {
-  display: table-row-group;
-}
-
+// A border on every row, and no zebra. The stripes went with the tokens: stripes and a rule are two
+// answers to one question, and the stripes only existed because a white card needed its rows told apart.
 table.dataframe tbody tr {
-  border-bottom: 1px solid var(--z-df-border);
-  transition: background-color 0.2s ease-in-out;
-}
-
-table.dataframe tbody tr:nth-child(odd) {
-  background-color: var(--z-df-row-odd);
-}
-
-table.dataframe tbody tr:nth-child(even) {
-  background-color: var(--z-df-row-even);
+  border-bottom: 1px solid var(--z-border);
 }
 
 table.dataframe tbody tr:hover {
-  background-color: var(--z-df-row-hover);
-}
-
-table.dataframe td {
-  padding: 4px 8px;
-  text-align: right;
-  white-space: nowrap;
-  border-right: 1px solid var(--z-df-border);
+  background: var(--z-bg-row-selected);
 }
 
 /* ===== Rendered markdown ===== */
@@ -307,33 +340,26 @@ table.dataframe td {
   font-size: var(--z-font-size-body);
   line-height: var(--z-line-height-body);
 
+  // A table in prose, on the same rule the printed one above follows: it is the surface it sits on, and
+  // --z-border draws it. It steps down to --z-ui-font-size because a markdown cell is body text and a
+  // table in it is data; the header is bold rather than a filled band, which is one fewer surface than
+  // the `--z-df-header-bg` it used to paint.
   table {
     border-collapse: collapse;
     margin-bottom: 12px;
     font-size: var(--z-ui-font-size);
-    background-color: var(--z-df-bg);
-    color: var(--z-df-fg);
-    border: 1px solid var(--z-df-border);
+    border: 1px solid var(--z-border);
   }
 
   th,
   td {
     padding: 4px 8px;
-    border: 1px solid var(--z-df-border);
+    border: 1px solid var(--z-border);
   }
 
   th {
     text-align: left;
-    background-color: var(--z-df-header-bg);
-    color: var(--z-df-header-fg);
-  }
-
-  tbody tr:nth-child(odd) {
-    background-color: var(--z-df-row-odd);
-  }
-
-  tbody tr:nth-child(even) {
-    background-color: var(--z-df-row-even);
+    font-weight: 600;
   }
 }
 

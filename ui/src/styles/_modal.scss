@@ -1,38 +1,81 @@
-// The shared modal shell.
+// The shared modal shell: the fifth member of the overlay family in styles/_overlays.scss, which is
+// the same surface with a backdrop and a coloured header.
 //
-// Several components render this markup — KernelSwitch, HelpDialog, FileUpload and
-// UnsavedChangesDialog — so the rules live here rather than in any one of their
-// stylesheets. They used to sit in KernelSwitch.scss, which meant the others
-// only looked right as long as a notebook happened to be open and that
-// file had been imported.
+// Eight components render this markup — KernelSwitch, HelpDialog, FileUpload, UnsavedChangesDialog,
+// ConfirmDiscardDialog, ConfirmDeleteBranchDialog, ConfirmDeleteDialog and ConfirmShutdownDialog — so
+// the rules live here rather than in any one of their stylesheets. They used to sit in KernelSwitch.scss,
+// which meant the others only looked right as long as a notebook happened to be open and that file had
+// been imported.
+//
+// **This file now owns the shell outright, and Bootstrap's `modal` partial is gone from _bootstrap.scss.**
+// The class names are Bootstrap's and stay Bootstrap's, because eight components spell them; what changed
+// is that the four structural rules below are here instead of arriving from a dependency and being
+// half-overridden. That is also what fixes the stacking: a dialog was Bootstrap's `z-index: 1055`, which
+// put it *under* the palette's 9999 and under a toast's 9999, so a dialog opened from the palette
+// appeared behind it. It is --z-layer-dialog now, above both menus and the palette and below a toast.
+//
+// What the partial provided and is not missed: `.modal-header`, `.modal-title` and `.modal-footer`, none
+// of which the app renders — it has `.modal-head` and `.modal-actions` of its own; `.modal-backdrop`,
+// which the app never renders because `.modal` is its own backdrop; `.modal-sm`/`-lg`/`-xl`,
+// `.modal-fullscreen*` and `.modal-dialog-scrollable`, unused; and the `.fade`/`.show`/`.modal-static`
+// transforms, which need Bootstrap's JS to do anything and the app opens dialogs by rendering them.
 
+// The window-filling layer: the backdrop, and the scroll box a dialog taller than the viewport sits in.
+//
+// A press here deliberately does nothing. That is the overlay family's rule 5 — a dialog asked something,
+// so Cancel or Escape is the answer and a stray click is not one — and it is why Bootstrap's
+// `pointer-events: none` on `.modal-dialog` and `auto` on `.modal-content` did not come across with the
+// rest: that pair exists so a backdrop click can be told from a dialog click, and no dialog here listens.
+//
+// The other half of that rule is ide/overlays.ts. All eight dialogs take Escape from it now; three of
+// them took it from nowhere before, and one of the five that did have it was being swallowed.
 .modal {
-  // Bootstrap ships `.modal { display: none }` and expects its own JS to add
-  // `.show`. We open dialogs by conditionally rendering them instead, so the
-  // element only exists when it should be visible. The deleted template
-  // stylesheet carried this as `display: block !important`; losing it made all
-  // four dialogs render invisibly.
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-layer-dialog);
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  // Bootstrap shipped `.modal { display: none }` and expected its own JS to add `.show`. We open dialogs
+  // by conditionally rendering them, so the element only exists when it should be visible. The deleted
+  // template stylesheet carried this as `display: block !important`; losing it made every dialog render
+  // invisibly, which is the bug that put the declaration here.
   display: block;
   background: var(--z-overlay-backdrop);
+  outline: 0;
 }
 
+// Where the dialog sits in that layer, and how wide it is. `position: relative` is what
+// .modal-btn-close's `position: absolute` is measured against.
 .modal-dialog {
+  position: relative;
   max-width: 95%;
   margin: 1.75rem auto;
   width: 600px;
 }
 
+// A dialog short enough to centre, centred. The min-height is the layer less the two margins above.
+.modal-dialog-centered {
+  display: flex;
+  align-items: center;
+  min-height: calc(100% - 3.5rem);
+}
+
 // Sized by its content, capped at the viewport — no fixed height, which every dialog either
 // under- or overflows.
 .modal-content {
+  position: relative;
+  width: 100%;
   border: none;
   border-radius: 4px;
   max-height: 90vh;
   overflow: hidden; // so the header's rounded corners clip the scrolling body
   display: flex;
   flex-direction: column;
-  // Bootstrap defaults .modal-content to $white, so without this the dark theme
-  // rendered every dialog as a white box.
+  // Bootstrap defaulted .modal-content to $white, so without this the dark theme rendered every dialog
+  // as a white box. It is the only one of these declarations that predates the partial's removal.
   background-color: var(--z-bg-modal);
   color: var(--z-fg-default);
 }

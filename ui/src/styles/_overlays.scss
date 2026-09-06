@@ -1,0 +1,187 @@
+// One floating surface, and the things made out of it: the command palette, a row's context menu, the
+// branch menu, a toast. A dialog is the fifth and lives in _modal.scss, which is the same surface with a
+// backdrop and a header; a tooltip is the sixth and does not exist yet — 56 native `title=` attributes
+// stand in for it, and a tooltip is hover, focus, a delay and a dismissal in event handling rather than
+// a stylesheet.
+//
+// What this replaces is four implementations that shared nothing but the fact that they floated:
+//
+//   * `.palette` — a chrome-coloured panel with rows of its own at 26px in white ink, --z-shadow-medium,
+//     radius 2, `z-index: 9999`;
+//   * `.git-branch-menu` — a field over a list of rows, structurally the palette drawn a second time:
+//     12px rows, radius 5, a hand-written `0px 4px 8px var(--z-shadow-overlay)`, `z-index: 1000`;
+//   * `.context-menu` — the same again at `padding: 4px 12px`, radius 5, `z-index: 1000`;
+//   * a toast, which is react-toastify's own 17kB of CSS declaring 38 --toastify-* variables and reading
+//     none of the app's, so the surface every write reports through was white in all nine themes.
+//
+// Three radii, four shadows, three row heights and four z-indexes went into the rules below. How far off
+// the page a floating thing sits, and what floats over what, are properties of the family rather than
+// facts each component holds separately — which is the whole argument for this file existing.
+//
+// The stack is --z-layer-menu < --z-layer-palette < --z-layer-dialog < --z-layer-toast, in _tokens.scss,
+// where the numbers they replace are also listed. Nothing here should state a z-index that is not one of
+// those four or a calc() against one, and styles/layers.test.ts asserts that.
+//
+// How one of these goes away is ide/overlays.ts, which is the same argument in TypeScript: Escape and a
+// press outside were written eleven times between the palette, the menus and eight dialogs — three of
+// which had no Escape at all — and are written once there.
+
+// The surface. Everything that floats carries this class and adds a width, a position, or a header.
+.z-overlay {
+  background: var(--z-bg-overlay);
+  color: var(--z-fg-default);
+  border: 1px solid var(--z-border-divider);
+  border-radius: 6px;
+  box-shadow: var(--z-shadow-high);
+  // So the first and last row's fill stops at the corner. Rows are full-bleed rather than inset with a
+  // radius of their own, which is what lets a row in here be `.panel-row` unchanged: the surface is what
+  // shapes it, and a row that stops short of its own corners reads as a card.
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+// A row in an overlay is usually a <button>: the whole row is the target, so unlike a panel row it has
+// no `.panel-row-name` inside it to be the control — and a keyboard has to reach it. `.panel-row`
+// describes a row rather than a control, so the button's own chrome comes off here instead of in each of
+// the three components that do this. It is also the whole of the keyboard story the context menu used to
+// be missing: its items were `<div>`s, and Escape was the only key that did anything.
+// No `color` here, deliberately, and it is the one thing this rule got wrong first time round: a browser's
+// own `button { color: buttontext }` loses to any author rule, so `.panel-row`'s own colour already
+// applies — but `color: inherit` written here is (0,2,1) and beat `.panel-row.is-danger` at (0,2,0), which
+// drew Delete in the default ink. Caught in a browser and not by any of the four gates, because it is a
+// colour that is present and wrong rather than absent.
+.z-overlay button.panel-row {
+  width: 100%;
+  background: none;
+  border: none;
+  // The shorthand, then the size again: `font: inherit` resets the size `.panel-row` set.
+  font: inherit;
+  font-size: var(--z-ui-font-size);
+  text-align: left;
+  cursor: pointer;
+}
+
+// Hover in an overlay is the weaker of the two fills, and this is the only place in the app that
+// distinction is needed: a palette is the one surface where a pointer and the keyboard can be pointing
+// at different rows at the same time. Both were --z-bg-palette-hover before, so moving the mouse looked
+// like it had moved the selection — and pressing Enter then ran the row it had not moved to.
+//
+// These beat `.panel-row:hover` on specificity rather than on the order of two imports, which is why the
+// row block in _panel.scss had to come out of its `.navigation` nesting: nested, it was (0,3,0) and this
+// would have tied with it.
+.z-overlay .panel-row:hover {
+  background: var(--z-bg-menu-hover);
+}
+
+.z-overlay .panel-row.is-selected {
+  background: var(--z-bg-row-selected);
+}
+
+// The 4px above the first row and below the last, which belongs to the list rather than to the surface:
+// a palette's input is flush with the top edge, and a menu's first row is not.
+.z-overlay-list {
+  padding: 4px 0;
+  margin: 0;
+  list-style: none;
+}
+
+// A headed group of rows — `Commands` over `Files` in the palette. Sticky, because which section a row is
+// in is the first thing lost when a list is scrolled. Sized by `.z-label` at the call site, as
+// `.panel-section-head` is: the treatment is the app's 11px uppercase heading and is not restated here.
+//
+// `.palette-heading` was that treatment written again under another name, and `.palette-heading-count`
+// was `.panel-section-count` written again — both tabular figures, both `margin-left: auto`.
+.z-overlay-group {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 8px;
+  background: var(--z-bg-overlay);
+  color: var(--z-fg-subtle);
+}
+
+// The same count a panel section shows, under the same name — but `.panel-section-count`'s own rules are
+// nested under `.navigation` in _panel.scss and the palette hangs off the topbar, so the two properties
+// it would have given are stated here. The name is kept because it is the same thing, and un-nesting a
+// heading part that only ever appears at the top of a list would have moved it for one caller.
+.z-overlay-group .panel-section-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+// Between kinds of thing in a menu — what a row is, and what happens to it. One separator per menu at
+// most: a menu that needs two is a menu that should be shorter. Which is why no component asks for one —
+// a menu's items carry `danger`, and the separator falls out of the meaning rather than being placed.
+.z-overlay-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--z-border-subtle);
+}
+
+// A menu: opened at the pointer or under a button, a list of verbs. Wide enough that a label is not the
+// thing setting the width, and no wider. It never nests, so there is one layer and not a scale.
+.z-menu {
+  min-width: 168px;
+  z-index: var(--z-layer-menu);
+}
+
+// --- The toast ----------------------------------------------------------------
+//
+// react-toastify, re-themed rather than replaced: the library is what queues, times and animates a
+// toast, and none of that was ever the problem. What was the problem is that its 38 variables read none
+// of the app's, so the one surface every write in the app reports through was white in all nine themes,
+// 320px wide with a 64px minimum for one line of text, and set in `sans-serif`.
+//
+// Fourteen of the 38 are answered here and the rest are left alone, because the rest are for variants
+// the app never renders — `info`, `warning`, and the `dark` and `colored` themes. Overriding at :root
+// rather than under `.Toastify__toast`: that is the level the library declares them at, so this is one
+// block that wins on order instead of a rule per class that has to win on specificity. main.tsx imports
+// the library's stylesheet before this file for exactly that reason.
+:root {
+  --toastify-color-light: var(--z-bg-overlay);
+  --toastify-toast-background: var(--z-bg-overlay);
+  --toastify-text-color-light: var(--z-fg-default);
+  --toastify-font-family: var(--z-ui-font-family);
+  --toastify-toast-bd-radius: 6px;
+  --toastify-z-index: var(--z-layer-toast);
+  // A sentence — "Committed 2 files", "Kernel not found" — in a box two lines tall is most of why the
+  // app's toasts looked borrowed. 34px is the row plus its padding.
+  --toastify-toast-min-height: 34px;
+  // The progress bar, which is the only thing saying the box will go on its own. Its default is a
+  // six-stop rainbow gradient; ours is the strong border, and red only where something failed.
+  --toastify-color-progress-light: var(--z-border-strong);
+  --toastify-color-progress-error: var(--z-status-error);
+  --toastify-color-progress-success: var(--z-border-strong);
+  --toastify-icon-color-error: var(--z-status-error);
+  --toastify-icon-color-success: var(--z-status-idle);
+  --toastify-color-error: var(--z-status-error);
+  --toastify-color-success: var(--z-status-idle);
+  --toastify-spinner-color: var(--z-fg-muted);
+  --toastify-spinner-color-empty-area: var(--z-border);
+}
+
+// The four things the variables cannot say. The library's own box is `padding: 8px`, a 1rem gap between
+// toasts, a 5px progress bar and no border at all — a shadow alone, which is invisible against a dark
+// theme's editor.
+.Toastify__toast {
+  padding: 6px 4px 6px 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--z-border-divider);
+  box-shadow: var(--z-shadow-high);
+  font-size: var(--z-ui-font-size);
+}
+
+// 2px, because a 34px toast with a 5px bar along the bottom of it has two surfaces in it.
+.Toastify__progress-bar--wrp {
+  height: 2px;
+}
+
+// The close cross, which the library draws in `#000` at `opacity: 0.3` on the assumption the toast is
+// white. It is the app's ink at the app's icon-button weight instead.
+.Toastify__close-button--light {
+  color: var(--z-fg-muted);
+  opacity: 0.65;
+}

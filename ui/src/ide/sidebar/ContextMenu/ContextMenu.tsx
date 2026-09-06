@@ -1,9 +1,16 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 import './ContextMenu.scss';
 
 interface MenuItem {
   label: string;
   action: (path: string) => void;
+  /**
+   * This item throws something away. It is drawn in red and separated from the rest, and the menu
+   * derives the separator from it rather than taking one as an item: a menu that needs two separators
+   * is a menu that should be shorter, and this way it cannot have two.
+   */
+  danger?: boolean;
 }
 
 interface ContextMenuProps {
@@ -33,40 +40,37 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
     });
   }, [xPos, yPos]);
 
-  useEffect(() => {
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    // A press anywhere else closes it. This is also what closes it when another row is right-clicked:
-    // mousedown arrives before contextmenu, so the old menu is gone before the new one opens.
-    const dismissOnPressOutside = (event: MouseEvent) => {
-      if (menu.current !== null && !menu.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', dismiss);
-    window.addEventListener('mousedown', dismissOnPressOutside);
-    return () => {
-      window.removeEventListener('keydown', dismiss);
-      window.removeEventListener('mousedown', dismissOnPressOutside);
-    };
-  }, [onClose]);
+  // A menu is not a question, so both halves of the family's dismissal rule apply to it.
+  useDismissOnEscape(onClose);
+  useDismissOnPressOutside(menu, onClose);
 
   const handleClick = (action: MenuItem['action']) => {
     action(path);
     onClose();
   };
 
+  // Where the red rows start, which is where the one separator goes.
+  const firstDanger = items.findIndex((item) => item.danger === true);
+
   return (
-    <div className="context-menu" role="menu" ref={menu} style={position}>
-      {items.map((item, index) => (
-        <div key={index} className="context-menu-item" onClick={() => handleClick(item.action)}>
-          {item.label}
-        </div>
-      ))}
+    <div className="z-overlay z-menu context-menu" role="menu" ref={menu} style={position}>
+      <div className="z-overlay-list">
+        {items.map((item, index) => (
+          <React.Fragment key={index}>
+            {index === firstDanger && index > 0 && (
+              <div className="z-overlay-separator" role="separator" />
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              className={item.danger === true ? 'panel-row is-danger' : 'panel-row'}
+              onClick={() => handleClick(item.action)}
+            >
+              {item.label}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   );
 };

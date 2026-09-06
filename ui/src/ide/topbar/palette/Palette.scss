@@ -1,156 +1,53 @@
-// The floating palette widget: a search box over a keyboard-navigable list.
+// The open command palette, which is also the search box: one field over two headed sections of rows.
 //
-// Class names are `palette-*` rather than `command-*` because the list holds both
-// commands and files, in two headed sections — the shape belongs to neither kind.
+// It is `.z-overlay` in styles/_overlays.scss, its groups are `.z-overlay-group` and its rows are
+// `.panel-row`, so what is left here is where it hangs and how tall its list gets.
 //
-// One exception to that: `.palette-input` is styled in Topbar.scss, alongside the
-// .openCommandPaletteButton it stands exactly on top of. Two sets of declarations for one
-// box drift apart, and the drift shows as the field changing appearance when the palette
-// opens. Only the input's placement is described here.
+// Class names are `palette-*` rather than `command-*` because the list holds both commands and files —
+// the shape belongs to neither kind. `.palette-input` is styled in Topbar.scss, alongside the
+// .openCommandPaletteButton it stands exactly on top of: two sets of declarations for one box drift
+// apart, and the drift shows as the field changing appearance the moment the palette opens.
+//
+// What went, and it is most of the file: `background: var(--z-bg-palette)`, --z-shadow-medium,
+// `border-radius: 2px`, `z-index: 9999` and the `overflow: hidden` that clipped the last row — the
+// surface says all five once, for four components. `.palette-heading` and `.palette-heading-count`, which
+// were `.z-overlay-group` and `.panel-section-count` written again under other names. `.palette-group`,
+// which was `list-style: none` and no margin, i.e. `.z-overlay-list`. `.palette-item` at 26px with a rule
+// under every row, its `:hover`, its `.selected` — the same colour as the hover, which is the bug — and
+// its `.disabled`. And the three classes a palette row invented: `.commandName` at a fixed 220px,
+// `.commandDescription`, and `.commandKeys`, which is `.panel-row-keys`.
+//
+// The one thing that changed rather than moved is what the rows sit on. The palette used to be a
+// chrome-coloured panel, so its rows were white ink on the topbar's colour; now the field keeps the chrome
+// it had as a button and the list below it is `--z-bg-overlay`, which makes the panel a header over rows
+// rather than a box that appears somewhere else. It also ends the reason --z-bg-palette-hover existed: a
+// panel hover fill on a chrome row turned it near-white in the light themes while its text stayed white.
 
-// Anchored to .searchArea, which Topbar.scss makes the containing block, rather
-// than centred on the window: the palette is the box .openCommandPaletteButton
-// occupies, and it covers that button instead of standing beside it. No padding of
-// its own, so the input inside it lands on the button's footprint.
+// Anchored to .searchArea, which Topbar.scss makes the containing block, rather than centred on the
+// window: the palette is the box .openCommandPaletteButton occupies, and it covers that button instead of
+// standing beside it. No padding of its own, so the input inside it lands on the button's footprint.
 .palette {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   max-height: 400px;
-  background-color: var(--z-bg-palette);
-  box-shadow: var(--z-shadow-medium);
-  border-radius: 2px;
-  z-index: 9999;
-  // Clips the last row's hover fill to the rounded corners.
-  overflow: hidden;
-  box-sizing: border-box;
+  z-index: var(--z-layer-palette);
 }
 
-// One scroll box over both sections rather than one each: two panes that scroll
-// independently would give each of them about four visible rows.
+// One scroll box over both sections rather than one each: two panes that scroll independently would give
+// each of them about four visible rows.
 //
-// Tall enough for both sections at full stretch — 12 rows of 26px under two 20px
-// headings, the most the cap in Palette.tsx allows — because a Files heading that
-// only exists below the fold is the merge not working. Commands-only mode is
-// uncapped and does scroll.
+// Tall enough for both sections at full stretch — 12 rows of 22px under two 20px headings, the most the
+// cap in Palette.tsx allows — because a Files heading that only exists below the fold is the merge not
+// working. Commands-only mode is uncapped and does scroll.
 .palette-list {
   max-height: 360px;
   overflow-y: auto;
 }
 
-// The gap between input and list belongs to the list, not the input: with nothing
-// to show, the panel is then exactly the button it covers rather than 4px taller.
+// The gap between input and list belongs to the list, not the input: with nothing to show, the panel is
+// then exactly the button it covers rather than 4px taller.
 .palette-list:not(:empty) {
   margin-top: 4px;
-}
-
-.palette-group {
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-// What tells a command row from a file row. Sticky, because the section a row is in
-// is the thing the eye loses first when the list is scrolled.
-.palette-heading {
-  position: sticky;
-  top: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 20px;
-  padding: 0 8px;
-  background-color: var(--z-bg-palette);
-  color: var(--z-fg-on-chrome);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-// `6 of 31`, shown only when the cap has bitten: a section that is dropping matches
-// says so, rather than looking like the whole answer.
-.palette-heading-count {
-  margin-left: auto;
-  text-transform: none;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-// The palette floats over the topbar and shares its background, so its rows are
-// chrome. They used to inherit --z-fg-default from <body>, which put #393939 text
-// on the purple palette at 1.6:1.
-.palette-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  height: 26px;
-  padding: 0 8px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--z-border);
-  font-size: var(--z-ui-font-size);
-  color: var(--z-fg-on-chrome);
-}
-
-// The palette is only as wide as the search box, so the last row's rule would
-// otherwise sit on the panel's bottom edge.
-.palette-item:last-child {
-  border-bottom: none;
-}
-
-// Hovering used to swap in --z-bg-menu-hover, a *panel* colour: in the light
-// theme that turned the row near-white while the text stayed white. The palette
-// gets its own hover surface so the row keeps its chrome contrast.
-.palette-item:hover,
-.palette-item.selected {
-  background-color: var(--z-bg-palette-hover);
-}
-
-// Secondary text (the keyboard shortcut). Kept on the chrome colour and set apart
-// by size rather than by --z-fg-muted, which is also panel-relative.
-.palette-item small {
-  font-size: 12px;
-}
-
-// A command the registry reports as unavailable — no kernel, nothing on the clipboard. Listed
-// rather than hidden, because a greyed row explains itself and a missing one does not.
-.palette-item.disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.palette-item.disabled:hover {
-  background-color: transparent;
-}
-
-// A row's two columns: name plus a secondary line — the command's description, or
-// the file's path. Both ellipsise rather than overflow, because the palette is now
-// only as wide as the search box.
-.commandName {
-  flex: 0 0 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.commandDescription {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  opacity: 0.85;
-}
-
-// The keybinding, right-aligned against the panel edge. `flex: 0 0 auto` and no min-width: a row
-// with no binding gives its space back to the description rather than leaving a gap.
-.commandKeys {
-  flex: 0 0 auto;
-  margin-left: auto;
-  white-space: nowrap;
-  font-size: 12px;
-  opacity: 0.85;
-  font-variant-numeric: tabular-nums;
 }

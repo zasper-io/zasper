@@ -158,7 +158,8 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
           </button>
         </div>
         {error !== '' && (
-          <div className="panel-error" role="alert">
+          <div className="z-notice z-notice-error" role="alert">
+            <Icon name="circle-alert" size={14} />
             <p>{error}</p>
             <button
               type="button"

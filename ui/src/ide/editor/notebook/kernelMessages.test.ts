@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyKernelMessage, carriesOutput, removeAnsiCodes } from './kernelMessages';
+import { applyKernelMessage, carriesOutput } from './kernelMessages';
 import { INotebookModel } from '@/api';
 
 function notebookWith(cellId: string): INotebookModel {
@@ -30,12 +30,6 @@ function message(msgType: string, content: unknown) {
   };
 }
 
-describe('removeAnsiCodes', () => {
-  it('strips SGR colour escapes', () => {
-    expect(removeAnsiCodes('\x1b[31mred\x1b[0m')).toBe('red');
-  });
-});
-
 describe('applyKernelMessage', () => {
   it('records the execution count of the requesting cell', () => {
     const updated = applyKernelMessage(
@@ -46,13 +40,18 @@ describe('applyKernelMessage', () => {
     expect(updated.cells[0].execution_count).toBe(7);
   });
 
-  it('appends stdout streams with ansi codes removed', () => {
+  // The escapes are the kernel's, and they are kept: they used to be stripped here, which threw away
+  // the colour of a test run and wrote the stripped text into the .ipynb. CellOutput.tsx turns them
+  // into `.ansi-*` classes that the theme can reach.
+  it('appends stdout streams as the kernel sent them, escapes and all', () => {
     const updated = applyKernelMessage(
       notebookWith('cell-1'),
       message('stream', { name: 'stdout', text: '\x1b[32mhello\x1b[0m' }),
       'cell-1'
     );
-    expect(updated.cells[0].outputs).toEqual([{ text: 'hello', output_type: 'stream' }]);
+    expect(updated.cells[0].outputs).toEqual([
+      { text: '\x1b[32mhello\x1b[0m', output_type: 'stream' },
+    ]);
   });
 
   it('ignores stderr streams', () => {

@@ -74,97 +74,51 @@
   font-variant-numeric: tabular-nums;
 }
 
+// The branch menu is `.z-overlay.z-menu` in styles/_overlays.scss and its rows are `.panel-row`, so what
+// is left here is where it hangs and how wide it is.
+//
+// What went: `background: var(--z-bg-menu)`, the hairline, `border-radius: 5px`, a hand-written
+// `0px 4px 8px var(--z-shadow-overlay)` and `z-index: 1000`; `.git-branch-row`, which was a flex row with
+// a hover fill, i.e. a row; `.git-branch-option`, a 12px `--z-fg-menu-item` button that is
+// `.panel-row-name`; `.git-branch-option-name`, which is `.panel-row-label`; `.git-branch-remote`, which
+// is `.panel-row-meta`; and `.git-branch-delete`, whose comment already said it was `.panel-row-action`.
+//
+// `.git-branch-empty` went earlier, and for the same kind of reason: it is a `.z-note`
+// (styles/_states.scss), the same sentence this panel writes in three other places.
 .git-branch-menu {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 1000;
   min-width: 220px;
   // Wider than the sidebar when the sidebar is narrow, which is the point: a branch called
   // release/2026-01-candidate is unreadable clipped to 180px.
   max-width: 320px;
-  padding: 8px;
-  background: var(--z-bg-menu);
-  color: var(--z-fg-default);
-  border: 1px solid var(--z-border-divider);
-  border-radius: 5px;
-  box-shadow: 0px 4px 8px var(--z-shadow-overlay);
 }
 
+// The field and the error band are inset; the rows below them are not. The 8px used to be padding on the
+// menu, which inset the rows too — and a row whose fill stops short of the surface it is on reads as a
+// card rather than as a row.
 .git-branch-filter {
-  width: 100%;
-  margin-bottom: 4px;
+  width: calc(100% - 16px);
+  margin: 8px 8px 4px;
 }
 
+.git-branch-menu .z-notice {
+  margin: 0 8px 4px;
+}
+
+// Scrolls at about twelve rows. A repository with sixty branches is the case this is for, and the filter
+// above it is the answer to sixty.
 .git-branch-list {
   max-height: 280px;
   overflow-y: auto;
-  margin: 0;
 }
 
-.git-branch-row {
-  display: flex;
-  align-items: center;
-
-  &:hover {
-    background-color: var(--z-bg-menu-hover);
-  }
-}
-
-.git-branch-option {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  border: none;
-  background: transparent;
-  color: var(--z-fg-menu-item);
-  font-size: 12px;
-  text-align: left;
-
-  // The branch that is already checked out: shown with a tick and not offered, since switching to it
-  // does nothing.
-  &.is-current {
-    color: var(--z-fg-default);
-    cursor: default;
-  }
-}
-
-.git-branch-option-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.git-branch-remote {
-  flex: 0 0 auto;
-  font-size: 10px;
-  color: var(--z-fg-subtle);
-}
-
-// Dimmed rather than revealed on hover, as .panel-row-action is: a hidden button is one a keyboard
-// user can tab to and not see, and one the row's width jumps for.
-.git-branch-delete {
-  opacity: 0.65;
-
-  &:hover:not(:disabled) {
-    opacity: 1;
-    color: var(--z-fg-accent);
-  }
-
-  &:disabled {
-    opacity: 0.3;
-  }
-}
-
-.git-branch-empty {
-  padding: 4px 6px;
-  color: var(--z-fg-muted);
-  font-size: 12px;
+// The branch already checked out is `disabled` and carries a tick instead of a git-branch glyph, which is
+// what says it is the answer rather than an option. It used to be the one row in --z-fg-default among
+// rows in --z-fg-menu-item; now every row is --z-fg-default, and all it needs is the cursor.
+.git-branch-menu .panel-row-name:disabled {
+  cursor: default;
 }
 
 // The message and the two ways to use it. Its left edge is .panel-section-body's, so the box lines
@@ -241,13 +195,9 @@
 // `.z-field` in styles/_controls.scss. Both of them keep the one thing that was theirs — the room
 // below them — beside where each is used.
 
-// "Loading…", "No history.", and why a read failed: one line, quiet, where a row would be.
-.git-history-note {
-  margin: 0;
-  padding: 2px 0;
-  color: var(--z-fg-muted);
-  font-size: var(--z-ui-font-size);
-}
+// `.git-history-note` was here, and `.commit-detail-note` below it at 11px: "Loading…", "No history.",
+// "No files changed." Both are `.z-note` now (styles/_states.scss) — one shape, at the row height, and
+// the indent comes from `.panel-section-body` as a row's does.
 
 // A row of the history. Two lines rather than one, which is what makes room for the hash and the date
 // the old list had nowhere to put: the panel is 240px wide by default and a subject fills it.
@@ -324,12 +274,6 @@
   padding: 2px 0 6px 12px;
   border-left: 2px solid var(--z-border-divider);
   margin-left: 2px;
-}
-
-.commit-detail-note {
-  margin: 0;
-  color: var(--z-fg-muted);
-  font-size: 11px;
 }
 
 // The rest of the message, kept as it was written: a body is wrapped by hand and often a list.

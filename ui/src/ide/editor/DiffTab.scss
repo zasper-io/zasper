@@ -28,21 +28,10 @@
   color: inherit;
 }
 
-// What the comparison leaves out, or why there is nothing in it. Above the diff rather than over it:
-// these are things to read once, not to dismiss.
-.diff-note {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 4px 12px;
-  border-bottom: 1px solid var(--z-border-breadcrumb);
-  background: var(--z-bg-notice);
-  color: var(--z-fg-muted);
-  font-size: var(--z-ui-font-size);
-}
-
-.diff-error {
-  color: var(--z-status-error);
-}
+// `.diff-note` and `.diff-error` were here — what the comparison leaves out, or why there is nothing in
+// it. They were already the band shape, so they are `.z-notice` and `.z-notice-error`
+// (styles/_states.scss) with nothing left over. Above the diff rather than over it, because these are
+// things to read once and not to dismiss.
 
 // No padding-bottom of the .editor-body2 kind: a MergeView is two editors that scroll together, and
 // 500px of empty space under them is 500px of nothing to scroll past, twice.

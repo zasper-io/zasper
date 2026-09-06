@@ -110,7 +110,7 @@ async function runFromPalette(page: Page, query: string): Promise<void> {
 
   await input.fill(`>${query}`);
   // One match, so what Enter runs is not a matter of ordering.
-  await expect(page.locator('.palette-item')).toHaveCount(1);
+  await expect(page.locator('.palette-list .panel-row')).toHaveCount(1);
   await input.press('Enter');
   await expect(input).toHaveCount(0);
 }

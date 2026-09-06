@@ -63,7 +63,15 @@ $utilities: $zasper-utilities;
 @import 'bootstrap/scss/nav'; // .nav, .nav-item, .nav-link, .tab-content
 @import 'bootstrap/scss/navbar'; // .navbar, .navbar-brand
 @import 'bootstrap/scss/breadcrumb'; // .breadcrumb, .breadcrumb-item
-@import 'bootstrap/scss/modal'; // .modal, .modal-body, .modal-dialog-centered
+
+// `modal` was here, and is the sixth partial dropped. Unlike the five above, its class names *are* in
+// src — eight dialogs spell `.modal`, `.modal-dialog`, `.modal-dialog-centered`, `.modal-content` and
+// `.modal-body` — so this one is not a census result: styles/_modal.scss now declares those five rules
+// itself and the markup did not change. What made it worth doing anyway is that the partial's own
+// `z-index: 1055` put every dialog *under* the palette and under a toast, and the app cannot fix that
+// from outside without restating the rule regardless. The parts of the partial nothing rendered —
+// `.modal-header`, `.modal-title`, `.modal-footer`, `.modal-backdrop`, the three width variants,
+// `.modal-fullscreen*`, `.modal-dialog-scrollable` and the `.fade`/`.show` transforms — went with it.
 
 // Generates the utility classes (.mt-auto, .mx-auto, …). Must come last so the utilities win
 // over component rules, as upstream expects — which is why 'display' is not in the map above:

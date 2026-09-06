@@ -48,7 +48,11 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: IFileItemP
     { label: 'Duplicate', action: () => copyTo(scope, parentDir) },
     { label: 'Copy Path', action: () => copyPath(scope) },
     { label: 'Download', action: () => download(scope) },
-    { label: scope.length > 1 ? `Delete ${scope.length} Items` : 'Delete', action: remove.ask },
+    {
+      label: scope.length > 1 ? `Delete ${scope.length} Items` : 'Delete',
+      action: remove.ask,
+      danger: true,
+    },
   ];
 
   const handleRightClick = (e: React.MouseEvent) => {

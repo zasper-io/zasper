@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import 'react-toastify/dist/ReactToastify.css';
 import './NotebookEditor.scss';
 
 import { logApiError, saveNotebook } from '@/api';
+import { Icon } from '@/ide/icons';
 import { IfileTab } from '@/store/TabState';
 import { useUnsavedChanges } from '@/store/UnsavedState';
 import BreadCrumb from '../BreadCrumb';
@@ -182,9 +182,15 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           {/* The cells are not offered for editing once a read failed: they would be the empty
               starting state rather than the file. */}
           {cells.error !== '' ? (
-            <div className="notebookLoadError" role="alert">
-              <strong>This notebook could not be loaded.</strong>
-              <p>{cells.error}</p>
+            // The band, at the top of the pane, rather than the bordered box in the middle of it this
+            // used to be. No `.z-notice-action`: the answer to an unreadable notebook is to open it as
+            // text, and nothing in the app can do that yet — a band with a button that does nothing is
+            // worse than a band without one.
+            <div className="z-notice z-notice-error" role="alert">
+              <Icon name="circle-alert" size={14} />
+              <p>
+                <strong>This notebook could not be loaded.</strong> {cells.error}
+              </p>
             </div>
           ) : (
             <NotebookCells
