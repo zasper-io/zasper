@@ -146,7 +146,7 @@ const DirectoryItem = ({
         />
       )}
       {isExpanded(path) && (
-        <ul className="file-list list-unstyled" role="group">
+        <ul className="file-list z-list-plain" role="group">
           {children.map((child) =>
             child.type === 'directory' ? (
               <DirectoryItem

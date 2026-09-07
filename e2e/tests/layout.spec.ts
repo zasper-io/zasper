@@ -364,3 +364,74 @@ test('the help dialog says which section it is showing', async ({ page }) => {
   expect(await fill(support), 'the fill did not follow the selection').toBe(selected);
   expect(await fill(general), 'the section left behind is still filled').toBe(unselected);
 });
+
+/**
+ * A rendered markdown cell is set in the app's own scale.
+ *
+ * The last thing Bootstrap was doing in this application, and the least visible: a markdown cell is the
+ * one piece of prose whose tags carry no class — react-markdown emits bare `<h1>`, `<p>`, `<ul>` — so
+ * `reboot` and `type` were its stylesheet. A `#` heading was drawn at 40px in a cell whose body text is
+ * 14, from `calc(1.375rem + 1.5vw)`, which is a heading that resizes with the *window*.
+ *
+ * Replacing that is three rules in NotebookEditor.scss reading three tokens, and the reason this is a
+ * browser test is the way the replacement failed first time round: the tokens did not exist yet, `h1`
+ * fell back to the inherited 14px, and nothing anywhere said so — an undefined custom property is not a
+ * broken build, a type error or a failed unit test. It is one screen where every heading is body text.
+ *
+ * So both halves are asserted: the heading *is* the title step, and it is *not* the body size.
+ */
+test("a rendered markdown cell is set in the app's own scale", async ({ page }) => {
+  await openApp(page);
+  await openNotebook(page);
+
+  // A markdown cell shows its source while the keyboard is in it, and the first cell of the fixture
+  // is the markdown one, so the notebook opens on the editor rather than the prose. Focusing the code
+  // cell below is what renders it.
+  await page.locator('.single-line').nth(1).locator('.cm-content').click();
+
+  const markdown = page.locator('.zasper-markdown').first();
+  await expect(markdown).toBeVisible();
+
+  // A token resolved through the page, so the assertion names the step rather than a pixel value that
+  // this file would then own a second copy of.
+  const step = (token: string) =>
+    markdown.evaluate((el, name) => {
+      const probe = document.createElement('span');
+      probe.style.fontSize = `var(${name})`;
+      el.append(probe);
+      const size = getComputedStyle(probe).fontSize;
+      probe.remove();
+      return size;
+    }, token);
+
+  const title = await step('--z-font-size-title');
+  const body = await step('--z-font-size-body');
+
+  const heading = await markdown
+    .locator('h1')
+    .first()
+    .evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { fontSize: style.fontSize, marginTop: style.marginTop };
+    });
+
+  expect(heading.fontSize, 'the heading is not the title step').toBe(title);
+  expect(heading.fontSize, 'the heading is body text, so a token it reads is undefined').not.toBe(
+    body
+  );
+  // The cell's own padding is the gap above it; `> :first-child` is what says so.
+  expect(heading.marginTop, 'the first block in the cell is pushed down by a margin').toBe('0px');
+
+  const paragraph = await markdown
+    .locator('p')
+    .first()
+    .evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { fontSize: style.fontSize, marginTop: style.marginTop };
+    });
+
+  expect(paragraph.fontSize, 'prose in a cell is not the body size').toBe(body);
+  // A browser's own paragraph margin is 1em top *and* bottom. The app spaces prose downwards only,
+  // which is what Bootstrap did here and the one part of it worth keeping.
+  expect(paragraph.marginTop, 'the paragraph carries the browser default margin').toBe('0px');
+});

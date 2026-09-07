@@ -12,11 +12,13 @@
 
 // A flex row (icon rail + panel column) whose panel column is a flex column, so the scrolling
 // body below gets its height from the shell instead of computing one.
+// No shadow and no radius: they were `--z-shadow-panel` and 2px here, and this is a docked surface —
+// full height, flush against the rail on one side and the resize handle on the other, so the only thing
+// a shadow could fall on is the seam that already separates them. The drawing spends a shadow on the
+// shell, on the overlays and on the login card, and on nothing that is part of the window's own frame.
 .navigation {
   height: 100%;
   display: flex;
-  box-shadow: var(--z-shadow-panel);
-  border-radius: 2px;
   width: 100%;
   background-color: var(--z-bg-panel);
 
@@ -168,9 +170,14 @@
     // Sized by `.z-label` at the call sites, not by the content steps: this is chrome, and the
     // panel it names is 240px wide. It shares the panel title strip's treatment for the same
     // reason VS Code's do — the two never appear at the same depth, so position tells them apart.
+    // The 12px under the text was 4px of padding plus the 8px bottom margin Bootstrap's reboot gave
+    // every <h2> — so the gap this heading needs was two thirds someone else's default, and `.z-label`
+    // is the one step in the scale with no `margin: 0` of its own. All of it is padding now: a browser's
+    // own h2 margin is 0.83em top *and* bottom, which put 9px above a heading that sets its own 12px.
     .panel-section-head {
       flex: 0 0 auto;
-      padding: 12px 16px 4px;
+      margin: 0;
+      padding: 12px 16px;
       color: var(--z-fg-muted);
     }
 

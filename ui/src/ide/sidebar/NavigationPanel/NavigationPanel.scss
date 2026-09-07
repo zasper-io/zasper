@@ -26,6 +26,11 @@
   justify-content: center;
 }
 
+// The help button, at the bottom of the rail with everything else at the top.
+.navButton-last {
+  margin-top: auto;
+}
+
 // The 4px marker is inside the 44px width, so an active button does not shift its icon.
 // (4px border + 18px icon + 4px padding leaves 18px, so the icon still lands on 13px.)
 .navButton.active {

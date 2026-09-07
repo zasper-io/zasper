@@ -1,0 +1,151 @@
+// The reset, which was Bootstrap's `reboot`, `root` and `type` until this file replaced them — the
+// last three partials, and the end of Bootstrap in this app.
+//
+// It is much shorter than they were, and the reason is a census rather than taste: what a browser
+// needs told is only what the app actually renders. In `src/**/*.tsx` that is 85 `<button>`s, 49
+// `<p>`s, 22 `<li>`s, 13 `<ul>`s, 11 `<strong>`s, 10 `<input>`s, 9 `<img>`s, 8 headings, 6 `<label>`s,
+// 6 `<pre>`s, 3 `<select>`s, one `<textarea>`, one `<progress>` and one `<ol>` — no `<table>`,
+// `<dl>`, `<fieldset>`, `<abbr>`, `<blockquote>`, `<small>`, `<sub>`, `<sup>`, `<mark>`, `<details>`,
+// `<iframe>`, `<output>` or `<hr>` anywhere. Two of the absent ones still arrive at runtime, in HTML
+// the app did not write — a printed DataFrame is a `<table>` and a markdown cell can be anything — and
+// those are the two that get a rule below.
+//
+// Not carried over, each for a reason:
+//
+// - **`root`'s 180 `--bs-*` custom properties.** They were read by `reboot` and by the partials above
+//   it and by nothing else: no `--bs-` name appears anywhere in `src` except in two comments
+//   explaining a colour that had to be undone. The app's tokens are `_tokens.scss`.
+// - **The heading scale.** Every `<h1>`–`<h6>` in `src` carries `.z-title`, `.z-heading`,
+//   `.z-subheading` or `.z-label`, and the first three name their own size, weight, line height and
+//   margin. The only headings with no class of their own are inside a rendered markdown cell, which is
+//   prose and now has a scale of its own in `notebook/NotebookEditor.scss`. Bootstrap's answer there
+//   was `calc(1.375rem + 1.5vw)` — a heading that resizes with the *window* — capped at 40px, which is
+//   not a size anything in this app is drawn at.
+// - **Prose spacing.** `p`, `ul`, `ol`, `pre` and the headings all carried a bottom margin in `rem`,
+//   which put Bootstrap's idea of a paragraph gap under text in a 22px sidebar row. Spacing belongs to
+//   the surface: the four places in the app that are prose say it themselves now.
+// - **`.lead`, `.display-1`…`.display-6`, `.blockquote*`, `.initialism`, `.list-inline*`, `.mark`,
+//   `.small`, `.h1`–`.h6`** — not one of them appears in any `className` in `src`.
+// - **`.list-unstyled` and `.mt-auto`**, the last two Bootstrap classes the markup used. They are
+//   `.z-list-plain` in `_base.scss` and one `margin-top: auto` in `NavigationPanel.scss` now.
+// - **`-webkit-text-size-adjust` and `-webkit-tap-highlight-color` on `<body>`.** Both are
+//   mobile-browser behaviour; the app ships as a desktop shell around one engine.
+// - **`scroll-behavior: smooth`.** It was Bootstrap's, under `prefers-reduced-motion`, on a document
+//   that cannot scroll because `.editor` is `100vh`.
+// - The date input internals, `::file-selector-button`, `[list]`, the RTL raw blocks,
+//   `fieldset`, `legend`, `caption`, `address`, `abbr[title]`, `sub`/`sup`, `dl`/`dt`/`dd`,
+//   `blockquote`, `figure`, `hr`, `iframe`, `output`, `summary` and `small`: nothing renders them.
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+// The one rule here the app could least afford to lose. A form control does not inherit type from the
+// page — every browser draws it in its own system font at about 13.3px — so without this the 85
+// buttons, the ten inputs, the three selects and the commit box would each be the operating system's
+// idea of a control in an app whose whole chrome is Inter at 13px.
+button,
+input,
+optgroup,
+select,
+textarea {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button,
+select {
+  text-transform: none;
+}
+
+// A `<button>` is drawn by the platform until something says otherwise, and this is what "otherwise"
+// means for a control the app draws itself: no capsule, and a pointer on anything that can still be
+// pressed.
+//
+// Bootstrap's version of the second rule listed `[type='button']`, `[type='reset']` and
+// `[type='submit']` beside `button`, and its `-webkit-appearance: button` rule listed all four again.
+// Both lists are for `<input type="button">`, which the app never renders — every one of its 85
+// buttons is a `<button>`, and an attribute selector would have matched those anyway.
+//
+// Dropping that rule does change one computed value: `appearance` reads `auto` on the 497 buttons on
+// screen where it read `button`. It is the same widget — `auto` on a `<button>` *is* the button
+// appearance — and the census that measured the change found no button whose box moved by a pixel.
+button {
+  border-radius: 0;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+// Chromium rings a button on a mouse click as well as on a keyboard focus. `:focus-visible` is the
+// distinction every state in `_states.scss` is written against, so the other ring goes.
+button:focus:not(:focus-visible) {
+  outline: 0;
+}
+
+::-moz-focus-inner {
+  padding: 0;
+  border-style: none;
+}
+
+// The file tree's filter is the app's one `[type='search']`, and the reason this rule is not "nothing
+// renders it": left to itself Chromium draws a clear cross of its own inside a search field as soon as it
+// has text — a second control, in the platform's grey, in a 24px box the app draws in its own colours and
+// has measured at that size since the toolbar was designed. `textfield` is what turns it off, and it is
+// all Bootstrap's rule was for. Its `outline-offset: -2px` is deliberately not carried: the focus ring is
+// kept on purpose here (see `.z-field:focus` in _controls.scss) and it sits outside every other field.
+[type='search'] {
+  appearance: textfield;
+}
+
+// The commit box is the only `<textarea>` in the app, and a horizontal drag on it would widen a panel
+// that is resized from its own edge.
+textarea {
+  resize: vertical;
+}
+
+// Three bare `<label>`s — two in the upload row, one on /login. The rest carry `.z-form-label`, which
+// is `display: block` on purpose.
+label {
+  display: inline-block;
+}
+
+// No `<table>` is written in `src`; both kinds arrive at runtime, from a library's HTML output or a
+// markdown cell, and neither can be given a class. `border-collapse` is here because a table with
+// borders is unreadable without it, and `th` because the UA centres it while every table in this app
+// is read down its first column. What the two are actually *drawn* like is
+// `notebook/NotebookEditor.scss`, beside the DataFrame rules.
+table {
+  border-collapse: collapse;
+}
+
+th {
+  text-align: inherit;
+}
+
+// A kernel logo and an icon both sit on a line of text. `.z-icon` in `_base.scss` then nudges the icon
+// to -3px, because text has a baseline and a glyph drawn to a box does not.
+img,
+svg {
+  vertical-align: middle;
+}
+
+// The upload row's bar.
+progress {
+  vertical-align: baseline;
+}
+
+// The UA already hides `[hidden]`, but any `display` in a stylesheet beats it — which is the whole
+// reason this declaration exists upstream.
+[hidden] {
+  display: none !important;
+}

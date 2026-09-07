@@ -45,9 +45,11 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
         </button>
       ))}
 
-      {/* Help icon button */}
+      {/* Help icon button. `.navButton-last` is what pushes it to the bottom of the rail — it was
+          Bootstrap's `.mt-auto`, the only utility class left in the app and the reason a whole
+          utility-generation pass ran over the stylesheet for one declaration. */}
       <button
-        className="navButton mt-auto"
+        className="navButton navButton-last"
         onClick={toggleHelpDialog}
         title="Help"
         aria-label="Help"

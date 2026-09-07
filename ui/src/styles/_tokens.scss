@@ -58,6 +58,19 @@
   --z-font-size-body: 14px;
   // Looser than the chrome's 1.4, because these are lines of prose and not rows of a list.
   --z-line-height-body: 1.5;
+  // The heading steps, measured against the 14px body above and not the 13px chrome: everything that
+  // wears one sits on content. Roughly 1.2 between them. They are names rather than literals because
+  // two stylesheets now need the same three numbers — _typography.scss for `.z-title`/`.z-heading`/
+  // `.z-subheading`, and the rendered markdown cell, whose headings are bare <h1>..<h6> from
+  // react-markdown and so cannot wear a class. A chrome heading is none of these; see .z-label.
+  --z-font-size-title: 28px;
+  --z-font-size-heading: 20px;
+  --z-font-size-subheading: 17px;
+  // Code inside prose — a fenced block or an inline span in a markdown cell. One step under the body,
+  // as a monospace face at the same nominal size reads larger. Code in a *cell* is not this: the editor
+  // and the output box are sized by `.zfont-*` so Cmd +/- reaches them.
+  --z-font-size-code: 13px;
+  --z-line-height-code: 1.55;
   // One row of a tree or list. VS Code's number, and it was compared against 24px on the prototype's
   // shell page rather than assumed: 24 buys air one row at a time and charges two rows out of every
   // twenty for it, in a panel whose job is to show a directory at a glance. Kept at 22.

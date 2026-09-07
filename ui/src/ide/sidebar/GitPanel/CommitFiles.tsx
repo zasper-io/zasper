@@ -75,7 +75,7 @@ export default function CommitFiles({ hash }: CommitFilesProps) {
       {detail.files.length === 0 ? (
         <p className="z-note">No files changed.</p>
       ) : (
-        <ul className="commit-files list-unstyled noborder-list">
+        <ul className="commit-files z-list-plain noborder-list">
           {detail.files.map((file) => (
             <li key={file.path} className="commit-file">
               <span

@@ -37,7 +37,6 @@
     "@xterm/addon-web-links": "0.11.0",
     "@xterm/xterm": "5.5.0",
     "ansi_up": "^6.0.6",
-    "bootstrap": "^5.1.3",
     "jotai": "1.7.2",
     "katex": "^0.16.47",
     "lodash": "^4.17.21",

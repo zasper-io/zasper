@@ -1,7 +1,9 @@
 // Single global stylesheet entry, imported once from main.tsx.
 //
 // Order matters and is the whole point of this file:
-//   1. Bootstrap  — third-party reset and components, so ours can override it.
+//   1. Reset      — the app's own, and the only thing above the token layer. It was
+//                   `bootstrap` until Bootstrap's last three partials came out; see
+//                   _reset.scss for what was carried over and what was not.
 //   2. Tokens     — the theme contract every component reads from.
 //   3. Accents    — the hue ramps, and which step each token takes. After tokens
 //                   because it answers the same properties for the eight themes
@@ -29,7 +31,7 @@
 // file impossible to change safely, because its name gives no hint that anything
 // else is reading it.
 
-@import 'bootstrap';
+@import 'reset';
 @import 'tokens';
 @import 'accents';
 @import 'base';

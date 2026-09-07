@@ -98,7 +98,7 @@ function FileUpload() {
             </div>
 
             {queue.uploads.length > 0 && (
-              <ul className="uploadList list-unstyled">
+              <ul className="uploadList z-list-plain">
                 {queue.uploads.map((upload) => (
                   <li key={upload.relativePath} className="uploadRow">
                     <span className="uploadName" title={upload.relativePath}>

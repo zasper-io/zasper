@@ -38,6 +38,23 @@ body {
   display: none !important;
 }
 
+// The second utility, and the last Bootstrap class the markup carried: `.list-unstyled`, on nine
+// `<ul>`s — the file tree, the change list, the history, a commit's files, the upload queue and three
+// lists in the Jupyter panel. Every one of them is rows, not prose, and a browser gives a `<ul>` a
+// 40px indent and a bullet per row.
+//
+// A utility rather than a declaration in each of those lists' own rules, because it is the same
+// statement nine times and none of them wants a bullet for a different reason.
+// `margin: 0` is the one line here that is a change rather than a port: Bootstrap's `.list-unstyled`
+// was only the indent and the bullet, and `reboot` then gave every `<ul>` `margin-bottom: 1rem`. So
+// each of those nine lists ended with a 16px gap under it, which is a paragraph gap under a column of
+// 22px rows and was never anybody's decision.
+.z-list-plain {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
 a {
   text-decoration: none;
   display: inline-block;

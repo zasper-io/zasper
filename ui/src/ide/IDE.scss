@@ -71,9 +71,11 @@
 // The tab strip is tabs/TabIndex.scss now, with the component that renders it: `.tabHeader`,
 // `.tab-item` and the rules that were `.nav-link` here.
 
-// No `width: 100%` next to the 1px margins — that made this 2px wider than the resizable
-// panel holding it and put a horizontal scrollbar under every tab. A block-level flex column
-// already fills the panel minus its margins.
+// No 1px side margins, and no `width: 100%` that used to sit beside them — together they made this 2px
+// wider than the resizable panel holding it and put a horizontal scrollbar under every tab. The margins
+// were the seam between the sidebar and the editor back when `.panelResizeHandle` had no rule and no
+// width; the handle is 4px and filled now, so the left one was drawing a second seam beside a real one
+// and the right one a hairline down the window's own edge.
 //
 // No `line-height` either: it would be inherited by every tab's contents, and the body's
 // --z-ui-line-height is what the chrome is measured against. No `font-weight` for the same reason and
@@ -81,8 +83,6 @@
 // weight the rest of the app is set in, and three ports had to restate 400 to undo it one element at
 // a time. Inter Light is `.z-title`'s alone.
 .main-content {
-  margin-left: 1px;
-  margin-right: 1px;
   height: 100%;
   display: flex;
   flex-direction: column;

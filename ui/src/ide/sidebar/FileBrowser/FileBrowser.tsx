@@ -180,7 +180,7 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
           onDrop={rootDrop.onDrop}
         >
           <ul
-            className="file-list list-unstyled noborder-list"
+            className="file-list z-list-plain noborder-list"
             role="tree"
             aria-label="Files"
             aria-multiselectable="true"

@@ -6,6 +6,13 @@
   min-height: 200px;
 }
 
+// About is three one-line paragraphs, and they were spaced by Bootstrap's reboot: 0 above, 16px below
+// every <p> in the app. 8px rather than that 16 — these are three facts about the application, not
+// three paragraphs — and the last one keeps its gap, because the Docs link follows it.
+.help-section p {
+  margin: 0 0 8px;
+}
+
 // A flex item: floats do not apply to one.
 .helpNavigation {
   flex: 0 0 130px;

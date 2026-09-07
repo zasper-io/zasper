@@ -3,6 +3,9 @@
 // Every heading in the app picks one of these instead of a literal font-size, so a
 // new section heading matches the ones beside it.
 //
+// The three sizes are `--z-font-size-*` in _tokens.scss rather than literals here, because the
+// rendered markdown cell needs the same numbers on bare <h1>..<h6> that cannot wear a class.
+//
 // This layer exists because the scale used to be applied but never defined:
 // `font-h3`, `font-h5`, `font-h6`, `font-p`, `fontw-300` and `fontw-500` appeared in
 // Launcher.tsx and Login.tsx and matched no rule anywhere, so the launcher's page
@@ -26,7 +29,7 @@
 
 // Page title: one per screen, the largest thing on it.
 .z-title {
-  font-size: 28px;
+  font-size: var(--z-font-size-title);
   line-height: 36px;
   font-weight: 300;
   // At this size Inter's default spacing is loose. Only the title is tracked in: the negative
@@ -43,7 +46,7 @@
 
 // Section heading: the major divisions of a screen ("Notebook", "Terminal").
 .z-heading {
-  font-size: 20px;
+  font-size: var(--z-font-size-heading);
   line-height: 28px;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -52,7 +55,7 @@
 
 // Group heading: a labelled group inside a content section.
 .z-subheading {
-  font-size: 17px;
+  font-size: var(--z-font-size-subheading);
   line-height: 24px;
   font-weight: 500;
   margin: 0;

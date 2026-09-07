@@ -118,7 +118,7 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
 
         <PanelSection title="Terminals" count={terminalNames.length}>
           {terminalNames.length > 0 ? (
-            <ul className="list-unstyled noborder-list">
+            <ul className="z-list-plain noborder-list">
               {terminalNames.map((name) => (
                 <li className="panel-row" key={name}>
                   <button
@@ -149,7 +149,7 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
           defaultOpen={false}
         >
           {Object.keys(kernelspecs).length > 0 ? (
-            <ul className="list-unstyled noborder-list">
+            <ul className="z-list-plain noborder-list">
               {Object.keys(kernelspecs).map((key) => (
                 <li className="panel-row" key={key}>
                   {/* Not a button: nothing is offered here. Starting a kernel is the launcher's job
@@ -163,7 +163,7 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
             </ul>
           ) : (
             <div className="panel-section-body">
-              <p>No kernels are installed.</p>
+              <p className="z-note">No kernels are installed.</p>
             </div>
           )}
         </PanelSection>

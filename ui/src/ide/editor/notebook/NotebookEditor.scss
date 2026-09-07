@@ -205,6 +205,10 @@
   // The old comment gave the reason for the family as "columns in a printed DataFrame only line up if
   // both agree". A DataFrame is a `<table>`, so it never took the face — see `table.dataframe` below,
   // where the columns are lined up by `tabular-nums` instead.
+  //
+  // Bootstrap's reboot also gave every `<pre>` `overflow: auto`, and that one is deliberately not
+  // carried: these wrap, so there is nothing to scroll. The box around them is the scroller, which is
+  // where a `<table>` too wide for the pane already scrolls.
   pre {
     font-family: var(--z-mono-font-family);
     font-size: inherit;
@@ -354,6 +358,16 @@ $ansi-slots:
 // `pre` above never reached a `<table>`, so a printed table of numbers was the one output in the app set
 // in a proportional font. Lining up is all that was ever wanted, and this does it without making the
 // column *names* monospace.
+// pandas writes `<table border="1" class="dataframe">`, and that attribute is a real border on every
+// cell: Chromium draws it 1px `inset`, the grey ridge the three rules below exist to replace. Bootstrap's
+// reboot neutralised it for the whole document (`thead, tbody, tr, th, td { border-style: solid;
+// border-width: 0 }`) and nothing else in the app writes the attribute, so the reset belongs with the
+// table that provokes it. Same specificity as the rules under it, which is why it is above them.
+table.dataframe :is(thead, tbody, tfoot, tr, th, td) {
+  border-style: solid;
+  border-width: 0;
+}
+
 table.dataframe {
   border-collapse: collapse;
   min-width: 40%;
@@ -399,6 +413,135 @@ table.dataframe tbody tr:hover {
   // output has to line up with the code that produced it, and that is a monospace grid.
   font-size: var(--z-font-size-body);
   line-height: var(--z-line-height-body);
+
+  // Everything from here to the table was Bootstrap's `type` and `reboot`, which is to say it was
+  // never decided: a markdown cell is the only prose in the app whose tags carry no class of their
+  // own, so `#` through `######`, a paragraph, a list and a quote all took the defaults of a
+  // stylesheet written for web pages. What that looked like, measured before it was replaced: an `#`
+  // heading at 40px in a cell whose body text is 14 — a heading twice the size of the notebook's own
+  // `.z-title` — every heading at weight 500 with a bottom margin and no top margin, so two headings
+  // in a row touched and a heading after a paragraph did not separate from it, `p` with a 16px gap
+  // below and none above, and a list indented 32px.
+  //
+  // The scale below is the app's own, the same one `_typography.scss` gives `.z-title`,
+  // `.z-heading` and `.z-subheading` — 28 / 20 / 17 — with h4 to h6 on the body size and carrying
+  // weight instead, because a cell is not a page and six sizes of heading in one is not a hierarchy
+  // anybody reads. Spacing is symmetric and in whole pixels: 16px above a heading and 4px below it, so
+  // a heading belongs to the text under it rather than floating between two blocks.
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 16px 0 4px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  // The first block in a cell has nothing above it to be separated from, and the last has nothing
+  // below: a cell's own padding is the gap to the cell after it.
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  h1 {
+    font-size: var(--z-font-size-title);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: var(--z-font-size-heading);
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: var(--z-font-size-subheading);
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-size: inherit;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 8px;
+  }
+
+  // 20px rather than the browser's 40 and Bootstrap's 32: the marker sits in the indent, and at 14px
+  // text 20px is enough for two digits of an ordered list without the text leaving the cell's column.
+  ul,
+  ol {
+    margin: 0 0 8px;
+    padding-left: 20px;
+  }
+
+  li + li {
+    margin-top: 2px;
+  }
+
+  // A nested list is part of the item above it, so it takes the item's line spacing and not a
+  // paragraph's.
+  li > ul,
+  li > ol {
+    margin-bottom: 0;
+  }
+
+  // The quote is the bar, which is the same 3px accent edge a cell in the notebook already uses for
+  // "the keyboard is here" — a quotation is the one other thing in a notebook that is text belonging
+  // to somebody else.
+  blockquote {
+    margin: 0 0 8px;
+    padding: 0 0 0 12px;
+    border-left: 3px solid var(--z-border);
+    color: var(--z-fg-muted);
+  }
+
+  // Prose code, which is not the same thing as a code cell: it stays at the prose size rather than
+  // taking `--z-font-size-code`, so a name in a sentence sits on the sentence's line. The family and
+  // the ink come from `code, samp` in styles/_base.scss.
+  code {
+    padding: 1px 4px;
+    border-radius: 2px;
+    background: var(--z-bg-cell-output);
+  }
+
+  // A fenced block, which is the one place in a markdown cell that is a grid rather than a line of
+  // prose, so this one does take the code size. `pre code` drops the inline chip: the block is the
+  // surface.
+  pre {
+    margin: 0 0 8px;
+    padding: 6px 10px;
+    border-radius: 2px;
+    background: var(--z-bg-cell-output);
+    font-size: var(--z-font-size-code);
+    line-height: var(--z-line-height-code);
+    overflow: auto;
+  }
+
+  pre code {
+    padding: 0;
+    background: none;
+  }
+
+  hr {
+    margin: 16px 0;
+    border: 0;
+    border-top: 1px solid var(--z-border);
+  }
+
+  // A figure in a cell must not widen the pane, which is the same rule `.inner-text img` already
+  // states for an image a program printed.
+  img {
+    max-width: 100%;
+  }
 
   // A table in prose, on the same rule the printed one above follows: it is the surface it sits on, and
   // --z-border draws it. It steps down to --z-ui-font-size because a markdown cell is body text and a

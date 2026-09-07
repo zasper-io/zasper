@@ -56,7 +56,7 @@ export default function KernelList(props: KernelListProps) {
   const { kernels, kernelspecs, statuses, disabled } = props;
 
   return (
-    <ul className="list-unstyled noborder-list">
+    <ul className="z-list-plain noborder-list">
       {kernels.map((kernel) => {
         const label = kernelLabel(kernel, kernelspecs);
         // This window's own reading first, the server's after it. Both come from the kernel's `status`

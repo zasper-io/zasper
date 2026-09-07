@@ -95,7 +95,7 @@ export default function History({ hidden, reloadKey }: HistoryProps) {
 
   return (
     <>
-      <ul className="git-history list-unstyled noborder-list">
+      <ul className="git-history z-list-plain noborder-list">
         {commits.map((commit) => (
           <li key={commit.hash} className="commit-item">
             <button

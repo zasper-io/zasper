@@ -71,7 +71,7 @@ export default function ChangeList(props: ChangeListProps) {
         </span>
       </h2>
 
-      <ul className="change-list list-unstyled noborder-list">
+      <ul className="change-list z-list-plain noborder-list">
         {changes.map((change) => {
           const letter = side === 'staged' ? change.staged : change.worktree;
           const directory = parentDirOf(change.path);

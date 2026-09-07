@@ -122,6 +122,14 @@
   padding: 16px;
 }
 
+// The sentence itself, in the six dialogs that ask something before doing it and in the kernel
+// switcher. Bootstrap's reboot spaced every <p> in the document — 0 top, 16px bottom — and the box's
+// own 16px padding is that spacing here, so a browser's symmetric 1em margin would have added a
+// second one inside the first.
+.update-kernel-popup p {
+  margin: 0;
+}
+
 .update-kernel-popup-right {
   // Was `calc(100% - 290px)`, leaving a 290px gap for a left-hand illustration
   // column that has not been rendered for a long time.
@@ -153,6 +161,12 @@
 // The upload dialog: a drop zone, the pickers, and a row per file.
 .uploadBody {
   padding: 16px;
+
+  // "Into <folder>", over the drop zone. The only prose in the dialog that is not inside a box with
+  // padding of its own, so it is the only one that states a gap.
+  > p {
+    margin: 0 0 8px;
+  }
 }
 
 .uploadDrop {
