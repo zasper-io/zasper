@@ -218,7 +218,6 @@
   // separation without a visible edge.
   --z-shadow-wide: rgba(149, 157, 165, 0.2) 0px 8px 24px;
 
-  --z-shadow-ambient: #dddddd;
   --z-shadow-overlay: rgba(0, 0, 0, 0.2);
   --z-shadow-panel: 0 3px 20px #0000001c;
   --z-overlay-backdrop: rgba(0, 0, 0, 0.5);
@@ -387,7 +386,10 @@
   --z-bg-row-selected: #3a3450;
   --z-bg-editor: #1e1e1e;
   --z-bg-tab: #272727;
-  --z-bg-input: #272727;
+  // Lighter than the `#303030` bar it sits in, which is the rule the light themes state as "the
+  // palette is a well in the topbar". It was `#272727` — the panel colour, and *darker* than the bar,
+  // so the one control in the topbar with a shape had almost none in this theme.
+  --z-bg-input: #353535;
   --z-bg-select: #3e3e3e;
   --z-bg-field: #3e3e3e;
   --z-bg-terminal: #2b2a2a;
@@ -486,7 +488,6 @@
   --z-shadow-high: 0 3px 6px rgba(0, 0, 0, 0.45), 0 3px 6px rgba(0, 0, 0, 0.6);
   --z-shadow-wide: rgba(0, 0, 0, 0.5) 0px 8px 24px;
 
-  --z-shadow-ambient: #000000;
   --z-shadow-overlay: rgba(255, 255, 255, 0.1);
   // The old .themeDark block scrimmed with rgba(255,255,255,0.5), which only
   // read correctly while modal bodies were still Bootstrap-white. Now that
@@ -595,9 +596,6 @@
   // --- Scrollbars ---------------------------------------------------------
   --z-scrollbar-thumb: #bdbdbd;
   --z-scrollbar-track: #eeeeee;
-
-  // --- Elevation ----------------------------------------------------------
-  --z-shadow-ambient: #e0e0e0;
 
   // --- Kernel status ------------------------------------------------------
   --z-status-idle: #388e3c;

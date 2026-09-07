@@ -31,4 +31,20 @@
   background: none;
   line-height: var(--z-ui-row-height);
   text-align: left;
+  border-radius: 4px;
+  // A `<button>`'s own cursor is an arrow, and these three are the only control in the dialog other
+  // than its two icon buttons.
+  cursor: pointer;
+}
+
+// `.active` was on the markup with no rule behind it anywhere, so the dialog opened on General and
+// said nothing about which of the three it was showing — the same shape of defect as an active cell
+// with no border. The two fills are the ones every other selectable row in the app uses, and both are
+// accent-derived, so the selected item reads in all eight themes.
+.helpNavButton:hover {
+  background: var(--z-bg-menu-hover);
+}
+
+.helpNavButton.active {
+  background: var(--z-bg-row-selected);
 }

@@ -52,7 +52,7 @@ machine; with none installed anywhere, the specs that need a kernel skip rather 
 | `tabs` | closing an unsaved tab asks, and all three answers do what they say |
 | `palette` | a real `Ctrl-Shift-P`, a filter, and the command runs |
 | `terminal` | a real shell in the project directory |
-| `layout` | every control is big enough to click and no row overflows its panel |
+| `layout` | every control is big enough to click, no row overflows its panel, and a state resolves to something visible |
 
 ## House rules
 

@@ -15,13 +15,13 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  padding: 10px;
+  padding: 8px;
   background-color: var(--z-bg-terminal);
   color: var(--z-fg-on-terminal);
-  // Monospace content, not chrome, so it does not read --z-ui-font-size. xterm derives its
-  // cell size from this, so it is also the terminal's column width.
+  // Monospace content, not chrome, so it does not read --z-ui-font-size. This sizes the element only:
+  // xterm draws to a canvas from its own `fontSize` option, and Terminal.tsx passes it `fontFamily`
+  // off this element but not a size, so what is on screen is xterm's default until it does.
   font-size: 14px;
-  font-weight: 300;
 }
 
 .terminalArea {
@@ -42,19 +42,20 @@
   max-width: 100%;
 }
 
+// 22px and 10px of padding, as drawn: the bar brackets the window at a row's height, and 24px with
+// 16px either side made it the tallest piece of chrome on screen after the topbar.
 .statusBar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  height: 24px;
+  height: 22px;
   background-color: var(--z-bg-statusbar);
   color: var(--z-fg-on-chrome);
   font-size: var(--z-ui-font-size-sm);
-  padding: 0 16px;
-  font-weight: 300;
+  padding: 0 10px;
 }
 
 // Takes whatever the topbar and status bar leave, without knowing how tall they are.
@@ -74,12 +75,14 @@
 // already fills the panel minus its margins.
 //
 // No `line-height` either: it would be inherited by every tab's contents, and the body's
-// --z-ui-line-height is what the chrome is measured against.
+// --z-ui-line-height is what the chrome is measured against. No `font-weight` for the same reason and
+// it was there: 300 put every editor pane — code, output, a launcher tile, a diff — a step below the
+// weight the rest of the app is set in, and three ports had to restate 400 to undo it one element at
+// a time. Inter Light is `.z-title`'s alone.
 .main-content {
   margin-left: 1px;
   margin-right: 1px;
   height: 100%;
-  font-weight: 300;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -186,6 +189,5 @@
   padding: 20px;
   padding-top: 60px;
   font-size: var(--z-ui-font-size);
-  font-weight: 300;
   text-align: center;
 }

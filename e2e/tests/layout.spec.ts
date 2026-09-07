@@ -328,3 +328,39 @@ test('every tab fills the height of the tab strip', async ({ page }) => {
     );
   }
 });
+
+/*
+ * A selected row in a dialog looks selected.
+ *
+ * The third finding of this shape, after the focused cell above and the tab strip below it, and the
+ * cheapest one to have missed: `.helpNavButton.active` was on the markup with no rule behind it
+ * anywhere in `src`, so the help dialog opened on General and said nothing about which of its three
+ * sections it was showing. React held the right state, put the right class on the right button, and a
+ * unit test asserting `toHaveClass(/active/)` would have passed — the class resolved to
+ * `rgba(0, 0, 0, 0)`, which is a question only a browser can be asked.
+ *
+ * Asserted as a difference between the two states of one button rather than against a colour, so it
+ * survives all eight themes and says nothing about which fill the answer is.
+ */
+test('the help dialog says which section it is showing', async ({ page }) => {
+  await openApp(page);
+
+  await page.getByLabel('Help').click();
+  const dialog = page.locator('.modal');
+  await expect(dialog).toBeVisible();
+
+  const general = dialog.locator('.helpNavButton', { hasText: 'General' });
+  const support = dialog.locator('.helpNavButton', { hasText: 'Support' });
+  const fill = (row: Locator) => row.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+  await expect(general).toHaveClass(/active/);
+  const selected = await fill(general);
+  const unselected = await fill(support);
+  expect(selected, 'the selected section is filled with nothing').not.toBe(unselected);
+
+  // And it moves, which is the half that a fill on the first item alone would fake.
+  await support.click();
+  await expect(support).toHaveClass(/active/);
+  expect(await fill(support), 'the fill did not follow the selection').toBe(selected);
+  expect(await fill(general), 'the section left behind is still filled').toBe(unselected);
+});

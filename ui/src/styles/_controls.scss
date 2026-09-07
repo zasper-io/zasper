@@ -134,23 +134,30 @@
 //
 // A state with no rule below — `interrupted`, which the notebook sets after an interrupt — is an
 // outlined dot with no fill, which is a fair reading of "no longer doing what it was".
+//
+// 12px and flat. It was 14px with `box-shadow: 3px 3px 10px 3px var(--z-shadow-ambient)`, an offset
+// glow down and to the right that made it a bead stuck on the toolbar rather than a status light —
+// and `--z-shadow-ambient` existed in three themes for that one declaration, so it went with it.
 .kernelStatus {
   flex: 0 0 auto;
-  height: 14px;
-  width: 14px;
-  border-radius: 7px;
+  // Both call sites are flex children, where this blockifies to `block` and so does nothing. It is here
+  // for the third one: a `<span>` is inline, and width and height do not apply to a non-replaced inline
+  // box, so a dot dropped into a line of text draws as a 2px sliver. The prototype's styleguide had five
+  // of them — the one page whose job is to show what a kernel dot looks like had never shown one.
+  display: inline-block;
+  height: 12px;
+  width: 12px;
+  border-radius: 6px;
   border: 1px solid var(--z-border-kernel-status);
-  box-shadow: 3px 3px 10px 3px var(--z-shadow-ambient);
 }
 
-// For a 22px sidebar row, where the toolbar's dot and its ambient shadow are both too much. What
-// centres it is the `.panel-row-dot` slot it sits in: the row itself aligns on the baseline, which for
-// an empty box is its bottom edge.
+// For a 22px sidebar row, where the toolbar's dot is too much. What centres it is the
+// `.panel-row-dot` slot it sits in: the row itself aligns on the baseline, which for an empty box is
+// its bottom edge.
 .kernelStatus-sm {
   height: 8px;
   width: 8px;
   border-radius: 4px;
-  box-shadow: none;
 }
 
 .ks-idle {

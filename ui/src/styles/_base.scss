@@ -41,6 +41,11 @@ body {
 a {
   text-decoration: none;
   display: inline-block;
+  // Bootstrap's reboot colours an unstyled link `--bs-link-color`, a literal #0d6efd, which was the
+  // last colour above the token layer and a blue link in an orange window. Both prose links in the app
+  // — the launcher's "installing Jupyter kernels" and the help dialog's — were it in all eight themes.
+  // One declaration is enough for hover too: reboot's `a:hover` only redefines its own variable.
+  color: var(--z-fg-accent);
   // Two properties rather than `all`, which is what this was and which animated every property a
   // state class put on a link. A file-tree row is an `<a>`, so `.is-drop-target`'s outline faded in
   // over 300ms on a row and appeared at once on the panel behind it — the same rule, two behaviours,
@@ -49,6 +54,22 @@ a {
   transition:
     background-color 0.3s ease-in-out,
     color 0.3s ease-in-out;
+}
+
+// The drawing's base.css names the family here for the same three elements. In the app the rule also has
+// Bootstrap to undo, which is why it carries the other two declarations: reboot colours `<code>` with
+// `--bs-code-color`, a literal $pink — #d63384 light, a tint of it dark — and sizes it 0.875em. The one
+// `<code>` on screen, the launcher's `pip install ipykernel`, was pink in all eight themes, and a
+// library's HTML output can contain either tag. `inherit` for both, so a `<code>` in the notice box takes
+// the notice's ink and a fractional em never lands on a character cell that Cmd +/- is resizing.
+//
+// `<kbd>` is deliberately not in the list: reboot gives it a near-black chip as well as a family, and
+// taking the ink without the surface would be dark on dark. Nothing renders one.
+code,
+samp {
+  font-family: var(--z-mono-font-family);
+  font-size: inherit;
+  color: inherit;
 }
 
 // Native selects don't inherit.

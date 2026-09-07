@@ -10,10 +10,6 @@
   border-bottom: 1px solid var(--z-border-breadcrumb);
   font-size: var(--z-ui-font-size);
   color: var(--z-fg-muted);
-  // Against `.main-content`'s 300, which is chrome's weight and too light for a path that is read
-  // rather than scanned. The prototype's version has no such declaration because its mock has
-  // nothing setting 300 above it.
-  font-weight: 400;
 
   // The list is the whole content of this strip, so it owns no outer spacing. `.breadcrumb` was
   // Bootstrap's, and this block had to undo its `margin-bottom: 1rem` — in a centred flex row that

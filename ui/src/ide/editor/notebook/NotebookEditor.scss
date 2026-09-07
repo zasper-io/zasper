@@ -153,15 +153,12 @@
   //
   // --z-fg-serial-no rather than the --z-fg-subtle the drawing spends, because the token is already
   // here and the JupyterLab theme sets it to that palette's blue prompt, which is the one thing a
-  // reader coming from JupyterLab looks for. The weight is the drawing's.
+  // reader coming from JupyterLab looks for. The weight is the body's, as drawn.
   .serial-no {
     color: var(--z-fg-serial-no);
     font-family: var(--z-mono-font-family);
     font-size: var(--z-ui-font-size-sm);
     font-variant-numeric: tabular-nums;
-    // Stated because the editor pane is `font-weight: 300` (.main-content in ide/IDE.scss), and 300
-    // at 11px is a count you have to look for. The 700 this replaced was the other answer to that.
-    font-weight: 400;
     // Aligned to the first line of code beside it: 5px is .cm-editor's border plus
     // .cm-content's padding, 21px its line box at the 14px default.
     line-height: 21px;
