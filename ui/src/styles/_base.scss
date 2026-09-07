@@ -96,12 +96,30 @@ select {
 
 /* ===== Scrollbars ===== */
 //
-// One API, set once. Both properties inherit, so :root reaches every scroll container
-// without a `*` selector — which also keeps the rule out of CodeMirror's and xterm's
-// internals. Don't add `::-webkit-scrollbar` rules: Chromium ignores those pseudo-elements
+// One API. Don't add `::-webkit-scrollbar` rules: Chromium ignores those pseudo-elements
 // entirely once the standard properties are set on the same element.
+//
+// The two properties are not alike, whatever this comment said before it was measured: only
+// `scrollbar-color` inherits. `scrollbar-width` computes to `auto` on <body> and on everything below
+// it, so declaring it on :root reached the document scroller alone — which never scrolls, because
+// .editor is 100vh. Every scrollbar the app actually shows was the wide one. `*` is what reaches a
+// scroll container the app does not name, xterm's viewport and CodeMirror's among them; it costs
+// nothing on the elements that do not scroll, where the property has no effect.
 :root {
+  scrollbar-color: var(--z-scrollbar-thumb) var(--z-scrollbar-track);
+}
+
+* {
   scrollbar-width: thin;
+}
+
+// Said twice, and it has to be. `scrollbar-color` inherits its *computed* value, so the two custom
+// properties were substituted back at :root: a scope that redefines them for its own surface — which
+// _tokens.scss does for the terminal, the one panel that is dark in every theme — never reaches the
+// scrollbar unless the declaration is repeated where the new values are in scope. The rule is here
+// rather than beside .terminalContainer's own rule so that both halves of the scrollbar API stay in
+// one place; anything else that redefines the two tokens needs a line here too.
+.terminalContainer {
   scrollbar-color: var(--z-scrollbar-thumb) var(--z-scrollbar-track);
 }
 
@@ -115,11 +133,17 @@ select {
 // above it had all nine of these, so the character cell in a printed table or a traceback lined up with
 // the code at one setting out of nine. Everything in the box takes its size from here — a `<pre>`, a
 // printed DataFrame, an `ename` — so none of them states one.
+//
+// `.terminalContainer` is the third, and it is the same argument again: a shell prints monospaced text
+// for the same eyes the code above it is for, and it was the last piece of content in the app pinned to
+// one size — 14px stated in IDE.scss, which xterm then ignored in favour of its own default 15. It is
+// stated only here now, and Terminal.tsx reads it back off the element for the canvas.
 $font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
 
 @each $size in $font-sizes {
   .zfont-#{$size} .cm-editor,
-  .zfont-#{$size} .inner-text {
+  .zfont-#{$size} .inner-text,
+  .zfont-#{$size} .terminalContainer {
     font-size: #{$size}px;
   }
 }

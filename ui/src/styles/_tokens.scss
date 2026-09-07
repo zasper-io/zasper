@@ -651,4 +651,17 @@
 // strings. Inherited, so either element answers.
 .terminalContainer {
   @include ansi-on-dark;
+
+  // The scrollbar is the same argument as the sixteen, and it was missed for the same reason: the
+  // track is #ffffff in the four light themes and #eeeeee in the other four, both measured against a
+  // pale panel, so xterm's always-laid-out gutter drew a white stripe down a near-black terminal for
+  // anyone whose scroll bars are set to show. The track is the surface itself, so an empty one is
+  // invisible and a full one is the thumb alone.
+  //
+  // The thumb lightens two steps off the app's --a-600, for the reason _accents.scss states about that
+  // step against a dark panel: measured on the eight terminal surfaces, --a-600 is 1.73:1 to 2.79:1
+  // and --a-400 is 3.02:1 (slate-dark) to 4.67:1 (orange-dark). Same move the sixteen make, and the
+  // same as `--z-fg-accent` taking the other end of the ramp in a dark theme.
+  --z-scrollbar-track: var(--z-bg-terminal);
+  --z-scrollbar-thumb: var(--a-400);
 }

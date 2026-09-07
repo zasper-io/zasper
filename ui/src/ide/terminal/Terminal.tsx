@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo, useState } from 'react';
+import { useAtom } from 'jotai';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { AttachAddon } from '@xterm/addon-attach';
@@ -9,6 +10,7 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
 import { BaseWebSocketUrl } from '@/config';
+import { fontSizeAtom } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
 import { terminalTheme } from './theme';
 
@@ -16,23 +18,32 @@ interface TerminalTabProps {
   data: IfileTab;
 }
 
+// The size the canvas is drawn at, read off the element like the family and the sixteen colours are.
+// `undefined` rather than a number of its own when there is no stylesheet — a jsdom test — because a
+// NaN here is xterm's default 15, which is where the terminal not answering to Cmd +/- came from.
+const cellFontSize = (element: HTMLElement): number | undefined => {
+  const size = parseFloat(getComputedStyle(element).fontSize);
+  return Number.isNaN(size) ? undefined : size;
+};
+
 export default function TerminalTab({ data }: TerminalTabProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const xtermRef = useRef<XTerm | null>(null);
 
   const fitAddon = useMemo(() => new FitAddon(), []);
   const webLinksAddon = useMemo(() => new WebLinksAddon(), []);
   const unicode11Addon = useMemo(() => new Unicode11Addon(), []);
   const serializeAddon = useMemo(() => new SerializeAddon(), []);
 
-  const sendSizeToBackend = (colsInput: number, rowsInput: number) => {
-    // Send the set_size message to the backend with the terminal dimensions
+  // The PTY starts at the library's default 80x24, so the size has to go out even when a fit changed
+  // nothing. `rows` is sent as it is: it used to be `rows + 1`, which told the shell it had one line
+  // more than xterm draws — `tput lines` answered 34 in a 33-row terminal — so anything that paints
+  // its bottom line, a pager or a status line, was drawing into a row that does not exist.
+  const sendSizeToBackend = (cols: number, rows: number) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      let rows = rowsInput;
-      let cols = colsInput;
-      let size = JSON.stringify({ cols: cols, rows: rows + 1 });
-      let send = new TextEncoder().encode('\x01' + size);
-      socketRef.current.send(send);
+      const size = JSON.stringify({ cols: cols, rows: rows });
+      socketRef.current.send(new TextEncoder().encode('\x01' + size));
     }
   };
 
@@ -41,8 +52,35 @@ export default function TerminalTab({ data }: TerminalTabProps) {
   // project root for anything it cannot use.
   const cwd = data.cwd ?? '';
 
+  // Nothing is opened until the fonts have settled. xterm measures one character when it opens and
+  // never again on its own, and JetBrains Mono arrives from Google Fonts with `display=swap`: measure
+  // before it lands and the cell is the fallback's 18px for a font that draws at 20, so the next fit
+  // divides the pane by a height nothing is drawn at and hands back more rows than fit. `fonts.ready`
+  // resolves either way — a font that fails to load still settles — and by the time anyone opens a
+  // terminal it has usually resolved already.
+  const [fontsReady, setFontsReady] = useState(false);
   useEffect(() => {
-    if (terminalRef.current == null) return;
+    let live = true;
+    void (document.fonts?.ready ?? Promise.resolve()).then(() => {
+      if (live) setFontsReady(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  // Never fit an element that has no layout box. Every tab stays mounted and an inactive one is
+  // `display: none`, and FitAddon measures its parent with getComputedStyle: with no layout that
+  // answers `100%`, which parseInt reads as 100 pixels. So one window resize behind another tab
+  // collapsed the terminal to 5 rows by 9 columns for good, and a single `ls` then had scrollback —
+  // which is the scrollbar that turned up in a terminal nobody had scrolled.
+  const refit = useCallback(() => {
+    if (terminalRef.current === null || terminalRef.current.clientHeight === 0) return;
+    fitAddon.fit();
+  }, [fitAddon]);
+
+  useEffect(() => {
+    if (terminalRef.current == null || !fontsReady) return;
 
     // xterm draws to a canvas, so it wants strings and not custom properties: everything below is read
     // off this element rather than restated here. Custom properties inherit, so the sixteen ANSI
@@ -58,15 +96,15 @@ export default function TerminalTab({ data }: TerminalTabProps) {
       theme: terminalTheme(style),
       allowTransparency: true,
       fontFamily: mono,
+      fontSize: cellFontSize(terminalRef.current),
       allowProposedApi: true,
     });
+    xtermRef.current = terminal;
 
     terminal.loadAddon(webLinksAddon);
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(unicode11Addon);
     terminal.loadAddon(serializeAddon);
-
-    fitAddon.fit();
 
     // Attach terminal to DOM
     terminal.open(terminalRef.current);
@@ -87,22 +125,41 @@ export default function TerminalTab({ data }: TerminalTabProps) {
         const attachAddon = new AttachAddon(socketRef.current);
         terminal.loadAddon(attachAddon);
         fitAddon.fit();
+        sendSizeToBackend(terminal.cols, terminal.rows);
       }
     };
 
-    const refit = () => {
-      fitAddon.fit();
-    };
-    window.addEventListener('resize', refit);
+    // A ResizeObserver rather than `window.resize`, which is the only event the component used to
+    // hear: it also catches the sidebar opening, the tab coming back on screen after a resize it
+    // missed, and a browser zoom. Firing once on observe is what fits the terminal in the first place.
+    const observer = new ResizeObserver(refit);
+    observer.observe(terminalRef.current);
 
     return () => {
       // Clean up on component unmount
       socketRef.current?.close();
       terminal.dispose();
+      xtermRef.current = null;
 
-      window.removeEventListener('resize', refit);
+      observer.disconnect();
     };
-  }, [terminalId, cwd, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
+  }, [terminalId, cwd, fontsReady, refit, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
+
+  // Cmd +/- moves `.zfont-N` on `.main-content`, which the terminal is inside, and the size is read
+  // back off the element rather than taken from the atom so that the canvas and the box cannot
+  // disagree. Applied to the terminal that is already running instead of rebuilding it: a new XTerm is
+  // an empty screen, and the shell behind this one is mid-session. Setting the option is what makes
+  // xterm measure the character again; the fit after it is what turns a taller cell into fewer rows,
+  // and `onResize` is what tells the shell.
+  const [fontSize] = useAtom(fontSizeAtom);
+  useEffect(() => {
+    const terminal = xtermRef.current;
+    if (terminal === null || terminalRef.current === null) return;
+    const size = cellFontSize(terminalRef.current);
+    if (size === undefined || size === terminal.options.fontSize) return;
+    terminal.options.fontSize = size;
+    refit();
+  }, [fontSize, refit]);
 
   return (
     <div className="tab-content">

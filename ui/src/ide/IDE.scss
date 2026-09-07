@@ -18,10 +18,11 @@
   padding: 8px;
   background-color: var(--z-bg-terminal);
   color: var(--z-fg-on-terminal);
-  // Monospace content, not chrome, so it does not read --z-ui-font-size. This sizes the element only:
-  // xterm draws to a canvas from its own `fontSize` option, and Terminal.tsx passes it `fontFamily`
-  // off this element but not a size, so what is on screen is xterm's default until it does.
-  font-size: 14px;
+  // No font-size here. It was 14px, and xterm ignored it — the canvas is drawn from xterm's own
+  // `fontSize` option, which nothing set, so the terminal was the one piece of content in the app that
+  // answered to neither a token nor Cmd +/-. Both ends are fixed elsewhere: the size comes from the
+  // `.zfont-N` loop in styles/_base.scss, with the editor and cell output, and Terminal.tsx reads it
+  // back off this element for the canvas the way it already reads the family and the sixteen colours.
 }
 
 .terminalArea {
