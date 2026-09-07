@@ -15,6 +15,7 @@ import {
 import { getCurrentBranch, logApiError } from '@/api';
 import { Icon } from '@/ide/icons';
 import { fileTabsAtom, IfileTab } from '@/store/TabState';
+import ZoomStatus from './ZoomStatus';
 
 /** What the status bar calls the thing in the active tab. */
 function describeTab(tab: IfileTab | undefined): string {
@@ -96,6 +97,9 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
           </>
         )}
         <span className="statusItem">{describeTab(activeTab)}</span>
+        {/* Last on the bar: it belongs to the window rather than to whatever is in the tab, so it
+            stays put as the items to its left come and go with the kind of tab that is open. */}
+        <ZoomStatus />
       </div>
     </div>
   );

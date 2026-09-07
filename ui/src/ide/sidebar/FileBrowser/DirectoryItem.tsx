@@ -58,7 +58,9 @@ const DirectoryItem = ({
   const remove = useRowDelete(path, scope);
   const children = visibleChildrenOf(path);
   const rowClass =
-    rowClassName(data, false, selection.isSelected(path)) + (isOver ? ' is-drop-target' : '');
+    'is-directory ' +
+    rowClassName(data, false, selection.isSelected(path)) +
+    (isOver ? ' is-drop-target' : '');
 
   // Everything that acts on this folder as a destination is only offered when it alone is the row
   // being acted on; the rest of the menu applies to the whole selection.
@@ -141,6 +143,11 @@ const DirectoryItem = ({
           }
         }}
       >
+        <Icon
+          name={isExpanded(path) ? 'chevron-down' : 'chevron-right'}
+          size={12}
+          className="row-disclosure"
+        />
         <Icon name="folder" />
         <RowName name={name} rename={rename} />
         {data.writable === false && (

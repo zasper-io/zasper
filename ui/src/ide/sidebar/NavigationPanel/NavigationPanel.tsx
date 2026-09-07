@@ -11,9 +11,9 @@ interface NavigationPanelProps {
   setActivePanel: (panelName: PanelName) => void;
 }
 
-// 18px rather than the 16px an icon takes elsewhere: the rail is the one place an icon is the
+// 20px rather than the 16px an icon takes elsewhere: the rail is the one place an icon is the
 // whole control rather than a marker beside a word.
-const RAIL_ICON_SIZE = 18;
+const RAIL_ICON_SIZE = 20;
 
 const NAV_ITEMS: { name: PanelName; label: string; icon: IconName }[] = [
   { name: 'fileBrowser', label: 'File explorer', icon: 'files' },

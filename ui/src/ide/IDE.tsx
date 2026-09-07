@@ -26,9 +26,11 @@ import {
   protectedStateAtom,
   userNameAtom,
   zasperVersionAtom,
+  zoomLevelAtom,
 } from '../store/AppState';
 import { ApiError, getInfo, listKernelspecs, logApiError } from '../api';
 import { applyTheme, getTheme, rememberTheme } from '../themes';
+import { applyZoom, rememberZoomLevel } from '../zoom';
 import { PanelName } from './sidebar/types';
 import { useAppCommands } from '../commands/appCommands';
 import { useRegisterCommands } from '../commands/registry';
@@ -46,6 +48,7 @@ function IDE() {
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
 
   const [fontSize] = useAtom(fontSizeAtom); // Initial font size
+  const [zoomLevel] = useAtom(zoomLevelAtom);
 
   // The application's only keyboard dispatcher, and the window-level commands that used to be a
   // `keydown` listener here. Everything else contributes to the same registry from its own tab.
@@ -98,6 +101,13 @@ function IDE() {
     applyTheme(resolved);
     rememberTheme(resolved.id);
   }, [theme]);
+
+  // Applied to <html>, so it reaches the overlays that hang outside this tree as well.
+  // Remembered for the same reason the theme is: main.tsx puts it back before the first render.
+  useEffect(() => {
+    applyZoom(zoomLevel);
+    rememberZoomLevel(zoomLevel);
+  }, [zoomLevel]);
 
   const getFontClass = (fontSize: number) => {
     return 'zfont-' + fontSize;

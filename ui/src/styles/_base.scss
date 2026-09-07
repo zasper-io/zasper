@@ -15,6 +15,16 @@ body {
   color: var(--z-fg-default);
 }
 
+// The height every definite height in the app is a percentage of. It is a chain rather than
+// `100vh` on the shell because of zoom (src/zoom): `zoom` does not rescale a viewport unit, so a
+// zoomed `100vh` is the window's height times the factor and hangs below the fold. A percentage
+// resolves across the zoom boundary, so the shell ends where the window does at every level.
+html,
+body,
+#root {
+  height: 100%;
+}
+
 // The theme lives on <html>, so the shell just fills the viewport.
 //
 // The first link in the only chain of definite heights in the app: topbar and status bar
@@ -22,7 +32,7 @@ body {
 // know how tall the chrome is.
 .editor {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background-color: var(--z-bg-app);

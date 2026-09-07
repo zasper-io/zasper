@@ -50,6 +50,7 @@ import {
   Undo2,
   Upload,
   X,
+  ZoomIn,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -136,6 +137,7 @@ export const ICONS = {
 
   // --- Everywhere ----------------------------------------------------------
   x: X, // fa-times-circle: close a tab, dismiss a dialog
+  'zoom-in': ZoomIn, // The status bar's zoom control, whatever level it is showing
   // The one glyph in a `.z-notice-error`, which is where the app now says something failed.
   'circle-alert': CircleAlert,
 } satisfies Record<string, LucideIcon>;

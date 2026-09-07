@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './styles/index.scss';
 import App from './App';
 import { applyTheme, storedTheme } from './themes';
+import { applyZoom, storedZoomLevel } from './zoom';
 
 const container = document.getElementById('root');
 if (container === null) {
@@ -18,5 +19,8 @@ if (container === null) {
 // become the reader's own. /login has no other way to a theme, and the IDE no longer paints teal for
 // the length of a request before repainting.
 applyTheme(storedTheme());
+// Same argument, and the same place to make it: the window is the size the reader last chose from
+// the first paint, rather than growing into it once React has mounted.
+applyZoom(storedZoomLevel());
 
 createRoot(container).render(<App />);

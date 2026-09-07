@@ -43,7 +43,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 12px 0 16px;
+      padding: 0 8px 0 12px;
       border-bottom: 1px solid var(--z-border);
       color: var(--z-fg-muted);
 
@@ -64,7 +64,7 @@
       background-color: var(--z-bg-banner);
       // 4px on the right rather than 16: an icon button is a 22px box with its glyph inset inside
       // it, so the padding the last icon needs is already part of the button.
-      padding: 0 4px 0 1rem;
+      padding: 0 4px 0 12px;
       color: var(--z-fg-on-chrome);
       font-weight: 400;
       display: flex;
@@ -238,12 +238,21 @@
 
       .file-list {
         margin-left: 1rem;
-        border-left: 1px solid var(--z-border-strong);
+        // Transparent rather than absent: the 1px stays reserved so nothing shifts when the
+        // colour appears, and it appears only while the pointer is somewhere over the tree — a
+        // nested folder's guide has nothing to say when nobody is looking at the panel.
+        border-left: 1px solid transparent;
       }
 
-      // For flat lists — kernels, terminals — where the tree rule above is wrong. Declared
-      // after .file-list at equal specificity, so it wins on order without !important.
+      &:hover .file-list {
+        border-left-color: var(--z-border-indent-guide);
+      }
+
+      // For flat lists — kernels, terminals — and the tree's own root, which has no folder above
+      // it to hang an indent guide from. Declared after .file-list at equal specificity, so it
+      // wins on order without !important.
       .noborder-list {
+        margin-left: 0;
         border-left: none;
       }
 
@@ -266,18 +275,28 @@
       }
 
       .file-list li a:hover {
-        background: var(--z-accent);
-        color: var(--z-fg-on-accent);
+        background: var(--z-bg-row-selected);
         cursor: pointer;
       }
 
       // One box for whatever stands in front of a name — a folder icon, an image icon, a
       // file-type mark. 18px because the rename input below is sized against it, and because the
       // marks have to share a left edge with each other however wide their lettering is.
-      .file-list li a > .z-icon,
+      //
+      // Excludes .row-disclosure: a folder's chevron sits before this box rather than in one of
+      // its own, at the 12px the icon's own `size` prop already asked for — an 18px box here would
+      // stretch it past the size that makes it read as a chevron and not a second folder icon.
+      .file-list li a > .z-icon:not(.row-disclosure),
       .file-list li a > .file-mark {
         margin-right: 6px;
         width: 18px;
+      }
+
+      .file-list li a > .z-icon.row-disclosure {
+        margin-right: 2px;
+        // `.z-icon` in _base.scss centres a 16px icon on the row's text with `vertical-align: -3px`;
+        // at this icon's own 12px it needs less of a drop to land in the same centre.
+        vertical-align: -2px;
       }
 
       // The rename box, which stands where the name it replaces stood. Unstyled it took the browser's
@@ -300,6 +319,13 @@
         // The accent border already says where the typing is going; the browser's own ring on top of
         // it lands outside the row.
         outline: none;
+      }
+
+      // A folder's own row has the disclosure chevron in front of its icon too — 12px and a 2px gap,
+      // on top of the 24px the rule above already leaves — so its rename box needs the same again
+      // subtracted or it runs 14px past the row's right edge.
+      .file-list li a.is-directory input.rowNameInput {
+        width: calc(100% - 38px);
       }
 
       .file-list li a.active {

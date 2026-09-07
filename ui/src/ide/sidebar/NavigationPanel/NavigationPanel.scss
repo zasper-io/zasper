@@ -1,29 +1,44 @@
 // The icon rail down the left of the sidebar. This is all NavigationPanel renders; the chrome
 // the *panels* share is in styles/_panel.scss.
 
+// 44px, fixed rather than left to the buttons' own width: a 32px button centred in it is the
+// prototype's `flex: 0 0 44px`, and without a width of its own here the column would shrink to
+// whatever its children ask for.
 .navigation-list {
-  background: var(--z-bg-panel-alt);
+  flex: 0 0 44px;
+  background: var(--z-bg-panel);
   border-right: 1px solid var(--z-border);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 4px;
-  padding-top: 8px;
+  padding: 6px 0;
 }
 
-// Near-square and flush, so the active marker reads as a full-height bar.
+// `.z-icon-button` sized up for the rail, the way the prototype's `.rail .z-icon-button` does —
+// restated rather than shared because this button also carries the active marker `.z-icon-button`
+// itself has no notion of.
 //
 // `color` has to be stated: a <button> does not inherit it from the page, and the icon inside
 // is drawn in `currentColor`, so without this the rail would be UA black in every theme.
 .navButton {
-  border: none;
-  padding: 0;
-  height: 40px;
-  width: 44px;
-  background-color: transparent;
-  color: var(--z-fg-icon);
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 32px;
+  width: 32px;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
+  background-color: transparent;
+  color: var(--z-fg-icon);
+  // Dimmed rather than hidden until hover, the same rule `.z-icon-button` states for itself.
+  opacity: 0.75;
+
+  &:hover:not(:disabled) {
+    opacity: 1;
+    background: var(--z-bg-menu-hover);
+  }
 }
 
 // The help button, at the bottom of the rail with everything else at the top.
@@ -31,10 +46,11 @@
   margin-top: auto;
 }
 
-// The 4px marker is inside the 44px width, so an active button does not shift its icon.
-// (4px border + 18px icon + 4px padding leaves 18px, so the icon still lands on 13px.)
+// An inset edge rather than a fill: the accent as a 2px line reads as "this one" without
+// competing with the icon sitting right beside it, which a filled block did.
 .navButton.active {
-  border-left: 4px solid var(--z-border-navbutton-active);
-  padding-right: 4px;
-  background-color: var(--z-bg-navbutton-active);
+  opacity: 1;
+  color: var(--z-accent);
+  box-shadow: inset 2px 0 0 var(--z-accent);
+  border-radius: 0 4px 4px 0;
 }

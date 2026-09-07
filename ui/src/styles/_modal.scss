@@ -72,7 +72,9 @@
   // 6px, as the other four floating surfaces: this is `.z-overlay` with a backdrop, and it was the only
   // member of the family at 4px.
   border-radius: 6px;
-  max-height: 90vh;
+  // Divided by the zoom factor because this is one of the two places a viewport unit has to stay
+  // one: `zoom` does not rescale vh, so at 1.44 an undivided 90vh is 130% of the window.
+  max-height: calc(90vh / var(--z-zoom, 1));
   overflow: hidden; // so the header's rounded corners clip the scrolling body
   display: flex;
   flex-direction: column;

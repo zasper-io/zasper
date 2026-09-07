@@ -98,6 +98,16 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
       <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
         <div className="content-head">
           <div className="z-label">File explorer</div>
+          {/* The watcher misses whatever its exclusion list covers — anything with `test`, `dist`
+              or `tmp` anywhere in its path — so there has to be a way to ask. */}
+          <button
+            className="z-icon-button"
+            onClick={() => refresh()}
+            title="Refresh"
+            aria-label="Refresh"
+          >
+            <Icon name="refresh-cw" />
+          </button>
         </div>
         {/* The one place the project banner is right: it names the thing this panel
             is a view of — which is the project, or a folder inside it. */}
@@ -113,13 +123,6 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
             </button>
             <button
               className="z-icon-button on-chrome"
-              onClick={() => create(root, 'notebook')}
-              title="New notebook"
-            >
-              <Icon name="notebook-pen" />
-            </button>
-            <button
-              className="z-icon-button on-chrome"
               onClick={() => create(root, 'directory')}
               title="New folder"
             >
@@ -127,22 +130,17 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
             </button>
             <button
               className="z-icon-button on-chrome"
-              onClick={() => uploadTo(root)}
-              title="Upload file"
+              onClick={() => create(root, 'notebook')}
+              title="New notebook"
             >
-              <Icon name="upload" />
-            </button>
-            {/* The watcher misses whatever its exclusion list covers — anything with `test`, `dist`
-                or `tmp` anywhere in its path — so there has to be a way to ask. */}
-            <button className="z-icon-button on-chrome" onClick={() => refresh()} title="Refresh">
-              <Icon name="refresh-cw" />
+              <Icon name="notebook-pen" />
             </button>
           </div>
         </div>
         <div className="treeToolbar">
           <input
             className="z-field treeFilter"
-            type="search"
+            type="text"
             value={filter}
             placeholder="Filter"
             aria-label="Filter files"

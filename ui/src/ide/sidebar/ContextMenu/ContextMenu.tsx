@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Icon, IconName } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import { currentZoomFactor } from '@/zoom';
 import './ContextMenu.scss';
 
 interface MenuItem {
@@ -36,15 +37,20 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
 
   // Clamped once the menu has been measured: opened near the bottom of the tree it would otherwise
   // run past the window edge, and nothing can be scrolled to reach it.
+  //
+  // The clamping is all in window pixels, which is what the pointer, `innerWidth` and a measured
+  // rect are all in. Only the answer is divided: the menu is laid out inside #root, which zoom
+  // scales, so writing the pointer's own 165px there draws it at 165 × the factor.
   useLayoutEffect(() => {
     if (menu.current === null) {
       return;
     }
     const { width, height } = menu.current.getBoundingClientRect();
     const margin = 4;
+    const factor = currentZoomFactor();
     setPosition({
-      top: Math.max(margin, Math.min(yPos, window.innerHeight - height - margin)),
-      left: Math.max(margin, Math.min(xPos, window.innerWidth - width - margin)),
+      top: Math.max(margin, Math.min(yPos, window.innerHeight - height - margin)) / factor,
+      left: Math.max(margin, Math.min(xPos, window.innerWidth - width - margin)) / factor,
     });
   }, [xPos, yPos]);
 

@@ -12,7 +12,9 @@
 .login-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  // 100%, not 100vh: the page sits inside #root, which zoom scales, and a viewport unit is not
+  // rescaled by it. See styles/_base.scss for the height chain this is the end of.
+  min-height: 100%;
   background: var(--z-bg-login-page);
   // Content, not chrome: this page is read once, and the labels, the button and the slider all
   // inherit it from here.

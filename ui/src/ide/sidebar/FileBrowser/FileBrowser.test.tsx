@@ -763,12 +763,13 @@ describe('FileBrowser', () => {
   });
 
   describe('the clipboard', () => {
-    it('offers no Paste before anything has been cut or copied', async () => {
+    it('greys out Paste before anything has been cut or copied', async () => {
       await renderBrowser();
 
       fireEvent.contextMenu(row('src'));
 
-      expect(screen.queryByText('Paste')).not.toBeInTheDocument();
+      // Listed rather than hidden: a missing row only raises the question a disabled one answers.
+      expect(screen.getByRole('menuitem', { name: 'Paste' })).toBeDisabled();
     });
 
     it('moves what was cut, on the paste rather than on the cut', async () => {

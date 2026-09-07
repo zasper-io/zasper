@@ -16,6 +16,42 @@
   white-space: nowrap;
 }
 
+// The zoom control. `position: relative` is what its menu hangs from, and the padding comes off the
+// item because the button inside it carries its own — otherwise the hover fill would stop 10px short
+// of where the pointer is.
+.zoomPicker {
+  position: relative;
+  padding: 0;
+}
+
+.zoomButton {
+  padding: 0 10px;
+}
+
+// Opens upwards, and from the right edge: the bar is the last 22px of the window, and this item is
+// the last thing on it — a menu below or to the right of it would be off screen.
+.zoomMenu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  min-width: 96px;
+}
+
+// Two figures wide and right-aligned: the levels are `+5` down to `-5`, so a signed one and the
+// unsigned `0` line up on the digit rather than on the sign.
+.zoomMenu .panel-row-label {
+  min-width: 2ch;
+  text-align: right;
+}
+
+// The tick's place, held whether or not there is a tick to draw, so the numbers line up down
+// the menu rather than the checked one starting 12px to the left of the rest.
+.zoomTick {
+  flex: 0 0 12px;
+  display: inline-flex;
+  align-items: center;
+}
+
 // A status item that does something — the branch, which opens source control. Borderless and the same
 // size as the text beside it, so the bar stays a bar rather than growing a button.
 .statusButton {
