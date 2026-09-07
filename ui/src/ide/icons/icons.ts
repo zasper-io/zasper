@@ -15,6 +15,7 @@ import {
   CloudDownload,
   Copy,
   Cpu,
+  Download,
   Eye,
   EyeOff,
   FastForward,
@@ -22,14 +23,17 @@ import {
   FilePlus,
   Files,
   Folder,
+  FolderOpen,
   FolderPlus,
   GitBranch,
   Image,
+  Link,
   Lock,
   LogOut,
   Minus,
   NotebookPen,
   Pause,
+  Pencil,
   Play,
   PlugZap,
   Plus,
@@ -94,6 +98,10 @@ export const ICONS = {
   lock: Lock, // fa-lock
   'chevron-right': ChevronRight, // fa-chevron-right
   'chevron-down': ChevronDown, // fa-chevron-down, and fa-forward on Select next cell
+  pencil: Pencil, // Rename, in the file tree's context menu
+  'folder-open': FolderOpen, // Open as Root, in a folder row's context menu
+  link: Link, // Copy Path, in a row's context menu
+  download: Download, // Download, in a file row's context menu
 
   // --- The notebook --------------------------------------------------------
   save: Save, // fa-save

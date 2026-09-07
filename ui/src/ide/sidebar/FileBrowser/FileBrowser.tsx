@@ -62,13 +62,22 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
 
   // The same actions a folder's own menu offers, for the root, which has no row to right-click.
   const rootMenuItems = [
-    { label: 'Add file', action: () => create(root, 'file') },
-    { label: 'Add Notebook', action: () => create(root, 'notebook') },
-    { label: 'Add Folder', action: () => create(root, 'directory') },
-    { label: 'Upload', action: () => uploadTo(root) },
-    { label: 'Open Terminal Here', action: () => openTerminal(root) },
-    ...(clipboard.held === null ? [] : [{ label: 'Paste', action: () => clipboard.paste(root) }]),
-    { label: 'Refresh', action: () => refresh() },
+    { label: 'Add file', icon: 'file-plus' as const, action: () => create(root, 'file') },
+    {
+      label: 'Add Notebook',
+      icon: 'notebook-pen' as const,
+      action: () => create(root, 'notebook'),
+    },
+    { label: 'Add Folder', icon: 'folder-plus' as const, action: () => create(root, 'directory') },
+    { label: 'Upload', icon: 'upload' as const, action: () => uploadTo(root) },
+    { label: 'Open Terminal Here', icon: 'terminal' as const, action: () => openTerminal(root) },
+    {
+      label: 'Paste',
+      icon: 'clipboard-paste' as const,
+      disabled: clipboard.held === null,
+      action: () => clipboard.paste(root),
+    },
+    { label: 'Refresh', icon: 'refresh-cw' as const, action: () => refresh() },
   ];
 
   const handleRightClick = (e: React.MouseEvent) => {

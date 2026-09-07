@@ -1,10 +1,18 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { Icon, IconName } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 import './ContextMenu.scss';
 
 interface MenuItem {
   label: string;
   action: (path: string) => void;
+  icon?: IconName;
+  /**
+   * Nothing can be done with this right now — e.g. Paste with nothing on the clipboard. Listed rather
+   * than omitted, the same rule the row itself follows: a missing row only raises the question a
+   * greyed-out one answers.
+   */
+  disabled?: boolean;
   /**
    * This item throws something away. It is drawn in red and separated from the rest, and the menu
    * derives the separator from it rather than taking one as an item: a menu that needs two separators
@@ -52,25 +60,40 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
   // Where the red rows start, which is where the one separator goes.
   const firstDanger = items.findIndex((item) => item.danger === true);
 
+  const rowClassName = (item: MenuItem) => {
+    const classes = ['panel-row'];
+    if (item.danger === true) {
+      classes.push('is-danger');
+    }
+    if (item.disabled === true) {
+      classes.push('is-disabled');
+    }
+    return classes.join(' ');
+  };
+
   return (
-    <div className="z-overlay z-menu context-menu" role="menu" ref={menu} style={position}>
-      <div className="z-overlay-list">
+    <div className="z-overlay z-menu context-menu" ref={menu} style={position}>
+      <ul className="z-overlay-list" role="menu">
         {items.map((item, index) => (
           <React.Fragment key={index}>
             {index === firstDanger && index > 0 && (
-              <div className="z-overlay-separator" role="separator" />
+              <li className="z-overlay-separator" role="separator" />
             )}
-            <button
-              type="button"
-              role="menuitem"
-              className={item.danger === true ? 'panel-row is-danger' : 'panel-row'}
-              onClick={() => handleClick(item.action)}
-            >
-              {item.label}
-            </button>
+            <li className={rowClassName(item)} role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="panel-row-name"
+                disabled={item.disabled === true}
+                onClick={() => handleClick(item.action)}
+              >
+                {item.icon !== undefined && <Icon name={item.icon} />}
+                <span className="panel-row-label">{item.label}</span>
+              </button>
+            </li>
           </React.Fragment>
         ))}
-      </div>
+      </ul>
     </div>
   );
 };

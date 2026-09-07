@@ -41,15 +41,18 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: IFileItemP
 
   const menuItems = [
     // Renaming is one row's business; the rest of the menu is the selection's.
-    ...(scope.length > 1 ? [] : [{ label: 'Rename', action: rename.start }]),
-    { label: 'Cut', action: () => clipboard.cut(scope) },
-    { label: 'Copy', action: () => clipboard.copy(scope) },
+    ...(scope.length > 1
+      ? []
+      : [{ label: 'Rename', icon: 'pencil' as const, action: rename.start }]),
+    { label: 'Cut', icon: 'scissors' as const, action: () => clipboard.cut(scope) },
+    { label: 'Copy', icon: 'copy' as const, action: () => clipboard.copy(scope) },
     // A duplicate is a copy into the folder the file is already in; the server picks the free name.
-    { label: 'Duplicate', action: () => copyTo(scope, parentDir) },
-    { label: 'Copy Path', action: () => copyPath(scope) },
-    { label: 'Download', action: () => download(scope) },
+    { label: 'Duplicate', icon: 'files' as const, action: () => copyTo(scope, parentDir) },
+    { label: 'Copy Path', icon: 'link' as const, action: () => copyPath(scope) },
+    { label: 'Download', icon: 'download' as const, action: () => download(scope) },
     {
       label: scope.length > 1 ? `Delete ${scope.length} Items` : 'Delete',
+      icon: 'trash-2' as const,
       action: remove.ask,
       danger: true,
     },

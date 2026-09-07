@@ -66,24 +66,46 @@ const DirectoryItem = ({
     scope.length > 1
       ? []
       : [
-          { label: 'Rename', action: rename.start },
-          { label: 'Add file', action: () => create(path, 'file') },
-          { label: 'Add Notebook', action: () => create(path, 'notebook') },
-          { label: 'Add Folder', action: () => create(path, 'directory') },
-          { label: 'Upload', action: () => setUploadRequest({ parentDir: path, pending: [] }) },
-          { label: 'Open Terminal Here', action: () => openTerminal(path) },
-          { label: 'Open as Root', action: () => openAsRoot(path) },
+          { label: 'Rename', icon: 'pencil' as const, action: rename.start },
+          { label: 'Add file', icon: 'file-plus' as const, action: () => create(path, 'file') },
+          {
+            label: 'Add Notebook',
+            icon: 'notebook-pen' as const,
+            action: () => create(path, 'notebook'),
+          },
+          {
+            label: 'Add Folder',
+            icon: 'folder-plus' as const,
+            action: () => create(path, 'directory'),
+          },
+          {
+            label: 'Upload',
+            icon: 'upload' as const,
+            action: () => setUploadRequest({ parentDir: path, pending: [] }),
+          },
+          {
+            label: 'Open Terminal Here',
+            icon: 'terminal' as const,
+            action: () => openTerminal(path),
+          },
+          { label: 'Open as Root', icon: 'folder-open' as const, action: () => openAsRoot(path) },
         ];
 
   const menuItems = [
     ...forThisFolder,
-    { label: 'Cut', action: () => clipboard.cut(scope) },
-    { label: 'Copy', action: () => clipboard.copy(scope) },
-    ...(clipboard.held === null ? [] : [{ label: 'Paste', action: () => clipboard.paste(path) }]),
-    { label: 'Duplicate', action: () => copyTo(scope, parentDir) },
-    { label: 'Copy Path', action: () => copyPath(scope) },
+    { label: 'Cut', icon: 'scissors' as const, action: () => clipboard.cut(scope) },
+    { label: 'Copy', icon: 'copy' as const, action: () => clipboard.copy(scope) },
+    {
+      label: 'Paste',
+      icon: 'clipboard-paste' as const,
+      disabled: clipboard.held === null,
+      action: () => clipboard.paste(path),
+    },
+    { label: 'Duplicate', icon: 'files' as const, action: () => copyTo(scope, parentDir) },
+    { label: 'Copy Path', icon: 'link' as const, action: () => copyPath(scope) },
     {
       label: scope.length > 1 ? `Delete ${scope.length} Items` : 'Delete Folder',
+      icon: 'trash-2' as const,
       action: remove.ask,
       danger: true,
     },
