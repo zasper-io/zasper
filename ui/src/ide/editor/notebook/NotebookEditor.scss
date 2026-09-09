@@ -155,23 +155,40 @@
     display: flex;
   }
 
-  // What crossing a cell with the pointer, or tabbing into it, brings up. `:focus-within` and not
-  // just `.activeCell`: a cell's own buttons take the focus when tabbed to, and a focus ring on
-  // something invisible is what makes a design unreachable without a mouse.
-  .single-line:hover .cellOptions,
-  .single-line:hover .cell-run {
+  // The bar comes up on the pointer, on the cell the keyboard is on, and on `:focus-within` — the
+  // last because a cell's own buttons take the focus when tabbed to, and a focus ring on something
+  // invisible is what makes a design unreachable without a mouse.
+  .single-line:hover .cellOptions {
     opacity: 0.85;
     pointer-events: auto;
   }
 
   .single-line.activeCell .cellOptions,
-  .single-line:focus-within .cellOptions,
-  .single-line.activeCell .cell-run,
-  .single-line:focus-within .cell-run {
+  .single-line:focus-within .cellOptions {
     opacity: 1;
     pointer-events: auto;
   }
 
+  // The gutter's button arrives on two conditions, and they are written twice — once here to bring
+  // the button in, once below to take the count out. **The two selector lists have to stay
+  // identical.** They are what makes this a swap rather than two things in one box, and both ways of
+  // getting them apart have now been seen: `.activeCell` revealed the button with nothing hiding the
+  // count, and the cell drew `[ ▷:`; then `:focus-visible` hid the count for a button it did not
+  // reveal, because a focus that did not come from the keyboard does not match it, and the gutter
+  // went empty.
+  //
+  // The two conditions are the pointer on the cell, and focus inside the gutter — which can only be
+  // this button, since it is the one thing in there that takes focus. Not `.activeCell` and not the
+  // cell's own `:focus-within`: both are true for the whole time a cell is being typed in, and a
+  // count that turns into a play button while you write is worse than one that never moves. Focused,
+  // the count stays and the keyboard has Ctrl-Enter.
+  .single-line:hover .cell-run,
+  .cell-gutter:focus-within .cell-run {
+    opacity: 0.75;
+    pointer-events: auto;
+  }
+
+  // Full ink once it is actually the thing being pointed at or tabbed to.
   .single-line .cell-run:hover,
   .single-line .cell-run:focus-visible {
     opacity: 1;
@@ -206,12 +223,14 @@
     transition: opacity 80ms linear;
   }
 
-  // The count steps aside only where there is a button to step aside for, and `.has-run` is Cell.tsx
-  // saying so. A rendered markdown cell and a raw cell get neither — the rule is that the button
-  // appears where pressing it would change something — and their gutters must not empty themselves
-  // under the pointer for a button that is not coming.
+  // The other half of the swap: the same two conditions as `.cell-run` above, and they must be kept
+  // the same two.
+  //
+  // `.has-run` is Cell.tsx saying there is a button at all. A rendered markdown cell and a raw cell
+  // get none — the rule is that the button appears where pressing it would change something — and
+  // their gutters must not empty themselves under the pointer for a button that is not coming.
   .single-line:hover .cell-gutter.has-run .serial-no,
-  .single-line:focus-within .cell-gutter.has-run .serial-no {
+  .cell-gutter.has-run:focus-within .serial-no {
     opacity: 0;
   }
 

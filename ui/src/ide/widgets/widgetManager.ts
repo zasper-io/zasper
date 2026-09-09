@@ -11,6 +11,8 @@ import { Widget } from '@lumino/widgets';
 // has been asked to hide itself does so.
 import '@lumino/widgets/style/widget.css';
 import '@jupyter-widgets/controls/css/widgets.css';
+// The app's own, and the only rule here it did not get from a library: see widgets.css.
+import './widgets.css';
 
 import { createCdnLoader, WidgetModuleLoader } from './cdnLoader';
 import * as output from './outputWidget';

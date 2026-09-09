@@ -220,6 +220,39 @@ with the app:
   bqplot figure's absolutely positioned `.svg-background` sizes itself against; without it the
   background took the size of the cell's output area and the plot overflowed it with scrollbars.
   `.lm-mod-hidden` is how a widget asked to hide itself does so.
+- `widgets.css` — the app's own, and the only rule in it is the one below.
+
+## Zoom, and the one rule the app has to add
+
+Zasper's zoom is CSS `zoom` on `#root` (`zoom/index.ts`). Under it the two ways of measuring an element
+stop agreeing: `getBoundingClientRect()` reports **visual** pixels — the CSS pixel times the factor —
+while `clientWidth` and `offsetWidth` report the element's own. A library that measures itself with the
+first and then draws with those numbers into its own coordinate system draws everything too big by
+exactly the zoom factor.
+
+bqplot does that. `getFigureSize()` reads `this.el.getBoundingClientRect()` and hands the result to the
+figure's SVG as user units, so at zoom +3 (1.728) a figure whose box is 480px laid out an 829-unit
+scene inside it and the bottom 42% of every plot — the x axis, and most of the data — was drawn outside
+the viewport. Measured, at +3: a 480px figure drawing a `plotarea_background` of 799×709 where 885×360
+is right.
+
+**Nothing on this side can hand it the right number.** Both published lines, 0.5.x and 0.6.x, drive the
+measurement from a `ResizeObserver` on their own node rather than from Lumino's `ResizeMessage`, so
+`resizeViews` in `widgetManager.ts` — which posts `ResizeMessage.UnknownSize` on a window resize — is
+not consulted. The measurement is theirs, and it is taken of whatever box we give them.
+
+So the box is given at an accumulated zoom of 1: nested `zoom` multiplies, so `1 / --z-zoom` on the
+figure cancels the ancestor exactly and it measures its own pixels again.
+
+The cost is that a figure no longer magnifies with the window: at +3 its axis labels stay the size
+bqplot draws them while the chrome around them grows. That is the trade the rule takes deliberately —
+a plot at its own scale beats a plot with its axis cut off — and it is why the rule names
+`.bqplot.figure` rather than the widget host. Cancelling the zoom for every widget would take
+ipywidgets' own sliders and labels down with it, which is the opposite of what somebody who zoomed in
+was asking for.
+
+Any other library that sizes itself from a client rect will want the same line. The way to recognise
+one: it renders, but everything in it is too large by exactly the zoom factor.
 
 ## Not implemented
 

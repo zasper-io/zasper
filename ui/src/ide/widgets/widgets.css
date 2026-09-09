@@ -1,0 +1,35 @@
+/*
+What the app has to say about widgets it did not draw.
+
+Everything else in this directory is protocol — comms, models, views. This is the one place where the
+*app's* layout meets a library's own, and it exists for a single incompatibility.
+
+Zasper's zoom is CSS `zoom` on #root (see zoom/index.ts): it rescales the CSS pixel itself, which is
+what makes every length in the app grow together. Under it the two ways of measuring an element stop
+agreeing — `getBoundingClientRect()` reports *visual* pixels, while `clientWidth` and `offsetWidth`
+report the element's own. A library that measures itself with the first and then draws with those
+numbers into its own coordinate system draws everything too big by the zoom factor.
+
+bqplot does exactly that. `getFigureSize()` reads `this.el.getBoundingClientRect()` and feeds the
+result to the figure's SVG as user units, so at zoom +3 (1.728) it laid out an 829-unit scene inside
+a 480-unit viewport and the bottom 42% of every plot — the x axis, and most of the data — was drawn
+outside the box. Both published lines do it, 0.5.x and 0.6.x alike, and both drive it from a
+`ResizeObserver` on their own node rather than from Lumino's `ResizeMessage`, so `resizeViews` in
+widgetManager.ts cannot hand them a corrected size: the measurement is theirs and it is taken of
+whatever box we give them.
+
+So the box is given at an accumulated zoom of 1. Nested `zoom` multiplies, so `1 / --z-zoom` cancels
+the ancestor exactly and the figure measures its own pixels again. The cost is stated rather than
+hidden: a figure no longer magnifies with the rest of the window, so at +3 its axis labels stay the
+size bqplot draws them while the chrome around them grows. A plot at its own scale is worth more than
+a plot with its axis cut off, and the alternative — cancelling the zoom for every widget — would take
+ipywidgets' own sliders and labels down with it, which is the opposite of what somebody who zoomed in
+was asking for.
+
+Scoped to bqplot because bqplot is what was found. Any other library that sizes itself from a client
+rect will want the same line, and the way to recognise one is this: it renders, but everything in it
+is too large by exactly the zoom factor.
+*/
+.bqplot.figure {
+  zoom: calc(1 / var(--z-zoom, 1));
+}
