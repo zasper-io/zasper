@@ -124,8 +124,14 @@ const KEY_NAMES: Record<string, string> = {
   ArrowRight: 'Right',
 };
 
-/** Renders a binding the way the platform writes it, for display in the palette. */
-export function formatChord(binding: string, mac: boolean = isMac): string {
+/**
+ * A binding split into one entry per key cap, in the order the platform writes them.
+ *
+ * Separate from `formatChord` below because the help dialog draws each cap as a `<kbd>` and cannot
+ * take the joined string apart again: on a mac the parts are joined with nothing, so `⌘⇧P` has no
+ * separator to split on.
+ */
+export function chordParts(binding: string, mac: boolean = isMac): string[] {
   const chord = parseChord(binding, mac);
   const parts: string[] = [];
 
@@ -147,5 +153,11 @@ export function formatChord(binding: string, mac: boolean = isMac): string {
   } else {
     parts.push((mac ? MAC_KEY_SYMBOLS[chord.key] : KEY_NAMES[chord.key]) || chord.key);
   }
+  return parts;
+}
+
+/** Renders a binding the way the platform writes it, for display in the palette. */
+export function formatChord(binding: string, mac: boolean = isMac): string {
+  const parts = chordParts(binding, mac);
   return mac ? parts.join('') : parts.join('+');
 }

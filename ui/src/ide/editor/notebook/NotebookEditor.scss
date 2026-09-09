@@ -360,13 +360,12 @@
   // `.is-expanded` is the way past it, from the cell toolbar's expand button.
   max-height: calc(60vh / var(--z-zoom, 1));
   // 1.5, the same ratio `.cm-editor` uses, so a printed line is exactly as tall as a line of the code
-  // that printed it. Every size in the `.zfont-*` scale is even, so every one of them is a whole
-  // number of pixels per line — which is the reason for the ratio: a fractional line box stacks
-  // fractional baselines down a 40-line traceback.
+  // that printed it. The size is even, so it is a whole number of pixels per line — which is the
+  // reason for the ratio: a fractional line box stacks fractional baselines down a 40-line traceback.
   //
-  // The size itself comes from `.zfont-*` in styles/_base.scss. This box used to be pinned at
-  // --z-ui-font-size while the code above it had nine sizes on Cmd +/-, so the character cell lined up
-  // at one setting out of nine.
+  // The size itself comes from --z-font-size-body in styles/_base.scss, which the editor above takes
+  // too. This box used to be pinned at --z-ui-font-size instead, so the character cell in a printed
+  // table never lined up with the code that printed it.
   line-height: 1.5;
 
   // Bootstrap's reboot puts a bottom margin on all three; this box's padding is the spacing.
@@ -378,8 +377,8 @@
 
   // The family is named rather than left to the browser's `<pre>` default, so that output uses the
   // same mono face as the code above it that produced it. `font-size: inherit` beats Bootstrap's
-  // 0.875em, which was a fractional 11.375px off 13px, and takes the box's own size from `.zfont-*`
-  // rather than pinning one.
+  // 0.875em, which was a fractional 11.375px off 13px, and takes the box's own size rather than
+  // pinning one.
   //
   // The old comment gave the reason for the family as "columns in a printed DataFrame only line up if
   // both agree". A DataFrame is a `<table>`, so it never took the face — see `table.dataframe` below,
@@ -522,7 +521,7 @@
 }
 
 // The mono face because it names a Python class, and no size of its own: the box it is in is sized by
-// `.zfont-*`, so the name matches the traceback under it at every setting.
+// the box's own size, so the name matches the traceback under it.
 //
 // The prototype also drew `.output-error .frame` for the `File "…", line 12` lines in --z-fg-muted.
 // There is no such class here and nothing to hang one on: telling a frame line from a source line means

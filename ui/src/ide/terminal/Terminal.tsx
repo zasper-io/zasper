@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useMemo, useState } from 'react';
-import { useAtom } from 'jotai';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { AttachAddon } from '@xterm/addon-attach';
@@ -10,7 +9,6 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
 import { websocketUrl } from '@/api';
-import { fontSizeAtom } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
 import { terminalTheme } from './theme';
 
@@ -20,7 +18,7 @@ interface TerminalTabProps {
 
 // The size the canvas is drawn at, read off the element like the family and the sixteen colours are.
 // `undefined` rather than a number of its own when there is no stylesheet — a jsdom test — because a
-// NaN here is xterm's default 15, which is where the terminal not answering to Cmd +/- came from.
+// NaN here is xterm's default 15, which is where the terminal not matching the code's size came from.
 const cellFontSize = (element: HTMLElement): number | undefined => {
   const size = parseFloat(getComputedStyle(element).fontSize);
   return Number.isNaN(size) ? undefined : size;
@@ -145,22 +143,6 @@ export default function TerminalTab({ data }: TerminalTabProps) {
       observer.disconnect();
     };
   }, [terminalId, cwd, fontsReady, refit, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
-
-  // Cmd +/- moves `.zfont-N` on `.main-content`, which the terminal is inside, and the size is read
-  // back off the element rather than taken from the atom so that the canvas and the box cannot
-  // disagree. Applied to the terminal that is already running instead of rebuilding it: a new XTerm is
-  // an empty screen, and the shell behind this one is mid-session. Setting the option is what makes
-  // xterm measure the character again; the fit after it is what turns a taller cell into fewer rows,
-  // and `onResize` is what tells the shell.
-  const [fontSize] = useAtom(fontSizeAtom);
-  useEffect(() => {
-    const terminal = xtermRef.current;
-    if (terminal === null || terminalRef.current === null) return;
-    const size = cellFontSize(terminalRef.current);
-    if (size === undefined || size === terminal.options.fontSize) return;
-    terminal.options.fontSize = size;
-    refit();
-  }, [fontSize, refit]);
 
   return (
     <div className="tab-content">

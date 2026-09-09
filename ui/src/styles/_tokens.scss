@@ -67,7 +67,7 @@
   --z-font-size-subheading: 17px;
   // Code inside prose — a fenced block or an inline span in a markdown cell. One step under the body,
   // as a monospace face at the same nominal size reads larger. Code in a *cell* is not this: the editor
-  // and the output box are sized by `.zfont-*` so Cmd +/- reaches them.
+  // and the output box take --z-font-size-body, in styles/_base.scss.
   --z-font-size-code: 13px;
   --z-line-height-code: 1.55;
   // One row of a tree or list. VS Code's number, and it was compared against 24px on the prototype's

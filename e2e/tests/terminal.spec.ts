@@ -165,7 +165,9 @@ test('the terminal fits its pane, including after a resize it was not on screen 
   await expect(async () => {
     await area.click();
     await page.keyboard.type('echo lines=$(tput lines)\n');
-    await expect(rows).toContainText(`lines=${resized.rows}`, { timeout: 3_000 });
+    await expect(rows).toContainText(`lines=${resized.rows}`, {
+      timeout: 3_000,
+    });
   }).toPass({ timeout: 30_000 });
 });
 
@@ -180,7 +182,7 @@ can see and the reason `.terminalContainer` has to repeat the declaration. And t
 canvas: the element's `font-size` is only half of it, the other half being xterm re-measuring the
 character and handing the pty fewer rows.
 */
-test('the terminal owns its scrollbar and its text size follows the app', async ({ page }) => {
+test('the terminal owns its scrollbar', async ({ page }) => {
   await openApp(page);
   await page
     .locator('.launchSection')
@@ -214,45 +216,4 @@ test('the terminal owns its scrollbar and its text size follows the app', async 
   // `scrollbar-width` does not inherit, so this is only thin if it is declared somewhere that reaches
   // an element the app never names.
   expect(painted.width).toBe('thin');
-
-  const cell = () =>
-    area.evaluate((node) => {
-      const screen = node.querySelector('.xterm-screen') as HTMLElement;
-      const rows = node.querySelectorAll('.xterm-rows > div').length;
-      return {
-        rows,
-        element: parseFloat(getComputedStyle(node.closest('.terminalContainer')!).fontSize),
-        cellHeight: screen.getBoundingClientRect().height / rows,
-      };
-    });
-  const before = await cell();
-
-  // Through the palette, as palette.spec.ts runs it: the chord itself is `Mod-=`, which is a different
-  // key on a mac and on CI, and what is under test here is the terminal rather than the binding.
-  for (let step = 0; step < 2; step += 1) {
-    await page.keyboard.press('Control+Shift+P');
-    await page.locator('.palette-input').fill('>increase font');
-    await page.locator('.palette-input').press('Enter');
-  }
-  await expect(page.locator('.main-content')).toHaveClass(/zfont-18/);
-
-  // Retried: the canvas is re-measured and refitted from an effect, a frame behind the class.
-  await expect(async () => {
-    const after = await cell();
-    expect(after.element, 'the box did not take the new size').toBeGreaterThan(before.element);
-    expect(after.cellHeight, 'the canvas is still drawn at the old size').toBeGreaterThan(
-      before.cellHeight
-    );
-    expect(after.rows, 'a taller cell in the same pane must be fewer rows').toBeLessThan(
-      before.rows
-    );
-  }).toPass({ timeout: 10_000 });
-  const zoomed = await cell();
-
-  const rows = page.locator('.xterm-rows');
-  await expect(async () => {
-    await area.click();
-    await page.keyboard.type('echo lines=$(tput lines)\n');
-    await expect(rows).toContainText(`lines=${zoomed.rows}`, { timeout: 3_000 });
-  }).toPass({ timeout: 30_000 });
 });

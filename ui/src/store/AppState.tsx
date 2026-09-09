@@ -78,10 +78,6 @@ export const encodingAtom = atom<string>('UTF-8');
 export const eolSequenceAtom = atom<string>('LF');
 export const indentationModeAtom = atom<string>('Spaces');
 export const indentationSizeAtom = atom<number>(2);
-// Drives the `.zfont-<n>` class on `.main-content` (see getFontClass in ide/IDE.tsx), which
-// styles `.cm-editor`. One step above the 13px chrome.
-export const fontSizeAtom = atom<number>(14);
-
 // The whole window's scale, applied to <html> by ide/zoom. Seeded from the browser rather than
 // from 0, so a reload keeps the size the reader chose.
 export const zoomLevelAtom = atom<number>(storedZoomLevel());

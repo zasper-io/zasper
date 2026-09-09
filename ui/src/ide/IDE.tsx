@@ -20,7 +20,6 @@ import StatusBar from './statusBar/StatusBar';
 import './IDE.scss';
 import {
   fileBrowserReloadCountAtom,
-  fontSizeAtom,
   projectNameAtom,
   protectedStateAtom,
   userNameAtom,
@@ -47,7 +46,6 @@ function IDE() {
 
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
 
-  const [fontSize] = useAtom(fontSizeAtom); // Initial font size
   const [zoomLevel] = useAtom(zoomLevelAtom);
 
   // The application's only keyboard dispatcher, and the window-level commands that used to be a
@@ -108,10 +106,6 @@ function IDE() {
     rememberZoomLevel(zoomLevel);
   }, [zoomLevel]);
 
-  const getFontClass = (fontSize: number) => {
-    return 'zfont-' + fontSize;
-  };
-
   return (
     <div className="editor">
       <Topbar />
@@ -138,7 +132,7 @@ function IDE() {
           </Panel>
           <PanelResizeHandle className="panelResizeHandle" />
           <Panel defaultSize={80} minSize={50}>
-            <div className={'main-content ' + getFontClass(fontSize)}>
+            <div className="main-content">
               <TabIndex />
               <ContentPanel />
             </div>

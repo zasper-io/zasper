@@ -20,8 +20,8 @@
   color: var(--z-fg-on-terminal);
   // No font-size here. It was 14px, and xterm ignored it — the canvas is drawn from xterm's own
   // `fontSize` option, which nothing set, so the terminal was the one piece of content in the app that
-  // answered to neither a token nor Cmd +/-. Both ends are fixed elsewhere: the size comes from the
-  // `.zfont-N` loop in styles/_base.scss, with the editor and cell output, and Terminal.tsx reads it
+  // answered to neither a token nor the zoom. Both ends are fixed elsewhere: the size comes from the
+  // one content rule in styles/_base.scss, with the editor and cell output, and Terminal.tsx reads it
   // back off this element for the canvas the way it already reads the family and the sixteen colours.
 }
 
@@ -184,11 +184,5 @@
 
 // The modal shell lives in styles/_modal.scss — four components share it.
 
-.help-section {
-  width: 100%;
-  height: 100%;
-  padding: 20px;
-  padding-top: 60px;
-  font-size: var(--z-ui-font-size);
-  text-align: center;
-}
+// `.help-section` was here as well as in HelpDialog.scss, which is where it is now: two rules for one
+// class in two files, and the one here won on the properties they shared.

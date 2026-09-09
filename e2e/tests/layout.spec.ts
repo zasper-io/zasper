@@ -365,6 +365,42 @@ test('the help dialog says which section it is showing', async ({ page }) => {
   expect(await fill(general), 'the section left behind is still filled').toBe(unselected);
 });
 
+/*
+ * The key bindings are read off the command registry rather than written into the dialog, so what this
+ * guards is the join: a chord reaches the list at all, and it reaches it as one <kbd> per key cap
+ * rather than as the single string the palette shows.
+ *
+ * `Show All Commands` because it is registered by the Topbar and so is there with nothing open, and
+ * because its chord is three caps — a modifier pair and a letter — which is what would collapse if the
+ * formatted string were rendered whole.
+ */
+test('the help dialog draws each key of a shortcut as a key', async ({ page }) => {
+  await openApp(page);
+
+  await page.getByLabel('Help').click();
+  const dialog = page.locator('.modal');
+  await dialog.locator('.helpNavButton', { hasText: 'Key Bindings' }).click();
+
+  const row = dialog.locator('.keyBindings tr', { hasText: 'Show All Commands' }).first();
+  await expect(row).toBeVisible();
+
+  // Three caps, and none of them is the whole chord run together.
+  const caps = row.locator('.keyBindings-chord').first().locator('kbd');
+  await expect(caps).toHaveCount(3);
+  for (const cap of await caps.all()) {
+    expect((await cap.innerText()).length, 'a cap is holding more than one key').toBeLessThan(6);
+  }
+
+  // Drawn as a key rather than as text: the heavier bottom edge is the whole of that.
+  const edges = await caps.first().evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { top: style.borderTopWidth, bottom: style.borderBottomWidth };
+  });
+  expect(parseFloat(edges.bottom), 'the cap has no bottom edge to sit on').toBeGreaterThan(
+    parseFloat(edges.top)
+  );
+});
+
 /**
  * A rendered markdown cell is set in the app's own scale.
  *

@@ -30,25 +30,26 @@ async function openPalette(page: Page): Promise<void> {
 test('a command run from the palette changes the app', async ({ page }) => {
   await openApp(page);
 
-  // The font size is on the content area as a class, which is what makes this command's effect
-  // something a test can see at all.
-  const content = page.locator('.main-content');
-  await expect(content).toHaveClass(/zfont-14/);
+  // Zoom is a `zoom` on #root, which is what makes this command's effect something a test can see at
+  // all. Unzoomed the property is removed rather than set, so the computed value is the default 1.
+  const root = page.locator('#root');
+  await expect(root).toHaveCSS('zoom', '1');
 
   await openPalette(page);
   // The `>` kept, so the list is commands and nothing else — what Enter runs then does not depend on
   // what the project happens to be called.
-  await page.locator(palette).fill('>increase font');
+  await page.locator(palette).fill('>zoom in');
 
   const matches = page.locator('.palette-list .panel-row');
   await expect(matches).toHaveCount(1);
-  await expect(matches).toContainText('Increase Font Size');
+  await expect(matches).toContainText('Zoom In');
 
   // No arrowing first: the first match is selected as soon as it is the first match.
   await page.locator(palette).press('Enter');
 
   await expect(page.locator(palette)).toHaveCount(0);
-  await expect(content).toHaveClass(/zfont-16/);
+  // One step of the 1.2 ratio.
+  await expect(root).toHaveCSS('zoom', '1.2');
 });
 
 test('the palette lists what is registered, and Escape dismisses it', async ({ page }) => {
@@ -56,9 +57,9 @@ test('the palette lists what is registered, and Escape dismisses it', async ({ p
   await openPalette(page);
 
   // Commands from more than one place, so this fails if a registry that should be shared has become
-  // per-component: the font sizes come from useAppCommands, the two ways into the palette from the
-  // Topbar itself. Uncapped, because `>` alone is the browse-the-whole-registry view.
-  for (const label of ['Increase Font Size', 'Decrease Font Size', 'Go to File']) {
+  // per-component: the zoom commands come from useAppCommands, the two ways into the palette from
+  // the Topbar itself. Uncapped, because `>` alone is the browse-the-whole-registry view.
+  for (const label of ['Zoom In', 'Zoom Out', 'Go to File']) {
     await expect(page.locator('.palette-list .panel-row').filter({ hasText: label })).toHaveCount(
       1
     );
@@ -81,18 +82,18 @@ test('one query answers with both a command and a file, and opens the file', asy
    * sections at once. Written here rather than seeded into fixtures/project, which every spec shares:
    * a file whose name is a command word would be a trap in the other specs' way.
    */
-  const file = 'increase.md';
-  writeFileSync(inProject(file), '# increase\n');
+  const file = 'reset.md';
+  writeFileSync(inProject(file), '# reset\n');
 
   try {
     await openApp(page);
     await openPalette(page);
     // The `>` gone, so this is the query the topbar's search box would send.
-    await page.locator(palette).fill('increase');
+    await page.locator(palette).fill('reset');
 
     await expect(page.locator('.z-overlay-group')).toHaveText(['Commands', 'Files']);
     await expect(
-      page.locator('.palette-list .panel-row').filter({ hasText: 'Increase Font Size' })
+      page.locator('.palette-list .panel-row').filter({ hasText: 'Reset Zoom' })
     ).toHaveCount(1);
     await expect(page.locator('.palette-list .panel-row').filter({ hasText: file })).toHaveCount(1);
 

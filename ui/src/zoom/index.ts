@@ -3,8 +3,8 @@
  * scales — chrome, icons, borders, the tree's rows, the editor — because the browser's own `zoom`
  * rescales the CSS pixel itself instead of any one declaration.
  *
- * This is not `fontSizeAtom`, which is the `.zfont-N` scale on the *content* (code, output, the
- * terminal) and leaves the chrome where it is. The two are separate settings in VS Code too.
+ * There used to be a second setting beside it — a `.zfont-N` ladder on the content alone, stepped by
+ * a pair of palette commands — and it is gone: zoom moves every length in the window, including those.
  *
  * ~/.zasper/config.json does not carry it: zoom is a property of the screen being looked at, not of
  * the project, so it lives in the browser doing the looking.

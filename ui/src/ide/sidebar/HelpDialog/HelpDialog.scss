@@ -55,3 +55,79 @@
 .helpNavButton.active {
   background: var(--z-bg-row-selected);
 }
+
+// The dialog is content-sized, and the key list is the one section that can run long — a notebook
+// registers a dozen chords. Scrolls inside the section rather than growing the dialog past the window.
+//
+// Left, not centred. It was `text-align: center` with 60px of padding above it, written when the only
+// section was three lines about the application; a table of shortcuts read as centred labels against
+// right-aligned keys, and every other panel in the app sets text from the left.
+.help-section {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 16px 4px 16px 16px;
+  font-size: var(--z-ui-font-size);
+  text-align: left;
+}
+
+.keyBindings-group + .keyBindings-group {
+  margin-top: 16px;
+}
+
+// `.z-label` gives it the 11px uppercase treatment every section head in the app wears; what is left
+// is the margin, which a heading element brings from the reset.
+.keyBindings-group h3 {
+  margin: 0 0 4px;
+}
+
+.keyBindings {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.keyBindings td {
+  padding: 3px 0;
+  vertical-align: middle;
+}
+
+// The chords, right-aligned into a column of their own so a run of them reads down rather than
+// ragged after labels of different lengths.
+.keyBindings-keys {
+  width: 1%;
+  padding-left: 16px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+// Two chords for one command — `Mod-s` and `Ctrl-s` — are separated, or `⌘S ⌃S` reads as one.
+.keyBindings-chord + .keyBindings-chord {
+  margin-left: 10px;
+}
+
+// A key, drawn as a key: the heavier bottom border is the whole of the illusion. Ported from
+// `.mk-docs-body kbd` on the prototype's docs page.
+.keyBindings kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 1px solid var(--z-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--z-bg-panel);
+  color: var(--z-fg-default);
+  font-family: var(--z-mono-font-family);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.keyBindings kbd + kbd {
+  margin-left: 3px;
+}
+
+.keyBindings-note {
+  margin: 16px 0 0;
+  color: var(--z-fg-muted);
+}

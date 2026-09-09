@@ -88,7 +88,7 @@ a {
 // `--bs-code-color`, a literal $pink — #d63384 light, a tint of it dark — and sizes it 0.875em. The one
 // `<code>` on screen, the launcher's `pip install ipykernel`, was pink in all eight themes, and a
 // library's HTML output can contain either tag. `inherit` for both, so a `<code>` in the notice box takes
-// the notice's ink and a fractional em never lands on a character cell that Cmd +/- is resizing.
+// the notice's ink and a fractional em never lands on a character cell.
 //
 // `<kbd>` is deliberately not in the list: reboot gives it a near-black chip as well as a family, and
 // taking the ink without the surface would be dark on dark. Nothing renders one.
@@ -150,29 +150,19 @@ select {
   scrollbar-color: var(--z-scrollbar-thumb) var(--z-scrollbar-track);
 }
 
-// Editor font size, driven by fontSizeAtom (Cmd +/-) via getFontClass().
+// The three content surfaces, at one size. Zoom is what scales them now; this used to be a
+// `.zfont-8`..`.zfont-24` ladder that a pair of palette commands stepped through, and the two
+// settings were one too many — zoom moves every length in the window, including these.
 //
-// Keep this scoped when adding a size. IDE.tsx puts the class on `.main-content`, which also contains
-// the tab strip, the notebook toolbar, the launcher and the terminal, so an unscoped `font-size` resizes
-// all of that with the code.
-//
-// `.inner-text` is the second one: a cell's output box was pinned at --z-ui-font-size while the code
-// above it had all nine of these, so the character cell in a printed table or a traceback lined up with
-// the code at one setting out of nine. Everything in the box takes its size from here — a `<pre>`, a
-// printed DataFrame, an `ename` — so none of them states one.
-//
-// `.terminalContainer` is the third, and it is the same argument again: a shell prints monospaced text
-// for the same eyes the code above it is for, and it was the last piece of content in the app pinned to
-// one size — 14px stated in IDE.scss, which xterm then ignored in favour of its own default 15. It is
-// stated only here now, and Terminal.tsx reads it back off the element for the canvas.
-$font-sizes: 8, 10, 12, 14, 16, 18, 20, 22, 24;
-
-@each $size in $font-sizes {
-  .zfont-#{$size} .cm-editor,
-  .zfont-#{$size} .inner-text,
-  .zfont-#{$size} .terminalContainer {
-    font-size: #{$size}px;
-  }
+// All three named rather than left to inherit, because `.main-content` also holds the tab strip, the
+// notebook toolbar and the launcher, and those are chrome at --z-ui-font-size. `.inner-text` has to
+// match `.cm-editor` or a printed DataFrame's character cell stops lining up with the code that
+// printed it, and `.terminalContainer` is the same argument for a shell — Terminal.tsx reads the
+// size back off the element for xterm's canvas, which otherwise uses its own default of 15.
+.cm-editor,
+.inner-text,
+.terminalContainer {
+  font-size: var(--z-font-size-body);
 }
 
 // 1.5 rather than the body's 1.4, so every size above is a whole number of pixels per line;
