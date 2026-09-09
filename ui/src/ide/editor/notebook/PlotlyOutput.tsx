@@ -75,8 +75,16 @@ const PlotlyOutput = ({ figure }: { figure: IPlotlyFigure }) => {
   return (
     <>
       {failure && <p>{failure}</p>}
-      {/* plotly.js owns this element's contents, so nothing React renders may live inside it. */}
-      <div ref={host} />
+      {/*
+        The white plate the figure sits on, and it has to be a wrapper rather than a class on the
+        graph div itself. plotly's autosize reads `getComputedStyle(gd).height` and falls back to its
+        450px default only when that comes out falsy — which for an unsized div is `0px`. Any padding
+        on the graph div therefore *is* the figure's height: 4px either side drew every plot 8px tall.
+      */}
+      <div className="output-figure">
+        {/* plotly.js owns this element's contents, so nothing React renders may live inside it. */}
+        <div ref={host} />
+      </div>
     </>
   );
 };

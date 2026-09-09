@@ -17,6 +17,14 @@ interface NotebookCellsProps {
   focusNextCell: (addCellIfLast: boolean) => void;
   focusPreviousCell: () => void;
   updateCellSource: (value: string, cellId: string) => void;
+  /** The cells the kernel is currently running, so each can show a spinner for as long as it is. */
+  runningCellIds: ReadonlySet<string>;
+  /** The cells whose output has been let past its height cap. */
+  expandedOutputs: ReadonlySet<string>;
+  /** The markdown cell whose source is open, if any. */
+  editingCellId: string | null;
+  beginEditing: (cellId: string) => void;
+  endEditing: () => void;
   showPrompt: Boolean;
   promptContent: IKernelMessage;
   /** Which cell the kernel is asking input for, so only that cell shows the prompt. */
@@ -52,6 +60,11 @@ export default function NotebookCells(props: NotebookCellsProps) {
           divRefs={props.divRefs}
           codeMirrorRefs={props.codeMirrorRefs}
           updateCellSource={props.updateCellSource}
+          isRunning={props.runningCellIds.has(cell.id)}
+          isOutputExpanded={props.expandedOutputs.has(cell.id)}
+          isEditing={props.editingCellId === cell.id}
+          beginEditing={props.beginEditing}
+          endEditing={props.endEditing}
           showPrompt={props.showPrompt}
           promptContent={props.promptContent}
           promptCellId={props.promptCellId}

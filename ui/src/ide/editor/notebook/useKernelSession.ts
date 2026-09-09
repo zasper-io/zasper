@@ -143,6 +143,18 @@ export function useKernelSession(
    * those requests makes a previous run's output indistinguishable from this one's.
    */
   const executingCells = useRef(new Map<string, string>());
+  /**
+   * The same set of cells as `executingCells`, as state rather than a ref, so that a cell can draw a
+   * spinner for as long as it is actually running. The ref cannot do that job — writing to one is
+   * not a render — and the spinner used to key off `execution_count === -1`, which the kernel's
+   * `execute_input` overwrites within milliseconds of the run starting.
+   */
+  const [runningCellIds, setRunningCellIds] = useState<ReadonlySet<string>>(new Set());
+
+  /** Keeps the state above in step with the ref after every change to it. */
+  const syncRunningCells = useCallback(() => {
+    setRunningCellIds(new Set(executingCells.current.values()));
+  }, []);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
   const setKernelStatuses = useSetAtom(kernelStatusAtom);
   const [userName] = useAtom(userNameAtom);
@@ -157,6 +169,10 @@ export function useKernelSession(
   // What the kernel calls itself, for the record a save leaves in the file: `python3` is an id,
   // `Python 3` is what a reader sees. Undefined until the kernelspecs have arrived.
   const kernelDisplayName = kernelspecs[kernelName]?.spec?.display_name;
+
+  // nbformat's kernelspec carries a language beside the two names, and readers use it to pick a
+  // lexer. Rebuilding the record from the kernel's name alone dropped it.
+  const kernelLanguage = kernelspecs[kernelName]?.spec?.language;
 
   const toggleKernelSwitcher = () => setShowKernelSwitcher((prev) => !prev);
   const toggleShowPrompt = () => setShowPrompt((prev) => !prev);
@@ -185,6 +201,7 @@ export function useKernelSession(
         // Idle means the kernel has finished with the request and will send nothing further for it.
         if (message.content.execution_state === 'idle' && requestId) {
           executingCells.current.delete(requestId);
+          syncRunningCells();
         }
       }
       // An Output widget entered while the cell was running holds the output of it, and a cell whose
@@ -194,7 +211,7 @@ export function useKernelSession(
       }
       applyMessage(message, cellId);
     },
-    [applyMessage]
+    [applyMessage, syncRunningCells]
   );
 
   const startWebSocket = useCallback(
@@ -410,20 +427,29 @@ export function useKernelSession(
   };
 
   const interrupt = () => {
-    if (session) {
-      interruptKernel(session.kernel.id)
-        .then(() => setKernelStatus('interrupted'))
-        .catch((error) => console.error('Error interrupting kernel:', error));
-    }
+    if (!session) return;
+
+    // Set now, not when the request resolves. The kernel publishes its own `status: idle` the moment
+    // the interrupt lands, and that usually beat the HTTP reply — so 'interrupted' was written *over*
+    // the idle that should have cleared it, and the pill stayed red-ringed until the next cell ran.
+    // Setting it up front means the kernel's own status stream is the last word, as it should be.
+    setKernelStatus('interrupted');
+    interruptKernel(session.kernel.id).catch((error) => {
+      console.error('Error interrupting kernel:', error);
+    });
   };
 
   /** Drops the current session and starts a fresh one with the same kernel. */
   const restartKernel = useCallback(async () => {
     if (!session) return;
 
+    // Nothing the old kernel was running will ever report back, so no cell is running any more.
+    // Without this a cell interrupted by the restart keeps its spinner for the rest of the session.
+    executingCells.current.clear();
+    syncRunningCells();
     await deleteSession(session.id);
     await startSession(tab.path, tab.name, tab.type, kernelName);
-  }, [session, startSession, tab.path, tab.name, tab.type, kernelName]);
+  }, [session, startSession, tab.path, tab.name, tab.type, kernelName, syncRunningCells]);
 
   const reconnectKernel = () => {
     if (session) {
@@ -449,9 +475,10 @@ export function useKernelSession(
           executingCells.current.delete(msgId);
           console.error('Failed to send execute_request message:', error);
         }
+        syncRunningCells();
       }
     },
-    [session, connection, userName]
+    [session, connection, userName, syncRunningCells]
   );
 
   const sendInputReply = (parentHeader: IKernelMessage, inputValue: string) => {
@@ -503,7 +530,9 @@ export function useKernelSession(
     session,
     kernelName,
     kernelDisplayName,
+    kernelLanguage,
     kernelStatus,
+    runningCellIds,
     connection,
     widgets,
     showKernelSwitcher,

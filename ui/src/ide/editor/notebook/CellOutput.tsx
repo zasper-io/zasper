@@ -79,8 +79,12 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
 
         if (text) {
           const textHtml = ansi_up.ansi_to_html(text);
+          // stderr is tinted, stdout is not. Both are `stream` outputs and the only thing that tells
+          // them apart is `name`, which the kernel always sends and this app used to throw away along
+          // with the whole stderr message — so warnings and tqdm bars showed as nothing at all.
+          const streamClass = output.name === 'stderr' ? 'output-stderr' : undefined;
           return (
-            <pre key={index}>
+            <pre key={index} className={streamClass}>
               <div dangerouslySetInnerHTML={{ __html: textHtml }} />
             </pre>
           );

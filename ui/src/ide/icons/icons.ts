@@ -16,6 +16,7 @@ import {
   Copy,
   Cpu,
   Download,
+  Eraser,
   Eye,
   EyeOff,
   FastForward,
@@ -42,6 +43,7 @@ import {
   RotateCw,
   Save,
   Scissors,
+  ScrollText,
   Search,
   Settings,
   Square,
@@ -122,6 +124,11 @@ export const ICONS = {
   // a `color` prop. Lucide's read as a row being inserted between two others, which is the action.
   'between-horizontal-start': BetweenHorizontalStart,
   'between-horizontal-end': BetweenHorizontalEnd,
+  // The two output actions on a cell. An output area has a height cap on it (see `.inner-text` in
+  // NotebookEditor.scss); the scroll icon is what lifts the cap, and the eraser throws the output
+  // away, which is the other answer to a cell that printed more than anyone wants to scroll past.
+  eraser: Eraser,
+  'scroll-text': ScrollText,
 
   // --- Kernels -------------------------------------------------------------
   pause: Pause, // fa-pause, Interrupt on a kernel row

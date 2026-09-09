@@ -39,6 +39,14 @@ interface ICellProps {
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
   /** null until the cell has run, -1 while it is running, and absent on a non-code cell. */
   execution_count: number | null | undefined;
+  /** True from the moment the cell is submitted until the kernel goes idle on it. */
+  isRunning: boolean;
+  /** Whether this cell's output has been let past the height cap `.inner-text` puts on it. */
+  isOutputExpanded: boolean;
+  /** Markdown cells: whether this one's source is open, rather than its rendered output. */
+  isEditing: boolean;
+  beginEditing: (cellId: string) => void;
+  endEditing: () => void;
   codeMirrorRefs: React.RefObject<CodeMirrorRef[] | null>;
   updateCellSource: (value: string, cellId: string) => void;
   showPrompt: Boolean;
@@ -99,6 +107,16 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
     }
   };
 
+  /** Escape renders a markdown cell again, as Jupyter's Escape leaves edit mode. */
+  const handleMarkdownKeyDownCM = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      props.endEditing();
+      event.preventDefault();
+      return;
+    }
+    handleKeyDownCM(event);
+  };
+
   // Code cells complete against the kernel and nothing else: `override` replaces the language's
   // own sources rather than adding to them, which is what we want — a running kernel knows what
   // `df` is and the parser does not. Hence also `autocompletion: false` in basicSetup below;
@@ -125,14 +143,27 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
   };
 
   if (cell.cell_type === 'markdown') {
+    const isFocused = props.index === props.focusedIndex;
+    // Focus selects; editing is asked for. An empty cell is the exception — rendered, it is nothing
+    // at all, so there would be no way to click into it.
+    const isEditing = isFocused && (props.isEditing || cellContents.trim() === '');
+
     return (
       <div
         tabIndex={props.index}
-        className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
+        className={isFocused ? 'single-line activeCell' : 'single-line'}
         ref={divRef}
         onFocus={() => props.setFocusedIndex(props.index)}
+        // Enter opens the source of a focused-but-rendered cell, the way Jupyter's command mode
+        // does. Guarded on the target so it cannot fire for an Enter typed inside the editor.
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !isEditing && event.target === event.currentTarget) {
+            props.beginEditing(cell.id);
+            event.preventDefault();
+          }
+        }}
       >
-        {props.index === props.focusedIndex ? (
+        {isEditing ? (
           <>
             <CellButtons run={props.run} />
             <div className="inner-content">
@@ -151,10 +182,10 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
                     popupPlacement,
                     props.commandKeymap,
                   ]}
-                  autoFocus={props.index === props.focusedIndex ? true : false}
+                  autoFocus
                   onChange={onChange}
                   onUpdate={onUpdate}
-                  onKeyDown={handleKeyDownCM}
+                  onKeyDown={handleMarkdownKeyDownCM}
                   basicSetup={{
                     lineNumbers: false,
                     bracketMatching: true,
@@ -170,16 +201,21 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             </div>
           </>
         ) : (
-          // Same gutter and content column as the editor above, so focusing a markdown
-          // cell swaps the rendered output for its source in place.
-          <div className="inner-content">
-            <div className="cell-gutter" aria-hidden="true" />
-            <div className="cellEditor">
-              <Suspense fallback={<pre>{cellContents}</pre>}>
-                <MarkdownRenderer source={cellContents} />
-              </Suspense>
+          // Same gutter and content column as the editor above, so opening a markdown cell swaps
+          // the rendered output for its source in place. A double-click is what opens it — a single
+          // click only selects, which is the whole point: scrolling past prose and clicking near it
+          // used to turn it back into raw markdown with no obvious way back.
+          <>
+            {isFocused && <CellButtons run={props.run} />}
+            <div className="inner-content" onDoubleClick={() => props.beginEditing(cell.id)}>
+              <div className="cell-gutter" aria-hidden="true" />
+              <div className="cellEditor">
+                <Suspense fallback={<pre>{cellContents}</pre>}>
+                  <MarkdownRenderer source={cellContents} />
+                </Suspense>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     );
@@ -195,9 +231,12 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       {props.index === props.focusedIndex ? <CellButtons run={props.run} /> : <></>}
 
       <div className="inner-content">
-        {props.execution_count === -1 ? (
-          // Waiting on the kernel, in the gutter where the count will land.
-          <div className="cell-spinner">
+        {props.isRunning ? (
+          // Running, in the gutter where the count will land. This used to test
+          // `execution_count === -1`, which is only true between submitting the cell and the
+          // kernel's `execute_input` — a few milliseconds — after which the count arrives and a
+          // cell that went on running for a minute showed a stale `[17]:` and nothing else.
+          <div className="cell-spinner" title="Running" aria-label="Running">
             <span className="z-spinner" />
           </div>
         ) : (
@@ -247,7 +286,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       {/* Only when there is something to show — .inner-text has padding and a background,
           so an empty one is a tinted strip under every un-run cell. */}
       {cell.outputs && cell.outputs.length > 0 && (
-        <div className="inner-text">
+        <div className={props.isOutputExpanded ? 'inner-text is-expanded' : 'inner-text'}>
           <CellOutput data={cell} widgets={props.widgets} />
         </div>
       )}

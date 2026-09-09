@@ -72,3 +72,63 @@
   // Taken back from the host above: the popup itself is clicked.
   pointer-events: auto;
 }
+
+// The completion list itself. Everything below this comment was CodeMirror's own base theme, which
+// is not a theme in this app's sense at all: a white `#fff` box with a `1px solid silver` border, a
+// `Highlight`/`HighlightText` selection bar taken from the OS, and no radius or shadow. In any dark
+// theme that is a white rectangle, and in the light ones it is the only floating surface in the app
+// that is not `.z-overlay`. This makes it one — the same surface, border, radius and shadow as a
+// menu, which is what it is.
+//
+// Every rule here is scoped through `#cm-tooltip-host` for the reason the z-index above is: the base
+// theme's own selectors are two classes deep, so an id is what wins without an `!important`.
+#cm-tooltip-host .cm-tooltip.cm-tooltip-autocomplete {
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  background: var(--z-bg-overlay);
+  box-shadow: var(--z-shadow-medium);
+  // So the rounded corners clip the first and last row of the list.
+  overflow: hidden;
+}
+
+#cm-tooltip-host .cm-tooltip-autocomplete > ul {
+  max-height: 16em;
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size);
+  color: var(--z-fg-default);
+}
+
+#cm-tooltip-host .cm-tooltip-autocomplete > ul > li {
+  padding: 2px 8px;
+  line-height: 18px;
+}
+
+#cm-tooltip-host .cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--z-accent);
+  color: var(--z-fg-on-accent);
+}
+
+// What the typed prefix matched, which the base theme draws by underlining. Weight instead: an
+// underline under a `.` or a `_` in an identifier is unreadable at this size.
+#cm-tooltip-host .cm-completionMatchedText {
+  text-decoration: none;
+  font-weight: 700;
+}
+
+// The kind icons. CodeMirror draws these as characters in a pseudo-element at 90% opacity — the
+// emoji-looking key beside every entry is its `keyword` glyph — so the only thing to state is that
+// they take the row's ink rather than the browser's default.
+#cm-tooltip-host .cm-completionIcon {
+  margin-right: 6px;
+  opacity: 0.7;
+}
+
+#cm-tooltip-host .cm-completionDetail {
+  margin-left: 8px;
+  color: var(--z-fg-muted);
+  font-style: normal;
+}
+
+#cm-tooltip-host .cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail {
+  color: var(--z-fg-on-accent);
+}

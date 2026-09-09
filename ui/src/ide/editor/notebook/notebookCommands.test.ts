@@ -29,6 +29,8 @@ interface IFakeOptions {
   session?: unknown;
   /** What useNotebookCells reports when the notebook could not be loaded. */
   error?: string;
+  /** Whether there is a structural change on the undo stack. */
+  canUndoCellChange?: boolean;
 }
 
 /**
@@ -44,6 +46,11 @@ function fakeTargets(options: IFakeOptions = {}) {
     cutCell: vi.fn(),
     pasteCell: vi.fn(),
     changeCellType: vi.fn(),
+    endEditing: vi.fn(),
+    undoCellChange: vi.fn(),
+    toggleOutputExpanded: vi.fn(),
+    clearFocusedCellOutputs: vi.fn(),
+    clearAllOutputs: vi.fn(),
     focusNextCell: vi.fn(),
     goToNextCell: vi.fn(),
     goToPreviousCell: vi.fn(),
@@ -63,6 +70,7 @@ function fakeTargets(options: IFakeOptions = {}) {
       focusedIndex: options.focusedIndex ?? 0,
       copiedCell: options.copiedCell ?? null,
       error: options.error ?? '',
+      canUndoCellChange: options.canUndoCellChange ?? false,
       addCellUp: spies.addCellUp,
       addCellDown: spies.addCellDown,
       deleteCell: spies.deleteCell,
@@ -70,6 +78,11 @@ function fakeTargets(options: IFakeOptions = {}) {
       cutCell: spies.cutCell,
       pasteCell: spies.pasteCell,
       changeCellType: spies.changeCellType,
+      endEditing: spies.endEditing,
+      undoCellChange: spies.undoCellChange,
+      toggleOutputExpanded: spies.toggleOutputExpanded,
+      clearFocusedCellOutputs: spies.clearFocusedCellOutputs,
+      clearAllOutputs: spies.clearAllOutputs,
       focusNextCell: spies.focusNextCell,
       goToNextCell: spies.goToNextCell,
       goToPreviousCell: spies.goToPreviousCell,

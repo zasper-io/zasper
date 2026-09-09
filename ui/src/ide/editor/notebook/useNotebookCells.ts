@@ -5,6 +5,9 @@ import { apiErrorMessage, getNotebook, ICell, INotebookModel } from '@/api';
 
 import { applyKernelMessage, carriesOutput, IKernelMessage } from './kernelMessages';
 
+/** How many structural changes stay undoable. Bounded so a long session cannot grow without end. */
+const UNDO_HISTORY_LIMIT = 100;
+
 const emptyNotebook: INotebookModel = {
   cells: [],
   nbformat: 4,
@@ -42,6 +45,22 @@ export function useNotebookCells() {
   const [error, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [copiedCell, setCopiedCell] = useState<ICell | null>(null);
+  /**
+   * The markdown cell whose source is open for editing, if any. Focus and editing used to be the
+   * same thing: a markdown cell rendered its editor whenever it was the focused cell, so a single
+   * click anywhere on rendered prose replaced it with raw source, and the first cell of every
+   * notebook came up unrendered because it is the cell that has focus on open.
+   *
+   * A cell is being edited only while this *and* the focus are on it, so moving the focus away
+   * re-renders without anything having to clear this — which is what keeps it out of the way of the
+   * order a click's focus and dblclick handlers run in.
+   */
+  const [editingCellId, setEditingCellId] = useState<string | null>(null);
+  /**
+   * The cells whose output area has been let past the height cap `.inner-text` puts on it. View
+   * state, not the document's: it is about this pane and must never reach the file.
+   */
+  const [expandedOutputs, setExpandedOutputs] = useState<ReadonlySet<string>>(new Set());
   const [cutCellIndex, setCutCellIndex] = useState<number | null>(null);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]);
   /**
@@ -50,6 +69,19 @@ export function useNotebookCells() {
    * seen, so it is not the notebook's state and must never reach the file.
    */
   const clearWaiting = useRef(new Set<string>());
+  /**
+   * Snapshots taken before each structural change, newest last, so that adding, deleting, cutting,
+   * pasting and retyping a cell can be taken back. CodeMirror's own history covers the text inside
+   * one cell and nothing above it, so before this a deleted cell was simply gone.
+   *
+   * Whole documents rather than a diff: a notebook is a handful of cells holding references to
+   * output bundles that are never mutated in place, so a snapshot is a shallow array copy and the
+   * outputs are shared, not duplicated. The focused index rides along because undoing a delete that
+   * does not put the caret back where it was is disorienting.
+   */
+  const [undoStack, setUndoStack] = useState<{ notebook: INotebookModel; focusedIndex: number }[]>(
+    []
+  );
 
   /**
    * Reads the document into this hook, resolving to it, or to null when it could not be read; it
@@ -85,7 +117,36 @@ export function useNotebookCells() {
     }
   }, []);
 
+  /** Opens a markdown cell's source: a double-click on it, or Enter with it focused. */
+  const beginEditing = useCallback((cellId: string) => setEditingCellId(cellId), []);
+
+  /** Renders it again: Escape, or running the cell. */
+  const endEditing = useCallback(() => setEditingCellId(null), []);
+
+  /**
+   * Records the document as it stands, to be restored by `undoCellChange`. Called before the change
+   * rather than inside the `setNotebook` updater: an updater has to be pure, and React may run one
+   * more than once, which would push the same snapshot twice.
+   */
+  const pushUndo = useCallback(() => {
+    setUndoStack((prev) => [...prev, { notebook, focusedIndex }].slice(-UNDO_HISTORY_LIMIT));
+  }, [notebook, focusedIndex]);
+
+  /** Restores the document to before the last structural change. A no-op with nothing to undo. */
+  const undoCellChange = useCallback(() => {
+    setUndoStack((prev) => {
+      const previous = prev[prev.length - 1];
+      if (!previous) {
+        return prev;
+      }
+      setNotebook(previous.notebook);
+      setFocusedIndex(previous.focusedIndex);
+      return prev.slice(0, -1);
+    });
+  }, []);
+
   const addCellUp = useCallback(() => {
+    pushUndo();
     setNotebook((prevNotebook) => ({
       ...prevNotebook,
       cells: [
@@ -94,9 +155,10 @@ export function useNotebookCells() {
         ...prevNotebook.cells.slice(focusedIndex),
       ],
     }));
-  }, [focusedIndex]);
+  }, [focusedIndex, pushUndo]);
 
   const addCellDown = useCallback(() => {
+    pushUndo();
     setNotebook((prevNotebook) => {
       // Ensure the focusedIndex is within the bounds of the cells array
       const index =
@@ -113,9 +175,10 @@ export function useNotebookCells() {
         ],
       };
     });
-  }, [focusedIndex]);
+  }, [focusedIndex, pushUndo]);
 
   const deleteCell = useCallback(() => {
+    pushUndo();
     setNotebook((prevNotebook) => {
       // Check if focusedIndex is valid to avoid errors (e.g., empty notebook or invalid index)
       if (focusedIndex < 0 || focusedIndex >= prevNotebook.cells.length) {
@@ -130,7 +193,7 @@ export function useNotebookCells() {
         ],
       };
     });
-  }, [focusedIndex]);
+  }, [focusedIndex, pushUndo]);
 
   const copyCell = useCallback(() => {
     setCopiedCell(notebook.cells[focusedIndex]);
@@ -138,6 +201,7 @@ export function useNotebookCells() {
 
   /** Copies the focused cell to the clipboard and removes it from the notebook. */
   const cutCell = useCallback(() => {
+    pushUndo();
     setCopiedCell(notebook.cells[focusedIndex]);
     setCutCellIndex(focusedIndex);
     setNotebook((prevNotebook) => ({
@@ -147,11 +211,12 @@ export function useNotebookCells() {
         ...prevNotebook.cells.slice(focusedIndex + 1),
       ],
     }));
-  }, [notebook, focusedIndex]);
+  }, [notebook, focusedIndex, pushUndo]);
 
   const pasteCell = useCallback(() => {
     if (!copiedCell) return; // No cell to paste
 
+    pushUndo();
     setNotebook((prevNotebook) => {
       // Determine the paste index (after focusedIndex or at the end of the notebook)
       const index =
@@ -173,7 +238,7 @@ export function useNotebookCells() {
     if (cutCellIndex !== null) {
       setCutCellIndex(null);
     }
-  }, [copiedCell, cutCellIndex, focusedIndex]);
+  }, [copiedCell, cutCellIndex, focusedIndex, pushUndo]);
 
   const updateCellSource = useCallback((value: string, cellId: string) => {
     setNotebook((prevNotebook) => ({
@@ -186,6 +251,12 @@ export function useNotebookCells() {
 
   const changeCellType = useCallback(
     (value: string) => {
+      pushUndo();
+      const target = notebook.cells[focusedIndex];
+      // A cell that has just become markdown shows its source rather than rendering on the spot,
+      // which is what Jupyter does: the text was code a moment ago and turning it silently into
+      // prose hides what you were looking at.
+      setEditingCellId(value === 'markdown' && target ? target.id : null);
       setNotebook((prevNotebook) => ({
         ...prevNotebook,
         cells: prevNotebook.cells.map((cell, idx) =>
@@ -193,7 +264,7 @@ export function useNotebookCells() {
         ),
       }));
     },
-    [focusedIndex]
+    [notebook, focusedIndex, pushUndo]
   );
 
   /** Clears previous output and shows the running spinner (execution_count -1). */
@@ -216,6 +287,42 @@ export function useNotebookCells() {
       ),
     }));
   }, []);
+
+  /** Lets the focused cell's output past the height cap, or puts it back under it. */
+  const toggleOutputExpanded = useCallback(() => {
+    const cell = notebook.cells[focusedIndex];
+    if (!cell) {
+      return;
+    }
+    setExpandedOutputs((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(cell.id)) {
+        next.add(cell.id);
+      }
+      return next;
+    });
+  }, [notebook, focusedIndex]);
+
+  /** Throws away the focused cell's output. Undoable, because it changes the document. */
+  const clearFocusedCellOutputs = useCallback(() => {
+    const cell = notebook.cells[focusedIndex];
+    if (!cell) {
+      return;
+    }
+    pushUndo();
+    clearCellOutputs(cell.id);
+  }, [notebook, focusedIndex, pushUndo, clearCellOutputs]);
+
+  /** Throws away every output in the notebook, without touching the kernel. */
+  const clearAllOutputs = useCallback(() => {
+    pushUndo();
+    setNotebook((prevNotebook) => ({
+      ...prevNotebook,
+      cells: prevNotebook.cells.map((cell) =>
+        cell.cell_type === 'code' ? { ...cell, outputs: [], execution_count: null } : cell
+      ),
+    }));
+  }, [pushUndo]);
 
   const applyMessage = useCallback(
     (message: IKernelMessage, cellId: string | undefined) => {
@@ -314,8 +421,18 @@ export function useNotebookCells() {
     pasteCell,
     updateCellSource,
     changeCellType,
+    editingCellId,
+    beginEditing,
+    endEditing,
+    undoCellChange,
+    /** Exposed so `notebook:undo-cell-change` can report itself unavailable with nothing to undo. */
+    canUndoCellChange: undoStack.length > 0,
     markCellRunning,
     clearCellOutputs,
+    clearFocusedCellOutputs,
+    clearAllOutputs,
+    expandedOutputs,
+    toggleOutputExpanded,
     applyMessage,
     focusNextCell,
     focusPreviousCell,

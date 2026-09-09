@@ -7,6 +7,7 @@ import { IfileTab } from '@/store/TabState';
 import { useUnsavedChanges } from '@/store/UnsavedState';
 import BreadCrumb from '../BreadCrumb';
 import { CodeMirrorRef } from './Cell';
+import ConfirmRestartDialog, { RestartIntent } from './ConfirmRestartDialog';
 import { IKernelMessage } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
@@ -60,6 +61,9 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         metadata.kernelspec = {
           name: kernel.kernelName,
           display_name: kernel.kernelDisplayName ?? kernel.kernelName,
+          // Only when the kernelspec actually declares one — nbformat allows the key to be absent,
+          // but a `language: undefined` would serialise as a null and be worse than leaving it out.
+          ...(kernel.kernelLanguage ? { language: kernel.kernelLanguage } : {}),
         };
       }
     }
@@ -110,11 +114,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
   }, [executeAllCellsFlag, submitAllCellsForExecution]);
 
-  const restartKernel = () => {
+  const doRestartKernel = () => {
     kernel.restartKernel().catch((error) => console.error('Error restarting kernel:', error));
   };
 
-  const restartAndExecuteAllCells = async () => {
+  const doRestartAndExecuteAllCells = async () => {
     if (!kernel.session) return;
 
     try {
@@ -123,6 +127,21 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       setExecuteAllCellsFlag(true);
     } catch (error) {
       console.error('Error restarting kernel:', error);
+    }
+  };
+
+  // Both restarts are asked about first. They were a single click each, and both throw away
+  // everything the kernel holds; run-all also replaces every output in the file, which no undo here
+  // covers. `null` means nothing is being asked.
+  const [restartIntent, setRestartIntent] = useState<RestartIntent | null>(null);
+
+  const confirmRestart = () => {
+    const intent = restartIntent;
+    setRestartIntent(null);
+    if (intent === 'restart') {
+      doRestartKernel();
+    } else if (intent === 'restart-and-run-all') {
+      doRestartAndExecuteAllCells().catch(logApiError('Error restarting kernel:'));
     }
   };
 
@@ -140,8 +159,8 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     },
     submitCell,
     submitAllCells: submitAllCellsForExecution,
-    restartKernel,
-    restartAndExecuteAllCells,
+    restartKernel: () => setRestartIntent('restart'),
+    restartAndExecuteAllCells: () => setRestartIntent('restart-and-run-all'),
   });
 
   // Only while this is the visible tab: every open notebook stays mounted, so registering
@@ -171,6 +190,14 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         />
 
         <div className="editor-body">
+          {restartIntent !== null && (
+            <ConfirmRestartDialog
+              intent={restartIntent}
+              onConfirm={confirmRestart}
+              onCancel={() => setRestartIntent(null)}
+            />
+          )}
+
           {kernel.showKernelSwitcher && (
             <KernelSwitcher
               kernelName={kernel.kernelName}
@@ -205,6 +232,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               focusNextCell={cells.focusNextCell}
               focusPreviousCell={cells.focusPreviousCell}
               updateCellSource={cells.updateCellSource}
+              runningCellIds={kernel.runningCellIds}
+              expandedOutputs={cells.expandedOutputs}
+              editingCellId={cells.editingCellId}
+              beginEditing={cells.beginEditing}
+              endEditing={cells.endEditing}
               showPrompt={kernel.showPrompt}
               promptContent={kernel.promptContent}
               promptCellId={kernel.promptCellId}

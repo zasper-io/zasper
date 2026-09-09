@@ -180,6 +180,13 @@
   position: relative;
   background: var(--z-bg-cell-output);
   border-radius: 2px;
+  // A cap, so one `print` in a loop cannot bury the rest of the notebook. `overflow: auto` above was
+  // already here and never engaged, because nothing constrained the height: a 120-line print grew
+  // this box to 2532px and the notebook's scroll height by a fifth. Divided by the zoom factor for
+  // the same reason `.modal-content` divides its own — `zoom` does not rescale a viewport unit.
+  //
+  // `.is-expanded` is the way past it, from the cell toolbar's expand button.
+  max-height: calc(60vh / var(--z-zoom, 1));
   // 1.5, the same ratio `.cm-editor` uses, so a printed line is exactly as tall as a line of the code
   // that printed it. Every size in the `.zfont-*` scale is even, so every one of them is a whole
   // number of pixels per line — which is the reason for the ratio: a fractional line box stacks
@@ -224,16 +231,49 @@
     font-weight: 700;
   }
 
-  // A figure should not force the cell wider than the pane.
+  // A figure should not force the cell wider than the pane, and it sits on a plate of its own rather
+  // than straight on the output tint: see --z-bg-figure. `display: block` so the plate is the image's
+  // box and not a text line box with a descender's worth of tint under it.
   img {
+    display: block;
     max-width: 100%;
     height: auto;
+    background: var(--z-bg-figure);
   }
 
   // Tells consecutive outputs from one cell apart without changing the tint.
   > * + * {
     margin-top: 6px;
   }
+}
+
+// Past the cap, for an output worth reading in full. The button that sets it is in the cell toolbar.
+.inner-text.is-expanded {
+  max-height: none;
+}
+
+// The two renderers that draw their own opaque white canvas and know nothing about the app's theme:
+// plotly and Vega. Same plate as an image, for the same reason — in a dark theme both were a
+// full-width white slab dropped on the pane, and in a light one a white rectangle on the output tint.
+//
+// `.output-figure` is a wrapper PlotlyOutput.tsx renders around the graph div, and the padding has to
+// live on the wrapper: plotly's autosize reads `getComputedStyle(gd).height` and only falls back to
+// its 450px default when that is falsy, so padding on the graph div itself becomes the figure's whole
+// height. `.vega-embed` is Vega's own element and takes its size from the spec, so it can be padded
+// directly.
+.inner-text :is(.output-figure, .vega-embed) {
+  padding: 4px;
+  border-radius: 2px;
+  background: var(--z-bg-figure);
+}
+
+// stderr, which the kernel sends for warnings, `logging` and every tqdm bar. Tinted so it is not
+// mistaken for stdout — Jupyter does the same, and until recently these messages were dropped
+// entirely rather than shown. The ink stays the box's: what colour is in a warning is the kernel's.
+.output-stderr {
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: var(--z-bg-error-subtle);
 }
 
 // The code box, and the only edge in a cell. The left border is 2px because it is the one that says
@@ -306,7 +346,12 @@
 // reports a failure.
 .output-error {
   border-left: 2px solid var(--z-status-error);
-  padding-left: 8px;
+  // A tint as well as the edge. A traceback used to be the same surface as a printed number, so the
+  // one thing worth finding while scrolling a long notebook was the one thing that did not stand out.
+  // Weak enough that IPython's own ANSI colours still read over it — see --z-bg-error-subtle.
+  padding: 4px 8px;
+  border-radius: 0 2px 2px 0;
+  background: var(--z-bg-error-subtle);
 }
 
 // The mono face because it names a Python class, and no size of its own: the box it is in is sized by

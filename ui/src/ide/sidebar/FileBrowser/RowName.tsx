@@ -11,7 +11,9 @@ interface RowNameProps {
 /** The label of a row in the tree, or its rename box. */
 export default function RowName({ name, rename }: RowNameProps) {
   if (!rename.isEditing) {
-    return <span>{name}</span>;
+    // The class is what lets a long name end in an ellipsis instead of running out of the panel;
+    // the row's own `title` is where the whole name stays readable. See `.rowName` in _panel.scss.
+    return <span className="rowName">{name}</span>;
   }
 
   return (

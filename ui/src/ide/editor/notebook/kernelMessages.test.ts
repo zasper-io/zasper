@@ -50,18 +50,21 @@ describe('applyKernelMessage', () => {
       'cell-1'
     );
     expect(updated.cells[0].outputs).toEqual([
-      { text: '\x1b[32mhello\x1b[0m', output_type: 'stream' },
+      { output_type: 'stream', name: 'stdout', text: '\x1b[32mhello\x1b[0m' },
     ]);
   });
 
-  it('ignores stderr streams', () => {
-    const notebook = notebookWith('cell-1');
+  // Warnings, the logging module and every tqdm progress bar come down this channel. They used to be
+  // dropped, so a cell that only warned looked like a cell that produced nothing at all.
+  it('keeps stderr streams, named so the renderer can tint them', () => {
     const updated = applyKernelMessage(
-      notebook,
+      notebookWith('cell-1'),
       message('stream', { name: 'stderr', text: 'boom' }),
       'cell-1'
     );
-    expect(updated).toBe(notebook);
+    expect(updated.cells[0].outputs).toEqual([
+      { output_type: 'stream', name: 'stderr', text: 'boom' },
+    ]);
   });
 
   it('appends errors with their traceback', () => {
@@ -79,21 +82,27 @@ describe('applyKernelMessage', () => {
     ]);
   });
 
-  it('appends execute results and display data', () => {
+  // nbformat requires `metadata` on both, and `execution_count` on an execute_result. Writing them
+  // without those keys produced .ipynb files that nbformat.validate() rejects and nbconvert refuses.
+  it('appends execute results and display data in the shape nbformat requires', () => {
     const data = { 'text/plain': '42' };
     const withResult = applyKernelMessage(
       notebookWith('cell-1'),
-      message('execute_result', { data }),
+      message('execute_result', { data, execution_count: 3 }),
       'cell-1'
     );
-    expect(withResult.cells[0].outputs).toEqual([{ data, output_type: 'execute_result' }]);
+    expect(withResult.cells[0].outputs).toEqual([
+      { output_type: 'execute_result', data, metadata: {}, execution_count: 3 },
+    ]);
 
     const withDisplay = applyKernelMessage(
       notebookWith('cell-1'),
-      message('display_data', { data }),
+      message('display_data', { data, metadata: { 'image/png': { width: 40 } } }),
       'cell-1'
     );
-    expect(withDisplay.cells[0].outputs).toEqual([{ data }]);
+    expect(withDisplay.cells[0].outputs).toEqual([
+      { output_type: 'display_data', data, metadata: { 'image/png': { width: 40 } } },
+    ]);
   });
 
   it('appends to a cell whose outputs the file did not give it', () => {
@@ -105,7 +114,9 @@ describe('applyKernelMessage', () => {
       message('stream', { name: 'stdout', text: 'hello' }),
       'cell-1'
     );
-    expect(updated.cells[0].outputs).toEqual([{ text: 'hello', output_type: 'stream' }]);
+    expect(updated.cells[0].outputs).toEqual([
+      { output_type: 'stream', name: 'stdout', text: 'hello' },
+    ]);
   });
 
   it('leaves cells other than the one that asked untouched', () => {
@@ -151,7 +162,9 @@ describe('applyKernelMessage', () => {
       true
     );
 
-    expect(updated.cells[0].outputs).toEqual([{ text: 'frame 2', output_type: 'stream' }]);
+    expect(updated.cells[0].outputs).toEqual([
+      { output_type: 'stream', name: 'stdout', text: 'frame 2' },
+    ]);
   });
 });
 
@@ -164,7 +177,8 @@ describe('carriesOutput', () => {
     expect(carriesOutput(message('display_data', { data: {} }))).toBe(true);
     expect(carriesOutput(message('error', { ename: 'ValueError' }))).toBe(true);
 
-    expect(carriesOutput(message('stream', { name: 'stderr', text: 'x' }))).toBe(false);
+    expect(carriesOutput(message('stream', { name: 'stderr', text: 'x' }))).toBe(true);
+
     expect(carriesOutput(message('execute_input', { execution_count: 1 }))).toBe(false);
     expect(carriesOutput(message('status', { execution_state: 'idle' }))).toBe(false);
     expect(carriesOutput(message('clear_output', { wait: true }))).toBe(false);

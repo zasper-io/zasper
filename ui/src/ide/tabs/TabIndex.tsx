@@ -116,6 +116,14 @@ export default function TabIndex() {
             <button
               type="button"
               className={fileTabsState[key].active ? 'tab is-active' : 'tab'}
+              // `.tabName` truncates with an ellipsis, and without this there was nowhere the whole
+              // name could be read: two notebooks with a long shared prefix were the same tab.
+              // The path, not just the name, because that is what tells two `main.py` apart.
+              title={
+                fileTabsState[key].type === 'launcher'
+                  ? fileTabsState[key].name
+                  : fileTabsState[key].path
+              }
               onClick={async () =>
                 await handleTabActivate(
                   fileTabsState[key].name,

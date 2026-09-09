@@ -21,6 +21,11 @@ const CELL_BUTTONS: { id: string; title: string; icon: IconName }[] = [
     icon: 'between-horizontal-start',
   },
   { id: 'notebook:insert-cell-below', title: 'Insert cell below', icon: 'between-horizontal-end' },
+  // The output area is capped in height (see `.inner-text` in NotebookEditor.scss). These two are
+  // the way past the cap and the way to be rid of the output — before them a cell that printed a
+  // few hundred lines pushed the rest of the notebook off the end of the scrollbar for good.
+  { id: 'notebook:toggle-output-height', title: 'Expand or collapse output', icon: 'scroll-text' },
+  { id: 'notebook:clear-cell-outputs', title: 'Clear output', icon: 'eraser' },
   { id: 'notebook:delete-cell', title: 'Delete cell', icon: 'trash-2' },
 ];
 

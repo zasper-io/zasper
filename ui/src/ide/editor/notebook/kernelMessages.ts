@@ -36,9 +36,8 @@ export function carriesOutput(message: IKernelMessage): boolean {
     case 'error':
     case 'execute_result':
     case 'display_data':
-      return true;
     case 'stream':
-      return message.content.name === 'stdout';
+      return true;
     default:
       return false;
   }
@@ -94,37 +93,56 @@ export function applyKernelMessage(
       );
 
     case 'stream':
-      if (message.content.name !== 'stdout') {
-        return notebook;
-      }
       return updateCellById(notebook, cellId, (cell) =>
         appendOutput(
           cell,
           {
+            output_type: 'stream',
+            // Required by nbformat, and what tells the renderer to tint stderr. Everything the
+            // kernel does not write to stdout arrives on stderr: warnings, the logging module's
+            // default handler, and every tqdm progress bar. This branch used to drop those messages
+            // on the floor, so a cell that only warned looked like a cell that produced nothing.
+            name: message.content.name === 'stderr' ? 'stderr' : 'stdout',
             // Kept as the kernel sent it, escapes and all. `removeAnsiCodes` was here, stripping
             // every SGR colour out of stdout before it was stored — which threw away a coloured test
             // run or a progress bar, and wrote the stripped text into the .ipynb, where Jupyter's own
             // format keeps the escapes. It existed because there was nowhere for those colours to
             // land; CellOutput.tsx resolves them through --z-ansi-* now.
             text: message.content.text,
-            output_type: 'stream',
           },
           replaceOutputs
         )
       );
 
+    // nbformat requires `metadata` on both of these, and `execution_count` on an execute_result.
+    // A kernel always sends the metadata bundle, but it is optional in the protocol and empty in
+    // most messages, so it is defaulted rather than trusted — an output written without these keys
+    // fails nbformat validation, and JupyterLab and nbconvert then refuse the file.
     case 'execute_result':
       return updateCellById(notebook, cellId, (cell) =>
         appendOutput(
           cell,
-          { data: message.content.data, output_type: 'execute_result' },
+          {
+            output_type: 'execute_result',
+            data: message.content.data,
+            metadata: message.content.metadata ?? {},
+            execution_count: message.content.execution_count ?? cell.execution_count ?? null,
+          },
           replaceOutputs
         )
       );
 
     case 'display_data':
       return updateCellById(notebook, cellId, (cell) =>
-        appendOutput(cell, { data: message.content.data }, replaceOutputs)
+        appendOutput(
+          cell,
+          {
+            output_type: 'display_data',
+            data: message.content.data,
+            metadata: message.content.metadata ?? {},
+          },
+          replaceOutputs
+        )
       );
 
     default:

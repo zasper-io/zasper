@@ -38,9 +38,23 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
   const hasKernel = () => Boolean(kernel.session);
   /** False once a read failed: what is on screen is then the error, not the file. */
   const isLoaded = () => cells.error === '';
+  /**
+   * Runs the focused cell — which for a markdown cell means rendering it, not sending its prose to
+   * the kernel. That is what it did: `submitCell` was called whatever the cell type was, so
+   * Shift-Enter on a heading asked Python to evaluate `## Setup`.
+   *
+   * A raw cell is neither run nor rendered, as in Jupyter.
+   */
   const runFocusedCell = () => {
     const cell = focusedCell();
-    if (cell) {
+    if (!cell) {
+      return;
+    }
+    if (cell.cell_type === 'markdown') {
+      cells.endEditing();
+      return;
+    }
+    if (cell.cell_type === 'code') {
       targets.submitCell(cell.source, cell.id);
     }
   };
@@ -73,7 +87,8 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
       category: 'Notebook',
       scope: 'cell-editor',
       keys: ['Ctrl-Enter'],
-      isEnabled: () => hasCell() && hasKernel(),
+      // A markdown cell renders without one, so the kernel is only required for a code cell.
+      isEnabled: () => hasCell() && (focusedCell()?.cell_type !== 'code' || hasKernel()),
       execute: runFocusedCell,
     },
     {
@@ -82,7 +97,7 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
       category: 'Notebook',
       scope: 'cell-editor',
       keys: ['Shift-Enter'],
-      isEnabled: () => hasCell() && hasKernel(),
+      isEnabled: () => hasCell() && (focusedCell()?.cell_type !== 'code' || hasKernel()),
       execute: () => {
         runFocusedCell();
         // `true`: on the last cell this appends one, which is what Shift-Enter did before and what
@@ -98,17 +113,31 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
       execute: targets.submitAllCells,
     }),
 
+    // Ctrl-Shift-, not bare Ctrl-, and the same shape as delete-cell below. These were `Ctrl-a` and
+    // `Ctrl-b`, which a cell's editor never saw: on macOS those are the system Emacs bindings for
+    // start-of-line and back-one-character that CodeMirror honours, and Ctrl-A is select-all
+    // everywhere else — so pressing it in a cell inserted a cell instead of selecting the text.
     notebookCommand({
       id: 'notebook:insert-cell-above',
       label: 'Insert Cell Above',
-      keys: ['Ctrl-a'],
+      keys: ['Ctrl-Shift-a'],
       execute: cells.addCellUp,
     }),
     notebookCommand({
       id: 'notebook:insert-cell-below',
       label: 'Insert Cell Below',
-      keys: ['Ctrl-b'],
+      keys: ['Ctrl-Shift-b'],
       execute: cells.addCellDown,
+    }),
+    // Notebook-level undo, distinct from the per-cell text history CodeMirror keeps. `Mod-z` inside
+    // a focused editor is CodeMirror's, and it wins there; this is the chord for a structural change
+    // — a deleted cell used to be unrecoverable by any means.
+    notebookCommand({
+      id: 'notebook:undo-cell-change',
+      label: 'Undo Cell Operation',
+      keys: ['Mod-Shift-z'],
+      isEnabled: () => cells.canUndoCellChange,
+      execute: cells.undoCellChange,
     }),
     notebookCommand({
       id: 'notebook:delete-cell',
@@ -116,6 +145,28 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
       keys: ['Ctrl-Shift-d'],
       isEnabled: hasCell,
       execute: cells.deleteCell,
+    }),
+    // The two answers to a cell that printed more than anyone wants to scroll past. `.inner-text`
+    // caps the height of an output area; this pair is how you see all of it, or get rid of it.
+    notebookCommand({
+      id: 'notebook:toggle-output-height',
+      label: 'Expand or Collapse Output',
+      isEnabled: () => (focusedCell()?.outputs?.length ?? 0) > 0,
+      execute: cells.toggleOutputExpanded,
+    }),
+    notebookCommand({
+      id: 'notebook:clear-cell-outputs',
+      label: 'Clear Cell Output',
+      isEnabled: () => (focusedCell()?.outputs?.length ?? 0) > 0,
+      execute: cells.clearFocusedCellOutputs,
+    }),
+    notebookCommand({
+      id: 'notebook:clear-all-outputs',
+      label: 'Clear All Outputs',
+      // The document, not the kernel: nothing it holds in memory is touched, so unlike a restart
+      // this is not worth a dialog — and `notebook:undo-cell-change` takes it back.
+      isEnabled: isLoaded,
+      execute: cells.clearAllOutputs,
     }),
     notebookCommand({
       id: 'notebook:cut-cell',
@@ -154,14 +205,16 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
     notebookCommand({
       id: 'notebook:change-to-code',
       label: 'Change Cell to Code',
-      keys: ['Ctrl-y'],
+      keys: ['Ctrl-Shift-y'],
       isEnabled: hasCell,
       execute: () => cells.changeCellType('code'),
     }),
     notebookCommand({
       id: 'notebook:change-to-markdown',
       label: 'Change Cell to Markdown',
-      keys: ['Ctrl-m'],
+      // Ctrl-M is a literal carriage return in a macOS text field, so the bare chord was
+      // unreachable inside a cell for the same reason as the two above.
+      keys: ['Ctrl-Shift-m'],
       isEnabled: hasCell,
       execute: () => cells.changeCellType('markdown'),
     }),

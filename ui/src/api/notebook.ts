@@ -64,6 +64,8 @@ export interface INotebookMetadata {
 export interface IKernelspecMetadata {
   name: string;
   display_name: string;
+  /** Optional per nbformat, but what a reader picks a lexer from, so it is kept on save. */
+  language?: string;
 }
 
 export interface ILanguageInfoMetadata {

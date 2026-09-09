@@ -225,6 +225,10 @@
       width: 100%;
       padding: 8px 8px 16px 0;
       overflow-y: auto;
+      // Stated rather than left to default to `auto`, which is what `overflow-y: auto` alone makes
+      // it: a name longer than the panel gave the file tree a permanent horizontal scrollbar across
+      // its foot. Names end in an ellipsis instead — see `.rowName` below.
+      overflow-x: hidden;
 
       // A drop here goes to the project root, which has no row of its own to outline. The outline
       // itself is `.is-drop-target` in styles/_states.scss, shared with the row and the upload zone.
@@ -297,6 +301,26 @@
         // `.z-icon` in _base.scss centres a 16px icon on the row's text with `vertical-align: -3px`;
         // at this icon's own 12px it needs less of a drop to land in the same centre.
         vertical-align: -2px;
+      }
+
+      // A name too long for the panel, ended with an ellipsis. It was `white-space: nowrap` with
+      // nothing to clip it, so `python_plotting_libraries_showcase.ipynb` ran 16px past the panel's
+      // right edge and took the scrollbar above with it. The 24px is the icon in front of it and its
+      // 6px gap, the same measure the rename box below subtracts for the same reason.
+      //
+      // `vertical-align: bottom` because an inline-block otherwise sits on the text baseline and
+      // drops the row's descender below the 22px it is tall.
+      .file-list li a > .rowName {
+        display: inline-block;
+        max-width: calc(100% - 24px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: bottom;
+      }
+
+      // A folder's row has the disclosure chevron in front of its icon as well — 12px and a 2px gap.
+      .file-list li a.is-directory > .rowName {
+        max-width: calc(100% - 38px);
       }
 
       // The rename box, which stands where the name it replaces stood. Unstyled it took the browser's

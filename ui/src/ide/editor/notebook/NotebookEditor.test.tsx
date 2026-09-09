@@ -339,13 +339,18 @@ describe('NotebookEditor', () => {
     await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
     const requestId = requestIdOf(sockets[0], 0);
 
+    // The count arrives while the cell is still running, and a running cell shows a spinner in the
+    // gutter rather than a number — the count only becomes visible once the kernel goes idle.
     sockets[0].receive(kernelMessage('execute_input', requestId, { execution_count: 3 }));
-    expect(await screen.findByText('[3]:')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Running')).toBeInTheDocument();
 
     sockets[0].receive(
       kernelMessage('stream', requestId, { name: 'stdout', text: 'hello from kernel' })
     );
     expect(await screen.findByText('hello from kernel')).toBeInTheDocument();
+
+    sockets[0].receive(kernelMessage('status', requestId, { execution_state: 'idle' }));
+    expect(await screen.findByText('[3]:')).toBeInTheDocument();
   });
 
   // A colour the kernel asked for has to arrive as a class, not as `style="color:rgb(0,187,0)"`: an
