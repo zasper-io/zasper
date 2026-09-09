@@ -15,12 +15,12 @@ const emptyNotebook: INotebookModel = {
   metadata: {},
 };
 
-function newCell(): ICell {
+function newCell(cellType: ICell['cell_type'] = 'code'): ICell {
   return {
     // null, not 0: nbformat's way of saying the cell has not run, and what renders as `[ ]`.
     execution_count: null,
     source: '',
-    cell_type: 'code',
+    cell_type: cellType,
     id: uuidv4(),
     reload: false,
     outputs: [],
@@ -227,6 +227,33 @@ export function useNotebookCells() {
       };
     });
   }, [focusedIndex, pushUndo]);
+
+  /**
+   * Inserts a cell at `index`, which is where the pointer is rather than where the focus is.
+   *
+   * `addCellUp` and `addCellDown` above are both relative to `focusedIndex`, so putting a cell
+   * somewhere with the mouse cost a click to move the focus there first. The rail between two cells
+   * has an index of its own and no opinion about what is focused, so it needs this. The new cell
+   * takes the focus, because the only reason to add one is to type in it.
+   */
+  const addCellAt = useCallback(
+    (index: number, cellType: ICell['cell_type'] = 'code') => {
+      pushUndo();
+      setNotebook((prevNotebook) => {
+        const at = Math.max(0, Math.min(index, prevNotebook.cells.length));
+        return {
+          ...prevNotebook,
+          cells: [
+            ...prevNotebook.cells.slice(0, at),
+            newCell(cellType),
+            ...prevNotebook.cells.slice(at),
+          ],
+        };
+      });
+      setFocusedIndex(Math.max(0, index));
+    },
+    [pushUndo]
+  );
 
   const deleteCell = useCallback(() => {
     pushUndo();
@@ -465,6 +492,7 @@ export function useNotebookCells() {
     loadNotebook,
     addCellUp,
     addCellDown,
+    addCellAt,
     deleteCell,
     copyCell,
     /** Exposed so `notebook:paste-cell` can report itself unavailable with nothing to paste. */

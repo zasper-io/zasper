@@ -14,13 +14,16 @@ import {
   ClipboardPaste,
   CloudDownload,
   Copy,
+  CornerDownLeft,
   Cpu,
   Download,
+  Ellipsis,
   Eraser,
   Eye,
   EyeOff,
   FastForward,
   File,
+  FileCode,
   FilePlus,
   Files,
   Folder,
@@ -129,6 +132,13 @@ export const ICONS = {
   // away, which is the other answer to a cell that printed more than anyone wants to scroll past.
   eraser: Eraser,
   'scroll-text': ScrollText,
+  // A cell's own menu: the button that opens it, and the two rows that have no glyph anywhere else
+  // in the app. `corner-down-left` is the shape of the Shift-Enter it stands for, and `file-code` is
+  // the Code row of the cell-type group — `file` is Raw there and `pencil` is Markdown, both of which
+  // the file tree already uses for the same two ideas.
+  ellipsis: Ellipsis,
+  'corner-down-left': CornerDownLeft,
+  'file-code': FileCode,
 
   // --- Kernels -------------------------------------------------------------
   pause: Pause, // fa-pause, Interrupt on a kernel row

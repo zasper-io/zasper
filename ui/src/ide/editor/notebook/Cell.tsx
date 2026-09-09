@@ -7,6 +7,7 @@ import { keymap, ViewUpdate } from '@codemirror/view';
 import { languages } from '@codemirror/language-data';
 
 import { ICell } from '@/api';
+import { Icon } from '@/ide/icons';
 import { useTheme } from '@/themes/useTheme';
 import CellButtons from './CellButtons';
 import CellOutput from './CellOutput';
@@ -43,6 +44,18 @@ interface ICellProps {
   execution_count: number | null | undefined;
   /** True from the moment the cell is submitted until the kernel goes idle on it. */
   isRunning: boolean;
+  /**
+   * Runs this cell, by id rather than through the command registry.
+   *
+   * `notebook:run-cell` acts on whatever `focusedIndex` says, and the gutter's button belongs to one
+   * particular cell. Clicking it does move the focus — a focus event bubbles out of the button to
+   * the cell — but `setFocusedIndex` is a state write, so the command dispatched in the same tick
+   * would still be closed over the old index and would run the cell you were on before.
+   */
+  submitCell: (source: string, cellId: string) => void;
+  /** The kernel-wide interrupt, which is what a running cell's stop button has to offer: there is
+   *  no per-cell interrupt in the protocol the app speaks. */
+  interruptKernel: () => void;
   /** Whether this cell's output has been let past the height cap `.inner-text` puts on it. */
   isOutputExpanded: boolean;
   /** Markdown cells: whether this one's source is open, rather than its rendered output. */
@@ -174,12 +187,23 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       >
         {isEditing ? (
           <>
-            <CellButtons run={props.run} />
+            <CellButtons run={props.run} cellType={cell.cell_type} />
             <div className="inner-content">
               {/* A markdown cell has no execution count, but it still needs the gutter a
                   code cell's `[n]:` occupies, or the two cell types sit on different
-                  left edges. */}
-              <div className="cell-gutter" aria-hidden="true" />
+                  left edges. Open for editing it is the one markdown case the gutter offers
+                  anything for, because running a markdown cell is what renders it. */}
+              <div className="cell-gutter has-run">
+                <button
+                  type="button"
+                  className="z-icon-button cell-run"
+                  onClick={() => props.endEditing()}
+                  title="Render Markdown"
+                  aria-label="Render this markdown cell"
+                >
+                  <Icon name="play" />
+                </button>
+              </div>
               <div className="cellEditor">
                 <CodeMirror
                   theme={theme.codeMirror}
@@ -215,7 +239,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
           // click only selects, which is the whole point: scrolling past prose and clicking near it
           // used to turn it back into raw markdown with no obvious way back.
           <>
-            {isFocused && <CellButtons run={props.run} />}
+            <CellButtons run={props.run} cellType={cell.cell_type} />
             <div className="inner-content" onDoubleClick={() => props.beginEditing(cell.id)}>
               <div className="cell-gutter" aria-hidden="true" />
               <div className="cellEditor">
@@ -237,21 +261,52 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       ref={divRef}
       onFocus={() => props.focusCell(cell.id)}
     >
-      {props.index === props.focusedIndex ? <CellButtons run={props.run} /> : <></>}
+      <CellButtons run={props.run} cellType={cell.cell_type} />
 
       <div className="inner-content">
-        {props.isRunning ? (
-          // Running, in the gutter where the count will land. This used to test
-          // `execution_count === -1`, which is only true between submitting the cell and the
-          // kernel's `execute_input` — a few milliseconds — after which the count arrives and a
-          // cell that went on running for a minute showed a stale `[17]:` and nothing else.
-          <div className="cell-spinner" title="Running" aria-label="Running">
-            <span className="z-spinner" />
-          </div>
-        ) : (
-          // A cell that has not run has no count, and shows an empty bracket as Jupyter does.
-          <div className="serial-no">[{props.execution_count ?? ' '}]:</div>
-        )}
+        {/* The count and the button that runs the cell share one 22px box, so the swap between them
+            cannot move a pixel of the notebook. At rest the gutter says what it has always said —
+            the execution count, or a spinner while the kernel is on this cell — and under the
+            pointer it becomes the action, which is beside the code rather than at the far end of
+            it. Run used to be the first of eleven icons in a bar at the cell's top-right corner. */}
+        <div className={cell.cell_type === 'code' ? 'cell-gutter has-run' : 'cell-gutter'}>
+          <span className="serial-no">
+            {props.isRunning ? (
+              // A spinner rather than `[*]`. This used to test `execution_count === -1`, which is
+              // only true between submitting the cell and the kernel's `execute_input` — a few
+              // milliseconds — after which the count arrives and a cell that went on running for a
+              // minute showed a stale `[17]:` and nothing else.
+              //
+              // It keeps the name the box it replaced carried: which cell the kernel is on is the
+              // one thing in this gutter a screen reader has to be told, and the count beside it
+              // reads for itself.
+              <span className="z-spinner" role="status" title="Running" aria-label="Running" />
+            ) : (
+              // A cell that has not run has no count, and shows an empty bracket as Jupyter does. A
+              // raw cell never runs, so it has no bracket at all: the brackets are the execution
+              // column, and drawing an empty one beside a cell that can never fill it says the cell
+              // is waiting to run.
+              cell.cell_type === 'code' && `[${props.execution_count ?? ' '}]:`
+            )}
+          </span>
+          {/* A raw cell is neither run nor rendered, as in Jupyter, so its gutter stays a gutter:
+              the rule is that the button appears where pressing it would change something. */}
+          {cell.cell_type === 'code' && (
+            <button
+              type="button"
+              className="z-icon-button cell-run"
+              onClick={() =>
+                props.isRunning
+                  ? props.interruptKernel()
+                  : props.submitCell(cellContents, props.cell.id)
+              }
+              title={props.isRunning ? 'Interrupt Kernel' : 'Run Cell'}
+              aria-label={props.isRunning ? 'Interrupt Kernel' : `Run cell ${props.index + 1}`}
+            >
+              <Icon name={props.isRunning ? 'square' : 'play'} />
+            </button>
+          )}
+        </div>
         <div className="cellEditor">
           <CodeMirror
             theme={theme.codeMirror}

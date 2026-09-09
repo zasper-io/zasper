@@ -68,36 +68,52 @@
 // is a `.z-notice.z-notice-error` (styles/_states.scss) at the top of the pane instead, which is where
 // this app puts the reason something failed, and it has somewhere to put the one action there is.
 
-// Centred on the cell's top-right corner rather than stacked above the cell or tucked inside it, so
-// taking focus does not reflow the notebook. -12px is half the bar's own height, which is what the
-// comment on `.cellOptions` below has always claimed and what the 24px of top padding on the cell
-// silently replaced: with the bar sitting *inside* the cell it covered the first line of the code
-// unless the cell was padded away from it.
-.cellOptionsDiv {
-  position: absolute;
-  top: -12px;
-  right: 0;
-  z-index: 2;
-}
-
+// The bar over a cell: move up, move down, and the menu that holds everything else.
+//
+// `.cellOptionsDiv` is gone with the wrapper it was — the bar was `position: absolute; top: -12px`
+// on the cell, which is half of its own height, so half of it hung over the cell above and
+// `.single-line`'s bottom margin existed to clear it. Three numbers that were one number: the bar
+// is inside the cell now, and cell spacing is free to be whatever spacing wants.
+//
+// Over the top-right corner of the code rather than beside it, because there is nowhere beside it to
+// be. `.cm-editor` scrolls rather than wraps, so the only line this can cover is the first one, and
+// only while the cell is under the pointer or holds the keyboard — which is where the pointer
+// already is. It is what VS Code and JupyterLab both do.
 .cellOptions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
   display: flex;
   align-items: center;
-  // 24px tall: seven 22px buttons and a 1px border either side. Half of it overhangs the cell above,
-  // so .single-line's bottom margin has to clear 12px. Which is why the buttons in here have no
-  // padding above or below them — they *are* the 22px, rather than sitting inside it.
-  gap: 6px;
-  padding: 0 4px;
+  // 24px tall, which is --z-ui-control-height: three 22px buttons and a 1px border either side. The
+  // buttons carry no padding above or below them — they *are* the 24px rather than sitting inside
+  // it — and that is the whole of the exception the styleguide grants this class and
+  // e2e/tests/layout.spec.ts names by hand.
+  gap: 2px;
+  padding: 0 3px;
   border: 1px solid var(--z-border-divider);
   border-radius: 4px;
   background: var(--z-bg-cell);
   color: var(--z-fg-muted);
   box-shadow: var(--z-shadow-low);
+  // Hidden at rest, dimmed under the pointer, full when the cell holds the keyboard. Before this the
+  // bar was mounted only for the focused cell, so a pointer had to click a cell before that cell had
+  // any options at all — and both CellButtons.tsx and this file called it a hover toolbar.
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms linear;
 }
 
-// Was one 16px box per button — the icon and nothing around it — in a strip that appears on hover
-// over a cell and then has to be hit. `.z-icon-button` gives them the 22px the strip is tall, and
-// their ink comes from the strip's own `color`, so there is nothing left to state here.
+// `.sep` is the toolbar's own separator at the toolbar's size; 14px here because this bar is 24px
+// tall and `.text-editor-tool` is 30px.
+.cellOptions .sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 14px;
+  margin: 0 3px;
+  background: var(--z-border);
+}
 
 // The cell-type picker's width, which is all this is now that the control is a `.z-select`. It was
 // 180px and shared with the kernel switcher, wide enough for a kernel's full name; the switcher keeps
@@ -124,27 +140,79 @@
   // inside it — three fills stacked where the drawing has two. The cell is the gutter and the code
   // beside it; what has an edge is the code.
   .single-line {
-    // The anchor for .cellOptionsDiv.
+    // The anchor for .cellOptions and for the gutter's run button.
     position: relative;
-    // 12px, and it is the number .cellOptions is centred on the cell's top edge against: half of a
-    // 24px bar overhangs the cell above, so this has to clear 12px. Shrinking one means the other.
-    margin: 0 0 12px;
+    // 28px, and it is the insert rail's measure rather than the bar's. It was 12px, which was half
+    // of a 24px bar that hung over the cell above — the bar is inside the cell now, so nothing was
+    // holding this number and the gap was free to be whatever the notebook wanted. What wanted
+    // something was the rail: a 22px button in a 12px gap overhangs 5px into the cell either side
+    // and reads as jammed against both. 22 + 3 either side is 28, and the output stays 8px under
+    // the code that produced it, so a cell still reads as one thing with space around it.
+    margin: 0 0 28px;
   }
 
   .single-line .inner-content {
     display: flex;
   }
 
+  // What crossing a cell with the pointer, or tabbing into it, brings up. `:focus-within` and not
+  // just `.activeCell`: a cell's own buttons take the focus when tabbed to, and a focus ring on
+  // something invisible is what makes a design unreachable without a mouse.
+  .single-line:hover .cellOptions,
+  .single-line:hover .cell-run {
+    opacity: 0.85;
+    pointer-events: auto;
+  }
+
+  .single-line.activeCell .cellOptions,
+  .single-line:focus-within .cellOptions,
+  .single-line.activeCell .cell-run,
+  .single-line:focus-within .cell-run {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .single-line .cell-run:hover,
+  .single-line .cell-run:focus-visible {
+    opacity: 1;
+  }
+
   // A fixed gutter, so `[1]:` and `[10]:` put their editors on the same left edge — and the same 44px
-  // .inner-text is indented by, so output lines up with the code that produced it.
-  // .cell-gutter is the empty one a markdown cell renders in place of an execution count;
-  // .cell-spinner is the one a cell that is running renders instead.
-  .serial-no,
-  .cell-spinner,
+  // .inner-text is indented by, so output lines up with the code that produced it. A markdown cell
+  // renders the same box with no count in it, or the two cell types sit on different left edges.
+  //
+  // `position: relative` because the count and the run button are stacked in it: they share one
+  // 22px box so that the swap between them cannot move a pixel of the notebook, which is the same
+  // constraint that used to keep the old bar out over the cell above.
   .cell-gutter {
+    position: relative;
     flex: 0 0 44px;
-    text-align: right;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    // 5px is `.cm-editor`'s border plus `.cm-content`'s padding, so the 22px box's centre lands on
+    // the centre of the first line of code beside it.
+    height: 27px;
+    padding-top: 5px;
     padding-right: 4px;
+  }
+
+  .cell-run {
+    position: absolute;
+    top: 5px;
+    right: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 80ms linear;
+  }
+
+  // The count steps aside only where there is a button to step aside for, and `.has-run` is Cell.tsx
+  // saying so. A rendered markdown cell and a raw cell get neither — the rule is that the button
+  // appears where pressing it would change something — and their gutters must not empty themselves
+  // under the pointer for a button that is not coming.
+  .single-line:hover .cell-gutter.has-run .serial-no,
+  .single-line:focus-within .cell-gutter.has-run .serial-no {
+    opacity: 0;
   }
 
   // The execution count: a number that changes in place beside a column of other numbers, which is
@@ -155,19 +223,104 @@
   // here and the JupyterLab theme sets it to that palette's blue prompt, which is the one thing a
   // reader coming from JupyterLab looks for. The weight is the body's, as drawn.
   .serial-no {
+    transition: opacity 80ms linear;
     color: var(--z-fg-serial-no);
     font-family: var(--z-mono-font-family);
     font-size: var(--z-ui-font-size-sm);
     font-variant-numeric: tabular-nums;
-    // Aligned to the first line of code beside it: 5px is .cm-editor's border plus
-    // .cm-content's padding, 21px its line box at the 14px default.
+    // The line box of the code beside it at the 14px default. The 5px that used to sit on this as a
+    // margin is `.cell-gutter`'s padding now, because the box is shared with the run button and one
+    // offset has to hold for both.
     line-height: 21px;
-    margin-top: 5px;
   }
 
   .cellEditor {
     flex: 1;
     min-width: 0; // stop a long line from widening the cell instead of scrolling
+  }
+
+  // The gap between two cells, made into somewhere to put one.
+  //
+  // It fills the 28px `.single-line` already leaves and adds nothing to it: 28px tall pulled up by
+  // 28px, so the collapsed margin plus this box's own height is the 28px that was there before and
+  // nothing moves when it appears. Insertion here is by index rather than relative to the focused
+  // cell, which is what makes it worth having — see CellInsert.tsx.
+  .cell-insert {
+    position: relative;
+    height: 28px;
+    margin-top: -28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 80ms linear;
+  }
+
+  .cell-insert:hover,
+  .cell-insert:focus-within {
+    opacity: 1;
+  }
+
+  // The rail stays a hover target while it is invisible — that is how it is found — but what is in
+  // it does not. `opacity: 0` does not stop a click, so anything in here that a pointer can reach is
+  // a control lying in wait between two cells.
+  .cell-insert .cell-insert-button {
+    pointer-events: none;
+  }
+
+  .cell-insert:hover .cell-insert-button,
+  .cell-insert:focus-within .cell-insert-button,
+  .cell-insert.is-end .cell-insert-button {
+    pointer-events: auto;
+  }
+
+  .cell-insert::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top: 1px solid var(--z-border);
+  }
+
+  // The rail after the last cell, which is always on screen: every other one has two cells to sit
+  // between and a pointer arrives at it on the way past, and this one has nothing below it to move
+  // towards. It is also the only rail a keyboard can tab to, which is why the two insert chords stay
+  // in the cell's menu.
+  .cell-insert.is-end {
+    height: auto;
+    margin-top: 4px;
+    opacity: 1;
+  }
+
+  .cell-insert.is-end::before {
+    content: none;
+  }
+
+  // 22px like every control, sitting inside the 28px the rail measures with 3px clear above and
+  // below. Labelled rather than a bare `+`, because the choice being made is Code or Markdown and an
+  // icon cannot say which — which is also why the padding is 10px and not the 8px a row's control
+  // takes: these two are read as words, not aimed at as glyphs.
+  .cell-insert-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 10px;
+    border: 1px solid var(--z-border);
+    border-radius: 11px;
+    background: var(--z-bg-editor);
+    color: var(--z-fg-muted);
+    // A <button> inherits neither family nor size, the same reason `.kernel-pill` says it.
+    font: inherit;
+    font-size: var(--z-ui-font-size-sm);
+  }
+
+  .cell-insert-button:hover {
+    color: var(--z-fg-accent);
+    border-color: var(--z-fg-accent);
   }
 }
 
@@ -323,16 +476,11 @@
 // `.reconnectButton` was here, restating a 16px box beside the kernel dot. It is a
 // `.z-icon-button` in the toolbar like every other action in it.
 
-// Where a cell's execution count goes while it is running. `.svgContainer` and `.spinner` were here,
-// boxing LoaderSvg.tsx; the ring is `.z-spinner` in styles/_states.scss now, and this only has to put
-// it in the gutter. Right-aligned like the `[11]:` it stands in for, not centred: a spinner that moves
-// when the count arrives reads as two different things happening.
-.cell-spinner {
-  height: 20px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
+// `.cell-spinner` was here, a third gutter box beside `.serial-no` and `.cell-gutter`. The spinner is
+// inside `.serial-no` now — it is what the count reads while the kernel is on the cell, so it is the
+// same box, right-aligned by the same rule, and it swaps to the stop button on hover exactly as a
+// count swaps to run. Three boxes for one 44px column was what made "which cell is running" and
+// "run this cell" two unrelated pieces of chrome.
 
 // An error output: the `ename` and the traceback the kernel sent. The red this file spends is the 2px
 // edge and the name, and none of it lands on the traceback — the same rule the notice band and the toast

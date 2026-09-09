@@ -6,8 +6,30 @@ import './ContextMenu.scss';
 
 interface MenuItem {
   label: string;
+  /**
+   * `path` is the file tree's, and is what this menu was written for. A caller with nothing to
+   * address — a cell's menu names commands, not paths — passes a function that takes no argument,
+   * which is assignable here and is why `path` on the menu itself is optional.
+   */
   action: (path: string) => void;
   icon?: IconName;
+  /**
+   * The chord that does the same thing, drawn at the row's right edge. Only some rows have one and
+   * that is the point: the palette taught this app that a menu which shows its shortcuts is how the
+   * shortcuts get learnt, and the cell toolbar it replaced showed none of the five it had.
+   */
+  keys?: string;
+  /**
+   * The heading this row belongs under. Rows carrying the same group in a run are drawn beneath one
+   * `.z-overlay-group` heading. This is the family's answer to a menu with several kinds of thing in
+   * it, and the reason there is still only ever one separator: see `danger` below.
+   */
+  group?: string;
+  /**
+   * One of a set of alternatives, and the one that currently holds — a cell's type. Drawn with the
+   * row fill `.is-selected`, which is what the surface already uses for "this is the one".
+   */
+  selected?: boolean;
   /**
    * Nothing can be done with this right now — e.g. Paste with nothing on the clipboard. Listed rather
    * than omitted, the same rule the row itself follows: a missing row only raises the question a
@@ -28,10 +50,11 @@ interface ContextMenuProps {
   yPos: number;
   items: MenuItem[];
   onClose: () => void;
-  path: string;
+  /** What the items act on, for the file tree. A menu of commands has none. */
+  path?: string;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, path }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, path = '' }) => {
   const menu = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: yPos, left: xPos });
 
@@ -74,6 +97,9 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
     if (item.disabled === true) {
       classes.push('is-disabled');
     }
+    if (item.selected === true) {
+      classes.push('is-selected');
+    }
     return classes.join(' ');
   };
 
@@ -85,6 +111,12 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
             {index === firstDanger && index > 0 && (
               <li className="z-overlay-separator" role="separator" />
             )}
+            {/* A heading only where the group changes, so a run of rows sits under one. */}
+            {item.group !== undefined && item.group !== items[index - 1]?.group && (
+              <li className="z-overlay-group" role="presentation">
+                <span className="z-label">{item.group}</span>
+              </li>
+            )}
             <li className={rowClassName(item)} role="none">
               <button
                 type="button"
@@ -95,6 +127,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
               >
                 {item.icon !== undefined && <Icon name={item.icon} />}
                 <span className="panel-row-label">{item.label}</span>
+                {item.keys !== undefined && <span className="panel-row-keys">{item.keys}</span>}
               </button>
             </li>
           </React.Fragment>

@@ -232,6 +232,9 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               focusNextCell={cells.focusNextCell}
               focusPreviousCell={cells.focusPreviousCell}
               updateCellSource={cells.updateCellSource}
+              addCellAt={cells.addCellAt}
+              submitCell={submitCell}
+              interruptKernel={kernel.interruptKernel}
               runningCellIds={kernel.runningCellIds}
               expandedOutputs={cells.expandedOutputs}
               editingCellId={cells.editingCellId}

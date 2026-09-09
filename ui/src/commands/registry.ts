@@ -48,6 +48,27 @@ export function useRunCommand(): (id: string) => boolean {
 }
 
 /**
+ * Whether a command can act right now, for a control that has to draw itself either way.
+ *
+ * `useRunCommand` answers the same question but only after the press, and only to its caller — which
+ * is why a cell's Move Up button was fully lit on the first cell and did nothing when clicked, while
+ * `notebookCommands.ts` said in as many words that it disables at the top. A control asks this while
+ * it renders; an unregistered id is not enabled, so a button for a command belonging to another tab
+ * greys out rather than lying.
+ */
+export function useCommandEnabled(): (id: string) => boolean {
+  const commands = useAtomValue(commandsAtom);
+
+  return useCallback(
+    (id: string) => {
+      const command = commands[id];
+      return command !== undefined && (command.isEnabled?.() ?? true);
+    },
+    [commands]
+  );
+}
+
+/**
  * Publishes `commands` into the registry while `active`, and withdraws them on unmount or when
  * `active` goes false.
  *
