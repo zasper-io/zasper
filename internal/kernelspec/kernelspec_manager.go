@@ -79,8 +79,17 @@ func GetKernelSpecByName(kernelName, resourceDir string) KernelSpecJsonData {
 func findSpecDirectory(kernelName string) string {
 	kernelDirs := getKernelDirs()
 	for _, kernelDir := range kernelDirs {
-		dir, _ := os.Open(kernelDir)
-		files, _ := dir.Readdir(0)
+		dir, err := os.Open(kernelDir)
+		if err != nil {
+			continue
+		}
+		files, err := dir.Readdir(0)
+		// Closed here rather than deferred: a defer in a loop holds every handle until the function
+		// returns, which is the whole of what this was doing wrong.
+		dir.Close()
+		if err != nil {
+			continue
+		}
 		for _, file := range files {
 			path := filepath.Join(kernelDir, file.Name())
 			if file.Name() == kernelName && isKernelDir(path) {
@@ -196,6 +205,7 @@ func listKernelsIn(kernelDir string) map[string]string {
 	}
 	log.Debug().Msgf("kernels found in %s", kernelDir)
 	files, err := dir.Readdir(0)
+	dir.Close()
 	if err != nil {
 		log.Debug().Msgf("Error reading directory %s: %v", kernelDir, err)
 	}
@@ -227,8 +237,27 @@ func isKernelDir(path string) bool {
 	return err == nil
 }
 
-func getResourceFile(kernelName, resourcePath string) string {
-	// Construct the full path to the resource file
+/*
+getResourceFile answers the path of one of a kernel's own files, and whether the kernel has one.
+
+The bool is what stops a URL naming a kernel nobody has installed from reading a file that does
+exist. findSpecDirectory answers "" for a kernel it cannot find, and filepath.Join("", "go.mod") is
+"go.mod" — a path resolved against the directory the server was started in rather than against a
+kernelspec — so the handler read it and served it.
+
+The containment check below is for the caller after next: the route hands over a single path segment
+today, so `..` cannot arrive in pieces, but Join cleans what it is given and a resource of ".." would
+otherwise leave the directory quietly.
+*/
+func getResourceFile(kernelName, resourcePath string) (string, bool) {
 	resourceDir := findSpecDirectory(kernelName)
-	return filepath.Join(resourceDir, resourcePath)
+	if resourceDir == "" {
+		return "", false
+	}
+
+	full := filepath.Join(resourceDir, resourcePath)
+	if !strings.HasPrefix(full, resourceDir+string(os.PathSeparator)) {
+		return "", false
+	}
+	return full, true
 }

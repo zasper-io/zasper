@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
@@ -19,7 +20,11 @@ func ServeKernelResource(w http.ResponseWriter, req *http.Request) {
 	kernelName := vars["kernel"]
 	resourcePath := vars["resource"]
 
-	fullPath := getResourceFile(kernelName, resourcePath)
+	fullPath, ok := getResourceFile(kernelName, resourcePath)
+	if !ok {
+		zhttp.SendErrorResponse(w, http.StatusNotFound, "File not found")
+		return
+	}
 
 	resourceData, err := os.ReadFile(fullPath)
 	if err != nil {
@@ -27,7 +32,10 @@ func ServeKernelResource(w http.ResponseWriter, req *http.Request) {
 		zhttp.SendErrorResponse(w, http.StatusNotFound, "File not found")
 		return
 	}
-	ext := filepath.Ext(resourcePath)[1:] // get extension and remove the leading dot
+
+	// TrimPrefix rather than [1:]: a resource with no dot in it has no extension, and slicing "" at
+	// 1 panics — after the read above has already succeeded, so the request died at the last step.
+	ext := strings.TrimPrefix(filepath.Ext(resourcePath), ".")
 
 	var contentType string
 

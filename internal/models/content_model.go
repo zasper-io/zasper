@@ -23,11 +23,25 @@ type ByContentTypeAndName []ContentModel
 
 func (a ByContentTypeAndName) Len() int      { return len(a) }
 func (a ByContentTypeAndName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+// Folders first, then everything else by name.
+//
+// The rank is what makes the second half reachable. Comparing the content types directly meant the
+// name comparison only ran when both entries had the *same* type — and a listing has three of them,
+// since contentTypeFor calls an .ipynb a `notebook` — so a notebook and a file were never ordered
+// against each other and came out in whatever order the filesystem gave them.
 func (c ByContentTypeAndName) Less(i, j int) bool {
-	if c[i].ContentType != c[j].ContentType {
-		return c[i].ContentType == "directory"
+	if ri, rj := folderFirst(c[i]), folderFirst(c[j]); ri != rj {
+		return ri < rj
 	}
 	return c[i].Name < c[j].Name
+}
+
+func folderFirst(entry ContentModel) int {
+	if entry.ContentType == "directory" {
+		return 0
+	}
+	return 1
 }
 
 // Name() string       // base name of the file

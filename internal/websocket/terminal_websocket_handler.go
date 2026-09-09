@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/creack/pty"
@@ -37,6 +38,48 @@ var WebsocketMessageType = map[int]string{
 	websocket.CloseMessage:  "close",
 	websocket.PingMessage:   "ping",
 	websocket.PongMessage:   "pong",
+}
+
+/*
+terminalConn is the websocket with the two things this handler does to it concurrently made safe.
+
+gorilla/websocket permits one reader and one writer at a time and no more, and this handler has two
+writers: readFromTTY, pumping the shell's output out, and the keep-alive goroutine sending its
+pings. They interleave inside a single frame, which corrupts the stream rather than merely racing.
+The last pong is the same problem the other way round — written by the pong handler, which runs on
+the read goroutine, and read by the keep-alive goroutine deciding whether the client is still there.
+
+Nothing had ever driven both at once, because nothing had ever opened a terminal in a test.
+*/
+type terminalConn struct {
+	*websocket.Conn
+
+	writeMu sync.Mutex
+	// Unix nanoseconds, so that the two goroutines share a word rather than a time.Time.
+	lastPong atomic.Int64
+}
+
+func newTerminalConn(conn *websocket.Conn) *terminalConn {
+	answer := &terminalConn{Conn: conn}
+	answer.markPong()
+	return answer
+}
+
+// WriteMessage shadows the embedded connection's, which is the whole point: every writer in this
+// file goes through here.
+func (c *terminalConn) WriteMessage(messageType int, data []byte) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	return c.Conn.WriteMessage(messageType, data)
+}
+
+func (c *terminalConn) markPong() {
+	c.lastPong.Store(time.Now().UnixNano())
+}
+
+func (c *terminalConn) sincePong() time.Duration {
+	return time.Since(time.Unix(0, c.lastPong.Load()))
 }
 
 // Global map to store active terminal sessions, keyed by connection ID. Written
@@ -73,11 +116,12 @@ type TerminalSession struct {
 
 // HandleTerminalWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
 func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
-	connection, err := upgrader.Upgrade(w, req, nil)
+	upgraded, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to upgrade connection")
 		return
 	}
+	connection := newTerminalConn(upgraded)
 	defer connection.Close()
 
 	// Generate a unique session ID for each WebSocket connection, tagged with the
@@ -101,8 +145,7 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	var waiter sync.WaitGroup
 	waiter.Add(2)
 
-	lastPongTime := time.Now()
-	setupKeepAlive(connection, &lastPongTime, &waiter)
+	setupKeepAlive(connection, &waiter)
 
 	// Terminal output to WebSocket
 	go readFromTTY(sessionID, tty, connection, &waiter)
@@ -173,7 +216,7 @@ func startTTY(dir string) (*os.File, *exec.Cmd, error) {
 }
 
 // cleanupTTY gracefully stops the terminal and closes the connection.
-func cleanupTTY(sessionID string, tty *os.File, cmd *exec.Cmd, connection *websocket.Conn) {
+func cleanupTTY(sessionID string, tty *os.File, cmd *exec.Cmd, connection *terminalConn) {
 	log.Debug().Msg("Gracefully stopping spawned TTY...")
 
 	// Remove the session from the global map
@@ -194,7 +237,7 @@ func cleanupTTY(sessionID string, tty *os.File, cmd *exec.Cmd, connection *webso
 }
 
 // sendErrorMessage sends an error message over WebSocket.
-func sendErrorMessage(connection *websocket.Conn, message string) {
+func sendErrorMessage(connection *terminalConn, message string) {
 	log.Warn().Msg(message)
 	if err := connection.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
 		log.Warn().Err(err).Msg("Failed to send error message over WebSocket")
@@ -202,9 +245,9 @@ func sendErrorMessage(connection *websocket.Conn, message string) {
 }
 
 // setupKeepAlive sets up the ping/pong keep-alive mechanism for the WebSocket connection.
-func setupKeepAlive(connection *websocket.Conn, lastPongTime *time.Time, waiter *sync.WaitGroup) {
+func setupKeepAlive(connection *terminalConn, waiter *sync.WaitGroup) {
 	connection.SetPongHandler(func(msg string) error {
-		*lastPongTime = time.Now()
+		connection.markPong()
 		return nil
 	})
 
@@ -216,7 +259,7 @@ func setupKeepAlive(connection *websocket.Conn, lastPongTime *time.Time, waiter 
 				return
 			}
 			time.Sleep(KeepAlivePingTimeout / 2)
-			if time.Since(*lastPongTime) > KeepAlivePingTimeout {
+			if connection.sincePong() > KeepAlivePingTimeout {
 				log.Warn().Msg("Failed to get response from ping, triggering disconnect")
 				return
 			}
@@ -226,7 +269,7 @@ func setupKeepAlive(connection *websocket.Conn, lastPongTime *time.Time, waiter 
 }
 
 // readFromTTY reads output from the TTY and sends it to the WebSocket connection.
-func readFromTTY(sessionID string, tty *os.File, connection *websocket.Conn, waiter *sync.WaitGroup) {
+func readFromTTY(sessionID string, tty *os.File, connection *terminalConn, waiter *sync.WaitGroup) {
 	defer waiter.Done()
 	errorCounter := 0
 
@@ -255,7 +298,7 @@ func readFromTTY(sessionID string, tty *os.File, connection *websocket.Conn, wai
 }
 
 // writeToTTY writes incoming WebSocket messages to the TTY.
-func writeToTTY(sessionID string, connection *websocket.Conn, tty *os.File) {
+func writeToTTY(sessionID string, connection *terminalConn, tty *os.File) {
 	for {
 		messageType, data, err := connection.ReadMessage()
 		if err != nil {
@@ -269,7 +312,10 @@ func writeToTTY(sessionID string, connection *websocket.Conn, tty *os.File) {
 		dataType := getMessageType(messageType)
 		log.Debug().Msgf("Received %s (type: %v) message of size %v byte(s)", dataType, messageType, dataLength)
 
-		if messageType == websocket.BinaryMessage {
+		// The length check is the guard: a client can send an empty binary frame, and one of nothing
+		// but NULs trims down to the same thing, so reading the marker byte without asking whether
+		// there was one panicked this goroutine on a frame anybody could send.
+		if messageType == websocket.BinaryMessage && len(dataBuffer) > 0 {
 			if dataBuffer[0] == 1 {
 				handleResizeMessage(dataBuffer, tty)
 				continue
