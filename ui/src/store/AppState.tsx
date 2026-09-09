@@ -40,6 +40,16 @@ export const zasperVersionAtom = atom<string>('');
 export const projectNameAtom = atom<string>('');
 export const protectedStateAtom = atom<boolean>(false);
 export const kernelspecsAtom = atom<IKernelspecsState>({});
+
+/**
+ * How the read of `/api/kernelspecs` went, which an empty `kernelspecsAtom` cannot say on its own.
+ *
+ * The launcher is the default tab, so it paints before the boot fetch has been sent: without this it
+ * read `{}` and told everyone they had no kernels installed, on every cold start, and said the same
+ * thing again when the request failed.
+ */
+export type KernelspecsStatus = 'loading' | 'ready' | 'failed';
+export const kernelspecsStatusAtom = atom<KernelspecsStatus>('loading');
 export const notebookKernelMapAtom = atom<INotebookKernelMap>({});
 /**
  * Busy, idle, connected or disconnected, by kernel id, for the kernels this window has a socket to.

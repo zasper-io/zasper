@@ -61,8 +61,18 @@ $launcher-gutter: 32px;
   cursor: pointer;
 }
 
-.launcher-icon:hover {
+// Focus takes the fill as well as the border: a tile that is only outlined reads as disabled beside
+// one the pointer is over.
+.launcher-icon:hover,
+.launcher-icon:focus-visible {
   background-color: var(--z-bg-launcher-tile-hover);
+}
+
+// The ring is the browser's, as it is on `.z-field`. Making these buttons is what let a keyboard
+// reach the grid at all; leaving them without a focus style is what let it reach them and see
+// nothing.
+.launcher-icon:focus-visible {
+  border-color: var(--z-fg-accent);
 }
 
 // The kernel's own logo and the one glyph we draw ourselves, at one size: a tile is one row of one
@@ -80,8 +90,15 @@ $launcher-gutter: 32px;
   line-height: 20px;
 }
 
-// The tile grid when there is nothing to put in it — the same notice box as every other failure on
-// screen. `60ch` because this one is read: it is three sentences and a command, not a status line.
+// The tile grid while the list is still being read. `.z-note` already sits flush in the app, so this
+// only needs the grid's own air above it.
+.launchSection > .z-note {
+  margin-top: 12px;
+}
+
+// The tile grid when there is nothing to put in it, and when it could not be read — the same notice
+// box as every other failure on screen. `60ch` because this one is read: it is sentences and a
+// command, not a status line.
 .noKernelsFound {
   max-width: 60ch;
   margin-top: 12px;
@@ -104,5 +121,12 @@ $launcher-gutter: 32px;
   p {
     margin: 0;
     color: var(--z-fg-muted);
+  }
+
+  // The action the last sentence names, which the box did not have: it said "then refresh" on a
+  // screen with nothing to refresh with. No size of its own — `.z-button` is `font: inherit`, so it
+  // comes out at the launcher's 14px rather than the chrome's 13px.
+  .z-button {
+    margin-top: 12px;
   }
 }

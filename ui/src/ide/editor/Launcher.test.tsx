@@ -4,13 +4,20 @@ import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Launcher from './Launcher';
-import { IKernelspecsState, kernelspecsAtom } from '@/store/AppState';
+import {
+  IKernelspecsState,
+  KernelspecsStatus,
+  kernelspecsAtom,
+  kernelspecsStatusAtom,
+} from '@/store/AppState';
 import { fileTabsAtom } from '@/store/TabState';
 
 const createContent = vi.fn();
+const listKernelspecs = vi.fn();
 
 vi.mock('@/api', () => ({
   createContent: (parentDir: string, type: string) => createContent(parentDir, type),
+  listKernelspecs: () => listKernelspecs(),
   logApiError: () => () => {},
 }));
 
@@ -39,9 +46,17 @@ function OpenTabs() {
   );
 }
 
-function renderLauncher(specs: IKernelspecsState = kernelspecs) {
+function renderLauncher(
+  specs: IKernelspecsState = kernelspecs,
+  status: KernelspecsStatus = 'ready'
+) {
   render(
-    <Provider initialValues={[[kernelspecsAtom, specs]]}>
+    <Provider
+      initialValues={[
+        [kernelspecsAtom, specs],
+        [kernelspecsStatusAtom, status],
+      ]}
+    >
       <Launcher data={{ active: true }} />
       <OpenTabs />
     </Provider>
@@ -56,6 +71,7 @@ function tile(name: string): HTMLElement {
 beforeEach(() => {
   vi.clearAllMocks();
   createContent.mockResolvedValue({ name: 'Untitled.ipynb', path: 'Untitled.ipynb' });
+  listKernelspecs.mockResolvedValue(kernelspecs);
 });
 
 describe('Launcher', () => {
@@ -92,5 +108,32 @@ describe('Launcher', () => {
     expect(screen.getByText('pip install ipykernel')).toBeInTheDocument();
     expect(document.querySelector('.noKernelsFound')?.textContent).not.toContain('❌');
     expect(screen.queryByRole('button', { name: /Python/ })).not.toBeInTheDocument();
+  });
+
+  // The regression this state exists for: an empty list before the boot fetch has answered is not a
+  // machine with no kernels on it, and the launcher is the tab that paints first.
+  it('does not claim there are no kernels while the list is still being read', () => {
+    renderLauncher({}, 'loading');
+
+    expect(screen.getByText('Looking for installed kernels…')).toBeInTheDocument();
+    expect(document.querySelector('.noKernelsFound')).not.toBeInTheDocument();
+  });
+
+  it('says nothing is known when the list could not be read', () => {
+    renderLauncher({}, 'failed');
+
+    expect(
+      screen.getByRole('heading', { name: 'Could not read the installed kernels' })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('pip install ipykernel')).not.toBeInTheDocument();
+  });
+
+  it('reads the list again from either notice, rather than naming an action it does not have', async () => {
+    renderLauncher({}, 'failed');
+
+    fireEvent.click(tile('Check again'));
+
+    await waitFor(() => expect(listKernelspecs).toHaveBeenCalled());
+    expect(await screen.findByRole('button', { name: 'Python 3 (ipykernel)' })).toBeInTheDocument();
   });
 });

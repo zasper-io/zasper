@@ -21,14 +21,14 @@ import './IDE.scss';
 import {
   fileBrowserReloadCountAtom,
   fontSizeAtom,
-  kernelspecsAtom,
   projectNameAtom,
   protectedStateAtom,
   userNameAtom,
   zasperVersionAtom,
   zoomLevelAtom,
 } from '../store/AppState';
-import { ApiError, getInfo, listKernelspecs, logApiError } from '../api';
+import { ApiError, getInfo } from '../api';
+import { useKernelspecActions } from '../store/KernelspecActions';
 import { applyTheme, getTheme, rememberTheme } from '../themes';
 import { applyZoom, rememberZoomLevel } from '../zoom';
 import { PanelName } from './sidebar/types';
@@ -43,7 +43,7 @@ function IDE() {
   const [, setProtectedState] = useAtom(protectedStateAtom);
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
-  const [, setKernelspecs] = useAtom(kernelspecsAtom);
+  const { loadKernelspecs } = useKernelspecActions();
 
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
 
@@ -83,12 +83,11 @@ function IDE() {
 
   // Read once for the whole session rather than by whoever happens to want them first. The launcher
   // used to fetch them, so the Jupyter info panel listed no kernels at all until the launcher had
-  // rendered — and none again once its tab was closed.
+  // rendered — and none again once its tab was closed. It can ask for the read again, through the
+  // same action, without owning it.
   useEffect(() => {
-    listKernelspecs()
-      .then(setKernelspecs)
-      .catch(logApiError('Failed to read the installed kernels:'));
-  }, [setKernelspecs]);
+    loadKernelspecs();
+  }, [loadKernelspecs]);
 
   // Publish the active theme to <html>, as the hue and the polarity it is made of.
   // Every colour in the app resolves through the custom properties keyed off those
