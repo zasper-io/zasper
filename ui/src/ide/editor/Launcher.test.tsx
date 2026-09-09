@@ -99,6 +99,26 @@ describe('Launcher', () => {
     expect(screen.getByTestId('tabs')).toHaveTextContent('Terminal 1');
   });
 
+  // Both routes to a tile with no picture, which drew src="undefined" and a broken image: a
+  // kernelspec that names no logo, and one whose logo does not load.
+  it('draws the kernel glyph for a kernelspec that ships no logo', () => {
+    renderLauncher({ deno: { name: 'deno', spec: { display_name: 'Deno' }, resources: {} } });
+
+    expect(tile('Deno')).toBeInTheDocument();
+    expect(document.querySelector('.kernelSpecIconArea img')).not.toBeInTheDocument();
+    expect(document.querySelector('.kernelSpecIconArea > .z-icon')).toBeInTheDocument();
+  });
+
+  it('falls back to the glyph when a logo the kernelspec names cannot be loaded', () => {
+    renderLauncher();
+
+    const logo = document.querySelector('.kernelSpecIconArea img') as HTMLImageElement;
+    expect(logo).toBeInTheDocument();
+    fireEvent.error(logo);
+
+    expect(document.querySelector('.kernelSpecIconArea > .z-icon')).toBeInTheDocument();
+  });
+
   // The tile grid's empty state, and the assertion the emoji does not come back: a notice says what
   // is wrong in words, and there is nothing here to click.
   it('says so when there is no kernel to run a notebook on', () => {

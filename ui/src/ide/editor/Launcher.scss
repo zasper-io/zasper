@@ -81,6 +81,7 @@ $launcher-gutter: 32px;
 // grid, so the 44px belongs to the box rather than to either picture. Stated here and not as a
 // `size` prop, which is what the terminal tile passed while the logos took it from CSS.
 .kernelSpecIconArea img,
+.kernelSpecIconArea > .z-icon,
 .launcher-icon > .z-icon {
   width: 44px;
   height: 44px;

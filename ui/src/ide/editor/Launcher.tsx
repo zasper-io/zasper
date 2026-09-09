@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '@/config';
 import { ContentType, createContent } from '@/api';
@@ -34,11 +34,6 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
     setReloadCount(reloadCount + 1);
   };
 
-  const getLogoUrl = (resources: Record<string, string>) => {
-    const logoPath = resources['logo-svg'] || resources['logo-64x64'] || resources['logo-32x32'];
-    return `${BaseApiUrl}${logoPath}`;
-  };
-
   return (
     <div className="LauncherArea">
       {/* The type scale comes from styles/_typography.scss. */}
@@ -66,9 +61,7 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
                 onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
               >
                 <div className="kernelSpecIconArea">
-                  {/* The one picture on screen from outside the icon set, and it stays: a kernel's
-                      logo is its identity. `alt=""` because the name is under it. */}
-                  <img src={getLogoUrl(kernelspecs[key].resources)} alt="" />
+                  <KernelLogo resources={kernelspecs[key].resources} />
                 </div>
                 <div className="launcher-icon-label">{kernelspecs[key].spec.display_name}</div>
               </button>
@@ -91,6 +84,28 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
       </div>
     </div>
   );
+};
+
+/**
+ * A kernel's logo, and the kernel glyph when there is none to show.
+ *
+ * The one picture on screen from outside the icon set, and it stays: a kernel's logo is its
+ * identity. `alt=""` because the name is under it.
+ *
+ * Jupyter promises no logo, though. A kernelspec directory without one leaves `resources` empty —
+ * and the file a spec does name can be missing, which is the same broken tile by a different route.
+ * Both drew an image with `src` set to the string "undefined", since that is what a template literal
+ * makes of one.
+ */
+const KernelLogo: React.FC<{ resources: Record<string, string> }> = ({ resources }) => {
+  const [unavailable, setUnavailable] = useState(false);
+  const logoPath =
+    resources?.['logo-svg'] || resources?.['logo-64x64'] || resources?.['logo-32x32'];
+
+  if (logoPath === undefined || logoPath === '' || unavailable) {
+    return <Icon name="cpu" />;
+  }
+  return <img src={`${BaseApiUrl}${logoPath}`} alt="" onError={() => setUnavailable(true)} />;
 };
 
 interface NoticeProps {
