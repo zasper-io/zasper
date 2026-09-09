@@ -1,4 +1,4 @@
-import { BaseApiUrl } from '@/config';
+import { BaseApiUrl, BaseWebSocketUrl } from '@/config';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -49,6 +49,28 @@ function buildHeaders(body: unknown): Record<string, string> {
     headers.Authorization = `Bearer ${token}`;
   }
   return headers;
+}
+
+/**
+ * A websocket URL, carrying the auth token when there is one.
+ *
+ * `new WebSocket(url)` takes no headers, so a protected server reads the token from the query string
+ * instead — see JwtWebsocketMiddleware on the Go side. Every other call authenticates by header, which
+ * is why this is the only place a token appears in a URL.
+ */
+export function websocketUrl(path: string, query?: RequestOptions['query']): string {
+  const params = new URLSearchParams();
+  Object.entries(query ?? {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      params.set(key, String(value));
+    }
+  });
+  const token = localStorage.getItem('token');
+  if (token !== null) {
+    params.set('token', token);
+  }
+  const search = params.toString();
+  return search === '' ? BaseWebSocketUrl + path : `${BaseWebSocketUrl}${path}?${search}`;
 }
 
 async function request(path: string, options: RequestOptions = {}): Promise<Response> {

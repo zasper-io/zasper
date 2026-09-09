@@ -19,6 +19,8 @@ const saveAs = vi.fn();
 const copyToClipboard = vi.fn();
 
 vi.mock('@/api', async () => ({
+  // Not stubbed: the real one only builds a URL, and the socket it is handed to is mocked anyway.
+  websocketUrl: (await import('@/api/client')).websocketUrl,
   getDirectory: (path: string) => getDirectory(path),
   createContent: (parentDir: string, type: string) => createContent(parentDir, type),
   renameContent: (parentDir: string, oldName: string, newName: string) =>

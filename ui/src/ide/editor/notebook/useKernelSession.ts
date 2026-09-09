@@ -11,8 +11,8 @@ import {
   INotebookMetadata,
   ISession,
   sessionForPath,
+  websocketUrl,
 } from '@/api';
-import { BaseWebSocketUrl } from '@/config';
 import {
   IKernelspecsState,
   kernelspecsAtom,
@@ -203,11 +203,9 @@ export function useKernelSession(
 
       return new Promise<IKernelWebSocketClient>((resolve, reject) => {
         const client = new W3CWebSocket(
-          BaseWebSocketUrl +
-            '/ws/kernels/' +
-            newSession.kernel.id +
-            '/channels?session_id=' +
-            newSession.id
+          websocketUrl(`/ws/kernels/${newSession.kernel.id}/channels`, {
+            session_id: newSession.id,
+          })
         );
 
         // Only once the socket is open: a widget output on a page that has just been reloaded asks

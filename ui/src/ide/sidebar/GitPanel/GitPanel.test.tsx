@@ -26,6 +26,8 @@ const pullRemote = vi.fn();
 const pushRemote = vi.fn();
 
 vi.mock('@/api', async () => ({
+  // Not stubbed: the real one only builds a URL, and the socket it is handed to is mocked anyway.
+  websocketUrl: (await import('@/api/client')).websocketUrl,
   getGitStatus: () => getGitStatus(),
   getLog: (options: unknown) => getLog(options),
   getCommitDetail: (hash: string) => getCommitDetail(hash),

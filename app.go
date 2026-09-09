@@ -67,9 +67,11 @@ func main() {
 
 	router := server.NewRouter(getSpaHandler())
 
-	//cors optionsGoes Below
+	// In a release build this process serves the SPA itself, so the app is same-origin and needs no
+	// CORS at all; the list below is for `make dev`, where vite serves the frontend on 3000. It was a
+	// wildcard, which let any page the user happened to have open read and write the whole project.
 	corsOpts := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"}, //you service is available and allowed for this base url
+		AllowedOrigins: []string{"http://localhost:3000", "http://127.0.0.1:3000"},
 		AllowedMethods: []string{
 			http.MethodGet, //http methods for your app
 			http.MethodPost,

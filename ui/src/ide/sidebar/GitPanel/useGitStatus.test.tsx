@@ -8,6 +8,8 @@ const getGitStatus = vi.fn();
 const toastError = vi.fn();
 
 vi.mock('@/api', async () => ({
+  // Not stubbed: the real one only builds a URL, and the socket it is handed to is mocked anyway.
+  websocketUrl: (await import('@/api/client')).websocketUrl,
   getGitStatus: () => getGitStatus(),
   emptyGitStatus: (await import('@/api/git')).emptyGitStatus,
   apiErrorMessage: (await import('@/api/client')).apiErrorMessage,

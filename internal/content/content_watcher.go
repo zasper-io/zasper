@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/core"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 )
 
 type ContentWatchConnection struct {
@@ -63,9 +64,7 @@ func removeWatcher(watchId string) {
 }
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+	CheckOrigin: zhttp.SameOrigin,
 }
 
 // Unique session ID generator.

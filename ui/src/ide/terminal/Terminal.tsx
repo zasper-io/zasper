@@ -9,7 +9,7 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 
 import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
-import { BaseWebSocketUrl } from '@/config';
+import { websocketUrl } from '@/api';
 import { fontSizeAtom } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
 import { terminalTheme } from './theme';
@@ -115,9 +115,10 @@ export default function TerminalTab({ data }: TerminalTabProps) {
       sendSizeToBackend(cols, rows); // Send new size on resize
     });
 
-    const query = cwd === '' ? '' : `?cwd=${encodeURIComponent(cwd)}`;
     socketRef.current = new WebSocket(
-      `${BaseWebSocketUrl}/ws/terminals/${encodeURIComponent(terminalId)}${query}`
+      websocketUrl(`/ws/terminals/${encodeURIComponent(terminalId)}`, {
+        cwd: cwd === '' ? undefined : cwd,
+      })
     );
 
     socketRef.current.onopen = () => {

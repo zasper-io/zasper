@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { BaseWebSocketUrl } from '@/config';
+import { websocketUrl } from '@/api';
 
 /**
  * How long events are collected before the tree is re-read. The server sends one message per
@@ -33,7 +33,7 @@ export function useContentWatcher(onChange: () => void): void {
     let unmounted = false;
 
     const connect = () => {
-      socket = new WebSocket(`${BaseWebSocketUrl}/api/contents/watch`);
+      socket = new WebSocket(websocketUrl('/api/contents/watch'));
 
       socket.onopen = () => {
         attempt = 0;

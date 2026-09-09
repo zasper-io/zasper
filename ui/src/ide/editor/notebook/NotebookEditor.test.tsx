@@ -51,6 +51,8 @@ const deleteSession = vi.fn();
 const saveNotebook = vi.fn();
 
 vi.mock('@/api', async () => ({
+  // Not stubbed: the real one only builds a URL, and the socket it is handed to is mocked anyway.
+  websocketUrl: (await import('@/api/client')).websocketUrl,
   getNotebook: (path: string) => getNotebook(path),
   sessionForPath: (path: string) => sessionForPath(path),
   createSession: (path: string, name: string, type: string, kernelspec: string) =>

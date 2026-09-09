@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/zasper-io/zasper/internal/core"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 	"github.com/zasper-io/zasper/internal/kernel"
 
 	"github.com/go-zeromq/zmq4"
@@ -20,7 +21,7 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	CheckOrigin:     zhttp.SameOrigin,
 }
 
 // Response structure for consistent API responses

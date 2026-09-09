@@ -63,6 +63,15 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// websocketRoute gates a websocket handler that sits outside the /ws subrouter, so that it is
+// protected on exactly the same terms as the routes inside it.
+func websocketRoute(handler http.HandlerFunc) http.Handler {
+	if !core.Zasper.Protected {
+		return handler
+	}
+	return auth.JwtWebsocketMiddleware(handler)
+}
+
 // NewRouter builds the route table. The SPA handler is passed in because it embeds ui/build behind a
 // build tag (see spa.go / spa_apiserver.go), so a build without the frontend — a test, or the api-only
 // server — has nothing to serve and passes nil.
@@ -79,6 +88,13 @@ func NewRouter(spa http.Handler) *mux.Router {
 	wsRouter := router.PathPrefix("/ws").Subrouter()
 	if core.Zasper.Protected {
 		apiRouter.Use(auth.JwtAuthMiddleware)
+		// Kernelspec resources, which nothing in the frontend fetches — but they are read off disk by
+		// name, so they are gated like the rest of the API rather than left open.
+		staticRouter.Use(auth.JwtAuthMiddleware)
+		// The websocket routes were left ungated, which meant protected mode gated reading a file but
+		// not opening a terminal on the same machine. They take their token from the query string,
+		// which is the only place a browser can put one.
+		wsRouter.Use(auth.JwtWebsocketMiddleware)
 	}
 	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
 	router.HandleFunc("/api/config", ConfigHandler).Methods("GET")
@@ -100,8 +116,13 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/contents/copy", content.ContentCopyAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
 	apiRouter.HandleFunc("/contents/download", content.ContentDownloadAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/contents/watch", content.HandleWatchWebSocket).Methods("GET")
 	apiRouter.HandleFunc("/contents/upload", content.UploadFileHandler).Methods("POST")
+
+	// The watcher is a websocket that happens to live under /api, so it authenticates like the /ws
+	// routes rather than by header — on apiRouter it answered 401 to a browser that had no way to send
+	// one. Registered on the root router, which /api falls through to once apiRouter has no route for
+	// the path, the same way /api/health does.
+	router.Handle("/api/contents/watch", websocketRoute(content.HandleWatchWebSocket)).Methods("GET")
 
 	// search
 	apiRouter.HandleFunc("/files", search.GetFileSuggestions).Methods("GET")
