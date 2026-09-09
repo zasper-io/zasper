@@ -61,6 +61,12 @@ export function useNotebookCells() {
    * state, not the document's: it is about this pane and must never reach the file.
    */
   const [expandedOutputs, setExpandedOutputs] = useState<ReadonlySet<string>>(new Set());
+  /**
+   * The document as of the latest render, for `focusCell` — which runs from a browser focus event
+   * and so cannot be given the notebook through a dependency array.
+   */
+  const notebookRef = useRef(notebook);
+  notebookRef.current = notebook;
   const [cutCellIndex, setCutCellIndex] = useState<number | null>(null);
   const divRefs = useRef<(HTMLDivElement | null)[]>([]);
   /**
@@ -117,6 +123,23 @@ export function useNotebookCells() {
     }
   }, []);
 
+  /**
+   * Focuses a cell by id, which is what a cell's own `onFocus` calls.
+   *
+   * By id rather than by index because a focus handler can run against a stale render: reordering
+   * or removing a cell moves DOM nodes, and the focus events that follow can carry the props of the
+   * render before the change, where the same index names a different cell. An id does not move. No
+   * bug is known to have come from this — the reordering one that prompted it turned out to be
+   * `handleKeyDownCM` in Cell.tsx answering modified arrows — but resolving against the notebook as
+   * it stands now costs nothing and removes the hazard.
+   */
+  const focusCell = useCallback((cellId: string) => {
+    const index = notebookRef.current.cells.findIndex((cell) => cell.id === cellId);
+    if (index >= 0) {
+      setFocusedIndex(index);
+    }
+  }, []);
+
   /** Opens a markdown cell's source: a double-click on it, or Enter with it focused. */
   const beginEditing = useCallback((cellId: string) => setEditingCellId(cellId), []);
 
@@ -144,6 +167,34 @@ export function useNotebookCells() {
       return prev.slice(0, -1);
     });
   }, []);
+
+  /**
+   * Moves the focused cell one place towards `direction`, taking the focus with it so that the same
+   * cell stays selected and the move can be repeated. A no-op at whichever end it is already at.
+   *
+   * Reordering is a structural change like any other, so it goes on the undo stack.
+   */
+  const moveCell = useCallback(
+    (direction: -1 | 1) => {
+      const target = focusedIndex + direction;
+      if (focusedIndex < 0 || target < 0 || target >= notebook.cells.length) {
+        return;
+      }
+      pushUndo();
+      setNotebook((prevNotebook) => {
+        const cells = [...prevNotebook.cells];
+        // The two entries traded, rather than a splice-out and a splice-in: one step either way is a
+        // swap with the neighbour, and doing it that way needs no second index to be adjusted.
+        [cells[focusedIndex], cells[target]] = [cells[target], cells[focusedIndex]];
+        return { ...prevNotebook, cells };
+      });
+      setFocusedIndex(target);
+    },
+    [notebook, focusedIndex, pushUndo]
+  );
+
+  const moveCellUp = useCallback(() => moveCell(-1), [moveCell]);
+  const moveCellDown = useCallback(() => moveCell(1), [moveCell]);
 
   const addCellUp = useCallback(() => {
     pushUndo();
@@ -409,6 +460,7 @@ export function useNotebookCells() {
     error,
     focusedIndex,
     setFocusedIndex,
+    focusCell,
     divRefs,
     loadNotebook,
     addCellUp,
@@ -421,6 +473,8 @@ export function useNotebookCells() {
     pasteCell,
     updateCellSource,
     changeCellType,
+    moveCellUp,
+    moveCellDown,
     editingCellId,
     beginEditing,
     endEditing,

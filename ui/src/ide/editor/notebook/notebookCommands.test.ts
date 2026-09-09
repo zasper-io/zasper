@@ -46,6 +46,8 @@ function fakeTargets(options: IFakeOptions = {}) {
     cutCell: vi.fn(),
     pasteCell: vi.fn(),
     changeCellType: vi.fn(),
+    moveCellUp: vi.fn(),
+    moveCellDown: vi.fn(),
     endEditing: vi.fn(),
     undoCellChange: vi.fn(),
     toggleOutputExpanded: vi.fn(),
@@ -78,6 +80,8 @@ function fakeTargets(options: IFakeOptions = {}) {
       cutCell: spies.cutCell,
       pasteCell: spies.pasteCell,
       changeCellType: spies.changeCellType,
+      moveCellUp: spies.moveCellUp,
+      moveCellDown: spies.moveCellDown,
       endEditing: spies.endEditing,
       undoCellChange: spies.undoCellChange,
       toggleOutputExpanded: spies.toggleOutputExpanded,
@@ -244,6 +248,34 @@ describe('useNotebookCommands', () => {
     byId(commands, 'notebook:change-to-raw').execute();
 
     expect(spies.changeCellType.mock.calls).toEqual([['code'], ['markdown'], ['raw']]);
+  });
+
+  // Reordering is bounded by the ends of the notebook, and the buttons grey out there rather than
+  // being pressable and doing nothing.
+  it('offers a move only in the direction there is a cell to move past', () => {
+    const three = [cell({ id: 'a' }), cell({ id: 'b' }), cell({ id: 'c' })];
+
+    const top = build({ cells: three, focusedIndex: 0 }).commands;
+    expect(byId(top, 'notebook:move-cell-up').isEnabled?.()).toBe(false);
+    expect(byId(top, 'notebook:move-cell-down').isEnabled?.()).toBe(true);
+
+    const middle = build({ cells: three, focusedIndex: 1 }).commands;
+    expect(byId(middle, 'notebook:move-cell-up').isEnabled?.()).toBe(true);
+    expect(byId(middle, 'notebook:move-cell-down').isEnabled?.()).toBe(true);
+
+    const bottom = build({ cells: three, focusedIndex: 2 }).commands;
+    expect(byId(bottom, 'notebook:move-cell-up').isEnabled?.()).toBe(true);
+    expect(byId(bottom, 'notebook:move-cell-down').isEnabled?.()).toBe(false);
+  });
+
+  it('moves the focused cell in the direction asked for', () => {
+    const { commands, spies } = build({ cells: [cell({ id: 'a' }), cell({ id: 'b' })] });
+
+    byId(commands, 'notebook:move-cell-up').execute();
+    byId(commands, 'notebook:move-cell-down').execute();
+
+    expect(spies.moveCellUp).toHaveBeenCalledTimes(1);
+    expect(spies.moveCellDown).toHaveBeenCalledTimes(1);
   });
 
   it('keeps Ctrl-Enter and Shift-Enter in the editor, where CodeMirror would swallow them', () => {

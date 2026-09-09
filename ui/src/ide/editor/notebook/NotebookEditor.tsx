@@ -224,7 +224,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
             <NotebookCells
               notebook={notebook}
               focusedIndex={cells.focusedIndex}
-              setFocusedIndex={cells.setFocusedIndex}
+              focusCell={cells.focusCell}
               divRefs={cells.divRefs}
               codeMirrorRefs={codeMirrorRefs}
               run={runCommand}

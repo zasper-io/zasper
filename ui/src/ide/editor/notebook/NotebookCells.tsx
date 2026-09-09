@@ -9,7 +9,7 @@ import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
 interface NotebookCellsProps {
   notebook: INotebookModel;
   focusedIndex: number;
-  setFocusedIndex: (index: number) => void;
+  focusCell: (cellId: string) => void;
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
   codeMirrorRefs: React.RefObject<CodeMirrorRef[] | null>;
   run: (id: string) => void;
@@ -56,7 +56,7 @@ export default function NotebookCells(props: NotebookCellsProps) {
           focusNextCell={props.focusNextCell}
           focusPreviousCell={props.focusPreviousCell}
           focusedIndex={props.focusedIndex}
-          setFocusedIndex={props.setFocusedIndex}
+          focusCell={props.focusCell}
           divRefs={props.divRefs}
           codeMirrorRefs={props.codeMirrorRefs}
           updateCellSource={props.updateCellSource}

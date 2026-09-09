@@ -280,6 +280,73 @@ describe('NotebookEditor', () => {
     expect(deleteSession).not.toHaveBeenCalled();
   });
 
+  // Reordering, which the notebook had no way to do before: the chevrons in the cell toolbar move the
+  // selection and nothing moved the cell. The focus follows the cell so the move can be repeated, and
+  // it is undoable like every other structural change.
+  it('moves the focused cell up and down, and takes the focus with it', async () => {
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: {
+        ...structuredClone(notebookContent),
+        cells: ['first', 'second', 'third'].map((name, index) => ({
+          ...structuredClone(notebookContent.cells[0]),
+          id: `cell-${name}`,
+          source: `print("${name}")`,
+          execution_count: index,
+        })),
+      },
+    });
+    saveNotebook.mockReset();
+    saveNotebook.mockResolvedValue(undefined);
+
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:move-cell-down" />
+        <Dispatcher id="notebook:undo-cell-change" />
+        <Dispatcher id="notebook:save" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    const [moveDown, undo, save] = screen.getAllByText('dispatch');
+
+    // The first cell is the focused one on open, so this swaps it with the second.
+    fireEvent.click(moveDown);
+    fireEvent.click(save);
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    expect(saveNotebook.mock.calls[0][1].cells.map((c: { id: string }) => c.id)).toEqual([
+      'cell-second',
+      'cell-first',
+      'cell-third',
+    ]);
+
+    // The focus moved with the cell, so a second press carries the same cell one further down
+    // rather than picking up whatever is now in first place.
+    fireEvent.click(moveDown);
+    saveNotebook.mockClear();
+    fireEvent.click(save);
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    expect(saveNotebook.mock.calls[0][1].cells.map((c: { id: string }) => c.id)).toEqual([
+      'cell-second',
+      'cell-third',
+      'cell-first',
+    ]);
+
+    fireEvent.click(undo);
+    saveNotebook.mockClear();
+    fireEvent.click(save);
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    expect(saveNotebook.mock.calls[0][1].cells.map((c: { id: string }) => c.id)).toEqual([
+      'cell-second',
+      'cell-first',
+      'cell-third',
+    ]);
+  });
+
   // A new notebook is `"cells": []` on disk; the cell to type into comes from the frontend.
   it('shows one empty code cell for a notebook that has none', async () => {
     getNotebook.mockResolvedValue({

@@ -35,7 +35,9 @@ interface ICellProps {
   focusNextCell: (addCellIfLast: boolean) => void;
   focusPreviousCell: () => void;
   focusedIndex: number;
-  setFocusedIndex: (index: number) => void;
+  /** By id, not by index: see `focusCell` in useNotebookCells for why the index cannot be trusted
+   *  in a focus handler. */
+  focusCell: (cellId: string) => void;
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
   /** null until the cell has run, -1 while it is running, and absent on a non-code cell. */
   execution_count: number | null | undefined;
@@ -98,6 +100,13 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
    * document, which is the editor's business and not an action anyone would invoke by name.
    */
   const handleKeyDownCM = (event: React.KeyboardEvent) => {
+    // A modified arrow is somebody else's chord — `Ctrl-Shift-ArrowUp` moves the cell, and Shift
+    // extends the selection — so only the bare key leaves the cell. Without this test the modified
+    // presses did both: `Ctrl-Shift-ArrowUp` on the first line of a cell moved the selection up as
+    // well as moving the cell, which left the two one apart and moved the wrong cell next time.
+    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
+      return;
+    }
     if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
       props.focusNextCell(false);
       event.preventDefault();
@@ -153,7 +162,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
         tabIndex={props.index}
         className={isFocused ? 'single-line activeCell' : 'single-line'}
         ref={divRef}
-        onFocus={() => props.setFocusedIndex(props.index)}
+        onFocus={() => props.focusCell(cell.id)}
         // Enter opens the source of a focused-but-rendered cell, the way Jupyter's command mode
         // does. Guarded on the target so it cannot fire for an Enter typed inside the editor.
         onKeyDown={(event) => {
@@ -226,7 +235,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
       tabIndex={props.index}
       className={props.index === props.focusedIndex ? 'single-line activeCell' : 'single-line'}
       ref={divRef}
-      onFocus={() => props.setFocusedIndex(props.index)}
+      onFocus={() => props.focusCell(cell.id)}
     >
       {props.index === props.focusedIndex ? <CellButtons run={props.run} /> : <></>}
 

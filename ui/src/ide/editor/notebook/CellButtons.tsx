@@ -21,6 +21,10 @@ const CELL_BUTTONS: { id: string; title: string; icon: IconName }[] = [
     icon: 'between-horizontal-start',
   },
   { id: 'notebook:insert-cell-below', title: 'Insert cell below', icon: 'between-horizontal-end' },
+  // Arrows, not the chevrons above: those move the selection down the notebook, these move the cell
+  // itself. Both pairs are in this strip, so the two icon shapes are what tell them apart.
+  { id: 'notebook:move-cell-up', title: 'Move cell up', icon: 'arrow-up' },
+  { id: 'notebook:move-cell-down', title: 'Move cell down', icon: 'arrow-down' },
   // The output area is capped in height (see `.inner-text` in NotebookEditor.scss). These two are
   // the way past the cap and the way to be rid of the output — before them a cell that printed a
   // few hundred lines pushed the rest of the notebook off the end of the scrollbar for good.

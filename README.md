@@ -134,6 +134,77 @@ Current release version: `v0.2.0-beta`
 
 ![Dark Notebook mode](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/darkNotebook.png)
 
+## ⌨️ Keyboard shortcuts
+
+Every action listed here is also in the command palette (`⇧⌘P` / `Ctrl+Shift+P`), which shows each
+command's chord beside it — so the palette, not this table, is the thing to reach for when you have
+forgotten one.
+
+Where a row gives two chords for macOS, both work. `⌘` is the usual editor convention and `⌃` is what
+Zasper was bound to first; neither was taken away.
+
+### Global
+
+| Action | macOS | Windows / Linux |
+| --- | --- | --- |
+| Show All Commands | `⇧⌘P` or `⌃⇧P` | `Ctrl+Shift+P` |
+| Go to File | `⇧⌘O` or `⌃⇧O` | `Ctrl+Shift+O` |
+| Zoom In | `⌘=` or `⌘+` | `Ctrl+=` or `Ctrl++` |
+| Zoom Out | `⌘-` | `Ctrl+-` |
+| Reset Zoom | `⌘0` | `Ctrl+0` |
+
+Zoom scales the whole window, chrome included. To change only the size of code, terminal text and
+cell output, use **Increase / Decrease Font Size** from the palette — those have no chord.
+
+### Notebook
+
+| Action | macOS | Windows / Linux |
+| --- | --- | --- |
+| Save Notebook | `⌘S` or `⌃S` | `Ctrl+S` |
+| Run Cell | `⌃⏎` | `Ctrl+Enter` |
+| Run Cell and Select Next | `⇧⏎` | `Shift+Enter` |
+| Insert Cell Above | `⌃⇧A` | `Ctrl+Shift+A` |
+| Insert Cell Below | `⌃⇧B` | `Ctrl+Shift+B` |
+| Move Cell Up | `⌃⇧↑` | `Ctrl+Shift+Up` |
+| Move Cell Down | `⌃⇧↓` | `Ctrl+Shift+Down` |
+| Delete Cell | `⌃⇧D` | `Ctrl+Shift+D` |
+| Undo Cell Operation | `⇧⌘Z` | `Ctrl+Shift+Z` |
+| Change Cell to Code | `⌃⇧Y` | `Ctrl+Shift+Y` |
+| Change Cell to Markdown | `⌃⇧M` | `Ctrl+Shift+M` |
+
+Cell operations are on `⌃⇧` rather than a bare `⌃` on purpose: `⌃A`, `⌃B`, `⌃E` and `⌃K` are the
+system text-editing bindings on macOS, and `Ctrl+A` is select-all everywhere else, so a bare chord
+would be swallowed before the cell's editor saw it.
+
+**Undo Cell Operation** is the notebook's own history — it takes back an inserted, deleted, cut,
+pasted or retyped cell, and a cleared output. `⌘Z` inside a cell is CodeMirror's, and still undoes
+the text you typed there.
+
+**Move Cell Up / Down** reorders the notebook and is not the same as **Select Next / Previous
+Cell**, which only moves the selection. The cell's hover toolbar has both pairs: chevrons move the
+selection, arrows move the cell. The focus travels with the cell, so the chord can be held to carry
+one cell several places.
+
+These have no chord and live in the palette: **Run All Cells**, **Cut / Copy / Paste Cell**,
+**Select Next / Previous Cell**, **Change Cell to Raw**, **Expand or Collapse Output**,
+**Clear Cell Output**, **Clear All Outputs**, **Interrupt Kernel**, **Restart Kernel**,
+**Restart Kernel and Run All Cells**, **Reconnect to Kernel** and **Change Kernel**. The notebook
+toolbar and a cell's hover toolbar reach most of them in one click.
+
+### Inside a cell
+
+These belong to the editor rather than to a command, because what they do depends on where the
+cursor is.
+
+| Key | What it does |
+| --- | --- |
+| `Tab` | Accepts the highlighted completion; with a word to the left of the cursor, asks the kernel for completions; otherwise indents |
+| `↑` on the first line, `↓` on the last | Moves to the cell above or below |
+| Double-click, or `Enter` on a selected markdown cell | Opens its source for editing |
+| `Escape`, or running the cell, in a markdown cell | Renders it again |
+
+A single click on a rendered markdown cell only selects it — it stays rendered.
+
 ## Architecture
 ![architecture](./assets/architecture.svg)
 

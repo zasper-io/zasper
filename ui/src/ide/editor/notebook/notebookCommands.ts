@@ -139,6 +139,25 @@ export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[
       isEnabled: () => cells.canUndoCellChange,
       execute: cells.undoCellChange,
     }),
+    // Reordering, which the notebook had no way to do at all: the chevrons in the cell toolbar move
+    // the *selection*, and nothing moved the cell. On the `Ctrl-Shift-` family the other cell
+    // operations use; the arrows are free there, since CodeMirror binds `Shift-ArrowUp` and
+    // `Alt-ArrowUp` but nothing with Ctrl and Shift together.
+    notebookCommand({
+      id: 'notebook:move-cell-up',
+      label: 'Move Cell Up',
+      keys: ['Ctrl-Shift-ArrowUp'],
+      // Disabled at the top rather than silently doing nothing, so the toolbar button greys out.
+      isEnabled: () => focusedIndex > 0,
+      execute: cells.moveCellUp,
+    }),
+    notebookCommand({
+      id: 'notebook:move-cell-down',
+      label: 'Move Cell Down',
+      keys: ['Ctrl-Shift-ArrowDown'],
+      isEnabled: () => focusedIndex >= 0 && focusedIndex < notebook.cells.length - 1,
+      execute: cells.moveCellDown,
+    }),
     notebookCommand({
       id: 'notebook:delete-cell',
       label: 'Delete Cell',

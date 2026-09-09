@@ -111,6 +111,19 @@ const MAC_KEY_SYMBOLS: Record<string, string> = {
   ArrowRight: '→',
 };
 
+/**
+ * Named keys that read badly under their DOM name off mac. Only the arrows so far: `ArrowUp` is the
+ * `event.key` value the bindings are written in, but a shortcut list that says "Ctrl+Shift+ArrowUp"
+ * is naming an API rather than a key. Everything unlisted falls through to its own name, which is
+ * right for `Enter`, `Tab` and `Escape`.
+ */
+const KEY_NAMES: Record<string, string> = {
+  ArrowUp: 'Up',
+  ArrowDown: 'Down',
+  ArrowLeft: 'Left',
+  ArrowRight: 'Right',
+};
+
 /** Renders a binding the way the platform writes it, for display in the palette. */
 export function formatChord(binding: string, mac: boolean = isMac): string {
   const chord = parseChord(binding, mac);
@@ -132,7 +145,7 @@ export function formatChord(binding: string, mac: boolean = isMac): string {
   if (chord.key.length === 1) {
     parts.push(chord.key.toUpperCase());
   } else {
-    parts.push((mac && MAC_KEY_SYMBOLS[chord.key]) || chord.key);
+    parts.push((mac ? MAC_KEY_SYMBOLS[chord.key] : KEY_NAMES[chord.key]) || chord.key);
   }
   return mac ? parts.join('') : parts.join('+');
 }
