@@ -56,6 +56,9 @@
     "uuid": "14.0.2",
     "websocket": "1.0.34"
   },
+  "overrides": {
+    "style-to-js": "^1.1.21"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",

@@ -1,8 +1,11 @@
+import { useMemo } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+
+import { normalizeMathDelimiters } from './mathDelimiters';
 
 // Required, not optional polish: KaTeX emits a visual HTML copy *and* an
 // accessible MathML copy of every formula, and this stylesheet is what hides the
@@ -27,14 +30,20 @@ import 'katex/dist/katex.min.css';
  * strikethrough, task lists or bare-URL links. Jupyter renders all four — JupyterLab runs marked with
  * GFM on — so without it a table in a markdown cell comes out as one paragraph of pipes.
  */
-const MarkdownRenderer = ({ source }: { source: string }) => (
-  // The wrapper is the styling hook: markdown produces plain h1/table/blockquote with no classes of
-  // their own, so this is what NotebookEditor.scss can reach them through.
-  <div className="zasper-markdown">
-    <Markdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>
-      {source}
-    </Markdown>
-  </div>
-);
+const MarkdownRenderer = ({ source }: { source: string }) => {
+  // `remark-math` reads `$x$` and nothing else; Jupyter's own notebooks are full of `\\(x\\)`.
+  // See mathDelimiters.ts.
+  const text = useMemo(() => normalizeMathDelimiters(source), [source]);
+
+  return (
+    // The wrapper is the styling hook: markdown produces plain h1/table/blockquote with no classes of
+    // their own, so this is what NotebookEditor.scss can reach them through.
+    <div className="zasper-markdown">
+      <Markdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>
+        {text}
+      </Markdown>
+    </div>
+  );
+};
 
 export default MarkdownRenderer;
