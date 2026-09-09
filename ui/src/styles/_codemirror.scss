@@ -58,6 +58,13 @@
   pointer-events: none;
 }
 
+// The theme classes CodeMirror copies onto that container carry the editor's background as well as
+// its box, so the file editor's white filled this host's full size and painted over the whole app —
+// laid out and clickable underneath, and invisible. Only the popups inside it have a surface.
+#cm-tooltip-host > * {
+  background: none;
+}
+
 // CodeMirror's base theme gives the popup `z-index: 500`, below every step of the app's own scale, so
 // out here it would go under a menu instead of over the text it belongs to. `--z-layer-menu` is the
 // step it wants: it is a list you pick from, it opens for the same reasons a menu does, and it stays
