@@ -146,7 +146,20 @@ $dark-panel: #272727;
   --z-bg-cell-output: var(--a-50);
   --z-border: var(--a-100);
   --z-border-breadcrumb: var(--a-100);
+  // The hairline the launcher rules its sections with, and the divider inside a modal and an overlay.
+  // One step paler than --z-border rather than equal to it, which is the whole distinction between the
+  // two tokens: --z-border outlines a thing, this one separates two of them. --a-50 is also what keeps
+  // today's weight — #f3f2f6 on white is the faintest mark in the app, and it stays that.
+  --z-border-subtle: var(--a-50);
   --z-bg-navbutton-active: var(--a-200);
+  // The launcher's tiles, left on that same lavender: #f3f2f6 and #e3e1e9 both belong to the purple in
+  // `:root`, so a teal window opened on a grid of faintly purple tiles inside teal borders. --a-50 is
+  // the step panel-alt and cell-output already take for the same job. The hover meets --z-border above
+  // at --a-100 on purpose: the outline becomes the fill, so the tile reads as filling in rather than as
+  // darkening inside a line that stays put. Focus is unaffected — `.launcher-icon:focus-visible` takes
+  // the border to the accent.
+  --z-bg-launcher-tile: var(--a-50);
+  --z-bg-launcher-tile-hover: var(--a-100);
 
   // Chrome, and it is four coloured surfaces on purpose — the alternative was mocked as a switch that
   // greyed all four and kept the hue for the accent alone, and it was turned down: the chrome is where

@@ -52,7 +52,9 @@ $launcher-gutter: 32px;
   min-height: 112px;
   padding: 16px 10px;
   border: 1px solid var(--z-border);
-  border-radius: 5px;
+  // 6px, the card family's — `.noKernelsFound` in the same section, and the overlays. This was the
+  // only 5 in the system, copied over with the tile before anyone held it against the set.
+  border-radius: 6px;
   background-color: var(--z-bg-launcher-tile);
   color: var(--z-fg-default);
   font: inherit;
@@ -90,10 +92,13 @@ $launcher-gutter: 32px;
   line-height: 20px;
 }
 
-// The tile grid while the list is still being read. `.z-note` already sits flush in the app, so this
-// only needs the grid's own air above it.
+// The tile grid while the list is still being read: `.z-note` at the page's scale rather than the
+// panel's, which is what Phase 9 settled for the login form — keep the class, drop the measurements
+// the chrome gave it. Only two of them here, since `_states.scss` carries no indent to undo.
 .launchSection > .z-note {
   margin-top: 12px;
+  font-size: inherit;
+  height: auto;
 }
 
 // The tile grid when there is nothing to put in it, and when it could not be read — the same notice
@@ -115,7 +120,8 @@ $launcher-gutter: 32px;
     border-radius: 4px;
     background-color: var(--z-bg-code);
     font-family: var(--z-mono-font-family);
-    font-size: var(--z-ui-font-size);
+    // The name for code, not the chrome's: the same 13px today, and not if the code scale moves.
+    font-size: var(--z-font-size-code);
   }
 
   p {
