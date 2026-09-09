@@ -12,6 +12,7 @@ import CellButtons from './CellButtons';
 import CellOutput from './CellOutput';
 import Prompt from './Prompt';
 import { kernelCompletionSource, tabCompletionKeymap } from './kernelCompletion';
+import { zoomAwareTooltips } from '../tooltipParent';
 import { ICompleteReply, IKernelMessage } from './kernelMessages';
 import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
 
@@ -112,6 +113,10 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
     [requestCompletions]
   );
 
+  // Memoized for the same reason as the line above, and see tooltipParent.ts for why a cell has to
+  // say where its popup hangs at all: without this it draws at its own coordinate times the zoom.
+  const popupPlacement = useMemo(() => zoomAwareTooltips(), []);
+
   // Make sure divRefs.current is not null before assigning
   const divRef = (el: HTMLDivElement | null) => {
     if (props.divRefs.current) {
@@ -143,6 +148,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
                   width="100%"
                   extensions={[
                     markdown({ base: markdownLanguage, codeLanguages: languages }),
+                    popupPlacement,
                     props.commandKeymap,
                   ]}
                   autoFocus={props.index === props.focusedIndex ? true : false}
@@ -207,6 +213,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
             extensions={[
               python(),
               kernelAutocompletion,
+              popupPlacement,
               [Prec.highest(keymap.of(tabCompletionKeymap))],
               props.commandKeymap,
             ]}

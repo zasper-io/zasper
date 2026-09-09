@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import CodeMirror from '@uiw/react-codemirror';
 import { go } from '@codemirror/lang-go';
@@ -12,6 +12,7 @@ import BreadCrumb from './BreadCrumb';
 import languageFor from './language';
 import { IfileTab } from '@/store/TabState';
 import { useUnsavedChanges } from '@/store/UnsavedState';
+import { zoomAwareTooltips } from './tooltipParent';
 
 interface FileEditorProps {
   data: IfileTab;
@@ -45,6 +46,9 @@ export default function FileEditor(props: FileEditorProps) {
       run: handleCmdEnter,
     },
   ]);
+
+  // See tooltipParent.ts: a popup left to place itself draws at its own coordinate times the zoom.
+  const popupPlacement = useMemo(() => zoomAwareTooltips(), []);
 
   const FetchFileData = async (path: string) => {
     const content = await getFileContent(path);
@@ -91,7 +95,7 @@ export default function FileEditor(props: FileEditorProps) {
             theme={theme.codeMirror}
             minHeight="100%"
             width="100%"
-            extensions={[getExtensionToLoad(), customKeymap]}
+            extensions={[getExtensionToLoad(), popupPlacement, customKeymap]}
             // , linter(jsonParseLinter())
             // linter(esLint(new eslint.Linter(), config)),
             onChange={(fileContents) => {

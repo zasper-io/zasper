@@ -40,3 +40,35 @@
   margin-left: -1px; // align the guide to the left of the code
   padding-left: 5px;
 }
+
+// The completion popup, which hangs off #cm-tooltip-host rather than off the editor — see
+// ide/editor/tooltipParent.ts for why it had to move, and why the host exists rather than #root
+// itself.
+//
+// Out of flow, because CodeMirror copies the editor's theme classes onto the container it appends
+// here, and those carry the editor's own box — the file editor's `minHeight="100%"` arrived as a
+// 1315px sibling in #root and gave the app a scrollbar. Absolute takes the whole family out of the
+// flow, and the size stays full: CodeMirror reads the zoom off this element's own box
+// (`rect.height / offsetHeight`) and skips the measurement entirely when either is 0, which is how a
+// zero-sized host silently put the popup back where it started.
+#cm-tooltip-host {
+  position: absolute;
+  inset: 0;
+  // A transparent sheet over the app, so nothing under it loses a click.
+  pointer-events: none;
+}
+
+// CodeMirror's base theme gives the popup `z-index: 500`, below every step of the app's own scale, so
+// out here it would go under a menu instead of over the text it belongs to. `--z-layer-menu` is the
+// step it wants: it is a list you pick from, it opens for the same reasons a menu does, and it stays
+// under the palette and dialogs above it.
+//
+// Scoped through the host rather than written bare, and not for taste: CodeMirror's own rule is two
+// classes deep, the second being the generated theme class on the container, so a bare `.cm-tooltip`
+// loses on specificity no matter which sheet is later. The host is `position: absolute` with no
+// z-index of its own, so it opens no stacking context and this number is read against the app's.
+#cm-tooltip-host .cm-tooltip {
+  z-index: var(--z-layer-menu);
+  // Taken back from the host above: the popup itself is clicked.
+  pointer-events: auto;
+}
