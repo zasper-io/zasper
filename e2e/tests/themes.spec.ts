@@ -23,7 +23,6 @@ const THEMES = [
   'slate-dark',
   'orange-light',
   'orange-dark',
-  'jupyterlab',
 ];
 
 /** The default, restored after each test: the theme is written to the throwaway config on selection. */
@@ -70,15 +69,12 @@ test('the panel lists every theme, and each one paints its own chrome', async ({
   for (const id of THEMES) {
     await chooseTheme(page, id);
 
-    const [theme, accent] = id === 'jupyterlab' ? [id, null] : id.split('-').reverse();
+    // Every shipped theme is a hue, so the name comes apart into both attributes. applyTheme also
+    // handles a theme with no accent by removing the attribute rather than emptying it — there is
+    // none to select today, and themes.test.ts covers that branch.
+    const [theme, accent] = id.split('-').reverse();
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-    if (accent === null) {
-      // Removed rather than emptied: `[data-accent]` in _accents.scss matches an empty value, which
-      // would hand the hue mapping to the one theme that states all of those tokens itself.
-      await expect(page.locator('html')).not.toHaveAttribute('data-accent');
-    } else {
-      await expect(page.locator('html')).toHaveAttribute('data-accent', accent);
-    }
+    await expect(page.locator('html')).toHaveAttribute('data-accent', accent);
 
     const values = await resolve(page, TOKENS);
     // Every one of them resolves to a colour. An unset custom property resolves to '', and the

@@ -238,9 +238,9 @@
   // the clearest case in the app for the mono face and tabular figures. It was Inter at 700 — a bold
   // proportional `[10]:` over a bold proportional `[9]:`, so the brackets moved from row to row.
   //
-  // --z-fg-serial-no rather than the --z-fg-subtle the drawing spends, because the token is already
-  // here and the JupyterLab theme sets it to that palette's blue prompt, which is the one thing a
-  // reader coming from JupyterLab looks for. The weight is the body's, as drawn.
+  // --z-fg-serial-no rather than the --z-fg-subtle the drawing spends: the prompt is the one mark a
+  // reader looks for down the left edge, so it takes the accent as ink (--a-700) rather than the grey
+  // everything else unimportant takes. The weight is the body's, as drawn.
   .serial-no {
     transition: opacity 80ms linear;
     color: var(--z-fg-serial-no);

@@ -16,21 +16,18 @@
 // HUES. That is two light-and-dark themes, and the settings panel lists them because
 // it renders this array.
 //
-// To add a theme that is not a hue — a palette of somebody else's, as 'jupyterlab'
-// is — write a `[data-theme='<id>']` block in styles/_tokens.scss overriding only
-// what differs, and append an entry with no `accent`.
-//
-// Two things to check while you are there, learned from adding 'jupyterlab':
+// A theme that is not a hue — one bringing a whole palette of its own — is still
+// possible: write a `[data-theme='<id>']` block in styles/_tokens.scss overriding
+// only what differs, and append an entry with no `accent`. `accent` is optional for
+// that reason. Two things to check if you do:
 //   - Every foreground token has to clear WCAG AA (4.5:1) against the surfaces it
-//     lands on. _tokens.scss notes the pairs that were already tightened for it.
+//     lands on. _tokens.scss notes the pairs that were already tightened once.
 //   - Icons need nothing: they are drawn in `currentColor` (see .z-icon). The one
 //     asset with its colour baked in is the topbar wordmark, and a theme picks the
 //     file with --z-logo rather than by branching in a component.
 
 import { vscodeLightInit, vscodeDarkInit } from '@uiw/codemirror-theme-vscode';
 import type { Extension } from '@codemirror/state';
-
-import { jupyterLabHighlight } from './jupyterlab';
 
 export interface ZasperTheme {
   /** The name the theme is stored under in ~/.zasper/config.json. */
@@ -49,8 +46,8 @@ export interface ZasperTheme {
 // settings, which createTheme emits as `&.cm-editor .cm-scroller` — three classes, enough to
 // beat styles/_codemirror.scss, so no editor ever painted in --z-mono-font-family. Unsetting it
 // makes createTheme skip that rule altogether (it is guarded on the value being truthy) and
-// leaves the stylesheet as the only place the family is named. `jupyterLabHighlight` sets no
-// font for the same reason; don't add one there either.
+// leaves the stylesheet as the only place the family is named. Any theme added here has to make
+// the same omission.
 const noFont = { fontFamily: undefined };
 
 /** The hues, in the order the settings panel lists them. Each one makes two themes. */
@@ -78,9 +75,6 @@ export const themes: ZasperTheme[] = [
       codeMirror: mode.codeMirror,
     }))
   ),
-  // Not a hue: an imitation of JupyterLab's own Material palette, which is a whole set of values
-  // rather than a brand colour, so it takes no accent and states everything itself.
-  { id: 'jupyterlab', label: 'JupyterLab', theme: 'jupyterlab', codeMirror: jupyterLabHighlight },
 ];
 
 export const defaultTheme: ZasperTheme = themes[0];

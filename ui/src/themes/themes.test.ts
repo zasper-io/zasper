@@ -13,9 +13,9 @@ import { applyTheme, defaultTheme, getTheme, rememberTheme, storedTheme, themes 
 const HUES = ['teal', 'blue', 'slate', 'orange'];
 
 describe('the registry', () => {
-  it('ships a light and a dark theme for every hue, and nothing else but JupyterLab', () => {
+  it('ships a light and a dark theme for every hue, and nothing else', () => {
     const generated = HUES.flatMap((hue) => [`${hue}-light`, `${hue}-dark`]);
-    expect(themes.map((theme) => theme.id)).toEqual([...generated, 'jupyterlab']);
+    expect(themes.map((theme) => theme.id)).toEqual(generated);
   });
 
   it('names every theme once', () => {
@@ -67,14 +67,16 @@ describe('applyTheme', () => {
   });
 
   it('leaves no accent behind on a theme that brings its own palette', () => {
-    // The bug this is here for: switching from a hue to JupyterLab and keeping `data-accent`, which
-    // hands the light mapping in _accents.scss to a theme that states every one of those tokens
-    // itself — a Material palette with a teal topbar in it.
+    // Every shipped theme is a hue today, so the theme here is built rather than looked up — the
+    // branch is still in applyTheme because `accent` is optional, and the bug it guards against is
+    // silent: keeping `data-accent` hands the mapping in _accents.scss to a palette that states all
+    // of those tokens itself, which paints someone else's greys with a teal topbar in them.
+    const ownPalette = { ...getTheme('teal-light'), id: 'own', theme: 'own', accent: undefined };
     const root = document.createElement('html');
     applyTheme(getTheme('teal-light'), root);
-    applyTheme(getTheme('jupyterlab'), root);
+    applyTheme(ownPalette, root);
 
-    expect(root.dataset.theme).toBe('jupyterlab');
+    expect(root.dataset.theme).toBe('own');
     expect(root.dataset.accent).toBeUndefined();
   });
 });

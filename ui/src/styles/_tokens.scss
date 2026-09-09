@@ -8,10 +8,9 @@
 //
 //   * A *hue* — nine values in $accents in _accents.scss, which makes both a light
 //     and a dark theme out of them. That is where the shipped themes come from.
-//   * A *palette*, when the point is not the brand colour: the two blocks below
-//     that are not generated — `[data-theme='dark']`, which is grey rather than
-//     tinted, and `[data-theme='jupyterlab']`, which imitates somebody else's
-//     Material palette. Those are hand-written and restate only what they change.
+//   * A *palette*, when the point is not the brand colour: `[data-theme='dark']`
+//     below is the one block that is not generated, grey rather than tinted. It is
+//     hand-written and restates only what it changes.
 //
 // `:root` is the light values the app shipped with, in Zasper purple. It is no
 // longer a theme anyone can select: it is the floor, and it shows through only
@@ -149,10 +148,10 @@
   // giving both the same fill means moving the mouse looks like it moved the selection.
   --z-bg-menu-hover: #f0f0f0;
 
-  // An icon button's hover, on a coloured chrome surface rather than on a panel. Not a fixed
-  // white wash: `jupyterlab`'s chrome is light, so white over it is invisible, and that theme
-  // takes a black one instead. --z-bg-menu-hover is the panel version and reads as a hole
-  // punched in a coloured bar.
+  // An icon button's hover, on a coloured chrome surface rather than on a panel. A white wash
+  // works because every shipped theme's chrome is coloured or dark; a theme with light chrome
+  // would need a black one instead, since white over it is invisible. --z-bg-menu-hover is the
+  // panel version and reads as a hole punched in a coloured bar.
   --z-bg-hover-on-chrome: rgba(255, 255, 255, 0.16);
 
   // --- Chrome (topbar / tabs / banner) ------------------------------------
@@ -332,8 +331,8 @@
   // of that kind in the app, and the same one as a `fill=` inside an icon.
   //
   // Unlike the DataFrame above, this palette is *not* the app's to invent: red here is the program
-  // saying red, so each theme takes the palette its own users already know — VS Code's Light+ below,
-  // Dark+ in the dark theme, JupyterLab's own nbconvert palette in the JupyterLab one — and then
+  // saying red, so each theme takes the palette its own users already know — VS Code's Light+ below
+  // and Dark+ in the dark theme — and then
   // does the one thing those palettes do not: clears 4.5:1 on the surface the text actually lands on,
   // --z-bg-cell-output. The hue and saturation are kept and the lightness moves, which is how the
   // file-type marks above were treated and for the same reason. A `// from` note records the original
@@ -529,141 +528,6 @@
 
   // This theme's output box is #353535, which is what the sixteen above were measured against.
   @include ansi-on-dark;
-}
-
-// JupyterLab (light). Values come from JupyterLab's own `--jp-*` variables, so
-// the palette is Material greys plus the Material blue brand ramp rather than
-// Zasper purple.
-//
-// This is the theme that proves the token layer works: it is the first one whose
-// chrome is *light*, which means --z-fg-on-chrome inverts. Nothing else needed to
-// change for that — no component stylesheet, no TypeScript.
-[data-theme='jupyterlab'] {
-  // --- Surfaces -----------------------------------------------------------
-  // --jp-layout-color0/1/2/3 are #fff / #fff / #eee / #e0e0e0. Content sits on
-  // white; the shell around it is grey.
-  --z-bg-app: #eeeeee;
-  --z-bg-content: #eeeeee;
-  --z-bg-panel: #ffffff;
-  --z-bg-panel-alt: #eeeeee;
-  --z-bg-row-selected: #e3f2fd; // --jp-brand-color3
-  --z-bg-editor: #ffffff;
-  --z-bg-tab: #ffffff;
-  --z-bg-input: #ffffff;
-  --z-bg-field: #f5f5f5; // --jp-input-background
-  // JupyterLab's terminal follows the light theme, but xterm.js draws its own
-  // foreground and Terminal.tsx never rebuilds the instance, so the background
-  // has to stay dark. Material grey 900 instead of black.
-  --z-bg-terminal: #212121;
-  --z-bg-modal-header: #1976d2; // --jp-brand-color0
-  --z-bg-cell: #f7f7f7; // --jp-cell-editor-background
-  --z-bg-cell-output: #ffffff; // output areas are --jp-layout-color0
-  // JupyterLab's own stderr tint, --jp-rendermime-error-background.
-  --z-bg-error-subtle: #fdd;
-  --z-bg-code: #f5f5f5;
-  --z-bg-notice: #f5f5f5;
-  // --jp-layout-color0, which is this theme's panel and its overlay both — JupyterLab raises a menu
-  // with a border and a shadow, exactly as the rule here says.
-  --z-bg-overlay: #ffffff;
-  --z-bg-menu-hover: #e0e0e0;
-  // Black rather than white: this theme's chrome is #f5f5f5.
-  --z-bg-hover-on-chrome: rgba(0, 0, 0, 0.08);
-
-  // --- Chrome -------------------------------------------------------------
-  // The menu bar, status bar and tab strip are all light here, which is why
-  // --z-fg-on-chrome flips to a dark grey below.
-  --z-bg-topbar: #f5f5f5;
-  --z-bg-banner: #eeeeee;
-  --z-bg-statusbar: #f5f5f5;
-  --z-bg-tab-inactive: #e0e0e0;
-  --z-bg-tab-active: #ffffff;
-  --z-bg-tab-hover: #eeeeee;
-  // JupyterLab marks the selected sidebar tab by lifting it to the content
-  // surface and underlining it in brand blue.
-  --z-bg-navbutton-active: #ffffff;
-  --z-border-navbutton-active: #2196f3;
-
-  --z-bg-launcher-tile: #ffffff;
-  --z-bg-launcher-tile-hover: #eeeeee;
-
-  // --- Foreground ---------------------------------------------------------
-  --z-fg-default: #212121; // Material grey 900
-  --z-fg-editor: #212121;
-  --z-fg-muted: #616161; // grey 700
-  // JupyterLab's --jp-ui-font-color2 is grey 600 (#757575), which is 3.97:1 on
-  // the grey shell. Darkened one notch to clear AA, same as the light theme.
-  --z-fg-subtle: #6b6b6b;
-  --z-fg-on-chrome: #212121;
-  --z-fg-icon: #616161;
-  --z-fg-field: #212121;
-  // --jp-cell-inprompt-font-color is #307fc1 (4.26:1 on white); nudged darker.
-  --z-fg-serial-no: #1f6fb2;
-  // The full-colour wordmark, since this is the first theme with a light topbar.
-  --z-logo: url('/images/logo.svg');
-
-  // --- Borders ------------------------------------------------------------
-  // --jp-border-color1/2/3 = #bdbdbd / #e0e0e0 / #eeeeee.
-  --z-border: #e0e0e0;
-  --z-border-strong: #bdbdbd;
-  --z-border-subtle: #eeeeee;
-  --z-border-divider: #e0e0e0;
-  --z-border-breadcrumb: #e0e0e0;
-  --z-border-kernel-status: #bdbdbd;
-  --z-border-field: #cfcfcf;
-  --z-border-indent-guide: #e0e0e0;
-
-  // --- Accent -------------------------------------------------------------
-  // JupyterLab's own blue ramp. Both hover and active go *darker* here because white
-  // text on brand-color1 (#2196f3) is only 3.0:1 — which is the direction the four
-  // generated light themes ended up taking as well, for the same reason.
-  --z-accent: #1976d2; // --jp-brand-color0
-  --z-accent-hover: #1565c0;
-  --z-accent-active: #0d47a1;
-  // Ink can stay on brand-color0: 4.60:1 on white.
-  --z-fg-accent: #1976d2;
-
-  // --- Scrollbars ---------------------------------------------------------
-  --z-scrollbar-thumb: #bdbdbd;
-  --z-scrollbar-track: #eeeeee;
-
-  // --- Kernel status ------------------------------------------------------
-  --z-status-idle: #388e3c;
-  --z-status-busy: #d32f2f;
-  --z-status-disconnected: #757575;
-  --z-status-error: #c62828;
-
-  --z-git-modified: #ef6c00;
-  --z-git-added: #2e7d32;
-  --z-git-deleted: #c62828;
-  --z-git-conflict: #d84315;
-
-  // --- Login --------------------------------------------------------------
-  --z-bg-login-page: linear-gradient(119deg, #ffffff 0%, #eeeeee 100%);
-  --z-bg-login-hero: linear-gradient(133deg, #2196f3 0%, #0d47a1 100%);
-  --z-shadow-login: 0px 3px 36px #e0e0e0;
-  // Material grey 100, which is where this theme's page ends: the plinth is one step off it either way.
-  --z-bg-login-plinth: #f5f5f5;
-
-  // --- ANSI ---------------------------------------------------------------
-  // JupyterLab's own nbconvert palette, on this theme's #ffffff output surface, so a notebook opened
-  // here and in JupyterLab colours its traceback the same. Eleven of the sixteen darken to clear
-  // 4.5:1 on white: JupyterLab's normal set was drawn against its own greys, not against paper.
-  --z-ansi-black: #3e424d; // 10.04:1
-  --z-ansi-red: #e02e29; // from #e75c58, 3.46:1
-  --z-ansi-green: #008843; // from #00a250, 3.34:1
-  --z-ansi-yellow: #8d7317; // from #ddb62b, 1.94:1
-  --z-ansi-blue: #0474e1; // from #208ffb, 3.29:1
-  --z-ansi-magenta: #c539b5; // from #d160c4, 3.40:1
-  --z-ansi-cyan: #2d8283; // from #60c6c8, 2.02:1
-  --z-ansi-white: #7c7660; // from #c5c1b4, 1.80:1
-  --z-ansi-bright-black: #282c36; // 13.96:1
-  --z-ansi-bright-red: #b22b31; // 6.40:1
-  --z-ansi-bright-green: #007427; // 5.95:1
-  --z-ansi-bright-yellow: #9b6d10; // from #b27d12, 3.60:1
-  --z-ansi-bright-blue: #0065ca; // 5.65:1
-  --z-ansi-bright-magenta: #a03196; // 6.22:1
-  --z-ansi-bright-cyan: #228282; // from #258f8f, 3.89:1
-  --z-ansi-bright-white: #6f7687; // from #a1a6b2, 2.44:1
 }
 
 // --- The one surface that is dark in every theme ------------------------------

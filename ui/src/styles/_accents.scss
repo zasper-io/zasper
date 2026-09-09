@@ -65,9 +65,8 @@ $accents: (
       '900': #232830,
     ),
   // The ecosystem's orange, one hue away from --z-git-modified: look at a modified file's `M` while
-  // this is on. It is the loudest of the four as chrome, and the reason the hue is called `orange`
-  // rather than `jupyter` is the JupyterLab theme, which is a different thing — an imitation of
-  // JupyterLab's own Material palette rather than Zasper's chrome in Jupyter's colour.
+  // this is on. It is the loudest of the four as chrome, and it is called `orange` rather than
+  // `jupyter` because it is Zasper's chrome in that colour, not an imitation of anyone's palette.
   'orange': (
       '50': #fef2e8,
       '100': #fbdfc8,
@@ -115,8 +114,8 @@ $dark-panel: #272727;
 // The one part of the mapping that does not depend on the polarity, because what constrains it does
 // not either: --z-fg-on-accent is white in every theme, so a fill has to be dark enough to carry
 // white text. --a-600 is 5.12:1 (orange) to 8.29:1 (slate), and hover and active therefore go
-// *darker* rather than lighter — the app's `jupyterlab` theme already made that trade, for the same
-// reason. Against the dark panel a-600 reads at 1.80:1 to 2.92:1, which is where VS Code's own dark
+// *darker* rather than lighter, which is the trade any fill carrying white text has to make.
+// Against the dark panel a-600 reads at 1.80:1 to 2.92:1, which is where VS Code's own dark
 // primary button (#0e639c, 2.61:1) and the purple this replaces (2.16:1) both sit.
 //
 // Left out of the two blocks below on purpose: with them, dark stated the ink and forgot the fill,
