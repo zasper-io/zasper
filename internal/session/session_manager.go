@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/models"
@@ -23,15 +24,31 @@ func ListSessions() map[string]models.SessionModel {
 func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	log.Debug().Msgf("creating session %s", req.Kernel.Name)
 
+	// The one place both answers are visible, which is why the kernel events are counted here rather
+	// than down in StartKernelManager: what is worth knowing is how often opening a notebook gets a
+	// fresh kernel versus rejoining one that is already running.
+	language := analytics.NormalizeLanguage(req.Kernel.Name)
+
 	if session, ok := runningSessionFor(req); ok {
 		log.Debug().Msgf("session %s is already running %s", session.Id, session.Path)
+		analytics.Track(analytics.EventKernelStarted, map[string]interface{}{
+			"kernel_language": language,
+			"reused":          true,
+		})
 		return session, nil
 	}
 
 	kernelId, err := startKernelForSession(req.Path, req.Kernel.Name)
 	if err != nil {
+		analytics.Track(analytics.EventKernelStartFailed, map[string]interface{}{
+			"kernel_language": language,
+		})
 		return models.SessionModel{}, err
 	}
+	analytics.Track(analytics.EventKernelStarted, map[string]interface{}{
+		"kernel_language": language,
+		"reused":          false,
+	})
 	log.Debug().Msgf("started kernel with id %s", kernelId)
 
 	session_id := uuid.New().String()

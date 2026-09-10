@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/internal/analytics"
 	zhttp "github.com/zasper-io/zasper/internal/http"
 
 	"github.com/gorilla/mux"
@@ -61,6 +62,14 @@ func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
 		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error interrupting kernel: %v", err))
 		return
 	}
+
+	language := "other"
+	if km, ok := ActiveKernel(kernelId); ok {
+		language = analytics.NormalizeLanguage(km.KernelName)
+	}
+	analytics.Track(analytics.EventKernelInterrupted, map[string]interface{}{
+		"kernel_language": language,
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

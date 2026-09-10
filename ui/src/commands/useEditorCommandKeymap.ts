@@ -3,6 +3,8 @@ import { closeCompletion } from '@codemirror/autocomplete';
 import { Prec, type Extension } from '@codemirror/state';
 import { keymap, type KeyBinding, type EditorView } from '@codemirror/view';
 
+import { trackCommand } from '@/telemetry';
+
 import { ICommand } from './types';
 
 /**
@@ -46,6 +48,9 @@ export function useEditorCommandKeymap(commands: ICommand[]): Extension {
         // and left: nothing closed it, so it stayed on screen over the *next* cell for as long as
         // the run took. CodeMirror only dismisses it on Escape or on a change to the document.
         closeCompletion(view);
+        // As well as in the registry, because this path bypasses it: NotebookEditor hands the raw
+        // commands here, so run-cell and run-cell-and-advance would otherwise never be counted.
+        trackCommand(id);
         current.execute();
         return true;
       };

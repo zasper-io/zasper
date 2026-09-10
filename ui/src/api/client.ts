@@ -112,6 +112,20 @@ export async function requestEmpty(path: string, options?: RequestOptions): Prom
 }
 
 /**
+ * A POST nobody waits for and nobody hears about. `keepalive` is the point: a plain fetch started
+ * from a `pagehide` handler is cancelled with the document, which is exactly when the last batch of
+ * telemetry goes out. Only for calls whose failure genuinely does not matter.
+ */
+export function requestBeacon(path: string, body: unknown): void {
+  fetch(BaseApiUrl + path, {
+    method: 'POST',
+    headers: buildHeaders(body),
+    body: JSON.stringify(body),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+/**
  * The response body as bytes, for a download. It goes through fetch like everything else rather than
  * being handed to the browser as a link, because a link cannot carry the Authorization header a
  * protected server requires.

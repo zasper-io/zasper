@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
@@ -104,6 +105,13 @@ func NewRouter(spa http.Handler) *mux.Router {
 	// config
 	apiRouter.HandleFunc("/config/modify", core.ConfigModifyHandler).Methods("POST")
 
+	// telemetry. The events route is a gateway rather than a passthrough: the frontend names an event
+	// and internal/analytics/events.go decides whether that is a thing Zasper sends. Both sit on
+	// apiRouter, so a protected server authenticates them like every other /api route.
+	apiRouter.HandleFunc("/telemetry", analytics.TelemetryHandler).Methods("POST")
+	apiRouter.HandleFunc("/telemetry/settings", analytics.TelemetrySettingsHandler).Methods("GET")
+	apiRouter.HandleFunc("/telemetry/settings", analytics.TelemetrySettingsModifyHandler).Methods("POST")
+
 	authRouter.HandleFunc("/login", auth.LoginHandler).Methods("POST")
 
 	// contents
@@ -132,17 +140,17 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/git/log", gitclient.LogHandler).Methods("GET")
 	apiRouter.HandleFunc("/git/commit/{hash}", gitclient.CommitDetailHandler).Methods("GET")
 	apiRouter.HandleFunc("/git/diff", gitclient.DiffHandler).Methods("GET")
-	apiRouter.HandleFunc("/git/stage", gitclient.StageHandler).Methods("POST")
-	apiRouter.HandleFunc("/git/unstage", gitclient.UnstageHandler).Methods("POST")
-	apiRouter.HandleFunc("/git/discard", gitclient.DiscardHandler).Methods("POST")
-	apiRouter.HandleFunc("/git/commit", gitclient.CommitHandler).Methods("POST")
+	apiRouter.HandleFunc("/git/stage", gitclient.Tracked("stage", gitclient.StageHandler)).Methods("POST")
+	apiRouter.HandleFunc("/git/unstage", gitclient.Tracked("unstage", gitclient.UnstageHandler)).Methods("POST")
+	apiRouter.HandleFunc("/git/discard", gitclient.Tracked("discard", gitclient.DiscardHandler)).Methods("POST")
+	apiRouter.HandleFunc("/git/commit", gitclient.Tracked("commit", gitclient.CommitHandler)).Methods("POST")
 	apiRouter.HandleFunc("/git/branches", gitclient.BranchesHandler).Methods("GET")
-	apiRouter.HandleFunc("/git/branches", gitclient.DeleteBranchHandler).Methods("DELETE")
-	apiRouter.HandleFunc("/git/checkout", gitclient.CheckoutHandler).Methods("POST")
-	apiRouter.HandleFunc("/git/fetch", gitclient.FetchHandler).Methods("POST")
-	apiRouter.HandleFunc("/git/pull", gitclient.PullHandler).Methods("POST")
-	apiRouter.HandleFunc("/git/push", gitclient.PushHandler).Methods("POST")
-	apiRouter.HandleFunc("/git/init", gitclient.InitHandler).Methods("POST")
+	apiRouter.HandleFunc("/git/branches", gitclient.Tracked("branch_delete", gitclient.DeleteBranchHandler)).Methods("DELETE")
+	apiRouter.HandleFunc("/git/checkout", gitclient.Tracked("checkout", gitclient.CheckoutHandler)).Methods("POST")
+	apiRouter.HandleFunc("/git/fetch", gitclient.Tracked("fetch", gitclient.FetchHandler)).Methods("POST")
+	apiRouter.HandleFunc("/git/pull", gitclient.Tracked("pull", gitclient.PullHandler)).Methods("POST")
+	apiRouter.HandleFunc("/git/push", gitclient.Tracked("push", gitclient.PushHandler)).Methods("POST")
+	apiRouter.HandleFunc("/git/init", gitclient.Tracked("init", gitclient.InitHandler)).Methods("POST")
 	// The status bar wants one string on boot and nothing else, so it keeps an endpoint of its own
 	// rather than reading a whole status.
 	apiRouter.HandleFunc("/current-branch", gitclient.BranchHandler).Methods("GET")

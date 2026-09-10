@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/gorilla/mux"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	zhttp "github.com/zasper-io/zasper/internal/http"
 )
 
@@ -569,4 +570,33 @@ func CommitHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sendStatus(w, r, repo, root)
+}
+
+// Records the status a handler answered with, so an operation is counted only if it worked: a push
+// git rejected is not a push anybody did.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (recorder *statusRecorder) WriteHeader(code int) {
+	recorder.status = code
+	recorder.ResponseWriter.WriteHeader(code)
+}
+
+/*
+Tracked counts one git operation, named here rather than inside the handler so that the handlers stay
+unaware of telemetry and the route table stays the list of what is counted.
+
+Only the writes are wrapped. The panel polls status and current-branch, so counting those would bury
+everything else under them.
+*/
+func Tracked(operation string, handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		handler(recorder, req)
+		if recorder.status < http.StatusBadRequest {
+			analytics.Track(analytics.EventGitOperation, map[string]interface{}{"operation": operation})
+		}
+	}
 }

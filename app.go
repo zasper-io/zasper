@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -87,20 +88,23 @@ func main() {
 		},
 	})
 
-	// Track server start and stop events if tracking is enabled
-	// Note that this helps me understand if the users are actually using Zasper
-	// and keeps me motivated to maintain and improve the product
-
-	if *tracking {
+	// Anonymous usage tracking. It is what tells me whether anyone is actually using Zasper, which is
+	// most of what keeps me maintaining it. Nothing that identifies a person or names a file leaves
+	// the machine — internal/analytics/events.go is the list of what does, and PRIVACY.md says the
+	// same thing in prose.
+	trackingOn := resolveTracking(*tracking)
+	if trackingOn {
 		analytics.SetUpPostHogClient()
-		analytics.TrackServerStartStopEvent("server_started", map[string]interface{}{"source": "web"})
+		analytics.TrackServerStart()
+	} else {
+		analytics.DisableForSession()
 	}
 
 	// Channel for graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
-	printBanner(*port, core.ServerAccessToken, version, *protected, *tracking)
+	printBanner(*port, core.ServerAccessToken, version, *protected, trackingOn)
 
 	go func() {
 		if err := http.ListenAndServe(*port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {
@@ -112,7 +116,7 @@ func main() {
 	fmt.Println("Shutting down server...")
 
 	// Cleanup function
-	cleanup(*tracking)
+	cleanup(trackingOn)
 
 	// Shutdown the server gracefully
 	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -141,8 +145,33 @@ func printBanner(port string, accessToken string, version string, protected bool
 	} else {
 		fmt.Println(" 🔒 Protected Mode:      disabled")
 	}
-	fmt.Println(" 🔄 Server start/shutdown tracking enabled:", tracking)
+	if tracking {
+		fmt.Println(" 📊 Anonymous usage data: on  (--tracking=false to turn off)")
+		fmt.Println("                          see PRIVACY.md for what is sent")
+	} else {
+		fmt.Println(" 📊 Anonymous usage data: off")
+	}
 	fmt.Println("==========================================================")
+}
+
+// resolveTracking decides whether this run sends anything, highest precedence first: the --tracking
+// flag, then ZASPER_TELEMETRY, then the stored choice, then on. The two per-run switches come first
+// so that someone who has to demonstrate an offline or air-gapped run can get one without editing a
+// config file they may not own.
+func resolveTracking(flagValue bool) bool {
+	if !flagValue {
+		return false
+	}
+
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("ZASPER_TELEMETRY"))) {
+	case "0", "false", "off", "no":
+		return false
+	case "1", "true", "on", "yes":
+		return true
+	}
+
+	stored, _ := core.TelemetryPreference()
+	return stored
 }
 
 // cleanup performs cleanup operations

@@ -412,6 +412,23 @@ The server writes logs to standard output. Run it with `-debug` to raise the log
 zasper -debug
 ```
 
+# 🔒 Privacy
+
+Zasper sends a small amount of anonymous usage data: counts of things like notebooks opened, cells
+run and terminals started. It never sends file names, paths, code, project names, your username or
+your IP address, and there is no session recording or autocapture.
+
+[PRIVACY.md](PRIVACY.md) lists every event and every property, and explains how the allowlist that
+enforces it works. To turn tracking off:
+
+```bash
+zasper --tracking=false     # this run
+ZASPER_TELEMETRY=0 zasper   # this run, from the environment
+```
+
+Or clear **Settings → Privacy → Send anonymous usage data**, which is remembered. With tracking off
+nothing is collected and no request is made.
+
 # 🧭 Roadmap
 
 Data Scientists and AI Engineers spend most of their time running Notebooks on IDEs and hence need a robust ecosystem.

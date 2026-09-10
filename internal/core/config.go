@@ -72,9 +72,10 @@ func SetUpZasper(version string, cwd string, protected bool) Application {
 
 // Config structure to hold configuration values
 type Config struct {
-	TrackingID   string   `json:"tracking_id"`
-	LastProjects []string `json:"last_projects"`
-	Theme        string   `json:"theme"`
+	TrackingID       string   `json:"tracking_id"`
+	LastProjects     []string `json:"last_projects"`
+	Theme            string   `json:"theme"`
+	TelemetryEnabled *bool    `json:"telemetry_enabled,omitempty"`
 }
 
 // Function to expand the ~ to home directory path
@@ -201,4 +202,29 @@ func changeTheme(theme string) error {
 	}
 
 	return nil
+}
+
+// TelemetryPreference reports the stored choice and whether one has been made. The second return is
+// what the first-run notice keys off: an install that has never been asked is not the same as one
+// that was asked and said yes.
+func TelemetryPreference() (enabled bool, chosen bool) {
+	config, err := ReadConfig()
+	if err != nil {
+		log.Debug().Msgf("Error reading config file: %v", err)
+		return true, false
+	}
+	if config.TelemetryEnabled == nil {
+		return true, false
+	}
+	return *config.TelemetryEnabled, true
+}
+
+// SetTelemetryEnabled persists the choice, which also marks the install as having been asked.
+func SetTelemetryEnabled(enabled bool) error {
+	config, err := ReadConfig()
+	if err != nil {
+		return err
+	}
+	config.TelemetryEnabled = &enabled
+	return WriteConfig(config)
 }

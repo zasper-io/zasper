@@ -1,6 +1,7 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import { deleteKernel, DiffTarget, logApiError } from '@/api';
+import { trackTabOpened } from '@/telemetry';
 import getFileExtension from '@/ide/utils';
 import { baseName, isInside, rewritePath } from '@/paths';
 import { notebookKernelMapAtom, terminalsAtom, terminalsCountAtom } from './AppState';
@@ -69,6 +70,12 @@ export function useTabActions(): ITabActions {
   const setTerminalCount = useSetAtom(terminalsCountAtom);
 
   const openTab = (tab: IOpenTab) => {
+    // Outside the updater, which React may run more than once. `fileTabs` is the render's snapshot, so
+    // a tab opened twice in one tick counts twice — better than a side effect inside a state updater.
+    if (fileTabs[tab.path] === undefined) {
+      trackTabOpened(tab.type, tab.name);
+    }
+
     setFileTabs((previous) => {
       const next: IfileTabDict = {};
       // Only one tab is in front, and only a tab being opened now needs loading.

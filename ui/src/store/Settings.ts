@@ -20,3 +20,10 @@ export const settingsAtom = atom({
  * changing it.
  */
 export const themeAtom = atom(storedTheme().id);
+
+/**
+ * What the server said about telemetry: whether anything is being sent, and whether this install has
+ * ever been asked. Held in an atom so the settings panel and the first-run notice agree without
+ * either of them asking the server again.
+ */
+export const telemetryAtom = atom({ enabled: false, chosen: true });

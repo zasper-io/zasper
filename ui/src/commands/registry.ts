@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { atom, useAtomValue, useSetAtom } from 'jotai';
 
+import { trackCommand } from '@/telemetry';
+
 import { ICommand } from './types';
 
 /**
@@ -97,7 +99,10 @@ export function useRegisterCommands(commands: ICommand[], active: boolean = true
       const find = () => latest.current.find((command) => command.id === id);
       proxies[id] = {
         ...registered,
-        execute: () => find()?.execute(),
+        execute: () => {
+          trackCommand(id);
+          return find()?.execute();
+        },
         isEnabled: () => {
           const command = find();
           return command ? (command.isEnabled?.() ?? true) : false;

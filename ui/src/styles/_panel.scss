@@ -233,7 +233,10 @@
       // A drop here goes to the project root, which has no row of its own to outline. The outline
       // itself is `.is-drop-target` in styles/_states.scss, shared with the row and the upload zone.
 
-      p {
+      // Body copy in a panel. Excludes `.z-form-help`, which is a shared class in _forms.scss and
+      // has to be able to win here: this selector is three classes deep, so a bare `p` would beat
+      // it on specificity and a help line would silently come out at the wrong size and colour.
+      p:not(.z-form-help) {
         font-size: 12px;
         color: var(--z-fg-muted);
         margin-bottom: 0rem;

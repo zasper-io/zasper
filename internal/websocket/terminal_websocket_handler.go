@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
 )
@@ -188,6 +189,17 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	// Store the session in the global map, which is also what /api/terminals answers from.
 	session := &TerminalSession{TTY: tty, Cmd: cmd, Name: terminalId, Dir: dir, Started: time.Now().UTC()}
 	registerTerminalSession(sessionID, session)
+
+	// Counted only once the shell is actually up, so a terminal that failed to start is not one that
+	// was opened. Neither the folder nor the tab's name travels — the duration is bucketed, and that
+	// is the whole event.
+	analytics.Track(analytics.EventTerminalOpened, nil)
+	openedAt := time.Now()
+	defer func() {
+		analytics.Track(analytics.EventTerminalClosed, map[string]interface{}{
+			"duration_bucket": analytics.Bucket(int(time.Since(openedAt).Minutes())),
+		})
+	}()
 
 	defer cleanupTTY(sessionID, session, connection)
 

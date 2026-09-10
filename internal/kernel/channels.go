@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/internal/analytics"
 
 	"github.com/go-zeromq/zmq4"
 )
@@ -298,6 +299,16 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 			return
 		}
 		log.Debug().Msgf("msg is => %v", msg)
+
+		// Every client->kernel message is already parsed here, which makes this the one place a cell
+		// run can be counted without the frontend being trusted to report it — and without the cell's
+		// source going anywhere near a property.
+		if msg.Header.MsgType == "execute_request" {
+			analytics.Track(analytics.EventCodeCellExecuted, map[string]interface{}{
+				"kernel_language": analytics.NormalizeLanguage(kwsConn.KernelManager.KernelName),
+			})
+		}
+
 		if msg.Channel == "stdin" {
 			kwsConn.Session.SendStreamMsg(kwsConn.Channels["stdin"], msg)
 		} else {

@@ -7,8 +7,8 @@
 //
 // Two things the drawing counted as this pair that are not: the commit box, which has a placeholder
 // because it is a one-field form under its own heading, and `.modal-choice`, which is the checkbox at the
-// bottom of this file. `.z-form-help` is drawn and is not here, for the reason the tooltip is not either:
-// nothing in the app has a help line yet, and a rule with no consumer is a rule nobody checks.
+// bottom of this file. `.z-form-help` was drawn and left out for want of a consumer; the settings panel's
+// privacy note is the first one, so it is here now.
 
 .z-form-field {
   margin-bottom: 12px;
@@ -23,6 +23,14 @@
   margin-bottom: 4px;
   color: var(--z-fg-muted);
   font-size: var(--z-ui-font-size);
+}
+
+// Under the control, not beside it, and never the same sentence as the label: a label says what the
+// setting is, this says what changing it costs.
+.z-form-help {
+  margin: 4px 0 0;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
 }
 
 // A control in a form fills the column it is in rather than taking a width of its own: a panel is 248px

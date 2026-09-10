@@ -34,6 +34,7 @@ import { PanelName } from './sidebar/types';
 import { useAppCommands } from '../commands/appCommands';
 import { useRegisterCommands } from '../commands/registry';
 import { useCommandKeymap } from '../commands/useCommandKeymap';
+import { useTelemetry } from '../telemetry';
 
 function IDE() {
   const [theme, setTheme] = useAtom(themeAtom);
@@ -52,6 +53,7 @@ function IDE() {
   // `keydown` listener here. Everything else contributes to the same registry from its own tab.
   useCommandKeymap();
   useRegisterCommands(useAppCommands());
+  useTelemetry();
 
   const initConfig = useCallback(async () => {
     let info;
