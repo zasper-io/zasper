@@ -23,7 +23,7 @@ on:
       - '.github/workflows/snap.yml'
       - 'snap/**'
       - 'docker/**'
-      - 'scripts/sync-version.mjs'
+      - 'scripts/**'
       - 'Makefile'
       - 'go.mod'
       - 'go.sum'
@@ -67,13 +67,26 @@ jobs:
         with:
           node-version: '22.12'
 
+      # The version about to be released must have its changelog entry, so a release pull request
+      # cannot merge without one. On a tag, the step above has already tied the tag to version.txt.
+      - name: CHANGELOG.md has a section for this version
+        run: node scripts/changelog-section.mjs "$(tr -d '[:space:]' < version.txt)" > /dev/null
+
+      - name: Test the release scripts
+        run: node --test scripts/*.test.mjs
+
       - name: Install frontend dependencies
         run: npm --prefix ./ui ci
 
-      - name: Typecheck and lint the frontend
-        run: |
-          npm --prefix ./ui run typecheck
-          npm --prefix ./ui exec eslint src
+      - name: Typecheck the frontend
+        run: npm --prefix ./ui run typecheck
+
+      # In ui/, not with --prefix: `npm --prefix ./ui exec` runs the command from the repo root, where
+      # there is no src/, so ESLint found nothing to lint and failed the release. Not the `lint` script
+      # either, which passes --fix — a gate has to fail on a problem, not quietly rewrite the file.
+      - name: Lint the frontend
+        working-directory: ./ui
+        run: npx eslint src
 
       - name: Test the frontend
         run: npm --prefix ./ui run test
@@ -129,8 +142,15 @@ jobs:
         with:
           node-version: '22.12'
 
+      # The GitHub Release page gets the edited CHANGELOG.md section rather than GoReleaser's own list
+      # of commit subjects, so the two never say different things. test -s refuses an empty file.
+      - name: Release notes from CHANGELOG.md
+        run: |
+          node scripts/changelog-section.mjs "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/release-notes.md"
+          test -s "$RUNNER_TEMP/release-notes.md"
+
       - name: Build and Release Go Binary with GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
-          args: release --clean
+          args: release --clean --release-notes=${{ runner.temp }}/release-notes.md

@@ -1,0 +1,44 @@
+# git-cliff configuration for drafting the next CHANGELOG.md section: `make changelog-draft`.
+#
+# What it produces is a draft, not the changelog. About a third of this repo's history has no
+# conventional prefix, and no generator can tell a user-facing change from an internal one or write
+# the Upgrading notes, so the draft is edited in the release pull request before it merges. Commits
+# with no recognisable prefix go to "Needs sorting" rather than being dropped, so nothing disappears
+# without someone deciding it should.
+
+[changelog]
+header = ""
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] — {{ now() | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | split(pat="\n") | first | trim | upper_first }}
+{%- endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+tag_pattern = "v[0-9].*"
+sort_commits = "oldest"
+# The HTML comments put the groups in Keep a Changelog's order; the template strips them.
+commit_parsers = [
+  # Dependabot's bumps. One that fixes a vulnerability belongs under Security, written by hand.
+  { message = "^[Bb]ump ", skip = true },
+  { message = "(?i)package[- ]?lock", skip = true },
+  # Nothing a user would notice. A refactor that changes behaviour was not a refactor.
+  { message = "(?i)^(chore|ci|build|test|style|docs|refactor)(\\(.*\\))?!?:", skip = true },
+  { message = "(?i)^feat", group = "<!-- 0 -->Added" },
+  { message = "(?i)^(perf|revert)", group = "<!-- 1 -->Changed" },
+  { message = "(?i)^fix", group = "<!-- 4 -->Fixed" },
+  { message = ".*", group = "<!-- 9 -->Needs sorting" },
+]

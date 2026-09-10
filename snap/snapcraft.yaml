@@ -1,6 +1,6 @@
 name: zasper
 base: core22
-version: '0.2.0-beta'
+version: '1.0.0'
 summary: High Performance IDE for Jupyter Notebooks
 description: |
   Zasper is a High Performance IDE for Jupyter Notebooks.
