@@ -7,3 +7,4 @@ export * from './kernels';
 export * from './notebook';
 export * from './search';
 export * from './sessions';
+export * from './terminals';

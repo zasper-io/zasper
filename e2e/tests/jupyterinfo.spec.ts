@@ -148,3 +148,82 @@ test('a running kernel is named with its notebook, and shut down from the panel'
   await expect(open.getByText('No kernels running.')).toBeVisible();
   await expect.poll(() => runningKernels(request)).toBe(0);
 });
+
+/** A shell as `/api/terminals` reports it. */
+interface TerminalModel {
+  id: string;
+  name: string;
+  dir: string;
+  started: string;
+}
+
+async function runningTerminals(request: APIRequestContext): Promise<TerminalModel[]> {
+  return (await (await request.get('/api/terminals')).json()) as TerminalModel[];
+}
+
+/*
+The terminals half of the same defect, and the same reason no mock can reach it.
+
+The panel listed the terminal tabs this browser window had open, so it emptied on a reload while the
+shells went on running and it went on naming a shell that had exited. Both halves are here, and both
+are checked against `/api/terminals` as well as against the panel: a panel agreeing with itself is
+what the bug looked like.
+
+The shutdown is the other thing only a real server can answer. The shell is a process on this machine,
+and a "Terminal shut down." that leaves it running is exactly the failure a mock cannot see.
+*/
+test('a running shell is listed after a reload, and shut down from the panel', async ({
+  page,
+  request,
+}) => {
+  await openApp(page);
+
+  await page
+    .locator('.launchSection')
+    .filter({ hasText: 'Terminal' })
+    .locator('.launcher-icon')
+    .first()
+    .click();
+  await expect(page.locator('.tab-item').filter({ hasText: 'Terminal 1' })).toBeVisible();
+  await expect.poll(async () => (await runningTerminals(request)).length).toBe(1);
+
+  /*
+   * Reloaded before the panel is read, which is the assertion the panel could not have passed before:
+   * the tab it listed is gone with the page that held it.
+   *
+   * The shell goes too — a terminal's life is its websocket, and there is no reattaching to one — so
+   * this opens a second terminal after the reload and checks the panel against the server rather than
+   * against what this window remembers. What is being pinned down is where the list comes from.
+   */
+  await page.reload();
+  await expect.poll(async () => (await runningTerminals(request)).length).toBe(0);
+
+  await page
+    .locator('.launchSection')
+    .filter({ hasText: 'Terminal' })
+    .locator('.launcher-icon')
+    .first()
+    .click();
+  await expect.poll(async () => (await runningTerminals(request)).length).toBe(1);
+
+  await page.getByLabel('Jupyter info').click();
+  const open = panel(page);
+
+  const row = open.locator('.panel-row').filter({ hasText: 'Terminal 1' });
+  await expect(row.locator('.panel-row-label')).toHaveText('Terminal 1');
+  await expect(row.locator('.panel-row-time')).toHaveText(/^(now|[0-9]+m)$/);
+  await expect(open.getByRole('button', { name: /Terminals/ })).toContainText('1');
+
+  // The id and not the name, because the name is not unique across windows. The tooltip is where the
+  // panel puts it, so this is also the check that the row is bound to the shell the server reported.
+  const listed = (await runningTerminals(request))[0];
+  await expect(row.locator('.panel-row-name')).toHaveAttribute('title', new RegExp(listed.id));
+
+  await row.getByTitle('Shut down Terminal 1').click();
+
+  // The row going and the tab closing are the panel's claim. The empty list is the server's.
+  await expect(row).toHaveCount(0);
+  await expect(open.getByText('No terminals running.')).toBeVisible();
+  await expect(page.locator('.tab-item').filter({ hasText: 'Terminal 1' })).toHaveCount(0);
+  await expect.poll(async () => (await runningTerminals(request)).length).toBe(0);
+});

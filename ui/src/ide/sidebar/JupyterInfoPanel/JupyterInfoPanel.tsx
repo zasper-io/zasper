@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
-import { deleteKernel, interruptKernel } from '@/api';
+import { deleteKernel, deleteTerminal, interruptKernel, ITerminalModel } from '@/api';
 import {
   kernelspecsAtom,
   kernelStatusAtom,
@@ -13,24 +13,26 @@ import { useTabActions } from '@/store/TabActions';
 import ConfirmShutdownDialog from './ConfirmShutdownDialog';
 import KernelList, { kernelLabel } from './KernelList';
 import PanelSection from './PanelSection';
+import TerminalList from './TerminalList';
 import { IRunningKernel, useJupyterInfo } from './useJupyterInfo';
 import { PanelProps } from '../types';
 
 /**
- * What Jupyter is doing: the kernels running on the server, the terminals open here, and the kernels
- * that could be started.
+ * What Jupyter is doing: the kernels and the shells running on the server, and the kernels that could
+ * be started.
  *
- * The running list comes from the server (see useJupyterInfo) rather than from the atoms this window
+ * Both running lists come from the server (see useJupyterInfo) rather than from the atoms this window
  * writes when it starts something, which is what the panel read before — so a reload no longer empties
- * a panel whose kernels are all still running, and a kernel started in another window is in it.
+ * a panel whose kernels and shells are all still running, and one started in another window is in it.
+ * `terminalsAtom` is still read, but only to say which of the listed shells this window can open.
  */
 export default function JupyterInfoPanel({ hidden }: PanelProps) {
-  const { kernels, loading, busy, error, refresh, run } = useJupyterInfo(hidden);
+  const { kernels, terminals, loading, busy, error, refresh, run } = useJupyterInfo(hidden);
   const kernelspecs = useAtomValue(kernelspecsAtom);
   const kernelStatus = useAtomValue(kernelStatusAtom);
-  const terminals = useAtomValue(terminalsAtom);
+  const localTerminals = useAtomValue(terminalsAtom);
   const setNotebookKernelMap = useSetAtom(notebookKernelMapAtom);
-  const { openTab } = useTabActions();
+  const { openTab, closeTab } = useTabActions();
   // The kernel a shutdown has been asked for and not yet confirmed.
   const [pending, setPending] = useState<IRunningKernel | null>(null);
 
@@ -65,7 +67,18 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
     }
   };
 
-  const terminalNames = Object.keys(terminals);
+  // Which of the server's shells this window has a tab for, by name: the shell itself has no way to
+  // say which window opened it, and a name is all the two ends share.
+  const localNames = new Set(Object.keys(localTerminals));
+
+  const shutdownTerminal = async (terminal: ITerminalModel) => {
+    const worked = await run(() => deleteTerminal(terminal.id), 'Terminal shut down.');
+    // A tab left open on a dead shell types into nothing. Only this window's own can be closed; one
+    // belonging to another window is left to it, and drops out of the list on the next read either way.
+    if (worked && localNames.has(terminal.name)) {
+      closeTab(terminal.name);
+    }
+  };
 
   return (
     <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
@@ -116,28 +129,29 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
           )}
         </PanelSection>
 
-        <PanelSection title="Terminals" count={terminalNames.length}>
-          {terminalNames.length > 0 ? (
-            <ul className="z-list-plain noborder-list">
-              {terminalNames.map((name) => (
-                <li className="panel-row" key={name}>
-                  <button
-                    type="button"
-                    className="panel-row-name"
-                    title={`Open ${name}`}
-                    // Terminal tabs are keyed by their name, so this is the tab and not a new one.
-                    onClick={() => openTab({ name, path: name, type: 'terminal' })}
-                  >
-                    <span className="panel-row-label">{terminals[name].name}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+        <PanelSection title="Terminals" count={terminals.length}>
+          {terminals.length > 0 ? (
+            <TerminalList
+              terminals={terminals}
+              local={localNames}
+              disabled={busy}
+              // Terminal tabs are keyed by their name, so this brings that tab forward rather than
+              // starting a second shell. TerminalList only offers it for a shell this window owns.
+              onOpen={(terminal) =>
+                openTab({ name: terminal.name, path: terminal.name, type: 'terminal' })
+              }
+              onShutdown={(terminal) => void shutdownTerminal(terminal)}
+            />
           ) : (
             <div className="panel-section-body">
-              {/* Said of this window, because that is all this list knows: terminals are tracked as
-                  tabs, and the server has no endpoint that would report the rest. */}
-              <p className="z-note">No terminals open in this window.</p>
+              {loading ? (
+                <p className="z-note">
+                  <span className="z-spinner" />
+                  Loading…
+                </p>
+              ) : (
+                <p className="z-note">No terminals running.</p>
+              )}
             </div>
           )}
         </PanelSection>

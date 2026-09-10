@@ -159,6 +159,11 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/kernels/{kernelId}/stop", kernel.KernelKillAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelKillAPIHandler).Methods("DELETE")
 
+	// terminals. The shells live in the websocket package because the connection is what starts and
+	// ends one; these two are how anything that is not that connection can see them.
+	apiRouter.HandleFunc("/terminals", websocket.TerminalListAPIHandler).Methods("GET")
+	apiRouter.HandleFunc("/terminals/{terminalId}", websocket.TerminalKillAPIHandler).Methods("DELETE")
+
 	// sessions
 	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")
 	apiRouter.HandleFunc("/sessions", session.SessionCreateApiHandler).Methods("POST")

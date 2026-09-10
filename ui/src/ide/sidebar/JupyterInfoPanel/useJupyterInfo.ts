@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 
-import { apiErrorMessage, IKernelModel, ISession, listKernels, listSessions } from '@/api';
+import {
+  apiErrorMessage,
+  IKernelModel,
+  ISession,
+  ITerminalModel,
+  listKernels,
+  listSessions,
+  listTerminals,
+} from '@/api';
 
 /** A kernel the server is running, and the session that says what it is running for. */
 export interface IRunningKernel extends IKernelModel {
@@ -11,6 +19,8 @@ export interface IRunningKernel extends IKernelModel {
 
 export interface IJupyterInfo {
   kernels: IRunningKernel[];
+  /** The shells the server is running, which is not the same as the terminal tabs this window has. */
+  terminals: ITerminalModel[];
   /** True until the first read has come back, so the panel can say nothing rather than "none". */
   loading: boolean;
   /** True while an action is in flight; every button is disabled meanwhile. */
@@ -25,15 +35,15 @@ export interface IJupyterInfo {
 /**
  * How often the list is read while the panel is on screen.
  *
- * Files have a watcher; kernels have nothing. A kernel that dies of its own accord — a segfault, a
- * `kill` in a terminal, the machine running out of memory — is the state this panel most needs to be
- * right about, and polling is the only way it hears. Two local requests every few seconds, and only
- * while somebody is looking.
+ * Files have a watcher; kernels and shells have nothing. A kernel that dies of its own accord — a
+ * segfault, a `kill` in a terminal, the machine running out of memory — and a shell somebody typed
+ * `exit` into are the states this panel most needs to be right about, and polling is the only way it
+ * hears. Three local requests every few seconds, and only while somebody is looking.
  */
 const POLL_MS = 5000;
 
 /**
- * What is running on the server: the kernels, and which file each one belongs to.
+ * What is running on the server: the kernels, which file each one belongs to, and the shells.
  *
  * The panel used to read jotai atoms that only this browser tab writes, so a reload emptied it while
  * the kernels went on running. Everything here comes from the server instead.
@@ -44,14 +54,20 @@ const POLL_MS = 5000;
  */
 export function useJupyterInfo(hidden: boolean): IJupyterInfo {
   const [kernels, setKernels] = useState<IRunningKernel[]>([]);
+  const [terminals, setTerminals] = useState<ITerminalModel[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
   const refresh = useCallback(async () => {
     try {
-      // Together, because a kernel listed without its session is a row that cannot name what it runs.
-      const [running, sessions] = await Promise.all([listKernels(), listSessions()]);
+      // Together, because a kernel listed without its session is a row that cannot name what it runs,
+      // and because one failed read should empty the whole panel rather than half of it.
+      const [running, sessions, shells] = await Promise.all([
+        listKernels(),
+        listSessions(),
+        listTerminals(),
+      ]);
       const byKernel = new Map<string, ISession>();
       Object.values(sessions).forEach((session) => byKernel.set(session.kernel.id, session));
 
@@ -63,6 +79,8 @@ export function useJupyterInfo(hidden: boolean): IJupyterInfo {
             (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
           )
       );
+      // Already oldest first from the server, which is the order they were opened in.
+      setTerminals(shells);
       setError('');
     } catch (failure) {
       setError(apiErrorMessage(failure));
@@ -107,5 +125,5 @@ export function useJupyterInfo(hidden: boolean): IJupyterInfo {
     [refresh]
   );
 
-  return { kernels, loading, busy, error, refresh: refreshOnce, run };
+  return { kernels, terminals, loading, busy, error, refresh: refreshOnce, run };
 }

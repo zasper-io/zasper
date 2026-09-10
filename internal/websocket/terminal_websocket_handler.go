@@ -89,11 +89,24 @@ var (
 	terminalSessionsMu sync.Mutex
 )
 
-// Unique session ID generator.
+// Counts the sessions this process has handed out, which is what actually makes their ids unique.
+var terminalSessionSeq atomic.Uint64
+
+/*
+generateSessionID names one connection's shell.
+
+The terminal id identifies the client tab; the counter keeps reconnects of the same tab from
+colliding with a session that is still shutting down, and keeps two tabs opened together apart.
+
+The counter is there because the timestamp alone was not enough. `time.Now().UnixNano()` reads a
+wall clock that is far coarser than a nanosecond — on macOS a thousand calls in a loop land on about
+thirty-six distinct values — so two terminals opened in the same tick were handed the same id, and
+the second registration evicted the first from the session map. That left a shell running that
+nothing could list or kill, and now that the id is what /api/terminals reports and DELETE names, a
+collision would also shut down the wrong terminal. The timestamp is kept for the log lines.
+*/
 func generateSessionID(terminalId string) string {
-	// The terminal id identifies the client tab; the timestamp keeps reconnects of
-	// the same tab from colliding with a session that is still shutting down.
-	return fmt.Sprintf("%s-%d", terminalId, time.Now().UnixNano())
+	return fmt.Sprintf("%s-%d-%d", terminalId, terminalSessionSeq.Add(1), time.Now().UnixNano())
 }
 
 func registerTerminalSession(sessionID string, session *TerminalSession) {
@@ -112,6 +125,40 @@ func unregisterTerminalSession(sessionID string) {
 type TerminalSession struct {
 	TTY *os.File
 	Cmd *exec.Cmd
+
+	// What the client calls this terminal — "Terminal 1", the name of the tab it is drawn in. Not
+	// unique on its own: every window numbers its terminals from one, which is why the API reports
+	// the session id beside it.
+	Name string
+	// The folder the shell was started in, as an OS path.
+	Dir string
+	// When the shell was started, so the list can be given a stable order.
+	Started time.Time
+
+	stopOnce sync.Once
+}
+
+/*
+stop kills the shell.
+
+Both the connection's own cleanup and a DELETE from the API reach it, in either order and from
+different goroutines, so it has to be safe to call twice: the second Kill would be an error about a
+process that has already finished, and the second Wait a second reap of the same child.
+*/
+func (s *TerminalSession) stop() {
+	s.stopOnce.Do(func() {
+		if s.Cmd == nil || s.Cmd.Process == nil {
+			return
+		}
+		if err := s.Cmd.Process.Kill(); err != nil {
+			// Most often the shell exited on its own — somebody typed `exit` — and is a zombie waiting
+			// to be reaped, which is what the Wait below is for. So the reap is not skipped over.
+			log.Warn().Err(err).Msg("Failed to kill process")
+		}
+		if _, err := s.Cmd.Process.Wait(); err != nil {
+			log.Warn().Err(err).Msg("Failed to wait for process to exit")
+		}
+	})
 }
 
 // HandleTerminalWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
@@ -131,27 +178,52 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	log.Debug().Msgf("Opening terminal session %s for terminal %s", sessionID, terminalId)
 
 	// Start a new TTY session, in the folder the client asked for if it asked for one.
-	tty, cmd, err := startTTY(terminalWorkingDir(req.URL.Query().Get("cwd")))
+	dir := terminalWorkingDir(req.URL.Query().Get("cwd"))
+	tty, cmd, err := startTTY(dir)
 	if err != nil {
 		sendErrorMessage(connection, fmt.Sprintf("failed to start tty: %s", err))
 		return
 	}
 
-	// Store the session in the global map
-	registerTerminalSession(sessionID, &TerminalSession{TTY: tty, Cmd: cmd})
+	// Store the session in the global map, which is also what /api/terminals answers from.
+	session := &TerminalSession{TTY: tty, Cmd: cmd, Name: terminalId, Dir: dir, Started: time.Now().UTC()}
+	registerTerminalSession(sessionID, session)
 
-	defer cleanupTTY(sessionID, tty, cmd, connection)
+	defer cleanupTTY(sessionID, session, connection)
 
+	/*
+		Whichever of the three ends first ends the other two.
+
+		The shell exiting, the client going away and the keep-alive giving up are one event as far as this
+		terminal is concerned, and none of them is heard by all three goroutines on its own. Only two used
+		to be waited on, and readFromTTY — one of the two — sits in a blocking read of a pty that an idle
+		shell is never going to write to again, so a browser closed on an idle shell left waiter.Wait()
+		parked for the life of the server: the shell went on running and its session was never
+		unregistered. Killing the shell is what unblocks that read, and closing the socket is what unblocks
+		the other two.
+	*/
 	var waiter sync.WaitGroup
-	waiter.Add(2)
+	waiter.Add(3)
+	done := make(chan struct{})
+	var closeDone sync.Once
+	finish := func() {
+		waiter.Done()
+		closeDone.Do(func() { close(done) })
+		// Out of the map here rather than in cleanupTTY, which runs only once all three have stopped:
+		// the shell is dead from the line below, and a terminal listed for as long as the keep-alive
+		// takes to notice is a row the panel offers to shut down twice.
+		unregisterTerminalSession(sessionID)
+		session.stop()
+		connection.Close()
+	}
 
-	setupKeepAlive(connection, &waiter)
+	go func() { defer finish(); keepAlive(connection, done) }()
 
 	// Terminal output to WebSocket
-	go readFromTTY(sessionID, tty, connection, &waiter)
+	go func() { defer finish(); readFromTTY(sessionID, tty, connection) }()
 
 	// WebSocket input to terminal
-	go writeToTTY(sessionID, connection, tty)
+	go func() { defer finish(); writeToTTY(sessionID, connection, tty) }()
 
 	waiter.Wait()
 	log.Debug().Msg("Closing connection...")
@@ -216,19 +288,16 @@ func startTTY(dir string) (*os.File, *exec.Cmd, error) {
 }
 
 // cleanupTTY gracefully stops the terminal and closes the connection.
-func cleanupTTY(sessionID string, tty *os.File, cmd *exec.Cmd, connection *terminalConn) {
+func cleanupTTY(sessionID string, session *TerminalSession, connection *terminalConn) {
 	log.Debug().Msg("Gracefully stopping spawned TTY...")
 
-	// Remove the session from the global map
+	// The session was taken out of the map and the shell killed the moment any one of this terminal's
+	// three goroutines stopped; both are repeated here because this also runs on the paths where the
+	// handler gives up before that, and both are safe to do twice.
 	unregisterTerminalSession(sessionID)
+	session.stop()
 
-	if err := cmd.Process.Kill(); err != nil {
-		log.Warn().Err(err).Msg("Failed to kill process")
-	}
-	if _, err := cmd.Process.Wait(); err != nil {
-		log.Warn().Err(err).Msg("Failed to wait for process to exit")
-	}
-	if err := tty.Close(); err != nil {
+	if err := session.TTY.Close(); err != nil {
 		log.Warn().Err(err).Msg("Failed to close spawned TTY gracefully")
 	}
 	if err := connection.Close(); err != nil {
@@ -244,33 +313,37 @@ func sendErrorMessage(connection *terminalConn, message string) {
 	}
 }
 
-// setupKeepAlive sets up the ping/pong keep-alive mechanism for the WebSocket connection.
-func setupKeepAlive(connection *terminalConn, waiter *sync.WaitGroup) {
+// keepAlive pings the client until one goes unanswered, which is how a browser that vanished without
+// closing its socket is told from one that is simply idle. It returns on the first sign of either, or
+// as soon as `done` says the terminal is over — which it waits on rather than sleeping through,
+// because the handler cannot close the pty until this returns and ten seconds is a long time to hold
+// a file descriptor for a shell that is already dead.
+func keepAlive(connection *terminalConn, done <-chan struct{}) {
 	connection.SetPongHandler(func(msg string) error {
 		connection.markPong()
 		return nil
 	})
 
-	go func() {
-		defer waiter.Done()
-		for {
-			if err := connection.WriteMessage(websocket.PingMessage, []byte("keepalive")); err != nil {
-				log.Warn().Err(err).Msg("Failed to write ping message")
-				return
-			}
-			time.Sleep(KeepAlivePingTimeout / 2)
-			if connection.sincePong() > KeepAlivePingTimeout {
-				log.Warn().Msg("Failed to get response from ping, triggering disconnect")
-				return
-			}
-			log.Debug().Msg("Received response from ping successfully")
+	for {
+		if err := connection.WriteMessage(websocket.PingMessage, []byte("keepalive")); err != nil {
+			log.Warn().Err(err).Msg("Failed to write ping message")
+			return
 		}
-	}()
+		select {
+		case <-done:
+			return
+		case <-time.After(KeepAlivePingTimeout / 2):
+		}
+		if connection.sincePong() > KeepAlivePingTimeout {
+			log.Warn().Msg("Failed to get response from ping, triggering disconnect")
+			return
+		}
+		log.Debug().Msg("Received response from ping successfully")
+	}
 }
 
 // readFromTTY reads output from the TTY and sends it to the WebSocket connection.
-func readFromTTY(sessionID string, tty *os.File, connection *terminalConn, waiter *sync.WaitGroup) {
-	defer waiter.Done()
+func readFromTTY(sessionID string, tty *os.File, connection *terminalConn) {
 	errorCounter := 0
 
 	for {

@@ -18,14 +18,18 @@ import { fileTabsAtom } from '@/store/TabState';
 
 const listKernels = vi.fn();
 const listSessions = vi.fn();
+const listTerminals = vi.fn();
 const interruptKernel = vi.fn();
 const deleteKernel = vi.fn();
+const deleteTerminal = vi.fn();
 
 vi.mock('@/api', async () => ({
   listKernels: () => listKernels(),
   listSessions: () => listSessions(),
+  listTerminals: () => listTerminals(),
   interruptKernel: (id: string) => interruptKernel(id),
   deleteKernel: (id: string) => deleteKernel(id),
+  deleteTerminal: (id: string) => deleteTerminal(id),
   logApiError: () => () => {},
   apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
 }));
@@ -59,6 +63,17 @@ const sessionFor = (kernel: typeof python, path: string) => ({
   kernel,
 });
 
+/**
+ * A shell as `/api/terminals` sends it. The id is not the name: two windows each with a terminal open
+ * produce two sessions both called `Terminal 1`.
+ */
+const terminalModel = (name: string, id: string, dir = '') => ({
+  name,
+  id,
+  dir,
+  started: new Date(Date.now() - 3 * 60_000).toISOString(),
+});
+
 const theKernelspecs: IKernelspecsState = {
   python3: {
     name: 'python3',
@@ -72,8 +87,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   listKernels.mockResolvedValue([python]);
   listSessions.mockResolvedValue({ 'session-kernel-1': sessionFor(python, 'src/demo.ipynb') });
+  listTerminals.mockResolvedValue([]);
   interruptKernel.mockResolvedValue(undefined);
   deleteKernel.mockResolvedValue(undefined);
+  deleteTerminal.mockResolvedValue(undefined);
 });
 
 // The poll is the only thing here that needs fake timers, and a test that left them on would hang the
@@ -85,6 +102,7 @@ afterEach(() => {
 interface HarnessOptions {
   hidden?: boolean;
   kernelspecs?: IKernelspecsState;
+  /** The terminal tabs this window has open, which is what says whether a listed shell is openable. */
   terminals?: Record<string, { id: string; name: string }>;
   statuses?: Record<string, string>;
   notebookKernelMap?: INotebookKernelMap;
@@ -182,6 +200,7 @@ describe('JupyterInfoPanel', () => {
 
   it('has a section per kind of thing, each counting what is in it', async () => {
     listKernels.mockResolvedValue([python, r]);
+    listTerminals.mockResolvedValue([terminalModel('Terminal 1', 'Terminal 1-1-x')]);
     renderPanel({ terminals: { 'Terminal 1': { id: 'Terminal 1', name: 'Terminal 1' } } });
     await theFirstRead();
 
@@ -342,23 +361,94 @@ describe('JupyterInfoPanel', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it('says what is empty, and says it of this window where that is all it knows', async () => {
+  it('says what is empty', async () => {
     listKernels.mockResolvedValue([]);
     listSessions.mockResolvedValue({});
     renderPanel({ kernelspecs: {} });
 
     expect(await screen.findByText('No kernels running.')).toBeInTheDocument();
-    // Terminals are tracked as tabs and the server has no endpoint that would report the rest.
-    expect(screen.getByText('No terminals open in this window.')).toBeInTheDocument();
+    expect(screen.getByText('No terminals running.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Available kernels/ }));
     expect(screen.getByText('No kernels are installed.')).toBeInTheDocument();
   });
 
   it('opens the tab a terminal row is for', async () => {
+    listTerminals.mockResolvedValue([terminalModel('Terminal 2', 'Terminal 2-1-x')]);
     renderPanel({ terminals: { 'Terminal 2': { id: 'Terminal 2', name: 'Terminal 2' } } });
     fireEvent.click(await screen.findByText('Terminal 2'));
 
     expect(screen.getByTestId('tabs')).toHaveTextContent('Terminal 2');
+  });
+
+  /*
+  The list is the server's, and the panel used to read the atoms this window writes. So a shell whose
+  tab is not in this window is still named — that is the whole point of reading the server — but it
+  cannot be opened: terminal tabs are keyed by name, and a tab of a name this window has never used
+  would start a second shell rather than reach the one being pointed at.
+  */
+  it('names a shell opened in another window, and does not offer to open it', async () => {
+    listTerminals.mockResolvedValue([terminalModel('Terminal 1', 'Terminal 1-7-x', 'src')]);
+    renderPanel({ terminals: {} });
+
+    expect(await screen.findByText('Terminal 1')).toBeInTheDocument();
+    // Which folder it is in, which is the only thing telling two shells of the same name apart.
+    expect(screen.getByText('src')).toBeInTheDocument();
+    // The name button, not the shutdown beside it: a shell anywhere can be shut down from here.
+    expect(screen.getByText('Terminal 1').closest('button')).toBeDisabled();
+    expect(screen.getByTitle('Shut down Terminal 1')).toBeEnabled();
+
+    fireEvent.click(screen.getByText('Terminal 1'));
+    expect(screen.getByTestId('tabs')).not.toHaveTextContent('Terminal 1');
+  });
+
+  /*
+  A shell that has exited took its session with it, so the next read does not name it — which is the
+  other half of the defect this panel had. It listed the tab, and a tab outlives its shell.
+  */
+  it('drops a shell that has gone, though its tab is still open', async () => {
+    listTerminals.mockResolvedValue([terminalModel('Terminal 1', 'Terminal 1-1-x')]);
+    const local = { 'Terminal 1': { id: 'Terminal 1', name: 'Terminal 1' } };
+    renderPanel({ terminals: local });
+    expect(await screen.findByText('Terminal 1')).toBeInTheDocument();
+
+    listTerminals.mockResolvedValue([]);
+    fireEvent.click(screen.getByTitle('Refresh'));
+
+    expect(await screen.findByText('No terminals running.')).toBeInTheDocument();
+  });
+
+  it('shuts a terminal down by id, and closes the tab it was drawn in', async () => {
+    listTerminals.mockResolvedValue([terminalModel('Terminal 1', 'Terminal 1-1-x')]);
+    renderPanel({ terminals: { 'Terminal 1': { id: 'Terminal 1', name: 'Terminal 1' } } });
+
+    fireEvent.click(await screen.findByTitle('Shut down Terminal 1'));
+
+    // The id and not the name: the name is not unique across windows.
+    await waitFor(() => expect(deleteTerminal).toHaveBeenCalledWith('Terminal 1-1-x'));
+    await waitFor(() => expect(screen.getByTestId('tabs')).not.toHaveTextContent('Terminal 1'));
+    expect(toast.success).toHaveBeenCalledWith('Terminal shut down.');
+  });
+
+  // The tab belongs to another window, which will notice its own socket close.
+  it('shuts down a shell from another window without touching this one', async () => {
+    listTerminals.mockResolvedValue([terminalModel('Terminal 1', 'Terminal 1-7-x')]);
+    renderPanel({ terminals: {} });
+
+    fireEvent.click(await screen.findByTitle('Shut down Terminal 1'));
+
+    await waitFor(() => expect(deleteTerminal).toHaveBeenCalledWith('Terminal 1-7-x'));
+  });
+
+  it('reports a failed shutdown as a toast and leaves the tab alone', async () => {
+    listTerminals.mockResolvedValue([terminalModel('Terminal 1', 'Terminal 1-1-x')]);
+    deleteTerminal.mockRejectedValue(
+      new ApiError('DELETE', '/api/terminals/Terminal%201-1-x', 404, 'terminal not found')
+    );
+    renderPanel({ terminals: { 'Terminal 1': { id: 'Terminal 1', name: 'Terminal 1' } } });
+
+    fireEvent.click(await screen.findByTitle('Shut down Terminal 1'));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('terminal not found'));
   });
 
   it('re-reads on demand, for a change made outside the panel', async () => {

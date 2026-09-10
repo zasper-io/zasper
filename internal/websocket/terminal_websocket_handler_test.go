@@ -26,6 +26,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -319,4 +320,49 @@ func TestATerminalRunsWhatTheClientTypes(t *testing.T) {
 		require.NoError(t, err, "read what we could: %q", seen.String())
 		seen.Write(data)
 	}
+}
+
+/*
+A client that goes away takes its shell with it.
+
+The handler waited on two goroutines, and one of them — readFromTTY — sits in a blocking read of a
+pty. An idle shell writes nothing, so closing the browser on one left that read parked, the wait
+never returned, cleanupTTY never ran, and the shell went on running for the life of the server with
+its session still in the map. Nothing showed it until /api/terminals started reporting that map:
+every window anyone had ever closed left a row in the panel and a zsh in `ps`.
+*/
+func TestClosingTheConnectionOnAnIdleShellEndsIt(t *testing.T) {
+	requireShell(t)
+	projectDir(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(HandleTerminalWebSocket))
+	defer srv.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	require.NoError(t, err)
+
+	// Wait for the shell rather than assume it: the session is registered on the handler's goroutine.
+	require.Eventually(t, func() bool { return len(ListTerminals()) == 1 }, 10*time.Second, 20*time.Millisecond)
+
+	// Held on to across the close, because the assertion afterwards is about this shell and the map it
+	// can be looked up in is the thing being emptied.
+	terminalSessionsMu.Lock()
+	var shell *os.Process
+	for _, session := range terminalSessions {
+		shell = session.Cmd.Process
+	}
+	terminalSessionsMu.Unlock()
+	require.NotNil(t, shell)
+
+	// Nothing is typed, so the pty has nothing more to say — which is the case that used to hang.
+	require.NoError(t, conn.Close())
+
+	// Comfortably under the keep-alive's own ten-second wait, which the handler used to sit through
+	// before it would unregister anything.
+	require.Eventually(t, func() bool { return len(ListTerminals()) == 0 }, 5*time.Second, 20*time.Millisecond,
+		"the session outlived the connection")
+
+	// And the shell itself, not merely the bookkeeping about it. Signalling a process Go has already
+	// reaped is an error, which is what a shell that is gone looks like from here.
+	assert.Error(t, shell.Signal(syscall.Signal(0)), "the shell outlived the connection")
 }
