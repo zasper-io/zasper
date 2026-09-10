@@ -91,3 +91,7 @@ release:
   # A 1.0.0 tag is the first stable release; anything carrying a -beta/-rc suffix is marked as a
   # pre-release rather than published as stable, which is what happened to v0.3.0-beta.
   prerelease: auto
+  # The Homebrew cask is published after the GitHub Release, so a re-run following a cask failure
+  # finds this release's archives already uploaded. Replacing them lets the re-run finish instead of
+  # failing on its own earlier upload.
+  replace_existing_artifacts: true

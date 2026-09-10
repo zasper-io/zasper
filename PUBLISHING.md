@@ -128,11 +128,32 @@ A tag carrying a pre-release suffix is marked as a pre-release automatically.
 |---|---|
 | `MACOS_SIGN_P12`, `MACOS_SIGN_PASSWORD` | Signing the macOS binaries |
 | `MACOS_NOTARY_KEY`, `MACOS_NOTARY_KEY_ID`, `MACOS_NOTARY_ISSUER_ID` | Notarization |
-| `HOMEBREW_TAP_TOKEN` | Pushing the formula to `zasper-io/homebrew-tap` |
+| `HOMEBREW_TAP_TOKEN` | Pushing the cask to `zasper-io/homebrew-tap` |
 | `POSTHOG_API_KEY` | Optional. Overrides the built-in analytics key; the built-in one is used when unset |
 
 If the macOS secrets are absent, signing and notarization are skipped and the
 rest of the release still succeeds.
+
+### If the release fails
+
+Nothing is published until GoReleaser's last step, so a failure partway leaves
+no GitHub Release and no Homebrew cask behind. Leave the tag where it is.
+
+- **`FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED` from notarization.** Apple
+  has a new agreement waiting, or the membership has lapsed. The team's Account
+  Holder — no other role can — signs in at
+  [developer.apple.com/account](https://developer.apple.com/account) and accepts
+  it, and checks App Store Connect → Business as well. The notary credentials are
+  fine: Apple answered 403, not 401. Then **Re-run failed jobs** on the release
+  run.
+- **The Homebrew cask step fails** — usually `HOMEBREW_TAP_TOKEN` is missing or
+  cannot push to `zasper-io/homebrew-tap`. GoReleaser publishes the GitHub Release
+  *before* the cask, so by then the release is already public. Check the token
+  before re-running any release job.
+- **Anything fixed by a secret** — add it, then **Re-run failed jobs**.
+- **Anything fixed by a change to a workflow file** — a re-run will not see it,
+  because a re-run uses the workflow at the tagged commit. Merge the fix, then
+  for the snap use the manual run described under *Snap* below.
 
 ---
 
@@ -148,11 +169,22 @@ Automatic, on tag: GoReleaser writes the cask to
 [zasper-io/homebrew-tap](https://github.com/zasper-io/homebrew-tap) using
 `HOMEBREW_TAP_TOKEN`. This used to be a manual `url` and `sha256` edit.
 
+It publishes a **cask**, not a formula: GoReleaser's formula support is
+deprecated, and the cask covers macOS and Linux alike — Homebrew 6 installs casks
+on both. The tap must not also hold a `Formula/zasper.rb`. When a formula and a
+cask share a name, `brew install zasper-io/tap/zasper` installs the formula and
+only warns that the cask exists, so users would silently stay on the old version.
+
+Homebrew 6 loads nothing from a third-party tap until the user trusts it, which
+is why the README's install steps include `brew trust zasper-io/tap`.
+
 ### Snap
 
-`.github/workflows/snap.yml` builds and publishes amd64 and arm64 snaps on tag.
-It needs `SNAPCRAFT_STORE_CREDENTIALS` in the repository secrets, which you
-generate with:
+`.github/workflows/snap.yml` builds and publishes the snap on tag, natively on an
+amd64 runner and an arm64 runner. (Until 1.0.0 the arm64 job was an amd64 build:
+it passed a `build-for` input that `snapcore/action-build` does not have.) It
+needs `SNAPCRAFT_STORE_CREDENTIALS` in the repository secrets — not the older
+`SNAPCRAFT_LOGIN_FILE` — which you generate with:
 
 ```sh
 snapcraft export-login --snaps=zasper --acls package_access,package_push,package_update,package_release -
@@ -160,6 +192,12 @@ snapcraft export-login --snaps=zasper --acls package_access,package_push,package
 
 The snap's version comes from `snap/snapcraft.yaml`, which `make bump-version` keeps
 in step with `version.txt`.
+
+To publish the snap for a tag whose snap run failed, fix the cause and then run
+**Actions → Build and Publish Snap → Run workflow** from `main` with the tag, for
+example `v1.0.0`. It uses the workflow as it is on `main` but builds the tagged
+source, so the tag never has to move. It refuses anything that is not a release
+tag matching `snapcraft.yaml`.
 
 ### conda-forge
 

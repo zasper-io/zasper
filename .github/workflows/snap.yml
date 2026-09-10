@@ -2,35 +2,69 @@ name: Build and Publish Snap (multi-arch)
 
 on:
   push:
-    # Was 'none*', which matched nothing — the snap has not been built by CI since that was set, and
-    # PUBLISHING.md claimed it was handled here.
+    # Was 'none*', which matched nothing — the snap had not been built by CI since that was set.
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-*'
+  # Publishes the snap for a tag that already exists, using this workflow as it is on the branch it is
+  # run from. Re-running a failed tag run uses the workflow as it was at the tagged commit, so it cannot
+  # pick up a fix to this file; this can, without moving the tag.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build and publish, e.g. v1.0.0'
+        required: true
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     strategy:
+      # Each architecture is its own revision in the store, so an arm64 failure should not cancel the
+      # amd64 upload, which is how the v1.0.0 run lost amd64.
+      fail-fast: false
       matrix:
-        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          # Native, because snapcraft.yaml picks its Go toolchain from the host's architecture and
+          # builds for whatever it runs on. The old matrix passed a build-for input that
+          # snapcore/action-build does not have, so every "arm64" job was an amd64 build.
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
-      - name: Set up Snapcraft
+      # A dispatch is typed by hand, so check it names a release and that the snap is the version the
+      # tag says: stable should never receive a branch build, or a snap that disagrees with its tag.
+      - name: The tag names a release and matches snapcraft.yaml
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-.+)?$ ]]; then
+            echo "::error::$TAG is not a release tag (vX.Y.Z)."
+            exit 1
+          fi
+          if ! grep -qx "version: '${TAG#v}'" snap/snapcraft.yaml; then
+            echo "::error::snap/snapcraft.yaml does not say version '${TAG#v}'."
+            exit 1
+          fi
+
+      - name: Build the snap
         uses: snapcore/action-build@v1
         id: build
-        with:
-          build-for: ${{ matrix.arch }}
 
-      # A pre-release tag goes to the candidate channel. Without this, cutting v1.0.0-rc.1 to rehearse
-      # the release would publish a release candidate to everyone tracking stable.
+      # A pre-release tag goes to the candidate channel, so rehearsing a release does not publish a
+      # release candidate to everyone tracking stable.
       - name: Choose the store channel
         id: channel
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+          if [[ "$TAG" == *-* ]]; then
             echo "channel=candidate" >> "$GITHUB_OUTPUT"
           else
             echo "channel=stable" >> "$GITHUB_OUTPUT"
@@ -38,8 +72,8 @@ jobs:
 
       - name: Upload Snap to Snap Store
         env:
-          # snapcraft 7 removed `login --with`. Credentials come from the environment now, generated
-          # with: snapcraft export-login --snaps=zasper \
-          #   --acls package_access,package_push,package_update,package_release -
+          # snapcraft 7 removed `login --with`; credentials come from the environment, generated with:
+          #   snapcraft export-login --snaps=zasper \
+          #     --acls package_access,package_push,package_update,package_release -
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         run: snapcraft upload "${{ steps.build.outputs.snap }}" --release=${{ steps.channel.outputs.channel }}

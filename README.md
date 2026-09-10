@@ -80,8 +80,16 @@ Zasper is distributed as a web app, available as a Homebrew, snap and conda pack
 ### HomeBrew
 
 ```
+brew tap zasper-io/tap
+brew trust zasper-io/tap
 brew install zasper-io/tap/zasper
 ```
+
+Homebrew 6 loads nothing from a third-party tap until you trust it, which is what
+`brew trust` records. Without that step the install is refused.
+
+Installed 0.x through Homebrew? Run `brew uninstall zasper` first: from 1.0 Zasper
+is published as a cask rather than a formula.
 
 ### Snap
 
