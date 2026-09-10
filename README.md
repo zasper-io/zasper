@@ -106,7 +106,7 @@ Docker images are built from `docker/`; see
 
 # Releases
 
-Current release version: `v0.2.0-beta`
+Current release version: `v1.0.0`
 
 Every release ships a signed, notarized macOS build and static binaries for Linux
 and Windows. The Linux archives are plain tarballs — one build serves every

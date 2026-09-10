@@ -67,11 +67,23 @@ show-version:
 	@echo "Current version: $(CURRENT_VERSION)"
 	@echo "Current tag: $(TAG_PREFIX)$(CURRENT_VERSION)"
 
+# A first draft of the next CHANGELOG.md section: the commits since the last tag, grouped by
+# cliff.toml. Only a draft — PUBLISHING.md says what to do with it. It is labelled with the version in
+# version.txt, so it refuses to run until that has been bumped past the last release.
+GIT_CLIFF_VERSION = 2.13.1
+
+changelog-draft:
+	@if git rev-parse -q --verify "refs/tags/$(TAG_PREFIX)$(CURRENT_VERSION)" >/dev/null; then \
+		echo "$(TAG_PREFIX)$(CURRENT_VERSION) is already released. Run make bump-version first."; \
+		exit 1; \
+	fi
+	@npx --yes git-cliff@$(GIT_CLIFF_VERSION) --config cliff.toml --unreleased --tag $(TAG_PREFIX)$(CURRENT_VERSION)
+
 
 VERSION_BUILD_FLAG = "-X main.version=$(CURRENT_VERSION)"
 
 
-.PHONY: init build start dev webapp-install test test-frontend test-go e2e e2e-api e2e-browser
+.PHONY: init build start dev webapp-install test test-frontend test-go e2e e2e-api e2e-browser changelog-draft
 
 # Initialize the project by installing frontend dependencies
 init:
