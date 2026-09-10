@@ -22,6 +22,7 @@ running them first turns a failed release into a failed command:
 go build ./... && go vet ./... && go test -race ./...
 npm --prefix ./ui ci
 npm --prefix ./ui run typecheck
+(cd ui && npx eslint src)
 npm --prefix ./ui run test
 make e2e                      # needs a Jupyter kernel installed; specs skip without one
 goreleaser check              # validates .goreleaser.yml

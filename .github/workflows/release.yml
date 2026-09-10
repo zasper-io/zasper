@@ -78,10 +78,15 @@ jobs:
       - name: Install frontend dependencies
         run: npm --prefix ./ui ci
 
-      - name: Typecheck and lint the frontend
-        run: |
-          npm --prefix ./ui run typecheck
-          npm --prefix ./ui exec eslint src
+      - name: Typecheck the frontend
+        run: npm --prefix ./ui run typecheck
+
+      # In ui/, not with --prefix: `npm --prefix ./ui exec` runs the command from the repo root, where
+      # there is no src/, so ESLint found nothing to lint and failed the release. Not the `lint` script
+      # either, which passes --fix — a gate has to fail on a problem, not quietly rewrite the file.
+      - name: Lint the frontend
+        working-directory: ./ui
+        run: npx eslint src
 
       - name: Test the frontend
         run: npm --prefix ./ui run test
