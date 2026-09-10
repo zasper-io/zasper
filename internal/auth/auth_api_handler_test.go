@@ -8,14 +8,15 @@ somebody else's secret, an algorithm the caller chose, an expiry that has passed
 that is not a string, which is the case the comma-ok in userFromToken exists for and which a bare
 assertion would turn into a panicked handler.
 
-jwtSecret is package state set once in init(), so these mint their tokens with it rather than
-replacing it, and nothing here runs in parallel.
+jwtSecret is package state settled once by SetUpJWTSecret, which TestMain calls the way the server
+does, so these mint their tokens with it rather than replacing it, and nothing here runs in parallel.
 */
 package auth
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -23,6 +24,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMain(m *testing.M) {
+	SetUpJWTSecret()
+	os.Exit(m.Run())
+}
 
 // signedWith mints a token from the given claims, using `secret` — which is the server's own unless
 // a test is asking what happens when it is not.

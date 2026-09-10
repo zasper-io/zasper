@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -100,7 +101,7 @@ func (kwsConn *KernelWebSocketConnection) stopPolling() {
 
 	if kwsConn.PollingCancel != nil {
 		kwsConn.PollingCancel()
-		log.Info().Msg("Polling stopped.")
+		log.Debug().Msg("polling stopped")
 	} else {
 		log.Warn().Msg("Polling was not started.")
 	}
@@ -112,7 +113,9 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 	kwsConn.mu.Unlock()
 	go func() {
 		defer func() {
-			log.Info().Msgf("Polling of %q socket finished.", socketName)
+			// Debug: five sockets per kernel, so at info an orderly shutdown was five lines saying
+			// nothing had gone wrong.
+			log.Debug().Msgf("polling of %q socket finished", socketName)
 			kwsConn.mu.Lock()
 			kwsConn.pollingWait.Done()
 			kwsConn.mu.Unlock()
@@ -127,7 +130,13 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 
 				zmsg, err2 := socket.Recv()
 				if err2 != nil {
-					log.Error().Msgf("could not receive message: %v", err2)
+					// A cancelled context is how stopPolling asks this goroutine to finish, so Recv
+					// failing that way is the shutdown working rather than an error. It used to be
+					// logged at error once per socket, which made every kernel shutdown look broken.
+					if errors.Is(err2, context.Canceled) || kwsConn.Context.Err() != nil {
+						return
+					}
+					log.Error().Err(err2).Str("socket", socketName).Msg("could not receive message")
 					continue
 				}
 				log.Debug().Msgf("channel: [%s] [%s] %s\n", socketName, zmsg.Frames[0], zmsg.Frames[1])
@@ -320,7 +329,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 
 func (kwsConn *KernelWebSocketConnection) ReadMessagesFromClient(waiter *sync.WaitGroup) {
 	defer func() {
-		log.Info().Msg("Closing readMessagesFromClient")
+		log.Debug().Msg("closing the client read loop")
 		kwsConn.Conn.Close()
 		waiter.Done()
 	}()

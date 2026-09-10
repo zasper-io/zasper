@@ -107,12 +107,12 @@ func DeleteSession(req models.SessionModel) error {
 	/*
 		Deletes a Sesion
 	*/
-	log.Info().Msgf("deleting session %s", req.Id)
+	log.Debug().Msgf("deleting session %s", req.Id)
 	// Taken out first, and the kernel stopped only by whoever took it out: two requests deleting the
 	// same session would otherwise both stop the kernel, and both be told it worked.
 	session, ok := core.RemoveSession(req.Id)
 	if !ok {
-		log.Info().Msg("session does not exist")
+		log.Debug().Msg("session does not exist")
 		return fmt.Errorf("session %s does not exist", req.Id)
 	}
 	stopKernelForSession(session.Kernel.Id)

@@ -2,15 +2,14 @@ package content
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/core"
@@ -67,9 +66,11 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: zhttp.SameOrigin,
 }
 
-// Unique session ID generator.
+// generateWatchId names one open watch connection. It was the wall clock in nanoseconds, which is
+// only unique if no two clients ever connect within the same tick — and the store is keyed by it, so
+// a collision would file two connections under one key and let the first close deregister both.
 func generateWatchId() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano()) // Using Unix time as a unique ID
+	return uuid.NewString()
 }
 
 // HandleWatchWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
@@ -149,7 +150,9 @@ func startWatcher(directory string, connection *ContentWatchConnection) {
 		log.Error().Err(err).Msgf("Failed to watch every subdirectory of: %s", directory)
 	}
 
-	log.Info().Msgf("Watching directory: %s and all its subdirectories", directory)
+	// Debug, and carrying the watch id: this is once per open connection, not once per server, so at
+	// info a second browser tab looked like the same line logged twice.
+	log.Debug().Str("watch", connection.KernelId).Msgf("watching %s and all its subdirectories", directory)
 
 	// Handle events
 	for {

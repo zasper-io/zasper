@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -64,31 +65,40 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 		return nil, err
 	}
 
-	// Send input to the process
+	pid := cmd.Process.Pid
+
 	go func() {
 		defer stdin.Close()
 		if _, err := stdin.Write([]byte("input data\n")); err != nil {
-			log.Fatal().Msgf("Error writing to stdin: %v", err)
+			// Was log.Fatal, which exits the process: a kernel whose stdin closed early would have
+			// taken the whole server down with it.
+			log.Debug().Err(err).Int("pid", pid).Msg("could not write to kernel stdin")
 		}
 	}()
 
-	// Capture stdout and stderr
-	go func() {
-		if _, err := io.Copy(os.Stdout, stdout); err != nil {
-			log.Fatal().Msgf("Error copying stdout: %v", err)
-		}
-	}()
-
-	go func() {
-		if _, err := io.Copy(os.Stderr, stderr); err != nil {
-			log.Fatal().Msgf("Error copying stderr: %v", err)
-		}
-	}()
+	go pipeToLog(stdout, "stdout", pid)
+	go pipeToLog(stderr, "stderr", pid)
 
 	log.Debug().Msg("Process started successfully")
 
 	return cmd.Process, nil
 
+}
+
+/*
+pipeToLog drains one of a kernel's output streams into the log, at debug and tagged with its pid.
+
+These two streams used to be io.Copy'd straight into the server's own stdout and stderr, which is why
+an ordinary run was interrupted by ipykernel's "Ctrl-C will not work" banner, unlabelled and in the
+middle of the server's own lines. The output is kept rather than dropped because a kernel that dies
+on startup prints its traceback here and nowhere else — it just sits behind --debug now.
+*/
+func pipeToLog(stream io.Reader, name string, pid int) {
+	scanner := bufio.NewScanner(stream)
+	for scanner.Scan() {
+		log.Debug().Int("pid", pid).Str("stream", name).Msg(scanner.Text())
+	}
+	// A read error here means the kernel is gone, which the caller finds out about by other means.
 }
 
 func ShutdownKernel(pid int) error {
@@ -108,6 +118,8 @@ func ShutdownKernel(pid int) error {
 	if err := process.Kill(); err != nil {
 		return fmt.Errorf("error killing process %d: %w", pid, err)
 	}
-	log.Info().Msgf("Process %d killed successfully.", pid)
+	// Debug: the provisioner already announced this shutdown at info, and one kernel going away does
+	// not need two lines.
+	log.Debug().Msgf("process %d killed successfully", pid)
 	return nil
 }

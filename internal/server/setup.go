@@ -3,6 +3,7 @@ package server
 import (
 	"sync"
 
+	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
@@ -19,6 +20,7 @@ Called once at startup, and once per test — which is why emptying the stores l
 the call site, so that a test server is put together exactly the way the real one is.
 */
 func SetUp() {
+	auth.SetUpJWTSecret()
 	core.SetUpActiveSessions()
 	content.SetUpActiveWatcherConnections()
 	kernel.SetUpStateKernels()

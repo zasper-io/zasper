@@ -210,7 +210,7 @@ func KillKernelById(kernelId string) error {
 	// The session outlives its kernel otherwise, so /api/sessions would keep
 	// advertising a kernel that is gone.
 	for _, sessionId := range core.DeleteSessionsForKernel(kernelId) {
-		log.Info().Msgf("Removed session %s attached to kernel %s", sessionId, kernelId)
+		log.Debug().Msgf("removed session %s attached to kernel %s", sessionId, kernelId)
 	}
 
 	return nil

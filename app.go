@@ -9,15 +9,16 @@ import (
 	"syscall"
 	"time"
 
+	"net"
 	"net/http"
 	"os"
 
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
+	"github.com/zasper-io/zasper/internal/logging"
 	"github.com/zasper-io/zasper/internal/server"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/rs/cors"
@@ -27,7 +28,6 @@ var version string
 
 func main() {
 
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	cwd := flag.String("cwd", ".", "base directory of project")
 	port := flag.String("port", ":8048", "port to start the server on")
@@ -36,30 +36,18 @@ func main() {
 
 	flag.Parse()
 
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if *debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
-
-	// Optional: shorten file path
-	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
-		return fmt.Sprintf("%s:%d", file, line)
-	}
-
-	// Enable caller + timestamp
-	log.Logger = zerolog.New(os.Stdout).
-		With().
-		Timestamp().
-		Caller().
-		Logger()
+	// Before anything else logs, so that every line in the run has the same shape.
+	logging.SetUp(*debug)
 
 	if version == "" {
+		// Only a source build reads this; a release binary has its version linked in, so a missing
+		// file here is the normal case for `go run .` and not worth an error.
 		data, err := os.ReadFile("version.txt")
 		if err != nil {
-			log.Error().Msgf("Error reading version file: %v", err)
+			log.Warn().Err(err).Msg("no version.txt and no linked version; reporting version as unknown")
 			version = "unknown"
 		} else {
-			version = string(data)
+			version = strings.TrimSpace(string(data))
 		}
 	}
 
@@ -104,16 +92,24 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
+	// Bind before announcing. ListenAndServe did both at once inside the goroutine, so a port that was
+	// already taken printed "Server started successfully!" and the real error underneath it.
+	listener, err := net.Listen("tcp", *port)
+	if err != nil {
+		log.Fatal().Err(err).Str("addr", *port).Msg("could not listen; is a server already running on this port?")
+	}
+
 	printBanner(*port, core.ServerAccessToken, version, *protected, trackingOn)
 
 	go func() {
-		if err := http.ListenAndServe(*port, corsOpts.Handler(router)); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("ListenAndServe(): %s\n", err)
+		handler := server.WithRequestLogging(log.Logger, logging.AccessLog(), corsOpts.Handler(router))
+		if err := http.Serve(listener, handler); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("http server stopped")
 		}
 	}()
 
 	<-stop
-	fmt.Println("Shutting down server...")
+	log.Info().Msg("shutting down server")
 
 	// Cleanup function
 	cleanup(trackingOn)
@@ -121,10 +117,27 @@ func main() {
 	// Shutdown the server gracefully
 	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	fmt.Println("Server exiting")
+	log.Info().Msg("server exiting")
 }
 
+// printBanner announces the server to whoever is reading. A person at a terminal gets the banner;
+// output that is being collected as JSON gets the same facts as one structured line, because ASCII
+// art in a log collector is neither readable nor parseable.
 func printBanner(port string, accessToken string, version string, protected bool, tracking bool) {
+	if !logging.Console() {
+		event := log.Info().
+			Str("version", version).
+			Str("addr", "http://localhost"+port).
+			Bool("protected", protected).
+			Bool("tracking", tracking)
+		if protected {
+			// Without it a headless run has no way to authenticate, which is the same trade Jupyter makes.
+			event = event.Str("access_token", accessToken)
+		}
+		event.Msg("zasper server started")
+		return
+	}
+
 	fmt.Println("==========================================================")
 	fmt.Println("     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ ")
 	fmt.Println("     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗")
@@ -179,6 +192,6 @@ func cleanup(tracking bool) {
 	if tracking {
 		analytics.CloseClient()
 	}
-	fmt.Println("Performing cleanup...")
+	log.Debug().Msg("performing cleanup")
 	kernel.Cleanup()
 }

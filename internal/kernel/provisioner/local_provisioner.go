@@ -28,11 +28,11 @@ func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[str
 	}
 
 	provisioner.Pid = process.Pid
-	log.Debug().Msgf("kernel launched with pid: %d", process.Pid)
+	log.Info().Msgf("kernel launched with pid: %d", process.Pid)
 	return provisioner.ConnectionInfo, nil
 }
 
 func (provisioner *LocalProvisioner) ShutdownKernel() error {
-	log.Info().Msgf("Shutting down kernel with pid: %d", provisioner.Pid)
+	log.Info().Msgf("shutting down kernel with pid: %d", provisioner.Pid)
 	return launcher.ShutdownKernel(provisioner.Pid)
 }

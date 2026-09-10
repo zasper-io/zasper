@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -16,21 +17,33 @@ import (
 	"github.com/zasper-io/zasper/internal/core"
 )
 
-var jwtSecret []byte
+var (
+	jwtSecret     []byte
+	jwtSecretOnce sync.Once
+)
 
-func init() {
-	secret := os.Getenv("ZASPER_JWT_SECRET")
-	if secret != "" {
-		jwtSecret = []byte(secret)
-		log.Info().Msg("JWT secret loaded from environment")
-	} else {
+/*
+SetUpJWTSecret settles the signing key for this process, once.
+
+It used to be an init(), which meant it ran — and logged — before main() had configured the logger,
+so its line came out in a different format from every line after it. Server startup calls this
+instead, in an order it controls.
+*/
+func SetUpJWTSecret() {
+	jwtSecretOnce.Do(func() {
+		if secret := os.Getenv("ZASPER_JWT_SECRET"); secret != "" {
+			jwtSecret = []byte(secret)
+			log.Info().Msg("JWT secret loaded from environment")
+			return
+		}
+
 		generated, err := generateRandomSecret(32)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to generate JWT secret")
 		}
 		jwtSecret = generated
-		log.Warn().Msg("JWT_SECRET not set — using ephemeral random secret (tokens will invalidate on restart)")
-	}
+		log.Warn().Msg("ZASPER_JWT_SECRET not set — using an ephemeral random secret (tokens will not survive a restart)")
+	})
 }
 
 func generateRandomSecret(n int) ([]byte, error) {
