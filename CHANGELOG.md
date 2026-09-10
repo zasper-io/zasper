@@ -71,8 +71,22 @@ Three changes need attention if you have Zasper running somewhere:
   on shutdown.
 - **CORS** is restricted to the Vite dev origins rather than a wildcard.
 - The SPA fallback answers `200` rather than `202`.
+- **Building from source needs Node.js 22.12 or newer**, up from 22.7. The
+  patched `sanitize-html` loads `htmlparser2`, which is now ESM-only, and Node
+  can only `require()` an ES module from 22.12. Prebuilt releases are
+  unaffected.
 - Releases are gated on the full test suite; before, a tag published whatever it
   pointed at without running anything.
+
+### Security
+
+- **`sanitize-html` 2.17.5 → 2.17.7**, fixing a mutation-XSS `allowedTags`
+  bypass via a literal `</textarea/>` solidus close, and a stored XSS where an SVG
+  SMIL `values=` list carried a `javascript:` URI past the scheme policy. It ships
+  to users: `@jupyter-widgets/base-manager` uses it to sanitize widget HTML.
+- **`browserslist` 4.28.1 → 4.28.9** and **`baseline-browser-mapping` 2.10.0 →
+  2.11.21**, fixing a prototype write and a denial of service. Both are
+  build-time only and never reach the shipped bundle.
 
 ### Removed
 

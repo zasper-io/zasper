@@ -31,7 +31,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.7'
+          node-version: '22.12'
 
       - name: Install frontend dependencies
         run: npm --prefix ./ui ci
@@ -91,7 +91,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.7'
+          node-version: '22.12'
 
       - name: Build and Release Go Binary with GoReleaser
         uses: goreleaser/goreleaser-action@v6

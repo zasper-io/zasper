@@ -5,8 +5,11 @@ FROM golang:1.25 AS build
 
 WORKDIR /src
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl git nodejs npm \
+# NodeSource rather than apt: bookworm's own nodejs is 18, below what the frontend's dependencies
+# declare (sanitize-html needs >=22.12).
+RUN apt-get update && apt-get install -y --no-install-recommends curl git ca-certificates \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . .

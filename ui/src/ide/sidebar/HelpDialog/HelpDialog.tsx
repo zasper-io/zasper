@@ -205,6 +205,7 @@ function SupportSection({ hidden }: { hidden: boolean }) {
   return (
     <div className={hidden ? 'is-hidden' : undefined}>
       <span>Support </span>
+      <p>File an issue on <a href="https://github.com/zasper-io/zasper" target="_blank" rel="noopener noreferrer">GitHub</a></p>
     </div>
   );
 }

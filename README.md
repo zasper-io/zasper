@@ -19,9 +19,6 @@
 </p>
 
 <p align="center">
-    <a href="https://www.youtube.com/watch?v=LvVOkYL_LzQ" target="_blank"><img src="https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/play-demo.png" alt="Zasper Demo"></a>
-</p>
-<p align="center">
   <a href="https://snapcraft.io/zasper" target="_blank"><img src="https://snapcraft.io/en/light/install.svg" alt="Get it from the Snap Store"></a>
 </p>
 
@@ -445,6 +442,9 @@ uv run python -m ipykernel install --user --name=exampleUV
 
 ## ⚡️ Building from Source
 
+Requires Go 1.25+ and Node.js 22.12+ (`.nvmrc` pins the Node version, so
+`nvm use` picks it up).
+
 #### Initializing
 
 Download `zasper` from Github and initialize the dependencies.
@@ -515,7 +515,7 @@ Zasper aspires to be a full fledged IDE and the future development will be along
 
 # 🤞 Support Zasper
 
-If you like Zasper and want to support me in my mission, please consider [sponsoring me on GitHub](https://github.com/sponsors/prasunanand).
+If you like using Zasper and want to support me in my mission, please consider [sponsoring me on GitHub](https://github.com/sponsors/prasunanand).
 
 
 #  🚀 Sponsors
