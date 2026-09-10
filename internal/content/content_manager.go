@@ -612,21 +612,20 @@ func uploadContent(parentDir, relativePath string, replace bool, body io.Reader)
 	relative := filepath.Clean(fromBrowser)
 	name := filepath.Base(relative)
 	// A trailing separator survives neither Clean nor Base, and it means the browser named a folder.
-	if filepath.IsAbs(relative) || name == "." || strings.HasSuffix(fromBrowser, string(os.PathSeparator)) {
+	if filepath.IsAbs(relative) || name == "." || name == ".." || strings.HasSuffix(fromBrowser, string(os.PathSeparator)) {
 		return models.ContentModel{}, fmt.Errorf("%s is not a file name", relativePath)
 	}
 
-	// Under parentDir, and confirmed to still be inside the project after the join: `..` in the
-	// browser's string is the whole reason this is not filepath.Join on its own.
-	targetDir, err := safeWritePath(filepath.Join(parentDir, filepath.Dir(relative)))
+	// The whole target confirmed to be inside the project, not just its folder: `..` in the browser's
+	// string is the reason this is not filepath.Join on its own.
+	target, err := safeWritePath(filepath.Join(parentDir, relative))
 	if err != nil {
 		return models.ContentModel{}, err
 	}
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return models.ContentModel{}, err
 	}
 
-	target := filepath.Join(targetDir, name)
 	if !replace && pathExists(target) {
 		return models.ContentModel{}, errTargetExists
 	}
@@ -684,24 +683,15 @@ func GetSafePath(path string) string {
 		return ""
 	}
 
-	// Clean the path to remove any directory traversal components
-	cleanPath := filepath.Clean(path)
-	abspath := filepath.Join(homeDir, cleanPath)
-
-	absPathResolved, err := filepath.Abs(abspath)
-	if err != nil {
-		log.Printf("Error resolving absolute path: %v", err)
+	// Joined onto "." so an absolute path still reads as project-relative and an empty one as the root.
+	// IsLocal rather than a prefix test: it is also the containment check CodeQL recognises.
+	relative := filepath.Join(".", path)
+	if !filepath.IsLocal(relative) {
+		log.Printf("Warning: Path traversal detected. The path %s is outside the allowed directory %s", path, homeDir)
 		return ""
 	}
 
-	// The separator matters: a plain prefix test lets `../projectX-secrets` out of `.../projectX`.
-	prefix := strings.TrimSuffix(homeDir, string(os.PathSeparator)) + string(os.PathSeparator)
-	if absPathResolved != homeDir && !strings.HasPrefix(absPathResolved, prefix) {
-		log.Printf("Warning: Path traversal detected. The path %s is outside the allowed directory %s", absPathResolved, homeDir)
-		return ""
-	}
-
-	return absPathResolved
+	return filepath.Join(homeDir, relative)
 }
 
 /*

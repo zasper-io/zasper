@@ -142,7 +142,8 @@ func getLog(repo *git.Repository, limit, skip int) ([]Commit, bool, error) {
 		}
 	}
 
-	commits := make([]Commit, 0, limit)
+	// Not preallocated from limit, which comes from the request.
+	commits := []Commit{}
 	for len(commits) < limit {
 		commit, err := walk.Next()
 		if errors.Is(err, io.EOF) {

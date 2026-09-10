@@ -2,9 +2,7 @@ package gitclient
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 
@@ -53,9 +51,7 @@ which is the form git wants.
 
 content.GetSafePath is the equivalent for content requests and cannot be reused: it confines to
 core.Zasper.HomeDir, and the repository root is often above that. So the check is the same one, against
-a different root — resolved with EvalSymlinks so a link out of the tree cannot be followed out of it,
-and compared with the separator attached, since a plain prefix test lets `../repoX-secrets` out of
-`.../repoX`.
+a different root — resolved with EvalSymlinks so a link out of the tree cannot be followed out of it.
 */
 func relPath(root, path string) (string, error) {
 	if path == "" {
@@ -76,14 +72,13 @@ func relPath(root, path string) (string, error) {
 	}
 	resolved := resolveExisting(absolute)
 
-	if resolved != resolvedRoot &&
-		!strings.HasPrefix(resolved, strings.TrimSuffix(resolvedRoot, string(os.PathSeparator))+string(os.PathSeparator)) {
-		return "", fmt.Errorf("path %s is outside the repository", path)
-	}
-
 	relative, err := filepath.Rel(resolvedRoot, resolved)
 	if err != nil {
 		return "", err
+	}
+	// IsLocal is segment-wise, so `../repoX-secrets` is not taken to be inside `.../repoX`.
+	if !filepath.IsLocal(relative) {
+		return "", fmt.Errorf("path %s is outside the repository", path)
 	}
 	// Git wants forward slashes whatever the platform, which is also what Worktree.Status answers with.
 	return filepath.ToSlash(relative), nil

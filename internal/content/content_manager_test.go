@@ -71,6 +71,8 @@ func TestGetSafePath(t *testing.T) {
 
 	assert.Equal(t, filepath.Join(projectDir, "a", "b.txt"), GetSafePath("a/b.txt"))
 	assert.Equal(t, projectDir, GetSafePath("."), "the project directory itself is allowed")
+	assert.Equal(t, projectDir, GetSafePath(""), "an empty path is the project directory")
+	assert.Equal(t, filepath.Join(projectDir, "a", "b.txt"), GetSafePath("/a/b.txt"), "an absolute path reads as project-relative")
 	assert.Equal(t, "", GetSafePath("../elsewhere"))
 
 	// A prefix test alone would pass this: the sibling directory's path starts with HomeDir's.
@@ -546,7 +548,7 @@ func TestUploadContentRefusesToClimbOutOfTheProject(t *testing.T) {
 func TestUploadContentRefusesSomethingThatIsNotAFileName(t *testing.T) {
 	projectDirElsewhere(t)
 
-	for _, name := range []string{"", ".", "/", "src/"} {
+	for _, name := range []string{"", ".", "..", "/", "src/"} {
 		_, err := uploadContent("", name, false, strings.NewReader("hello"))
 		assert.Error(t, err, "%q is not a file name", name)
 	}
