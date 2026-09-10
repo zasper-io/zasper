@@ -1,0 +1,15 @@
+# The build installs its own dependencies and builds the frontend; copying a host node_modules in
+# would be slow, huge, and wrong for the image's platform.
+ui/node_modules
+ui/build
+e2e/node_modules
+e2e/test-results
+
+# Build output
+/zasper
+/dist
+/bin
+
+.git
+.github
+.DS_Store

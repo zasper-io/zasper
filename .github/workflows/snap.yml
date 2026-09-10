@@ -2,8 +2,11 @@ name: Build and Publish Snap (multi-arch)
 
 on:
   push:
+    # Was 'none*', which matched nothing — the snap has not been built by CI since that was set, and
+    # PUBLISHING.md claimed it was handled here.
     tags:
-      - 'none*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
 
 jobs:
   build:
@@ -18,17 +21,25 @@ jobs:
 
       - name: Set up Snapcraft
         uses: snapcore/action-build@v1
+        id: build
         with:
           build-for: ${{ matrix.arch }}
 
-      - name: Export Snap filename
-        id: snap
+      # A pre-release tag goes to the candidate channel. Without this, cutting v1.0.0-rc.1 to rehearse
+      # the release would publish a release candidate to everyone tracking stable.
+      - name: Choose the store channel
+        id: channel
         run: |
-          SNAP_FILE=$(ls *.snap | head -n 1)
-          echo "snap_file=$SNAP_FILE" >> $GITHUB_OUTPUT
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+            echo "channel=candidate" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Upload Snap to Snap Store
-        run: |
-          echo "${{ secrets.SNAPCRAFT_LOGIN_FILE }}" > snapcraft.login
-          snapcraft login --with snapcraft.login
-          snapcraft upload ${{ steps.snap.outputs.snap_file }} --release=stable
+        env:
+          # snapcraft 7 removed `login --with`. Credentials come from the environment now, generated
+          # with: snapcraft export-login --snaps=zasper \
+          #   --acls package_access,package_push,package_update,package_release -
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: snapcraft upload "${{ steps.build.outputs.snap }}" --release=${{ steps.channel.outputs.channel }}

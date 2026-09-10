@@ -1,29 +1,34 @@
-FROM golang:latest
+# Built from this repository rather than a fresh clone of main: the old Dockerfile ran
+# `git clone https://github.com/zasper-io/zasper.git`, so the image ignored the checkout it was built
+# from and always shipped whatever main happened to be — including when building from a release tag.
+FROM golang:1.25 AS build
 
-ENV CGO_ENABLED=1\
-    GOOS=linux
+WORKDIR /src
 
-# Dependencies
-RUN apt-get update && apt-get install -y curl git gcc cpp npm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      curl git nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
 
-# Clone zasper repo
-RUN git clone https://github.com/zasper-io/zasper.git 
+COPY . .
 
-# Build npm stuff 
-RUN cd zasper && make init
+RUN make init && make build
 
-# Build and install zasper 
-RUN cd zasper && make webapp-install
- 
-# Install sample python env
-RUN apt-get install -y python3-pip 
-RUN pip install jupyter --break-system-packages
+FROM debian:bookworm-slim
 
-# Add user zasper 
+# Zasper runs notebooks on Jupyter kernels but does not provide one.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-pip ca-certificates \
+    && pip install jupyter --break-system-packages \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /src/zasper /usr/local/bin/zasper
+
 RUN useradd -m -s /bin/bash zasper
-RUN echo "zasper:password" | chpasswd
-
-# Run app under user zasper
 USER zasper
 WORKDIR /home/zasper
-CMD ["zasper"]
+
+EXPOSE 8048
+
+# --host 0.0.0.0 because a server bound to loopback inside a container is unreachable from the host.
+# That makes the port real, so anything exposing it beyond this machine should add --protected=true.
+CMD ["zasper", "--host=0.0.0.0"]

@@ -1,7 +1,6 @@
 // Chrome shared by every sidebar panel: the panel column, its heading strip, the scrolling
-// body, the project banner and the file-tree list. FileBrowser, GitPanel, JupyterInfoPanel,
-// SettingsPanel and the three placeholder panels all render into it; NavigationPanel.scss
-// holds only the icon rail it owns.
+// body, the project banner and the file-tree list. FileBrowser, GitPanel, JupyterInfoPanel and
+// SettingsPanel all render into it; NavigationPanel.scss holds only the icon rail it owns.
 //
 // Everything is nested under `.navigation`, the sidebar container IDE.tsx renders, so a panel
 // gets this chrome by being inside the sidebar and nothing outside it can pick the rules up by

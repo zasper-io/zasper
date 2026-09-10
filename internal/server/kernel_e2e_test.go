@@ -186,7 +186,6 @@ func TestAnUnknownKernelIdIsRefusedRatherThanActedOn(t *testing.T) {
 		{"interrupt", http.MethodPost, "/api/kernels/" + unknown + "/interrupt"},
 		{"stop", http.MethodPost, "/api/kernels/" + unknown + "/stop"},
 		{"delete", http.MethodDelete, "/api/kernels/" + unknown},
-		{"delete over ws route", http.MethodDelete, "/ws/kernels/" + unknown},
 	} {
 		t.Run(request.what, func(t *testing.T) {
 			status, body := call(t, srv, request.method, request.path, nil)

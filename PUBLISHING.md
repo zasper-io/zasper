@@ -1,181 +1,141 @@
 # Publishing Zasper
 
-While Zasper is open-source and available for everyone to use, I kindly ask that you get in touch before considering publishing it on new package managers.
+## For packagers
 
-As the creator of Zasper, I hold the trademark for this project and prefer to manage its distribution. If you’d like to see Zasper available on a new package manager, please feel free to raise an issue on GitHub, and I’ll be happy to discuss it!
+Zasper is open source, but I hold the trademark and prefer to manage its
+distribution. If you would like to see Zasper on a package manager it is not on
+yet, please open an issue first rather than publishing it — I am happy to discuss
+it, and I would rather help than find out afterwards.
 
-This document outlines the process for publishing releases of Zasper. Whether you’re releasing a new version, updating dependencies, or making a patch, following this guide ensures that your changes are correctly published and versioned.
+Everything below is the maintainer's runbook for cutting a release.
 
-## Table of Contents
-- [Pre-release Checklist](#pre-release-checklist)
-- [Versioning](#versioning)
-- [Release Process](#release-process)
-- [Creating a Release](#creating-a-release)
-- [Publishing a Release](#publishing-a-release)
+---
 
-## Pre-release Checklist
+## Release runbook
 
-Before you publish a new version of Zasper, ensure that the following steps are completed:
+### 1. Pre-release checks
 
-1. **Run Tests**: Make sure all tests pass and the code is in a stable state.
-   ```bash
-   npm test
-   # Or the equivalent for your project
-2. Update Documentation: Ensure that the README.md, CONTRIBUTING.md, and any other relevant documentation are up to date with the latest changes.
-3. Check Dependencies: Update and check all dependencies to make sure they are up to date and compatible.
-```bash
-npm outdated  # Or the equivalent for your project
+Run the full suite. These are the same gates the release workflow runs, and
+running them first turns a failed release into a failed command:
+
+```sh
+go build ./... && go vet ./... && go test -race ./...
+npm --prefix ./ui ci
+npm --prefix ./ui run typecheck
+npm --prefix ./ui run test
+make e2e                      # needs a Jupyter kernel installed; specs skip without one
+goreleaser check              # validates .goreleaser.yml
+goreleaser release --snapshot --clean --skip=publish   # proves the build end to end
 ```
-4. Changelog Update: Update the CHANGELOG.md with the new changes, following the conventions outlined in the repository.
 
-5. Commit Changes: Ensure all changes are committed, including version updates and changelog modifications.
+Then:
 
-```
-git commit -m "chore: prepare for release vX.Y.Z"
-```
-Tag the Commit: Tag the commit with the new version number.
+- **Update `CHANGELOG.md`.** Add the new version, and an *Upgrading* section if
+  anything changed that a user has to act on.
+- **Check the docs.** `README.md`, `docs/API.md`, `PRIVACY.md` and
+  `CONTRIBUTING.md` should describe what you are about to ship.
+- **Check dependencies.** `go list -u -m all` and `npm --prefix ./ui outdated`.
+- **Confirm the working tree is clean.** `make release` commits with `-a`.
 
+### 2. Cut the release
+
+One command does the whole thing — bump, sync, commit, tag, push:
+
+```sh
+make release TYPE=major     # 0.2.0-beta -> 1.0.0
+make release TYPE=minor     # 1.0.0      -> 1.1.0
+make release TYPE=patch     # 1.0.0      -> 1.0.1
+
+make release TYPE=minor PRE_RELEASE=beta   # 1.0.0 -> 1.1.0-beta
 ```
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
+
+`make show-version` prints where you are now.
+
+Under the hood it writes `version.txt`, runs `scripts/sync-version.mjs` to copy
+that version into `ui/package.json`, `snap/snapcraft.yaml` and the README, then
+commits, tags `vX.Y.Z` and pushes both the branch and the tag.
+
+The version lives in exactly one place — `version.txt` — and everything else is
+generated from it. If you add another file that states the version, add it to
+`scripts/sync-version.mjs` too; the script fails loudly when a pattern stops
+matching, which is what keeps the copies honest.
+
+### 3. What the tag triggers
+
+Pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`, which:
+
+1. **Verifies** — Go build and race tests, frontend typecheck, lint and tests,
+   and `goreleaser check`. The release job does not start unless this passes.
+2. **Releases** — GoReleaser builds macOS, Linux and Windows binaries, signs and
+   notarizes the macOS ones, writes `checksums.txt`, publishes a GitHub Release,
+   and updates the Homebrew tap.
+
+A tag carrying a pre-release suffix is marked as a pre-release automatically.
+
+### Required secrets
+
+| Secret | Used for |
+|---|---|
+| `MACOS_SIGN_P12`, `MACOS_SIGN_PASSWORD` | Signing the macOS binaries |
+| `MACOS_NOTARY_KEY`, `MACOS_NOTARY_KEY_ID`, `MACOS_NOTARY_ISSUER_ID` | Notarization |
+| `HOMEBREW_TAP_TOKEN` | Pushing the formula to `zasper-io/homebrew-tap` |
+| `POSTHOG_API_KEY` | Optional. Overrides the built-in analytics key; the built-in one is used when unset |
+
+If the macOS secrets are absent, signing and notarization are skipped and the
+rest of the release still succeeds.
+
+---
+
+## Distribution channels
+
+### GitHub Releases
+
+Automatic, on tag. Nothing to do.
+
+### Homebrew
+
+Automatic, on tag: GoReleaser writes the cask to
+[zasper-io/homebrew-tap](https://github.com/zasper-io/homebrew-tap) using
+`HOMEBREW_TAP_TOKEN`. This used to be a manual `url` and `sha256` edit.
+
+### Snap
+
+`.github/workflows/snap.yml` builds and publishes amd64 and arm64 snaps on tag.
+It needs `SNAPCRAFT_STORE_CREDENTIALS` in the repository secrets, which you
+generate with:
+
+```sh
+snapcraft export-login --snaps=zasper --acls package_access,package_push,package_update,package_release -
 ```
+
+The snap's version comes from `snap/snapcraft.yaml`, which `make release` keeps
+in step with `version.txt`.
+
+### conda-forge
+
+The [feedstock](https://github.com/conda-forge/zasper-feedstock) is published and
+live. conda-forge's autotick bot usually opens a version-bump PR within a day of
+a GitHub Release; if it does not, open one by hand updating `version` and
+`sha256` in `recipe/meta.yaml` against the new release tarball.
+
+### Docker
+
+`docker/Dockerfile` builds an image from a release tag. Note that a container
+must bind beyond loopback to be reachable, so the image passes `--host 0.0.0.0`;
+run it with `--protected=true` if the port is exposed anywhere but your own
+machine.
+
+---
 
 ## Versioning
-Zasper follows Semantic Versioning, which means that version numbers are structured as MAJOR.MINOR.PATCH.
 
-* MAJOR version changes when you make incompatible API changes,
-* MINOR version changes when you add functionality in a backward-compatible manner,
-* PATCH version changes when you make backward-compatible bug fixes.
-For example:
+Zasper follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). From
+1.0.0, the HTTP and WebSocket API documented in [docs/API.md](docs/API.md), the
+`~/.zasper/config.json` format, and the command-line flags are the public
+surface: they do not break within a major version.
 
-* A bug fix update might result in a version v1.2.3.
-* A new feature added without breaking changes might result in v1.3.0.
-* A breaking change might result in v2.0.0.
+- **Major** — an incompatible change to any of the above.
+- **Minor** — new functionality, compatibly.
+- **Patch** — fixes, compatibly.
 
-## Release Process
-1. Bump Version: Update the version number according to the changes in the repository (major, minor, or patch).
-   * In the package.json (or equivalent file), change the version number to the new release version.
-2. Create a New Branch (Optional): Some teams prefer creating a release branch to isolate release changes:
-
-   ```bash
-   git checkout -b release-vX.Y.Z
-   ```
-
-3. Build the Application (Optional): If your project requires a build step, such as transpiling or bundling, make sure to build the final release artifacts:
-   ```bash
-   npm run build
-   ```
-4. Run Tests Again: Ensure everything works after building.
-   ```bash
-   npm test
-   ```
-
-### Create a New Tag:
-
-**For a major version bump (e.g., 1.0.0 to 2.0.0):**
-
-```bash
-make release TYPE=major
-```
-
-**For a minor version bump (e.g., 1.0.0 to 1.1.0):**
-
-```bash
-make release TYPE=minor
-```
-
-**For a patch version bump (e.g., 1.0.0 to 1.0.1):**
-
-```bash
-make release TYPE=patch
-```
-
-**For Alpha or Beta Pre-releases:**
-
-You can also specify PRE_RELEASE=alpha or PRE_RELEASE=beta to tag pre-release versions:
-
-**For an alpha version (e.g., 1.0.0-alpha):**
-
-```bash
-make release TYPE=minor PRE_RELEASE=alpha
-```
-
-**For a beta version (e.g., 1.0.0-beta):**
-
-```bash
-make release TYPE=minor PRE_RELEASE=beta
-```
-
-### Show Current Version and Tag:
-
-To see the current version and tag based on version.txt, use:
-
-```bash
-make show-version
-```
-
-Example Outputs:
-**For a patch release:**
-
-```bash
-make release TYPE=patch
-```
-
-```
-Current version: 1.0.0
-New version: 1.0.1
-```
-
-Output:
-```pgsql
-New version: 1.0.1
-```
-
-```
-Version bumped and tagged as v1.0.1
-```
-For an alpha release:
-
-```bash
-make release TYPE=minor PRE_RELEASE=alpha
-```
-
-Current version: 1.0.0
-New version: 1.1.0-alpha
-Output:
-```pgsql
-New version: 1.1.0-alpha
-```
-
-Version bumped and tagged as v1.1.0-alpha
-For a major release:
-
-```bash
-make release TYPE=major
-```
-
-```
-Current version: 1.0.0
-New version: 2.0.0
-```
-
-Output:
-```bash
-New version: 2.0.0
-```
-```
-Version bumped and tagged as v2.0.0
-```
-
-# Publishing on conda-forge
-
-Awaiting PR merge
-
-# Publishing on snap
-
-Handled by CI
-
-# Publishing on homebrew
-
-Repo: https://github.com/zasper-io/homebrew-tap
-
-Just replace the `url` and `sha256` and you are good to go.
+Pre-releases are `X.Y.Z-alpha` and `X.Y.Z-beta`, cut with `PRE_RELEASE=`.

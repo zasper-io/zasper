@@ -2,8 +2,6 @@ package websocket
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"sync"
 
@@ -22,11 +20,6 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin:     zhttp.SameOrigin,
-}
-
-// Response structure for consistent API responses
-type APIResponse struct {
-	Message string `json:"message"`
 }
 
 // The client connection attached to each kernel. The map was exported and guarded by a package-level
@@ -86,26 +79,6 @@ func CloseKernelConnections(kernelId string) {
 
 	log.Debug().Msgf("closing client connection for kernel %s", kernelId)
 	kwsConn.Close()
-}
-
-func KernelDeleteAPIHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	kernelID := vars["kernel_id"]
-
-	// Client connections are closed by the disconnect hook this package registers.
-	err := kernel.KillKernelById(kernelID)
-
-	w.Header().Set("Content-Type", "application/json")
-	if err != nil {
-		// If the kernel is not found, respond with 404
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(APIResponse{Message: err.Error()})
-		return
-	}
-
-	// If deletion is successful, respond with 200 OK
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(APIResponse{Message: fmt.Sprintf("Kernel with ID %s deleted successfully.", kernelID)})
 }
 
 func HandleWebSocket(w http.ResponseWriter, req *http.Request) {

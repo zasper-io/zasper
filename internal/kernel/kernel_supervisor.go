@@ -140,6 +140,7 @@ func activeKernels() []KernelManager {
 func Cleanup() {
 	for _, km := range activeKernels() {
 		killKernel(km.Provisioner.Pid)
+		removeConnectionFile(km.ConnectionFile)
 	}
 }
 
@@ -331,10 +332,11 @@ func CwdForPath(path string) string {
 }
 
 func createKernelManager(kernelName string, kernelId string) (KernelManager, string, string) {
-	connectionDir := os.TempDir()
-	connectionFile := filepath.Join(connectionDir, "kernel-"+kernelId[:6]+".json")
+	// The full id, not kernelId[:6]: 24 bits collides, and it panicked outright on an id shorter
+	// than six characters.
+	connectionFile := filepath.Join(runtimeDir(), "kernel-"+kernelId+".json")
 	km := KernelManager{
-		ConnectionFile: filepath.Join(connectionFile),
+		ConnectionFile: connectionFile,
 		KernelName:     kernelName,
 		KernelId:       kernelId,
 		CachePorts:     true,

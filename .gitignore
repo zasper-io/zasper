@@ -41,3 +41,6 @@ kernelConnection.json
 /.claude/
 /ui/FILEBROWSER-TODO.md
 /ui/LAYOUT-TODO.md
+
+# GoReleaser build output
+/dist

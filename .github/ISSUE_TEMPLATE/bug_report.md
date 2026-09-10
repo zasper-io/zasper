@@ -1,38 +1,46 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Something in Zasper does not work the way it should
 title: ''
-labels: ''
+labels: bug
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**What happened**
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+What you saw, and what you expected instead.
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**How to reproduce**
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+1.
+2.
+3.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+**Your setup**
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+- Zasper version: <!-- `zasper --version` -->
+- OS and architecture: <!-- e.g. macOS 15 arm64, Ubuntu 24.04 x86-64, Windows 11 -->
+- Install method: <!-- Homebrew / Snap / conda / release archive / built from source -->
+- Browser: <!-- e.g. Chrome 140, Firefox 142, Safari 18 -->
+- Kernel: <!-- `jupyter kernelspec list`, if the problem involves running a notebook -->
 
-**Additional context**
-Add any other context about the problem here.
+**Server log**
+
+Run Zasper with `--debug` and paste the relevant output. If the problem is an
+HTTP request that failed, `ZASPER_ACCESS_LOG=1` adds a line per request.
+
+```
+```
+
+**Browser console**
+
+If the problem is visual or the interface stopped responding, paste anything the
+browser console reported.
+
+```
+```
+
+**Anything else**
+
+Screenshots, a notebook that triggers it, or any other context.

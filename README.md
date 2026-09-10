@@ -33,7 +33,8 @@ It implements [Jupyter's wire protocol](https://jupyter-client.readthedocs.io/en
 
 ✅ Fully supported: macOS & Linux
 
-⚠️ Limited support: Windows — for the best experience, use via WSL
+⚠️ Windows: binaries are published and Zasper runs, but the terminal and some
+kernel paths are less well exercised there. For the best experience, use WSL.
 
 
 # Benchmarks
@@ -63,6 +64,18 @@ Benchmark comparision report can be accessed [here](https://github.com/zasper-io
 * Compatible with all Jupyter kernels
 * Also works with UV. See the section on "Working with conda environments".
 
+# 📋 System Requirements
+
+- **A Jupyter kernel.** Zasper runs notebooks on Jupyter kernels but does not
+  install one. `pip install ipykernel` is enough to get started; see
+  [Jupyter kernels](#jupyter-kernels) below for the full picture.
+- **Python 3.8+**, if you are using the Python kernel.
+- **A modern browser.** Zasper serves its interface locally and you open it in
+  Chrome, Firefox, Safari or Edge — it is not a separate desktop application.
+
+Zasper itself is a single static binary with no runtime dependencies. Without a
+kernel installed it still starts, and the Launcher tells you what to install.
+
 # 🚀 Installation
 
 Zasper is distributed as a web app, available as a Homebrew, snap and conda package.
@@ -91,23 +104,30 @@ Visit our [downloads page](https://zasper.io/downloads)
 
 Or directly install from releases.
 
+Docker images are built from `docker/`; see
+[PUBLISHING.md](PUBLISHING.md#docker).
+
 # Releases
 
 Current release version: `v0.2.0-beta`
 
-| OS              | Web App |
-|-----------------|:-------:|
-| Mac 🍏 Silicon  |    ✅   |
-| Mac AMD 64      |    ✅   |
-| Debian AMD 64   |    ✅   |
-| Debian ARM 64   |    ✅   |
-| Debian i386     |    ✅   |
-| Redhat AMD 64   |    ✅   |
-| Redhat ARM 64   |    ✅   |
-| Redhat i386     |    ✅   |
-| Windows AMD 64  |    ✅   |
-| Windows ARM 64  |    ✅   |
-| Windows i386    |    ✅   |
+Every release ships a signed, notarized macOS build and static binaries for Linux
+and Windows. The Linux archives are plain tarballs — one build serves every
+distribution, Debian and Red Hat alike; there is no `.deb` or `.rpm` yet.
+
+| Platform       | Architecture   | Archive                                |
+|----------------|----------------|----------------------------------------|
+| macOS 🍏       | Apple Silicon  | `zasper-webapp-<version>-darwin-arm64.tar.gz` |
+| macOS          | Intel          | `zasper-webapp-<version>-darwin-amd64.tar.gz` |
+| Linux          | x86-64         | `zasper-webapp-<version>-linux-amd64.tar.gz`  |
+| Linux          | ARM64          | `zasper-webapp-<version>-linux-arm64.tar.gz`  |
+| Linux          | i386           | `zasper-webapp-<version>-linux-386.tar.gz`    |
+| Windows        | x86-64         | `zasper-webapp-<version>-windows-amd64.zip`   |
+| Windows        | ARM64          | `zasper-webapp-<version>-windows-arm64.zip`   |
+| Windows        | i386           | `zasper-webapp-<version>-windows-386.zip`     |
+
+Each release also carries a `checksums.txt`; verify a download with
+`sha256sum -c checksums.txt --ignore-missing`.
 
 ## 📷 Screenshots
 
@@ -205,6 +225,53 @@ cursor is.
 
 A single click on a rendered markdown cell only selects it — it stays rendered.
 
+## 📓 Notebook feature support
+
+Zasper implements Jupyter's wire protocol and reads and writes the `.ipynb`
+format directly, so notebooks move between Zasper and JupyterLab unchanged. Two
+guarantees are worth stating outright:
+
+- **A save produces no spurious diff.** A notebook Zasper opens and saves comes
+  out byte-for-byte the file Jupyter would have written, so saving does not
+  manufacture merge conflicts.
+- **A file keeps its own nbformat minor version.** A 4.2 notebook is written back
+  as 4.2 rather than silently upgraded to the newest revision, which is what
+  JupyterLab does. Notebooks in formats 2 and 3 are converted to 4.5 on read.
+
+### What renders
+
+| Output | Status |
+|---|:---:|
+| `text/plain`, stdout/stderr, tracebacks | ✅ |
+| `text/html` | ✅ |
+| `image/png` | ✅ |
+| Plotly figures (`application/vnd.plotly.v1+json`) | ✅ |
+| ipywidgets (`application/vnd.jupyter.widget-view+json`) | ✅ |
+| `application/json` | ✅ |
+| Markdown cells — GFM tables, task lists, raw HTML, LaTeX via KaTeX | ✅ |
+| `image/svg+xml` | ❌ not yet |
+| `text/latex` | ❌ not yet |
+| `image/jpeg` | ❌ not yet |
+
+The three gaps are worth knowing before you hit them: `text/latex` is what SymPy
+emits from `init_printing()`, `image/svg+xml` is what graphviz and networkx
+produce and what matplotlib produces under
+`%config InlineBackend.figure_format = 'svg'`, and `image/jpeg` covers
+`display()` of a JPEG. Their cells run correctly — only the rendering is missing.
+They are the first thing on the list after 1.0.
+
+### Known limitations
+
+- **Widget state is not written into the notebook.** Reopening a notebook without
+  a running kernel shows a placeholder rather than the widget's last rendered
+  state; run the cell again to draw it.
+- **A cell's own output area ignores `clear_output`.**
+- **Notebooks are not signed or trusted.** Zasper does not yet implement
+  Jupyter's signature database, and stored `text/html` output can carry scripts
+  that run when the notebook is opened — which is how Plotly and Bokeh outputs
+  draw themselves. Treat a notebook you did not write the way you would treat any
+  downloaded file, and prefer running one you do not trust in protected mode.
+
 ## Architecture
 ![architecture](./assets/architecture.svg)
 
@@ -227,12 +294,14 @@ prasunanand@Prasuns-Mac-mini example % zasper
      ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
 
                     Zasper Server
-                Version: 0.1.0-alpha
+                Version: 1.0.0
 ----------------------------------------------------------
  ✅ Server started successfully!
- 📡 Listening on:         http://localhost:8048
- 🖥️ Webapp available at:  http://localhost:8048
- 🔒 Protected Mode:       disabled
+ 📡 Bound to:            127.0.0.1:8048
+ 🖥️  Webapp available at: http://127.0.0.1:8048
+ 🔒 Protected Mode:      disabled
+ 📊 Anonymous usage data: on  (--tracking=false to turn off)
+                          see PRIVACY.md for what is sent
 ==========================================================
 
 ```
@@ -244,12 +313,17 @@ Go to `http://localhost:8048`
 
 To host your own instance of Zasper, follow these steps:
 
-#### 1. Start the server in protected mode
+### 1. Start the server in protected mode
 
 Run Zasper with the `--protected=true` flag to enable authentication:
 ```sh
-zasper --protected=true
+zasper --protected=true --host=0.0.0.0
 ```
+
+`--host` is what makes the server reachable from another machine. Zasper binds
+`127.0.0.1` by default, because an unprotected server exposes your project files
+and a terminal to anyone who can reach the port — so widen it and turn on
+protected mode together, never one without the other.
 
 On startup, Zasper will display a banner with your server details:
 ```
@@ -262,17 +336,17 @@ On startup, Zasper will display a banner with your server details:
      ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
 
                     Zasper Server
-                Version: 0.1.0-alpha
+                Version: 1.0.0
 ----------------------------------------------------------
  ✅ Server started successfully!
- 📡 Listening on:        http://localhost:8048
- 🖥️  Webapp available at: http://localhost:8048
+ 📡 Bound to:            127.0.0.1:8048
+ 🖥️  Webapp available at: http://127.0.0.1:8048
  🔒 Protected Mode:      enabled
  🔐 Server Access Token: 14be1b674a3b9196a82c01129028d0dd
 ==========================================================
 ```
 
-> **Note:** A unique `Server Access Token` is generated each time the server starts. To use a persistent token across restarts, set the `JWT_SECRET` environment variable before starting the server.
+> **Note:** A unique `Server Access Token` is generated each time the server starts. To use a persistent token across restarts, set the `ZASPER_JWT_SECRET` environment variable before starting the server.
 
 ### 2. Log in
 
@@ -466,6 +540,15 @@ Join Zasper Community on [Slack](https://join.slack.com/t/zasper/shared_invite/z
 <a href = "https://github.com/zasper-io/zasper/graphs/contributors">
   <img src = "https://contrib.rocks/image?repo=zasper-io/zasper"/>
 </a>
+
+# Documentation
+
+- [CHANGELOG.md](CHANGELOG.md) — what changed in each release.
+- [docs/API.md](docs/API.md) — the HTTP and WebSocket API, which is covered by
+  semantic versioning from 1.0.0 onwards.
+- [PRIVACY.md](PRIVACY.md) — what anonymous usage data is collected, event by event.
+- [PUBLISHING.md](PUBLISHING.md) — how releases are cut.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how to build and contribute.
 
 # Contributing
 

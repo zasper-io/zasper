@@ -179,7 +179,6 @@ func NewRouter(spa http.Handler) *mux.Router {
 
 	//web sockets
 	wsRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)
-	wsRouter.HandleFunc("/kernels/{kernel_id}", websocket.KernelDeleteAPIHandler).Methods("DELETE")
 	wsRouter.HandleFunc("/terminals/{terminalId}", websocket.HandleTerminalWebSocket)
 
 	if spa != nil {

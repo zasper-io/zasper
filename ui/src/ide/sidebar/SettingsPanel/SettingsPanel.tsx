@@ -71,8 +71,15 @@ export default function SettingsPanel({ hidden }: PanelProps) {
             Send anonymous usage data
           </label>
           <p className="z-form-help">
-            Counts of what gets used — never file names, paths, or code. PRIVACY.md lists every
-            event.
+            Counts of what gets used — never file names, paths, or code.{' '}
+            <a
+              href="https://github.com/zasper-io/zasper/blob/main/PRIVACY.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              PRIVACY.md
+            </a>{' '}
+            lists every event.
           </p>
         </div>
         <div className="panel-section-body z-form-field">

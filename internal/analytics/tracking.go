@@ -14,7 +14,35 @@ import (
 )
 
 const phEndPoint = "https://us.i.posthog.com"
-const phAPIKey = "phc_ptZIEQ1RgjxThkHTSeuxSgx7lxHSvnQx8anw9bD7A6R"
+
+/*
+defaultPHAPIKey is PostHog's publishable project key. It is a `phc_` key, the kind meant to ship
+inside client code, so it being readable here is by design and not a leaked credential.
+
+injectedPHAPIKey overrides it when a build supplies one:
+
+	-ldflags "-X github.com/zasper-io/zasper/internal/analytics.injectedPHAPIKey=phc_..."
+
+which is what makes the key rotatable, and lets a fork point its own builds at its own project
+instead of sending events here. The release workflow carried a POSTHOG_API_KEY secret around for a
+long time without anything ever reading it; this is the variable it was meant to reach.
+
+The two are kept apart rather than injected over one another because GitHub Actions defines a
+missing secret as an empty string. Overwriting a single variable would then blank the key on any
+fork or any repo that has not configured the secret, silently turning telemetry off in a build that
+still tells the user it is on.
+*/
+const defaultPHAPIKey = "phc_ptZIEQ1RgjxThkHTSeuxSgx7lxHSvnQx8anw9bD7A6R"
+
+var injectedPHAPIKey string
+
+// phAPIKey answers the key this build sends with.
+func phAPIKey() string {
+	if injectedPHAPIKey != "" {
+		return injectedPHAPIKey
+	}
+	return defaultPHAPIKey
+}
 
 // Lets the acceptance test point ingestion at a local recorder and read back exactly what would have
 // been sent. Not a user-facing setting.
@@ -122,8 +150,8 @@ func SetUpPostHogClient() error {
 		return nil
 	}
 
-	if phAPIKey == "" {
-		log.Error().Msg("POSTHOG_API_KEY is not set")
+	if phAPIKey() == "" {
+		log.Error().Msg("no PostHog key is compiled into this build")
 		return nil
 	}
 
@@ -150,7 +178,7 @@ func SetUpPostHogClient() error {
 		Set("arch", runtime.GOARCH).
 		Set("source", "web")
 
-	newClient, err := posthog.NewWithConfig(phAPIKey, posthog.Config{
+	newClient, err := posthog.NewWithConfig(phAPIKey(), posthog.Config{
 		Endpoint:               endpoint,
 		DisableGeoIP:           posthog.Ptr(true),
 		DefaultEventProperties: defaults,

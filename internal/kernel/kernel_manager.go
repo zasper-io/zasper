@@ -82,6 +82,10 @@ func (km *KernelManager) StopKernel(kernelId string) error {
 	} {
 		releasePort(port)
 	}
+
+	// The file carries this kernel's signing key and is of no use once the kernel is gone.
+	removeConnectionFile(km.ConnectionFile)
+
 	return km.Provisioner.ShutdownKernel()
 }
 

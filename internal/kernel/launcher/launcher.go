@@ -11,34 +11,11 @@ import (
 )
 
 func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) (*os.Process, error) {
-	// Log which python will be used
-	// pythonCmd := kernelCmd[0]
-	// pythonPath, err := exec.LookPath(pythonCmd)
-	// if err != nil {
-	// 	log.Error().Msgf("Python command '%s' not found in PATH: %v", pythonCmd, err)
-	// } else {
-	// 	log.Info().Msgf("Using Python: %s", pythonPath)
-
-	// 	// Optionally, also log the Python version and architecture
-	// 	versionCmd := exec.Command(pythonPath, "--version")
-	// 	if output, err := versionCmd.CombinedOutput(); err == nil {
-	// 		log.Info().Msgf("Python version: %s", string(output))
-	// 	}
-
-	// 	// Log the architecture of the Python binary
-	// 	fileCmd := exec.Command("file", pythonPath)
-	// 	if output, err := fileCmd.CombinedOutput(); err == nil {
-	// 		log.Info().Msgf("Python architecture: %s", string(output))
-	// 	}
-	// }
-
 	for i, arg := range kernelCmd {
 		if arg == "{connection_file}" {
 			kernelCmd[i] = connFile
 		}
 	}
-	// kernelCmd = append(kernelCmd, "--debug")
-
 	log.Debug().Msgf("kernelCmd is %v", kernelCmd)
 
 	cmd := exec.Command(kernelCmd[0], kernelCmd[1:]...)
@@ -67,14 +44,10 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 
 	pid := cmd.Process.Pid
 
-	go func() {
-		defer stdin.Close()
-		if _, err := stdin.Write([]byte("input data\n")); err != nil {
-			// Was log.Fatal, which exits the process: a kernel whose stdin closed early would have
-			// taken the whole server down with it.
-			log.Debug().Err(err).Int("pid", pid).Msg("could not write to kernel stdin")
-		}
-	}()
+	// The kernel is spoken to over ZMQ, not stdin. This used to write the literal bytes "input data"
+	// into every kernel it started, which was debug scaffolding that outlived its purpose; closing
+	// the pipe is all that is actually wanted.
+	stdin.Close()
 
 	go pipeToLog(stdout, "stdout", pid)
 	go pipeToLog(stderr, "stderr", pid)

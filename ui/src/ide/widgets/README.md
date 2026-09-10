@@ -168,8 +168,7 @@ something to replace it — which is what stops `interact` blinking empty on eve
 `outputs` back to the kernel (`save_changes`) is deliberate: the trait is documented as what the
 frontend captured, so `out.outputs` in Python reads what is on screen.
 
-Note that a cell's _own_ output area still ignores `clear_output`; that is item 4 in
-[project-todo.md](../../../../project-todo.md).
+Note that a cell's _own_ output area still ignores `clear_output`.
 
 ## A page that has been reloaded
 

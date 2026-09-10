@@ -30,25 +30,27 @@ func main() {
 
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	cwd := flag.String("cwd", ".", "base directory of project")
+	host := flag.String("host", "127.0.0.1", "interface to bind; 0.0.0.0 puts the server on the network")
 	port := flag.String("port", ":8048", "port to start the server on")
 	protected := flag.Bool("protected", false, "enable protected mode")
 	tracking := flag.Bool("tracking", true, "enable usage tracking")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 
 	flag.Parse()
+
+	// Before the logger and before anything binds: `zasper --version` should answer and stop, which
+	// is what a package manager's smoke test and half of every bug report start with.
+	if *showVersion {
+		fmt.Println(resolveVersion())
+		return
+	}
 
 	// Before anything else logs, so that every line in the run has the same shape.
 	logging.SetUp(*debug)
 
-	if version == "" {
-		// Only a source build reads this; a release binary has its version linked in, so a missing
-		// file here is the normal case for `go run .` and not worth an error.
-		data, err := os.ReadFile("version.txt")
-		if err != nil {
-			log.Warn().Err(err).Msg("no version.txt and no linked version; reporting version as unknown")
-			version = "unknown"
-		} else {
-			version = strings.TrimSpace(string(data))
-		}
+	version = resolveVersion()
+	if version == "unknown" {
+		log.Warn().Msg("no version.txt and no linked version; reporting version as unknown")
 	}
 
 	core.Zasper = core.SetUpZasper(version, *cwd, *protected)
@@ -94,12 +96,21 @@ func main() {
 
 	// Bind before announcing. ListenAndServe did both at once inside the goroutine, so a port that was
 	// already taken printed "Server started successfully!" and the real error underneath it.
-	listener, err := net.Listen("tcp", *port)
+	address := listenAddress(*host, *port)
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Fatal().Err(err).Str("addr", *port).Msg("could not listen; is a server already running on this port?")
+		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
 	}
 
-	printBanner(*port, core.ServerAccessToken, version, *protected, trackingOn)
+	// The server answers /api/contents and opens terminals, so binding it to the network without a
+	// token hands a shell to anyone who can reach the port. Loopback is the default; going wider is a
+	// deliberate act that deserves to be said out loud.
+	if !isLoopback(address) && !*protected {
+		log.Warn().Str("addr", address).
+			Msg("bound to a non-loopback address with protected mode off: anyone who can reach this port can read and write the project and open a terminal. Use --protected, or --host 127.0.0.1")
+	}
+
+	printBanner(address, core.ServerAccessToken, version, *protected, trackingOn)
 
 	go func() {
 		handler := server.WithRequestLogging(log.Logger, logging.AccessLog(), corsOpts.Handler(router))
@@ -123,11 +134,12 @@ func main() {
 // printBanner announces the server to whoever is reading. A person at a terminal gets the banner;
 // output that is being collected as JSON gets the same facts as one structured line, because ASCII
 // art in a log collector is neither readable nor parseable.
-func printBanner(port string, accessToken string, version string, protected bool, tracking bool) {
+func printBanner(address string, accessToken string, version string, protected bool, tracking bool) {
 	if !logging.Console() {
 		event := log.Info().
 			Str("version", version).
-			Str("addr", "http://localhost"+port).
+			Str("addr", address).
+			Str("url", browsableURL(address)).
 			Bool("protected", protected).
 			Bool("tracking", tracking)
 		if protected {
@@ -150,8 +162,10 @@ func printBanner(port string, accessToken string, version string, protected bool
 	fmt.Printf("                Version: %s\n", version)
 	fmt.Println("----------------------------------------------------------")
 	fmt.Println(" ✅ Server started successfully!")
-	fmt.Printf(" 📡 Listening on:        http://localhost%s\n", port)
-	fmt.Printf(" 🖥️  Webapp available at: http://localhost%s\n", port)
+	// Both lines, because they differ the moment --host is widened: the bind says who can reach the
+	// server, the URL is the one a browser on this machine can actually open.
+	fmt.Printf(" 📡 Bound to:            %s\n", address)
+	fmt.Printf(" 🖥️  Webapp available at: %s\n", browsableURL(address))
 	if protected {
 		fmt.Println(" 🔒 Protected Mode:      enabled")
 		fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
@@ -165,6 +179,63 @@ func printBanner(port string, accessToken string, version string, protected bool
 		fmt.Println(" 📊 Anonymous usage data: off")
 	}
 	fmt.Println("==========================================================")
+}
+
+// resolveVersion answers what this build calls itself: the string linked in at release time, or
+// version.txt for a build from source, which is the normal case for `go run .`.
+func resolveVersion() string {
+	if version != "" {
+		return version
+	}
+
+	data, err := os.ReadFile("version.txt")
+	if err != nil {
+		return "unknown"
+	}
+	return strings.TrimSpace(string(data))
+}
+
+/*
+listenAddress works out what to bind from --host and --port.
+
+--port has always been a ":8048"-shaped string that net.Listen read as every interface, which is how
+a local notebook IDE ended up reachable from the rest of the network. --host now decides the
+interface and defaults to loopback. A --port that already carries a host still wins outright, so a
+command someone already has in a script binds exactly what it did before.
+*/
+func listenAddress(host, port string) string {
+	if h, p, err := net.SplitHostPort(port); err == nil && h != "" {
+		return net.JoinHostPort(h, p)
+	}
+	return net.JoinHostPort(host, strings.TrimPrefix(port, ":"))
+}
+
+// isLoopback answers whether an address is only reachable from this machine. A hostname that is not
+// an IP is treated as non-loopback unless it is localhost, since resolving it here would say more
+// about DNS than about what was bound.
+func isLoopback(address string) bool {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// browsableURL turns a bind address into one a browser on this machine can open. 0.0.0.0 and :: are
+// not somewhere you can navigate to, so a wildcard bind is shown as localhost.
+func browsableURL(address string) string {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return "http://" + address
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, port)
 }
 
 // resolveTracking decides whether this run sends anything, highest precedence first: the --tracking

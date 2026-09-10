@@ -1,11 +1,16 @@
-
 services:
   zasper:
     image: zasper
     build:
-      context: .
-      dockerfile: Dockerfile 
+      # The repository root, so the image is built from this checkout rather than a clone of main.
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: zasper
     hostname: zasper
     ports:
-      - "8048"
+      # Published on loopback only. Change to "8048:8048" to expose it on the network, and add
+      # --protected=true to the command if you do.
+      - "127.0.0.1:8048:8048"
+    volumes:
+      # The project Zasper opens. Point this at your notebooks.
+      - ./workspace:/home/zasper

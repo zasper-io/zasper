@@ -57,11 +57,11 @@ We welcome code contributions! Here’s how you can submit your changes:
     ```bash
     git commit -m "Add [feature/bugfix] to [file]"
     ```
-5. Push to Your Fork: Push your changes to your fork:
+6. Push to Your Fork: Push your changes to your fork:
 ```bash
 git push origin feature-branch
 ```
-6. Create a Pull Request: Go to the repository and create a pull request. Provide a detailed description of your changes and why they are needed.
+7. Create a Pull Request: Go to the repository and create a pull request. Provide a detailed description of your changes and why they are needed.
 
 ### Creating Documentation
 

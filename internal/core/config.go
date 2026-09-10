@@ -135,7 +135,7 @@ func WriteConfig(config *Config) error {
 		return err
 	}
 	defer file.Close()
-	log.Info().Msgf("Writing config to %s", filePath)
+	log.Debug().Msgf("Writing config to %s", filePath)
 
 	// Write the config struct to the file as JSON
 	encoder := json.NewEncoder(file)

@@ -33,7 +33,9 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusAccepted)
+		// 200, not the 202 this used to send: every SPA deep link goes through this fallback, and
+		// "Accepted" tells a client the request is still being processed somewhere.
+		w.WriteHeader(http.StatusOK)
 		w.Write(index)
 		return
 	} else if err != nil {

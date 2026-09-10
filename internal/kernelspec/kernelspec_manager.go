@@ -117,7 +117,6 @@ func fromResourceDir(resourceDir string) KernelSpecJsonData {
 	if err != nil {
 		log.Debug().Msg("error encountered")
 	}
-	log.Print(kernelSpecJsonData)
 	kernelSpecJsonData.ResourceDir = resourceDir
 	return kernelSpecJsonData
 }
@@ -176,7 +175,6 @@ func findKernelSpecs() map[string]string {
 		Returns a dict mapping kernel names to resource directories.
 	*/
 	kernelDirs := getKernelDirs()
-	log.Print(kernelDirs)
 	kernelsDict := make(map[string]string)
 	for _, kernelDir := range kernelDirs {
 		kernels := listKernelsIn(kernelDir)

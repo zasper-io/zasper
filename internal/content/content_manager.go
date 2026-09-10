@@ -1,6 +1,7 @@
 package content
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,49 @@ import (
 
 	"github.com/rs/zerolog/log"
 )
+
+/*
+writeFileAtomically replaces a file's contents without ever leaving a half-written one behind.
+
+os.WriteFile truncates before it writes, so a crash, a full disk or a power cut partway through a
+save left a zero-length notebook and no way back to the original — on the path users hit hundreds of
+times a day. Writing beside the target and renaming over it means a reader sees either the whole old
+file or the whole new one. The Sync before the rename is what extends that from "survives a crash"
+to "survives a power loss": without it the rename can land while the data behind it has not.
+
+The temporary file is made in the target's own directory, because a rename is only atomic within one
+filesystem.
+*/
+func writeFileAtomically(target string, source io.Reader, perm os.FileMode) (int64, error) {
+	temporary, err := os.CreateTemp(filepath.Dir(target), ".zasper-write-*")
+	if err != nil {
+		return 0, err
+	}
+	name := temporary.Name()
+
+	written, err := io.Copy(temporary, source)
+	if err == nil {
+		err = temporary.Sync()
+	}
+	if closeErr := temporary.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		// CreateTemp makes 0600; the file should end up looking like any other one written here.
+		err = os.Chmod(name, perm)
+	}
+	if err == nil {
+		err = os.Rename(name, target)
+	}
+	if err != nil {
+		if removeErr := os.Remove(name); removeErr != nil && !os.IsNotExist(removeErr) {
+			log.Error().Err(removeErr).Msgf("Failed to clean up the partial write at %s", name)
+		}
+		return 0, err
+	}
+
+	return written, nil
+}
 
 func GetContent(relativePath string, contentType string, format string, hash int) (models.ContentModel, error) {
 	log.Debug().Msgf("getting content for path : %s", relativePath)
@@ -587,27 +631,9 @@ func uploadContent(parentDir, relativePath string, replace bool, body io.Reader)
 		return models.ContentModel{}, errTargetExists
 	}
 
-	temporary, err := os.CreateTemp(targetDir, ".zasper-upload-*")
+	written, err := writeFileAtomically(target, body, 0o644)
 	if err != nil {
 		return models.ContentModel{}, err
-	}
-	written, err := io.Copy(temporary, body)
-	if closeErr := temporary.Close(); err == nil {
-		err = closeErr
-	}
-	if err == nil {
-		err = os.Rename(temporary.Name(), target)
-	}
-	if err != nil {
-		if removeErr := os.Remove(temporary.Name()); removeErr != nil && !os.IsNotExist(removeErr) {
-			log.Error().Err(removeErr).Msgf("Failed to clean up the partial upload at %s", temporary.Name())
-		}
-		return models.ContentModel{}, err
-	}
-
-	// 0600 is what CreateTemp makes; an uploaded file should read like one that was created here.
-	if err := os.Chmod(target, 0o644); err != nil {
-		log.Warn().Err(err).Msgf("Uploaded %s but could not set its mode", target)
 	}
 	log.Debug().Msgf("Uploaded %d bytes to %s", written, target)
 
@@ -741,8 +767,8 @@ func UpdateNbContent(path, ftype, format string, content interface{}) error {
 
 	log.Debug().Msgf("nbJSON: %s", string(nbJSON))
 
-	// Write the JSON back to the file
-	if err := os.WriteFile(osPath, nbJSON, 0644); err != nil {
+	// Atomically: a notebook half-written by a crash is a notebook lost, and this is the save path.
+	if _, err := writeFileAtomically(osPath, bytes.NewReader(nbJSON), 0o644); err != nil {
 		log.Error().Err(err).Msgf("Error updating notebook content for path: %s", osPath)
 		return fmt.Errorf("error writing notebook to path %s: %w", path, err)
 	}
@@ -757,9 +783,8 @@ func UpdateContent(path, ftype, format, content string) error {
 		return err
 	}
 
-	err = os.WriteFile(osPath, []byte(content), 0644)
-	if err != nil {
-		log.Error().Err(err).Msg("")
+	if _, err := writeFileAtomically(osPath, strings.NewReader(content), 0o644); err != nil {
+		log.Error().Err(err).Msgf("Error updating content for path: %s", osPath)
 		return err
 	}
 	return nil

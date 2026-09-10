@@ -12,9 +12,6 @@ import Topbar from './topbar/Topbar';
 import GitPanel from './sidebar/GitPanel/GitPanel';
 import JupyterInfoPanel from './sidebar/JupyterInfoPanel/JupyterInfoPanel';
 import SettingsPanel from './sidebar/SettingsPanel/SettingsPanel';
-import DebugPanel from './sidebar/DebugPanel';
-import DatabasePanel from './sidebar/DatabasePanel';
-import SecretsPanel from './sidebar/SecretsPanel';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
@@ -126,9 +123,6 @@ function IDE() {
                   hidden={activePanel !== 'gitPanel'}
                   reveal={() => setActivePanel('gitPanel')}
                 />
-                <DebugPanel hidden={activePanel !== 'debugPanel'} />
-                <DatabasePanel hidden={activePanel !== 'databasePanel'} />
-                <SecretsPanel hidden={activePanel !== 'secretsPanel'} />
               </div>
             </div>
           </Panel>

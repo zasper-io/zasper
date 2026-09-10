@@ -2,14 +2,11 @@ project_name: zasper
 
 version: 2
 
-env:
-  - POSTHOG_API_KEY={{ .Env.POSTHOG_API_KEY }}
-  - VERSION_BUILD_FLAG={{ .Env.VERSION_BUILD_FLAG }}
-
 before:
   hooks:
     - go mod tidy
-    - npm --prefix ./ui i
+    # ui/build is not in git and spa.go embeds it, so the frontend has to exist before the Go build.
+    - npm --prefix ./ui ci
     - env CI=false npm --prefix ./ui run build
 
 builds:
@@ -18,7 +15,14 @@ builds:
       - CGO_ENABLED=0
     main: .
     ldflags:
-      - -s -w -X main.version={{.Env.VERSION_BUILD_FLAG}}
+      # {{.Version}} is the tag with its v stripped, so a released binary reports 1.0.0 — the same
+      # string `make build` produces from version.txt. It used to be the raw tag name, which meant
+      # releases said v1.0.0 and source builds said 1.0.0.
+      - -s -w
+      - -X main.version={{.Version}}
+      # Empty when the secret is not configured, which the analytics package treats as "use the
+      # built-in key" rather than as "send nothing".
+      - -X github.com/zasper-io/zasper/internal/analytics.injectedPHAPIKey={{.Env.POSTHOG_API_KEY}}
     targets:
       - darwin_amd64
       - darwin_arm64
@@ -28,11 +32,12 @@ builds:
       - windows_386
       - windows_amd64
       - windows_arm64
-      - android_arm64
 
 notarize:
   macos:
-    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+    # Not isEnvSet: Actions defines a missing secret as an empty string, so presence alone was true
+    # even with no certificate, and notarization then failed the whole release.
+    - enabled: '{{ if .Env.MACOS_SIGN_P12 }}true{{ else }}false{{ end }}'
       sign:
         certificate: "{{.Env.MACOS_SIGN_P12}}"
         password: "{{.Env.MACOS_SIGN_PASSWORD}}"
@@ -42,17 +47,47 @@ notarize:
         key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
         key: "{{.Env.MACOS_NOTARY_KEY}}"
         wait: true
-        timeout: 30m
+        # 20m is the ceiling; Apple rejects an authentication token with a longer lifetime, and
+        # `goreleaser check` refuses the config outright above it.
+        timeout: 20m
 
 archives:
   - id: archive
-    builds:
-     - zasper
+    # `builds` was renamed to `ids` in GoReleaser 2.5 and is a hard error in v3.
+    ids:
+      - zasper
     files:
       - LICENSE
+      - README.md
+      - PRIVACY.md
+    # The version is in the name so a downloaded tarball can still say which build it is.
     name_template: >-
-      {{ .ProjectName }}-webapp-{{- .Os }}-{{ .Arch }}
+      {{ .ProjectName }}-webapp-{{ .Version }}-{{ .Os }}-{{ .Arch }}
     format_overrides:
       - goos: windows
         formats:
           - zip
+
+# homebrew_casks, not brews: brews is deprecated and removed in GoReleaser v3. A cask is the right
+# shape here anyway, since this ships a prebuilt notarized binary rather than building from source.
+homebrew_casks:
+  - name: zasper
+    repository:
+      owner: zasper-io
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://zasper.io"
+    description: "High Performance IDE for Jupyter Notebooks"
+    license: "AGPL-3.0"
+    # auto = skip when the tag is a pre-release, so cutting v1.0.0-rc.1 to rehearse the pipeline does
+    # not put a release candidate in front of every `brew install zasper`.
+    skip_upload: auto
+    # Zasper runs notebooks on Jupyter kernels but does not install one; ipykernel comes from pip.
+    caveats: |
+      Zasper needs a Jupyter kernel to run notebooks:
+        pip install ipykernel
+
+release:
+  # A 1.0.0 tag is the first stable release; anything carrying a -beta/-rc suffix is marked as a
+  # pre-release rather than published as stable, which is what happened to v0.3.0-beta.
+  prerelease: auto

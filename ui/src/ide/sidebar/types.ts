@@ -3,10 +3,7 @@ export type PanelName =
   | 'fileBrowser'
   | 'gitPanel'
   | 'jupyterInfoPanel'
-  | 'settingsPanel'
-  | 'debugPanel'
-  | 'databasePanel'
-  | 'secretsPanel';
+  | 'settingsPanel';
 
 /**
  * Sidebar panels all stay mounted, so each one is told whether it is the visible one.

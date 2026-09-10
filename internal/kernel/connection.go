@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"os"
+	"path/filepath"
 
 	"github.com/go-zeromq/zmq4"
 	"github.com/rs/zerolog/log"
@@ -71,13 +72,56 @@ type ConnectionFileData struct {
 	KernelName      string `json:"kernel_name"`
 }
 
+/*
+runtimeDir is where a kernel's connection file lives: ~/.zasper/runtime, owner-only.
+
+These files used to go into os.TempDir() at mode 0644, and the file contains the kernel's HMAC
+signing key. On any machine with more than one account that meant a local user could read the key
+and inject signed messages into somebody else's kernel, which is code execution as them. Jupyter
+keeps the same files 0600 in a private runtime directory, for the same reason.
+
+A home directory that cannot be determined falls back to the temp dir, so a kernel still starts —
+the file is still written 0600 either way.
+*/
+func runtimeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Warn().Err(err).Msg("no home directory; keeping kernel connection files in the temp dir")
+		return os.TempDir()
+	}
+
+	dir := filepath.Join(home, ".zasper", "runtime")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		log.Warn().Err(err).Msgf("could not create %s; keeping kernel connection files in the temp dir", dir)
+		return os.TempDir()
+	}
+	return dir
+}
+
+// removeConnectionFile deletes a kernel's connection file. Nothing used to, so every kernel ever
+// started left its signing key behind on disk.
+func removeConnectionFile(connectionFile string) {
+	if connectionFile == "" {
+		return
+	}
+	if err := os.Remove(connectionFile); err != nil && !os.IsNotExist(err) {
+		log.Warn().Err(err).Msgf("could not remove the connection file at %s", connectionFile)
+	}
+}
+
 func (km *KernelManager) writeConnectionFile(connectionFile string) error {
-	// Open the file for writing, create it if it doesn't exist, or truncate it if it does.
-	file, err := os.Create(connectionFile)
-	log.Debug().Msgf("writing connection info to %s", file.Name())
+	// 0600 from the moment it exists rather than chmod'ed afterwards: the key is written into it
+	// immediately, so a window at 0644 is a window where it can be read.
+	file, err := os.OpenFile(connectionFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
+	// O_TRUNC leaves an existing file's mode alone, so a file from an older build stays 0644 without
+	// this.
+	if err := file.Chmod(0o600); err != nil {
+		log.Warn().Err(err).Msgf("could not restrict the connection file at %s", connectionFile)
+	}
+	log.Debug().Msgf("writing connection info to %s", file.Name())
 	defer file.Close()
 
 	// Create a JSON encoder and set indentation for pretty-printing.

@@ -12,10 +12,13 @@ TAG_REGEX = '^[0-9]\+\.[0-9]\+\.[0-9]\+$$'  # Regex to match semantic version fo
 # Get the current version from version.txt or set to default if file does not exist
 CURRENT_VERSION = $(shell if [ -f $(VERSION_FILE) ]; then cat $(VERSION_FILE); else echo $(DEFAULT_VERSION); fi)
 
-# Split version into major, minor, patch
-CURRENT_MAJOR = $(word 1, $(subst ., ,$(CURRENT_VERSION)))
-CURRENT_MINOR = $(word 2, $(subst ., ,$(CURRENT_VERSION)))
-CURRENT_PATCH = $(word 3, $(subst ., ,$(CURRENT_VERSION)))
+# Split version into major, minor, patch. The -alpha/-beta suffix is stripped first: splitting
+# "0.2.0-beta" on "." gives a patch of "0-beta", which made `make release TYPE=patch` a shell
+# arithmetic error instead of a release.
+CURRENT_CORE = $(word 1, $(subst -, ,$(CURRENT_VERSION)))
+CURRENT_MAJOR = $(word 1, $(subst ., ,$(CURRENT_CORE)))
+CURRENT_MINOR = $(word 2, $(subst ., ,$(CURRENT_CORE)))
+CURRENT_PATCH = $(word 3, $(subst ., ,$(CURRENT_CORE)))
 
 # Targets to bump the version and create a tag
 
@@ -47,8 +50,7 @@ bump-version:
 	echo "New version: $${NEW_VERSION}"; \
 	echo "$${NEW_VERSION}" > $(VERSION_FILE); \
 	echo "Version bumped and tagged as $(TAG_PREFIX)$${NEW_VERSION}"; \
-	(cd ui && node updateVersion.js); \
-	echo "Version updated in the frontend"; \
+	node scripts/sync-version.mjs; \
 	git commit -am "Bump version to $${NEW_VERSION}"; \
 	git tag $(TAG_PREFIX)$${NEW_VERSION}; \
 	git push origin main; \
