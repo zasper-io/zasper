@@ -35,32 +35,66 @@ Then:
 - **Check the docs.** `README.md`, `docs/API.md`, `PRIVACY.md` and
   `CONTRIBUTING.md` should describe what you are about to ship.
 - **Check dependencies.** `go list -u -m all` and `npm --prefix ./ui outdated`.
-- **Confirm the working tree is clean.** `make release` commits with `-a`.
 
-### 2. Cut the release
+### 2. Open a release pull request
 
-One command does the whole thing — bump, sync, commit, tag, push:
+A release is a pull request like any other change. No command commits, tags or
+pushes to `main` for you.
 
 ```sh
-make release TYPE=major     # 0.2.0-beta -> 1.0.0
-make release TYPE=minor     # 1.0.0      -> 1.1.0
-make release TYPE=patch     # 1.0.0      -> 1.0.1
-
-make release TYPE=minor PRE_RELEASE=beta   # 1.0.0 -> 1.1.0-beta
+git checkout -b release-1.0.0
+make bump-version TYPE=major     # 0.2.0-beta -> 1.0.0
 ```
 
-`make show-version` prints where you are now.
+The other bumps:
 
-Under the hood it writes `version.txt`, runs `scripts/sync-version.mjs` to copy
-that version into `ui/package.json`, `snap/snapcraft.yaml` and the README, then
-commits, tags `vX.Y.Z` and pushes both the branch and the tag.
+```sh
+make bump-version TYPE=minor                    # 1.0.0 -> 1.1.0
+make bump-version TYPE=patch                    # 1.0.0 -> 1.0.1
+make bump-version TYPE=minor PRE_RELEASE=beta   # 1.0.0 -> 1.1.0-beta
+```
+
+`make bump-version` writes `version.txt` and runs `scripts/sync-version.mjs`, which
+copies it into `ui/package.json`, `snap/snapcraft.yaml` and the README. It touches
+no git state, and refuses to run on `main`. `make show-version` prints where you
+are now.
+
+Add the release's section to `CHANGELOG.md`, commit, push the branch and open a
+pull request against `main`.
 
 The version lives in exactly one place — `version.txt` — and everything else is
 generated from it. If you add another file that states the version, add it to
 `scripts/sync-version.mjs` too; the script fails loudly when a pattern stops
 matching, which is what keeps the copies honest.
 
-### 3. What the tag triggers
+### 3. Let the pull request go green, then merge
+
+Because the PR changes `version.txt`, it runs the release gates in `release.yml`
+— Go build and race tests, frontend typecheck, lint and tests, and
+`goreleaser check` — alongside the usual CI. Nothing is published from a pull
+request. Merge once everything is green.
+
+### 4. Tag `main`
+
+From an up-to-date `main`, tag the merge commit and push the tag:
+
+```sh
+git checkout main && git pull
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Pushing the tag is the release. Tag only after the merge and only from `main`, so
+the tag points at the reviewed commit. The release checks this: a tag that does
+not match `version.txt` fails before anything is built.
+
+To rehearse the whole pipeline first, push a pre-release tag such as
+`v1.0.0-rc.1` from the release branch instead. It is published as a GitHub
+pre-release, goes to the Snap `candidate` channel and skips the Homebrew tap —
+though it will need its own `version.txt` of `1.0.0-rc.1` to pass the tag check.
+Delete the tag and the pre-release afterwards.
+
+### 5. What the tag triggers
 
 Pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`, which:
 
@@ -108,7 +142,7 @@ generate with:
 snapcraft export-login --snaps=zasper --acls package_access,package_push,package_update,package_release -
 ```
 
-The snap's version comes from `snap/snapcraft.yaml`, which `make release` keeps
+The snap's version comes from `snap/snapcraft.yaml`, which `make bump-version` keeps
 in step with `version.txt`.
 
 ### conda-forge

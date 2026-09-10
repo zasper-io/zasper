@@ -13,18 +13,24 @@ TAG_REGEX = '^[0-9]\+\.[0-9]\+\.[0-9]\+$$'  # Regex to match semantic version fo
 CURRENT_VERSION = $(shell if [ -f $(VERSION_FILE) ]; then cat $(VERSION_FILE); else echo $(DEFAULT_VERSION); fi)
 
 # Split version into major, minor, patch. The -alpha/-beta suffix is stripped first: splitting
-# "0.2.0-beta" on "." gives a patch of "0-beta", which made `make release TYPE=patch` a shell
+# "0.2.0-beta" on "." gives a patch of "0-beta", which made a TYPE=patch bump a shell
 # arithmetic error instead of a release.
 CURRENT_CORE = $(word 1, $(subst -, ,$(CURRENT_VERSION)))
 CURRENT_MAJOR = $(word 1, $(subst ., ,$(CURRENT_CORE)))
 CURRENT_MINOR = $(word 2, $(subst ., ,$(CURRENT_CORE)))
 CURRENT_PATCH = $(word 3, $(subst ., ,$(CURRENT_CORE)))
 
-# Targets to bump the version and create a tag
-
-# Bump the version based on the specified type (major, minor, patch)
+# Bump the version for a release pull request: writes version.txt and syncs every file that states
+# it. It deliberately does nothing with git. This used to commit, tag and push to main in one go (as
+# `make release`), which published a release before anyone had reviewed it or CI had run on it.
+# Releases now go through a pull request, and the tag is pushed from main after the merge — see
+# PUBLISHING.md. Refusing to run on main is what keeps a bump from skipping the pull request.
 bump-version:
-	@if [ "$(TYPE)" = "$(MAJOR_BUMP)" ]; then \
+	@if [ "$$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" = "main" ]; then \
+		echo "Bump the version on a release branch, not main: git checkout -b release-<version>"; \
+		exit 1; \
+	fi; \
+	if [ "$(TYPE)" = "$(MAJOR_BUMP)" ]; then \
 		NEW_MAJOR=$$(($(CURRENT_MAJOR) + 1)); \
 		NEW_MINOR=0; \
 		NEW_PATCH=0; \
@@ -47,20 +53,16 @@ bump-version:
 	else \
 		NEW_VERSION=$${NEW_MAJOR}.$${NEW_MINOR}.$${NEW_PATCH}; \
 	fi; \
-	echo "New version: $${NEW_VERSION}"; \
 	echo "$${NEW_VERSION}" > $(VERSION_FILE); \
-	echo "Version bumped and tagged as $(TAG_PREFIX)$${NEW_VERSION}"; \
 	node scripts/sync-version.mjs; \
-	git commit -am "Bump version to $${NEW_VERSION}"; \
-	git tag $(TAG_PREFIX)$${NEW_VERSION}; \
-	git push origin main; \
-	git push origin $(TAG_PREFIX)$${NEW_VERSION}
+	echo ""; \
+	echo "Bumped to $${NEW_VERSION}. Next:"; \
+	echo "  1. Add a $${NEW_VERSION} section to CHANGELOG.md"; \
+	echo "  2. Commit, push this branch and open a pull request against main"; \
+	echo "  3. Once it has merged, from an up-to-date main:"; \
+	echo "       git tag $(TAG_PREFIX)$${NEW_VERSION} && git push origin $(TAG_PREFIX)$${NEW_VERSION}"
 
-# To create a release (alpha, beta, or final) based on the version bump type
-release:
-	$(MAKE) bump-version TYPE=$(TYPE) PRE_RELEASE=$(PRE_RELEASE)
-
-# Print current version and tag it
+# Print the current version and the tag it will be released under
 show-version:
 	@echo "Current version: $(CURRENT_VERSION)"
 	@echo "Current tag: $(TAG_PREFIX)$(CURRENT_VERSION)"
