@@ -19,11 +19,9 @@ originals keep working.
 
 ## Authentication
 
-Without `--protected`, no route requires credentials — the server is bound to
-loopback and trusts whoever can reach it.
-
-With `--protected=true`, the server prints a **server access token** at startup.
-Exchange it for a JWT:
+Every route except `/api/health`, `/api/config` and `/auth/login` requires
+credentials. The server prints a **server access token** at startup — random per
+process unless `ZASPER_TOKEN` sets it. Exchange it for a JWT:
 
 ```http
 POST /auth/login
@@ -38,7 +36,10 @@ Content-Type: application/json
 
 Send the JWT as `Authorization: Bearer <jwt>` on every `/api` and `/static`
 route. WebSocket routes cannot carry headers, so they take `?token=<jwt>` in the
-query string instead; this is the only place a token belongs in a URL.
+query string instead; this is the only place the server reads a token from a URL.
+
+The link the server opens in a browser, `/?token=<access token>`, is for the
+frontend: it makes the same exchange and removes the token from the address bar.
 
 Tokens last 24 hours. The signing secret is random per process unless
 `ZASPER_JWT_SECRET` is set, so restarting the server invalidates issued tokens.

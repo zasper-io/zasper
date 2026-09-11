@@ -12,6 +12,7 @@ import (
 
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/zasper-io/zasper/internal/analytics"
@@ -33,7 +34,7 @@ func main() {
 	cwd := flag.String("cwd", ".", "base directory of project")
 	host := flag.String("host", "127.0.0.1", "interface to bind; 0.0.0.0 puts the server on the network")
 	port := flag.String("port", ":8048", "port to start the server on")
-	protected := flag.Bool("protected", false, "enable protected mode")
+	protected := flag.Bool("protected", true, "deprecated and ignored: Zasper always runs in protected mode")
 	tracking := flag.Bool("tracking", true, "enable usage tracking")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	noBrowser := flag.Bool("no-browser", false, "do not open the app in a browser on startup")
@@ -55,7 +56,12 @@ func main() {
 		log.Warn().Msg("no version.txt and no linked version; reporting version as unknown")
 	}
 
-	core.Zasper = core.SetUpZasper(version, *cwd, *protected)
+	// Still parsed, so that a script passing it keeps starting; it just no longer switches anything off.
+	if !*protected {
+		log.Warn().Msg("--protected=false is ignored: Zasper always runs in protected mode")
+	}
+
+	core.Zasper = core.SetUpZasper(version, *cwd, true)
 	server.SetUp()
 
 	router := server.NewRouter(getSpaHandler())
@@ -104,15 +110,7 @@ func main() {
 		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
 	}
 
-	// The server answers /api/contents and opens terminals, so binding it to the network without a
-	// token hands a shell to anyone who can reach the port. Loopback is the default; going wider is a
-	// deliberate act that deserves to be said out loud.
-	if !isLoopback(address) && !*protected {
-		log.Warn().Str("addr", address).
-			Msg("bound to a non-loopback address with protected mode off: anyone who can reach this port can read and write the project and open a terminal. Use --protected, or --host 127.0.0.1")
-	}
-
-	printBanner(address, core.ServerAccessToken, version, *protected, trackingOn)
+	printBanner(address, core.ServerAccessToken, version, trackingOn)
 
 	go func() {
 		handler := server.WithRequestLogging(log.Logger, logging.AccessLog(), corsOpts.Handler(router))
@@ -124,7 +122,7 @@ func main() {
 	// After the bind, so the page never races the server: a request that arrives before Serve is
 	// running waits in the listener's backlog.
 	if shouldOpenBrowser(*noBrowser, logging.Console(), runtime.GOOS, os.Getenv) {
-		launchBrowser(browsableURL(address))
+		launchBrowser(loginURL(address, core.ServerAccessToken))
 	}
 
 	<-stop
@@ -142,19 +140,16 @@ func main() {
 // printBanner announces the server to whoever is reading. A person at a terminal gets the banner;
 // output that is being collected as JSON gets the same facts as one structured line, because ASCII
 // art in a log collector is neither readable nor parseable.
-func printBanner(address string, accessToken string, version string, protected bool, tracking bool) {
+func printBanner(address string, accessToken string, version string, tracking bool) {
 	if !logging.Console() {
-		event := log.Info().
+		log.Info().
 			Str("version", version).
 			Str("addr", address).
 			Str("url", browsableURL(address)).
-			Bool("protected", protected).
-			Bool("tracking", tracking)
-		if protected {
 			// Without it a headless run has no way to authenticate, which is the same trade Jupyter makes.
-			event = event.Str("access_token", accessToken)
-		}
-		event.Msg("zasper server started")
+			Str("access_token", accessToken).
+			Bool("tracking", tracking).
+			Msg("zasper server started")
 		return
 	}
 
@@ -174,12 +169,8 @@ func printBanner(address string, accessToken string, version string, protected b
 	// server, the URL is the one a browser on this machine can actually open.
 	fmt.Printf(" 📡 Bound to:            %s\n", address)
 	fmt.Printf(" 🖥️  Webapp available at: %s\n", browsableURL(address))
-	if protected {
-		fmt.Println(" 🔒 Protected Mode:      enabled")
-		fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
-	} else {
-		fmt.Println(" 🔒 Protected Mode:      disabled")
-	}
+	fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
+	fmt.Printf(" 🔗 Sign in with:        %s\n", loginURL(address, accessToken))
 	if tracking {
 		fmt.Println(" 📊 Anonymous usage data: on  (--tracking=false to turn off)")
 		fmt.Println("                          see PRIVACY.md for what is sent")
@@ -218,19 +209,10 @@ func listenAddress(host, port string) string {
 	return net.JoinHostPort(host, strings.TrimPrefix(port, ":"))
 }
 
-// isLoopback answers whether an address is only reachable from this machine. A hostname that is not
-// an IP is treated as non-loopback unless it is localhost, since resolving it here would say more
-// about DNS than about what was bound.
-func isLoopback(address string) bool {
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return false
-	}
-	if host == "localhost" {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
+// loginURL is the link that signs a browser in on arrival, `/?token=` as in Jupyter. The server never
+// reads it: the frontend trades the token at /auth/login and takes it back out of the address bar.
+func loginURL(address, accessToken string) string {
+	return browsableURL(address) + "/?token=" + url.QueryEscape(accessToken)
 }
 
 // browsableURL turns a bind address into one a browser on this machine can open. 0.0.0.0 and :: are

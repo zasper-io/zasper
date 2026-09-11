@@ -32,24 +32,10 @@ func TestListenAddress(t *testing.T) {
 	}
 }
 
-func TestIsLoopback(t *testing.T) {
-	for address, want := range map[string]bool{
-		"127.0.0.1:8048": true,
-		"localhost:8048": true,
-		"[::1]:8048":     true,
-		"127.0.0.2:8048": true,
-		"0.0.0.0:8048":   false,
-		"[::]:8048":      false,
-		"192.168.1.5:80": false,
-		// Not an IP and not localhost: resolving it here would report on DNS rather than on what was
-		// bound, so it counts as reachable and earns the warning.
-		"example.com:8048": false,
-		"nonsense":         false,
-	} {
-		t.Run(address, func(t *testing.T) {
-			assert.Equal(t, want, isLoopback(address))
-		})
-	}
+// The browser is sent here, so the token has to arrive intact whatever ZASPER_TOKEN holds.
+func TestLoginURL(t *testing.T) {
+	assert.Equal(t, "http://localhost:8048/?token=14be1b67", loginURL("0.0.0.0:8048", "14be1b67"))
+	assert.Equal(t, "http://127.0.0.1:8048/?token=a+b%26c", loginURL("127.0.0.1:8048", "a b&c"))
 }
 
 func TestBrowsableURL(t *testing.T) {

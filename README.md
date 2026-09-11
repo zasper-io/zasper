@@ -275,7 +275,7 @@ They are the first thing on the list after 1.0.
   Jupyter's signature database, and stored `text/html` output can carry scripts
   that run when the notebook is opened — which is how Plotly and Bokeh outputs
   draw themselves. Treat a notebook you did not write the way you would treat any
-  downloaded file, and prefer running one you do not trust in protected mode.
+  downloaded file.
 
 ## Architecture
 ![architecture](./assets/architecture.svg)
@@ -304,33 +304,33 @@ prasunanand@Prasuns-Mac-mini example % zasper
  ✅ Server started successfully!
  📡 Bound to:            127.0.0.1:8048
  🖥️  Webapp available at: http://127.0.0.1:8048
- 🔒 Protected Mode:      disabled
+ 🔐 Server Access Token: 14be1b674a3b9196a82c01129028d0dd
+ 🔗 Sign in with:        http://127.0.0.1:8048/?token=14be1b674a3b9196a82c01129028d0dd
  📊 Anonymous usage data: on  (--tracking=false to turn off)
                           see PRIVACY.md for what is sent
 ==========================================================
 
 ```
 
-Zasper opens `http://127.0.0.1:8048` in your default browser. Pass
-`--no-browser` to leave it closed — for example when the server runs on a machine
-you reach over SSH.
+Zasper opens the **Sign in with** link in your default browser, so you arrive
+already logged in. Pass `--no-browser` to leave it closed — for example when the
+server runs on a machine you reach over SSH — and open the link yourself.
 
 
 ### 🚀 Hosting Zasper
 
-To host your own instance of Zasper, follow these steps:
+Zasper always runs in protected mode: every route except the health check needs
+a session, and a session comes from the access token printed at startup. To host
+your own instance of Zasper, follow these steps:
 
-### 1. Start the server in protected mode
+### 1. Start the server
 
-Run Zasper with the `--protected=true` flag to enable authentication:
 ```sh
-zasper --protected=true --host=0.0.0.0
+zasper --host=0.0.0.0 --no-browser
 ```
 
 `--host` is what makes the server reachable from another machine. Zasper binds
-`127.0.0.1` by default, because an unprotected server exposes your project files
-and a terminal to anyone who can reach the port — so widen it and turn on
-protected mode together, never one without the other.
+`127.0.0.1` by default; widen it only when you mean to.
 
 On startup, Zasper will display a banner with your server details:
 ```
@@ -348,28 +348,36 @@ On startup, Zasper will display a banner with your server details:
  ✅ Server started successfully!
  📡 Bound to:            127.0.0.1:8048
  🖥️  Webapp available at: http://127.0.0.1:8048
- 🔒 Protected Mode:      enabled
  🔐 Server Access Token: 14be1b674a3b9196a82c01129028d0dd
+ 🔗 Sign in with:        http://127.0.0.1:8048/?token=14be1b674a3b9196a82c01129028d0dd
 ==========================================================
 ```
 
-> **Note:** A unique `Server Access Token` is generated each time the server starts. To use a persistent token across restarts, set the `ZASPER_JWT_SECRET` environment variable before starting the server.
-
 ### 2. Log in
 
-Open [http://localhost:8048](http://localhost:8048) in your browser — you'll be redirected to the login page.
+Open the **Sign in with** link and you are logged in straight away; the page
+takes the token back out of the address bar as soon as it has used it. Treat that
+link like a password.
+
+Or open [http://localhost:8048](http://localhost:8048), which redirects to the
+login page, and paste the `Server Access Token` there.
 
 ![Server Login Page](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/login.png)
 
-Copy the `Server Access Token` from the console output and paste it into the login page to authenticate.
-
 ### 3. Persistent token (optional)
 
-By default, a new token is generated on every restart, which will invalidate any active sessions. To keep sessions alive across restarts, set a fixed secret before starting the server:
+A new access token is generated every time the server starts. To keep the same
+one, so that a link you have handed out keeps working, set it yourself:
+
+```sh
+export ZASPER_TOKEN=your-access-token
+```
+
+Sessions are signed with a secret that is also random per process, so a restart
+signs everyone out. To keep sessions alive across restarts, fix that too:
 
 ```sh
 export ZASPER_JWT_SECRET=your-secret-here
-zasper --protected=true
 ```
 
 ## Jupyter kernels
@@ -482,10 +490,10 @@ Usage of zasper:
     	base directory of project (default ".")
   -debug
     	sets log level to debug
+  -no-browser
+    	do not open the app in a browser on startup
   -port string
     	port to start the server on (default ":8048")
-  -protected
-    	enable protected mode
 ```
 
 # 🪵 Logging

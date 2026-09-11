@@ -8,9 +8,17 @@ running the app by hand.
 */
 import { readFileSync } from 'node:fs';
 
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
-import { fileTree, inProject, installedKernels, openApp, toolbarButton, treeRow } from './helpers';
+import {
+  fileTree,
+  inProject,
+  installedKernels,
+  openApp,
+  test,
+  toolbarButton,
+  treeRow,
+} from './helpers';
 
 const NOTEBOOK = 'Untitled.ipynb';
 

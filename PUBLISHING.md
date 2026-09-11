@@ -220,9 +220,9 @@ works there.
 ### Docker
 
 `docker/Dockerfile` builds an image from a release tag. Note that a container
-must bind beyond loopback to be reachable, so the image passes `--host 0.0.0.0`;
-run it with `--protected=true` if the port is exposed anywhere but your own
-machine.
+must bind beyond loopback to be reachable, so the image passes `--host 0.0.0.0`.
+Every route still needs the access token, which `docker logs` shows on the
+startup line.
 
 ---
 

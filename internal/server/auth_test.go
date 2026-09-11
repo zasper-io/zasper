@@ -146,6 +146,15 @@ func TestProtectedModeAcceptsTheLoginToken(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode)
 }
 
+// ZASPER_TOKEN replaces the random token, so a link or a script can carry it across restarts.
+func TestLoginAcceptsAPinnedAccessToken(t *testing.T) {
+	t.Setenv("ZASPER_TOKEN", "pinned-token")
+	srv, accessToken := protectedServer(t)
+
+	assert.Equal(t, "pinned-token", accessToken)
+	login(t, srv, "pinned-token")
+}
+
 func TestLoginRejectsTheWrongAccessToken(t *testing.T) {
 	srv, _ := protectedServer(t)
 
@@ -187,8 +196,8 @@ func TestWebsocketsAuthenticateByQueryParameter(t *testing.T) {
 
 /*
 A websocket is not same-origin by default the way fetch is, so without a CheckOrigin of our own any
-page open in the browser could reach these — in unprotected mode, which is the default, with nothing
-else in the way at all.
+page open in the browser could reach these — and in unprotected mode, which the handler tests still
+build, with nothing else in the way at all.
 */
 func TestWebsocketsRefuseAForeignOrigin(t *testing.T) {
 	srv, _ := testServer(t)

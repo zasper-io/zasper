@@ -33,5 +33,5 @@ WORKDIR /home/zasper
 EXPOSE 8048
 
 # --host 0.0.0.0 because a server bound to loopback inside a container is unreachable from the host.
-# That makes the port real, so anything exposing it beyond this machine should add --protected=true.
+# Every route still needs the access token, which `docker logs` shows on the startup line.
 CMD ["zasper", "--host=0.0.0.0"]

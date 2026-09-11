@@ -7,12 +7,12 @@ empty tree and nothing else.
 */
 import { expect, test } from '@playwright/test';
 
-import { fileTree, treeRow, watchForFailures } from './helpers';
+import { fileTree, signInPath, treeRow, watchForFailures } from './helpers';
 
 test('the project the server was started in is what the app shows', async ({ page }) => {
   const failures = watchForFailures(page);
 
-  await page.goto('/');
+  await page.goto(signInPath);
 
   await expect(page.getByRole('img', { name: 'Zasper' })).toBeVisible();
 
@@ -41,7 +41,7 @@ test('the project the server was started in is what the app shows', async ({ pag
 });
 
 test('a folder opens and its contents are listed', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(signInPath);
 
   await treeRow(page, 'data').click();
 

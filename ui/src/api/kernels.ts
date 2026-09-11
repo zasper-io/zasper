@@ -1,9 +1,14 @@
 import { IKernel, IKernelspecsState } from '../store/AppState';
-import { requestEmpty, requestJson } from './client';
+import { requestBlob, requestEmpty, requestJson } from './client';
 
 export async function listKernelspecs(): Promise<IKernelspecsState> {
   const res = await requestJson<{ kernelspecs?: IKernelspecsState }>('/api/kernelspecs');
   return res.kernelspecs || {};
+}
+
+/** A file from a kernelspec's `resources`, such as its logo, by the path listed there. */
+export function getKernelspecResource(path: string): Promise<Blob> {
+  return requestBlob(path);
 }
 
 /** The project's own .venv, under one name in every project: internal/kernelspec/interpreters.go. */

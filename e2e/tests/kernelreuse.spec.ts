@@ -9,9 +9,17 @@ still there afterwards.
 */
 import { readFileSync } from 'node:fs';
 
-import { APIRequestContext, expect, Page, test } from '@playwright/test';
+import { APIRequestContext, expect, Page } from '@playwright/test';
 
-import { fileTree, inProject, installedKernels, openApp, toolbarButton, treeRow } from './helpers';
+import {
+  fileTree,
+  inProject,
+  installedKernels,
+  openApp,
+  test,
+  toolbarButton,
+  treeRow,
+} from './helpers';
 
 const NOTEBOOK = 'Untitled.ipynb';
 

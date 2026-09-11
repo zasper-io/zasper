@@ -18,3 +18,6 @@ export const fixtureProject = join(e2eRoot, 'fixtures', 'project');
 /** Not 8048: that is the port a developer's own `make dev` is already on. */
 export const port = 8099;
 export const baseURL = `http://localhost:${port}`;
+
+/** Pinned through ZASPER_TOKEN, so the specs can sign in the way the startup link does. */
+export const accessToken = 'e2e-access-token';

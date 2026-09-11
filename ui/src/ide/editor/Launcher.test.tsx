@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,9 +16,11 @@ const createContent = vi.fn();
 const listKernelspecs = vi.fn();
 const startEnvironmentSetup = vi.fn();
 const getEnvironmentSetup = vi.fn();
+const getKernelspecResource = vi.fn();
 
 vi.mock('@/api', async () => ({
   createContent: (parentDir: string, type: string) => createContent(parentDir, type),
+  getKernelspecResource: (path: string) => getKernelspecResource(path),
   listKernelspecs: () => listKernelspecs(),
   startEnvironmentSetup: () => startEnvironmentSetup(),
   getEnvironmentSetup: () => getEnvironmentSetup(),
@@ -78,7 +80,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   createContent.mockResolvedValue({ name: 'Untitled.ipynb', path: 'Untitled.ipynb' });
   listKernelspecs.mockResolvedValue(kernelspecs);
+  getKernelspecResource.mockResolvedValue(new Blob(['<svg/>'], { type: 'image/svg+xml' }));
+  // jsdom has neither.
+  URL.createObjectURL = vi.fn(() => 'blob:logo');
+  URL.revokeObjectURL = vi.fn();
 });
+
+function logo(): HTMLImageElement | null {
+  return document.querySelector('.kernelSpecIconArea img');
+}
 
 describe('Launcher', () => {
   it('offers one tile per kernelspec, named by its display name', () => {
@@ -111,17 +121,38 @@ describe('Launcher', () => {
     renderLauncher({ deno: { name: 'deno', spec: { display_name: 'Deno' }, resources: {} } });
 
     expect(tile('Deno')).toBeInTheDocument();
-    expect(document.querySelector('.kernelSpecIconArea img')).not.toBeInTheDocument();
+    expect(logo()).not.toBeInTheDocument();
     expect(document.querySelector('.kernelSpecIconArea > .z-icon')).toBeInTheDocument();
+    expect(getKernelspecResource).not.toHaveBeenCalled();
   });
 
-  it('falls back to the glyph when a logo the kernelspec names cannot be loaded', () => {
-    renderLauncher();
+  // Through the api, which is what carries the session; a linked <img> was a 401 on every load.
+  it('draws the logo the kernelspec names, fetched with the session', async () => {
+    renderLauncher({ python3: kernelspecs.python3 });
 
-    const logo = document.querySelector('.kernelSpecIconArea img') as HTMLImageElement;
-    expect(logo).toBeInTheDocument();
-    fireEvent.error(logo);
+    await waitFor(() => expect(logo()).toHaveAttribute('src', 'blob:logo'));
+    expect(getKernelspecResource).toHaveBeenCalledWith('/kernelspecs/python3/logo-svg.svg');
+  });
 
+  it('falls back to the glyph when a logo the kernelspec names cannot be fetched', async () => {
+    getKernelspecResource.mockRejectedValue(new Error('401'));
+    renderLauncher({ python3: kernelspecs.python3 });
+
+    await waitFor(() => expect(getKernelspecResource).toHaveBeenCalled());
+    await act(async () => {});
+
+    expect(logo()).not.toBeInTheDocument();
+    expect(document.querySelector('.kernelSpecIconArea > .z-icon')).toBeInTheDocument();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the glyph when a fetched logo will not draw', async () => {
+    renderLauncher({ python3: kernelspecs.python3 });
+    await waitFor(() => expect(logo()).toBeInTheDocument());
+
+    fireEvent.error(logo()!);
+
+    expect(logo()).not.toBeInTheDocument();
     expect(document.querySelector('.kernelSpecIconArea > .z-icon')).toBeInTheDocument();
   });
 

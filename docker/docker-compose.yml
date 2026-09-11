@@ -8,8 +8,7 @@ services:
     container_name: zasper
     hostname: zasper
     ports:
-      # Published on loopback only. Change to "8048:8048" to expose it on the network, and add
-      # --protected=true to the command if you do.
+      # Published on loopback only. Change to "8048:8048" to expose it on the network.
       - "127.0.0.1:8048:8048"
     volumes:
       # The project Zasper opens. Point this at your notebooks.

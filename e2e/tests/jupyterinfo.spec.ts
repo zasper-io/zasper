@@ -8,9 +8,9 @@ a "Shut down" that says so without the kernel process going anywhere. What the s
 from `/api/kernels` at the end, because a panel with an empty list over a machine still running python is
 exactly the failure a mock cannot see.
 */
-import { APIRequestContext, Locator, Page, expect, test } from '@playwright/test';
+import { APIRequestContext, Locator, Page, expect } from '@playwright/test';
 
-import { installedKernels, openApp, toolbarButton } from './helpers';
+import { installedKernels, openApp, test, toolbarButton } from './helpers';
 
 const NOTEBOOK = 'Untitled.ipynb';
 

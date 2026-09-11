@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Launcher.scss';
-import { BaseApiUrl } from '@/config';
 import {
   ApiError,
   ContentType,
@@ -8,6 +7,7 @@ import {
   PROJECT_KERNEL_NAME,
   createContent,
   getEnvironmentSetup,
+  getKernelspecResource,
   logApiError,
   startEnvironmentSetup,
 } from '@/api';
@@ -110,16 +110,45 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
  * and the file a spec does name can be missing, which is the same broken tile by a different route.
  * Both drew an image with `src` set to the string "undefined", since that is what a template literal
  * makes of one.
+ *
+ * Fetched rather than linked: an `<img>` request cannot carry the session, so a linked logo is a 401.
  */
 const KernelLogo: React.FC<{ resources: Record<string, string> }> = ({ resources }) => {
+  const [src, setSrc] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const logoPath =
     resources?.['logo-svg'] || resources?.['logo-64x64'] || resources?.['logo-32x32'];
 
-  if (logoPath === undefined || logoPath === '' || unavailable) {
+  useEffect(() => {
+    if (!logoPath) {
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    getKernelspecResource(logoPath)
+      .then((blob) => {
+        if (!cancelled) {
+          objectUrl = URL.createObjectURL(blob);
+          setSrc(objectUrl);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUnavailable(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl !== null) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [logoPath]);
+
+  if (!logoPath || unavailable || src === null) {
     return <Icon name="cpu" />;
   }
-  return <img src={`${BaseApiUrl}${logoPath}`} alt="" onError={() => setUnavailable(true)} />;
+  return <img src={src} alt="" onError={() => setUnavailable(true)} />;
 };
 
 interface NoticeProps {

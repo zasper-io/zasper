@@ -1,12 +1,36 @@
 import { join } from 'node:path';
 
-import { APIRequestContext, expect, Locator, Page } from '@playwright/test';
+import { APIRequestContext, expect, Locator, Page, test as base } from '@playwright/test';
 
-import { projectDir } from '../paths';
+import { accessToken, projectDir } from '../paths';
+
+/** The link the server opens on startup, which signs the page in on arrival. */
+export const signInPath = `/?token=${accessToken}`;
+
+/**
+ * `test`, with a `request` that carries a session. Playwright's own cannot sign in, and every /api
+ * route answers 401 without one.
+ */
+export const test = base.extend({
+  request: async ({ playwright, baseURL }, use) => {
+    const anonymous = await playwright.request.newContext({ baseURL });
+    const answer = await anonymous.post('/auth/login', { data: { accessToken } });
+    expect(answer.ok(), 'the e2e access token was refused').toBeTruthy();
+    const { token } = (await answer.json()) as { token: string };
+    await anonymous.dispose();
+
+    const request = await playwright.request.newContext({
+      baseURL,
+      extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+    });
+    await use(request);
+    await request.dispose();
+  },
+});
 
 /** Opens the app and waits until the file browser has something in it. */
 export async function openApp(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto(signInPath);
   await expect(fileTree(page)).toBeVisible();
 }
 

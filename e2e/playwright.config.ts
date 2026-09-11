@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 import {
+  accessToken,
   baseURL,
   e2eRoot,
   fixtureProject,
@@ -79,6 +80,7 @@ export default defineConfig({
       ZASPER_E2E_HOME: homeDir,
       ZASPER_E2E_PROJECT: projectDir,
       ZASPER_E2E_FIXTURE: fixtureProject,
+      ZASPER_TOKEN: accessToken,
     },
   },
 });
