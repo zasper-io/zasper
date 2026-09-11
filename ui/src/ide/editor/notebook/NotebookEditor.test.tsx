@@ -86,6 +86,7 @@ const firstRequestId = 'generated-cell-1';
 interface IFakeSocket {
   url: string;
   sent: string[];
+  opened: boolean;
   closed: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   receive: (message: any) => void;
@@ -96,17 +97,26 @@ const { sockets, FakeSocket } = vi.hoisted(() => {
   const sockets: IFakeSocket[] = [];
 
   class FakeSocket {
+    // Off for a test that has to hold the socket unopened, rather than race the timer below.
+    static autoOpen = true;
+
     readyState = 1; // WebSocket.OPEN
     onopen: (() => void) | null = null;
     onmessage: ((message: { data: string }) => void) | null = null;
     onerror: ((error: unknown) => void) | null = null;
     onclose: (() => void) | null = null;
     sent: string[] = [];
+    opened = false;
     closed = false;
 
     constructor(readonly url: string) {
       sockets.push(this);
-      setTimeout(() => this.onopen?.(), 0);
+      if (FakeSocket.autoOpen) {
+        setTimeout(() => {
+          this.opened = true;
+          this.onopen?.();
+        }, 0);
+      }
     }
 
     send(message: string) {
@@ -274,14 +284,33 @@ describe('NotebookEditor', () => {
    * kernel whose client has gone away — so a notebook opened and closed all afternoon would hold a
    * socket for every time.
    */
+  // Waits for the socket to open, so the order is certain: it used to unmount as soon as the socket
+  // existed, which on a fast machine was before it opened and failed on the bug below.
   it('closes the kernel socket when the notebook goes away, and leaves the session alone', async () => {
     const { unmount } = render(<NotebookEditor data={tab} />);
-    await waitFor(() => expect(sockets).toHaveLength(1));
+    await waitFor(() => expect(sockets[0]?.opened).toBe(true));
 
     unmount();
 
     expect(sockets[0].closed).toBe(true);
     expect(deleteSession).not.toHaveBeenCalled();
+  });
+
+  // The other order: a tab closed while its kernel was still connecting. That socket was not yet the
+  // notebook's connection, so nothing closed it.
+  it('closes a kernel socket that has not opened yet when the notebook goes away', async () => {
+    FakeSocket.autoOpen = false;
+    try {
+      const { unmount } = render(<NotebookEditor data={tab} />);
+      await waitFor(() => expect(sockets).toHaveLength(1));
+
+      unmount();
+
+      expect(sockets[0].opened).toBe(false);
+      expect(sockets[0].closed).toBe(true);
+    } finally {
+      FakeSocket.autoOpen = true;
+    }
   });
 
   // Reordering, which the notebook had no way to do before: the chevrons in the cell toolbar move the

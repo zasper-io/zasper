@@ -143,6 +143,10 @@ export function useKernelSession(
    * those requests makes a previous run's output indistinguishable from this one's.
    */
   const executingCells = useRef(new Map<string, string>());
+
+  // Sockets opened but not yet `connection`: the gap between `new` and the state update, which the
+  // effect that closes the connection cannot see.
+  const pendingSockets = useRef(new Set<IKernelWebSocketClient>());
   /**
    * The same set of cells as `executingCells`, as state rather than a ref, so that a cell can draw a
    * spinner for as long as it is actually running. The ref cannot do that job — writing to one is
@@ -224,6 +228,7 @@ export function useKernelSession(
             session_id: newSession.id,
           })
         );
+        pendingSockets.current.add(client);
 
         // Only once the socket is open: a widget output on a page that has just been reloaded asks
         // the kernel about the widgets it already has, and a question sent before the socket is up is
@@ -291,11 +296,25 @@ export function useKernelSession(
     if (connection === disconnectedClient) {
       return;
     }
+    pendingSockets.current.delete(connection);
     return () => {
       connection.onclose = () => {};
       connection.close();
     };
   }, [connection]);
+
+  // A tab closed while its kernel was still connecting: that socket was never `connection`, so nothing
+  // above closes it, and it would run for as long as the page did.
+  useEffect(() => {
+    const pending = pendingSockets.current;
+    return () => {
+      for (const client of pending) {
+        client.onclose = () => {};
+        client.close();
+      }
+      pending.clear();
+    };
+  }, []);
 
   /*
    * Publish this kernel's state for anything outside the notebook that wants it — the Jupyter info

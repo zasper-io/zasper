@@ -1,6 +1,7 @@
 name: zasper
 base: core22
 version: '1.0.0'
+license: AGPL-3.0
 summary: High Performance IDE for Jupyter Notebooks
 description: |
   Zasper is a High Performance IDE for Jupyter Notebooks.
