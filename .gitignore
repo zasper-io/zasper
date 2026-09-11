@@ -44,3 +44,4 @@ kernelConnection.json
 
 # GoReleaser build output
 /dist
+/todos

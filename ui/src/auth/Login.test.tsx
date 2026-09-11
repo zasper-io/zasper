@@ -8,7 +8,6 @@ import { ApiError } from '@/api/client';
 
 const login = vi.fn();
 const navigate = vi.fn();
-const toastError = vi.fn();
 
 vi.mock('@/api', async () => ({
   login: (token: string) => login(token),
@@ -16,7 +15,7 @@ vi.mock('@/api', async () => ({
 }));
 
 vi.mock('react-toastify', () => ({
-  toast: { success: vi.fn(), error: (message: string) => toastError(message) },
+  toast: { success: vi.fn(), error: vi.fn() },
   ToastContainer: () => null,
 }));
 
@@ -26,7 +25,7 @@ vi.mock('react-router-dom', async () => ({
 }));
 
 function renderLogin() {
-  render(
+  return render(
     <MemoryRouter>
       <Login />
     </MemoryRouter>
@@ -34,10 +33,10 @@ function renderLogin() {
 }
 
 function submit(token: string) {
-  fireEvent.change(screen.getByLabelText('Enter Server access token'), {
+  fireEvent.change(screen.getByLabelText('Server access token'), {
     target: { value: token },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
 beforeEach(() => {
@@ -57,15 +56,52 @@ describe('Login', () => {
     expect(navigate).toHaveBeenCalledWith('/');
   });
 
-  it('says which failure it was, and clears the field', async () => {
+  it('says in the form that the token was rejected, and clears the field', async () => {
     login.mockRejectedValue(new ApiError('POST', '/login', 401, 'unauthorized'));
     renderLogin();
+    expect(screen.queryByRole('alert')).toBeNull();
 
     submit('the-wrong-one');
 
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Invalid username or password'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('That token was not accepted.');
     expect(navigate).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Enter Server access token')).toHaveValue('');
+    expect(screen.getByLabelText('Server access token')).toHaveValue('');
+  });
+
+  it('submits on Enter, as a form', async () => {
+    login.mockResolvedValue({ token: 'abc123', redirect_path: '/' });
+    renderLogin();
+
+    const field = screen.getByLabelText('Server access token');
+    fireEvent.change(field, { target: { value: 'typed' } });
+    fireEvent.submit(field.closest('form')!);
+
+    await waitFor(() => expect(login).toHaveBeenCalledWith('typed'));
+  });
+
+  it('shows the token on request', () => {
+    renderLogin();
+    const field = screen.getByLabelText('Server access token');
+    const reveal = screen.getByRole('button', { name: 'Show token' });
+    expect(field).toHaveAttribute('type', 'password');
+
+    fireEvent.click(reveal);
+
+    expect(field).toHaveAttribute('type', 'text');
+    expect(reveal).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  // Off the platform check in commands/keys.ts, jsdom is not a Mac, so Mod is Ctrl here.
+  it('zooms with Mod +/-/0, as the IDE does, and remembers the level', () => {
+    renderLogin();
+
+    fireEvent.keyDown(window, { key: '0', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '=', ctrlKey: true });
+    expect(localStorage.getItem('zasper.zoom')).toBe('1');
+
+    fireEvent.keyDown(window, { key: '-', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '-', ctrlKey: true });
+    expect(localStorage.getItem('zasper.zoom')).toBe('-1');
   });
 
   it('does not ask for a token that is already held', () => {
@@ -75,9 +111,7 @@ describe('Login', () => {
     expect(navigate).toHaveBeenCalledWith('/', { replace: true });
   });
 
-  // The carousel, which is four <li>s and a keyframe now that swiper is gone: every sentence is in
-  // the DOM and in source order, which is what anything reading the page gets. What the animation
-  // does is not this test's business — that it is CSS is the point.
+  // Every sentence is in the DOM and in source order; that the animation is CSS is the point.
   it('carries all four sentences, whether or not they are moving', () => {
     renderLogin();
 
@@ -92,11 +126,7 @@ describe('Login', () => {
 
   // Bootstrap's grid and navbar came out with this page, and they were only ever here.
   it('wears none of the Bootstrap grid that came out with it', () => {
-    const { container } = render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>
-    );
+    const { container } = renderLogin();
 
     expect(container.querySelectorAll('.container, .row, .col-12, .navbar, .mx-auto')).toHaveLength(
       0

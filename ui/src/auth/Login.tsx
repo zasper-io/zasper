@@ -2,10 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import { ApiError, login } from '@/api';
+import { useAppCommands } from '@/commands/appCommands';
+import { useRegisterCommands } from '@/commands/registry';
+import { useCommandKeymap } from '@/commands/useCommandKeymap';
+import { Icon } from '@/ide/icons';
+import { useApplyZoom } from '@/zoom/useApplyZoom';
 import './Login.scss';
+
+function failureMessage(status: number): string {
+  switch (status) {
+    case 401:
+      return 'That token was not accepted. Copy it again from the terminal where Zasper is running.';
+    case 403:
+      return 'Account is not activated.';
+    case 500:
+      return 'Internal server error.';
+    default:
+      return 'Unknown error.';
+  }
+}
 
 function Login() {
   const navigate = useNavigate();
+
+  // Cmd +/-/0, as in the IDE: the zoom commands, the one dispatcher, and the effect that applies them.
+  useCommandKeymap();
+  useRegisterCommands(useAppCommands());
+  useApplyZoom();
 
   useEffect(() => {
     const token = localStorage.getItem('token'); // Or your auth key
@@ -14,73 +37,104 @@ function Login() {
     }
   }, [navigate]);
 
-  const [form, setForm] = useState({ accessToken: '' });
+  const [accessToken, setAccessToken] = useState('');
+  const [revealed, setRevealed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submitLogin = async () => {
+  const submitLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
     try {
-      const data = await login(form.accessToken);
+      const data = await login(accessToken);
       toast.success('Login successful');
       localStorage.setItem('token', data.token); // store for auth headers
       navigate(data.redirect_path);
-    } catch (error) {
-      const status = error instanceof ApiError ? error.status : 0;
-      if (status === 401) {
-        toast.error('Invalid username or password');
-      } else if (status === 403) {
-        toast.error('Account is not activated');
-      } else if (status === 500) {
-        toast.error('Internal server error');
-      } else {
-        toast.error('Unknown error');
-      }
+    } catch (err) {
+      setError(failureMessage(err instanceof ApiError ? err.status : 0));
     }
-    setForm({ accessToken: '' });
+    setAccessToken('');
   };
 
   return (
-    <section className="login-page">
-      {/* The page's own header, and all there was ever a `.navbar` here for: one logo, on the left. */}
-      <header className="login-header">
-        <Link to="/">
-          <img src="./images/logo.svg" alt="Zasper" />
-        </Link>
-      </header>
-
-      <div className="login-section">
-        <div className="login-signup-wraper">
-          <div className="login-signup-content">
-            <div>
-              <div className="login-section-image">
-                <img src="./images/header-image.svg" alt="" />
-              </div>
-              <TextCarousel />
-            </div>
+    <div className="login-root">
+      <section className="login-page">
+        <div className="login-hero">
+          <Link to="/" className="login-hero-brand">
+            <img className="login-hero-logo" src="./images/logo-white.svg" alt="Zasper" />
+          </Link>
+          <div className="login-hero-body">
+            <p className="login-hero-title">High-performance IDE, inspired by Jupyter.</p>
+            <TextCarousel />
           </div>
-          <div className="login-signup-form">
-            <div className="login-signup-form-wraper">
-              <form>
-                <label htmlFor="accessToken">Enter Server access token</label>
-                <input
-                  id="accessToken"
-                  type="password"
-                  name="password"
-                  placeholder="Server Access Token"
-                  // Controlled, so that the `setForm` after a failed attempt is a cleared field
-                  // rather than state nobody can see: the input had no `value`, and the rejected
-                  // token stayed in it.
-                  value={form.accessToken}
-                  onChange={(e) => setForm({ ...form, accessToken: e.target.value })}
-                />
-                <button type="button" onClick={submitLogin}>
-                  Login
-                </button>
-              </form>
-            </div>
-          </div>
+          <p className="login-hero-foot">
+            Open source on{' '}
+            <a href="https://github.com/zasper-io/zasper" target="_blank" rel="noopener noreferrer">
+              GitHub
+            </a>
+          </p>
         </div>
-      </div>
+
+        <div className="login-panel">
+          <form className="login-form" onSubmit={submitLogin}>
+            <h1 className="login-form-title">Sign in</h1>
+            <p className="login-form-lede">
+              This server is running in protected mode. Enter its access token to open your
+              workspace.
+            </p>
+            {error !== null && (
+              <div className="z-notice z-notice-error" role="alert">
+                <Icon name="circle-alert" />
+                <p>{error}</p>
+              </div>
+            )}
+            <label htmlFor="accessToken">Server access token</label>
+            <div className="login-field">
+              <input
+                id="accessToken"
+                type={revealed ? 'text' : 'password'}
+                name="password"
+                placeholder="Paste the token"
+                autoComplete="current-password"
+                aria-describedby="accessToken-help"
+                // Controlled, so a rejected token is cleared rather than left in the box.
+                value={accessToken}
+                onChange={(e) => setAccessToken(e.target.value)}
+              />
+              <button
+                type="button"
+                className="z-icon-button"
+                aria-label="Show token"
+                aria-pressed={revealed}
+                onClick={() => setRevealed(!revealed)}
+              >
+                <Icon name={revealed ? 'eye-off' : 'eye'} />
+              </button>
+            </div>
+            <p className="z-form-help" id="accessToken-help">
+              Printed in the terminal where Zasper is running, on the line{' '}
+              <code>Server Access Token</code>.
+            </p>
+            <button type="submit">
+              Sign in <Icon name="arrow-right" />
+            </button>
+          </form>
+          <footer className="login-panel-foot">
+            <nav>
+              <a href="https://zasper.io/docs" target="_blank" rel="noopener noreferrer">
+                Documentation
+              </a>
+              <a
+                href="https://github.com/zasper-io/zasper/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Report an issue
+              </a>
+            </nav>
+          </footer>
+        </div>
+      </section>
       <ToastContainer />
-    </section>
+    </div>
   );
 }
 

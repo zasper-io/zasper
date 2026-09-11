@@ -1,120 +1,74 @@
-// /login.
-//
-// The one screen that is not the IDE: no rail, no sidebar, no status bar, and — until the theme was
-// remembered in localStorage (src/themes/index.ts) — no theme either, which is why every reader saw
-// index.html's teal here whatever they had chosen.
-//
-// It is also the only page in the app that used Bootstrap's `.navbar`, `.container`, `.row` and
-// `.col-12`, and it was the whole reason three partials were still compiled: 21.6 kB for one screen
-// whose layout is a centred column with a two-div flex row inside it. Those class names are gone and
-// the rules below are on the page's own, which is what the design prototype drew them against.
+// /login: two halves of the window, the hero on the accent and the form on the panel. The one screen
+// that is not the IDE, and the one that renders before there is a config — main.tsx applies the
+// theme remembered in localStorage (src/themes/index.ts) so it opens in the reader's colours.
+
+// The container the layout answers to, rather than the window: #root carries the zoom (src/zoom), and
+// a media query measures the unzoomed viewport, so a zoomed-in login never stacked.
+.login-root {
+  height: 100%;
+  container-type: inline-size;
+}
 
 .login-page {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   // 100%, not 100vh: the page sits inside #root, which zoom scales, and a viewport unit is not
   // rescaled by it. See styles/_base.scss for the height chain this is the end of.
   min-height: 100%;
-  background: var(--z-bg-login-page);
-  // Content, not chrome: this page is read once, and the labels, the button and the slider all
-  // inherit it from here.
+  background: var(--z-bg-panel);
   font-size: var(--z-font-size-body);
   line-height: var(--z-line-height-body);
 }
 
-// One logo, on the left, which is all the `.navbar` ever held. The measure below is `.container`'s —
-// 1140px and 12px of gutter — kept because the decoration behind the card is sized against it.
-.login-header {
-  width: 100%;
-  max-width: 1140px;
-  margin: 0 auto;
-  padding: 12px;
-}
-
-.login-section {
-  // The decoration hangs off this: it used to hang off `.col-12`, which was this element wearing a
-  // grid class that no longer exists.
-  position: relative;
-  width: 100%;
-  max-width: 1140px;
-  margin: 100px auto;
-  padding: 0 12px;
-}
-
-// The plinth the card appears to stand on. `shape.svg` is one path in one flat `#e5e4ea`, so it is
-// used as a mask and painted from a token: as a background it was a pale lavender slab, which nobody
-// noticed while this page was always light and which is a lit shelf in a dark room now that it is not.
-.login-section:after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -48px;
-  width: 100%;
-  height: 116px;
-  background: var(--z-bg-login-plinth);
-  mask: url(shape.svg) no-repeat center / contain;
-  -webkit-mask: url(shape.svg) no-repeat center / contain;
-  transform: translate(-50%, 10px);
-  z-index: 0;
-}
-
-.login-signup-wraper {
-  display: flex;
-  justify-content: space-between;
-  width: 85%;
-  margin: 0 auto;
-  border-radius: 40px;
-  overflow: hidden;
-  box-shadow: var(--z-shadow-login);
-  // Above the decoration, which is drawn behind and below the card.
-  position: relative;
-  z-index: 1;
-}
-
-.login-signup-wraper > div {
-  width: 50%;
-}
-
 /* ===== Hero (left half) ===== */
 
-// The dark end of the accent ramp in both polarities — see the `[data-accent]` block in
-// styles/_accents.scss. It was a purple gradient nobody chose, next to a teal link and a teal button.
-.login-signup-content {
+// `--z-bg-login-hero` is --a-600 to --a-900 in every theme (styles/_accents.scss), so it carries
+// white text in both polarities.
+.login-hero {
+  display: flex;
+  flex-direction: column;
+  padding: 40px 48px;
   background: var(--z-bg-login-hero);
   color: var(--z-fg-on-accent);
-  padding: 40px;
-  display: flex;
-  align-items: center;
-  text-align: center;
 }
 
-.login-signup-content > div {
-  width: 100%;
+.login-hero-brand {
+  align-self: flex-start;
 }
 
-.login-section-image img {
-  width: 424px;
-  max-width: 100%;
-  margin: 0 auto;
+.login-hero-logo {
+  display: block;
+  width: auto;
+  height: 40px;
+}
+
+// Centred in what the brand and the foot leave, not in the whole half.
+.login-hero-body {
+  max-width: 420px;
+  margin: auto 0;
+}
+
+.login-hero-title {
+  margin: 0 0 20px;
+  font-size: var(--z-font-size-title);
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 // Four sentences in one cell, so the box is as tall as the tallest of them and nothing below it moves
 // when the sentence changes. `grid-area: 1 / 1` on every child is the whole of the stacking.
 .login-slider {
   display: grid;
-  width: 70%;
-  margin: 24px auto 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .login-slider-text {
   grid-area: 1 / 1;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: var(--z-font-size-subheading);
   opacity: 0;
-  // 10s for four slides, and each one's turn starts at its own `animation-delay` (Login.tsx). This
-  // replaces swiper, which was 3.8 MB installed and 88 kB of the login chunk for the same fade.
+  // 10s for four slides, and each one's turn starts at its own `animation-delay` (Login.tsx).
   animation: login-slide 10s linear infinite;
 }
 
@@ -138,8 +92,7 @@
   }
 }
 
-// What swiper's autoplay had no answer for. The first sentence stays, which is the honest still frame
-// of a rotator: the other three are in the DOM and in source order for anything that reads the page.
+// The first sentence stays, which is the honest still frame of a rotator.
 @media (prefers-reduced-motion: reduce) {
   .login-slider-text {
     animation: none;
@@ -150,71 +103,166 @@
   }
 }
 
+.login-hero-foot {
+  margin: 0;
+  font-size: var(--z-ui-font-size);
+  opacity: 0.85;
+}
+
+.login-hero-foot a {
+  color: inherit;
+}
+
 /* ===== Form (right half) ===== */
 
-// Centres the form against the hero on the left: the two halves are `width: 50%` of a flex
-// row, so this one is as tall as the hero image but its content is only ~160px.
-.login-signup-form {
-  padding: 40px;
-  background: var(--z-bg-panel);
+.login-panel {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  padding: 40px 48px 24px;
 }
 
-.login-signup-form-wraper {
-  width: 79%;
-  margin: 0 auto;
-}
-
-.login-signup-form-wraper label {
-  display: block;
-  color: var(--z-fg-muted);
-  margin-bottom: 13px;
-}
-
-// Not a `.z-field`: these are a form on a page rather than controls in a 240px panel, so they are
-// measured at the page's scale — 12px of padding and a 10px radius against the field's 3px. The
-// colours are the same tokens, which is the part that matters.
-.login-signup-form-wraper input {
+.login-form {
   width: 100%;
-  padding: 12px 15px;
-  margin-bottom: 12px;
+  max-width: 340px;
+  margin: auto;
+}
+
+.login-form-title {
+  margin: 0 0 8px;
+  color: var(--z-fg-default);
+  font-size: var(--z-font-size-heading);
+  font-weight: 600;
+}
+
+.login-form-lede {
+  margin: 0 0 24px;
+  color: var(--z-fg-muted);
+}
+
+.login-form label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--z-fg-default);
+  font-weight: 500;
+}
+
+// Not a `.z-field`: a form on a page is measured at the page's scale, and only the tokens are the
+// field's.
+.login-form input {
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0 40px 0 12px;
   border: 1px solid var(--z-border-field);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--z-bg-field);
   color: var(--z-fg-default);
   font: inherit;
 }
 
-.login-signup-form-wraper p {
-  color: var(--z-fg-muted);
-  margin-bottom: 13px;
+.login-form input:focus {
+  border-color: var(--z-accent);
+  outline: 1px solid var(--z-accent);
 }
 
-.login-signup-form-wraper > p {
-  text-align: center;
-  margin-top: 8px;
+.login-field {
+  position: relative;
 }
 
-.login-signup-form-wraper a {
-  color: var(--z-fg-accent);
-  font-weight: 500;
+.login-field .z-icon-button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  color: var(--z-fg-icon);
+  transform: translateY(-50%);
 }
 
-.login-signup-form-wraper button {
-  border: none;
-  background: var(--z-accent);
+// A direct child only, so the reveal button inside `.login-field` keeps `.z-icon-button`'s shape.
+.login-form > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
-  padding: 10px;
-  font: inherit;
-  font-size: 15px;
-  font-weight: 400;
-  border-radius: 10px;
-  margin: 15px 0 10px;
+  height: 40px;
+  margin: 20px 0 0;
+  padding: 0 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--z-accent);
   color: var(--z-fg-on-accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
 }
 
-.login-signup-form-wraper button:hover {
+.login-form > button:hover {
   background: var(--z-accent-active);
+}
+
+.login-form .z-notice {
+  margin-bottom: 16px;
+}
+
+.login-panel-foot {
+  display: flex;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.login-panel-foot nav {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.login-panel-foot a {
+  color: inherit;
+}
+
+// Halves under 480px: less padding, and a title that still fits three words to a line.
+@container (max-width: 960px) {
+  .login-hero,
+  .login-panel {
+    padding-inline: 32px;
+  }
+
+  .login-hero-title {
+    font-size: var(--z-font-size-heading);
+  }
+}
+
+// Narrow: the hero becomes a band above the form, and its foot goes because the panel's already says
+// where to look.
+@container (max-width: 720px) {
+  .login-page {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .login-hero {
+    padding: 24px;
+  }
+
+  .login-hero-body {
+    margin: 24px 0 0;
+  }
+
+  .login-hero-title {
+    font-size: var(--z-font-size-heading);
+  }
+
+  .login-hero-foot {
+    display: none;
+  }
+
+  .login-panel {
+    padding: 32px 24px 20px;
+  }
+
+  .login-form {
+    margin: 0 auto 32px;
+  }
 }

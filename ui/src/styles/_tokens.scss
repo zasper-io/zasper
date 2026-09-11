@@ -303,17 +303,9 @@
   --z-mark-java: #a46a17; // from #b07219, 3.99:1
 
   // --- Login ----------------------------------------------------------------
-  // /login is its own surface — a full-bleed marketing panel next to the form —
-  // so it gets its own tokens rather than reusing the IDE chrome. All three are
-  // taken off the accent ramp in _accents.scss; these are the purple they were,
-  // and the last place in the app it survives.
-  --z-bg-login-page: linear-gradient(119deg, #ffffff 0%, #d6d4e0 100%);
+  // /login's hero, the left half of the page. Taken off the accent ramp in _accents.scss; this is the
+  // purple it was, and the last place in the app it survives.
   --z-bg-login-hero: linear-gradient(133deg, #594c91 0%, #221c3c 100%);
-  --z-shadow-login: 0px 3px 36px #d6d0e8;
-  // The plinth under the card, one shade lighter than the page it sits on. This is `auth/shape.svg`'s
-  // own fill, which the asset no longer decides: it is a mask now, because a colour baked into an SVG
-  // cannot follow a theme.
-  --z-bg-login-plinth: #e5e4ea;
 
   // --- DataFrame output ---------------------------------------------------
   // Ten `--z-df-*` were here, and every one of them resolved into a name this file already had once
@@ -519,12 +511,6 @@
   // read correctly while modal bodies were still Bootstrap-white. Now that
   // .modal-content follows --z-bg-modal, a backdrop has to darken.
   --z-overlay-backdrop: rgba(0, 0, 0, 0.6);
-
-  --z-bg-login-page: linear-gradient(119deg, #2a2a2a 0%, #171720 100%);
-  --z-shadow-login: 0px 3px 36px #000000;
-  // Still one shade lighter than the page below the card, which here is a very dark grey rather than a
-  // pale one. The panel's own surface, so the plinth and the form half read as the same material.
-  --z-bg-login-plinth: #272727;
 
   // This theme's output box is #353535, which is what the sixteen above were measured against.
   @include ansi-on-dark;

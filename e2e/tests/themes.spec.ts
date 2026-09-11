@@ -121,14 +121,14 @@ test('the login page follows the theme the IDE was left in', async ({ page }) =>
   await chooseTheme(page, 'orange-dark');
 
   await page.goto('/login');
-  await expect(page.locator('.login-signup-wraper')).toBeVisible();
+  await expect(page.locator('.login-form')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'orange');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
   // The hero is the dark end of the hue's ramp in both polarities: #b35110 to #5e2b08 for orange, and
   // the purple it used to be in every theme is now only the fallback in _tokens.scss.
   const hero = await page
-    .locator('.login-signup-content')
+    .locator('.login-hero')
     .evaluate((panel) => getComputedStyle(panel).backgroundImage);
   expect(hero).toContain('rgb(179, 81, 16)');
   expect(hero).toContain('rgb(94, 43, 8)');

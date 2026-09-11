@@ -471,3 +471,29 @@ test("a rendered markdown cell is set in the app's own scale", async ({ page }) 
   // which is what Bootstrap did here and the one part of it worth keeping.
   expect(paragraph.marginTop, 'the paragraph carries the browser default margin').toBe('0px');
 });
+
+/*
+/login answers to its container rather than the window: #root carries the zoom, and a media query
+cannot see it, so a zoomed-in login on a laptop-sized window never stacked.
+*/
+test('the login page zooms from the keyboard and stacks when zoomed in', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/login');
+
+  const root = page.locator('#root');
+  const loginPage = page.locator('.login-page');
+  await expect(loginPage).toBeVisible();
+  const columns = () =>
+    loginPage.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
+  expect(await columns()).toBe(2);
+
+  for (let step = 0; step < 4; step++) {
+    await page.keyboard.press('ControlOrMeta+=');
+  }
+  await expect(root).toHaveCSS('zoom', '2.0736');
+  await expect.poll(columns).toBe(1);
+
+  await page.keyboard.press('ControlOrMeta+0');
+  await expect(root).toHaveCSS('zoom', '1');
+  await expect.poll(columns).toBe(2);
+});

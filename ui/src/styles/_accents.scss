@@ -211,16 +211,6 @@ $dark-panel: #272727;
   // Today this is #8f54a0 — a magenta that belongs to no other token in the app. Folded back into
   // the ramp, which is a change of one pixel-wide surface and the smallest honest improvement here.
   --z-scrollbar-thumb: var(--a-600);
-
-  // /login's page, and the shadow the card sits in. White to the palest tint of the hue, which is
-  // what the purple these replace was: #d6d4e0 and #d6d0e8, two hand-mixed lavenders a step apart
-  // that no other token in the app used. One step for both, because at 36px of blur nobody can see
-  // the difference between them.
-  --z-bg-login-page: linear-gradient(119deg, #ffffff 0%, var(--a-100) 100%);
-  --z-shadow-login: 0px 3px 36px var(--a-100);
-  // The plinth, a step paler than the page's far end so that it reads as a lit shape and not as a
-  // shadow — which is the relationship #e5e4ea had to the lavender it stood on.
-  --z-bg-login-plinth: var(--a-50);
 }
 
 // The hero, in both polarities. Not in either mapping above because --a-600 to --a-900 is dark
