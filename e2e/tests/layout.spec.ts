@@ -71,6 +71,80 @@ async function openNotebook(page: Page): Promise<void> {
   await expect(page.locator('.text-editor-tool')).toBeVisible();
 }
 
+/*
+The topbar as the prototype draws it. Each number was a mismatch against the drawing that nothing but a
+browser could see, and the even height is what puts both the mark and the search box on whole pixels.
+*/
+test('the topbar is the size the prototype draws', async ({ page }) => {
+  await openApp(page);
+  const box = async (selector: string) => {
+    const found = await page.locator(selector).boundingBox();
+    expect(found, `${selector} is not rendered`).not.toBeNull();
+    return found!;
+  };
+
+  expect((await box('.topBar')).height).toBe(36);
+
+  const search = await box('.openCommandPaletteButton');
+  expect(search.height).toBe(22);
+  expect(search.width).toBeLessThanOrEqual(420);
+  expect(Number.isInteger(search.y)).toBe(true);
+
+  const logo = await box('.zasperLogo');
+  expect([logo.width, logo.height]).toEqual([71, 30]);
+  expect(Number.isInteger(logo.y)).toBe(true);
+
+  await expect(page.locator('.openCommandPaletteButton .hint')).toHaveText(/^(⌘K|Ctrl\+K)$/);
+});
+
+/*
+The right of the topbar is one row: the sidebar toggle, the name, and the way out, on one centre line.
+The name used to sit 2.4px below the button beside it, in a block that set it on its baseline, and every
+box in it still had the right size — which is why this compares centres rather than sizes.
+*/
+test('the topbar name sits on the same line as its buttons', async ({ page }) => {
+  await openApp(page);
+  const centre = async (locator: Locator) => {
+    const box = await locator.boundingBox();
+    expect(box, 'not rendered').not.toBeNull();
+    return box!.y + box!.height / 2;
+  };
+
+  const bar = await centre(page.locator('.topBar'));
+  for (const control of [
+    page.getByRole('button', { name: 'Toggle sidebar' }),
+    page.locator('.topBar .userName'),
+    page.getByRole('button', { name: 'Log out' }),
+  ]) {
+    expect(Math.abs((await centre(control)) - bar)).toBeLessThanOrEqual(0.5);
+  }
+});
+
+/*
+Hiding the sidebar leaves the rail, which is the way back: a rail click opens the sidebar on the panel it
+names. The chord does the same as the button, so both are driven here.
+*/
+test('the sidebar hides from the topbar and comes back from the rail', async ({ page }) => {
+  await openApp(page);
+  const toggle = page.getByRole('button', { name: 'Toggle sidebar' });
+  const width = async () => (await page.locator('.sideBar').boundingBox())?.width ?? 0;
+  expect(await width()).toBeGreaterThan(100);
+
+  await toggle.click();
+  await expect.poll(width).toBe(0);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.navigation-list')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Source control' }).click();
+  await expect.poll(width).toBeGreaterThan(100);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  await page.keyboard.press('ControlOrMeta+B');
+  await expect.poll(width).toBe(0);
+  await page.keyboard.press('ControlOrMeta+B');
+  await expect.poll(width).toBeGreaterThan(100);
+});
+
 test('every control in the file browser can be clicked', async ({ page }) => {
   await openApp(page);
 

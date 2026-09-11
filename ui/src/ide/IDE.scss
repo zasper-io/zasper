@@ -59,13 +59,20 @@
   padding: 0 10px;
 }
 
-// Takes whatever the topbar and status bar leave, without knowing how tall they are.
+// Takes whatever the topbar and status bar leave, without knowing how tall they are. A row: the
+// rail, then the sidebar and the editor in their resizable group. The rail is outside the group so
+// that collapsing the sidebar leaves it on screen, which is how the prototype's `.shell-body` is built.
 .editor-container {
   flex: 1;
   min-height: 0;
   width: 100%;
   display: flex;
-  flex-direction: column;
+}
+
+// The group states `width: 100%` inline; beside the 44px rail it takes what is left instead.
+.workbench-panels {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 // The tab strip is tabs/TabIndex.scss now, with the component that renders it: `.tabHeader`,

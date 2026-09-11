@@ -9,7 +9,8 @@
 // Row height comes from --z-ui-row-height in styles/_tokens.scss, not a Sass variable, so it
 // is the same 22px the rest of the chrome is measured against.
 
-// A flex row (icon rail + panel column) whose panel column is a flex column, so the scrolling
+// The sidebar, beside the rail rather than around it: the rail sits outside the resizable group so
+// that hiding the sidebar leaves it on screen. Its panel column is a flex column, so the scrolling
 // body below gets its height from the shell instead of computing one.
 // No shadow and no radius: they were `--z-shadow-panel` and 2px here, and this is a docked surface —
 // full height, flush against the rail on one side and the resize handle on the other, so the only thing

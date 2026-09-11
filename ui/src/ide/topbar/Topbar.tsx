@@ -5,12 +5,20 @@ import { useAtom } from 'jotai';
 import { protectedStateAtom, userNameAtom } from '@/store/AppState';
 import { useNavigate } from 'react-router-dom';
 
+import { formatChord, isMac, terminalHasFocus } from '@/commands/keys';
 import { useCommands, useRegisterCommands } from '@/commands/registry';
 import { Icon } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 import { ICommand } from '@/commands/types';
 
-export default function Topbar() {
+const SEARCH_CHORD = 'Mod-k';
+
+interface TopbarProps {
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
+}
+
+export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
   // The query the palette is showing, or null when it is closed. One piece of state rather than a
   // flag per palette, because there is one palette now: the two chords differ only in what they
   // type into it.
@@ -39,6 +47,16 @@ export default function Topbar() {
   // its state lives. Their chords used to be a `keydown` listener of their own.
   const paletteCommands = useMemo<ICommand[]>(
     () => [
+      {
+        id: 'palette:open',
+        label: 'Search Files and Commands',
+        category: 'View',
+        scope: 'app',
+        keys: [SEARCH_CHORD],
+        // Off mac this is Ctrl-K, which a shell reads as kill-line.
+        isEnabled: () => isMac || !terminalHasFocus(),
+        execute: openFiles,
+      },
       {
         id: 'palette:open-commands',
         label: 'Show All Commands',
@@ -83,8 +101,15 @@ export default function Topbar() {
       </div>
       <div className="searchArea" ref={searchAreaRef}>
         <div className="search-wraper">
-          <button className="openCommandPaletteButton" onClick={openFiles}>
-            Search files and commands
+          <button
+            className="openCommandPaletteButton"
+            onClick={openFiles}
+            aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}
+          >
+            Search files, or run a command
+            <span className="hint" aria-hidden="true">
+              {formatChord(SEARCH_CHORD)}
+            </span>
           </button>
         </div>
         {/* Keyed by the starting query, so a chord pressed while the palette is already open
@@ -102,10 +127,17 @@ export default function Topbar() {
         <Icon name="search" size={14} className="searchIcon" />
       </div>
       <div className="topBar-side topBar-side-end">
-        <div className="userName">
-          <span>{userName}</span>
-          {protectedState ? <LogoutButton /> : <></>}
-        </div>
+        <button
+          className="z-icon-button on-chrome"
+          onClick={onToggleSidebar}
+          title="Toggle sidebar"
+          aria-label="Toggle sidebar"
+          aria-expanded={sidebarOpen}
+        >
+          <Icon name="panel-left" />
+        </button>
+        <span className="userName">{userName}</span>
+        {protectedState ? <LogoutButton /> : null}
       </div>
     </div>
   );
@@ -122,7 +154,7 @@ const LogoutButton = () => {
 
   return (
     <button
-      className="z-icon-button on-chrome logoutButton"
+      className="z-icon-button on-chrome"
       onClick={logout}
       title="Log out"
       aria-label="Log out"

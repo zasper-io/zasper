@@ -52,6 +52,33 @@ test('a command run from the palette changes the app', async ({ page }) => {
   await expect(root).toHaveCSS('zoom', '1.2');
 });
 
+/*
+⌘K is the search box's own chord, and the box's hint says so. Off mac it is Ctrl+K, which a shell reads as
+kill-line, so inside a terminal the chord is the terminal's. On a mac Control+K is not the chord at all;
+on Linux CI this is the case that matters. React flushes a keydown's update before the press resolves, so
+a palette that did open would already be in the DOM for the count below.
+*/
+test('⌘K opens the search box, and a terminal keeps Ctrl+K', async ({ page }) => {
+  await openApp(page);
+
+  await page.keyboard.press('ControlOrMeta+K');
+  await expect(page.locator(palette)).toBeFocused();
+  await expect(page.locator(palette)).toHaveValue('');
+  await page.keyboard.press('Escape');
+  await expect(page.locator(palette)).toHaveCount(0);
+
+  await page
+    .locator('.LauncherArea')
+    .getByRole('button', { name: 'Terminal', exact: true })
+    .click();
+  const shell = page.locator('.xterm-helper-textarea');
+  await expect(shell).toBeFocused();
+
+  await page.keyboard.press('Control+K');
+  await expect(page.locator(palette)).toHaveCount(0);
+  await expect(shell).toBeFocused();
+});
+
 test('the palette lists what is registered, and Escape dismisses it', async ({ page }) => {
   await openApp(page);
   await openPalette(page);

@@ -90,6 +90,15 @@ function shiftIsSignificant(key: string): boolean {
   return key.length !== 1 || /[a-z]/i.test(key);
 }
 
+/**
+ * Whether the terminal has the keyboard. Off mac `Mod-` is Ctrl, and a shell reads Ctrl chords as its
+ * own — Ctrl-K kills the line, Ctrl-B moves back a character — so an app command bound to one disables
+ * itself while this is true, and the dispatcher then leaves the chord to the shell.
+ */
+export function terminalHasFocus(): boolean {
+  return typeof document !== 'undefined' && document.activeElement?.closest('.xterm') != null;
+}
+
 /** True for the modifier keys themselves, which are never a chord on their own. */
 export function isModifierKey(key: string): boolean {
   return key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta';

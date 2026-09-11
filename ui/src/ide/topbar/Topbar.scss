@@ -3,18 +3,26 @@
 // differs between them reads as a flicker on open — a border colour, a text offset, a ring.
 //
 // The magnifier is a sibling of both rather than a child of either (see .searchIcon), which is
-// why they reserve 34px on the left instead of carrying an icon each.
+// why they reserve 28px on the left instead of carrying an icon each: its 8px inset, its 14px and
+// the 6px the drawing puts after it.
 .openCommandPaletteButton,
 .palette-input {
   width: 100%;
-  height: var(--z-ui-control-height);
-  padding: 0 12px 0 34px;
-  border: 1px solid var(--z-border);
-  border-radius: 2px;
+  height: 22px;
+  padding: 0 8px 0 28px;
+  border: none;
+  border-radius: 4px;
   background-color: var(--z-bg-input);
   color: var(--z-fg-on-chrome);
   font-size: var(--z-ui-font-size);
   text-align: left;
+}
+
+// Square once the palette is open, as drawn: the input is the header strip of the overlay, whose own
+// radius and `overflow: hidden` shape its corners. Its 4px from the button left a ring of the
+// overlay's white showing round it.
+.palette-input {
+  border-radius: 0;
 }
 
 // Full --z-fg-on-chrome, not a dimmed version: this text stands exactly where the button's
@@ -30,15 +38,23 @@
   outline: none;
 }
 
-// Flex-centred rather than padded to height: it has to fit the 24px box .searchArea gives it.
+// Flex-centred rather than padded to height: it has to fit the 22px box .searchArea gives it.
 .openCommandPaletteButton {
   display: flex;
   align-items: center;
 }
 
+// The chord, at the far end, a step smaller and dimmer than the label.
+.openCommandPaletteButton .hint {
+  margin-left: auto;
+  opacity: 0.7;
+  font-size: var(--z-ui-font-size-sm);
+}
+
+// Between the sidebar toggle and the way out, in one flat row with them. It used to be a block holding
+// the name and the log-out button, and inline layout set the name on its baseline: 2.4px below the bar's
+// centre line while the button sat 0.6px above it. As a flex item it centres like the buttons do.
 .userName {
-  font-weight: 400;
-  border-radius: 5px;
   padding: 0 8px;
   white-space: nowrap;
 }
@@ -46,16 +62,14 @@
 .topBar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  // This bar's job is identity, not density, so it does not take the chrome row height.
-  // Odd on purpose: (41 - 31) / 2 = 5, so `align-items: center` puts the logo on a whole
-  // pixel. Changing either number means re-checking the other.
-  height: 41px;
+  // 36px as drawn, and even on purpose: (36 - 30) / 2 = 3 puts the logo on a whole pixel and
+  // (36 - 22) / 2 = 7 the search box. Changing the height means re-checking both.
+  height: 36px;
   background-color: var(--z-bg-topbar);
   color: var(--z-fg-on-chrome);
-  padding: 0 16px;
-  box-shadow: var(--z-shadow-high);
+  padding: 0 8px;
 
   // The wordmark and the user menu. `flex: 1 1 0` on both — an equal share of whatever the
   // search box leaves — is what centres the search box on the window rather than on the gap
@@ -67,30 +81,34 @@
     align-items: center;
   }
 
+  // The drawing's 2px between the controls, with the name's own padding making the room around it.
   .topBar-side-end {
     justify-content: flex-end;
+    gap: 2px;
   }
 
   // A background-image, not an <img>, so --z-logo can pick the right file per theme —
   // logo-white.svg draws the wordmark in #fff and vanishes on a light topbar.
   //
-  // 73x31 is the nearest whole-pixel pair to the artwork's 104:44, and whole pixels matter
-  // because the mark is thin-stroked and softens on a fractional edge.
+  // 71x30 is the nearest whole-pixel pair to the artwork's 104:44 at a height the bar centres on a
+  // whole pixel, which matters because the mark is thin-stroked and softens on a fractional edge.
+  // The 4px is the drawing's, so the mark sits 12px in.
   .zasperLogo {
     display: block;
     flex: 0 0 auto;
-    height: 31px;
-    width: 73px;
+    height: 30px;
+    width: 71px;
+    margin-left: 4px;
     background: var(--z-logo) left center / contain no-repeat;
   }
 
-  // Shrinks below 600px on a narrow window but never grows past it, so the box stays a
+  // Shrinks below 420px on a narrow window but never grows past it, so the box stays a
   // search box rather than stretching across the whole topbar.
   .searchArea {
-    flex: 0 1 600px;
+    flex: 0 1 420px;
     display: flex;
     align-items: center;
-    height: var(--z-ui-control-height);
+    height: 22px;
     // The containing block for .palette, which is a child of this box and sizes to
     // it — that is how the palette ends up exactly as wide as the button.
     position: relative;
@@ -103,7 +121,7 @@
     // included, to win against one panel at 9999. The step is what it always meant.
     .searchIcon {
       position: absolute;
-      left: 12px;
+      left: 8px;
       top: 50%;
       transform: translateY(-50%);
       color: var(--z-fg-on-chrome);
@@ -116,12 +134,5 @@
     position: relative;
     width: 100%;
     height: 100%;
-  }
-
-  // `color` is stated because a <button> does not inherit it, and the icon inside is drawn in
-  // `currentColor`.
-  // Place only: the box, the white ink and the hover are `.z-icon-button.on-chrome`.
-  .logoutButton {
-    margin-left: 12px;
   }
 }

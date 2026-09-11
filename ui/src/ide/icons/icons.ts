@@ -36,6 +36,7 @@ import {
   LogOut,
   Minus,
   NotebookPen,
+  PanelLeft,
   Pause,
   Pencil,
   Play,
@@ -88,6 +89,7 @@ export const ICONS = {
   terminal: Terminal, // TerminalIcon, on the launcher's terminal tile
   search: Search, // images/icons/search.svg
   'log-out': LogOut, // images/icons/logout.svg
+  'panel-left': PanelLeft, // The topbar's sidebar toggle, as the prototype draws it
 
   // --- The file browser ----------------------------------------------------
   'file-plus': FilePlus, // images/editor/feather-file-plus.svg

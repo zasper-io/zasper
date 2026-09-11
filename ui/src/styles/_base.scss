@@ -13,6 +13,9 @@ body {
   position: relative;
   background-color: var(--z-bg-app);
   color: var(--z-fg-default);
+  // macOS renders Inter noticeably heavier without this, and the weight steps stop being distinct.
+  // The prototype's base.css had it and the app did not, which is why the same 400 read bolder here.
+  -webkit-font-smoothing: antialiased;
 }
 
 // The height every definite height in the app is a percentage of. It is a chain rather than
