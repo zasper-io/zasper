@@ -6,6 +6,26 @@ export async function listKernelspecs(): Promise<IKernelspecsState> {
   return res.kernelspecs || {};
 }
 
+/** The project's own .venv, under one name in every project: internal/kernelspec/interpreters.go. */
+export const PROJECT_KERNEL_NAME = 'project-venv';
+
+/** Setting up that .venv, as /api/environment/setup reports it. */
+export interface IEnvironmentSetup {
+  state: 'idle' | 'running' | 'succeeded' | 'failed';
+  log: string;
+  error?: string;
+  kernel?: string;
+}
+
+/** Starts the setup. A 409 is an ApiError: one is already running, and its state is in the body. */
+export function startEnvironmentSetup(): Promise<IEnvironmentSetup> {
+  return requestJson<IEnvironmentSetup>('/api/environment/setup', { method: 'POST' });
+}
+
+export function getEnvironmentSetup(): Promise<IEnvironmentSetup> {
+  return requestJson<IEnvironmentSetup>('/api/environment/setup');
+}
+
 /**
  * A kernel as `/api/kernels` reports it, in the server's own snake case.
  *

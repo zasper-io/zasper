@@ -2,8 +2,13 @@ package kernelspec
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/zasper-io/zasper/internal/core"
@@ -11,21 +16,24 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ErrKernelspecNotFound is a kernel name that no directory on the Jupyter path holds.
+var ErrKernelspecNotFound = errors.New("kernelspec not found")
+
 type KernelspecResponse struct {
 	Default    string                     `json:"default"`
 	Kernespecs map[string]KernelspecModel `json:"kernelspecs"`
 }
 
 type KernelSpecJsonData struct {
-	Argv          []string    `json:"argv"`
-	DisplayName   string      `json:"display_name"`
-	Language      string      `json:"language"`
-	Metadata      interface{} `json:"metadata"`
-	Name          string      `json:"name"`
-	Mimetype      string      `json:"mimetype"`
-	Env           string      `json:"env"`
-	ResourceDir   string      `json:"resource_dir"`
-	InterruptMode string      `json:"interrupt_mode"`
+	Argv          []string          `json:"argv"`
+	DisplayName   string            `json:"display_name"`
+	Language      string            `json:"language"`
+	Metadata      interface{}       `json:"metadata"`
+	Name          string            `json:"name"`
+	Mimetype      string            `json:"mimetype"`
+	Env           map[string]string `json:"env,omitempty"`
+	ResourceDir   string            `json:"resource_dir"`
+	InterruptMode string            `json:"interrupt_mode"`
 }
 
 type KspecData struct {
@@ -33,10 +41,48 @@ type KspecData struct {
 	Spec        KernelSpecJsonData `json:"spec"`
 }
 
+// JupyterSpec is a spec as Jupyter Server's REST API has it: jupyter_client's KernelSpec.to_dict().
+type JupyterSpec struct {
+	Argv          []string          `json:"argv"`
+	Env           map[string]string `json:"env"`
+	DisplayName   string            `json:"display_name"`
+	Language      string            `json:"language"`
+	InterruptMode string            `json:"interrupt_mode"`
+	Metadata      interface{}       `json:"metadata"`
+}
+
+// KernelspecModel is Jupyter Server's kernelspec_model, for both /api/kernelspecs routes.
 type KernelspecModel struct {
-	Name      string             `json:"name"`
-	Spec      KernelSpecJsonData `json:"spec"`
-	Resources interface{}        `json:"resources"`
+	Name      string            `json:"name"`
+	Spec      JupyterSpec       `json:"spec"`
+	Resources map[string]string `json:"resources"`
+}
+
+func kernelspecModel(name string, spec KernelSpecJsonData) KernelspecModel {
+	env := spec.Env
+	if env == nil {
+		env = map[string]string{}
+	}
+	metadata := spec.Metadata
+	if metadata == nil {
+		metadata = map[string]interface{}{}
+	}
+	interruptMode := spec.InterruptMode
+	if interruptMode == "" {
+		interruptMode = "signal"
+	}
+	return KernelspecModel{
+		Name: name,
+		Spec: JupyterSpec{
+			Argv:          spec.Argv,
+			Env:           env,
+			DisplayName:   spec.DisplayName,
+			Language:      spec.Language,
+			InterruptMode: interruptMode,
+			Metadata:      metadata,
+		},
+		Resources: getResources(name, spec.ResourceDir),
+	}
 }
 
 func GetAllSpecs() map[string]KspecData {
@@ -56,27 +102,41 @@ func GetAllSpecs() map[string]KspecData {
 	specs := findKernelSpecs()
 	res := make(map[string]KspecData)
 	for kname, resourceDir := range specs {
-		spec := fromResourceDir(resourceDir)
+		spec, err := fromResourceDir(resourceDir)
+		if err != nil {
+			// Skipped, as Jupyter does: listed, it is a nameless entry in the launcher that cannot start.
+			log.Warn().Msgf("skipping kernelspec %s: %v", kname, err)
+			continue
+		}
 
 		res[kname] = KspecData{
 			Spec:        spec,
 			ResourceDir: resourceDir,
 		}
 	}
+	for name, spec := range virtualSpecs(res) {
+		res[name] = KspecData{Spec: spec, ResourceDir: spec.ResourceDir}
+	}
 	return res
 }
 
-func GetKernelSpec(kernelName string) KernelSpecJsonData {
+// GetKernelSpec reads the spec a kernel name resolves to. An unknown name is ErrKernelspecNotFound,
+// never a read of kernel.json from the server's working directory.
+func GetKernelSpec(kernelName string) (KernelSpecJsonData, error) {
 	resourceDir := findSpecDirectory(kernelName)
-
-	return GetKernelSpecByName(kernelName, resourceDir)
-}
-
-func GetKernelSpecByName(kernelName, resourceDir string) KernelSpecJsonData {
+	if resourceDir == "" {
+		// Not on disk: one of the kernels held in memory for a Python with ipykernel, or nothing.
+		if data, ok := GetAllSpecs()[strings.ToLower(kernelName)]; ok {
+			return data.Spec, nil
+		}
+		return KernelSpecJsonData{}, fmt.Errorf("%w: %s", ErrKernelspecNotFound, kernelName)
+	}
 	return fromResourceDir(resourceDir)
 }
 
 func findSpecDirectory(kernelName string) string {
+	// Case-insensitive, as Jupyter lists and resolves names lowercased.
+	kernelName = strings.ToLower(kernelName)
 	kernelDirs := getKernelDirs()
 	for _, kernelDir := range kernelDirs {
 		dir, err := os.Open(kernelDir)
@@ -92,7 +152,7 @@ func findSpecDirectory(kernelName string) string {
 		}
 		for _, file := range files {
 			path := filepath.Join(kernelDir, file.Name())
-			if file.Name() == kernelName && isKernelDir(path) {
+			if strings.ToLower(file.Name()) == kernelName && isKernelDir(path) {
 				return path
 			}
 
@@ -101,26 +161,32 @@ func findSpecDirectory(kernelName string) string {
 	return ""
 }
 
-func fromResourceDir(resourceDir string) KernelSpecJsonData {
-	/*Create a KernelSpec object by reading kernel.json
+/*
+fromResourceDir reads the kernel.json in resourceDir.
 
-	  Pass the path to the *directory* containing kernel.json.
-	*/
-
+A spec with no argv is an error rather than a zero value: the launcher runs Argv[0], and a spec that
+failed to decode used to reach it empty and panic there.
+*/
+func fromResourceDir(resourceDir string) (KernelSpecJsonData, error) {
 	kernelFile := filepath.Join(resourceDir, "kernel.json")
 	log.Debug().Msgf("loading file %s", kernelFile)
-	byteValue, _ := os.ReadFile(kernelFile)
+	byteValue, err := os.ReadFile(kernelFile)
+	if err != nil {
+		return KernelSpecJsonData{}, err
+	}
 
 	var kernelSpecJsonData KernelSpecJsonData
-
-	err := json.Unmarshal(byteValue, &kernelSpecJsonData)
-	if err != nil {
-		log.Debug().Msg("error encountered")
+	if err := json.Unmarshal(byteValue, &kernelSpecJsonData); err != nil {
+		return KernelSpecJsonData{}, fmt.Errorf("%s: %w", kernelFile, err)
+	}
+	if len(kernelSpecJsonData.Argv) == 0 {
+		return KernelSpecJsonData{}, fmt.Errorf("%s: no argv", kernelFile)
 	}
 	kernelSpecJsonData.ResourceDir = resourceDir
-	return kernelSpecJsonData
+	return kernelSpecJsonData, nil
 }
 
+// getResources is kernelspec_model's: files under /kernelspecs/<name>/, Jupyter Server's own route.
 func getResources(kernelName, resourceDir string) map[string]string {
 
 	resources := make(map[string]string)
@@ -129,7 +195,7 @@ func getResources(kernelName, resourceDir string) map[string]string {
 	for _, resource := range []string{"kernel.js", "kernel.css"} {
 		resourcePath := filepath.Join(resourceDir, resource)
 		if _, err := os.Stat(resourcePath); !os.IsNotExist(err) {
-			resources[resource] = urlPathJoin(core.Zasper.BaseUrl, "kernelspecs", kernelName, resource)
+			resources[resource] = urlPathJoin("/kernelspecs", kernelName, resource)
 		}
 	}
 
@@ -138,7 +204,7 @@ func getResources(kernelName, resourceDir string) map[string]string {
 	for _, logoFile := range files {
 		fname := filepath.Base(logoFile)
 		noExt := strings.TrimSuffix(fname, filepath.Ext(fname))
-		resources[noExt] = urlPathJoin("/static/kernelspecs", kernelName, fname)
+		resources[noExt] = urlPathJoin("/kernelspecs", kernelName, fname)
 	}
 
 	return resources
@@ -179,7 +245,11 @@ func findKernelSpecs() map[string]string {
 	for _, kernelDir := range kernelDirs {
 		kernels := listKernelsIn(kernelDir)
 		for kname, spec := range kernels {
-			kernelsDict[kname] = spec
+			// First wins: the Jupyter path is in priority order, and findSpecDirectory resolves a name
+			// the same way, so what is listed is what launches.
+			if _, seen := kernelsDict[kname]; !seen {
+				kernelsDict[kname] = spec
+			}
 		}
 	}
 
@@ -213,7 +283,7 @@ func listKernelsIn(kernelDir string) map[string]string {
 		if !isKernelDir(path) {
 			continue
 		}
-		kernels[v.Name()] = path
+		kernels[strings.ToLower(v.Name())] = path
 	}
 	return kernels
 }
@@ -235,6 +305,82 @@ func isKernelDir(path string) bool {
 	return err == nil
 }
 
+var macUserBase = regexp.MustCompile(`/Library/Python/(\d+\.\d+)$`)
+
+/*
+Interpreter answers the Python that installed the spec in resourceDir, or "" when that cannot be told.
+
+A spec written by ipykernel names a bare `python`, and jupyter_client runs it with the server's own
+sys.executable — the interpreter whose directories the spec was found in. Zasper has no interpreter of
+its own, and borrowing whichever `python3` came first on PATH ran the system Python's kernels with
+Homebrew's the moment Homebrew installed one.
+
+Two layouts say whose a spec is: <prefix>/share/jupyter, where prefix is a Python install or a venv,
+and macOS's per-version user base, ~/Library/Python/<version>/share/jupyter.
+*/
+func Interpreter(resourceDir string) string {
+	kernels := filepath.Dir(resourceDir)
+	data := filepath.Dir(kernels)
+	share := filepath.Dir(data)
+	if filepath.Base(kernels) != "kernels" || filepath.Base(data) != "jupyter" || filepath.Base(share) != "share" {
+		return ""
+	}
+	prefix := filepath.Dir(share)
+
+	var candidates []string
+	if isPythonPrefix(prefix) {
+		if runtime.GOOS == "windows" {
+			candidates = append(candidates, filepath.Join(prefix, "python.exe"))
+		} else {
+			candidates = append(candidates, filepath.Join(prefix, "bin", "python3"), filepath.Join(prefix, "bin", "python"))
+		}
+	}
+	if match := macUserBase.FindStringSubmatch(filepath.ToSlash(prefix)); match != nil {
+		version := match[1]
+		binary := "python" + version
+		if onPath, err := exec.LookPath(binary); err == nil {
+			candidates = append(candidates, onPath)
+		}
+		// Found by path rather than by running /usr/bin/python3, which offers to install the Command
+		// Line Tools on a Mac that has none.
+		candidates = append(candidates,
+			filepath.Join("/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions", version, "bin", binary),
+			filepath.Join("/Library/Frameworks/Python.framework/Versions", version, "bin", binary),
+			filepath.Join("/opt/homebrew/opt/python@"+version, "bin", binary),
+			filepath.Join("/usr/local/opt/python@"+version, "bin", binary),
+		)
+	}
+
+	for _, candidate := range candidates {
+		if isExecutable(candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// isPythonPrefix is a Python install or a venv, as against a directory that merely has site-packages
+// in it: ~/.local has one, and whatever ~/.local/bin/python3 is did not install its kernels.
+func isPythonPrefix(prefix string) bool {
+	if _, err := os.Stat(filepath.Join(prefix, "pyvenv.cfg")); err == nil {
+		return true
+	}
+	if runtime.GOOS == "windows" {
+		_, err := os.Stat(filepath.Join(prefix, "Lib", "os.py"))
+		return err == nil
+	}
+	stdlib, _ := filepath.Glob(filepath.Join(prefix, "lib", "python3*", "os.py"))
+	return len(stdlib) > 0
+}
+
+func isExecutable(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	return runtime.GOOS == "windows" || info.Mode()&0o111 != 0
+}
+
 /*
 getResourceFile answers the path of one of a kernel's own files, and whether the kernel has one.
 
@@ -249,6 +395,12 @@ otherwise leave the directory quietly.
 */
 func getResourceFile(kernelName, resourcePath string) (string, bool) {
 	resourceDir := findSpecDirectory(kernelName)
+	if resourceDir == "" {
+		// A kernel held in memory serves ipykernel's own logos.
+		if data, ok := GetAllSpecs()[strings.ToLower(kernelName)]; ok {
+			resourceDir = data.ResourceDir
+		}
+	}
 	if resourceDir == "" {
 		return "", false
 	}

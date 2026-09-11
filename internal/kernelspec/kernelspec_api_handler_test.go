@@ -107,6 +107,7 @@ func TestTheKernelspecsAreListedWithTheirResources(t *testing.T) {
 	kernels := jupyterPath(t)
 	dir := kernelDir(t, kernels, "python3", pythonSpec)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "logo-64x64.png"), []byte("png"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.js"), []byte("// js"), 0o644))
 
 	recorder := httptest.NewRecorder()
 	KernelspecAPIHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/kernelspecs", nil))
@@ -118,10 +119,41 @@ func TestTheKernelspecsAreListedWithTheirResources(t *testing.T) {
 	require.Contains(t, answer.Kernespecs, "python3")
 	assert.Equal(t, "Python 3", answer.Kernespecs["python3"].Spec.DisplayName)
 
-	// The logo is offered at the route that serves it, which is the pairing these two handlers make.
-	resources, ok := answer.Kernespecs["python3"].Resources.(map[string]interface{})
-	require.True(t, ok, "resources were %T", answer.Kernespecs["python3"].Resources)
-	assert.Equal(t, "/static/kernelspecs/python3/logo-64x64.png", resources["logo-64x64"])
+	// At Jupyter Server's address for them, which the router serves.
+	resources := answer.Kernespecs["python3"].Resources
+	assert.Equal(t, "/kernelspecs/python3/logo-64x64.png", resources["logo-64x64"])
+	assert.Equal(t, "/kernelspecs/python3/kernel.js", resources["kernel.js"])
+	assert.Equal(t, "python3", answer.Default)
+
+	// The spec is jupyter_client's KernelSpec.to_dict(): those six keys, env and metadata never null,
+	// and no resource_dir handed to the browser.
+	var raw struct {
+		Kernelspecs map[string]struct {
+			Spec map[string]interface{} `json:"spec"`
+		} `json:"kernelspecs"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &raw))
+	spec := raw.Kernelspecs["python3"].Spec
+	keys := make([]string, 0, len(spec))
+	for key := range spec {
+		keys = append(keys, key)
+	}
+	assert.ElementsMatch(t, []string{"argv", "env", "display_name", "language", "interrupt_mode", "metadata"}, keys)
+	assert.Equal(t, map[string]interface{}{}, spec["env"])
+	assert.Equal(t, map[string]interface{}{}, spec["metadata"])
+	assert.Equal(t, "signal", spec["interrupt_mode"])
+}
+
+func TestAKernelspecNobodyInstalledIsNotFound(t *testing.T) {
+	jupyterPath(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/kernelspecs/nosuchkernel", nil)
+	request = mux.SetURLVars(request, map[string]string{"kernelName": "nosuchkernel"})
+
+	recorder := httptest.NewRecorder()
+	SingleKernelspecAPIHandler(recorder, request)
+
+	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
 
 func TestOneKernelspecIsAskedForByName(t *testing.T) {
@@ -134,8 +166,11 @@ func TestOneKernelspecIsAskedForByName(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	SingleKernelspecAPIHandler(recorder, request)
 
+	// Jupyter Server's kernelspec_model, as in the list: it used to answer the bare spec.
 	require.Equal(t, http.StatusOK, recorder.Code)
-	var spec KernelSpecJsonData
-	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &spec), "body was %s", recorder.Body)
-	assert.Equal(t, "Python 3", spec.DisplayName)
+	var model KernelspecModel
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &model), "body was %s", recorder.Body)
+	assert.Equal(t, "python3", model.Name)
+	assert.Equal(t, "Python 3", model.Spec.DisplayName)
+	assert.NotNil(t, model.Resources)
 }

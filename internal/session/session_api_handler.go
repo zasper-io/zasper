@@ -2,10 +2,12 @@ package session
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/models"
 )
 
@@ -26,6 +28,10 @@ func SessionCreateApiHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	sessions, err := CreateSession(body)
+	if errors.Is(err, kernelspec.ErrKernelspecNotFound) {
+		zhttp.SendErrorResponse(w, http.StatusNotFound, "Failed to create session: "+err.Error())
+		return
+	}
 	if err != nil {
 		zhttp.SendErrorResponse(w, http.StatusInternalServerError, "Failed to create session: "+err.Error())
 		return

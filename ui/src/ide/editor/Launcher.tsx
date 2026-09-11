@@ -1,7 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './Launcher.scss';
 import { BaseApiUrl } from '@/config';
-import { ContentType, createContent } from '@/api';
+import {
+  ApiError,
+  ContentType,
+  IEnvironmentSetup,
+  PROJECT_KERNEL_NAME,
+  createContent,
+  getEnvironmentSetup,
+  logApiError,
+  startEnvironmentSetup,
+} from '@/api';
 import { useAtom, useAtomValue } from 'jotai';
 import {
   kernelspecsAtom,
@@ -28,6 +37,11 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   const { openTab, openTerminal } = useTabActions();
   const { loadKernelspecs } = useKernelspecActions();
 
+  // The project's own environment first: it is the one this folder's notebooks are meant to run on.
+  const kernelNames = Object.keys(kernelspecs).sort(
+    (a, b) => Number(b === PROJECT_KERNEL_NAME) - Number(a === PROJECT_KERNEL_NAME)
+  );
+
   const createNewNotebook = async (path: string, contentType: ContentType, kernelspec: string) => {
     const created = await createContent(path, contentType);
     openTab({ name: created.name, path: created.path, type: 'notebook', kernelspec });
@@ -51,9 +65,9 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
           </p>
         ) : status === 'failed' ? (
           <KernelspecsUnavailable onRetry={loadKernelspecs} />
-        ) : Object.keys(kernelspecs).length > 0 ? (
+        ) : kernelNames.length > 0 ? (
           <div className="launchSection-grid">
-            {Object.keys(kernelspecs).map((key) => (
+            {kernelNames.map((key) => (
               <button
                 type="button"
                 className="launcher-icon"
@@ -112,29 +126,116 @@ interface NoticeProps {
   onRetry: () => void;
 }
 
-// A notice rather than a tile, because there is nothing here to click. No glyph in the heading: the
-// `❌` that was here was the app's last emoji standing in for an icon, and a red mark beside a
-// sentence beginning "No kernels available" is the sentence twice.
+const SETUP_POLL_MS = 1000;
+
+/**
+ * No kernel anywhere, and the offer to make one: a .venv in this project with ipykernel in it. Only
+ * ever on this click — internal/kernelspec/setup.go says what it will and will not touch.
+ *
+ * No glyph in the heading: a red mark beside "No kernels available" is the sentence twice.
+ */
 const NoKernelsFound: React.FC<NoticeProps> = ({ onRetry }) => {
+  const [setup, setSetup] = useState<IEnvironmentSetup | null>(null);
+  const log = useRef<HTMLPreElement>(null);
+  const running = setup?.state === 'running';
+
+  useEffect(() => {
+    if (setup?.state !== 'running') {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      getEnvironmentSetup()
+        .then(setSetup)
+        .catch((error) => {
+          logApiError('Lost track of the Python kernel setup:')(error);
+          setSetup((previous) => ({
+            state: 'failed',
+            log: previous?.log ?? '',
+            error: 'Zasper lost touch with the server while setting up.',
+          }));
+        });
+    }, SETUP_POLL_MS);
+    return () => window.clearTimeout(timer);
+  }, [setup]);
+
+  useEffect(() => {
+    if (setup?.state === 'succeeded') {
+      onRetry();
+    }
+  }, [setup?.state, onRetry]);
+
+  // What matters in a setup's output is usually its last line.
+  useEffect(() => {
+    if (log.current) {
+      log.current.scrollTop = log.current.scrollHeight;
+    }
+  }, [setup?.log]);
+
+  const startSetup = async () => {
+    try {
+      setSetup(await startEnvironmentSetup());
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // Already running, from another window: follow that one rather than start a second.
+        setSetup({ state: 'running', log: '' });
+        return;
+      }
+      logApiError('Could not start setting up a Python kernel:')(error);
+      setSetup({ state: 'failed', log: '', error: 'Zasper could not start the setup.' });
+    }
+  };
+
   return (
     <div className="noKernelsFound">
       <h3 className="z-subheading">No kernels available</h3>
-      <p>Zasper found no Jupyter kernel to run a notebook on. Install one:</p>
-      <code>pip install ipykernel</code>
       <p>
-        Then check again, or read{' '}
-        <a
-          href="https://zasper.io/docs/installing-jupyter-kernels"
-          target="_blank"
-          rel="noreferrer"
-        >
-          installing Jupyter kernels
-        </a>
-        .
+        Zasper found no Jupyter kernel to run a notebook on. It can make one for this project: a
+        .venv folder here with ipykernel installed in it. Your other Pythons are left as they are.
       </p>
-      <button type="button" className="z-button z-button-secondary" onClick={onRetry}>
-        Check again
-      </button>
+      {setup?.state === 'failed' && (
+        <div className="z-notice z-notice-error" role="alert">
+          <Icon name="circle-alert" />
+          <p>{setup.error}</p>
+        </div>
+      )}
+      {running ? (
+        <p className="z-note">
+          <span className="z-spinner" />
+          Setting up a Python kernel…
+        </p>
+      ) : (
+        <button type="button" className="z-button" onClick={startSetup}>
+          {setup?.state === 'failed' ? 'Try again' : 'Set up a Python kernel'}
+        </button>
+      )}
+      {setup !== null && setup.log !== '' && (
+        <pre className="setupLog" ref={log} aria-label="Setup log">
+          {setup.log}
+        </pre>
+      )}
+      <div className="noKernelsFound-manual">
+        <p>Or install one yourself:</p>
+        <code>pip install ipykernel</code>
+        <p>
+          Then check again, or read{' '}
+          <a
+            href="https://zasper.io/docs/installing-jupyter-kernels"
+            target="_blank"
+            rel="noreferrer"
+          >
+            installing Jupyter kernels
+          </a>
+          .
+        </p>
+        <button
+          type="button"
+          className="z-button z-button-secondary"
+          onClick={onRetry}
+          disabled={running}
+        >
+          Check again
+        </button>
+      </div>
     </div>
   );
 };

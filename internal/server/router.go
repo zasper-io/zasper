@@ -86,12 +86,15 @@ func NewRouter(spa http.Handler) *mux.Router {
 
 	authRouter := router.PathPrefix("/auth").Subrouter()
 	staticRouter := router.PathPrefix("/static").Subrouter()
+	// Jupyter Server's address for a kernelspec's files, which is the one /api/kernelspecs hands out.
+	kernelspecRouter := router.PathPrefix("/kernelspecs").Subrouter()
 	wsRouter := router.PathPrefix("/ws").Subrouter()
 	if core.Zasper.Protected {
 		apiRouter.Use(auth.JwtAuthMiddleware)
 		// Kernelspec resources, which nothing in the frontend fetches — but they are read off disk by
 		// name, so they are gated like the rest of the API rather than left open.
 		staticRouter.Use(auth.JwtAuthMiddleware)
+		kernelspecRouter.Use(auth.JwtAuthMiddleware)
 		// The websocket routes were left ungated, which meant protected mode gated reading a file but
 		// not opening a terminal on the same machine. They take their token from the query string,
 		// which is the only place a browser can put one.
@@ -158,6 +161,12 @@ func NewRouter(spa http.Handler) *mux.Router {
 	// kernelspecs
 	apiRouter.HandleFunc("/kernelspecs", kernelspec.KernelspecAPIHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernelspecs/{kernelName}", kernelspec.SingleKernelspecAPIHandler).Methods("GET")
+	// The launcher's "Set up a Python kernel". Not Jupyter's, so not under /api/kernelspecs, where a GET
+	// would be read as a kernel named "setup".
+	apiRouter.HandleFunc("/environment/setup", kernelspec.EnvironmentSetupStatusHandler).Methods("GET")
+	apiRouter.HandleFunc("/environment/setup", kernelspec.EnvironmentSetupHandler).Methods("POST")
+	kernelspecRouter.HandleFunc("/{kernel}/{resource}", kernelspec.ServeKernelResource).Methods("GET")
+	// Zasper's old address for the same files, kept for anything that learned it.
 	staticRouter.HandleFunc("/kernelspecs/{kernel}/{resource}", kernelspec.ServeKernelResource).Methods("GET")
 
 	// kernels

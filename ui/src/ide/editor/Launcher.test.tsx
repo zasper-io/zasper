@@ -14,11 +14,17 @@ import { fileTabsAtom } from '@/store/TabState';
 
 const createContent = vi.fn();
 const listKernelspecs = vi.fn();
+const startEnvironmentSetup = vi.fn();
+const getEnvironmentSetup = vi.fn();
 
-vi.mock('@/api', () => ({
+vi.mock('@/api', async () => ({
   createContent: (parentDir: string, type: string) => createContent(parentDir, type),
   listKernelspecs: () => listKernelspecs(),
+  startEnvironmentSetup: () => startEnvironmentSetup(),
+  getEnvironmentSetup: () => getEnvironmentSetup(),
   logApiError: () => () => {},
+  ApiError: (await import('@/api/client')).ApiError,
+  PROJECT_KERNEL_NAME: 'project-venv',
 }));
 
 const kernelspecs: IKernelspecsState = {
@@ -127,7 +133,8 @@ describe('Launcher', () => {
     expect(screen.getByRole('heading', { name: 'No kernels available' })).toBeInTheDocument();
     expect(screen.getByText('pip install ipykernel')).toBeInTheDocument();
     expect(document.querySelector('.noKernelsFound')?.textContent).not.toContain('❌');
-    expect(screen.queryByRole('button', { name: /Python/ })).not.toBeInTheDocument();
+    // No kernel tile: the only button naming Python is the offer to set one up.
+    expect(document.querySelector('.kernelSpecIconArea')).not.toBeInTheDocument();
   });
 
   // The regression this state exists for: an empty list before the boot fetch has answered is not a
@@ -155,5 +162,75 @@ describe('Launcher', () => {
 
     await waitFor(() => expect(listKernelspecs).toHaveBeenCalled());
     expect(await screen.findByRole('button', { name: 'Python 3 (ipykernel)' })).toBeInTheDocument();
+  });
+
+  it("offers the project's own environment first", () => {
+    renderLauncher({
+      ...kernelspecs,
+      'project-venv': {
+        name: 'project-venv',
+        spec: { display_name: 'Python 3.12 (.venv)' },
+        resources: {},
+      },
+    });
+
+    const labels = [...document.querySelectorAll('.launcher-icon-label')].map((l) => l.textContent);
+    expect(labels[0]).toBe('Python 3.12 (.venv)');
+  });
+
+  it('sets up a kernel for the project from the empty notice, shows its log, and lists it', async () => {
+    startEnvironmentSetup.mockResolvedValue({ state: 'running', log: '$ uv venv .venv\n' });
+    getEnvironmentSetup.mockResolvedValue({
+      state: 'succeeded',
+      log: '$ uv venv .venv\nInstalled 1 package\n',
+      kernel: 'project-venv',
+    });
+    listKernelspecs.mockResolvedValue({
+      'project-venv': {
+        name: 'project-venv',
+        spec: { display_name: 'Python 3.12 (.venv)' },
+        resources: {},
+      },
+    });
+    renderLauncher({});
+
+    fireEvent.click(tile('Set up a Python kernel'));
+
+    expect(await screen.findByText('Setting up a Python kernel…')).toBeInTheDocument();
+    expect(screen.getByLabelText('Setup log')).toHaveTextContent('$ uv venv .venv');
+    expect(tile('Check again')).toBeDisabled();
+    expect(
+      await screen.findByRole('button', { name: 'Python 3.12 (.venv)' }, { timeout: 3000 })
+    ).toBeInTheDocument();
+    expect(getEnvironmentSetup).toHaveBeenCalled();
+  });
+
+  it('says what went wrong when the setup fails, and offers to try again', async () => {
+    startEnvironmentSetup.mockResolvedValue({
+      state: 'failed',
+      log: '$ uv venv .venv\n',
+      error: 'no Python was found to create the environment with',
+    });
+    renderLauncher({});
+
+    fireEvent.click(tile('Set up a Python kernel'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('no Python was found');
+    expect(tile('Try again')).toBeInTheDocument();
+    expect(screen.getByLabelText('Setup log')).toHaveTextContent('$ uv venv .venv');
+  });
+
+  it('follows a setup already running elsewhere rather than starting a second', async () => {
+    const { ApiError } = await import('@/api/client');
+    startEnvironmentSetup.mockRejectedValue(
+      new ApiError('POST', '/api/environment/setup', 409, '{"state":"running"}')
+    );
+    getEnvironmentSetup.mockReturnValue(new Promise(() => {}));
+    renderLauncher({});
+
+    fireEvent.click(tile('Set up a Python kernel'));
+
+    expect(await screen.findByText('Setting up a Python kernel…')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"slices"
+	"sort"
+	"strings"
 
 	"github.com/zasper-io/zasper/internal/kernel/provisioner"
 	"github.com/zasper-io/zasper/internal/kernelspec"
@@ -89,16 +92,19 @@ func (km *KernelManager) StopKernel(kernelId string) error {
 	return km.Provisioner.ShutdownKernel()
 }
 
-func (km *KernelManager) getKernelspec() kernelspec.KernelSpecJsonData {
-	return kernelspec.GetKernelSpec(km.KernelName)
-}
-
 func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[string]interface{}, error) {
 	km.ShuttingDown = false
 
+	// Before any port is taken or connection file written, so a missing or broken spec leaves nothing
+	// behind to clean up.
+	spec, err := kernelspec.GetKernelSpec(km.KernelName)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	km.Provisioner = provisioner.LocalProvisioner{
 		KernelId:    km.KernelId,
-		Kernelspec:  km.getKernelspec(),
+		Kernelspec:  spec,
 		PortsCached: false,
 	}
 
@@ -173,18 +179,68 @@ func (km *KernelManager) preLaunch() (map[string]interface{}, error) {
 
 	env := make(map[string]interface{})
 	env["cmd"] = kernelCmd
-	env["env"] = os.Environ()
+	env["env"] = kernelEnv(os.Environ(), km.Provisioner.Kernelspec.Env)
 	return env, nil
 }
 
-func (km *KernelManager) formatKernelCmd() []string {
+var barePython = regexp.MustCompile(`^python(\d+(\.\d+)?)?$`)
 
-	cmd := km.getKernelspec().Argv
-	if cmd[0] == "python3" || cmd[0] == "python" {
+func (km *KernelManager) formatKernelCmd() []string {
+	// A copy of the spec the provisioner holds, not a second read from disk: the launcher rewrites
+	// {connection_file} in place.
+	cmd := slices.Clone(km.Provisioner.Kernelspec.Argv)
+	if len(cmd) == 0 || !barePython.MatchString(cmd[0]) {
+		return cmd
+	}
+	// jupyter_client runs a bare python with its own sys.executable; the nearest Zasper has is the
+	// Python the spec was installed by. PATH's is the guess only when that cannot be told.
+	if interpreter := kernelspec.Interpreter(km.Provisioner.Kernelspec.ResourceDir); interpreter != "" {
+		cmd[0] = interpreter
+	} else if cmd[0] == "python3" || cmd[0] == "python" {
 		pythonVersion, _ := getPython()
 		cmd[0] = pythonVersion
 	}
 	return cmd
+}
+
+// string.Template's pattern, which jupyter_client uses on a spec's env: $$, ${name} and $name.
+var envReference = regexp.MustCompile(`\$(?:(\$)|\{([_A-Za-z][_A-Za-z0-9]*)\}|([_A-Za-z][_A-Za-z0-9]*))`)
+
+/*
+kernelEnv is the server's environment with the kernelspec's `env` laid over it. Each value's references
+are filled from the server's environment and a name it does not have is left as written, which is
+jupyter_client's safe_substitute. Appended rather than replaced, because os/exec keeps the last of
+duplicate keys.
+*/
+func kernelEnv(base []string, specEnv map[string]string) []string {
+	lookup := make(map[string]string, len(base))
+	for _, entry := range base {
+		if name, value, ok := strings.Cut(entry, "="); ok {
+			lookup[name] = value
+		}
+	}
+
+	names := make([]string, 0, len(specEnv))
+	for name := range specEnv {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	env := slices.Clone(base)
+	for _, name := range names {
+		value := envReference.ReplaceAllStringFunc(specEnv[name], func(reference string) string {
+			groups := envReference.FindStringSubmatch(reference)
+			if groups[1] != "" {
+				return "$"
+			}
+			if resolved, ok := lookup[groups[2]+groups[3]]; ok {
+				return resolved
+			}
+			return reference
+		})
+		env = append(env, name+"="+value)
+	}
+	return env
 }
 
 func getPython() (string, error) {

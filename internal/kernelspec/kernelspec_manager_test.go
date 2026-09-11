@@ -36,6 +36,7 @@ func jupyterPath(t *testing.T) string {
 	previous := core.Zasper.JupyterPath
 	core.Zasper.JupyterPath = []string{root}
 	t.Cleanup(func() { core.Zasper.JupyterPath = previous })
+	noInterpreters(t)
 
 	return filepath.Join(root, "kernels")
 }
@@ -109,7 +110,8 @@ func TestASpecIsReadFromItsKernelJson(t *testing.T) {
 	kernels := jupyterPath(t)
 	dir := kernelDir(t, kernels, "python3", pythonSpec)
 
-	spec := GetKernelSpec("python3")
+	spec, err := GetKernelSpec("python3")
+	require.NoError(t, err)
 
 	assert.Equal(t, "Python 3", spec.DisplayName)
 	assert.Equal(t, "python", spec.Language)
@@ -119,19 +121,91 @@ func TestASpecIsReadFromItsKernelJson(t *testing.T) {
 	assert.Equal(t, dir, spec.ResourceDir)
 }
 
-/*
-A spec that cannot be read comes back empty rather than as an error.
-
-That is worth pinning rather than fixing here: the zero value flows on to the kernel launcher, which
-reads Argv[0]. Nothing in this package can tell the difference between a malformed kernel.json and a
-kernel with no argv, so the check belongs to the launcher.
-*/
-func TestASpecThatCannotBeReadIsEmpty(t *testing.T) {
+// An empty spec used to come back instead, and the launcher panicked on its Argv[0].
+func TestASpecThatCannotBeLoadedIsAnError(t *testing.T) {
 	kernels := jupyterPath(t)
-	broken := kernelDir(t, kernels, "broken", "{ this is not json")
 
-	assert.Empty(t, fromResourceDir(broken).Argv)
-	assert.Empty(t, fromResourceDir(filepath.Join(kernels, "missing")).Argv)
+	for name, dir := range map[string]string{
+		"not json":   kernelDir(t, kernels, "broken", "{ this is not json"),
+		"no argv":    kernelDir(t, kernels, "no-argv", `{"display_name": "Nothing to run"}`),
+		"no file":    filepath.Join(kernels, "missing"),
+		"empty argv": kernelDir(t, kernels, "empty-argv", `{"argv": [], "display_name": "Empty"}`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := fromResourceDir(dir)
+			assert.Error(t, err)
+		})
+	}
+
+	// Nor are they listed, where each was a nameless launcher entry that could not start.
+	assert.Empty(t, GetAllSpecs())
+}
+
+func TestASpecsEnvIsRead(t *testing.T) {
+	kernels := jupyterPath(t)
+	kernelDir(t, kernels, "ir", `{
+  "argv": ["R", "--slave", "-f", "{connection_file}"],
+  "display_name": "R",
+  "env": {"R_HOME": "/opt/R", "PATH": "/opt/R/bin:${PATH}"}
+}`)
+
+	spec, err := GetKernelSpec("ir")
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"R_HOME": "/opt/R", "PATH": "/opt/R/bin:${PATH}"}, spec.Env)
+	assert.Equal(t, []string{"R", "--slave", "-f", "{connection_file}"}, spec.Argv)
+}
+
+/*
+A name nobody installed is not found. findSpecDirectory answers "" for it, and fromResourceDir used
+to read filepath.Join("", "kernel.json") — a kernel.json in the server's working directory, whose argv
+the launcher would then run.
+*/
+func TestAnUnknownKernelIsNotReadFromTheWorkingDirectory(t *testing.T) {
+	jupyterPath(t)
+	cwd := t.TempDir()
+	t.Chdir(cwd)
+	require.NoError(t, os.WriteFile(filepath.Join(cwd, "kernel.json"),
+		[]byte(`{"argv": ["touch", "pwned"], "display_name": "From the project"}`), 0o644))
+
+	spec, err := GetKernelSpec("no-such-kernel")
+
+	assert.ErrorIs(t, err, ErrKernelspecNotFound)
+	assert.Empty(t, spec.Argv)
+}
+
+// The Jupyter path is in priority order. Listing used to let the last directory win while launching
+// took the first, so the launcher showed one kernel and started another.
+func TestTheFirstDirectoryOnTheJupyterPathWins(t *testing.T) {
+	user, system := t.TempDir(), t.TempDir()
+	for root, name := range map[string]string{user: "Mine", system: "The system's"} {
+		kernelDir(t, filepath.Join(root, "kernels"), "python3",
+			`{"argv": ["python3"], "display_name": "`+name+`"}`)
+	}
+	previous := core.Zasper.JupyterPath
+	core.Zasper.JupyterPath = []string{user, system}
+	t.Cleanup(func() { core.Zasper.JupyterPath = previous })
+	noInterpreters(t)
+
+	launched, err := GetKernelSpec("python3")
+	require.NoError(t, err)
+
+	assert.Equal(t, "Mine", GetAllSpecs()["python3"].Spec.DisplayName)
+	assert.Equal(t, "Mine", launched.DisplayName)
+}
+
+// Jupyter lowercases names when it lists and when it resolves, and notebooks it saved carry them so.
+func TestKernelNamesAreMatchedWhateverTheirCase(t *testing.T) {
+	kernels := jupyterPath(t)
+	dir := kernelDir(t, kernels, "Python3", pythonSpec)
+
+	assert.Equal(t, map[string]string{"python3": dir}, listKernelsIn(kernels))
+
+	for _, name := range []string{"python3", "Python3", "PYTHON3"} {
+		spec, err := GetKernelSpec(name)
+		require.NoError(t, err, name)
+		assert.Equal(t, dir, spec.ResourceDir, name)
+	}
 }
 
 func TestAllTheSpecsAreFoundAcrossTheJupyterPath(t *testing.T) {

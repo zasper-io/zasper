@@ -136,4 +136,29 @@ $launcher-gutter: 32px;
   .z-button {
     margin-top: 12px;
   }
+
+  .z-notice {
+    margin-top: 12px;
+  }
+
+  // The setup's own output as it arrives, capped in height and kept scrolled to its last line.
+  .setupLog {
+    max-height: 200px;
+    overflow: auto;
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    border-radius: 4px;
+    background-color: var(--z-bg-code);
+    color: var(--z-fg-default);
+    font-family: var(--z-mono-font-family);
+    font-size: var(--z-font-size-code);
+    font-weight: 400;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+// `pip install ipykernel` by hand, which the setup button does not replace.
+.noKernelsFound-manual {
+  margin-top: 16px;
 }

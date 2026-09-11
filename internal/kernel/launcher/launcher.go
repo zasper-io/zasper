@@ -19,6 +19,11 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 	log.Debug().Msgf("kernelCmd is %v", kernelCmd)
 
 	cmd := exec.Command(kernelCmd[0], kernelCmd[1:]...)
+	// The server's environment with the kernelspec's on top (KernelManager.preLaunch). Without it the
+	// kernel inherits the server's alone, and a spec's own env never reached the process.
+	if env, ok := kw["env"].([]string); ok {
+		cmd.Env = env
+	}
 
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()
