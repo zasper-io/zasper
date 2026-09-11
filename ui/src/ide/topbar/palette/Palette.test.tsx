@@ -70,12 +70,11 @@ describe('Palette', () => {
     expect(input()).toBeInTheDocument();
   });
 
-  it('filters commands based on query', () => {
+  it('narrows the commands to those matching the query', () => {
     renderPalette();
-    fireEvent.change(input(), { target: { value: 'Open File' } });
-    expect(screen.getByText('Open File')).toBeInTheDocument();
-    expect(screen.queryByText('Save File')).not.toBeInTheDocument();
-    expect(screen.queryByText('Close File')).not.toBeInTheDocument();
+    fireEvent.change(input(), { target: { value: 'save' } });
+    expect(screen.getByText('Save File')).toBeInTheDocument();
+    expect(screen.queryAllByText(/^(Open|Close) File$/)).toHaveLength(0);
   });
 
   // So that "notebook" finds the notebook's commands without knowing what any of them is called.
@@ -98,12 +97,14 @@ describe('Palette', () => {
     expect(screen.getByText('Open File').parentElement).toHaveClass('is-selected');
   });
 
-  it('executes the selected command on Enter', () => {
+  it('runs the command the arrow keys reached on Enter, then closes', () => {
     const onClose = vi.fn();
     renderPalette({ initialQuery: '>', onClose });
+    fireEvent.keyDown(input(), { key: 'ArrowDown' });
     fireEvent.keyDown(input(), { key: 'Enter' });
-    expect(mockCommands[0].execute).toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
+    expect(mockCommands[1].execute).toHaveBeenCalledOnce();
+    expect(mockCommands[0].execute).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('runs nothing on Enter when the query matches nothing', () => {
@@ -118,12 +119,12 @@ describe('Palette', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('executes command on click', () => {
+  it('runs a clicked command, then closes', () => {
     const onClose = vi.fn();
     renderPalette({ initialQuery: '>', onClose });
-    fireEvent.click(screen.getByText('Open File'));
-    expect(mockCommands[0].execute).toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Close File'));
+    expect(mockCommands[2].execute).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('shows a disabled command but refuses to run it', () => {

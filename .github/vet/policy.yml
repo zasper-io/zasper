@@ -1,22 +1,19 @@
-name: General Purpose OSS Best Practices
+name: Zasper dependency policy
 description: |
-  This filter suite contains rules for implementing general purpose OSS
-  consumption best practices for an organization.
+  Fails when a dependency has a known critical or high severity vulnerability,
+  or carries one of the GPL licence identifiers below.
 tags:
-  - community
-  - oss
+  - zasper
 filters:
-  - name: critical-or-high-vulns
+  - name: severe-vulnerability
     check_type: CheckTypeVulnerability
-    summary: Critical or high risk vulnerabilities were found
+    summary: A dependency has a critical or high severity vulnerability
     value: |
-      vulns.critical.exists(p, true) || vulns.high.exists(p, true)
-  - name: risky-oss-licenses
+      vulns.critical.size() > 0 || vulns.high.size() > 0
+  - name: gpl-licence
     check_type: CheckTypeLicense
-    summary: Risky OSS license was detected
+    summary: A dependency is GPL-licensed
     value: |
-      licenses.exists(p, p == "GPL-2.0") ||
-      licenses.exists(p, p == "GPL-2.0-only") ||
-      licenses.exists(p, p == "GPL-3.0") ||
-      licenses.exists(p, p == "GPL-3.0-only") ||
-      licenses.exists(p, p == "BSD-3-Clause OR GPL-2.0")
+      licenses.exists(p, p in [
+        "GPL-2.0", "GPL-2.0-only", "GPL-3.0", "GPL-3.0-only", "BSD-3-Clause OR GPL-2.0"
+      ])

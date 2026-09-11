@@ -30,11 +30,7 @@ export default function ImageEditor(props: ImageEditorProps) {
         <BreadCrumb path={data.path} />
         {/* .imageArea is the scroll box; the <img> keeps its own aspect ratio inside it. */}
         <div className="imageArea">
-          <img
-            src={fileContents}
-            className="imageContent"
-            alt={data.name ? `Image of ${data.name}` : 'Image content'}
-          />
+          <img src={fileContents} className="imageContent" alt={data.name || data.path} />
         </div>
       </div>
     </div>

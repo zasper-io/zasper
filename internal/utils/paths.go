@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -93,19 +92,17 @@ func GetJupyterPath() []string {
 
 // jupyterCLIPaths is `jupyter --paths --json`'s data directories, or nil without a `jupyter`.
 func jupyterCLIPaths() []string {
-	cmd := exec.Command("jupyter", "--paths", "--json")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
+	raw, err := exec.Command("jupyter", "--paths", "--json").Output()
+	if err != nil {
 		return nil
 	}
-	var result struct {
+	var paths struct {
 		Data []string `json:"data"`
 	}
-	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+	if json.Unmarshal(raw, &paths) != nil {
 		return nil
 	}
-	return result.Data
+	return paths.Data
 }
 
 func globPaths(pattern string) []string {

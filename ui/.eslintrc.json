@@ -4,40 +4,20 @@
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module",
-    "ecmaFeatures": {
-      "jsx": true
-    }
+    "ecmaFeatures": { "jsx": true }
   },
-  "env": {
-    "browser": true,
-    "es2021": true,
-    "node": true
-  },
-  "settings": {
-    "react": {
-      "version": "detect"
-    }
-  },
+  "env": { "browser": true, "node": true, "es2021": true },
+  "settings": { "react": { "version": "detect" } },
+  "plugins": ["react", "react-hooks"],
   "extends": [
     "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
     "plugin:react-hooks/recommended",
     "plugin:prettier/recommended"
   ],
-  "plugins": ["react", "react-hooks", "prettier"],
+  "ignorePatterns": ["build/", "public/"],
   "rules": {
-    "prettier/prettier": [
-      "error",
-      {
-        "singleQuote": true,
-        "semi": true,
-        "trailingComma": "es5",
-        "printWidth": 100,
-        "endOfLine": "auto"
-      }
-    ],
     "react/prop-types": "off",
-    "react/react-in-jsx-scope": "off",
-    "react/jsx-uses-react": "off",
     "react/display-name": "off"
   }
 }

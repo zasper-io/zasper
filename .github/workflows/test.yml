@@ -1,28 +1,20 @@
-name: Testing the frontend
+name: Frontend tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
 
 jobs:
-  test:
-    name: Running the tests
+  vitest:
+    name: Vitest
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout the code
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22.12'
-
-      - name: Install dependencies
-        run: make init
-
+      - run: make init
       # The frontend half only: the Go tests are Go Build's job, and `make test` now runs both.
-      - name: Run the tests
-        run: make test-frontend
+      - run: make test-frontend

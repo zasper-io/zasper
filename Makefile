@@ -114,12 +114,11 @@ clean:
 	rm -rf ui/build
 	rm -rf ui/dist
 
-
-# Run the tests
+# Both suites; either one also runs on its own.
 test: test-frontend test-go
 
 test-frontend:
-	@echo "Running tests on frontend"
+	@echo "Running frontend tests"
 	cd ui && npm test
 
 # -race because several of these tests are about concurrent requests for the same kernel or session.

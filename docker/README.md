@@ -1,24 +1,32 @@
 # Docker
 
-The files in this directory will build a basic docker environment for zasper that will 
+Builds a Zasper image from this checkout rather than from a clone of `main`, so building from a
+release tag ships that release.
 
-* install the latest version of zasper from github
-* use system provided python and install `jupyter` into this version. 
-* run `zasper` using a non-root user account named `zasper`
-* provide `zasper` at port 8048. 
+The image:
 
-## Build docker container
+- compiles Zasper in a Go and Node build stage and copies only the binary into a slim Debian image;
+- installs `jupyter` with pip, since Zasper runs notebooks on Jupyter kernels but ships none;
+- runs as an unprivileged `zasper` user whose home, `/home/zasper`, is the project Zasper opens.
 
-```
-docker compose build
-```
+## With Compose
 
-If `docker compose` is not available, simply run `docker build . -t zasper` in this folder 
+From this directory:
 
-## Run docker container
-
-```
-docker compose up -d 
+```sh
+docker compose up -d --build
+docker compose logs zasper
 ```
 
-If `docker-compose` is not available, please run `docker run -p 8048:8048 -d zasper`. 
+The startup line in the log carries the access token. Zasper is published on `127.0.0.1:8048`;
+change the mapping in `docker-compose.yml` to `"8048:8048"` to reach it from other machines.
+Notebooks go in `./workspace`, which is mounted as the project.
+
+## Without Compose
+
+From the repository root:
+
+```sh
+docker build -f docker/Dockerfile -t zasper .
+docker run -d -p 127.0.0.1:8048:8048 -v "$PWD/workspace:/home/zasper" zasper
+```
