@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -35,6 +36,7 @@ func main() {
 	protected := flag.Bool("protected", false, "enable protected mode")
 	tracking := flag.Bool("tracking", true, "enable usage tracking")
 	showVersion := flag.Bool("version", false, "print the version and exit")
+	noBrowser := flag.Bool("no-browser", false, "do not open the app in a browser on startup")
 
 	flag.Parse()
 
@@ -118,6 +120,12 @@ func main() {
 			log.Error().Err(err).Msg("http server stopped")
 		}
 	}()
+
+	// After the bind, so the page never races the server: a request that arrives before Serve is
+	// running waits in the listener's backlog.
+	if shouldOpenBrowser(*noBrowser, logging.Console(), runtime.GOOS, os.Getenv) {
+		launchBrowser(browsableURL(address))
+	}
 
 	<-stop
 	log.Info().Msg("shutting down server")

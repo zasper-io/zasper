@@ -100,7 +100,7 @@ build:
 # Default target: run both frontend and backend in development
 dev:
 	@echo "Starting the frontend and backend in development..."
-	(cd ui && npm start) & go run .
+	(cd ui && npm start) & go run . --no-browser
 
 # Install the web app
 webapp-install: build

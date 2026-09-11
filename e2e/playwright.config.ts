@@ -55,7 +55,7 @@ export default defineConfig({
     command: [
       'node prepare.cjs',
       'cd "$ZASPER_E2E_PROJECT"',
-      `exec "$ZASPER_E2E_BINARY" -port :${port} -tracking=false`,
+      `exec "$ZASPER_E2E_BINARY" -port :${port} -tracking=false -no-browser`,
     ].join(' && '),
     cwd: e2eRoot,
     // Polled until it answers, which is what makes the wait for boot a wait rather than a guess.

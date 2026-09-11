@@ -311,7 +311,9 @@ prasunanand@Prasuns-Mac-mini example % zasper
 
 ```
 
-Go to `http://localhost:8048`
+Zasper opens `http://127.0.0.1:8048` in your default browser. Pass
+`--no-browser` to leave it closed — for example when the server runs on a machine
+you reach over SSH.
 
 
 ### 🚀 Hosting Zasper
