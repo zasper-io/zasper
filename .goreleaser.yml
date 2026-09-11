@@ -78,7 +78,7 @@ homebrew_casks:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://zasper.io"
     description: "High Performance IDE for Jupyter Notebooks"
-    license: "AGPL-3.0"
+    license: "AGPL-3.0-only"
     # auto = skip when the tag is a pre-release, so cutting v1.0.0-rc.1 to rehearse the pipeline does
     # not put a release candidate in front of every `brew install zasper`.
     skip_upload: auto

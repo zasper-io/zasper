@@ -6,6 +6,7 @@ This document will guide you through the process of contributing to the project.
 
 ## Table of Contents
 - [Code of Conduct](#code-of-conduct)
+- [Contributor License Agreement](#contributor-license-agreement)
 - [How to Contribute](#how-to-contribute)
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Features](#suggesting-features)
@@ -19,6 +20,17 @@ This document will guide you through the process of contributing to the project.
 ## Code of Conduct
 
 By contributing to Zasper, you agree to abide by the [Code of Conduct](https://github.com/zasper-io/zasper/blob/main/CODE_OF_CONDUCT.md). Please make sure your interactions are respectful and constructive.
+
+## Contributor License Agreement
+
+Before your first pull request can be merged, you need to sign the
+[Contributor License Agreement](CLA.md). You keep the copyright in your work. The agreement lets
+Zasper be released under the AGPL-3.0 and also licensed under other terms, including commercial
+licenses, and it promises that anything of yours that ships stays available under an open-source
+license.
+
+Signing takes one comment: the CLA Assistant bot replies on your pull request with the sentence
+to post. You only sign once.
 
 ## How to Contribute
 

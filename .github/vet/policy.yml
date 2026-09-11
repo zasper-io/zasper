@@ -1,7 +1,7 @@
 name: Zasper dependency policy
 description: |
   Fails when a dependency has a known critical or high severity vulnerability,
-  or carries one of the GPL licence identifiers below.
+  or carries one of the GPL license identifiers below.
 tags:
   - zasper
 filters:
@@ -10,7 +10,7 @@ filters:
     summary: A dependency has a critical or high severity vulnerability
     value: |
       vulns.critical.size() > 0 || vulns.high.size() > 0
-  - name: gpl-licence
+  - name: gpl-license
     check_type: CheckTypeLicense
     summary: A dependency is GPL-licensed
     value: |
