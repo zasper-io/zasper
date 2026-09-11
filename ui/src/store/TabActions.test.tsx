@@ -60,8 +60,16 @@ function Harness() {
           .join(',')}
       </span>
       <span data-testid="kernels">{Object.keys(notebookKernelMap).join(',')}</span>
+      <span data-testid="active">
+        {Object.keys(openTabs)
+          .filter((key) => openTabs[key].active)
+          .join(',')}
+      </span>
       <button type="button" onClick={() => closeTab('src/demo.ipynb')}>
         close demo
+      </button>
+      <button type="button" onClick={() => closeTab('notes.txt')}>
+        close notes
       </button>
       <button type="button" onClick={() => closeDeleted('src')}>
         delete src
@@ -91,11 +99,11 @@ function Harness() {
   );
 }
 
-function renderHarness() {
+function renderHarness(initialTabs: IfileTabDict = tabs) {
   return render(
     <Provider
       initialValues={[
-        [fileTabsAtom, { ...tabs }],
+        [fileTabsAtom, { ...initialTabs }],
         [notebookKernelMapAtom, { 'src/demo.ipynb': { name: 'python3', id: 'kernel-1' } }],
       ]}
     >
@@ -210,5 +218,22 @@ describe('useTabActions', () => {
     // The tab strip shows `name`, so a tab whose path moved but whose name did not is a tab
     // labelled with a file that no longer exists.
     expect(text('names')).toBe('Launcher,todo.txt,main.py,demo.ipynb');
+  });
+
+  // Every active tab's content is shown, so a second one in front puts two on screen at once.
+  it('leaves the tab in front alone when a tab behind it is closed', () => {
+    renderHarness({ ...tabs, 'notes.txt': { ...tabs['notes.txt'], active: true } });
+
+    fireEvent.click(screen.getByText('close demo'));
+
+    expect(text('active')).toBe('notes.txt');
+  });
+
+  it('brings the Launcher forward when the tab in front is closed', () => {
+    renderHarness({ ...tabs, 'notes.txt': { ...tabs['notes.txt'], active: true } });
+
+    fireEvent.click(screen.getByText('close notes'));
+
+    expect(text('active')).toBe('Launcher');
   });
 });

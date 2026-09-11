@@ -131,7 +131,9 @@ export function useTabActions(): ITabActions {
         }
       });
       // Something has to be in front once a tab goes, and the Launcher is the one tab always there.
-      if (next.Launcher) {
+      // Only when the tab that went was the one in front, or closing a background tab shows two.
+      const anyActive = Object.values(next).some((tab) => tab.active);
+      if (!anyActive && next.Launcher) {
         next.Launcher = { ...next.Launcher, active: true };
       }
       return next;
