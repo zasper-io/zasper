@@ -593,5 +593,16 @@ Prasun Anand
 
 ## ⚖️ License
 
-Zasper is licensed under the GNU Affero General Public License, version 3 only
-(`AGPL-3.0-only`). See [LICENSE](LICENSE).
+Zasper is dual-licensed. You can use it under either of these:
+
+- **Open source:** the GNU Affero General Public License, version 3 only (`AGPL-3.0-only`).
+  See [LICENSE](LICENSE). Running Zasper, on your own machine or on a server, needs nothing
+  more. If you distribute Zasper, or let people use a modified version over a network, the AGPL
+  requires you to make the corresponding source, including your changes, available under the
+  same license.
+- **Commercial:** for organizations that want to build Zasper into a proprietary product,
+  keep their modifications private, or need terms the AGPL does not offer. Write to
+  [prasun@zasper.io](mailto:prasun@zasper.io).
+
+Contributions are accepted under the [Contributor License Agreement](CLA.md), which is what
+lets Zasper be offered under both licenses.
