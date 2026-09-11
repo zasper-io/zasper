@@ -201,10 +201,21 @@ tag matching `snapcraft.yaml`.
 
 ### conda-forge
 
-The [feedstock](https://github.com/conda-forge/zasper-feedstock) is published and
-live. conda-forge's autotick bot usually opens a version-bump PR within a day of
-a GitHub Release; if it does not, open one by hand updating `version` and
-`sha256` in `recipe/meta.yaml` against the new release tarball.
+The [feedstock](https://github.com/conda-forge/zasper-feedstock) builds Zasper
+from the release tag's source archive, so each release needs a pull request
+there. Don't wait for conda-forge's version-bump bot: it has not opened one for
+this feedstock, not even for 0.3.0-beta. In `recipe/meta.yaml`:
+
+- set `version` (conda spells a pre-release `1.1.0b0`) and `tag` (`v1.1.0`);
+- set `sha256` to the source archive's:
+  `curl -sL https://github.com/zasper-io/zasper/archive/refs/tags/v1.1.0.tar.gz | shasum -a 256`
+- reset `build: number` to `0`;
+- keep the `go` and `nodejs` pins at or above what the release needs: the Go
+  version in `go.mod`, and the Node version in `.nvmrc`.
+
+The feedstock builds `linux-64`, `osx-64` and `win-64` only. Apple Silicon and
+ARM Linux have to be added in its `conda-forge.yml` before `conda install zasper`
+works there.
 
 ### Docker
 
