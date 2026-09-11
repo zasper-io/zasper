@@ -6,7 +6,7 @@ shapes described here will not change incompatibly within 1.x. Anything not
 described here is internal and may change at any time.
 
 The server listens on `127.0.0.1:8048` by default. See
-[README](../README.md#-hosting-zasper) for binding it elsewhere.
+[README](../README.md#self-hosting) for binding it elsewhere.
 
 ## A note on shape
 
