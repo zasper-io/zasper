@@ -35,6 +35,15 @@
   outline: none !important;
 }
 
+// The active line is wherever the cursor is, and CodeMirror draws it whether or not the editor has
+// focus. One editor per cell means one cursor per cell, all of them parked at the top until the cell
+// is typed in: a notebook opened with a grey band across the first line of every cell, none of which
+// was the line anybody was editing. Drawn only for the editor that actually has focus, which is the
+// one whose cursor is real.
+.cm-editor:not(.cm-focused) :is(.cm-activeLine, .cm-activeLineGutter) {
+  background-color: transparent;
+}
+
 .cm-indent-guide {
   border-left: 1px solid var(--z-border-indent-guide);
   margin-left: -1px; // align the guide to the left of the code

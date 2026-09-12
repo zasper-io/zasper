@@ -131,7 +131,13 @@
   // 16px matches the toolbar and breadcrumb above, so the cells share their left edge. The 40px at
   // the bottom is room to scroll past the last cell: without it the cell you are typing in is pinned
   // to the bottom edge of the pane, which is where a scrollbar and a status bar already are.
-  padding: 12px 16px 40px;
+  //
+  // The 28px at the top is the insert rail's, and has to be exactly its height: every rail is pulled
+  // up by its own 28px to sit in the gap the cell above leaves, and the first one has no cell above
+  // it — so it was pulled above the top of this scroller, where 16px of it and over half of each
+  // button were clipped. A scroller cannot be scrolled above its own content, so the only way to see
+  // the first rail is to leave it the room it takes.
+  padding: 28px 16px 40px;
   background-color: var(--z-bg-editor);
   color: var(--z-fg-editor);
 
