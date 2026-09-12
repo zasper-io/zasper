@@ -69,7 +69,10 @@
 
   // The close cross inherits the tab's colour, which is the point of drawing icons in
   // `currentColor`: --z-fg-subtle is picked to sit on a *panel*, and on a coloured tab it comes out
-  // at 1.16:1.
+  // at 1.16:1. The markup carries `on-chrome` for the other half of that, which is the hover: the
+  // strip is a coloured surface, and --z-bg-menu-hover is a light grey that reads as a hole cut in
+  // it. --z-bg-hover-on-chrome is the white wash the prototype draws, and every other button on
+  // chrome in the app — a dialog's close, the file browser's banner — already asks for it.
   //
   // 18px, and the one stated exception to `.z-icon-button`'s 22px: the cross has to fit inside the
   // tab beside a name, and a 22px box would set the strip's height instead of the label doing it.

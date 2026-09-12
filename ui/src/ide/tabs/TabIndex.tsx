@@ -152,7 +152,7 @@ function Tab({ tab, isDirty, onActivate, onClose }: TabProps) {
           // takes no events, and a <button> cannot be nested in the tab's own button. Its name is
           // `aria-label` and not a tooltip for the same reason the dot's is.
           <span
-            className="z-icon-button tab-close"
+            className="z-icon-button on-chrome tab-close"
             role="button"
             aria-label="Close"
             onClick={onClose}
