@@ -82,3 +82,19 @@ export function normalizeMathDelimiters(source: string): string {
   flush();
   return out.join('\n');
 }
+
+/**
+ * Whether a fragment already carries maths delimiters of either kind.
+ *
+ * For `text/latex` outputs, which are maths whether or not they say so: IPython's `Math` and SymPy
+ * wrap what they emit in `$…$`, while a hand-written `Latex(r"\begin{align}…")` does not, and the
+ * second has to be wrapped before remark-math will read it as anything but prose.
+ */
+export function hasMathDelimiters(text: string): boolean {
+  const trimmed = text.trim();
+  return (
+    (trimmed.length > 1 && trimmed.startsWith('$') && trimmed.endsWith('$')) ||
+    (trimmed.startsWith('\\(') && trimmed.endsWith('\\)')) ||
+    (trimmed.startsWith('\\[') && trimmed.endsWith('\\]'))
+  );
+}

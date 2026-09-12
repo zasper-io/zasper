@@ -405,7 +405,10 @@
   // A figure should not force the cell wider than the pane, and it sits on a plate of its own rather
   // than straight on the output tint: see --z-bg-figure. `display: block` so the plate is the image's
   // box and not a text line box with a descender's worth of tint under it.
-  img {
+  //
+  // `.output-svg` is the wrapper CellOutput.tsx puts around an inline `image/svg+xml` output, which is
+  // markup rather than an `<img>` and so needs saying separately to take the same shape.
+  :is(img, .output-svg > svg) {
     display: block;
     max-width: 100%;
     height: auto;

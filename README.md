@@ -311,14 +311,14 @@ Zasper reads and writes the `.ipynb` format directly. Two guarantees are worth s
 | ipywidgets (`application/vnd.jupyter.widget-view+json`) | ✅ |
 | `application/json` | ✅ |
 | Markdown cells: GFM tables, task lists, raw HTML, LaTeX via KaTeX | ✅ |
-| `image/svg+xml` | Not yet |
-| `text/latex` | Not yet |
-| `image/jpeg` | Not yet |
+| `image/svg+xml` | ✅ |
+| `text/latex` | ✅ |
+| `image/jpeg` | ✅ |
 
-The three gaps are worth knowing before you hit them: `text/latex` is what SymPy emits from
-`init_printing()`; `image/svg+xml` is what graphviz and networkx produce, and what matplotlib
-produces under `%config InlineBackend.figure_format = 'svg'`; and `image/jpeg` covers `display()`
-of a JPEG. Their cells run correctly; only the rendering is missing.
+`text/latex` — what SymPy emits under `init_printing()` — is typeset with KaTeX, the same renderer
+markdown cells use. `image/svg+xml`, which graphviz and networkx produce and which matplotlib
+produces under `%config InlineBackend.figure_format = 'svg'`, is inlined rather than wrapped in an
+`<img>`, so a figure that sizes itself to the cell still can.
 
 ### Known limitations
 

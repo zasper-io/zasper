@@ -1,10 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { AnsiUp } from 'ansi_up';
 
 import { ICell, ICellOutput } from '@/api';
 import WidgetRenderer, { type WidgetSource } from '@/ide/widgets/WidgetRenderer';
 
+import { hasMathDelimiters } from './mathDelimiters';
 import PlotlyOutput from './PlotlyOutput';
+
+// The boundary Cell.tsx keeps for markdown cells, for the same reason: katex and the markdown
+// pipeline are the heaviest thing in the notebook, and an output only needs them when it is LaTeX.
+const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
 
 /**
  * Renders an HTML output bundle and then re-executes any <script> it contains.
@@ -36,6 +41,27 @@ const HTMLWithScripts = ({ html }: { html: string }) => {
   return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
+/** A base64 image bundle. png and jpeg differ only in the mime type the data URL names. */
+const ImageOutput = ({ mime, data }: { mime: string; data: string }) => (
+  <div>
+    <img src={`data:${mime};base64,${data}`} alt="cell output" />
+  </div>
+);
+
+/**
+ * A `text/latex` bundle — SymPy under `init_printing()`, and IPython's `Latex` and `Math`.
+ *
+ * Rendered through the markdown pipeline, which already carries KaTeX for markdown cells, rather
+ * than a second maths renderer. A payload usually brings its own `$$…$$`; one that does not, such as
+ * a bare `\begin{align}`, is wrapped, because remark-math reads nothing else and would otherwise
+ * print the source.
+ */
+const LatexOutput = ({ latex }: { latex: string }) => (
+  <Suspense fallback={null}>
+    <MarkdownRenderer source={hasMathDelimiters(latex) ? latex : `$$${latex}$$`} />
+  </Suspense>
+);
+
 interface OutputBundlesProps {
   outputs: ICellOutput[];
   widgets: WidgetSource | null;
@@ -43,7 +69,7 @@ interface OutputBundlesProps {
 
 /**
  * A list of output bundles, each dispatched on the richest representation the kernel sent, in
- * Jupyter's preference order: widget, plotly figure, HTML, image, then plain text.
+ * Jupyter's preference order: widget, plotly figure, HTML, LaTeX, SVG, image, then plain text.
  *
  * Exported because a cell is not the only place outputs are shown: ipywidgets' Output widget holds
  * some of its own, and renders them through here so that they look like every other output.
@@ -102,7 +128,10 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
         if (outputData) {
           const {
             'text/html': htmlContent,
-            'image/png': imageContent,
+            'text/latex': latexContent,
+            'image/svg+xml': svgContent,
+            'image/png': pngContent,
+            'image/jpeg': jpegContent,
             'text/plain': textPlainData,
             'application/vnd.jupyter.widget-view+json': widgetData,
             'application/vnd.plotly.v1+json': plotlyFigure,
@@ -123,13 +152,29 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
             return <HTMLWithScripts key={index} html={htmlContent} />;
           }
 
-          if (imageContent) {
-            const blob = `data:image/png;base64,${imageContent}`;
+          if (latexContent) {
+            return <LatexOutput key={index} latex={latexContent} />;
+          }
+
+          // Inlined rather than wrapped in an `<img>` data URL, which is what Jupyter does: an SVG
+          // that sizes itself to its container cannot do that inside an `<img>`. It is the kernel's
+          // markup on the same terms as the text/html above it.
+          if (svgContent) {
             return (
-              <div key={index}>
-                <img src={blob} alt="cell output" />
-              </div>
+              <div
+                key={index}
+                className="output-svg"
+                dangerouslySetInnerHTML={{ __html: svgContent }}
+              />
             );
+          }
+
+          if (pngContent) {
+            return <ImageOutput key={index} mime="image/png" data={pngContent} />;
+          }
+
+          if (jpegContent) {
+            return <ImageOutput key={index} mime="image/jpeg" data={jpegContent} />;
           }
 
           if (textPlainData) {
