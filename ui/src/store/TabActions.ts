@@ -5,7 +5,7 @@ import { trackTabOpened } from '@/telemetry';
 import getFileExtension from '@/ide/utils';
 import { baseName, isInside, rewritePath } from '@/paths';
 import { notebookKernelMapAtom, terminalsAtom, terminalsCountAtom } from './AppState';
-import { fileTabsAtom, IfileTab, IfileTabDict } from './TabState';
+import { fileTabsAtom, IfileTab, IfileTabDict, withActive } from './TabState';
 
 /** What a caller has to say to open a tab; the rest of IfileTab follows from it. */
 export interface IOpenTab {
@@ -40,6 +40,12 @@ export function diffTabKey(target: DiffTarget): string {
 export interface ITabActions {
   /** Opens a tab, or brings it to the front when that path is already open. */
   openTab: (tab: IOpenTab) => void;
+  /**
+   * Brings an open tab to the front. A tab restored from a previous session reads its file the first
+   * time this reaches it; one that has already loaded is only raised, so an unsaved buffer survives
+   * being switched away from.
+   */
+  activateTab: (path: string) => void;
   /** Opens the two sides of one file's comparison, or brings that comparison to the front. */
   openDiff: (target: DiffTarget) => void;
   /** Opens a new terminal, in `cwd` if one is given. */
@@ -77,23 +83,23 @@ export function useTabActions(): ITabActions {
     }
 
     setFileTabs((previous) => {
-      const next: IfileTabDict = {};
-      // Only one tab is in front, and only a tab being opened now needs loading.
-      Object.entries(previous).forEach(([key, open]) => {
-        next[key] = { ...open, active: false, load_required: false };
-      });
-      const existing = next[tab.path];
-      next[tab.path] =
-        existing === undefined
-          ? ({
-              ...tab,
-              kernelspec: tab.kernelspec ?? 'none',
-              extension: tab.extension ?? getFileExtension(tab.name),
-              active: true,
-              load_required: true,
-            } satisfies IfileTab)
-          : { ...existing, active: true };
-      return next;
+      // Inserted unloaded, then activated: `withActive` is the one place that decides what loads, so a
+      // tab opened now and a restored tab reached for the first time take the same path.
+      const opened =
+        previous[tab.path] === undefined
+          ? {
+              ...previous,
+              [tab.path]: {
+                ...tab,
+                kernelspec: tab.kernelspec ?? 'none',
+                extension: tab.extension ?? getFileExtension(tab.name),
+                active: false,
+                load_required: false,
+                unloaded: true,
+              } satisfies IfileTab,
+            }
+          : previous;
+      return withActive(opened, tab.path);
     });
   };
 
@@ -148,6 +154,8 @@ export function useTabActions(): ITabActions {
 
   return {
     openTab,
+
+    activateTab: (path: string) => setFileTabs((previous) => withActive(previous, path)),
 
     openDiff: (target: DiffTarget) => {
       // Which comparison, in the tab name: two diffs of one file are two tabs, and a strip of tabs all

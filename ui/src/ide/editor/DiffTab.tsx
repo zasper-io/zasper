@@ -46,11 +46,24 @@ export default function DiffTab(props: DiffTabProps) {
   // do with the unstaged one is to keep editing the file it is about.
   const [reloads, setReloads] = useState<number>(0);
   const container = useRef<HTMLDivElement>(null);
+  /** The comparison this tab has already read, so being brought forward again is not a re-read. */
+  const lastRead = useRef<string>('');
   const theme = useTheme();
 
   // The parts of the comparison rather than the object holding them: the tab is rebuilt every time
   // another tab is activated, and re-reading a diff on every click of the tab strip is not a refresh.
+  //
+  // Only while this tab is in front, and only once per comparison: a diff is a `git diff` on the
+  // server, and a session restored with several diff tabs would run one for each at boot, none of
+  // them being looked at. A diff is active the moment `openDiff` opens it, so nothing about opening
+  // one changes; the guard is what a restored tab waits behind.
   useEffect(() => {
+    const wanted = JSON.stringify([path, staged, ref, from, reloads]);
+    if (!props.data.active || lastRead.current === wanted) {
+      return;
+    }
+    lastRead.current = wanted;
+
     let live = true;
 
     const read = async () => {
@@ -74,7 +87,7 @@ export default function DiffTab(props: DiffTabProps) {
     return () => {
       live = false;
     };
-  }, [path, staged, ref, from, reloads]);
+  }, [path, staged, ref, from, reloads, props.data.active]);
 
   useEffect(() => {
     const parent = container.current;

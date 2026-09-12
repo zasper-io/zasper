@@ -22,6 +22,7 @@ import StatusBar from './statusBar/StatusBar';
 import './IDE.scss';
 import {
   fileBrowserReloadCountAtom,
+  projectDirAtom,
   projectNameAtom,
   protectedStateAtom,
   userNameAtom,
@@ -29,6 +30,7 @@ import {
 } from '../store/AppState';
 import { ApiError, getInfo } from '../api';
 import { useKernelspecActions } from '../store/KernelspecActions';
+import { useRememberTabs } from '../store/useRememberTabs';
 import { applyTheme, getTheme, rememberTheme } from '../themes';
 import { useApplyZoom } from '../zoom/useApplyZoom';
 import { PanelName } from './sidebar/types';
@@ -43,6 +45,7 @@ function IDE() {
   const [theme, setTheme] = useAtom(themeAtom);
   const [reloadCount] = useAtom(fileBrowserReloadCountAtom);
   const [, setProjectName] = useAtom(projectNameAtom);
+  const [, setProjectDir] = useAtom(projectDirAtom);
   const [, setProtectedState] = useAtom(protectedStateAtom);
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
@@ -109,13 +112,14 @@ function IDE() {
     }
 
     setProjectName(info.project.toUpperCase());
+    setProjectDir(info.directory);
     setUserName(info.username);
     setVersion(info.version);
     // Resolve through the registry so a config naming a theme we no longer ship
     // falls back instead of writing a data-theme with no stylesheet behind it.
     setTheme(getTheme(info.theme).id);
     setProtectedState(info.protected);
-  }, [setProjectName, setUserName, setVersion, setTheme, setProtectedState]);
+  }, [setProjectName, setProjectDir, setUserName, setVersion, setTheme, setProtectedState]);
 
   useEffect(() => {
     initConfig();
@@ -142,6 +146,9 @@ function IDE() {
   }, [theme]);
 
   useApplyZoom();
+  // Remembers the open tabs, and drops a strip remembered for another project. The strip itself was
+  // already seeded when TabState loaded; this is what confirms and maintains it.
+  useRememberTabs();
 
   return (
     <div className="editor">

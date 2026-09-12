@@ -23,11 +23,15 @@ import (
 // Response structure to return as JSON
 type InfoResponse struct {
 	ProjectName string `json:"project"`
-	UserName    string `json:"username"`
-	OS          string `json:"os"`
-	Version     string `json:"version"`
-	Theme       string `json:"theme"`
-	Protected   bool   `json:"protected"`
+	// The absolute path of the project directory. The name above is only its last segment, so it is
+	// not an identity: two projects called `demo` in different places are the same `project`, and a
+	// frontend remembering anything per project — the open tabs — needs to tell them apart.
+	Directory string `json:"directory"`
+	UserName  string `json:"username"`
+	OS        string `json:"os"`
+	Version   string `json:"version"`
+	Theme     string `json:"theme"`
+	Protected bool   `json:"protected"`
 }
 
 type ConfigResponse struct {
@@ -39,6 +43,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	theme, _ := core.GetTheme()
 	response := InfoResponse{
 		ProjectName: core.Zasper.ProjectName,
+		Directory:   core.Zasper.HomeDir,
 		UserName:    core.Zasper.UserName,
 		OS:          core.Zasper.OSName,
 		Version:     core.Zasper.Version,

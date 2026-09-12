@@ -410,6 +410,10 @@ func TestTheServerDescribesItself(t *testing.T) {
 	info := decode[InfoResponse](t, body)
 	assert.Equal(t, filepath.Base(project), info.ProjectName)
 	assert.Equal(t, "test", info.Version)
+	// The whole path, not only its last segment: it is what tells two projects of the same name
+	// apart, which is what a client remembering anything per project needs.
+	assert.Equal(t, project, info.Directory)
+	assert.True(t, filepath.IsAbs(info.Directory), "the directory is absolute: %q", info.Directory)
 
 	// Not a route, rather than the SPA's index.html: this router was built without one.
 	status, _ = call(t, srv, http.MethodGet, "/api/nothing-here", nil)

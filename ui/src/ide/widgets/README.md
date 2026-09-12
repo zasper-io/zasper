@@ -168,7 +168,9 @@ something to replace it — which is what stops `interact` blinking empty on eve
 `outputs` back to the kernel (`save_changes`) is deliberate: the trait is documented as what the
 frontend captured, so `out.outputs` in Python reads what is on screen.
 
-Note that a cell's _own_ output area still ignores `clear_output`.
+A cell's _own_ output area folds the message the same way, in
+[useNotebookCells.ts](../editor/notebook/useNotebookCells.ts): `wait=True` is held in a ref until
+something arrives to replace what is shown, which `carriesOutput` decides.
 
 ## A page that has been reloaded
 

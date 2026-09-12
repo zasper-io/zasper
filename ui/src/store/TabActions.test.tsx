@@ -33,9 +33,14 @@ const tabs: IfileTabDict = {
   'src/demo.ipynb': tab('src/demo.ipynb', 'notebook'),
 };
 
+/** A tab restored from a previous session: on screen, but its content has never been read. */
+function restored(path: string, type = 'file'): IfileTab {
+  return { ...tab(path, type), unloaded: true };
+}
+
 /** The open tabs, the name each shows, and which notebooks still hold a kernel. */
 function Harness() {
-  const { closeTab, closeDeleted, renameTab, openDiff } = useTabActions();
+  const { activateTab, closeTab, closeDeleted, renameTab, openDiff, openTab } = useTabActions();
   const openTabs = useAtomValue(fileTabsAtom);
   const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
 
@@ -65,6 +70,32 @@ function Harness() {
           .filter((key) => openTabs[key].active)
           .join(',')}
       </span>
+      {/* Which tabs are reading themselves, and which have never been read. */}
+      <span data-testid="loading">
+        {Object.keys(openTabs)
+          .filter((key) => openTabs[key].load_required)
+          .join(',')}
+      </span>
+      <span data-testid="unloaded">
+        {Object.keys(openTabs)
+          .filter((key) => openTabs[key].unloaded === true)
+          .join(',')}
+      </span>
+      <button type="button" onClick={() => activateTab('notes.txt')}>
+        activate notes
+      </button>
+      <button type="button" onClick={() => activateTab('src/main.py')}>
+        activate main
+      </button>
+      <button type="button" onClick={() => activateTab('gone.txt')}>
+        activate a tab that is not open
+      </button>
+      <button
+        type="button"
+        onClick={() => openTab({ name: 'notes.txt', path: 'notes.txt', type: 'file' })}
+      >
+        open notes
+      </button>
       <button type="button" onClick={() => closeTab('src/demo.ipynb')}>
         close demo
       </button>
@@ -235,5 +266,61 @@ describe('useTabActions', () => {
     fireEvent.click(screen.getByText('close notes'));
 
     expect(text('active')).toBe('Launcher');
+  });
+
+  /*
+   * `load_required` re-reads the file from disk, so asking for it on a tab that has already been read
+   * would throw away whatever the reader had typed into it. Switching tabs is not a refresh.
+   */
+  it('raises a tab that has already loaded without reading it again', () => {
+    renderHarness();
+
+    fireEvent.click(screen.getByText('activate notes'));
+
+    expect(text('active')).toBe('notes.txt');
+    expect(text('loading')).toBe('');
+  });
+
+  // The point of the whole restore: the strip comes back, and a tab reads itself when it is reached.
+  it('reads a restored tab the first time it is brought to the front', () => {
+    renderHarness({ ...tabs, 'notes.txt': restored('notes.txt') });
+
+    fireEvent.click(screen.getByText('activate notes'));
+
+    expect(text('active')).toBe('notes.txt');
+    expect(text('loading')).toBe('notes.txt');
+    expect(text('unloaded')).toBe('');
+  });
+
+  it('does not read a restored tab again on the next visit', () => {
+    renderHarness({ ...tabs, 'notes.txt': restored('notes.txt') });
+
+    fireEvent.click(screen.getByText('activate notes'));
+    fireEvent.click(screen.getByText('activate main'));
+    fireEvent.click(screen.getByText('activate notes'));
+
+    expect(text('active')).toBe('notes.txt');
+    expect(text('loading')).toBe('');
+  });
+
+  // The file browser's way back to a restored tab, which goes through openTab rather than activateTab.
+  it('reads a restored tab opened from somewhere else', () => {
+    renderHarness({ ...tabs, 'notes.txt': restored('notes.txt') });
+
+    fireEvent.click(screen.getByText('open notes'));
+
+    expect(text('tabs')).toBe('Launcher,notes.txt,src/main.py,src/demo.ipynb');
+    expect(text('loading')).toBe('notes.txt');
+  });
+
+  // Every caller names a tab it is rendering; a path that is not open used to be invented as a tab.
+  it('ignores a request to activate a tab that is not open', () => {
+    renderHarness({ ...tabs, 'notes.txt': { ...tabs['notes.txt'], active: true } });
+
+    fireEvent.click(screen.getByText('activate a tab that is not open'));
+
+    // No tab invented, and the one in front stays there.
+    expect(text('tabs')).toBe('Launcher,notes.txt,src/main.py,src/demo.ipynb');
+    expect(text('active')).toBe('notes.txt');
   });
 });

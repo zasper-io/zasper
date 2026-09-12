@@ -14,6 +14,7 @@ vi.mock('@/api', () => ({
   getFileContent: (path: string) => getFileContent(path),
   saveFile: (path: string, content: string) => saveFile(path, content),
   logApiError: () => () => {},
+  apiErrorMessage: (error: unknown) => (error as Error).message,
 }));
 
 // CodeMirror cannot mount under jsdom, and the editor surface is not what this exercises.
@@ -114,5 +115,42 @@ describe('FileEditor', () => {
     type('first line\n');
 
     await waitFor(() => expect(unsavedPaths()).toBe(''));
+  });
+
+  /*
+   * A tab restored from a previous visit can name a file that has since been deleted. What used to
+   * happen: the read rejected unhandled, the editor stood there looking like an empty file, and
+   * saving it wrote the deleted file back to disk.
+   */
+  describe('when the file cannot be read', () => {
+    beforeEach(() => {
+      getFileContent.mockImplementation(() =>
+        Promise.reject(new Error('file not found: notes.txt'))
+      );
+    });
+
+    async function renderFailed() {
+      render(
+        <Provider>
+          <FileEditor data={tab} />
+          <TabBar />
+        </Provider>
+      );
+      await screen.findByRole('alert');
+    }
+
+    it('says so instead of offering an editor', async () => {
+      await renderFailed();
+
+      expect(screen.getByRole('alert')).toHaveTextContent('file not found: notes.txt');
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
+    it('holds nothing the tab bar could save back over the file', async () => {
+      await renderFailed();
+
+      expect(unsavedPaths()).toBe('');
+      expect(saveFile).not.toHaveBeenCalled();
+    });
   });
 });

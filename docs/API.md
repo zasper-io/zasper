@@ -58,7 +58,7 @@ pins that token, in which case sessions survive the restart.
 |---|---|---|
 | `GET` | `/api/health` | Readiness probe. Unauthenticated even in protected mode. |
 | `GET` | `/api/config` | Version and whether protected mode is on. Unauthenticated. |
-| `GET` | `/api/info` | Project name, user, OS, version, theme, protected flag. |
+| `GET` | `/api/info` | Project name and directory, user, OS, version, theme, protected flag. |
 | `POST` | `/api/config/modify` | Update a stored setting. |
 
 ## Contents

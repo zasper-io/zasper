@@ -38,6 +38,12 @@ export interface ITerminalsState {
 
 export const zasperVersionAtom = atom<string>('');
 export const projectNameAtom = atom<string>('');
+/**
+ * The absolute path of the project this server is serving, from `/api/info`, and `''` until that
+ * answers. Separate from `projectNameAtom`, which holds the last segment upper-cased for display:
+ * this one is an identity, and is what tells the remembered tabs of one project from another's.
+ */
+export const projectDirAtom = atom<string>('');
 export const protectedStateAtom = atom<boolean>(false);
 export const kernelspecsAtom = atom<IKernelspecsState>({});
 
