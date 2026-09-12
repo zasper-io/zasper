@@ -32,7 +32,7 @@ func TestListenAddress(t *testing.T) {
 	}
 }
 
-// The browser is sent here, so the token has to arrive intact whatever ZASPER_TOKEN holds.
+// The browser is sent here, so the token has to arrive intact whatever ZASPER_ACCESS_TOKEN holds.
 func TestLoginURL(t *testing.T) {
 	assert.Equal(t, "http://localhost:8048/?token=14be1b67", loginURL("0.0.0.0:8048", "14be1b67"))
 	assert.Equal(t, "http://127.0.0.1:8048/?token=a+b%26c", loginURL("127.0.0.1:8048", "a b&c"))

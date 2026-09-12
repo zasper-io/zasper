@@ -47,7 +47,7 @@ func SetUpZasper(version string, cwd string, protected bool) Application {
 	}
 
 	// Pinned for a hosted server whose users keep a link, and for the e2e suite, which has to sign in.
-	ServerAccessToken = os.Getenv("ZASPER_TOKEN")
+	ServerAccessToken = os.Getenv("ZASPER_ACCESS_TOKEN")
 	if ServerAccessToken == "" {
 		var err error
 		ServerAccessToken, err = GenerateRandomToken(16) // 16 bytes = 32 hex characters

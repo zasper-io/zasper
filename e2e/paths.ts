@@ -19,5 +19,5 @@ export const fixtureProject = join(e2eRoot, 'fixtures', 'project');
 export const port = 8099;
 export const baseURL = `http://localhost:${port}`;
 
-/** Pinned through ZASPER_TOKEN, so the specs can sign in the way the startup link does. */
+/** Pinned through ZASPER_ACCESS_TOKEN, so the specs can sign in the way the startup link does. */
 export const accessToken = 'e2e-access-token';

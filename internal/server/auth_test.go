@@ -146,9 +146,9 @@ func TestProtectedModeAcceptsTheLoginToken(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode)
 }
 
-// ZASPER_TOKEN replaces the random token, so a link or a script can carry it across restarts.
+// ZASPER_ACCESS_TOKEN replaces the random token, so a link or a script can carry it across restarts.
 func TestLoginAcceptsAPinnedAccessToken(t *testing.T) {
-	t.Setenv("ZASPER_TOKEN", "pinned-token")
+	t.Setenv("ZASPER_ACCESS_TOKEN", "pinned-token")
 	srv, accessToken := protectedServer(t)
 
 	assert.Equal(t, "pinned-token", accessToken)

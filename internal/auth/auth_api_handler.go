@@ -2,14 +2,12 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,41 +15,22 @@ import (
 	"github.com/zasper-io/zasper/internal/core"
 )
 
-var (
-	jwtSecret     []byte
-	jwtSecretOnce sync.Once
-)
-
 /*
-SetUpJWTSecret settles the signing key for this process, once.
+sessionKey is the key browser sessions are signed with, derived from the server access token.
 
-It used to be an init(), which meant it ran — and logged — before main() had configured the logger,
-so its line came out in a different format from every line after it. Server startup calls this
-instead, in an order it controls.
+There is no separate secret to configure: the access token already grants a session — anyone holding
+it can ask /auth/login for one — so signing with a key derived from it gives away nothing further. It
+also makes the lifetime of a session follow the thing it was traded for. A token that is random per
+start signs everyone out on restart; pinning ZASPER_ACCESS_TOKEN keeps sessions valid across one, and
+changing that token invalidates every session minted under the old one.
+
+Derived per call rather than settled once, so that nothing has to run in a particular order at
+startup and a token changed in a test is honoured immediately.
 */
-func SetUpJWTSecret() {
-	jwtSecretOnce.Do(func() {
-		if secret := os.Getenv("ZASPER_JWT_SECRET"); secret != "" {
-			jwtSecret = []byte(secret)
-			log.Info().Msg("JWT secret loaded from environment")
-			return
-		}
-
-		generated, err := generateRandomSecret(32)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to generate JWT secret")
-		}
-		jwtSecret = generated
-		log.Warn().Msg("ZASPER_JWT_SECRET not set — using an ephemeral random secret (tokens will not survive a restart)")
-	})
-}
-
-func generateRandomSecret(n int) ([]byte, error) {
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		return nil, err
-	}
-	return b, nil
+func sessionKey() []byte {
+	// The label keeps this key distinct from any other use the same token is ever put to.
+	sum := sha256.Sum256([]byte("zasper/session-key\x00" + core.ServerAccessToken))
+	return sum[:]
 }
 
 // contextKey is this package's own key type, so that a value stored here cannot be read or shadowed
@@ -106,7 +85,7 @@ func userFromToken(tokenStr string) (string, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		return jwtSecret, nil
+		return sessionKey(), nil
 	})
 
 	if err != nil || !token.Valid {
@@ -201,7 +180,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Debug().Msgf("Login role: %v", user.Role)
 
-	tokenString, err := token.SignedString(jwtSecret)
+	tokenString, err := token.SignedString(sessionKey())
 	if err != nil {
 		http.Error(w, "Could not generate token", http.StatusInternalServerError)
 		return

@@ -8,27 +8,22 @@ somebody else's secret, an algorithm the caller chose, an expiry that has passed
 that is not a string, which is the case the comma-ok in userFromToken exists for and which a bare
 assertion would turn into a panicked handler.
 
-jwtSecret is package state settled once by SetUpJWTSecret, which TestMain calls the way the server
-does, so these mint their tokens with it rather than replacing it, and nothing here runs in parallel.
+The signing key is derived from the server access token by sessionKey, so these mint their tokens
+with that rather than replacing it, and nothing here runs in parallel.
 */
 package auth
 
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zasper-io/zasper/internal/core"
 )
-
-func TestMain(m *testing.M) {
-	SetUpJWTSecret()
-	os.Exit(m.Run())
-}
 
 // signedWith mints a token from the given claims, using `secret` — which is the server's own unless
 // a test is asking what happens when it is not.
@@ -110,7 +105,7 @@ func TestAWebsocketFallsBackToTheQueryStringButPrefersTheHeader(t *testing.T) {
 }
 
 func TestAValidTokenAnswersWithItsUser(t *testing.T) {
-	userID, err := userFromToken(signedWith(t, jwtSecret, validClaims()))
+	userID, err := userFromToken(signedWith(t, sessionKey(), validClaims()))
 
 	require.NoError(t, err)
 	assert.Equal(t, "1", userID)
@@ -136,12 +131,12 @@ func TestATokenIsRefusedUnlessThisServerIssuedIt(t *testing.T) {
 		// Somebody else's secret. This is the one that matters most: everything else about the
 		// token can be right.
 		"signed with another secret": signedWith(t, []byte("a different secret entirely"), validClaims()),
-		"expired":                    signedWith(t, jwtSecret, expired),
+		"expired":                    signedWith(t, sessionKey(), expired),
 		// A signed token whose user_id is a JSON number. The claims are valid JWT; it is the type
 		// that is wrong, and asserting on it without the comma-ok would panic the handler.
-		"a numeric user_id": signedWith(t, jwtSecret, numericUser),
-		"no user_id":        signedWith(t, jwtSecret, noUser),
-		"an empty user_id":  signedWith(t, jwtSecret, emptyUser),
+		"a numeric user_id": signedWith(t, sessionKey(), numericUser),
+		"no user_id":        signedWith(t, sessionKey(), noUser),
+		"an empty user_id":  signedWith(t, sessionKey(), emptyUser),
 	}
 
 	for name, token := range cases {
@@ -182,7 +177,7 @@ func TestAnAuthenticatedRequestCarriesItsUser(t *testing.T) {
 		got, found = UserID(r.Context())
 	}))
 
-	request := requestWith("Bearer "+signedWith(t, jwtSecret, validClaims()), "")
+	request := requestWith("Bearer "+signedWith(t, sessionKey(), validClaims()), "")
 	handler.ServeHTTP(httptest.NewRecorder(), request)
 
 	assert.True(t, found)
@@ -192,4 +187,27 @@ func TestAnAuthenticatedRequestCarriesItsUser(t *testing.T) {
 	// string a caller might mistake for a user.
 	_, found = UserID(httptest.NewRequest(http.MethodGet, "/", nil).Context())
 	assert.False(t, found)
+}
+
+// The signing key is derived from the access token, which is what replaces the removed
+// ZASPER_JWT_SECRET: a session stays valid for as long as the token it was traded for does, so a
+// restart that mints a fresh token signs everyone out and a pinned one does not.
+func TestSessionKeyFollowsAccessToken(t *testing.T) {
+	original := core.ServerAccessToken
+	t.Cleanup(func() { core.ServerAccessToken = original })
+
+	core.ServerAccessToken = "the-first-token"
+	session := signedWith(t, sessionKey(), validClaims())
+	userID, err := userFromToken(session)
+	require.NoError(t, err)
+	assert.Equal(t, "1", userID)
+
+	// The same token derives the same key, so a session outlives a restart that pins it.
+	core.ServerAccessToken = "the-first-token"
+	_, err = userFromToken(session)
+	assert.NoError(t, err)
+
+	core.ServerAccessToken = "a-different-token"
+	_, err = userFromToken(session)
+	assert.Error(t, err)
 }

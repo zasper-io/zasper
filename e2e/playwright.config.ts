@@ -80,7 +80,7 @@ export default defineConfig({
       ZASPER_E2E_HOME: homeDir,
       ZASPER_E2E_PROJECT: projectDir,
       ZASPER_E2E_FIXTURE: fixtureProject,
-      ZASPER_TOKEN: accessToken,
+      ZASPER_ACCESS_TOKEN: accessToken,
     },
   },
 });

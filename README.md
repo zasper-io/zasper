@@ -243,19 +243,16 @@ A session lasts 24 hours, after which you sign in again.
 
 ### 3. Keep the token across restarts (optional)
 
-A new access token is generated every time the server starts. To keep the same one, so that a
-link you have handed out keeps working, set it yourself:
+A new access token is generated every time the server starts, and open sessions are signed with a
+key derived from it — so a restart both changes what you type and signs everyone out. Set the token
+yourself to keep a link you have handed out working, and to leave signed-in browsers signed in:
 
 ```sh
-export ZASPER_TOKEN=your-access-token
+export ZASPER_ACCESS_TOKEN=your-access-token
 ```
 
-Sessions are signed with a secret that is also random per process, so a restart signs everyone
-out. To keep sessions alive across restarts, fix that too:
-
-```sh
-export ZASPER_JWT_SECRET=your-secret-here
-```
+There is nothing else to configure: sessions follow the access token, and changing it signs everyone
+out on purpose.
 
 ## Jupyter kernels
 
@@ -424,8 +421,7 @@ A single click on a rendered markdown cell only selects it; it stays rendered.
 
 | Variable | Description |
 | --- | --- |
-| `ZASPER_TOKEN` | A fixed access token, instead of a new one on every start |
-| `ZASPER_JWT_SECRET` | The secret sessions are signed with; set it to keep sessions across restarts |
+| `ZASPER_ACCESS_TOKEN` | A fixed access token, instead of a new one on every start; open sessions survive a restart when it is set |
 | `ZASPER_TELEMETRY` | `0` or `1` to turn anonymous usage data off or on for this run |
 | `ZASPER_LOG_FORMAT` | `json` or `console`; by default, console on a terminal and JSON otherwise |
 | `ZASPER_ACCESS_LOG` | `1` to log every request, not only the ones that failed |

@@ -21,7 +21,7 @@ originals keep working.
 
 Every route except `/api/health`, `/api/config` and `/auth/login` requires
 credentials. The server prints a **server access token** at startup — random per
-process unless `ZASPER_TOKEN` sets it. Exchange it for a JWT:
+process unless `ZASPER_ACCESS_TOKEN` sets it. Exchange it for a JWT:
 
 ```http
 POST /auth/login
@@ -41,8 +41,9 @@ query string instead; this is the only place the server reads a token from a URL
 The link the server opens in a browser, `/?token=<access token>`, is for the
 frontend: it makes the same exchange and removes the token from the address bar.
 
-Tokens last 24 hours. The signing secret is random per process unless
-`ZASPER_JWT_SECRET` is set, so restarting the server invalidates issued tokens.
+Tokens last 24 hours. They are signed with a key derived from the server access
+token, so restarting the server invalidates them — unless `ZASPER_ACCESS_TOKEN`
+pins that token, in which case sessions survive the restart.
 
 ## Conventions
 
