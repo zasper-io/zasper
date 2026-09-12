@@ -1,7 +1,9 @@
 import React from 'react';
 
 import type { IconName } from '@/ide/icons';
-import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 
 interface NbButtonsProps {
   /** Dispatches a command by id — see notebookCommands.ts for the ids. */
@@ -52,21 +54,21 @@ const CELL_TYPES = [
 ];
 
 function NbButtons(props: NbButtonsProps) {
+  // The readout is a control, so it says what pressing it does rather than what it reads.
+  const kernelTip = useTooltip();
+
   return (
     <div className="text-editor-tool">
       {TOOLBAR_GROUPS.map((group, index) => (
         <React.Fragment key={group[0].id}>
           {index > 0 && <span className="sep" />}
           {group.map((button) => (
-            <button
+            <IconButton
               key={button.id}
-              type="button"
-              className="z-icon-button"
+              icon={button.icon}
+              label={button.title}
               onClick={() => props.run(button.id)}
-              title={button.title}
-            >
-              <Icon name={button.icon} />
-            </button>
+            />
           ))}
         </React.Fragment>
       ))}
@@ -94,19 +96,17 @@ function NbButtons(props: NbButtonsProps) {
       <button
         className="kernel-pill"
         onClick={() => props.run('notebook:change-kernel')}
-        title="Change Kernel"
+        {...kernelTip.anchorProps}
       >
         <span className={`kernelStatus ks-${props.kernelStatus}`} />
         {props.kernelDisplayName ?? props.kernelName}
       </button>
-      <button
-        className="z-icon-button"
+      <Tooltip tip={kernelTip} label="Change Kernel" />
+      <IconButton
+        icon="plug-zap"
+        label="Reconnect Kernel"
         onClick={() => props.run('notebook:reconnect-kernel')}
-        title="Reconnect Kernel"
-        aria-label="Reconnect Kernel"
-      >
-        <Icon name="plug-zap" />
-      </button>
+      />
     </div>
   );
 }

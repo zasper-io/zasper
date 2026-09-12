@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { baseName } from '@/paths';
 import { projectNameAtom } from '@/store/AppState';
 import { useTreeRoot } from './useTreeRoot';
@@ -16,18 +18,22 @@ interface CrumbProps {
 function Crumb({ label, path, isCurrent, onOpen }: CrumbProps) {
   // The trail is scrolled to its end and the names on it are cut to fit, so each one says in full
   // where it is.
-  const title = path === '' ? 'Project root' : path;
-  if (isCurrent) {
-    return (
-      <span className="crumb is-current" title={title} aria-current="location">
-        {label}
-      </span>
-    );
-  }
+  const where = path === '' ? 'Project root' : path;
+  const tip = useTooltip();
+
   return (
-    <button type="button" className="crumb" title={title} onClick={() => onOpen(path)}>
-      {label}
-    </button>
+    <>
+      {isCurrent ? (
+        <span className="crumb is-current" aria-current="location" {...tip.anchorProps}>
+          {label}
+        </span>
+      ) : (
+        <button type="button" className="crumb" onClick={() => onOpen(path)} {...tip.anchorProps}>
+          {label}
+        </button>
+      )}
+      <Tooltip tip={tip} label={where} />
+    </>
   );
 }
 

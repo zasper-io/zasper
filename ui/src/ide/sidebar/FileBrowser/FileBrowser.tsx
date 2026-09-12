@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAtom, useSetAtom } from 'jotai';
 
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
 import { useTabActions } from '@/store/TabActions';
 import ContextMenu from '../ContextMenu/ContextMenu';
 import Breadcrumb from './Breadcrumb';
@@ -100,41 +101,31 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
           <div className="z-label">File explorer</div>
           {/* The watcher misses whatever its exclusion list covers — anything with `test`, `dist`
               or `tmp` anywhere in its path — so there has to be a way to ask. */}
-          <button
-            className="z-icon-button"
-            onClick={() => refresh()}
-            title="Refresh"
-            aria-label="Refresh"
-          >
-            <Icon name="refresh-cw" />
-          </button>
+          <IconButton icon="refresh-cw" label="Refresh" onClick={() => refresh()} />
         </div>
         {/* The one place the project banner is right: it names the thing this panel
             is a view of — which is the project, or a folder inside it. */}
         <div className="projectBanner">
           <Breadcrumb />
           <div className="projectButtons">
-            <button
-              className="z-icon-button on-chrome"
+            <IconButton
+              icon="file-plus"
+              label="New file"
+              className="on-chrome"
               onClick={() => create(root, 'file')}
-              title="New file"
-            >
-              <Icon name="file-plus" />
-            </button>
-            <button
-              className="z-icon-button on-chrome"
+            />
+            <IconButton
+              icon="folder-plus"
+              label="New folder"
+              className="on-chrome"
               onClick={() => create(root, 'directory')}
-              title="New folder"
-            >
-              <Icon name="folder-plus" />
-            </button>
-            <button
-              className="z-icon-button on-chrome"
+            />
+            <IconButton
+              icon="notebook-pen"
+              label="New notebook"
+              className="on-chrome"
               onClick={() => create(root, 'notebook')}
-              title="New notebook"
-            >
-              <Icon name="notebook-pen" />
-            </button>
+            />
           </div>
         </div>
         <div className="treeToolbar">
@@ -146,23 +137,14 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
             aria-label="Filter files"
             onChange={(e) => setFilter(e.target.value)}
           />
-          <button
-            className="z-icon-button"
-            onClick={collapseAll}
-            title="Collapse all folders"
-            aria-label="Collapse all folders"
-          >
-            <Icon name="chevrons-up" />
-          </button>
-          <button
-            className="z-icon-button"
+          <IconButton icon="chevrons-up" label="Collapse all folders" onClick={collapseAll} />
+          <IconButton
+            icon={showHidden ? 'eye' : 'eye-off'}
+            label={showHidden ? 'Hide hidden files' : 'Show hidden files'}
+            name="Show hidden files"
+            pressed={showHidden}
             onClick={() => setShowHidden(!showHidden)}
-            title={showHidden ? 'Hide hidden files' : 'Show hidden files'}
-            aria-label="Show hidden files"
-            aria-pressed={showHidden}
-          >
-            <Icon name={showHidden ? 'eye' : 'eye-off'} />
-          </button>
+          />
         </div>
         {error !== '' && (
           <div className="z-notice z-notice-error" role="alert">

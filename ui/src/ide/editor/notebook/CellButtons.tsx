@@ -5,6 +5,9 @@ import { formatChord } from '@/commands/keys';
 import { useCommandEnabled, useCommands } from '@/commands/registry';
 import type { IconName } from '@/ide/icons';
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import ContextMenu from '@/ide/sidebar/ContextMenu/ContextMenu';
 
 interface CellButtonsProps {
@@ -84,6 +87,7 @@ function CellButtons(props: CellButtonsProps) {
   const commands = useCommands();
   const isEnabled = useCommandEnabled();
   const menuButton = useRef<HTMLButtonElement>(null);
+  const moreTip = useTooltip();
   const [menuAt, setMenuAt] = useState<{ xPos: number; yPos: number } | null>(null);
 
   // The chord comes off the command rather than being written here, so the row and the keyboard
@@ -120,17 +124,13 @@ function CellButtons(props: CellButtonsProps) {
   return (
     <div className="cellOptions">
       {CELL_BUTTONS.map((button) => (
-        <button
+        <IconButton
           key={button.id}
-          type="button"
-          className="z-icon-button"
-          onClick={() => props.run(button.id)}
+          icon={button.icon}
+          label={button.title}
           disabled={!isEnabled(button.id)}
-          title={button.title}
-          aria-label={button.title}
-        >
-          <Icon name={button.icon} />
-        </button>
+          onClick={() => props.run(button.id)}
+        />
       ))}
       <span className="sep" />
       <button
@@ -140,11 +140,12 @@ function CellButtons(props: CellButtonsProps) {
         onClick={openMenu}
         aria-haspopup="menu"
         aria-expanded={menuAt !== null}
-        title="More cell actions"
         aria-label="More cell actions"
+        {...moreTip.anchorProps}
       >
         <Icon name="ellipsis" />
       </button>
+      <Tooltip tip={moreTip} label="More cell actions" />
       {menuAt && (
         <ContextMenu
           xPos={menuAt.xPos}

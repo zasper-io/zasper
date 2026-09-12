@@ -4,6 +4,8 @@ import { useSetAtom } from 'jotai';
 
 import { IContentEntry } from '@/api';
 import { Icon } from '@/ide/icons';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { baseName } from '@/paths';
 import { useTabActions } from '@/store/TabActions';
 import ContextMenu from '../ContextMenu/ContextMenu';
@@ -53,6 +55,8 @@ const DirectoryItem = ({
   const dragSource = useDragSource(path);
   const { isOver, ...dropTarget } = useDropTarget(path);
   const focusRow = useRowFocus(path, isFirstRow);
+  // What the row has no width for — the path, the size, when it changed, whether it is writable.
+  const tip = useTooltip();
   const scope = selection.scopeFor(path);
   const rename = useRowRename(parentDir, name, path);
   const remove = useRowDelete(path, scope);
@@ -129,13 +133,18 @@ const DirectoryItem = ({
       aria-expanded={isExpanded(path)}
       aria-selected={selection.isSelected(path)}
       tabIndex={focusRow.tabIndex}
-      onFocus={focusRow.onFocus}
+      {...tip.anchorProps}
+      // The row is what takes the focus, so the tooltip's own focus handler runs beside the one that
+      // remembers where the keyboard is, rather than instead of it.
+      onFocus={(event) => {
+        focusRow.onFocus(event);
+        tip.anchorProps.onFocus(event);
+      }}
     >
       <a
         {...dragSource}
         {...dropTarget}
         className={rowClass}
-        title={describeEntry(data)}
         onContextMenu={handleRightClick}
         onClick={(event) => {
           if (!selection.handleClick(path, event)) {
@@ -151,11 +160,12 @@ const DirectoryItem = ({
         <Icon name="folder" />
         <RowName name={name} rename={rename} />
         {data.writable === false && (
-          <span className="rowFlag" role="img" aria-label="Read-only" title="Read-only">
+          <span className="rowFlag" role="img" aria-label="Read-only">
             <Icon name="lock" size={12} />
           </span>
         )}
       </a>
+      <Tooltip tip={tip} label={describeEntry(data)} />
       {menuPosition && (
         <ContextMenu
           xPos={menuPosition.xPos}

@@ -4,6 +4,8 @@ import HelpDialog from '../HelpDialog/HelpDialog';
 import './NavigationPanel.scss';
 import type { IconName } from '@/ide/icons';
 import { Icon } from '@/ide/icons';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { PanelName } from '../types';
 
 interface NavigationPanelProps {
@@ -34,28 +36,24 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
   return (
     <div className="navigation-list">
       {NAV_ITEMS.map((item) => (
-        <button
+        <RailButton
           key={item.name}
-          className={`navButton ${activePanel === item.name ? 'active' : ''}`}
+          icon={item.icon}
+          label={item.label}
+          isActive={activePanel === item.name}
           onClick={() => setActivePanel(item.name)}
-          title={item.label}
-          aria-label={item.label}
-        >
-          <Icon name={item.icon} size={RAIL_ICON_SIZE} />
-        </button>
+        />
       ))}
 
       {/* Help icon button. `.navButton-last` is what pushes it to the bottom of the rail — it was
           Bootstrap's `.mt-auto`, the only utility class left in the app and the reason a whole
           utility-generation pass ran over the stylesheet for one declaration. */}
-      <button
-        className="navButton navButton-last"
+      <RailButton
+        icon="circle-help"
+        label="Help"
+        className="navButton-last"
         onClick={toggleHelpDialog}
-        title="Help"
-        aria-label="Help"
-      >
-        <Icon name="circle-help" size={RAIL_ICON_SIZE} />
-      </button>
+      />
 
       {showHelpDialog && <HelpDialog toggleHelpDialog={toggleHelpDialog} />}
     </div>
@@ -63,3 +61,42 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
 };
 
 export default NavigationPanel;
+
+interface RailButtonProps {
+  icon: IconName;
+  label: string;
+  isActive?: boolean;
+  className?: string;
+  onClick: () => void;
+}
+
+/**
+ * One button on the rail. `.navButton` rather than `.z-icon-button` — the rail's is 32px and carries
+ * the active marker — so it takes `useTooltip` directly instead of going through `IconButton`, and the
+ * label is the only thing naming it: the rail is four glyphs and no words.
+ */
+function RailButton({ icon, label, isActive, className, onClick }: RailButtonProps) {
+  const tip = useTooltip();
+  const classes = ['navButton'];
+  if (isActive === true) {
+    classes.push('active');
+  }
+  if (className !== undefined) {
+    classes.push(className);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={classes.join(' ')}
+        aria-label={label}
+        onClick={onClick}
+        {...tip.anchorProps}
+      >
+        <Icon name={icon} size={RAIL_ICON_SIZE} />
+      </button>
+      <Tooltip tip={tip} label={label} />
+    </>
+  );
+}

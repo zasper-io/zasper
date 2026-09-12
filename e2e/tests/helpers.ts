@@ -59,13 +59,14 @@ export function renameBox(page: Page): Locator {
 }
 
 /**
- * A button in the notebook's own toolbar, by its tooltip.
+ * A button in the notebook's own toolbar, by the name it carries — which is its tooltip's words and
+ * its `aria-label`, one `label` at the call site since every icon button became `IconButton`.
  *
  * Scoped to the toolbar because the focused cell's hover buttons name the same actions — "Run Cell"
  * on its own is the toolbar's button and the cell's, which are the same command from two places.
  */
-export function toolbarButton(page: Page, title: string): Locator {
-  return page.locator('.text-editor-tool').getByTitle(title);
+export function toolbarButton(page: Page, name: string): Locator {
+  return page.locator('.text-editor-tool').getByLabel(name, { exact: true });
 }
 
 /** A path inside the throwaway project, for the assertions that only disk can answer. */

@@ -657,7 +657,7 @@ describe('GitPanel', () => {
     render(<ThePanel hidden={false} />);
     await waitFor(() => expect(getGitStatus).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(screen.getByTitle('Refresh'));
+    fireEvent.click(screen.getByLabelText('Refresh'));
     await waitFor(() => expect(getGitStatus).toHaveBeenCalledTimes(2));
   });
 });

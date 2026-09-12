@@ -9,6 +9,9 @@ import {
   terminalsAtom,
 } from '@/store/AppState';
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { useTabActions } from '@/store/TabActions';
 import ConfirmShutdownDialog from './ConfirmShutdownDialog';
 import KernelList, { kernelLabel } from './KernelList';
@@ -86,9 +89,7 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
         <div className="z-label">Jupyter info</div>
         {/* The list is polled while the panel is open, but a shutdown from a terminal is worth being
             able to confirm without waiting for the next tick. */}
-        <button className="z-icon-button" title="Refresh" onClick={refresh}>
-          <Icon name="refresh-cw" />
-        </button>
+        <IconButton icon="refresh-cw" label="Refresh" onClick={refresh} />
       </div>
 
       {error !== '' && (
@@ -165,14 +166,14 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
           {Object.keys(kernelspecs).length > 0 ? (
             <ul className="z-list-plain noborder-list">
               {Object.keys(kernelspecs).map((key) => (
-                <li className="panel-row" key={key}>
-                  {/* Not a button: nothing is offered here. Starting a kernel is the launcher's job
-                      and the notebook's kernel picker's, and a third way in is a third to keep in
-                      step. */}
-                  <span className="panel-row-label" title={kernelspecs[key].name}>
-                    {kernelspecs[key].spec.display_name}
-                  </span>
-                </li>
+                /* Not a button: nothing is offered here. Starting a kernel is the launcher's job
+                   and the notebook's kernel picker's, and a third way in is a third to keep in
+                   step. */
+                <KernelspecRow
+                  key={key}
+                  name={kernelspecs[key].name}
+                  display={kernelspecs[key].spec.display_name}
+                />
               ))}
             </ul>
           ) : (
@@ -193,5 +194,19 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
         />
       )}
     </div>
+  );
+}
+
+/** An installed kernel: what it calls itself, with the name on disk as the tooltip. */
+function KernelspecRow({ name, display }: { name: string; display: string }) {
+  const tip = useTooltip();
+
+  return (
+    <li className="panel-row">
+      <span className="panel-row-label" {...tip.anchorProps}>
+        {display}
+      </span>
+      <Tooltip tip={tip} label={name} />
+    </li>
   );
 }

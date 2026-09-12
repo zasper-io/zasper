@@ -335,7 +335,7 @@ test('a diff taller than the pane scrolls', async ({ page }) => {
   // hundred lines, which is a long time to spend typing.
   const lines = Array.from({ length: 400 }, (_, index) => `line ${index + 1}`);
   writeFileSync(inProject(FILE), `${lines.join('\n')}\n`);
-  await open.getByTitle('Refresh').click();
+  await open.getByLabel('Refresh').click();
 
   await open.locator('.panel-row-name').filter({ hasText: FILE }).click();
 

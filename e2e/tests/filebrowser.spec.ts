@@ -15,7 +15,7 @@ import { fileTree, inProject, openApp, renameBox, treeRow } from './helpers';
 test('a notebook is created, renamed and deleted from the tree', async ({ page }) => {
   await openApp(page);
 
-  await page.getByTitle('New notebook').click();
+  await page.getByLabel('New notebook').click();
 
   // A create asks for the name straight away, and asks with an empty box: `Untitled.ipynb` is what is
   // on disk, shown greyed as the placeholder, not something to select and type over.

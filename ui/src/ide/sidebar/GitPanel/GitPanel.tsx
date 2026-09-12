@@ -5,6 +5,9 @@ import './GitPanel.scss';
 import { discardFiles, initRepository, stageFiles, unstageFiles } from '@/api';
 import { useRegisterCommands } from '@/commands/registry';
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { useTabActions } from '@/store/TabActions';
 import BranchMenu from './BranchMenu';
 import ChangeList, { IChangeAction } from './ChangeList';
@@ -33,6 +36,8 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
   const [pending, setPending] = useState<string[] | null>(null);
   const [historyKey, setHistoryKey] = useState<number>(0);
   const [branchMenu, setBranchMenu] = useState<boolean>(false);
+  // What the branch button says: which remote branch this one follows, if any.
+  const upstreamTip = useTooltip();
 
   const disabled = busy || !status.gitAvailable;
 
@@ -102,16 +107,14 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
       <div className="content-head">
         <div className="z-label">Source control</div>
         <div className="git-head-actions">
-          <button
-            className="z-icon-button"
-            title="Refresh"
+          <IconButton
+            icon="refresh-cw"
+            label="Refresh"
             onClick={() => {
               refresh();
               setHistoryKey((key) => key + 1);
             }}
-          >
-            <Icon name="refresh-cw" />
-          </button>
+          />
         </div>
       </div>
 
@@ -125,14 +128,18 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
             <button
               type="button"
               className="git-branch"
-              title={status.upstream === '' ? 'No upstream branch' : `Tracking ${status.upstream}`}
               aria-label={`Branch: ${status.branch}`}
               aria-expanded={branchMenu}
               disabled={disabled}
               onClick={() => setBranchMenu((open) => !open)}
+              {...upstreamTip.anchorProps}
             >
               <Icon name="git-branch" /> {status.branch}
             </button>
+            <Tooltip
+              tip={upstreamTip}
+              label={status.upstream === '' ? 'No upstream branch' : `Tracking ${status.upstream}`}
+            />
             {branchMenu && (
               <BranchMenu
                 status={status}

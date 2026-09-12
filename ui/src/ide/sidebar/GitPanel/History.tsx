@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { apiErrorMessage, Commit, getLog } from '@/api';
 import { Icon } from '@/ide/icons';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import CommitFiles from './CommitFiles';
 import { fullDate, relativeDate } from '../dates';
 import { PanelProps } from '../types';
@@ -97,29 +99,12 @@ export default function History({ hidden, reloadKey }: HistoryProps) {
     <>
       <ul className="git-history z-list-plain noborder-list">
         {commits.map((commit) => (
-          <li key={commit.hash} className="commit-item">
-            <button
-              type="button"
-              className="commit-summary"
-              aria-expanded={open === commit.hash}
-              title={`${commit.subject}\n\n${commit.author} · ${fullDate(commit.date)}`}
-              onClick={() => setOpen((shown) => (shown === commit.hash ? '' : commit.hash))}
-            >
-              <span className="commit-subject">{commit.subject}</span>
-              <span className="commit-meta">
-                {/* The one thing in a row that names the commit for anything outside this panel: a
-                    short hash can be pasted into a terminal, where "the first one -- Test" cannot. */}
-                <span className="commit-short-hash">{commit.shortHash}</span>
-                {/* A merge is worth marking even in a list with no lanes to draw it with: it is the one
-                    row whose diff is against one parent of two. */}
-                {commit.parents.length > 1 && <span className="commit-merge">merge</span>}
-                <span className="commit-author">{commit.author}</span>
-                <span className="commit-when">{relativeDate(commit.date)}</span>
-              </span>
-            </button>
-
-            {open === commit.hash && <CommitFiles hash={commit.hash} />}
-          </li>
+          <CommitRow
+            key={commit.hash}
+            commit={commit}
+            isOpen={open === commit.hash}
+            onToggle={() => setOpen((shown) => (shown === commit.hash ? '' : commit.hash))}
+          />
         ))}
       </ul>
 
@@ -136,5 +121,46 @@ export default function History({ hidden, reloadKey }: HistoryProps) {
         </button>
       )}
     </>
+  );
+}
+
+interface CommitRowProps {
+  commit: Commit;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+/**
+ * One commit in the log. The tooltip is the subject in full over who wrote it and when — two lines,
+ * which is what the `title` this replaces was trying to be with a blank line in the middle of a string.
+ */
+function CommitRow({ commit, isOpen, onToggle }: CommitRowProps) {
+  const tip = useTooltip();
+
+  return (
+    <li className="commit-item">
+      <button
+        type="button"
+        className="commit-summary"
+        aria-expanded={isOpen}
+        onClick={onToggle}
+        {...tip.anchorProps}
+      >
+        <span className="commit-subject">{commit.subject}</span>
+        <span className="commit-meta">
+          {/* The one thing in a row that names the commit for anything outside this panel: a
+              short hash can be pasted into a terminal, where "the first one -- Test" cannot. */}
+          <span className="commit-short-hash">{commit.shortHash}</span>
+          {/* A merge is worth marking even in a list with no lanes to draw it with: it is the one
+              row whose diff is against one parent of two. */}
+          {commit.parents.length > 1 && <span className="commit-merge">merge</span>}
+          <span className="commit-author">{commit.author}</span>
+          <span className="commit-when">{relativeDate(commit.date)}</span>
+        </span>
+      </button>
+      <Tooltip tip={tip} label={[commit.subject, `${commit.author} · ${fullDate(commit.date)}`]} />
+
+      {isOpen && <CommitFiles hash={commit.hash} />}
+    </li>
   );
 }

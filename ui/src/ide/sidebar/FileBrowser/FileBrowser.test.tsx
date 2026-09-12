@@ -100,7 +100,24 @@ async function renderBrowser() {
 
 /** The clickable row for a name, which is what carries the open/active state. */
 function row(name: string): HTMLElement {
-  return within(tree).getByText(name).closest('a') as HTMLElement;
+  // Not the tooltip's copy of the name: a row that has the keyboard shows one, and its first line is
+  // the path.
+  return within(tree)
+    .getByText(name, { selector: ':not(.z-tooltip-line)' })
+    .closest('a') as HTMLElement;
+}
+
+/**
+ * What the row says when the keyboard reaches it, which is a real tooltip rather than a `title`. The
+ * keyboard rather than a pointer because it needs no delay run down, and it is the same box.
+ */
+function rowTooltip(name: string): string {
+  const item = row(name).closest('li') as HTMLElement;
+  item.focus();
+  fireEvent.focusIn(item);
+  const text = screen.getByRole('tooltip').textContent ?? '';
+  fireEvent.focusOut(item);
+  return text;
 }
 
 function openMenu(name: string, item: string) {
@@ -196,7 +213,7 @@ describe('FileBrowser', () => {
       await renderBrowser();
       await expandSrc();
 
-      fireEvent.click(screen.getByTitle('Refresh'));
+      fireEvent.click(screen.getByLabelText('Refresh'));
 
       await waitFor(() => expect(getDirectory).toHaveBeenCalledTimes(4)); // '', src, then both again
       expect(getDirectory).toHaveBeenLastCalledWith('src');
@@ -214,7 +231,7 @@ describe('FileBrowser', () => {
           : Promise.reject(new ApiError('POST', '/api/contents', 404, '{"message":"not found"}'))
       );
 
-      fireEvent.click(screen.getByTitle('Refresh'));
+      fireEvent.click(screen.getByLabelText('Refresh'));
 
       await waitFor(() => expect(within(tree).queryByText('src')).not.toBeInTheDocument());
       expect(within(tree).queryByText('main.py')).not.toBeInTheDocument();
@@ -228,7 +245,7 @@ describe('FileBrowser', () => {
         new ApiError('POST', '/api/contents', 500, '{"message":"permission denied"}')
       );
 
-      fireEvent.click(screen.getByTitle('Refresh'));
+      fireEvent.click(screen.getByLabelText('Refresh'));
 
       expect(await screen.findByRole('alert')).toHaveTextContent('permission denied');
     });
@@ -238,7 +255,7 @@ describe('FileBrowser', () => {
       await expandSrc();
       getDirectory.mockRejectedValue(new TypeError('Failed to fetch'));
 
-      fireEvent.click(screen.getByTitle('Refresh'));
+      fireEvent.click(screen.getByLabelText('Refresh'));
 
       await screen.findByRole('alert');
       // Nothing has been deleted; there is only nobody to ask. Closing every open folder over a
@@ -249,12 +266,12 @@ describe('FileBrowser', () => {
     it('takes the message down once the tree reads again', async () => {
       await renderBrowser();
       getDirectory.mockRejectedValue(new ApiError('POST', '/api/contents', 503, ''));
-      fireEvent.click(screen.getByTitle('Refresh'));
+      fireEvent.click(screen.getByLabelText('Refresh'));
       await screen.findByRole('alert');
 
       // The server came back — by itself, as far as the panel is concerned.
       getDirectory.mockImplementation(() => Promise.resolve(rootListing));
-      fireEvent.click(screen.getByTitle('Refresh'));
+      fireEvent.click(screen.getByLabelText('Refresh'));
 
       await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     });
@@ -284,19 +301,21 @@ describe('FileBrowser', () => {
     it('names the trail down to it, and goes back up when a crumb is clicked', async () => {
       await renderBrowser();
       await rootAtSrc();
-      expect(within(trail()).getByTitle('src')).toHaveAttribute('aria-current', 'location');
+      expect(within(trail()).getByText('src')).toHaveAttribute('aria-current', 'location');
 
-      fireEvent.click(within(trail()).getByTitle('Project root'));
+      // The project's own crumb, which carries the project name and has none in a test. Its full
+      // path is the tooltip now rather than a `title`, so the way to it is the trail's first button.
+      fireEvent.click(within(trail()).getAllByRole('button')[0]);
 
       expect(await within(tree).findByText('notes.txt')).toBeInTheDocument();
-      expect(within(trail()).queryByTitle('src')).not.toBeInTheDocument();
+      expect(within(trail()).queryByText('src')).not.toBeInTheDocument();
     });
 
     it('creates into the folder in view rather than the project root', async () => {
       await renderBrowser();
       await rootAtSrc();
 
-      fireEvent.click(screen.getByTitle('New file'));
+      fireEvent.click(screen.getByLabelText('New file'));
 
       await waitFor(() => expect(createContent).toHaveBeenCalledWith('src', 'file'));
     });
@@ -320,11 +339,11 @@ describe('FileBrowser', () => {
           : Promise.resolve(rootListing)
       );
 
-      fireEvent.click(screen.getByTitle('Refresh'));
+      fireEvent.click(screen.getByLabelText('Refresh'));
 
       // A view of a folder that is not there has nothing in it and no way out of it.
       expect(await within(tree).findByText('notes.txt')).toBeInTheDocument();
-      expect(within(trail()).queryByTitle('src')).not.toBeInTheDocument();
+      expect(within(trail()).queryByText('src')).not.toBeInTheDocument();
     });
   });
 
@@ -357,7 +376,7 @@ describe('FileBrowser', () => {
 
       expect(within(tree).getByText('main.py')).toBeInTheDocument();
       // Not 'src': the folder that is open is the one that now exists.
-      fireEvent.click(screen.getByTitle('Refresh'));
+      fireEvent.click(screen.getByLabelText('Refresh'));
       await waitFor(() => expect(getDirectory).toHaveBeenLastCalledWith('lib'));
     });
 
@@ -514,7 +533,7 @@ describe('FileBrowser', () => {
       await renderBrowser();
       creates({ name: 'untitled.txt', path: 'untitled.txt', type: 'file' });
 
-      fireEvent.click(screen.getByTitle('New file'));
+      fireEvent.click(screen.getByLabelText('New file'));
 
       // It arrives with its rename box open; Escape takes the offer back and leaves the row.
       fireEvent.keyDown(await within(tree).findByRole('textbox'), { key: 'Escape' });
@@ -526,7 +545,7 @@ describe('FileBrowser', () => {
       await renderBrowser();
       creates({ name: 'untitled-directory', path: 'untitled-directory', type: 'directory' });
 
-      fireEvent.click(screen.getByTitle('New folder'));
+      fireEvent.click(screen.getByLabelText('New folder'));
 
       const input = (await within(tree).findByRole('textbox')) as HTMLInputElement;
       // Empty, so the name is typed rather than typed over: `untitled-directory` is nobody's answer.
@@ -538,7 +557,7 @@ describe('FileBrowser', () => {
 
     /** Creates through the toolbar and submits `typed` in the box that opens. */
     async function nameIt(button: string, typed: string) {
-      fireEvent.click(screen.getByTitle(button));
+      fireEvent.click(screen.getByLabelText(button));
       const input = await within(tree).findByRole('textbox');
       fireEvent.change(input, { target: { value: typed } });
       fireEvent.keyDown(input, { key: 'Enter' });
@@ -594,7 +613,7 @@ describe('FileBrowser', () => {
     it('renames a notebook later to exactly what was asked for, extension and all', async () => {
       await renderBrowser();
       creates({ name: 'Untitled.ipynb', path: 'Untitled.ipynb', type: 'notebook' });
-      fireEvent.click(screen.getByTitle('New notebook'));
+      fireEvent.click(screen.getByLabelText('New notebook'));
       fireEvent.keyDown(await within(tree).findByRole('textbox'), { key: 'Escape' });
 
       // An edit of a name that exists is not a naming: what is typed is what is meant, and the box
@@ -613,7 +632,7 @@ describe('FileBrowser', () => {
       await renderBrowser();
       creates({ name: 'untitled.txt', path: 'untitled.txt', type: 'file' });
 
-      fireEvent.click(screen.getByTitle('New file'));
+      fireEvent.click(screen.getByLabelText('New file'));
       fireEvent.keyDown(await within(tree).findByRole('textbox'), { key: 'Enter' });
 
       expect(await screen.findByRole('alert')).toHaveTextContent('A name is required.');
@@ -628,7 +647,7 @@ describe('FileBrowser', () => {
         new ApiError('POST', '/api/contents/create', 403, '{"message":"read-only file system"}')
       );
 
-      fireEvent.click(screen.getByTitle('New file'));
+      fireEvent.click(screen.getByLabelText('New file'));
 
       expect(await screen.findByRole('alert')).toHaveTextContent('read-only file system');
     });
@@ -637,7 +656,7 @@ describe('FileBrowser', () => {
       await renderBrowser();
       creates({ name: 'Untitled.ipynb', path: 'Untitled.ipynb', type: 'notebook' });
 
-      fireEvent.click(screen.getByTitle('New notebook'));
+      fireEvent.click(screen.getByLabelText('New notebook'));
 
       await waitFor(() => expect(createContent).toHaveBeenCalledWith('', 'notebook'));
     });
@@ -670,7 +689,7 @@ describe('FileBrowser', () => {
       await renderBrowser();
       expect(within(tree).queryByText('.env')).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByTitle('Show hidden files'));
+      fireEvent.click(screen.getByLabelText('Show hidden files'));
 
       expect(within(tree).getByText('.env')).toBeInTheDocument();
     });
@@ -680,7 +699,7 @@ describe('FileBrowser', () => {
 
       // Dimmed rather than hidden: build output is still worth opening.
       expect(row('build.log')).toHaveClass('is-ignored');
-      expect(row('build.log').title).toContain('ignored by git');
+      expect(rowTooltip('build.log')).toContain('ignored by git');
     });
 
     it('marks a row that cannot be written', async () => {
@@ -693,8 +712,8 @@ describe('FileBrowser', () => {
     it('puts the size and the date the server already sent in the tooltip', async () => {
       await renderBrowser();
 
-      expect(row('build.log').title).toContain('2 kB');
-      expect(row('build.log').title).toContain('build.log');
+      expect(rowTooltip('build.log')).toContain('2 kB');
+      expect(rowTooltip('build.log')).toContain('build.log');
     });
 
     it('says that an empty folder is empty rather than showing nothing', async () => {

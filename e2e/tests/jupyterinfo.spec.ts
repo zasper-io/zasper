@@ -126,7 +126,10 @@ test('a running kernel is named with its notebook, and shut down from the panel'
   // stamp are the ones it could not draw at all before.
   await expect(row.locator('.kernelStatus')).toHaveClass(/ks-idle/);
   await expect(row.locator('.panel-row-time')).toHaveText(/^(now|[0-9]+m)$/);
-  await expect(row.locator('.panel-row-name')).toHaveAttribute('title', /0 clients attached/);
+  // The client count, which is the fact that has no other way into a 22px row — and it is the app's own
+  // tooltip now rather than a native `title`, so it takes a hover and a beat to say anything.
+  await row.locator('.panel-row-name').hover();
+  await expect(page.locator('.z-tooltip')).toContainText('0 clients attached');
 
   // Counted in the heading, and the list of what could be started stays folded: it is reference material.
   await expect(open.getByRole('button', { name: /Running kernels/ })).toContainText('1');
@@ -137,7 +140,7 @@ test('a running kernel is named with its notebook, and shut down from the panel'
 
   // By title rather than by the display name spelled out, so what this machine's kernelspec is called is
   // not something the click has to know.
-  await row.getByTitle(/^Shut down /).click();
+  await row.getByLabel(/^Shut down /).click();
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText(NOTEBOOK);
@@ -217,9 +220,10 @@ test('a running shell is listed after a reload, and shut down from the panel', a
   // The id and not the name, because the name is not unique across windows. The tooltip is where the
   // panel puts it, so this is also the check that the row is bound to the shell the server reported.
   const listed = (await runningTerminals(request))[0];
-  await expect(row.locator('.panel-row-name')).toHaveAttribute('title', new RegExp(listed.id));
+  await row.locator('.panel-row-name').hover();
+  await expect(page.locator('.z-tooltip')).toContainText(listed.id);
 
-  await row.getByTitle('Shut down Terminal 1').click();
+  await row.getByLabel('Shut down Terminal 1').click();
 
   // The row going and the tab closing are the panel's claim. The empty list is the server's.
   await expect(row).toHaveCount(0);

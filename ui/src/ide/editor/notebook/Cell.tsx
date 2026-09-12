@@ -8,6 +8,7 @@ import { languages } from '@codemirror/language-data';
 
 import { ICell } from '@/api';
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
 import { useTheme } from '@/themes/useTheme';
 import CellButtons from './CellButtons';
 import CellOutput from './CellOutput';
@@ -194,15 +195,13 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
                   left edges. Open for editing it is the one markdown case the gutter offers
                   anything for, because running a markdown cell is what renders it. */}
               <div className="cell-gutter has-run">
-                <button
-                  type="button"
-                  className="z-icon-button cell-run"
+                <IconButton
+                  icon="play"
+                  className="cell-run"
+                  label="Render Markdown"
+                  name="Render this markdown cell"
                   onClick={() => props.endEditing()}
-                  title="Render Markdown"
-                  aria-label="Render this markdown cell"
-                >
-                  <Icon name="play" />
-                </button>
+                />
               </div>
               <div className="cellEditor">
                 <CodeMirror
@@ -280,7 +279,7 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
               // It keeps the name the box it replaced carried: which cell the kernel is on is the
               // one thing in this gutter a screen reader has to be told, and the count beside it
               // reads for itself.
-              <span className="z-spinner" role="status" title="Running" aria-label="Running" />
+              <span className="z-spinner" role="status" aria-label="Running" />
             ) : (
               // A cell that has not run has no count, and shows an empty bracket as Jupyter does. A
               // raw cell never runs, so it has no bracket at all: the brackets are the execution
@@ -292,19 +291,17 @@ const Cell = React.forwardRef((props: ICellProps, ref) => {
           {/* A raw cell is neither run nor rendered, as in Jupyter, so its gutter stays a gutter:
               the rule is that the button appears where pressing it would change something. */}
           {cell.cell_type === 'code' && (
-            <button
-              type="button"
-              className="z-icon-button cell-run"
+            <IconButton
+              icon={props.isRunning ? 'square' : 'play'}
+              className="cell-run"
+              label={props.isRunning ? 'Interrupt Kernel' : 'Run Cell'}
+              name={props.isRunning ? 'Interrupt Kernel' : `Run cell ${props.index + 1}`}
               onClick={() =>
                 props.isRunning
                   ? props.interruptKernel()
                   : props.submitCell(cellContents, props.cell.id)
               }
-              title={props.isRunning ? 'Interrupt Kernel' : 'Run Cell'}
-              aria-label={props.isRunning ? 'Interrupt Kernel' : `Run cell ${props.index + 1}`}
-            >
-              <Icon name={props.isRunning ? 'square' : 'play'} />
-            </button>
+            />
           )}
         </div>
         <div className="cellEditor">

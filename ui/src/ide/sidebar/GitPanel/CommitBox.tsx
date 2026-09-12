@@ -1,4 +1,6 @@
 import { GitStatus } from '@/api';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { ICommitAction } from './useCommitAction';
 
 interface CommitBoxProps {
@@ -17,6 +19,8 @@ interface CommitBoxProps {
  */
 export default function CommitBox({ status, busy, action }: CommitBoxProps) {
   const { message, setMessage, ready, reason, commit, box } = action;
+  const commitTip = useTooltip();
+  const pushTip = useTooltip();
 
   return (
     <div className="commit-box">
@@ -38,26 +42,33 @@ export default function CommitBox({ status, busy, action }: CommitBoxProps) {
         }}
       />
 
+      {/* The one tooltip in the app that is on a disabled control on purpose: a greyed-out Commit
+          raises the question this answers, and Chromium fires pointer events on a disabled button
+          even though it swallows the click. */}
       <div className="commit-actions">
         <button
           type="button"
           className="z-button"
           disabled={!ready}
-          title={reason}
           onClick={() => void commit(false)}
+          {...commitTip.anchorProps}
         >
           Commit
         </button>
+        <Tooltip tip={commitTip} label={reason} />
         {status.hasRemote && (
-          <button
-            type="button"
-            className="z-button z-button-secondary"
-            disabled={!ready}
-            title={reason}
-            onClick={() => void commit(true)}
-          >
-            Commit &amp; Push
-          </button>
+          <>
+            <button
+              type="button"
+              className="z-button z-button-secondary"
+              disabled={!ready}
+              onClick={() => void commit(true)}
+              {...pushTip.anchorProps}
+            >
+              Commit &amp; Push
+            </button>
+            <Tooltip tip={pushTip} label={reason} />
+          </>
         )}
       </div>
     </div>

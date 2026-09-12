@@ -1,5 +1,7 @@
 import { ITerminalModel } from '@/api';
-import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { fullDate, relativeDate, shortAgo } from '../dates';
 
 interface TerminalListProps {
@@ -14,7 +16,7 @@ interface TerminalListProps {
   onShutdown: (terminal: ITerminalModel) => void;
 }
 
-function tooltip(terminal: ITerminalModel, mine: boolean): string {
+function tooltip(terminal: ITerminalModel, mine: boolean): string[] {
   const lines = [terminal.dir === '' ? 'Project root' : terminal.dir, terminal.id];
   const when = relativeDate(terminal.started);
   if (when !== '') {
@@ -23,7 +25,7 @@ function tooltip(terminal: ITerminalModel, mine: boolean): string {
   if (!mine) {
     lines.push('Opened in another window');
   }
-  return lines.join('\n');
+  return lines;
 }
 
 /** The shells the server is running: where each one is, and the one thing to do to it. */
@@ -36,49 +38,69 @@ export default function TerminalList({
 }: TerminalListProps) {
   return (
     <ul className="z-list-plain noborder-list">
-      {terminals.map((terminal) => {
-        const mine = local.has(terminal.name);
-        const since = shortAgo(terminal.started);
-
-        return (
-          <li className="panel-row" key={terminal.id}>
-            <button
-              type="button"
-              className="panel-row-name"
-              title={tooltip(terminal, mine)}
-              disabled={!mine}
-              onClick={() => onOpen(terminal)}
-            >
-              <span className="panel-row-label">{terminal.name}</span>
-              {/* The folder, which is what tells two shells apart — including the two called
-                  `Terminal 1` that two windows each with a terminal open produce. */}
-              {terminal.dir !== '' && <span className="panel-row-meta">{terminal.dir}</span>}
-            </button>
-
-            {since !== '' && (
-              <span
-                className="panel-row-time z-tabular"
-                title={`Started ${relativeDate(terminal.started)}`}
-              >
-                {since}
-              </span>
-            )}
-
-            <span className="panel-row-actions">
-              <button
-                type="button"
-                className="z-icon-button panel-row-action"
-                title={`Shut down ${terminal.name}`}
-                aria-label={`Shut down ${terminal.name}`}
-                disabled={disabled}
-                onClick={() => onShutdown(terminal)}
-              >
-                <Icon name="power" />
-              </button>
-            </span>
-          </li>
-        );
-      })}
+      {terminals.map((terminal) => (
+        <TerminalRow
+          key={terminal.id}
+          terminal={terminal}
+          mine={local.has(terminal.name)}
+          disabled={disabled}
+          onOpen={onOpen}
+          onShutdown={onShutdown}
+        />
+      ))}
     </ul>
+  );
+}
+
+interface TerminalRowProps {
+  terminal: ITerminalModel;
+  /** Opened by this window, which is the only kind it can bring forward. */
+  mine: boolean;
+  disabled: boolean;
+  onOpen: (terminal: ITerminalModel) => void;
+  onShutdown: (terminal: ITerminalModel) => void;
+}
+
+/** One shell. Its own component for its own tooltips — the row's, and the stamp's. */
+function TerminalRow({ terminal, mine, disabled, onOpen, onShutdown }: TerminalRowProps) {
+  const since = shortAgo(terminal.started);
+  const rowTip = useTooltip();
+  const sinceTip = useTooltip();
+
+  return (
+    <li className="panel-row">
+      <button
+        type="button"
+        className="panel-row-name"
+        disabled={!mine}
+        onClick={() => onOpen(terminal)}
+        {...rowTip.anchorProps}
+      >
+        <span className="panel-row-label">{terminal.name}</span>
+        {/* The folder, which is what tells two shells apart — including the two called
+            `Terminal 1` that two windows each with a terminal open produce. */}
+        {terminal.dir !== '' && <span className="panel-row-meta">{terminal.dir}</span>}
+      </button>
+      <Tooltip tip={rowTip} label={tooltip(terminal, mine)} />
+
+      {since !== '' && (
+        <>
+          <span className="panel-row-time z-tabular" {...sinceTip.anchorProps}>
+            {since}
+          </span>
+          <Tooltip tip={sinceTip} label={`Started ${relativeDate(terminal.started)}`} />
+        </>
+      )}
+
+      <span className="panel-row-actions">
+        <IconButton
+          icon="power"
+          className="panel-row-action"
+          label={`Shut down ${terminal.name}`}
+          disabled={disabled}
+          onClick={() => onShutdown(terminal)}
+        />
+      </span>
+    </li>
   );
 }

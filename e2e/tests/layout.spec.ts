@@ -26,12 +26,11 @@ const MIN_SIZE = 8;
  */
 const HIT_AREA = 22;
 
-/** Whatever names a control in a failure message: its title, its label, or the text on it. */
+/** Whatever names a control in a failure message: its label, or the text on it. */
 async function describe(control: Locator): Promise<string> {
-  const title = await control.getAttribute('title');
   const label = await control.getAttribute('aria-label');
   const text = (await control.textContent())?.trim();
-  return title || label || text || (await control.evaluate((el) => el.className)) || 'unnamed';
+  return label || text || (await control.evaluate((el) => el.className)) || 'unnamed';
 }
 
 /** The controls that are not big enough to be clicked, named — the whole list, not the first. */

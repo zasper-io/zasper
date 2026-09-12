@@ -1,8 +1,8 @@
 // One floating surface, and the things made out of it: the command palette, a row's context menu, the
 // branch menu, a toast. A dialog is the fifth and lives in _modal.scss, which is the same surface with a
-// backdrop and a header; a tooltip is the sixth and does not exist yet — 56 native `title=` attributes
-// stand in for it, and a tooltip is hover, focus, a delay and a dismissal in event handling rather than
-// a stylesheet.
+// backdrop and a header; a tooltip is the sixth and is at the bottom of this file. It arrived last of the
+// six because a tooltip is hover, focus, a delay and a dismissal in event handling rather than a
+// stylesheet, and the rule was the small half — see `useTooltip` in ide/overlays.ts.
 //
 // What this replaces is four implementations that shared nothing but the fact that they floated:
 //
@@ -126,6 +126,52 @@
 .z-menu {
   min-width: 168px;
   z-index: var(--z-layer-menu);
+}
+
+// A tooltip: a label under whatever it labels, and the only overlay nobody opened. It stands in for a
+// native `title=`, which delays about a second, never appears for a keyboard at all, cannot be styled,
+// and renders a multi-line label as newlines in the operating system's own box.
+//
+// Smaller and quieter than the rest of the family — 11px in muted ink, the low shadow, a 4px radius — for
+// the reason the family's other members are not: this one is not a surface something happens on. A
+// tooltip is a label. One line where it can be, never anything to click, and never the only place
+// something is said.
+//
+// `position: fixed` with no coordinates: where it goes is the anchor's box, which only the component
+// measuring it knows. `pointer-events: none` because it is placed under the pointer that summoned it,
+// and a box that takes the pointer would take it off the thing being pointed at and close itself.
+.z-tooltip {
+  position: fixed;
+  max-width: 240px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  box-shadow: var(--z-shadow-low);
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size-sm);
+  z-index: var(--z-layer-menu);
+  pointer-events: none;
+  // Wrapping is the whole point of the 240px above, and it has to be said: a tooltip is rendered
+  // beside the thing it labels, so a row that ends its own name with an ellipsis — `white-space:
+  // nowrap` in _panel.scss, on nearly every row in the app — was handing that down to the box that
+  // exists to say what the row could not fit. `anywhere` for the paths, which have no spaces to
+  // break at.
+  white-space: normal;
+  overflow-wrap: anywhere;
+  // The rest of what a tooltip must not inherit from where it happens to be rendered. A section's
+  // heading is `.z-label` — 600 weight, letter-spaced, uppercase — so "Stage all" came out of the
+  // git panel's heading as STAGE ALL. A tooltip is a sentence wherever it is drawn.
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+  line-height: 1.4;
+}
+
+// The kernel row's tooltip is five facts and not one line — the path, the id, the state, the moment and
+// the client count — which is the case that wanted a real tooltip in the first place. A line is a block
+// rather than a `\n` in a string, so 240px wraps a long path instead of the label choosing where to break.
+.z-tooltip-line {
+  display: block;
 }
 
 // --- The toast ----------------------------------------------------------------

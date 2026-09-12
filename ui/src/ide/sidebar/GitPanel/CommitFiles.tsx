@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { apiErrorMessage, CommitDetail, getCommitDetail } from '@/api';
 import { Icon } from '@/ide/icons';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { baseName, parentDirOf } from '@/paths';
 import { useTabActions } from '@/store/TabActions';
 
@@ -78,23 +80,7 @@ export default function CommitFiles({ hash }: CommitFilesProps) {
         <ul className="commit-files z-list-plain noborder-list">
           {detail.files.map((file) => (
             <li key={file.path} className="commit-file">
-              <span
-                className={`change-badge change-badge-${file.status}`}
-                title={file.from === undefined ? file.status : `Renamed from ${file.from}`}
-              >
-                {file.status}
-              </span>
-              {/* Opens the commit against its parent, which is what `git show` compares and what a
-                  file listed under a commit means. */}
-              <button
-                type="button"
-                className="commit-file-name"
-                title={file.from === undefined ? file.path : `${file.from} → ${file.path}`}
-                onClick={() => openDiff({ path: file.path, ref: hash, from: file.from })}
-              >
-                {baseName(file.path)}
-              </button>
-              <span className="commit-file-dir">{parentDirOf(file.path)}</span>
+              <CommitFileRow file={file} hash={hash} openDiff={openDiff} />
               {/* Nothing for a binary file: git counts no lines in a PNG, and "+0 −0" says it changed
                   by nothing rather than by something uncountable. */}
               {file.isBinary ? (
@@ -114,5 +100,48 @@ export default function CommitFiles({ hash }: CommitFilesProps) {
         <p className="z-note">Only the first {detail.files.length} files are listed.</p>
       )}
     </div>
+  );
+}
+
+interface CommitFileRowProps {
+  file: CommitDetail['files'][number];
+  hash: string;
+  openDiff: ReturnType<typeof useTabActions>['openDiff'];
+}
+
+/**
+ * The badge and the name in one row of a commit's file list. A component because both carry a
+ * tooltip — what git's letter means, and where the file actually is — and it draws a fragment, so the
+ * row's grid is unchanged.
+ */
+function CommitFileRow({ file, hash, openDiff }: CommitFileRowProps) {
+  const statusTip = useTooltip();
+  const pathTip = useTooltip();
+
+  return (
+    <>
+      <span className={`change-badge change-badge-${file.status}`} {...statusTip.anchorProps}>
+        {file.status}
+      </span>
+      <Tooltip
+        tip={statusTip}
+        label={file.from === undefined ? file.status : `Renamed from ${file.from}`}
+      />
+      {/* Opens the commit against its parent, which is what `git show` compares and what a
+          file listed under a commit means. */}
+      <button
+        type="button"
+        className="commit-file-name"
+        onClick={() => openDiff({ path: file.path, ref: hash, from: file.from })}
+        {...pathTip.anchorProps}
+      >
+        {baseName(file.path)}
+      </button>
+      <Tooltip
+        tip={pathTip}
+        label={file.from === undefined ? file.path : `${file.from} → ${file.path}`}
+      />
+      <span className="commit-file-dir">{parentDirOf(file.path)}</span>
+    </>
   );
 }

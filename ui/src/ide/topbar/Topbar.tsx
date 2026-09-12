@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatChord, isMac, terminalHasFocus } from '@/commands/keys';
 import { useCommands, useRegisterCommands } from '@/commands/registry';
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 import { ICommand } from '@/commands/types';
 
@@ -127,15 +128,13 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
         <Icon name="search" size={14} className="searchIcon" />
       </div>
       <div className="topBar-side topBar-side-end">
-        <button
-          className="z-icon-button on-chrome"
+        <IconButton
+          icon="panel-left"
+          className="on-chrome"
+          label="Toggle sidebar"
+          expanded={sidebarOpen}
           onClick={onToggleSidebar}
-          title="Toggle sidebar"
-          aria-label="Toggle sidebar"
-          aria-expanded={sidebarOpen}
-        >
-          <Icon name="panel-left" />
-        </button>
+        />
         <span className="userName">{userName}</span>
         {protectedState ? <LogoutButton /> : null}
       </div>
@@ -152,14 +151,5 @@ const LogoutButton = () => {
     navigate('/login');
   };
 
-  return (
-    <button
-      className="z-icon-button on-chrome"
-      onClick={logout}
-      title="Log out"
-      aria-label="Log out"
-    >
-      <Icon name="log-out" />
-    </button>
-  );
+  return <IconButton icon="log-out" className="on-chrome" label="Log out" onClick={logout} />;
 };

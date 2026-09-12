@@ -424,7 +424,7 @@ describe('NotebookEditor', () => {
     // Scoped to the toolbar: a cell's gutter carries a Run Cell button of its own now, and this test
     // is about the one that acts on whatever holds the focus.
     const toolbar = container.querySelector('.text-editor-tool') as HTMLElement;
-    fireEvent.click(within(toolbar).getByTitle('Run Cell'));
+    fireEvent.click(within(toolbar).getByLabelText('Run Cell'));
 
     await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
     const request = JSON.parse(sockets[0].sent[0]);

@@ -6,6 +6,7 @@ import { EditorView, lineNumbers } from '@codemirror/view';
 
 import { apiErrorMessage, DiffDocuments, DiffTarget, getDiff } from '@/api';
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
 import getFileExtension from '@/ide/utils';
 import { IfileTab } from '@/store/TabState';
 import { useTheme } from '@/themes/useTheme';
@@ -136,15 +137,12 @@ export default function DiffTab(props: DiffTabProps) {
           <span className="diff-side">{left}</span>
           <Icon name="arrow-right" className="diff-arrow" />
           <span className="diff-side">{right}</span>
-          <button
-            type="button"
-            className="z-icon-button diff-refresh"
-            title="Refresh"
-            aria-label="Refresh"
+          <IconButton
+            icon="refresh-cw"
+            className="diff-refresh"
+            label="Refresh"
             onClick={() => setReloads((count) => count + 1)}
-          >
-            <Icon name="refresh-cw" />
-          </button>
+          />
         </div>
 
         {from !== undefined && (

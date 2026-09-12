@@ -294,9 +294,17 @@ describe('JupyterInfoPanel', () => {
     // Short enough to sit beside two buttons in a 22px row; the row's tooltip says it in full, along
     // with the client count, which is how an abandoned kernel is told from one in use.
     expect(await screen.findByText('3m')).toBeInTheDocument();
-    const row = screen.getByTitle(/^src\/demo\.ipynb/);
-    expect(row.getAttribute('title')).toContain('Kernel is idle');
-    expect(row.getAttribute('title')).toContain('1 client attached');
+
+    // The app's own tooltip rather than a native `title`, so it takes a hover to say anything. Focus
+    // rather than a pointer, because that is the half a `title` never had — and it is instant, so
+    // there is no delay to run down here.
+    const row = screen.getByText('Python 3').closest('button') as HTMLElement;
+    row.focus();
+    fireEvent.focusIn(row);
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent('src/demo.ipynb');
+    expect(tip).toHaveTextContent('Kernel is idle');
+    expect(tip).toHaveTextContent('1 client attached');
   });
 
   it('opens the notebook a kernel is running', async () => {
@@ -395,7 +403,7 @@ describe('JupyterInfoPanel', () => {
     expect(screen.getByText('src')).toBeInTheDocument();
     // The name button, not the shutdown beside it: a shell anywhere can be shut down from here.
     expect(screen.getByText('Terminal 1').closest('button')).toBeDisabled();
-    expect(screen.getByTitle('Shut down Terminal 1')).toBeEnabled();
+    expect(screen.getByLabelText('Shut down Terminal 1')).toBeEnabled();
 
     fireEvent.click(screen.getByText('Terminal 1'));
     expect(screen.getByTestId('tabs')).not.toHaveTextContent('Terminal 1');
@@ -412,7 +420,7 @@ describe('JupyterInfoPanel', () => {
     expect(await screen.findByText('Terminal 1')).toBeInTheDocument();
 
     listTerminals.mockResolvedValue([]);
-    fireEvent.click(screen.getByTitle('Refresh'));
+    fireEvent.click(screen.getByLabelText('Refresh'));
 
     expect(await screen.findByText('No terminals running.')).toBeInTheDocument();
   });
@@ -421,7 +429,7 @@ describe('JupyterInfoPanel', () => {
     listTerminals.mockResolvedValue([terminalModel('Terminal 1', 'Terminal 1-1-x')]);
     renderPanel({ terminals: { 'Terminal 1': { id: 'Terminal 1', name: 'Terminal 1' } } });
 
-    fireEvent.click(await screen.findByTitle('Shut down Terminal 1'));
+    fireEvent.click(await screen.findByLabelText('Shut down Terminal 1'));
 
     // The id and not the name: the name is not unique across windows.
     await waitFor(() => expect(deleteTerminal).toHaveBeenCalledWith('Terminal 1-1-x'));
@@ -434,7 +442,7 @@ describe('JupyterInfoPanel', () => {
     listTerminals.mockResolvedValue([terminalModel('Terminal 1', 'Terminal 1-7-x')]);
     renderPanel({ terminals: {} });
 
-    fireEvent.click(await screen.findByTitle('Shut down Terminal 1'));
+    fireEvent.click(await screen.findByLabelText('Shut down Terminal 1'));
 
     await waitFor(() => expect(deleteTerminal).toHaveBeenCalledWith('Terminal 1-7-x'));
   });
@@ -446,7 +454,7 @@ describe('JupyterInfoPanel', () => {
     );
     renderPanel({ terminals: { 'Terminal 1': { id: 'Terminal 1', name: 'Terminal 1' } } });
 
-    fireEvent.click(await screen.findByTitle('Shut down Terminal 1'));
+    fireEvent.click(await screen.findByLabelText('Shut down Terminal 1'));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('terminal not found'));
   });
@@ -455,7 +463,7 @@ describe('JupyterInfoPanel', () => {
     renderPanel();
     await theFirstRead();
 
-    fireEvent.click(screen.getByTitle('Refresh'));
+    fireEvent.click(screen.getByLabelText('Refresh'));
     await waitFor(() => expect(listKernels).toHaveBeenCalledTimes(2));
   });
 });

@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { useDismissOnEscape } from '@/ide/overlays';
 
 import { uploadRequestAtom } from './atoms';
@@ -101,9 +103,7 @@ function FileUpload() {
               <ul className="uploadList z-list-plain">
                 {queue.uploads.map((upload) => (
                   <li key={upload.relativePath} className="uploadRow">
-                    <span className="uploadName" title={upload.relativePath}>
-                      {upload.relativePath}
-                    </span>
+                    <UploadName path={upload.relativePath} />
                     {upload.state === 'sending' && (
                       <progress
                         max={1}
@@ -143,3 +143,17 @@ function FileUpload() {
 }
 
 export default FileUpload;
+
+/** The file being sent. The row is narrow, so its path in full is the tooltip. */
+function UploadName({ path }: { path: string }) {
+  const tip = useTooltip();
+
+  return (
+    <>
+      <span className="uploadName" {...tip.anchorProps}>
+        {path}
+      </span>
+      <Tooltip tip={tip} label={path} />
+    </>
+  );
+}

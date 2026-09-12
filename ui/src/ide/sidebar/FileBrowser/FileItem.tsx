@@ -4,6 +4,8 @@ import { useAtomValue } from 'jotai';
 
 import { IContentEntry } from '@/api';
 import { FileMark, Icon } from '@/ide/icons';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { baseName } from '@/paths';
 import { activeTabPathAtom } from '@/store/TabState';
 import ContextMenu from '../ContextMenu/ContextMenu';
@@ -37,6 +39,8 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: IFileItemP
   const clipboard = useClipboard();
   const dragSource = useDragSource(path);
   const focusRow = useRowFocus(path, isFirstRow);
+  // What the row has no width for — the path, the size, when it changed, whether it is writable.
+  const tip = useTooltip();
   const { copyTo, copyPath, download } = useContentActions();
 
   const menuItems = [
@@ -73,12 +77,17 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: IFileItemP
       role="treeitem"
       aria-selected={selection.isSelected(path)}
       tabIndex={focusRow.tabIndex}
-      onFocus={focusRow.onFocus}
+      {...tip.anchorProps}
+      // The row is what takes the focus, so the tooltip's own focus handler runs beside the one that
+      // remembers where the keyboard is, rather than instead of it.
+      onFocus={(event) => {
+        focusRow.onFocus(event);
+        tip.anchorProps.onFocus(event);
+      }}
     >
       <a
         {...dragSource}
         className={rowClassName(content, activePath === path, selection.isSelected(path))}
-        title={describeEntry(content)}
         onClick={(event) => {
           // A cmd- or shift-click is building a selection and nothing more; a plain click opens.
           if (!selection.handleClick(path, event)) {
@@ -92,11 +101,12 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: IFileItemP
         {content.writable === false && (
           // The lock is the only icon in the tree that is information rather than decoration, so
           // unlike <Icon> itself it needs a name of its own.
-          <span className="rowFlag" role="img" aria-label="Read-only" title="Read-only">
+          <span className="rowFlag" role="img" aria-label="Read-only">
             <Icon name="lock" size={12} />
           </span>
         )}
       </a>
+      <Tooltip tip={tip} label={describeEntry(content)} />
       {/* A sibling of the row, not a child of it: inside the link, a click on a menu item counted
           as a click on the file. */}
       {menuPosition && (

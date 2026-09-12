@@ -92,18 +92,19 @@ describe('TabIndex', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  // The dot is the strip's only sign of unsaved work. Queried by its title rather than its class,
-  // because the title is the whole of what it says — a 6px circle has no text.
+  // The dot is the strip's only sign of unsaved work. Queried by its name rather than its class,
+  // because that name is the whole of what it says — a 6px circle has no text. It is an `aria-label`
+  // and not a tooltip: the dot is inside the tab, whose own tooltip says it on a second line.
   it('marks a tab with unsaved changes', () => {
     renderTabs(() => Promise.resolve());
 
-    expect(screen.getByTitle('Unsaved changes')).toBeInTheDocument();
+    expect(screen.getByLabelText('Unsaved changes')).toBeInTheDocument();
   });
 
   it('marks nothing when every tab matches its file', () => {
     renderTabs();
 
-    expect(screen.queryByTitle('Unsaved changes')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Unsaved changes')).not.toBeInTheDocument();
   });
 
   describe('closing a tab with unsaved changes', () => {

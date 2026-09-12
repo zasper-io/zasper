@@ -6,6 +6,8 @@ import { unsavedTabsAtom } from '@/store/UnsavedState';
 import './TabIndex.scss';
 import { apiErrorMessage } from '@/api';
 import { FileMark, Icon } from '@/ide/icons';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import UnsavedChangesDialog from './UnsavedChangesDialog';
 
 /**
@@ -83,44 +85,13 @@ export default function TabIndex() {
         {Object.keys(fileTabsState).map((key) => (
           // Keyed by path, as the tab content is: by index, closing a tab moves every tab after it
           // into the DOM node of its neighbour.
-          <li key={key} className="tab-item" role="presentation">
-            <button
-              type="button"
-              className={fileTabsState[key].active ? 'tab is-active' : 'tab'}
-              // `.tabName` truncates with an ellipsis, and without this there was nowhere the whole
-              // name could be read: two notebooks with a long shared prefix were the same tab.
-              // The path, not just the name, because that is what tells two `main.py` apart.
-              title={
-                fileTabsState[key].type === 'launcher'
-                  ? fileTabsState[key].name
-                  : fileTabsState[key].path
-              }
-              onClick={() => activateTab(key)}
-            >
-              <TabMark tab={fileTabsState[key]} />
-              {/* The name is an element of its own so that the mark's lettering is not part of it:
-                  a bare text node makes the tab read as `txtnotes.txt` to anything matching on
-                  text, and `.panel-row-name` in the sidebar's rows is the same idea. */}
-              <span className="tabName">{fileTabsState[key].name}</span>
-              {/* Unsaved, said as a dot rather than in the name: the name is already fighting an
-                  ellipsis for room, and until now nothing on the strip said it at all — the first a
-                  tab told anyone was the dialog that opens when it is closed. */}
-              {unsavedTabs[key] !== undefined && (
-                <span className="tab-dirty" title="Unsaved changes" />
-              )}
-              {fileTabsState[key].name !== 'Launcher' && (
-                // The handler is on the span rather than on the icon: an <Icon> is a glyph and
-                // takes no events, and a <button> cannot be nested in the tab's own button.
-                <span
-                  className="z-icon-button tab-close"
-                  title="Close"
-                  onClick={async (e) => await handleTabClose(e, key)}
-                >
-                  <Icon name="x" size={12} />
-                </span>
-              )}
-            </button>
-          </li>
+          <Tab
+            key={key}
+            tab={fileTabsState[key]}
+            isDirty={unsavedTabs[key] !== undefined}
+            onActivate={() => activateTab(key)}
+            onClose={async (event) => await handleTabClose(event, key)}
+          />
         ))}
       </ul>
       {pendingClose && (
@@ -134,5 +105,63 @@ export default function TabIndex() {
         />
       )}
     </div>
+  );
+}
+
+interface TabProps {
+  tab: IfileTab;
+  isDirty: boolean;
+  onActivate: () => void;
+  onClose: (event: React.MouseEvent) => Promise<void>;
+}
+
+/**
+ * One tab on the strip.
+ *
+ * The tooltip is the whole of what the tab cannot show: `.tabName` truncates with an ellipsis, so two
+ * notebooks with a long shared prefix were the same tab, and the path rather than the name is what
+ * tells two `main.py` apart. Whether it is unsaved goes on a second line rather than on the dot: the
+ * dot is inside the tab, so a tooltip of its own would open on top of this one.
+ */
+function Tab({ tab, isDirty, onActivate, onClose }: TabProps) {
+  const tip = useTooltip();
+  const label = [tab.type === 'launcher' ? tab.name : tab.path];
+  if (isDirty) {
+    label.push('Unsaved changes');
+  }
+
+  return (
+    <li className="tab-item" role="presentation">
+      <button
+        type="button"
+        className={tab.active ? 'tab is-active' : 'tab'}
+        onClick={onActivate}
+        {...tip.anchorProps}
+      >
+        <TabMark tab={tab} />
+        {/* The name is an element of its own so that the mark's lettering is not part of it:
+            a bare text node makes the tab read as `txtnotes.txt` to anything matching on
+            text, and `.panel-row-name` in the sidebar's rows is the same idea. */}
+        <span className="tabName">{tab.name}</span>
+        {/* Unsaved, said as a dot rather than in the name: the name is already fighting an
+            ellipsis for room, and until now nothing on the strip said it at all — the first a
+            tab told anyone was the dialog that opens when it is closed. */}
+        {isDirty && <span className="tab-dirty" role="img" aria-label="Unsaved changes" />}
+        {tab.name !== 'Launcher' && (
+          // The handler is on the span rather than on the icon: an <Icon> is a glyph and
+          // takes no events, and a <button> cannot be nested in the tab's own button. Its name is
+          // `aria-label` and not a tooltip for the same reason the dot's is.
+          <span
+            className="z-icon-button tab-close"
+            role="button"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <Icon name="x" size={12} />
+          </span>
+        )}
+      </button>
+      <Tooltip tip={tip} label={label} />
+    </li>
   );
 }

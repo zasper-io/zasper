@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 
 import { Icon } from '@/ide/icons';
-import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import { useDismissOnEscape, useDismissOnPressOutside, useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { zoomLevelAtom } from '@/store/AppState';
 import { MAX_ZOOM_LEVEL, MIN_ZOOM_LEVEL, zoomLevelLabel } from '@/zoom';
 
@@ -29,6 +30,8 @@ export default function ZoomStatus() {
   // aloud a bare "+2" does not.
   const spokenLabel = `Zoom level ${zoomLevelLabel(zoomLevel)}`;
 
+  const tip = useTooltip();
+
   const close = () => setOpen(false);
   useDismissOnEscape(close, open);
   useDismissOnPressOutside(picker, close, open);
@@ -38,16 +41,17 @@ export default function ZoomStatus() {
       <button
         type="button"
         className="statusButton zoomButton"
-        title="Zoom"
         aria-label={spokenLabel}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
+        {...tip.anchorProps}
       >
         <Icon name="zoom-in" size={12} />
         {/* Tabular, so the bar's last item does not change width as the level does. */}
         <span className="z-tabular">{zoomLevelLabel(zoomLevel)}</span>
       </button>
+      <Tooltip tip={tip} label="Zoom" />
 
       {open && (
         <div className="z-overlay z-menu zoomMenu">

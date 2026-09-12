@@ -1,5 +1,6 @@
 import { fetchRemote, GitStatus, pullRemote, pushRemote } from '@/api';
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
 import { IGitStatus } from './useGitStatus';
 
 interface SyncActionsProps {
@@ -29,40 +30,36 @@ export default function SyncActions({ status, busy, run }: SyncActionsProps) {
 
   return (
     <div className="git-sync-actions">
-      <button
-        type="button"
-        className="z-icon-button git-sync-action"
-        title={`Fetch from the remote (${tracking})`}
-        aria-label="Fetch"
+      <IconButton
+        icon="cloud-download"
+        className="git-sync-action"
+        label={`Fetch from the remote (${tracking})`}
+        name="Fetch"
         disabled={disabled}
         onClick={() => void run(fetchRemote)}
-      >
-        <Icon name="cloud-download" />
-      </button>
+      />
 
-      <button
-        type="button"
-        className="z-icon-button git-sync-action"
-        title={`Pull ${status.behind} commits from ${tracking}`}
-        aria-label="Pull"
+      <IconButton
+        icon="arrow-down"
+        className="git-sync-action"
+        label={`Pull ${status.behind} commits from ${tracking}`}
+        name="Pull"
         disabled={disabled}
         onClick={() => void run(pullRemote, 'Pulled.')}
       >
-        <Icon name="arrow-down" />
         {status.behind > 0 && <span className="git-sync-count">{status.behind}</span>}
-      </button>
+      </IconButton>
 
-      <button
-        type="button"
-        className="z-icon-button git-sync-action"
-        title={`Push ${status.ahead} commits to ${tracking}`}
-        aria-label="Push"
+      <IconButton
+        icon="arrow-up"
+        className="git-sync-action"
+        label={`Push ${status.ahead} commits to ${tracking}`}
+        name="Push"
         disabled={disabled}
         onClick={() => void run(pushRemote, 'Pushed.')}
       >
-        <Icon name="arrow-up" />
         {status.ahead > 0 && <span className="git-sync-count">{status.ahead}</span>}
-      </button>
+      </IconButton>
     </div>
   );
 }

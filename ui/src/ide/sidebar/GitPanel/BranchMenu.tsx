@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/ide/icons';
-import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import IconButton from '@/ide/IconButton';
+import { useDismissOnEscape, useDismissOnPressOutside, useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 
 import {
   apiErrorMessage,
@@ -153,37 +155,13 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
         )}
 
         {matching.map((branch) => (
-          <li key={branch.name} className="panel-row" role="none">
-            <button
-              type="button"
-              className="panel-row-name"
-              role="menuitem"
-              title={
-                branch.upstream === undefined ? branch.name : `${branch.name} → ${branch.upstream}`
-              }
-              disabled={disabled || branch.current}
-              onClick={() => void switchTo(branch)}
-            >
-              <Icon name={branch.current ? 'check' : 'git-branch'} />
-              <span className="panel-row-label">{branch.name}</span>
-              {branch.isRemote && <span className="panel-row-meta">remote</span>}
-            </button>
-
-            {/* Only this repository's own branches, and never the one that is checked out: git refuses
-                both, and a button that is always refused is not worth drawing. */}
-            {!branch.isRemote && !branch.current && (
-              <button
-                type="button"
-                className="z-icon-button panel-row-action"
-                title={`Delete ${branch.name}`}
-                aria-label={`Delete ${branch.name}`}
-                disabled={disabled}
-                onClick={() => setPending(branch.name)}
-              >
-                <Icon name="trash-2" />
-              </button>
-            )}
-          </li>
+          <BranchRow
+            key={branch.name}
+            branch={branch}
+            disabled={disabled}
+            onSwitch={switchTo}
+            onDelete={setPending}
+          />
         ))}
 
         {!loading && matching.length === 0 && !canCreate && (
@@ -202,5 +180,50 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
         />
       )}
     </div>
+  );
+}
+
+interface BranchRowProps {
+  branch: Branch;
+  disabled: boolean;
+  onSwitch: (branch: Branch) => Promise<void>;
+  onDelete: (name: string) => void;
+}
+
+/** One branch: what it is called, what it follows, and the way to throw it away. */
+function BranchRow({ branch, disabled, onSwitch, onDelete }: BranchRowProps) {
+  const tip = useTooltip();
+
+  return (
+    <li className="panel-row" role="none">
+      <button
+        type="button"
+        className="panel-row-name"
+        role="menuitem"
+        disabled={disabled || branch.current}
+        onClick={() => void onSwitch(branch)}
+        {...tip.anchorProps}
+      >
+        <Icon name={branch.current ? 'check' : 'git-branch'} />
+        <span className="panel-row-label">{branch.name}</span>
+        {branch.isRemote && <span className="panel-row-meta">remote</span>}
+      </button>
+      <Tooltip
+        tip={tip}
+        label={branch.upstream === undefined ? branch.name : `${branch.name} → ${branch.upstream}`}
+      />
+
+      {/* Only this repository's own branches, and never the one that is checked out: git refuses
+          both, and a button that is always refused is not worth drawing. */}
+      {!branch.isRemote && !branch.current && (
+        <IconButton
+          icon="trash-2"
+          className="panel-row-action"
+          label={`Delete ${branch.name}`}
+          disabled={disabled}
+          onClick={() => onDelete(branch.name)}
+        />
+      )}
+    </li>
   );
 }

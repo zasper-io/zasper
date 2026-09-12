@@ -14,6 +14,8 @@ import {
 } from '@/store/AppState';
 import { getCurrentBranch, logApiError } from '@/api';
 import { Icon } from '@/ide/icons';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { fileTabsAtom, IfileTab } from '@/store/TabState';
 import ZoomStatus from './ZoomStatus';
 
@@ -40,6 +42,7 @@ interface StatusBarProps {
 }
 
 export default function StatusBar({ onBranchClick }: StatusBarProps) {
+  const branchTip = useTooltip();
   const [indentationMode] = useAtom(indentationModeAtom);
   const [indentationSize] = useAtom(indentationSizeAtom);
   const [linePosition] = useAtom(linePositionAtom);
@@ -71,14 +74,17 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
         {/* Inert text until now. It is the one place the branch is always visible, so it is where people
             press to change it — the panel it opens is where the branch list lives. */}
         {branchName && (
-          <button
-            type="button"
-            className="statusItem statusButton"
-            title={`On branch ${branchName} — open source control`}
-            onClick={onBranchClick}
-          >
-            <Icon name="git-branch" /> {branchName}
-          </button>
+          <>
+            <button
+              type="button"
+              className="statusItem statusButton"
+              onClick={onBranchClick}
+              {...branchTip.anchorProps}
+            >
+              <Icon name="git-branch" /> {branchName}
+            </button>
+            <Tooltip tip={branchTip} label={`On branch ${branchName} — open source control`} />
+          </>
         )}
       </div>
       <div className="rightStatus">
