@@ -134,3 +134,39 @@ func TestEachDirectoryIsNamedOnceAndTheFirstPlaceWins(t *testing.T) {
 	assert.Equal(t, userDir, paths[0])
 	assert.Equal(t, 1, len(slices.DeleteFunc(slices.Clone(paths), func(p string) bool { return p != userDir })))
 }
+
+// The Microsoft Store's Python keeps its kernels in a per-package user base, which is neither the user
+// data dir nor an install prefix. `jupyter kernelspec list` shows them because jupyter_core asks the
+// running Python where its user base is; with no `jupyter` on PATH to ask, this glob is what finds
+// them, and without it a Store Python's kernel was listed by Jupyter and invisible to Zasper.
+func TestWindowsStorePythonKernelsAreFound(t *testing.T) {
+	home := "/home/me"
+	local := "/localappdata"
+	store := func(folder string) string {
+		return filepath.Join(local, "Packages", folder, "LocalCache", "local-packages", "share", "jupyter")
+	}
+	pkg := func(version string) string {
+		return store("PythonSoftwareFoundation.Python." + version + "_qbz5n2kfra8p0")
+	}
+	glob := fakeGlob(map[string][]string{
+		filepath.Join(local, "Packages", "PythonSoftwareFoundation.Python.3*", "LocalCache", "local-packages", "share", "jupyter"): {
+			pkg("3.13"), pkg("3.11"), store("PythonSoftwareFoundation.Python.Nightly_8wekyb3d8bbwe"),
+		},
+	})
+
+	paths := fallbackJupyterPath("windows", home, env(map[string]string{"LOCALAPPDATA": local}), "3.11", glob)
+
+	i311, i313 := slices.Index(paths, pkg("3.11")), slices.Index(paths, pkg("3.13"))
+	assert.True(t, i311 >= 0 && i313 > i311, "the running python's version comes first: %v", paths)
+	assert.NotContains(t, paths, store("PythonSoftwareFoundation.Python.Nightly_8wekyb3d8bbwe"),
+		"a package folder naming no version")
+}
+
+// A roaming profile moves Local AppData, so it is read from the environment; the home directory is
+// only the guess for when it is unset.
+func TestWindowsLocalAppDataComesFromTheEnvironment(t *testing.T) {
+	home := "/home/me"
+
+	assert.Equal(t, "/localappdata", localAppData("windows", home, env(map[string]string{"LOCALAPPDATA": "/localappdata"})))
+	assert.Equal(t, filepath.Join(home, "AppData", "Local"), localAppData("windows", home, env(nil)))
+}

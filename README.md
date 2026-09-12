@@ -322,9 +322,11 @@ produces under `%config InlineBackend.figure_format = 'svg'`, is inlined rather 
 
 ### Known limitations
 
-- **Widget state is not written into the notebook.** Reopening a notebook without a running kernel
-  shows a placeholder rather than the widget's last rendered state; run the cell again to draw it.
-- **A cell's own output area ignores `clear_output`.**
+- **Widget state is not written into the notebook.** Closing and reopening a tab is fine: the kernel
+  keeps running, and the widgets redraw from it. But the state lives only in the kernel, so once that
+  is gone — after the server restarts, or when the file is opened anywhere else, such as on GitHub —
+  the widget shows a placeholder until the cell is run again. JupyterLab can save widget state into
+  the file so it renders without a kernel; Zasper does not write it yet.
 - **Notebooks are not signed or trusted.** Zasper does not yet implement Jupyter's signature
   database, and stored `text/html` output can carry scripts that run when the notebook is opened,
   which is how Plotly and Bokeh outputs draw themselves. Treat a notebook you did not write the way

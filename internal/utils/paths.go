@@ -162,13 +162,22 @@ func fallbackJupyterPath(goos, home string, getenv func(string) string, pythonVe
 			paths = append(paths, byPythonVersion(glob(pattern), pythonVersion)...)
 		}
 	case "windows":
+		local := localAppData(goos, home, getenv)
 		paths = append(paths,
 			filepath.Join(home, "AppData", "Roaming", "Python", "share", "jupyter"),
-			filepath.Join(home, "AppData", "Local", "Continuum", "anaconda3", "share", "jupyter"),
-			filepath.Join(home, "AppData", "Local", "Enthought", "Canopy", "edm", "envs", "User", "share", "jupyter"),
+			filepath.Join(local, "Continuum", "anaconda3", "share", "jupyter"),
+			filepath.Join(local, "Enthought", "Canopy", "edm", "envs", "User", "share", "jupyter"),
 		)
-		installs := filepath.Join(home, "AppData", "Local", "Programs", "Python", "Python3*", "share", "jupyter")
+		installs := filepath.Join(local, "Programs", "Python", "Python3*", "share", "jupyter")
 		paths = append(paths, byPythonVersion(glob(installs), pythonVersion)...)
+
+		// The Microsoft Store's Python, whose own directory is read-only: `pip install ipykernel` there
+		// writes to a per-package user base under LocalCache instead, and the kernel it installs is in
+		// none of the locations above. `jupyter --paths` reports it, so this is what a machine with no
+		// `jupyter` on PATH was missing — the spec was listed by `jupyter kernelspec list` and invisible
+		// here.
+		store := filepath.Join(local, "Packages", "PythonSoftwareFoundation.Python.3*", "LocalCache", "local-packages", "share", "jupyter")
+		paths = append(paths, byVersion(glob(store), pythonVersion, storePythonVersionOf)...)
 	}
 
 	return uniquePaths(paths)
@@ -192,21 +201,54 @@ on PATH first, as `jupyter --paths` run by it would have them, then newest first
 symlink to one of the others and is dropped.
 */
 func byPythonVersion(dirs []string, current string) []string {
+	return byVersion(dirs, current, pythonVersionOf)
+}
+
+// byVersion is byPythonVersion for a layout that keeps its version somewhere else; `versionOf` is
+// what reads it, and a directory it cannot read a version from is dropped.
+func byVersion(dirs []string, current string, versionOf func(string) []int) []string {
 	var kept []string
 	for _, dir := range dirs {
-		if pythonVersionOf(dir) != nil {
+		if versionOf(dir) != nil {
 			kept = append(kept, dir)
 		}
 	}
 	want := parseVersion(current)
 	sort.SliceStable(kept, func(i, j int) bool {
-		a, b := pythonVersionOf(kept[i]), pythonVersionOf(kept[j])
+		a, b := versionOf(kept[i]), versionOf(kept[j])
 		if aIsCurrent, bIsCurrent := slices.Equal(a, want), slices.Equal(b, want); aIsCurrent != bIsCurrent {
 			return aIsCurrent
 		}
 		return slices.Compare(a, b) > 0
 	})
 	return kept
+}
+
+// storePackage names a Store Python's package directory, whose version is the only place one appears:
+// PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0 is 3.11, and the suffix is per-machine.
+var storePackage = regexp.MustCompile(`^PythonSoftwareFoundation\.Python\.(\d+\.\d+)`)
+
+// storePythonVersionOf reads <package>/LocalCache/local-packages/share/jupyter, where the version is
+// four directories above `share` rather than the one pythonVersionOf expects.
+func storePythonVersionOf(dir string) []int {
+	pkg := filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(dir)))))
+	match := storePackage.FindStringSubmatch(pkg)
+	if match == nil {
+		return nil
+	}
+	return parseVersion(match[1])
+}
+
+// localAppData is %LOCALAPPDATA%, which is where a Windows Python that is not installed for all users
+// puts itself. Read from the environment rather than built from the home directory, because a roaming
+// profile moves it.
+func localAppData(goos, home string, getenv func(string) string) string {
+	if goos == "windows" {
+		if dir := getenv("LOCALAPPDATA"); dir != "" {
+			return dir
+		}
+	}
+	return filepath.Join(home, "AppData", "Local")
 }
 
 // pythonVersionOf reads <version>/share/jupyter: "3.12" on macOS, "Python312" on Windows.
