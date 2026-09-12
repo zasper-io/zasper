@@ -313,7 +313,7 @@ test('the tab bar and the notebook toolbar stay inside the content area', async 
  * The cell the keyboard is in says so.
  *
  * Here for the same reason as the test below, and from a worse version of it: `.activeCell` set
- * `border-color` on the cell, while `.editor-body .single-line` set `border: 2px solid transparent`
+ * `border-color` on the cell, while `.notebook-body .single-line` set `border: 2px solid transparent`
  * — two classes against one, so the transparent border won and the focused cell was marked in
  * nothing at all. Every unit test of the notebook passed, because which cell is focused is state
  * React holds and the class was on the right element the whole time; what no unit test can see is
@@ -354,7 +354,7 @@ test('the focused cell is marked, and marking it does not move it', async ({ pag
 
   // The accent, resolved through the page so the assertion names the token rather than a hex value
   // that eight themes disagree about.
-  const accent = await page.locator('.editor-body').evaluate((el) => {
+  const accent = await page.locator('.notebook-body').evaluate((el) => {
     const probe = document.createElement('span');
     probe.style.color = 'var(--z-accent)';
     el.append(probe);

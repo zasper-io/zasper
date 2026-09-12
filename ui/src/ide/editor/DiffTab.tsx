@@ -128,7 +128,7 @@ export default function DiffTab(props: DiffTabProps) {
     documents.original === documents.modified;
 
   return (
-    <div className="tab-content">
+    <div className="tab-surface">
       <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         {/* The file's own path, not the tab's key, which is a diff of it. */}
         <BreadCrumb path={path} />

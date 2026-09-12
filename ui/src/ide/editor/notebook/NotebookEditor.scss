@@ -124,7 +124,7 @@
   width: 110px;
 }
 
-.editor-body {
+.notebook-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -484,7 +484,7 @@
 // the code look like an error, and this is what the drawing settled on.
 //
 // It was `.activeCell { border-color: var(--z-border-active-cell) }` on the cell, and it drew nothing
-// at all — `.editor-body .single-line` set `border: 2px solid transparent` and is two classes, so the
+// at all — `.notebook-body .single-line` set `border: 2px solid transparent` and is two classes, so the
 // transparent border won and the active cell had no marking of any kind. Every test of the notebook
 // passed: which cell is focused is state React holds, so `.activeCell` was on the right element in
 // every unit test while nothing on screen said so.

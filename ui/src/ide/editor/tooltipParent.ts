@@ -40,7 +40,7 @@ function tooltipHost(): HTMLElement {
  * `absolute` is the only one in which CodeMirror divides by a scale it measured, and that measurement
  * does see `zoom`.
  *
- * The parent has to be stated too. Left alone it is the `.cm-editor`, which is inside `.editor-body`'s
+ * The parent has to be stated too. Left alone it is the `.cm-editor`, which is inside `.notebook-body`'s
  * scroller — a popup below the fold would be clipped — and is one line tall, so the scale read off it
  * came out 1.4589 against a true 1.4401. The host is inside `#root`, so the popup keeps the app's
  * scale and grows with the text beside it, and it is outside every pane that scrolls or clips.

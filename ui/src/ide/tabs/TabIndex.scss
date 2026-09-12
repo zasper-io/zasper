@@ -6,8 +6,8 @@
 // the only one that needed markup changed — `ul.nav > li.nav-item > button.nav-link` is `ul.tabList >
 // li.tab-item > button.tab` now, `.active` is `.is-active` like every other state in the app, and
 // `.nav-item` is gone because the partial gave it nothing outside `.nav-tabs`. What the partial also
-// carried was `.tab-content > .tab-pane`, and the app's `.tab-content` is a pane of its own with no
-// `.tab-pane` inside it, so that pair was never doing anything either.
+// carried was Bootstrap's own `.tab-content > .tab-pane` pair, which nothing here was ever inside:
+// the app's panes are `.tab-pane > .tab-surface` in ide/IDE.scss and take none of it.
 //
 // That the *inactive* tab is the brighter one was asked in the design prototype with all three
 // treatments drawn at one size, and it closed on this one — see the note beside --z-bg-tab-inactive in

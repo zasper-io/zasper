@@ -37,7 +37,7 @@ export default function ImageEditor(props: ImageEditorProps) {
   }, [FetchFileData, data]);
 
   return (
-    <div className="tab-content">
+    <div className="tab-surface">
       <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         <BreadCrumb path={data.path} />
         {error !== '' ? (

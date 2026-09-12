@@ -38,6 +38,11 @@ body,
   height: 100%;
   display: flex;
   flex-direction: column;
+  // The window never scrolls. Everything in the app scrolls inside a pane of its own, so a page
+  // scrollbar here means a pane failed to take its height from the chain above and grew to its
+  // content instead — and what that looks like is the whole IDE sliding under the window, chrome
+  // and all. Clipping keeps that a bug in one pane rather than a bug in the shell.
+  overflow: hidden;
   background-color: var(--z-bg-app);
   color: var(--z-fg-default);
 }

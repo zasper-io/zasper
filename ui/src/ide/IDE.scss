@@ -76,12 +76,19 @@
   min-height: 0;
   width: 100%;
   display: flex;
+  // The row's own guard, and the reason is the one element in the layout chain that carries no class
+  // of ours: react-resizable-panels renders each `<Panel>` as a bare div, and a flex item in a row is
+  // as tall as the tallest thing on the line. So a pane inside a panel that grows to its content
+  // stretches the line, and this container — which has a definite height of its own — would let it
+  // hang below the window. It cannot reach the page from here.
+  overflow: hidden;
 }
 
 // The group states `width: 100%` inline; beside the 44px rail it takes what is left instead.
 .workbench-panels {
   flex: 1 1 0;
   min-width: 0;
+  min-height: 0;
 }
 
 // The tab strip is tabs/TabIndex.scss now, with the component that renders it: `.tabHeader`,
@@ -105,9 +112,20 @@
   overflow: hidden;
   background-color: var(--z-bg-content);
 
-  // One .tabContent per open tab; all but the active one carry .is-hidden. Everything below
-  // this gets its height from the `display: flex` here — see .is-hidden in styles/_base.scss.
-  .tabContent {
+  // Three boxes deep, and they used to be called `.tabContent`, `.tab-content` and `.editor-pane` —
+  // two of those are the same two words in two spellings, and which one a rule meant could only be
+  // settled by opening the markup. Named for what each one is instead:
+  //
+  //   .tab-pane      one per open tab, mounted whether or not it is the visible one
+  //   .tab-surface     the card that tab draws — the fill, the radius and the shadow
+  //   .editor-pane       what the tab holds: chrome at its own height, a body taking the rest
+  //
+  // Every one of them is `flex: 1; min-height: 0`, which is what hands the window's height down to
+  // the one scroller at the bottom. Break the chain at any level and that scroller grows to its
+  // content instead — see the note on `overflow` in `.editor`.
+
+  // All but the active pane carry .is-hidden — see .is-hidden in styles/_base.scss.
+  .tab-pane {
     flex: 1;
     min-height: 0;
     width: 100%;
@@ -118,7 +136,7 @@
     border-radius: 2px;
   }
 
-  .tab-content {
+  .tab-surface {
     flex: 1;
     min-height: 0;
     display: flex;
@@ -128,8 +146,7 @@
     background-color: var(--z-bg-tab);
   }
 
-  // The pane inside .tab-content: breadcrumb and toolbars at their natural height, the
-  // editor body taking the rest. FileEditor, NotebookEditor and ImageEditor all render one.
+  // FileEditor, NotebookEditor, DiffTab, ImageEditor and PdfViewer all render one.
   .editor-pane {
     flex: 1;
     min-height: 0;
@@ -141,7 +158,9 @@
   // `.nav-tabs` looks like. Nothing in src has rendered the class, and the partial it was arguing
   // with is gone.
 
-  .editor-body2 {
+  // The file editor's scroller. It was `.editor-body2`, a name whose only content was that
+  // `.editor-body` — the notebook's, in NotebookEditor.scss — was taken.
+  .file-editor-body {
     flex: 1;
     min-height: 0;
     color: var(--z-fg-editor);

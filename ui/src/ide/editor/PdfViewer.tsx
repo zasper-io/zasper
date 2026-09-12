@@ -66,7 +66,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
   }, [data.path, data.load_required]);
 
   return (
-    <div className="tab-content">
+    <div className="tab-surface">
       <div className={data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         <BreadCrumb path={data.path} />
         {error !== '' ? (

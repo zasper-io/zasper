@@ -145,7 +145,7 @@ export default function TerminalTab({ data }: TerminalTabProps) {
   }, [terminalId, cwd, fontsReady, refit, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
 
   return (
-    <div className="tab-content">
+    <div className="tab-surface">
       <div className="terminalContainer">
         <div ref={terminalRef} className="terminalArea" />
       </div>

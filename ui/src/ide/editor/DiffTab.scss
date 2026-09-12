@@ -33,7 +33,7 @@
 // (styles/_states.scss) with nothing left over. Above the diff rather than over it, because these are
 // things to read once and not to dismiss.
 
-// No padding-bottom of the .editor-body2 kind: a MergeView is two editors that scroll together, and
+// No padding-bottom of the .file-editor-body kind: a MergeView is two editors that scroll together, and
 // 500px of empty space under them is 500px of nothing to scroll past, twice.
 .diff-body {
   flex: 1;

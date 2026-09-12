@@ -173,7 +173,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const commandKeymap = useEditorCommandKeymap(commands);
 
   return (
-    <div className="tab-content">
+    <div className="tab-surface">
       <div
         className={data.active ? 'editor-pane' : 'editor-pane is-hidden'}
         id="profile"
@@ -189,7 +189,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           kernelStatus={kernel.kernelStatus}
         />
 
-        <div className="editor-body">
+        <div className="notebook-body">
           {restartIntent !== null && (
             <ConfirmRestartDialog
               intent={restartIntent}
