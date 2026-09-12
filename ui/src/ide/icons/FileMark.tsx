@@ -85,6 +85,7 @@ const MARKS: Record<string, Mark | IconName> = {
   license: { label: 'lic', kind: 'plain' },
   makefile: { label: 'mk', kind: 'plain' },
   dockerfile: { label: 'dk', kind: 'plain' },
+  pdf: { label: 'pdf', kind: 'plain' },
 
   // Drawn rather than lettered: `img` in front of a file called `plot.png` says nothing twice.
   png: 'image',

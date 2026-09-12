@@ -43,6 +43,15 @@
   max-width: 100%;
 }
 
+// The browser's own PDF viewer, filling what the breadcrumb leaves. No padding and no border: the
+// viewer draws its own toolbar and page margins inside the frame.
+.pdfContent {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+}
+
 // 22px and 10px of padding, as drawn: the bar brackets the window at a row's height, and 24px with
 // 16px either side made it the tallest piece of chrome on screen after the topbar.
 .statusBar {

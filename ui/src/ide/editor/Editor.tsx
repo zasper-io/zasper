@@ -5,6 +5,7 @@ import FileEditor from './FileEditor';
 import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
 import ImageEditor from './ImageEditor';
+import PdfViewer from './PdfViewer';
 import { IfileTab } from '@/store/TabState';
 
 // The xterm.js core plus its five addons are only needed once a terminal tab is
@@ -20,8 +21,13 @@ export default function Editor(props: EditorProps) {
     return <Launcher data={props.data} />;
   }
   if (props.data.type === 'file') {
-    if (props.data.extension === 'png') {
+    // Lowercased: the extension is the tail of the file's own name, and `PLOT.PNG` is a picture.
+    const extension = props.data.extension?.toLowerCase();
+    if (extension === 'png') {
       return <ImageEditor data={props.data} />;
+    }
+    if (extension === 'pdf') {
+      return <PdfViewer data={props.data} />;
     }
     return <FileEditor data={props.data} />;
   }
