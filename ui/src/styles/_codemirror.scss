@@ -70,7 +70,24 @@
 // The theme classes CodeMirror copies onto that container carry the editor's background as well as
 // its box, so the file editor's white filled this host's full size and painted over the whole app —
 // laid out and clickable underneath, and invisible. Only the popups inside it have a surface.
+//
+// Height too, and this is the half that was missing: there is one of these containers per editor,
+// not one per app, so the boxes they arrive with stack. Open a file — `minHeight="100%"` on the file
+// editor's CodeMirror, so its container is the window's full height — and the pile overflows a host
+// that is exactly one window tall, which gives <body> a scroll height of two windows and the whole
+// IDE, chrome and all, a page scrollbar. `.editor` clipping cannot reach it: the host is #root's
+// child, not the shell's.
+//
+// Collapsed rather than taken out of flow, because `position: relative` is written on each container
+// as an inline style by CodeMirror's own `createContainer` and no rule here can outrank it. Nothing
+// wants these boxes to have a size: the zoom factor is read off the *host* (`rect.height /
+// offsetHeight`, which is why the host is a full-size sheet), and a tooltip is placed at
+// `top - container.getBoundingClientRect().top`, which needs the container's origin and not its
+// height. At 0 every container sits at the host's own origin, which is the same answer for all of
+// them.
 #cm-tooltip-host > * {
+  height: 0;
+  min-height: 0;
   background: none;
 }
 
