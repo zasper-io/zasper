@@ -1,3 +1,6 @@
+# A bare `make` lists the targets rather than running whichever happens to come first.
+.DEFAULT_GOAL := help
+
 # Verion Variables
 VERSION_FILE = version.txt
 TAG_PREFIX = v
@@ -83,28 +86,60 @@ changelog-draft:
 VERSION_BUILD_FLAG = "-X main.version=$(CURRENT_VERSION)"
 
 
-.PHONY: init build start dev webapp-install test test-frontend test-go e2e e2e-api e2e-browser changelog-draft
+NODE_VERSION = $(shell cat .nvmrc)
 
-# Initialize the project by installing frontend dependencies
-init:
-	@echo "Initializing the project..."
-	cd ui && npm install
+# `npm ci` rewrites the first and `vite build` the second, so each is a stamp for its step.
+UI_DEPS = ui/node_modules/.package-lock.json
+UI_BUILD = ui/build/index.html
+UI_SOURCES = $(shell find ui/src ui/public) ui/index.html ui/package.json ui/tsconfig.json ui/vite.config.ts
 
-# Build the frontend and backend
+.PHONY: help check-tools init build dev install clean test test-frontend test-go e2e e2e-api e2e-browser bump-version show-version changelog-draft
 
-build:
-	@echo "Building the frontend and backend..."
+help:
+	@echo "Building from source (needs Go 1.25+ and Node.js $(NODE_VERSION)+):"
+	@echo "  make build           build the zasper binary in this directory"
+	@echo "  make install         build and install zasper into your Go bin directory"
+	@echo "  make dev             run the frontend on :3000 and the backend on :8048"
+	@echo "  make test            run the frontend and Go test suites"
+	@echo "  make e2e             run the end-to-end suites (see e2e/README.md)"
+	@echo "  make init            reinstall the frontend's dependencies from scratch"
+	@echo "  make clean           remove build output"
+	@echo ""
+	@echo "Releasing (see PUBLISHING.md):"
+	@echo "  make show-version, make bump-version TYPE=patch, make changelog-draft"
+
+# npm only warns about an unsupported Node version, and the build then fails somewhere unrelated.
+check-tools:
+	@command -v go >/dev/null || { echo "Go is not installed; Zasper needs Go 1.25+: https://go.dev/dl/"; exit 1; }
+	@command -v node >/dev/null || { echo "Node.js is not installed; Zasper needs Node.js $(NODE_VERSION)+ (nvm install)"; exit 1; }
+	@node -e 'const [a, b] = process.versions.node.split(".").map(Number), [x, y] = process.argv[1].split(".").map(Number); process.exit(a > x || (a === x && b >= y) ? 0 : 1)' $(NODE_VERSION) \
+		|| { echo "Node.js $$(node --version) is too old; Zasper needs $(NODE_VERSION)+ (nvm install && nvm use)"; exit 1; }
+
+init: check-tools
+	@echo "Installing the frontend's dependencies..."
+	cd ui && npm ci
+	@touch $(UI_DEPS)
+
+$(UI_DEPS): ui/package-lock.json
+	@$(MAKE) --no-print-directory init
+
+$(UI_BUILD): $(UI_DEPS) $(UI_SOURCES) | check-tools
+	@echo "Building the frontend..."
 	cd ui && npm run build
+	@touch $@
+
+build: $(UI_BUILD)
+	@echo "Building the backend..."
 	go build -ldflags $(VERSION_BUILD_FLAG) .
 
-# Default target: run both frontend and backend in development
-dev:
+# -tags apiserver serves ui/build from disk rather than embedding it, which a fresh clone does not have
+# yet; in development Vite serves the frontend anyway.
+dev: $(UI_DEPS) | check-tools
 	@echo "Starting the frontend and backend in development..."
-	(cd ui && npm start) & go run . --no-browser
+	(cd ui && npm start) & go run -tags apiserver . --no-browser
 
-# Install the web app
-webapp-install: build
-	@echo "Installing the web app..."
+install: $(UI_BUILD)
+	@echo "Installing zasper..."
 	go install -ldflags $(VERSION_BUILD_FLAG) .
 
 # Clean up build artifacts
@@ -117,7 +152,7 @@ clean:
 # Both suites; either one also runs on its own.
 test: test-frontend test-go
 
-test-frontend:
+test-frontend: $(UI_DEPS)
 	@echo "Running frontend tests"
 	cd ui && npm test
 
@@ -134,8 +169,8 @@ e2e-api:
 	@echo "Running the API journeys"
 	go test -race -tags apiserver ./internal/server/...
 
-# Builds the frontend first: the server embeds ui/build, and a stale build tests a stale app.
-e2e-browser:
+# Rebuilds the frontend first if any of its sources changed: the server embeds ui/build, and a stale
+# build tests a stale app.
+e2e-browser: $(UI_BUILD)
 	@echo "Running the browser journeys"
-	cd ui && npm run build
 	cd e2e && npm install && npx playwright test

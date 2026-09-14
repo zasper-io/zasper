@@ -81,47 +81,24 @@ Improving documentation is just as important as improving the code! If you find 
 
 ### Development Setup
 
-To get started with development, you'll need to set up your local environment.
+You need Go 1.25+ and Node.js 22.12+. `.nvmrc` pins the Node version, so with nvm, `nvm install`
+in the repository gets the right one. The `make` targets check both before they start.
 
-### **Clone the Repository**
-    
 ```bash
 git clone https://github.com/zasper-io/zasper.git
-```
-
-
-### **Initialize the project**
-
-This command installs all the necessary frontend dependencies (via `npm install`).
-
-```bash
-make init
-```
-
-### 2. **Build the frontend and backend**
-
-This command builds both the frontend (via `npm run build` in the ui directory) and the backend (via `go build` in the root directory).
-
-```bash
-make build
-```
-
-### 3. **Start the web app (development mode)**
-
-This command starts both the frontend and the backend simultaneously in development mode. The frontend runs via `npm start` and the backend via `go run .`
-
-```bash
+cd zasper
 make dev
 ```
-This is especially useful when you are working on the project and want to run both the frontend and backend concurrently.
 
-### 4. **Package and Install the Web App**
+`make dev` serves the frontend with Vite on http://localhost:3000 and runs the backend on port 8048.
+It installs the frontend's dependencies first whenever `ui/package-lock.json` has changed, so there
+is no separate setup step. `make` on its own lists every target; the ones you will use most are:
 
-This command builds creates a binary `zasper` and add it to your go executables directory. Make sure you have go executables on your path. 
-
-```bash
-make webapp-install
-```
+- `make build` builds the `zasper` binary in the repository, with the frontend embedded.
+- `make install` builds it and installs it into your Go binary directory, which needs to be
+  on your `PATH`.
+- `make test` runs the frontend and Go test suites.
+- `make init` reinstalls the frontend's dependencies from scratch.
 
 
 ### Style Guidelines

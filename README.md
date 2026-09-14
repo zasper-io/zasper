@@ -457,14 +457,14 @@ Requires Go 1.25+ and Node.js 22.12+ (`.nvmrc` pins the Node version, so `nvm us
 ```sh
 git clone https://github.com/zasper-io/zasper
 cd zasper
-make init             # install the frontend's dependencies
-make webapp-install   # build the frontend and install the zasper binary
+make install   # install the frontend's dependencies, build, and install the zasper binary
 ```
 
-`make webapp-install` puts `zasper` in your Go binary directory, so make sure that is on your
+`make install` puts `zasper` in your Go binary directory, so make sure that is on your
 `PATH`, then check the install with `zasper --version`. `make build` builds the binary in the
 repository instead, `make dev` runs the frontend and backend in development mode, and `make test`
-runs both test suites. [CONTRIBUTING.md](CONTRIBUTING.md) covers the development workflow.
+runs both test suites. `make` on its own lists the targets. [CONTRIBUTING.md](CONTRIBUTING.md)
+covers the development workflow.
 
 ## Roadmap
 
