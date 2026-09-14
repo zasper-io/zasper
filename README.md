@@ -157,8 +157,8 @@ serves every distribution. There is no `.deb` or `.rpm` yet.
 | Windows | ARM64 | `zasper-webapp-<version>-windows-arm64.zip` |
 | Windows | i386 | `zasper-webapp-<version>-windows-386.zip` |
 
-Each release carries a `checksums.txt`. Verify a download with
-`sha256sum -c checksums.txt --ignore-missing`. The same archives are listed on the
+Each release carries a `zasper_<version>_checksums.txt`. Verify a download with
+`sha256sum -c zasper_<version>_checksums.txt --ignore-missing`. The same archives are listed on the
 [downloads page](https://zasper.io/downloads).
 
 ### Docker

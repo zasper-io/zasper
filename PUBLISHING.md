@@ -116,7 +116,7 @@ Pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`, which:
 1. **Verifies** — Go build and race tests, frontend typecheck, lint and tests,
    and `goreleaser check`. The release job does not start unless this passes.
 2. **Releases** — GoReleaser builds macOS, Linux and Windows binaries, signs and
-   notarizes the macOS ones, writes `checksums.txt`, publishes a GitHub Release
+   notarizes the macOS ones, writes `zasper_<version>_checksums.txt`, publishes a GitHub Release
    whose notes are the version's section of `CHANGELOG.md`, and updates the
    Homebrew tap.
 
