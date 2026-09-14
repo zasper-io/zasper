@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import { apiErrorMessage, downloadContent } from '@/api';
+import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
+import { baseName } from '@/paths';
 import { IfileTab } from '@/store/TabState';
 import BreadCrumb from './BreadCrumb';
 
@@ -23,6 +25,9 @@ export default function PdfViewer({ data }: PdfViewerProps) {
   const [error, setError] = useState('');
   const objectUrl = useRef<string | null>(null);
   const mounted = useRef(true);
+  // Only `false` means no viewer: a browser too old to report either way still gets the frame.
+  const noViewer = navigator.pdfViewerEnabled === false;
+  const name = data.name || baseName(data.path);
 
   // Revoked when the tab closes, and not before: `load_required` goes false as soon as any other tab
   // is activated, so an object URL tied to it would be revoked out from under a tab that is merely in
@@ -38,7 +43,7 @@ export default function PdfViewer({ data }: PdfViewerProps) {
   }, []);
 
   useEffect(() => {
-    if (data.load_required !== true) {
+    if (data.load_required !== true || noViewer) {
       return;
     }
     downloadContent(data.path)
@@ -63,22 +68,66 @@ export default function PdfViewer({ data }: PdfViewerProps) {
           setSrc('');
         }
       });
-  }, [data.path, data.load_required]);
+  }, [data.path, data.load_required, noViewer]);
+
+  const download = () => {
+    downloadContent(data.path)
+      .then((blob) => saveAs(blob, name))
+      .catch((failure: unknown) => {
+        if (mounted.current) {
+          setError(apiErrorMessage(failure));
+        }
+      });
+  };
+
+  let pane: React.ReactNode;
+  if (error !== '') {
+    pane = (
+      <div className="z-notice z-notice-error" role="alert">
+        <Icon name="circle-alert" size={14} />
+        <p>
+          <strong>This PDF could not be loaded.</strong> {error}
+        </p>
+      </div>
+    );
+  } else if (noViewer) {
+    pane = (
+      <div className="z-notice z-notice-error" role="alert">
+        <Icon name="circle-alert" size={14} />
+        <p>
+          <strong>{name} cannot be shown here.</strong> This browser has no PDF viewer of its own,
+          so there is nothing for the pane to put in the frame.
+        </p>
+        <button
+          type="button"
+          className="z-button z-button-secondary z-notice-action"
+          onClick={download}
+        >
+          Download
+        </button>
+      </div>
+    );
+  } else if (src === '') {
+    pane = (
+      <div className="viewerArea viewerArea-wait">
+        <p className="z-note">
+          <span className="z-spinner" /> Loading {name}…
+        </p>
+      </div>
+    );
+  } else {
+    pane = (
+      <div className="viewerArea viewerArea-pdf">
+        <iframe src={src} className="viewerFrame" title={name} />
+      </div>
+    );
+  }
 
   return (
     <div className="tab-surface">
       <div className={data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         <BreadCrumb path={data.path} />
-        {error !== '' ? (
-          <div className="z-notice z-notice-error" role="alert">
-            <Icon name="circle-alert" size={14} />
-            <p>
-              <strong>This PDF could not be loaded.</strong> {error}
-            </p>
-          </div>
-        ) : (
-          src !== '' && <iframe src={src} className="pdfContent" title={data.name || data.path} />
-        )}
+        {pane}
       </div>
     </div>
   );

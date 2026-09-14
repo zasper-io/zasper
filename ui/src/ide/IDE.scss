@@ -30,25 +30,42 @@
   width: 100%;
 }
 
-.imageArea {
-  flex: 1;
+// A file the app shows rather than edits, filling what the breadcrumb leaves. The modifier says what
+// is in it: an image wants room around it, a PDF viewer brings its own scrolling and margins.
+.viewerArea {
+  flex: 1 1 auto;
   min-height: 0;
   width: 100%;
+  background: var(--z-bg-app);
+}
+
+.viewerArea-image {
   padding: 50px;
   overflow: auto;
   text-align: center;
 }
 
-.imageContent {
+// Never scaled up.
+.viewerContent {
   max-width: 100%;
 }
 
-// The browser's own PDF viewer, filling what the breadcrumb leaves. No padding and no border: the
-// viewer draws its own toolbar and page margins inside the frame.
-.pdfContent {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
+// Nothing in the pane to align to yet, so the note is centred on both axes.
+.viewerArea-wait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+.viewerArea-pdf {
+  display: flex;
+  overflow: hidden;
+}
+
+.viewerFrame {
+  flex: 1 1 auto;
+  min-width: 0;
   border: 0;
 }
 

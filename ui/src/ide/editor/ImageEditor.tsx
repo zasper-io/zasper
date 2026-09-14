@@ -48,9 +48,8 @@ export default function ImageEditor(props: ImageEditorProps) {
             </p>
           </div>
         ) : (
-          /* .imageArea is the scroll box; the <img> keeps its own aspect ratio inside it. */
-          <div className="imageArea">
-            <img src={fileContents} className="imageContent" alt={data.name || data.path} />
+          <div className="viewerArea viewerArea-image">
+            <img src={fileContents} className="viewerContent" alt={data.name || data.path} />
           </div>
         )}
       </div>

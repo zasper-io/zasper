@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>A high-performance IDE for Jupyter notebooks.</strong><br>
+  <strong>High Performance IDE for Jupyter notebooks.</strong><br>
   Any Jupyter kernel, one static binary, a fraction of JupyterLab's resource use.
 </p>
 
