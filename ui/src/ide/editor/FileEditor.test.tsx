@@ -22,12 +22,15 @@ vi.mock('@uiw/react-codemirror', async () => {
   const react = await import('react');
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    default: (props: any) =>
-      react.createElement('textarea', {
+    default: (props: any) => {
+      const [mountedWith] = react.useState(props.value);
+      return react.createElement('textarea', {
         value: props.value,
+        'data-mounted-with': mountedWith,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onChange: (event: any) => props.onChange?.(event.target.value),
-      }),
+      });
+    },
     Prec: { highest: (extension: unknown) => extension },
   };
 });
@@ -86,6 +89,13 @@ describe('FileEditor', () => {
     await renderEditor();
 
     expect(unsavedPaths()).toBe('');
+  });
+
+  // The real editor records text handed to it after mounting as an edit, which Mod-z then undoes.
+  it('mounts the editor with the file already in it, so undo cannot empty it', async () => {
+    await renderEditor();
+
+    expect(screen.getByRole('textbox')).toHaveAttribute('data-mounted-with', 'first line\n');
   });
 
   it('is unsaved as soon as it is typed into', async () => {

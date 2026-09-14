@@ -25,6 +25,8 @@ export default function FileEditor(props: FileEditorProps) {
   const [savedContents, setSavedContents] = useState('');
   /** Why the file could not be read, when it could not be. */
   const [error, setError] = useState('');
+  /** Bumped on every successful read; 0 until the first one lands. */
+  const [readCount, setReadCount] = useState(0);
   const theme = useTheme();
 
   const saveFileToDisk = useCallback(async () => {
@@ -70,6 +72,7 @@ export default function FileEditor(props: FileEditorProps) {
       setFileContents(content);
       setSavedContents(content);
       setError('');
+      setReadCount((count) => count + 1);
     } catch (failure) {
       // The file is gone, or was never there — a tab restored from a previous visit pointing at
       // something since deleted. Said out loud, because the alternative is an editor that looks like
@@ -124,8 +127,12 @@ export default function FileEditor(props: FileEditorProps) {
                 <strong>This file could not be loaded.</strong> {error}
               </p>
             </div>
-          ) : (
+          ) : readCount === 0 ? null : (
+            // Mounted only once the file is read, and afresh on each read: handed the text after
+            // mounting, @uiw/react-codemirror records it as an edit, and Mod-z undoes it to a blank
+            // editor.
             <CodeMirror
+              key={readCount}
               value={fileContents}
               theme={theme.codeMirror}
               minHeight="100%"
