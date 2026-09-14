@@ -100,7 +100,7 @@ The methodology and full results are in the
 
 ## Installation
 
-Current release version: `v1.0.0`
+Current release version: `v1.1.0`
 
 | Platform | Support |
 | --- | --- |
