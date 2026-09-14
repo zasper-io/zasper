@@ -8,15 +8,14 @@ const login = vi.fn();
 
 vi.mock('@/api', () => ({
   login: (token: string) => login(token),
-  getConfig: () => Promise.resolve({ version: 'test', protected: true }),
   logApiError: () => () => {},
 }));
 
 vi.mock('@/ide/IDE', () => ({ default: () => <p>the IDE</p> }));
 vi.mock('@/auth/Login', () => ({ default: () => <p>the login page</p> }));
 
-// Waited for in place rather than found once: /api/config answering re-renders the route gated, which
-// remounts the IDE and detaches the node a findBy would have handed back.
+// Waited for in place rather than found once: the route chunks load lazily, so the page appears a
+// render or two after the first.
 async function shows(text: string) {
   await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
 }

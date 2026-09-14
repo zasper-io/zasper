@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { JSX, lazy, Suspense, useEffect, useState } from 'react';
 
-import { getConfig, login, logApiError } from '@/api';
+import { login, logApiError } from '@/api';
 
 // Both route components load on demand, so the two screens don't pay for each
 // other: /login would otherwise pull in the whole IDE (CodeMirror and all), and /
@@ -45,17 +45,8 @@ function forgetLinkToken() {
 }
 
 export default function RouteConfig() {
-  const [protectedState, setProtectedState] = useState(false);
   const [pendingToken] = useState(linkToken);
   const [signingIn, setSigningIn] = useState(pendingToken !== null);
-
-  useEffect(() => {
-    getConfig()
-      .then((config) => {
-        setProtectedState(config.protected);
-      })
-      .catch(logApiError('Error fetching config:'));
-  }, [setProtectedState]);
 
   // Before anything routes: the IDE would otherwise boot with no session, get a 401 and bounce to
   // /login. A refused token keeps whatever session was already held; a stale link is not a sign-out.
@@ -85,9 +76,7 @@ export default function RouteConfig() {
               key={i}
               path={route.path}
               element={
-                // `protected` marks which routes *can* be gated; whether gating
-                // is on at all comes from the server's /api/config.
-                route.protected && protectedState ? (
+                route.protected ? (
                   <ProtectedRoute element={<route.component />} />
                 ) : (
                   <route.component />

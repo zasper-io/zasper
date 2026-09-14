@@ -106,7 +106,7 @@ Current release version: `v1.1.0`
 | --- | --- |
 | macOS | Supported |
 | Linux | Supported |
-| Windows | Binaries are published and Zasper runs, but the terminal and some kernel paths are less well exercised. For the best experience, use WSL. |
+| Windows | Binaries are published and notebooks run, but terminals are not available yet and some kernel paths are less well exercised. For terminals and the best experience, use WSL. |
 
 **Requirements.** Zasper runs notebooks on Jupyter kernels but does not install one:
 `pip install ipykernel` is enough to start (see [Jupyter kernels](#jupyter-kernels)). You also

@@ -25,7 +25,7 @@ import {
   platformAtom,
   projectDirAtom,
   projectNameAtom,
-  protectedStateAtom,
+  serverOsAtom,
   userNameAtom,
   zasperVersionAtom,
 } from '../store/AppState';
@@ -48,7 +48,7 @@ function IDE() {
   const [reloadCount] = useAtom(fileBrowserReloadCountAtom);
   const [, setProjectName] = useAtom(projectNameAtom);
   const [, setProjectDir] = useAtom(projectDirAtom);
-  const [, setProtectedState] = useAtom(protectedStateAtom);
+  const [, setServerOs] = useAtom(serverOsAtom);
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
   const [, setPlatform] = useAtom(platformAtom);
@@ -119,16 +119,8 @@ function IDE() {
     // Resolve through the registry so a config naming a theme we no longer ship
     // falls back instead of writing a data-theme with no stylesheet behind it.
     setTheme(getTheme(info.theme).id);
-    setProtectedState(info.protected);
-  }, [
-    setProjectName,
-    setProjectDir,
-    setUserName,
-    setVersion,
-    setPlatform,
-    setTheme,
-    setProtectedState,
-  ]);
+    setServerOs(info.os);
+  }, [setProjectName, setProjectDir, setUserName, setVersion, setPlatform, setTheme, setServerOs]);
 
   useEffect(() => {
     initConfig();

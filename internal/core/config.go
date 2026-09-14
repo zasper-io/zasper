@@ -1,14 +1,17 @@
 package core
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"runtime"
-	"strings"
+	"sync"
 
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/internal/atomicfile"
 	"github.com/zasper-io/zasper/internal/utils"
 )
 
@@ -26,186 +29,155 @@ func GenerateRandomToken(n int) (string, error) {
 }
 
 type Application struct {
-	BaseUrl           string
-	StaticUrl         string
-	UserName          string
-	HomeDir           string
-	JupyterConfigDir  string
-	JupyterDataDir    string
-	JupyterRuntimeDir string
-	JupyterPath       []string
-	JupyterConfigPath string
-	ProjectName       string
-	OSName            string
-	Version           string
-	Protected         bool
+	UserName string
+	// The project directory, as an absolute path.
+	HomeDir     string
+	JupyterPath []string
+	ProjectName string
+	OSName      string
+	Version     string
 }
 
-func SetUpZasper(version string, cwd string, protected bool) Application {
-	if cwd == "." {
-		cwd = utils.GetHomeDir()
+func SetUpZasper(version string, cwd string) Application {
+	// Absolute, so the project is where --cwd said when it was given, whatever the process's working
+	// directory is later.
+	projectDir, err := filepath.Abs(cwd)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("could not resolve the project directory %s", cwd)
 	}
 
 	// Pinned for a hosted server whose users keep a link, and for the e2e suite, which has to sign in.
 	ServerAccessToken = os.Getenv("ZASPER_ACCESS_TOKEN")
 	if ServerAccessToken == "" {
-		var err error
 		ServerAccessToken, err = GenerateRandomToken(16) // 16 bytes = 32 hex characters
 		if err != nil {
 			log.Fatal().Msgf("Failed to generate access token: %v", err)
 		}
 	}
 
-	application := Application{
-		BaseUrl:           "http://localhost:8048",
-		ProjectName:       utils.GetProjectName(cwd),
-		HomeDir:           cwd,
-		Version:           string(version),
-		UserName:          utils.GetUsername(),
-		StaticUrl:         "./images",
-		Protected:         protected,
-		OSName:            runtime.GOOS,
-		JupyterConfigDir:  utils.GetJupyterConfigDir(),
-		JupyterDataDir:    utils.GetJupyterDataDir(),
-		JupyterRuntimeDir: utils.GetJupyterRuntimeDir(),
-		JupyterPath:       utils.GetJupyterPath(),
-		JupyterConfigPath: utils.GetJupyterConfigPath(),
+	return Application{
+		ProjectName: utils.GetProjectName(projectDir),
+		HomeDir:     projectDir,
+		Version:     version,
+		UserName:    utils.GetUsername(),
+		OSName:      runtime.GOOS,
+		JupyterPath: utils.GetJupyterPath(),
 	}
-	return application
 }
 
 // Config structure to hold configuration values
 type Config struct {
-	TrackingID       string   `json:"tracking_id"`
-	LastProjects     []string `json:"last_projects"`
-	Theme            string   `json:"theme"`
-	TelemetryEnabled *bool    `json:"telemetry_enabled,omitempty"`
+	TrackingID       string `json:"tracking_id"`
+	Theme            string `json:"theme"`
+	TelemetryEnabled *bool  `json:"telemetry_enabled,omitempty"`
 }
 
-// Function to expand the ~ to home directory path
+// DefaultTheme names a theme in ui/src/themes, which is the only place that knows what one means: the
+// server stores the string and hands it back, and an unknown name resolves to the same default there.
+const DefaultTheme = "teal-light"
+
+// configMu serialises every read-modify-write of the file, so that a theme change and a telemetry
+// toggle made at the same moment both survive.
+var configMu sync.Mutex
+
 func getConfigFilePath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return homeDir + "/.zasper/config.json", nil
+	return filepath.Join(homeDir, ".zasper", "config.json"), nil
 }
 
-// Function to read the config from the file
+// ReadConfig reads the config file, answering an empty config when there is none yet.
 func ReadConfig() (*Config, error) {
 	filePath, err := getConfigFilePath()
 	if err != nil {
 		return nil, err
 	}
 
-	// Open the config file
-	file, err := os.Open(filePath)
+	data, err := os.ReadFile(filePath)
+	if os.IsNotExist(err) {
+		return &Config{}, nil
+	}
 	if err != nil {
-		if os.IsNotExist(err) {
-			// If the file doesn't exist, return a default config
-			return &Config{}, nil
-		}
 		return nil, err
 	}
-	defer file.Close()
 
-	// Decode the JSON content into the Config struct
 	var config Config
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&config)
-	if err != nil {
+	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
-
 	return &config, nil
 }
 
-// Function to write the config to the file
+// WriteConfig replaces the whole file. A change to one setting belongs in UpdateConfig, which cannot
+// lose a change made alongside it.
 func WriteConfig(config *Config) error {
+	configMu.Lock()
+	defer configMu.Unlock()
+
+	return writeConfig(config)
+}
+
+func writeConfig(config *Config) error {
 	filePath, err := getConfigFilePath()
 	if err != nil {
 		return err
 	}
-
-	// Create the directory if it doesn't exist
-	err = os.MkdirAll(filePath[:strings.LastIndex(filePath, "/")], os.ModePerm)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 		return err
 	}
 
-	// Open the config file (create if it doesn't exist)
-	file, err := os.Create(filePath)
+	// Indented, because the file is edited by hand.
+	encoded, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	log.Debug().Msgf("Writing config to %s", filePath)
+	log.Debug().Msgf("writing config to %s", filePath)
 
-	// Write the config struct to the file as JSON
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ") // Pretty-print the JSON
-	return encoder.Encode(config)
+	// Atomically: a crash partway through os.Create's truncate-and-write left a file ReadConfig refused
+	// on every call after.
+	_, err = atomicfile.Write(filePath, bytes.NewReader(append(encoded, '\n')), 0o644)
+	return err
 }
 
-// Function to add a new project to the list of last 5 projects
-func addProject(projectName string) error {
+// UpdateConfig reads the config, lets change edit it, and writes it back when change reports that it
+// did, all under one lock. It answers the config as it now stands.
+func UpdateConfig(change func(*Config) bool) (Config, error) {
+	configMu.Lock()
+	defer configMu.Unlock()
+
 	config, err := ReadConfig()
 	if err != nil {
-		return err
+		return Config{}, err
 	}
-
-	// Add the new project to the list of last projects
-	config.LastProjects = append(config.LastProjects, projectName)
-
-	// If there are more than 5 projects, keep only the last 5
-	if len(config.LastProjects) > 5 {
-		config.LastProjects = config.LastProjects[len(config.LastProjects)-5:]
+	if change(config) {
+		if err := writeConfig(config); err != nil {
+			return Config{}, err
+		}
 	}
-
-	err = WriteConfig(config)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return *config, nil
 }
 
-// Function to generate or retreive Theme from the config
+// GetTheme answers the chosen theme, and DefaultTheme when none has been chosen or the file cannot be
+// read. It writes nothing: it is read on every page load, including from a read-only home directory.
 func GetTheme() (string, error) {
 	config, err := ReadConfig()
 	if err != nil {
-		log.Info().Msgf("Error reading config file: %v", err)
-		return "", err
+		return DefaultTheme, err
 	}
-
 	if config.Theme == "" {
-		// The name of a theme in ui/src/themes, which is the only place that knows what one means:
-		// the server stores the string and hands it back. An unknown name resolves to the same
-		// default there, so this staying in step is a nicety rather than a correctness requirement.
-		config.Theme = "teal-light"
-		err = WriteConfig(config)
-		if err != nil {
-			return "", err
-		}
+		return DefaultTheme, nil
 	}
-
 	return config.Theme, nil
 }
 
-// Function to change theme and persist it
 func changeTheme(theme string) error {
-	config, err := ReadConfig()
-	if err != nil {
-		return err
-	}
-
-	config.Theme = theme
-	err = WriteConfig(config)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err := UpdateConfig(func(config *Config) bool {
+		config.Theme = theme
+		return true
+	})
+	return err
 }
 
 // TelemetryPreference reports the stored choice and whether one has been made. The second return is
@@ -225,10 +197,9 @@ func TelemetryPreference() (enabled bool, chosen bool) {
 
 // SetTelemetryEnabled persists the choice, which also marks the install as having been asked.
 func SetTelemetryEnabled(enabled bool) error {
-	config, err := ReadConfig()
-	if err != nil {
-		return err
-	}
-	config.TelemetryEnabled = &enabled
-	return WriteConfig(config)
+	_, err := UpdateConfig(func(config *Config) bool {
+		config.TelemetryEnabled = &enabled
+		return true
+	})
+	return err
 }

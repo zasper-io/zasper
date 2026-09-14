@@ -1,11 +1,10 @@
 /*
 The config file, which is the one piece of state Zasper keeps between runs.
 
-None of this had a test, and the reason is worth writing down: getConfigFilePath resolves
-~/.zasper/config.json, so a test that called any of it would rewrite the developer's own settings —
-their theme, their recent projects — as a side effect of running the suite. Setting HOME to a temp
-directory is enough to isolate it on every platform this ships to, since os.UserHomeDir reads that
-environment variable, and it needs no seam in the code to do it.
+getConfigFilePath resolves ~/.zasper/config.json, so a test that called any of it would rewrite the
+developer's own settings as a side effect of running the suite. Setting HOME to a temp directory is
+enough to isolate it on every platform this ships to, since os.UserHomeDir reads that environment
+variable.
 
 t.Setenv forbids t.Parallel, which suits a package whose state is process-wide anyway.
 */
@@ -17,7 +16,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,17 +58,12 @@ func TestAMissingConfigReadsAsAnEmptyOne(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, config)
 	assert.Empty(t, config.Theme)
-	assert.Empty(t, config.LastProjects)
 }
 
 func TestWhatIsWrittenIsWhatIsReadBack(t *testing.T) {
 	path := aHome(t)
 
-	require.NoError(t, WriteConfig(&Config{
-		Theme:        "orange-dark",
-		TrackingID:   "abcdefghijklmnopqrstu",
-		LastProjects: []string{"/one", "/two"},
-	}))
+	require.NoError(t, WriteConfig(&Config{Theme: "orange-dark", TrackingID: "abcdefghijklmnopqrstu"}))
 
 	// The directory is created on the way, since a fresh install has no ~/.zasper either.
 	require.FileExists(t, path)
@@ -76,7 +72,6 @@ func TestWhatIsWrittenIsWhatIsReadBack(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "orange-dark", config.Theme)
 	assert.Equal(t, "abcdefghijklmnopqrstu", config.TrackingID)
-	assert.Equal(t, []string{"/one", "/two"}, config.LastProjects)
 }
 
 func TestTheConfigIsWrittenForAPersonToRead(t *testing.T) {
@@ -90,6 +85,18 @@ func TestTheConfigIsWrittenForAPersonToRead(t *testing.T) {
 	assert.Contains(t, string(body), "\n  \"theme\"")
 }
 
+func TestAWriteLeavesNothingButTheConfig(t *testing.T) {
+	path := aHome(t)
+
+	require.NoError(t, WriteConfig(&Config{Theme: "teal-light"}))
+	require.NoError(t, changeTheme("slate-dark"))
+
+	entries, err := os.ReadDir(filepath.Dir(path))
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "a scratch file from the atomic write was left behind")
+	assert.Equal(t, "config.json", entries[0].Name())
+}
+
 func TestAConfigThatIsNotJsonIsAnErrorRatherThanAnEmptyOne(t *testing.T) {
 	path := aHome(t)
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
@@ -101,49 +108,71 @@ func TestAConfigThatIsNotJsonIsAnErrorRatherThanAnEmptyOne(t *testing.T) {
 	// rather than silently starting from defaults and overwriting whatever the reader had.
 	assert.Error(t, err)
 	assert.Nil(t, config)
+
+	_, err = UpdateConfig(func(config *Config) bool { config.Theme = "slate-dark"; return true })
+	assert.Error(t, err)
+	body, readErr := os.ReadFile(path)
+	require.NoError(t, readErr)
+	assert.Equal(t, "{ this is not json", string(body), "an update wrote over a file it could not read")
 }
 
-func TestOnlyTheLastFiveProjectsAreKept(t *testing.T) {
+// A theme change, a telemetry toggle and a tracking-id reset are each a read-modify-write, and two of
+// them at once lost one.
+func TestUpdatesMadeTogetherAreAllKept(t *testing.T) {
 	aHome(t)
 
-	for _, project := range []string{"one", "two", "three", "four", "five", "six", "seven"} {
-		require.NoError(t, addProject(project))
+	var updates sync.WaitGroup
+	for range 40 {
+		updates.Add(1)
+		go func() {
+			defer updates.Done()
+			_, err := UpdateConfig(func(config *Config) bool {
+				count, _ := strconv.Atoi(config.TrackingID)
+				config.TrackingID = strconv.Itoa(count + 1)
+				return true
+			})
+			assert.NoError(t, err)
+		}()
 	}
+	updates.Wait()
 
 	config, err := ReadConfig()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"three", "four", "five", "six", "seven"}, config.LastProjects)
+	assert.Equal(t, "40", config.TrackingID)
 }
 
-func TestAProjectIsAppendedToWhatWasThereBefore(t *testing.T) {
-	aHome(t)
-	require.NoError(t, WriteConfig(&Config{Theme: "slate-dark", LastProjects: []string{"earlier"}}))
+func TestAnUpdateThatChangesNothingWritesNothing(t *testing.T) {
+	path := aHome(t)
 
-	require.NoError(t, addProject("later"))
+	config, err := UpdateConfig(func(*Config) bool { return false })
 
-	config, err := ReadConfig()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"earlier", "later"}, config.LastProjects)
-	// And the rest of the file survives being rewritten for one field.
-	assert.Equal(t, "slate-dark", config.Theme)
+	assert.Empty(t, config.Theme)
+	assert.NoFileExists(t, path)
 }
 
-/*
-An unset theme becomes the default, and is written back.
-
-The writing back is the part worth pinning: GetTheme is called by InfoHandler on every boot, so a
-first run leaves a config file behind naming the theme the frontend is already showing.
-*/
-func TestAnUnsetThemeDefaultsAndIsRemembered(t *testing.T) {
+// Read on every /api/info, so it must not write: a read-only home directory made every one of those a
+// failed write.
+func TestAnUnsetThemeIsTheDefaultAndIsNotWritten(t *testing.T) {
 	path := aHome(t)
 
 	theme, err := GetTheme()
 
 	require.NoError(t, err)
+	// Keep this in step with defaultTheme in ui/src/themes/index.ts.
 	assert.Equal(t, "teal-light", theme)
-	// Keep this in step with defaultTheme in ui/src/themes/index.ts; the server stores the string
-	// and hands it back, and an unknown name resolves to the same default there.
-	assert.Equal(t, "teal-light", readRaw(t, path).Theme)
+	assert.NoFileExists(t, path)
+}
+
+func TestAnUnreadableConfigStillAnswersTheDefaultTheme(t *testing.T) {
+	path := aHome(t)
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte("{ this is not json"), 0o644))
+
+	theme, err := GetTheme()
+
+	assert.Error(t, err)
+	assert.Equal(t, DefaultTheme, theme)
 }
 
 func TestAThemeAlreadyChosenIsLeftAlone(t *testing.T) {
@@ -158,13 +187,13 @@ func TestAThemeAlreadyChosenIsLeftAlone(t *testing.T) {
 
 func TestChangingTheThemePersistsIt(t *testing.T) {
 	path := aHome(t)
-	require.NoError(t, WriteConfig(&Config{Theme: "teal-light", LastProjects: []string{"a project"}}))
+	require.NoError(t, WriteConfig(&Config{Theme: "teal-light", TrackingID: "an id"}))
 
 	require.NoError(t, changeTheme("orange-light"))
 
 	stored := readRaw(t, path)
 	assert.Equal(t, "orange-light", stored.Theme)
-	assert.Equal(t, []string{"a project"}, stored.LastProjects)
+	assert.Equal(t, "an id", stored.TrackingID)
 }
 
 // modify calls the handler the way the route does.
@@ -183,7 +212,7 @@ func TestTheThemeCanBeChangedOverTheApi(t *testing.T) {
 
 	recorder := modify(t, `{"key":"theme","value":"slate-dark"}`)
 
-	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, http.StatusNoContent, recorder.Code)
 	assert.Equal(t, "slate-dark", readRaw(t, path).Theme)
 }
 
@@ -193,24 +222,34 @@ func TestABodyThatIsNotJsonIsRefused(t *testing.T) {
 	recorder := modify(t, "{ not json")
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
 }
 
-/*
-What the handler does with a key it does not know: nothing, and says so with a 200.
-
-Pinned rather than changed. The frontend only ever sends `theme`, so tightening this to a 400 is a
-change to the API's contract rather than a fix, and it should be made deliberately if it is made.
-The same goes for the error from changeTheme, which is discarded — a theme that could not be written
-is still answered with a 200, so the UI shows a change that did not survive the restart.
-*/
-func TestAnUnknownKeyIsAcceptedAndIgnored(t *testing.T) {
+func TestOnlyASettingThatExistsCanBeChanged(t *testing.T) {
 	path := aHome(t)
 	require.NoError(t, WriteConfig(&Config{Theme: "teal-light"}))
 
-	recorder := modify(t, `{"key":"something-else","value":"whatever"}`)
+	for _, body := range []string{`{"key":"something-else","value":"whatever"}`, `{"key":"theme","value":""}`} {
+		recorder := modify(t, body)
 
-	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.Equal(t, "teal-light", readRaw(t, path).Theme)
+		assert.Equal(t, http.StatusBadRequest, recorder.Code, body)
+		assert.Equal(t, "teal-light", readRaw(t, path).Theme, body)
+	}
+}
+
+// A theme that could not be written used to answer 200, so the UI showed a change that did not survive
+// the restart.
+func TestAThemeThatCannotBeSavedSaysSo(t *testing.T) {
+	// HOME is a file, so nothing can be read or written beneath it.
+	home := filepath.Join(t.TempDir(), "not-a-directory")
+	require.NoError(t, os.WriteFile(home, nil, 0o644))
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	recorder := modify(t, `{"key":"theme","value":"slate-dark"}`)
+
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+	assert.Contains(t, recorder.Body.String(), "could not save the theme")
 }
 
 func TestAnAccessTokenIsLongAndDifferentEveryTime(t *testing.T) {

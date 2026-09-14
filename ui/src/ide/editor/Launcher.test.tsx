@@ -9,6 +9,7 @@ import {
   KernelspecsStatus,
   kernelspecsAtom,
   kernelspecsStatusAtom,
+  serverOsAtom,
 } from '@/store/AppState';
 import { fileTabsAtom } from '@/store/TabState';
 
@@ -56,13 +57,15 @@ function OpenTabs() {
 
 function renderLauncher(
   specs: IKernelspecsState = kernelspecs,
-  status: KernelspecsStatus = 'ready'
+  status: KernelspecsStatus = 'ready',
+  os = 'darwin'
 ) {
   render(
     <Provider
       initialValues={[
         [kernelspecsAtom, specs],
         [kernelspecsStatusAtom, status],
+        [serverOsAtom, os],
       ]}
     >
       <Launcher data={{ active: true }} />
@@ -113,6 +116,14 @@ describe('Launcher', () => {
     fireEvent.click(tile('Terminal'));
 
     expect(screen.getByTestId('tabs')).toHaveTextContent('Terminal 1');
+  });
+
+  // The server cannot start one there, so a tile would open a tab that only ever says so.
+  it('offers no terminal on a Windows server, and says why', () => {
+    renderLauncher(kernelspecs, 'ready', 'windows');
+
+    expect(screen.queryByRole('button', { name: 'Terminal' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Terminals are not available on Windows yet/)).toBeInTheDocument();
   });
 
   // Both routes to a tile with no picture, which drew src="undefined" and a broken image: a

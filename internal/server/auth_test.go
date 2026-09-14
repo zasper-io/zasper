@@ -43,7 +43,7 @@ func protectedServer(t *testing.T) (*httptest.Server, string) {
 	project := filepath.Join(t.TempDir(), "project")
 	require.NoError(t, os.MkdirAll(project, 0o755))
 
-	core.Zasper = core.SetUpZasper("test", project, true)
+	core.Zasper = core.SetUpZasper("test", project)
 	SetUp()
 
 	srv := httptest.NewServer(NewRouter(nil))
@@ -196,8 +196,7 @@ func TestWebsocketsAuthenticateByQueryParameter(t *testing.T) {
 
 /*
 A websocket is not same-origin by default the way fetch is, so without a CheckOrigin of our own any
-page open in the browser could reach these — and in unprotected mode, which the handler tests still
-build, with nothing else in the way at all.
+page open in the browser could reach these with a session it had got hold of.
 */
 func TestWebsocketsRefuseAForeignOrigin(t *testing.T) {
 	srv, _ := testServer(t)

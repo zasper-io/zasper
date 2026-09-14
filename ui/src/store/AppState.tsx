@@ -48,7 +48,10 @@ export const projectNameAtom = atom<string>('');
  * this one is an identity, and is what tells the remembered tabs of one project from another's.
  */
 export const projectDirAtom = atom<string>('');
-export const protectedStateAtom = atom<boolean>(false);
+/** The server's operating system, from `/api/info`: terminals cannot run on `windows`. */
+export const serverOsAtom = atom<string>('');
+/** Whether this server can start a terminal, so that nothing offers one it cannot. */
+export const terminalsAvailableAtom = atom((get) => get(serverOsAtom) !== 'windows');
 export const kernelspecsAtom = atom<IKernelspecsState>({});
 
 /**

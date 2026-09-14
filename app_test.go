@@ -8,10 +8,90 @@ hides exactly that. These are the rules that keep the default on loopback and th
 package main
 
 import (
+	"io"
+	"net"
+	"net/http"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// runningServer serves handler on a loopback port and answers the server and its address.
+func runningServer(t *testing.T, handler http.HandlerFunc) (*http.Server, string) {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	httpServer := &http.Server{Handler: handler}
+	go httpServer.Serve(listener)
+	t.Cleanup(func() { httpServer.Close() })
+
+	return httpServer, listener.Addr().String()
+}
+
+// On Ctrl-C a save in flight used to be cut off, and the kernels stopped underneath it.
+func TestShuttingDownLetsARunningRequestFinishBeforeCleaningUp(t *testing.T) {
+	started, release := make(chan struct{}), make(chan struct{})
+	httpServer, address := runningServer(t, func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-release
+		io.WriteString(w, "saved")
+	})
+
+	answered := make(chan string, 1)
+	go func() {
+		response, err := http.Get("http://" + address)
+		if err != nil {
+			answered <- err.Error()
+			return
+		}
+		defer response.Body.Close()
+		body, _ := io.ReadAll(response.Body)
+		answered <- string(body)
+	}()
+	<-started
+
+	var cleanedUp atomic.Bool
+	done := make(chan struct{})
+	go func() {
+		shutDown(httpServer, 5*time.Second, func() { cleanedUp.Store(true) })
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("shutdown finished while a request was still running")
+	case <-time.After(200 * time.Millisecond):
+	}
+	assert.False(t, cleanedUp.Load(), "cleaned up underneath a running request")
+
+	close(release)
+	assert.Equal(t, "saved", <-answered)
+	<-done
+	assert.True(t, cleanedUp.Load())
+
+	_, err := net.Dial("tcp", address)
+	assert.Error(t, err, "the server is still accepting connections")
+}
+
+func TestShuttingDownStillCleansUpWhenARequestNeverFinishes(t *testing.T) {
+	started, never := make(chan struct{}), make(chan struct{})
+	t.Cleanup(func() { close(never) })
+	httpServer, address := runningServer(t, func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-never
+	})
+	go http.Get("http://" + address)
+	<-started
+
+	var cleanedUp atomic.Bool
+	shutDown(httpServer, 100*time.Millisecond, func() { cleanedUp.Store(true) })
+
+	assert.True(t, cleanedUp.Load())
+}
 
 func TestListenAddress(t *testing.T) {
 	for name, testCase := range map[string]struct {

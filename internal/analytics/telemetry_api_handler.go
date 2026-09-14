@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/core"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 )
 
 // Enough for a flush of a browsing session's worth of events, and small enough that the endpoint
@@ -50,12 +51,12 @@ func TelemetryHandler(w http.ResponseWriter, req *http.Request) {
 
 	var payload telemetryPayload
 	if err := json.NewDecoder(io.LimitReader(req.Body, maxBodyBytes)).Decode(&payload); err != nil {
-		http.Error(w, "malformed telemetry payload", http.StatusBadRequest)
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "malformed telemetry payload")
 		return
 	}
 
 	if len(payload.Events) > maxEventsPerReq {
-		http.Error(w, "too many events", http.StatusRequestEntityTooLarge)
+		zhttp.SendErrorResponse(w, http.StatusRequestEntityTooLarge, "too many events")
 		return
 	}
 
@@ -64,7 +65,7 @@ func TelemetryHandler(w http.ResponseWriter, req *http.Request) {
 		// disappearing into a log line the caller never sees.
 		if err := Validate(event.Event, event.Properties); err != nil {
 			log.Warn().Msgf("Rejecting telemetry event from the frontend: %v", err)
-			http.Error(w, "event rejected", http.StatusBadRequest)
+			zhttp.SendErrorResponse(w, http.StatusBadRequest, "event rejected")
 			return
 		}
 		Track(event.Event, event.Properties)
@@ -90,13 +91,13 @@ func TelemetrySettingsHandler(w http.ResponseWriter, req *http.Request) {
 func TelemetrySettingsModifyHandler(w http.ResponseWriter, req *http.Request) {
 	var payload telemetrySettingsPayload
 	if err := json.NewDecoder(io.LimitReader(req.Body, maxBodyBytes)).Decode(&payload); err != nil {
-		http.Error(w, "malformed payload", http.StatusBadRequest)
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "malformed payload")
 		return
 	}
 
 	if payload.Enabled != nil {
 		if err := core.SetTelemetryEnabled(*payload.Enabled); err != nil {
-			http.Error(w, "could not save the setting", http.StatusInternalServerError)
+			zhttp.SendErrorResponse(w, http.StatusInternalServerError, "could not save the setting")
 			return
 		}
 		SetEnabled(*payload.Enabled)
@@ -104,7 +105,7 @@ func TelemetrySettingsModifyHandler(w http.ResponseWriter, req *http.Request) {
 
 	if payload.ResetID {
 		if err := ResetTrackingId(); err != nil {
-			http.Error(w, "could not reset the id", http.StatusInternalServerError)
+			zhttp.SendErrorResponse(w, http.StatusInternalServerError, "could not reset the id")
 			return
 		}
 	}

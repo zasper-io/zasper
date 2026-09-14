@@ -3,10 +3,12 @@ package websocket
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,8 +24,10 @@ import (
 
 const (
 	DefaultConnectionErrorLimit = 10
-	MaxBufferSizeBytes          = 512
-	KeepAlivePingTimeout        = 20 * time.Second
+	// One read of the shell's output, and so the largest frame: `cat` on a log file at 512 bytes a
+	// frame was thousands of them.
+	MaxBufferSizeBytes   = 32 << 10
+	KeepAlivePingTimeout = 20 * time.Second
 )
 
 type TTYSize struct {
@@ -182,7 +186,7 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	dir := terminalWorkingDir(req.URL.Query().Get("cwd"))
 	tty, cmd, err := startTTY(dir)
 	if err != nil {
-		sendErrorMessage(connection, fmt.Sprintf("failed to start tty: %s", err))
+		sendErrorMessage(connection, err.Error())
 		return
 	}
 
@@ -265,29 +269,20 @@ func terminalWorkingDir(relativePath string) string {
 	return osPath
 }
 
-// startTTY starts a new terminal session in dir.
+// errNoTerminalsOnWindows is what a terminal opened on Windows is told: creack/pty has no ConPTY
+// support, so there is no pseudo-terminal to run a shell in.
+var errNoTerminalsOnWindows = errors.New("terminals are not available on Windows yet; run Zasper under WSL to use one")
+
+// startTTY starts the user's shell in dir, as a login shell.
 func startTTY(dir string) (*os.File, *exec.Cmd, error) {
-
-	terminal := "zsh"
-	osystem := core.Zasper.OSName
-
-	switch osystem {
-	case "windows":
-		terminal = "bash"
-	case "linux":
-		terminal = "bash"
-	case "freebsd":
-		terminal = "bash"
-	case "android":
-		terminal = "bash"
-	default:
-		terminal = "zsh"
+	if runtime.GOOS == "windows" {
+		return nil, nil, errNoTerminalsOnWindows
 	}
 
-	args := []string{"-l"}
-	log.Debug().Msgf("Starting new TTY using command '%s' with arguments ['%s']...", terminal, args)
+	shell := shellFor(os.Getenv, loginShell)
+	log.Debug().Msgf("starting a terminal with %s -l in %s", shell, dir)
 
-	cmd := exec.Command(terminal, args...)
+	cmd := exec.Command(shell, "-l")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
@@ -357,12 +352,13 @@ func keepAlive(connection *terminalConn, done <-chan struct{}) {
 // readFromTTY reads output from the TTY and sends it to the WebSocket connection.
 func readFromTTY(sessionID string, tty *os.File, connection *terminalConn) {
 	errorCounter := 0
+	// Reused: WriteMessage has sent the bytes by the time it returns.
+	buffer := make([]byte, MaxBufferSizeBytes)
 
 	for {
 		if errorCounter > DefaultConnectionErrorLimit {
 			break
 		}
-		buffer := make([]byte, MaxBufferSizeBytes)
 		readLength, err := tty.Read(buffer)
 		if err != nil {
 			// If the terminal process is closed or error occurs, handle it

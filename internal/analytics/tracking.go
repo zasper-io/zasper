@@ -102,17 +102,17 @@ func SetEnabled(on bool) {
 // GetAnonymousTrackingId returns the random per-install id, generating and persisting one on first
 // use. It identifies an installation, never a person: nothing else about the machine goes into it.
 func GetAnonymousTrackingId() (string, error) {
-	config, err := core.ReadConfig()
-	if err != nil {
-		log.Debug().Msgf("Error reading config file: %v", err)
-		return "", err
-	}
-
-	if len(config.TrackingID) != trackingIDs {
-		config.TrackingID = newTrackingID()
-		if err := core.WriteConfig(config); err != nil {
-			return "", err
+	// One read-modify-write, so two first events at once settle on one id rather than each writing its own.
+	config, err := core.UpdateConfig(func(config *core.Config) bool {
+		if len(config.TrackingID) == trackingIDs {
+			return false
 		}
+		config.TrackingID = newTrackingID()
+		return true
+	})
+	if err != nil {
+		log.Debug().Msgf("could not read or store the tracking id: %v", err)
+		return "", err
 	}
 
 	return config.TrackingID, nil
@@ -121,12 +121,11 @@ func GetAnonymousTrackingId() (string, error) {
 // ResetTrackingId throws the current id away and starts a new one, so a user can break the link
 // between what they have already sent and what they send next.
 func ResetTrackingId() error {
-	config, err := core.ReadConfig()
+	config, err := core.UpdateConfig(func(config *core.Config) bool {
+		config.TrackingID = newTrackingID()
+		return true
+	})
 	if err != nil {
-		return err
-	}
-	config.TrackingID = newTrackingID()
-	if err := core.WriteConfig(config); err != nil {
 		return err
 	}
 

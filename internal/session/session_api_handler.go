@@ -23,7 +23,7 @@ func SessionCreateApiHandler(w http.ResponseWriter, req *http.Request) {
 	var body models.SessionModel
 	err := json.NewDecoder(req.Body).Decode(&body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
 

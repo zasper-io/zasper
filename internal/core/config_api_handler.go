@@ -2,9 +2,11 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/rs/zerolog/log"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 )
 
 type ConfigModifierPayload struct {
@@ -12,22 +14,31 @@ type ConfigModifierPayload struct {
 	Value string `json:"value"`
 }
 
+// ConfigModifyHandler changes one setting. The theme is the only one: telemetry has an endpoint of its
+// own, because turning it off also has to stop the client that is sending.
 func ConfigModifyHandler(w http.ResponseWriter, req *http.Request) {
 	var body ConfigModifierPayload
-	err := json.NewDecoder(req.Body).Decode(&body)
-	// Debug, and named for what it is: this fires on every theme switch, and it was logging at info
-	// under a message about content.
-	log.Debug().Msgf("config change requested: %+v", body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
-	key := body.Key
-	value := body.Value
+	log.Debug().Msgf("config change requested: %+v", body)
 
-	if key == "theme" {
-		changeTheme(value)
+	switch body.Key {
+	case "theme":
+		if body.Value == "" {
+			zhttp.SendErrorResponse(w, http.StatusBadRequest, "a theme needs a name")
+			return
+		}
+		if err := changeTheme(body.Value); err != nil {
+			log.Warn().Err(err).Msg("could not save the theme")
+			zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the theme: %v", err))
+			return
+		}
+	default:
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("there is no setting called %q", body.Key))
+		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+
+	w.WriteHeader(http.StatusNoContent)
 }

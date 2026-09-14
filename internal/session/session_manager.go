@@ -183,7 +183,7 @@ func RelocateSessions(oldPath, newPath string) int {
 	})
 
 	if relocated > 0 {
-		log.Info().Msgf("Moved %d session(s) from %s to %s", relocated, oldPath, newPath)
+		log.Debug().Msgf("moved %d session(s) from %s to %s", relocated, oldPath, newPath)
 	}
 	return relocated
 }

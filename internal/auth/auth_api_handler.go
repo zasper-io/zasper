@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/core"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 )
 
 /*
@@ -111,7 +111,7 @@ func authenticate(next http.Handler, readToken func(*http.Request) string) http.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID, err := userFromToken(readToken(r))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			zhttp.SendErrorResponse(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 
@@ -136,63 +136,38 @@ type LoginResponse struct {
 	RedirectPath string `json:"redirect_path"`
 }
 
-type User struct {
-	ID       string `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"` // e.g., "admin", "editor", "viewer"
-}
-
-func GetUserByUsername(username string) (User, error) {
-	return User{
-		ID:       "1",
-		Username: core.Zasper.UserName,
-		Role:     "user",
-	}, nil
-}
+// sessionUserID is the one user a Zasper server has: whoever holds its access token.
+const sessionUserID = "1"
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
 		AccessToken string `json:"accessToken"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
 	// Constant time, so that the answer does not say how much of the token was right.
 	if subtle.ConstantTimeCompare([]byte(creds.AccessToken), []byte(core.ServerAccessToken)) != 1 {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		zhttp.SendErrorResponse(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
-	user, err := GetUserByUsername(creds.AccessToken)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusUnauthorized)
-		return
-	}
-
-	// Create JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"role":    user.Role,
+		"user_id": sessionUserID,
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	})
 
-	log.Debug().Msgf("Login role: %v", user.Role)
-
 	tokenString, err := token.SignedString(sessionKey())
 	if err != nil {
-		http.Error(w, "Could not generate token", http.StatusInternalServerError)
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, "Could not generate token")
 		return
-	}
-	redirectPath := "/"
-	if user.Role == "admin" {
-		redirectPath = "/"
 	}
 
 	resp := LoginResponse{
 		Token:        tokenString,
-		RedirectPath: redirectPath,
+		RedirectPath: "/",
 	}
 
 	w.Header().Set("Content-Type", "application/json")

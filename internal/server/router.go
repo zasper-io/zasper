@@ -33,15 +33,14 @@ type InfoResponse struct {
 	Arch      string `json:"arch"`
 	Version   string `json:"version"`
 	Theme     string `json:"theme"`
-	Protected bool   `json:"protected"`
 }
 
 type ConfigResponse struct {
-	Version   string `json:"version"`
-	Protected bool   `json:"protected"`
+	Version string `json:"version"`
 }
 
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
+	// The default when the config cannot be read, which is what the frontend would fall back to anyway.
 	theme, _ := core.GetTheme()
 	response := InfoResponse{
 		ProjectName: core.Zasper.ProjectName,
@@ -51,7 +50,6 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 		Arch:        runtime.GOARCH,
 		Version:     core.Zasper.Version,
 		Theme:       theme,
-		Protected:   core.Zasper.Protected,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -62,8 +60,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 
 func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 	response := ConfigResponse{
-		Version:   core.Zasper.Version,
-		Protected: core.Zasper.Protected,
+		Version: core.Zasper.Version,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -75,9 +72,6 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 // websocketRoute gates a websocket handler that sits outside the /ws subrouter, so that it is
 // protected on exactly the same terms as the routes inside it.
 func websocketRoute(handler http.HandlerFunc) http.Handler {
-	if !core.Zasper.Protected {
-		return handler
-	}
 	return auth.JwtWebsocketMiddleware(handler)
 }
 
@@ -85,7 +79,8 @@ func websocketRoute(handler http.HandlerFunc) http.Handler {
 // build tag (see spa.go / spa_apiserver.go), so a build without the frontend — a test, or the api-only
 // server — has nothing to serve and passes nil.
 //
-// Protected mode is read from core.Zasper, so core.SetUpZasper has to have run first.
+// Every route but /api/health, /api/config and /auth/login needs a session: there is no unprotected
+// mode to switch the gate off.
 func NewRouter(spa http.Handler) *mux.Router {
 	router := mux.NewRouter()
 
@@ -97,17 +92,13 @@ func NewRouter(spa http.Handler) *mux.Router {
 	// Jupyter Server's address for a kernelspec's files, which is the one /api/kernelspecs hands out.
 	kernelspecRouter := router.PathPrefix("/kernelspecs").Subrouter()
 	wsRouter := router.PathPrefix("/ws").Subrouter()
-	if core.Zasper.Protected {
-		apiRouter.Use(auth.JwtAuthMiddleware)
-		// Kernelspec resources, which nothing in the frontend fetches — but they are read off disk by
-		// name, so they are gated like the rest of the API rather than left open.
-		staticRouter.Use(auth.JwtAuthMiddleware)
-		kernelspecRouter.Use(auth.JwtAuthMiddleware)
-		// The websocket routes were left ungated, which meant protected mode gated reading a file but
-		// not opening a terminal on the same machine. They take their token from the query string,
-		// which is the only place a browser can put one.
-		wsRouter.Use(auth.JwtWebsocketMiddleware)
-	}
+	apiRouter.Use(auth.JwtAuthMiddleware)
+	// Kernelspec resources are read off disk by name, so they are gated like the rest of the API.
+	staticRouter.Use(auth.JwtAuthMiddleware)
+	kernelspecRouter.Use(auth.JwtAuthMiddleware)
+	// The websocket routes take their token from the query string, which is the only place a browser
+	// can put one.
+	wsRouter.Use(auth.JwtWebsocketMiddleware)
 	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
 	router.HandleFunc("/api/config", ConfigHandler).Methods("GET")
 

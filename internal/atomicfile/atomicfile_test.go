@@ -1,15 +1,14 @@
 /*
-That a save which fails partway leaves the file it was replacing untouched.
+That a write which fails partway leaves the file it was replacing untouched.
 
 This is the property os.WriteFile could not offer: it truncates first, so a crash, a full disk or a
 power cut during a save left a zero-length notebook and no original to fall back on. The tests below
 fail a write deliberately and assert that nothing was lost and nothing was left lying around.
 */
-package content
+package atomicfile
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -39,7 +38,7 @@ func TestAFailedWriteLeavesTheOriginalIntact(t *testing.T) {
 	notebook := filepath.Join(dir, "analysis.ipynb")
 	require.NoError(t, os.WriteFile(notebook, []byte("the original notebook"), 0o644))
 
-	_, err := writeFileAtomically(notebook, &failingReader{before: "half a note"}, 0o644)
+	_, err := Write(notebook, &failingReader{before: "half a note"}, 0o644)
 	require.Error(t, err, "the write was supposed to fail")
 
 	survived, readErr := os.ReadFile(notebook)
@@ -55,7 +54,7 @@ func TestASuccessfulWriteReplacesAndCleansUp(t *testing.T) {
 	notebook := filepath.Join(dir, "analysis.ipynb")
 	require.NoError(t, os.WriteFile(notebook, []byte("the original notebook"), 0o644))
 
-	written, err := writeFileAtomically(notebook, strings.NewReader("the saved notebook"), 0o644)
+	written, err := Write(notebook, strings.NewReader("the saved notebook"), 0o644)
 	require.NoError(t, err)
 	assert.Equal(t, int64(len("the saved notebook")), written)
 
@@ -83,7 +82,7 @@ func TestAReplacedFileKeepsItsPermissions(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte("before"), mode))
 		require.NoError(t, os.Chmod(path, mode))
 
-		_, err := writeFileAtomically(path, strings.NewReader("after"), 0o644)
+		_, err := Write(path, strings.NewReader("after"), 0o644)
 		require.NoError(t, err)
 
 		info, err := os.Stat(path)
@@ -92,11 +91,11 @@ func TestAReplacedFileKeepsItsPermissions(t *testing.T) {
 	}
 }
 
-func TestWriteFileAtomicallyCreatesAFileThatIsNotThereYet(t *testing.T) {
+func TestWriteCreatesAFileThatIsNotThereYet(t *testing.T) {
 	dir := t.TempDir()
 	fresh := filepath.Join(dir, "new.ipynb")
 
-	_, err := writeFileAtomically(fresh, strings.NewReader("{}"), 0o644)
+	_, err := Write(fresh, strings.NewReader("{}"), 0o644)
 	require.NoError(t, err)
 
 	content, err := os.ReadFile(fresh)
@@ -104,7 +103,7 @@ func TestWriteFileAtomicallyCreatesAFileThatIsNotThereYet(t *testing.T) {
 	assert.Equal(t, "{}", string(content))
 }
 
-// leftoverTempFiles answers the scratch files the helper is meant to have removed.
+// leftoverTempFiles answers the scratch files Write is meant to have removed.
 func leftoverTempFiles(t *testing.T, dir string) []string {
 	t.Helper()
 
@@ -119,5 +118,3 @@ func leftoverTempFiles(t *testing.T, dir string) []string {
 	}
 	return leftover
 }
-
-var _ io.Reader = (*failingReader)(nil)

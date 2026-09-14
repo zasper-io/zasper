@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import './Topbar.scss';
 import Palette, { COMMANDS_ONLY } from './palette/Palette';
 import { useAtom } from 'jotai';
-import { protectedStateAtom, userNameAtom } from '@/store/AppState';
+import { userNameAtom } from '@/store/AppState';
 import { useNavigate } from 'react-router-dom';
 
 import { formatChord, isMac, terminalHasFocus } from '@/commands/keys';
@@ -24,7 +24,6 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
   // type into it.
   const [paletteQuery, setPaletteQuery] = useState<string | null>(null);
   const [userName] = useAtom(userNameAtom);
-  const [protectedState] = useAtom(protectedStateAtom);
   const searchAreaRef = useRef<HTMLDivElement>(null);
   const isPaletteOpen = paletteQuery !== null;
 
@@ -114,7 +113,7 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
           onClick={onToggleSidebar}
         />
         <span className="userName">{userName}</span>
-        {protectedState ? <LogoutButton /> : null}
+        <LogoutButton />
       </div>
     </div>
   );

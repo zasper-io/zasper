@@ -14,21 +14,10 @@ export interface IInfo {
   arch: string;
   version: string;
   theme: string;
-  protected: boolean;
-}
-
-/** Response of /api/config, the only endpoint reachable without a token. */
-export interface IConfig {
-  version: string;
-  protected: boolean;
 }
 
 export function getInfo(): Promise<IInfo> {
   return requestJson<IInfo>('/api/info');
-}
-
-export function getConfig(): Promise<IConfig> {
-  return requestJson<IConfig>('/api/config');
 }
 
 export function modifyConfig(key: string, value: string): Promise<void> {

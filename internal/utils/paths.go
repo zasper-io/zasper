@@ -16,11 +16,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func GetHomeDir() string {
-	dir, _ := os.Getwd()
-	return dir
-}
-
 func GetUsername() string {
 	// Check if the OS is Windows
 	if runtime.GOOS == "windows" {
@@ -34,18 +29,6 @@ func GetProjectName(absPath string) string {
 	// Get the last part of the path (i.e., the project name)
 	projectName := filepath.Base(absPath)
 	return projectName
-}
-
-func GetJupyterConfigDir() string {
-	return ""
-}
-
-func GetJupyterDataDir() string {
-	return ""
-}
-
-func GetJupyterRuntimeDir() string {
-	return ""
 }
 
 // getPythonVersion tries to retrieve the installed Python version (e.g., "3.9")
@@ -307,8 +290,4 @@ func jupyterUserDataDir(goos, home string, getenv func(string) string) string {
 		}
 		return filepath.Join(xdg, "jupyter")
 	}
-}
-
-func GetJupyterConfigPath() string {
-	return ""
 }

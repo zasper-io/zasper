@@ -20,6 +20,7 @@ import (
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/logging"
 	"github.com/zasper-io/zasper/internal/server"
+	zwebsocket "github.com/zasper-io/zasper/internal/websocket"
 
 	"github.com/rs/zerolog/log"
 
@@ -61,7 +62,7 @@ func main() {
 		log.Warn().Msg("--protected=false is ignored: Zasper always runs in protected mode")
 	}
 
-	core.Zasper = core.SetUpZasper(version, *cwd, true)
+	core.Zasper = core.SetUpZasper(version, *cwd)
 	server.SetUp()
 
 	router := server.NewRouter(getSpaHandler())
@@ -112,12 +113,14 @@ func main() {
 
 	printBanner(address, core.ServerAccessToken, version, trackingOn)
 
-	go func() {
-		handler := server.WithRequestLogging(log.Logger, logging.AccessLog(), corsOpts.Handler(router))
-		if err := http.Serve(listener, handler); err != nil && err != http.ErrServerClosed {
-			log.Error().Err(err).Msg("http server stopped")
-		}
-	}()
+	httpServer := &http.Server{
+		Handler: server.WithRequestLogging(log.Logger, logging.AccessLog(), corsOpts.Handler(router)),
+		// Only the headers are timed: a whole-request or write timeout would cut off a long upload, a
+		// large download and every websocket.
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	serving := make(chan error, 1)
+	go func() { serving <- httpServer.Serve(listener) }()
 
 	// After the bind, so the page never races the server: a request that arrives before Serve is
 	// running waits in the listener's backlog.
@@ -125,16 +128,32 @@ func main() {
 		launchBrowser(loginURL(address, core.ServerAccessToken))
 	}
 
-	<-stop
+	select {
+	case <-stop:
+	case err := <-serving:
+		log.Error().Err(err).Msg("http server stopped")
+	}
+	// A second Ctrl-C ends the process at once, for a kernel that will not stop.
+	signal.Stop(stop)
 	log.Info().Msg("shutting down server")
 
-	// Cleanup function
-	cleanup(trackingOn)
+	shutDown(httpServer, 5*time.Second, func() { cleanup(trackingOn) })
+	log.Info().Msg("server stopped")
+}
 
-	// Shutdown the server gracefully
-	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+/*
+shutDown stops the server in the order that loses nothing. The listener closes and requests already
+running, such as a save, are given until timeout to finish. Only then do cleanup's shells and kernels
+stop: they live on hijacked connections, which Shutdown neither waits for nor closes.
+*/
+func shutDown(httpServer *http.Server, timeout time.Duration, cleanup func()) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	log.Info().Msg("server exiting")
+
+	if err := httpServer.Shutdown(ctx); err != nil {
+		log.Warn().Err(err).Msg("stopped waiting for requests that were still running")
+	}
+	cleanup()
 }
 
 // printBanner announces the server to whoever is reading. A person at a terminal gets the banner;
@@ -254,5 +273,6 @@ func cleanup(tracking bool) {
 		analytics.CloseClient()
 	}
 	log.Debug().Msg("performing cleanup")
+	zwebsocket.StopTerminals()
 	kernel.Cleanup()
 }

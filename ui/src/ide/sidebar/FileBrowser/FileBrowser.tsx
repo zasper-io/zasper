@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
+import { terminalsAvailableAtom } from '@/store/AppState';
 import { useTabActions } from '@/store/TabActions';
 import ContextMenu from '../ContextMenu/ContextMenu';
 import Breadcrumb from './Breadcrumb';
@@ -39,6 +40,7 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
   const { visibleChildrenOf, read, refresh, collapseAll } = useFileTree();
   const { create } = useContentActions();
   const { openTab, openTerminal } = useTabActions();
+  const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
   const clipboard = useClipboard();
   const selection = useSelection();
   const { root } = useTreeRoot();
@@ -71,7 +73,15 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
     },
     { label: 'Add Folder', icon: 'folder-plus' as const, action: () => create(root, 'directory') },
     { label: 'Upload', icon: 'upload' as const, action: () => uploadTo(root) },
-    { label: 'Open Terminal Here', icon: 'terminal' as const, action: () => openTerminal(root) },
+    ...(terminalsAvailable
+      ? [
+          {
+            label: 'Open Terminal Here',
+            icon: 'terminal' as const,
+            action: () => openTerminal(root),
+          },
+        ]
+      : []),
     {
       label: 'Paste',
       icon: 'clipboard-paste' as const,

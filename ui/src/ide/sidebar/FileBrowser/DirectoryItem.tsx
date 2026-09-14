@@ -1,12 +1,13 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useState } from 'react';
-import { useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 
 import { IContentEntry } from '@/api';
 import { Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 import { baseName } from '@/paths';
+import { terminalsAvailableAtom } from '@/store/AppState';
 import { useTabActions } from '@/store/TabActions';
 import ContextMenu from '../ContextMenu/ContextMenu';
 import ConfirmDeleteDialog from './ConfirmDeleteDialog';
@@ -49,6 +50,7 @@ const DirectoryItem = ({
   const { visibleChildrenOf, isExpanded, toggle } = useFileTree();
   const { create, copyTo, copyPath } = useContentActions();
   const { openTerminal } = useTabActions();
+  const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
   const clipboard = useClipboard();
   const selection = useSelection();
   const { openAsRoot } = useTreeRoot();
@@ -89,11 +91,15 @@ const DirectoryItem = ({
             icon: 'upload' as const,
             action: () => setUploadRequest({ parentDir: path, pending: [] }),
           },
-          {
-            label: 'Open Terminal Here',
-            icon: 'terminal' as const,
-            action: () => openTerminal(path),
-          },
+          ...(terminalsAvailable
+            ? [
+                {
+                  label: 'Open Terminal Here',
+                  icon: 'terminal' as const,
+                  action: () => openTerminal(path),
+                },
+              ]
+            : []),
           { label: 'Open as Root', icon: 'folder-open' as const, action: () => openAsRoot(path) },
         ];
 

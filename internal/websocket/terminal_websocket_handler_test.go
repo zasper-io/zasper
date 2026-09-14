@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -37,25 +36,13 @@ import (
 	"github.com/zasper-io/zasper/internal/core"
 )
 
-// requireShell skips when the shell startTTY would reach for is not installed — bash on linux, zsh
-// everywhere else. Same shape as requireGit and requireKernel elsewhere in the suite.
+// requireShell skips where startTTY cannot start one. Everywhere else it falls back to /bin/sh, so
+// there is always a shell to start.
 func requireShell(t *testing.T) {
 	t.Helper()
 
-	// startTTY chooses its shell from core.Zasper.OSName, which a bare test process leaves empty —
-	// and empty falls through to zsh, which ubuntu does not ship. Without this the pty tests would
-	// skip on CI while passing here, which is the worst of both.
-	previous := core.Zasper.OSName
-	core.Zasper.OSName = runtime.GOOS
-	t.Cleanup(func() { core.Zasper.OSName = previous })
-
-	shell := "zsh"
-	switch core.Zasper.OSName {
-	case "windows", "linux", "freebsd", "android":
-		shell = "bash"
-	}
-	if _, err := exec.LookPath(shell); err != nil {
-		t.Skipf("no %s binary is installed", shell)
+	if runtime.GOOS == "windows" {
+		t.Skip("terminals are not available on Windows")
 	}
 }
 

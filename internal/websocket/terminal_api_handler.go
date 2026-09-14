@@ -77,6 +77,20 @@ func KillTerminal(id string) error {
 	return nil
 }
 
+// StopTerminals kills every shell, for a server that is shutting down.
+func StopTerminals() {
+	terminalSessionsMu.Lock()
+	sessions := make([]*TerminalSession, 0, len(terminalSessions))
+	for _, session := range terminalSessions {
+		sessions = append(sessions, session)
+	}
+	terminalSessionsMu.Unlock()
+
+	for _, session := range sessions {
+		session.stop()
+	}
+}
+
 // relativeToProject turns the shell's working directory back into a project path. A shell outside the
 // project is reported as the OS path it is actually in rather than as a run of `..` segments.
 func relativeToProject(dir string) string {
@@ -98,7 +112,7 @@ func TerminalListAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 func TerminalKillAPIHandler(w http.ResponseWriter, req *http.Request) {
 	terminalId := mux.Vars(req)["terminalId"]
-	log.Info().Msgf("terminalId : %s", terminalId)
+	log.Debug().Msgf("shutting down terminal %s", terminalId)
 
 	err := KillTerminal(terminalId)
 	if errors.Is(err, ErrTerminalNotFound) {

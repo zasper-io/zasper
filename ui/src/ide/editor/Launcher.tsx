@@ -16,6 +16,7 @@ import {
   kernelspecsAtom,
   kernelspecsStatusAtom,
   fileBrowserReloadCountAtom,
+  terminalsAvailableAtom,
 } from '@/store/AppState';
 import { useTabActions } from '@/store/TabActions';
 import { useKernelspecActions } from '@/store/KernelspecActions';
@@ -36,6 +37,7 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   const [reloadCount, setReloadCount] = useAtom(fileBrowserReloadCountAtom);
   const { openTab, openTerminal } = useTabActions();
   const { loadKernelspecs } = useKernelspecActions();
+  const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
 
   // The project's own environment first: it is the one this folder's notebooks are meant to run on.
   const kernelNames = Object.keys(kernelspecs).sort(
@@ -88,13 +90,19 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
 
       <div className="launchSection">
         <h2 className="z-heading">Terminal</h2>
-        <div className="launchSection-grid">
-          <button type="button" className="launcher-icon" onClick={() => openTerminal()}>
-            {/* Sized to 44px in CSS, beside the kernel logos: a tile is one row of one grid. */}
-            <Icon name="terminal" />
-            <div className="launcher-icon-label">Terminal</div>
-          </button>
-        </div>
+        {terminalsAvailable ? (
+          <div className="launchSection-grid">
+            <button type="button" className="launcher-icon" onClick={() => openTerminal()}>
+              {/* Sized to 44px in CSS, beside the kernel logos: a tile is one row of one grid. */}
+              <Icon name="terminal" />
+              <div className="launcher-icon-label">Terminal</div>
+            </button>
+          </div>
+        ) : (
+          <p className="z-note">
+            Terminals are not available on Windows yet. Run Zasper under WSL to use one.
+          </p>
+        )}
       </div>
     </div>
   );

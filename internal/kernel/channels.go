@@ -272,7 +272,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 
 	wsMsg := incomingMsg
 	if len(kwsConn.Channels) == 0 {
-		log.Printf("Received message on closed websocket: %v", wsMsg)
+		log.Debug().Msg("dropping a message sent after the kernel's channels closed")
 		return
 	}
 
@@ -286,7 +286,7 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 
 	var msg Message
 	if err := json.Unmarshal([]byte(wsMsg), &msg); err != nil {
-		log.Info().Msgf("Error unmarshalling message: %s", err)
+		log.Warn().Err(err).Msg("could not parse a message from the notebook")
 		return
 	}
 	log.Debug().Msgf("msg is => %v", msg)

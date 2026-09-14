@@ -50,7 +50,7 @@ func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
 func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	kernelId := vars["kernelId"]
-	log.Info().Msgf("kernelId : %s", kernelId)
+	log.Debug().Msgf("interrupting kernel %s", kernelId)
 
 	err := interruptKernel(kernelId)
 	if errors.Is(err, ErrKernelNotFound) {
@@ -81,7 +81,7 @@ func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
 func KernelKillAPIHandler(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	kernelId := vars["kernelId"]
-	log.Info().Msgf("kernelId : %s", kernelId)
+	log.Debug().Msgf("stopping kernel %s", kernelId)
 
 	err := KillKernelById(kernelId)
 	if errors.Is(err, ErrKernelNotFound) {

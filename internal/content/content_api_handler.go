@@ -18,12 +18,11 @@ import (
 
 func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var body ContentRequestBody
-	err := json.NewDecoder(req.Body).Decode(&body)
-	log.Debug().Msgf("Content requested with payload: %+v", body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
+	log.Debug().Msgf("content requested: %+v", body)
 
 	relativePath := body.Path
 	contentType := body.Type
@@ -119,8 +118,6 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var body ContentRequestBody
 	err := json.NewDecoder(req.Body).Decode(&body)
-
-	log.Debug().Msgf("%s", body)
 	if err != nil {
 		log.Error().Err(err).Msg("Error decoding request body")
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))

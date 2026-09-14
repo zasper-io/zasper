@@ -70,7 +70,7 @@ func TestNothingIdentifyingReachesTheWire(t *testing.T) {
 	t.Setenv(endpointEnvVar, server.URL)
 	resetPackageState(t)
 
-	core.Zasper = core.SetUpZasper("9.9.9-test", ".", false)
+	core.Zasper = core.SetUpZasper("9.9.9-test", ".")
 
 	if err := SetUpPostHogClient(); err != nil {
 		t.Fatalf("SetUpPostHogClient: %v", err)

@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
 	"github.com/zasper-io/zasper/internal/session"
@@ -51,10 +52,10 @@ func testServer(t *testing.T) (*httptest.Server, string) {
 	project := filepath.Join(t.TempDir(), "project")
 	require.NoError(t, os.MkdirAll(project, 0o755))
 
-	core.Zasper = core.SetUpZasper("test", project, false)
+	core.Zasper = core.SetUpZasper("test", project)
 	SetUp()
 
-	srv := httptest.NewServer(NewRouter(nil))
+	srv := httptest.NewServer(signedIn(t, NewRouter(nil)))
 	t.Cleanup(func() {
 		// Sessions first, and before the server closes: each one owns a kernel process, and neither
 		// closing the server nor emptying the store would stop it.
@@ -67,6 +68,29 @@ func testServer(t *testing.T) (*httptest.Server, string) {
 	})
 
 	return srv, project
+}
+
+/*
+signedIn stands in for a browser that has already signed in, by giving every request that carries no
+credentials of its own the session /auth/login hands out. The journeys here are about what happens after
+signing in; auth_test.go tests the gate itself, over a server without this.
+*/
+func signedIn(t *testing.T, router http.Handler) http.Handler {
+	t.Helper()
+
+	credentials, err := json.Marshal(map[string]string{"accessToken": core.ServerAccessToken})
+	require.NoError(t, err)
+	recorder := httptest.NewRecorder()
+	auth.LoginHandler(recorder, httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(credentials)))
+	require.Equal(t, http.StatusOK, recorder.Code, "body was %s", recorder.Body)
+	session := decode[auth.LoginResponse](t, recorder.Body.Bytes()).Token
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" && r.URL.Query().Get("token") == "" {
+			r.Header.Set("Authorization", "Bearer "+session)
+		}
+		router.ServeHTTP(w, r)
+	})
 }
 
 // call sends a JSON request and answers with the status and the raw body: several journeys are about
@@ -418,7 +442,6 @@ func TestTheServerDescribesItself(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	config := decode[ConfigResponse](t, body)
 	assert.Equal(t, "test", config.Version)
-	assert.False(t, config.Protected)
 
 	status, body = call(t, srv, http.MethodGet, "/api/info", nil)
 	require.Equal(t, http.StatusOK, status)
