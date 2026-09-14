@@ -37,7 +37,7 @@ func watchedKernel(t *testing.T, id string) func(state string) {
 	iopubPort, err := strconv.Atoi(port)
 	require.NoError(t, err)
 
-	km := KernelManager{KernelId: id, KernelName: "python3", Session: getSession()}
+	km := &KernelManager{KernelId: id, KernelName: "python3", Session: getSession()}
 	km.ConnectionInfo.Transport = "tcp"
 	km.ConnectionInfo.IP = "127.0.0.1"
 	km.ConnectionInfo.IopubPort = iopubPort
@@ -64,7 +64,8 @@ func TestTheServerHearsAKernelNothingIsAttachedTo(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		publish("busy")
 		km, _ := ActiveKernel("k1")
-		return km.ExecutionState == "busy" && km.LastActivity != ""
+		lastActivity, executionState, _ := km.Status()
+		return executionState == "busy" && lastActivity != ""
 	}, 10*time.Second, 20*time.Millisecond)
 
 	// And goes on hearing. Recording the first message and no more is the shape of the bug this
@@ -73,7 +74,8 @@ func TestTheServerHearsAKernelNothingIsAttachedTo(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		publish("idle")
 		km, _ := ActiveKernel("k1")
-		return km.ExecutionState == "idle"
+		_, executionState, _ := km.Status()
+		return executionState == "idle"
 	}, 10*time.Second, 20*time.Millisecond)
 }
 
@@ -85,7 +87,8 @@ func TestWatchingStopsWithTheKernel(t *testing.T) {
 	require.Eventually(t, func() bool {
 		publish("busy")
 		km, _ := ActiveKernel("k1")
-		return km.ExecutionState == "busy"
+		_, executionState, _ := km.Status()
+		return executionState == "busy"
 	}, 10*time.Second, 20*time.Millisecond)
 
 	km, ok := removeActiveKernel("k1")

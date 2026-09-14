@@ -11,17 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The env built from the kernelspec used to be handed over in kw and never read.
 func TestTheKernelIsStartedWithTheEnvItWasGiven(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses sh")
 	}
 	out := filepath.Join(t.TempDir(), "env.txt")
-	kw := map[string]interface{}{
-		"env": append(os.Environ(), "ZASPER_PROBE=from the spec"),
-	}
 
-	process, err := LaunchKernel([]string{"sh", "-c", `printf %s "$ZASPER_PROBE" > "$0"`, out}, kw, "")
+	process, err := Launch(Spec{
+		Argv: []string{"sh", "-c", `printf %s "$ZASPER_PROBE" > "$0"`, out},
+		Env:  append(os.Environ(), "ZASPER_PROBE=from the spec"),
+	})
 	require.NoError(t, err)
 	awaitDone(t, process)
 
@@ -37,7 +36,7 @@ func TestTheKernelIsStartedInTheDirectoryItWasGiven(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(t.TempDir(), "cwd.txt")
 
-	process, err := LaunchKernel([]string{"sh", "-c", `pwd -P > "$0"`, out}, map[string]interface{}{"cwd": dir}, "")
+	process, err := Launch(Spec{Argv: []string{"sh", "-c", `pwd -P > "$0"`, out}, Dir: dir})
 	require.NoError(t, err)
 	awaitDone(t, process)
 
@@ -46,4 +45,18 @@ func TestTheKernelIsStartedInTheDirectoryItWasGiven(t *testing.T) {
 	resolved, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 	assert.Equal(t, resolved, strings.TrimSpace(string(written)))
+}
+
+func TestAKernelWithNoCommandIsRefused(t *testing.T) {
+	process, err := Launch(Spec{})
+
+	assert.Error(t, err)
+	assert.Nil(t, process)
+}
+
+func TestAKernelThatCannotStartSaysSo(t *testing.T) {
+	process, err := Launch(Spec{Argv: []string{"/nowhere/python3", "-m", "ipykernel_launcher"}})
+
+	assert.Error(t, err)
+	assert.Nil(t, process)
 }

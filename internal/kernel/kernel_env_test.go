@@ -44,51 +44,79 @@ func TestASpecWithNoEnvLeavesTheServersAlone(t *testing.T) {
 	assert.Equal(t, base, kernelEnv(base, nil))
 }
 
-// A kernel name nobody installed used to reach formatKernelCmd with an empty argv and panic there,
-// after the ports were taken and the connection file written.
+// A kernel name nobody installed must fail before any port is taken or connection file written.
 func TestAnUnknownKernelFailsBeforeAnythingIsSetUp(t *testing.T) {
 	previous := core.Zasper.JupyterPath
 	core.Zasper.JupyterPath = []string{t.TempDir()}
 	t.Cleanup(func() { core.Zasper.JupyterPath = previous })
 
 	connectionFile := filepath.Join(t.TempDir(), "kernel-test.json")
-	km := KernelManager{KernelName: "no-such-kernel", ConnectionFile: connectionFile}
+	km := &KernelManager{KernelName: "no-such-kernel", ConnectionFile: connectionFile}
 
-	_, _, err := km.asyncPrestartKernel("no-such-kernel")
+	err := km.start()
 
 	require.ErrorIs(t, err, kernelspec.ErrKernelspecNotFound)
 	_, statErr := os.Stat(connectionFile)
 	assert.True(t, os.IsNotExist(statErr), "a connection file was written for a kernel that cannot start")
+	assert.Nil(t, km.Process)
 }
 
-// ipykernel exits once the process JPY_PARENT_PID names has gone, which is what keeps a crashed server
-// from leaving its kernels running.
-func TestAKernelIsToldWhichProcessStartedIt(t *testing.T) {
+// A launch that fails gives back what it took: the ports and the connection file with its signing key.
+func TestAKernelThatCannotLaunchLeavesNothingBehind(t *testing.T) {
 	root := t.TempDir()
 	previous := core.Zasper.JupyterPath
 	core.Zasper.JupyterPath = []string{root}
 	t.Cleanup(func() { core.Zasper.JupyterPath = previous })
 
-	dir := filepath.Join(root, "kernels", "fake")
+	dir := filepath.Join(root, "kernels", "broken")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.json"),
-		[]byte(`{"argv": ["sh", "-c", "true"], "display_name": "fake", "language": "sh"}`), 0o644))
+		[]byte(`{"argv": ["/nowhere/kernel", "{connection_file}"], "display_name": "broken", "language": "sh"}`), 0o644))
 
-	km := KernelManager{KernelName: "fake", ConnectionFile: filepath.Join(t.TempDir(), "kernel-test.json")}
-	_, kw, err := km.asyncPrestartKernel("fake")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		info := km.ConnectionInfo
-		for _, port := range []int{info.ShellPort, info.IopubPort, info.StdinPort, info.HbPort, info.ControlPort} {
-			releasePort(port)
-		}
-	})
+	connectionFile := filepath.Join(t.TempDir(), "kernel-test.json")
+	km := &KernelManager{KernelName: "broken", ConnectionFile: connectionFile}
 
-	env := kw["env"].([]string)
+	require.Error(t, km.start())
+
+	_, statErr := os.Stat(connectionFile)
+	assert.True(t, os.IsNotExist(statErr), "the connection file was left behind")
+	for _, port := range km.ports() {
+		assert.False(t, portExists(*port), "port %d is still taken", *port)
+	}
+}
+
+// ipykernel exits once the process JPY_PARENT_PID names has gone, which is what keeps a crashed server
+// from leaving its kernels running.
+func TestAKernelIsToldWhichProcessStartedIt(t *testing.T) {
+	env := (&KernelManager{}).launchSpec().Env
+
 	parent := "JPY_PARENT_PID=" + strconv.Itoa(os.Getpid())
 	if runtime.GOOS == "windows" {
 		assert.NotContains(t, env, parent)
 	} else {
 		assert.Contains(t, env, parent)
 	}
+}
+
+func TestAKernelStartsInItsFolderWithItsOwnVariablesLast(t *testing.T) {
+	km := &KernelManager{
+		Dir: "/work/notebooks",
+		Env: map[string]string{"JPY_SESSION_NAME": "/work/notebooks/a$b.ipynb"},
+	}
+
+	spec := km.launchSpec()
+
+	assert.Equal(t, "/work/notebooks", spec.Dir)
+	assert.Equal(t, "JPY_SESSION_NAME=/work/notebooks/a$b.ipynb", spec.Env[len(spec.Env)-1],
+		"a notebook's own variable is added as written, after the kernelspec's")
+}
+
+func TestTheConnectionFileIsFilledIntoTheCommand(t *testing.T) {
+	km := &KernelManager{
+		ConnectionFile: "/run/kernel-1.json",
+		Spec:           kernelspec.KernelSpecJsonData{Argv: []string{"ir", "--connection-file", "{connection_file}"}},
+	}
+
+	assert.Equal(t, []string{"ir", "--connection-file", "/run/kernel-1.json"}, km.argv())
+	assert.Equal(t, "{connection_file}", km.Spec.Argv[2], "the kernelspec itself is not rewritten")
 }

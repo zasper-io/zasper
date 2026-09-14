@@ -96,7 +96,7 @@ func (c *terminalConn) sincePong() time.Duration {
 }
 
 // The running terminals, by session id, written from every connection's goroutine.
-var terminalSessions store.Map[string, *TerminalSession]
+var terminalSessions store.Map[string, *Session]
 
 // Counts the sessions this process has handed out, which is what actually makes their ids unique.
 var terminalSessionSeq atomic.Uint64
@@ -118,16 +118,16 @@ func generateSessionID(terminalId string) string {
 	return fmt.Sprintf("%s-%d-%d", terminalId, terminalSessionSeq.Add(1), time.Now().UnixNano())
 }
 
-func registerTerminalSession(sessionID string, session *TerminalSession) {
+func registerSession(sessionID string, session *Session) {
 	terminalSessions.Set(sessionID, session)
 }
 
-func unregisterTerminalSession(sessionID string) {
+func unregisterSession(sessionID string) {
 	terminalSessions.Take(sessionID)
 }
 
-// TerminalSession struct holds the terminal and related processes.
-type TerminalSession struct {
+// Session struct holds the terminal and related processes.
+type Session struct {
 	TTY *os.File
 	Cmd *exec.Cmd
 
@@ -150,7 +150,7 @@ Both the connection's own cleanup and a DELETE from the API reach it, in either 
 different goroutines, so it has to be safe to call twice: the second Kill would be an error about a
 process that has already finished, and the second Wait a second reap of the same child.
 */
-func (s *TerminalSession) stop() {
+func (s *Session) stop() {
 	s.stopOnce.Do(func() {
 		if s.Cmd == nil || s.Cmd.Process == nil {
 			return
@@ -166,8 +166,8 @@ func (s *TerminalSession) stop() {
 	})
 }
 
-// HandleTerminalWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
-func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
+// HandleWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
+func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	upgraded, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to upgrade connection")
@@ -191,8 +191,8 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Store the session in the global map, which is also what /api/terminals answers from.
-	session := &TerminalSession{TTY: tty, Cmd: cmd, Name: terminalId, Dir: dir, Started: time.Now().UTC()}
-	registerTerminalSession(sessionID, session)
+	session := &Session{TTY: tty, Cmd: cmd, Name: terminalId, Dir: dir, Started: time.Now().UTC()}
+	registerSession(sessionID, session)
 
 	// Counted only once the shell is actually up, so a terminal that failed to start is not one that
 	// was opened. Neither the folder nor the tab's name travels — the duration is bucketed, and that
@@ -228,7 +228,7 @@ func HandleTerminalWebSocket(w http.ResponseWriter, req *http.Request) {
 		// Out of the map here rather than in cleanupTTY, which runs only once all three have stopped:
 		// the shell is dead from the line below, and a terminal listed for as long as the keep-alive
 		// takes to notice is a row the panel offers to shut down twice.
-		unregisterTerminalSession(sessionID)
+		unregisterSession(sessionID)
 		session.stop()
 		connection.Close()
 	}
@@ -295,13 +295,13 @@ func startTTY(dir string) (*os.File, *exec.Cmd, error) {
 }
 
 // cleanupTTY gracefully stops the terminal and closes the connection.
-func cleanupTTY(sessionID string, session *TerminalSession, connection *terminalConn) {
+func cleanupTTY(sessionID string, session *Session, connection *terminalConn) {
 	log.Debug().Msg("Gracefully stopping spawned TTY...")
 
 	// The session was taken out of the map and the shell killed the moment any one of this terminal's
 	// three goroutines stopped; both are repeated here because this also runs on the paths where the
 	// handler gives up before that, and both are safe to do twice.
-	unregisterTerminalSession(sessionID)
+	unregisterSession(sessionID)
 	session.stop()
 
 	if err := session.TTY.Close(); err != nil {

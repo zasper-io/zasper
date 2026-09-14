@@ -12,174 +12,174 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/zasper-io/zasper/internal/kernel/provisioner"
-	"github.com/zasper-io/zasper/internal/kernelspec"
+	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
+
+	"github.com/zasper-io/zasper/internal/kernel/launcher"
+	"github.com/zasper-io/zasper/internal/kernelspec"
 )
 
+// KernelManager is one running kernel. The store holds it by pointer, and everything but its activity is
+// set before it is stored and not changed afterwards.
 type KernelManager struct {
-	ConnectionFile string
+	KernelId       string
 	KernelName     string
-	Provisioner    provisioner.LocalProvisioner
-
-	// What /api/kernels reports about a kernel nobody in a given window is attached to: when it last
-	// said anything, whether it is busy, and how many clients are on it. Written by the supervisor and
-	// not from here — a stored manager is held by value, so these are set by putting a changed copy
-	// back rather than by touching the one a caller happens to hold. See recordKernelActivity.
-	LastActivity   string
-	ExecutionState string
-	Connections    int
-
-	// Stops the activity watcher that writes the two fields above. Unexported and held here rather than
-	// in a map of its own, so that whoever takes a kernel out of the store has what it takes to stop
-	// listening to it in the same hand.
-	stopWatching context.CancelFunc
-
-	KernelId string
+	ConnectionFile string
 
 	// The folder the kernel starts in, and variables set for it on top of the kernelspec's.
 	Dir string
 	Env map[string]string
 
+	Spec           kernelspec.KernelSpecJsonData
 	Session        KernelSession
 	ConnectionInfo Connection
+	// The launched process, nil until start has run.
+	Process *launcher.Process
+
+	// Stops the activity watcher. Held here so that whoever takes the kernel out of the store can stop it.
+	stopWatching context.CancelFunc
+
+	activity activity
 }
 
-/*********************************************************************
-**********************************************************************
-***                       START KERNEL                            ***
-**********************************************************************
-*********************************************************************/
+// activity is what /api/kernels reports about a running kernel. The activity watcher and the websocket
+// layer write it while the API reads it, so it has a lock of its own.
+type activity struct {
+	mu             sync.Mutex
+	lastActivity   string
+	executionState string
+	connections    int
+}
 
-func (km *KernelManager) StartKernel(kernelName string) error {
-	log.Debug().Msg("kernel manager is launching a kernel")
+// RFC 3339, because the browser reads it: `new Date` cannot parse Go's own time format.
+func activityStamp() string {
+	return time.Now().UTC().Format(time.RFC3339)
+}
 
-	kernelCmd, kw, err := km.asyncPrestartKernel(kernelName)
-	if err != nil {
-		return err
+// recordActivity notes that the kernel has just said something. An empty state leaves the last one
+// standing: only a status message says what a kernel is doing.
+func (km *KernelManager) recordActivity(state string) {
+	km.activity.mu.Lock()
+	defer km.activity.mu.Unlock()
+
+	km.activity.lastActivity = activityStamp()
+	if state != "" {
+		km.activity.executionState = state
 	}
-	return km.LaunchKernel(kernelCmd, kw)
 }
 
-func (km *KernelManager) StopKernel(kernelId string) error {
-	shutdownProcess(*km)
+func (km *KernelManager) setConnections(count int) {
+	km.activity.mu.Lock()
+	defer km.activity.mu.Unlock()
 
-	// The kernel has let go of its five ports, so they go back on offer. Without this the
-	// tracking list only grows, and a long-lived server starts refusing to allocate.
-	for _, port := range []int{
-		km.ConnectionInfo.ShellPort,
-		km.ConnectionInfo.IopubPort,
-		km.ConnectionInfo.StdinPort,
-		km.ConnectionInfo.HbPort,
-		km.ConnectionInfo.ControlPort,
-	} {
-		releasePort(port)
-	}
-
-	// The file carries this kernel's signing key and is of no use once the kernel is gone.
-	removeConnectionFile(km.ConnectionFile)
-
-	return nil
+	km.activity.connections = count
 }
 
-func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[string]interface{}, error) {
-	// Before any port is taken or connection file written, so a missing or broken spec leaves nothing
-	// behind to clean up.
+// Status answers when the kernel last said anything, what it last said it was doing, and how many clients
+// are attached to it.
+func (km *KernelManager) Status() (lastActivity, executionState string, connections int) {
+	km.activity.mu.Lock()
+	defer km.activity.mu.Unlock()
+
+	return km.activity.lastActivity, km.activity.executionState, km.activity.connections
+}
+
+/*
+start launches the kernel: it reads the kernelspec, takes five ports, writes the connection file and
+starts the process. The spec is read first, so that a kernel that cannot start leaves nothing to clean up,
+and a launch that fails gives back its ports and its file.
+*/
+func (km *KernelManager) start() error {
 	spec, err := kernelspec.GetKernelSpec(km.KernelName)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	km.Provisioner = provisioner.LocalProvisioner{
-		KernelId:   km.KernelId,
-		Kernelspec: spec,
-	}
-
-	log.Debug().Msgf("kernelspec created is: %v", km.Provisioner.Kernelspec)
-
-	kw, err := km.preLaunch()
-	if err != nil {
-		return nil, nil, err
-	}
-	kernelCmd := kw["cmd"].([]string)
-	log.Debug().Msgf("kenelName: %s", kernelName)
-	return kernelCmd, kw, nil
-}
-
-/*********************************************************************
-**********************************************************************
-***                       LAUNCH KERNEL                            ***
-**********************************************************************
-*********************************************************************/
-
-func (km *KernelManager) LaunchKernel(kernelCmd []string, kw map[string]interface{}) error {
-	ConnectionInfo, err := km.Provisioner.LaunchKernel(kernelCmd, kw, km.ConnectionFile)
-	if err != nil {
 		return err
 	}
-	log.Debug().Msgf("connectionInfo: %s", ConnectionInfo)
-	return nil
-}
+	if len(spec.Argv) == 0 {
+		return fmt.Errorf("kernelspec %s has no command to run", km.KernelName)
+	}
+	km.Spec = spec
 
-func (km *KernelManager) preLaunch() (map[string]interface{}, error) {
-	// Every one of them, or none: a connection file with a 0 in it launches a kernel that binds a port
-	// the client will never dial, and the failure surfaces much later as a kernel that starts and then
-	// says nothing.
-	for _, port := range []*int{
-		&km.ConnectionInfo.ShellPort,
-		&km.ConnectionInfo.IopubPort,
-		&km.ConnectionInfo.StdinPort,
-		&km.ConnectionInfo.HbPort,
-		&km.ConnectionInfo.ControlPort,
-	} {
+	// Every port or none: a connection file with a 0 in it starts a kernel on a port no client dials.
+	for _, port := range km.ports() {
 		assigned, err := findAvailablePort()
 		if err != nil {
-			return nil, fmt.Errorf("no port for the kernel's channels: %w", err)
+			km.releasePorts()
+			return fmt.Errorf("no port for the kernel's channels: %w", err)
 		}
 		*port = assigned
 	}
-	log.Debug().Msgf("connectionInfo : %+v", km.ConnectionInfo)
-	log.Debug().Msgf("km.ConnectionFile : %+v", km.ConnectionFile)
-
 	if err := km.writeConnectionFile(km.ConnectionFile); err != nil {
-		return nil, err
+		km.releasePorts()
+		return err
 	}
 
-	kernelCmd := km.formatKernelCmd()
-	log.Debug().Msgf("kernel cmd is %s", kernelCmd)
+	process, err := launcher.Launch(km.launchSpec())
+	if err != nil {
+		km.releasePorts()
+		removeConnectionFile(km.ConnectionFile)
+		return err
+	}
+	km.Process = process
+	log.Debug().Str("kernel", km.KernelId).Int("pid", process.Pid).Msg("kernel launched")
+	return nil
+}
 
-	processEnv := kernelEnv(os.Environ(), km.Provisioner.Kernelspec.Env)
-	// A kernel that honours it, as ipykernel does, exits once this process has gone, so a server that
-	// crashes does not leave its kernels running. A Windows kernel reads it as a handle, not a pid.
+// stop shuts the process down, gives back its ports and deletes its connection file, which carries the
+// kernel's signing key.
+func (km *KernelManager) stop() {
+	shutdownProcess(km)
+	km.releasePorts()
+	removeConnectionFile(km.ConnectionFile)
+}
+
+func (km *KernelManager) ports() []*int {
+	info := &km.ConnectionInfo
+	return []*int{&info.ShellPort, &info.IopubPort, &info.StdinPort, &info.HbPort, &info.ControlPort}
+}
+
+func (km *KernelManager) releasePorts() {
+	for _, port := range km.ports() {
+		if *port != 0 {
+			releasePort(*port)
+		}
+	}
+}
+
+// launchSpec is the command line, environment and folder the kernel is started with.
+func (km *KernelManager) launchSpec() launcher.Spec {
+	env := kernelEnv(os.Environ(), km.Spec.Env)
+	// ipykernel exits once the process JPY_PARENT_PID names has gone, so a server that crashes leaves no
+	// kernels running. A Windows kernel reads it as a handle, not a pid.
 	if runtime.GOOS != "windows" {
-		processEnv = append(processEnv, "JPY_PARENT_PID="+strconv.Itoa(os.Getpid()))
+		env = append(env, "JPY_PARENT_PID="+strconv.Itoa(os.Getpid()))
 	}
 	// Appended as they are rather than through kernelEnv, which would expand a `$` in a notebook's path.
 	for _, name := range slices.Sorted(maps.Keys(km.Env)) {
-		processEnv = append(processEnv, name+"="+km.Env[name])
+		env = append(env, name+"="+km.Env[name])
 	}
-
-	env := make(map[string]interface{})
-	env["cmd"] = kernelCmd
-	env["env"] = processEnv
-	env["cwd"] = km.Dir
-	return env, nil
+	return launcher.Spec{Argv: km.argv(), Env: env, Dir: km.Dir}
 }
 
 var barePython = regexp.MustCompile(`^python(\d+(\.\d+)?)?$`)
 
-func (km *KernelManager) formatKernelCmd() []string {
-	// A copy of the spec the provisioner holds, not a second read from disk: the launcher rewrites
-	// {connection_file} in place.
-	cmd := slices.Clone(km.Provisioner.Kernelspec.Argv)
+/*
+argv is the kernelspec's command line with the connection file filled in. A bare python is the Python the
+spec was installed by, the nearest Zasper has to the sys.executable jupyter_client uses; PATH's is the
+guess only when that cannot be told.
+*/
+func (km *KernelManager) argv() []string {
+	cmd := slices.Clone(km.Spec.Argv)
+	for i, arg := range cmd {
+		if arg == "{connection_file}" {
+			cmd[i] = km.ConnectionFile
+		}
+	}
 	if len(cmd) == 0 || !barePython.MatchString(cmd[0]) {
 		return cmd
 	}
-	// jupyter_client runs a bare python with its own sys.executable; the nearest Zasper has is the
-	// Python the spec was installed by. PATH's is the guess only when that cannot be told.
-	if interpreter := kernelspec.Interpreter(km.Provisioner.Kernelspec.ResourceDir); interpreter != "" {
+	if interpreter := kernelspec.Interpreter(km.Spec.ResourceDir); interpreter != "" {
 		cmd[0] = interpreter
 	} else if cmd[0] == "python3" || cmd[0] == "python" {
 		cmd[0] = getPython()

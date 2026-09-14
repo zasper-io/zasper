@@ -53,7 +53,7 @@ func findAvailablePort() (int, error) {
 	// nothing to retry when the OS is out of ports.
 	const maxAttempts = 10
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		// 127.0.0.1 and not every interface: that is where the kernel binds (see createKernelManager),
+		// 127.0.0.1 and not every interface: that is where the kernel binds (see newKernelManager),
 		// and asking about the wildcard address answers a question nobody asked.
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {

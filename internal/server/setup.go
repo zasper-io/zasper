@@ -20,13 +20,13 @@ func SetUp() {
 	session.SetUpActiveSessions()
 	content.SetUpActiveWatcherConnections()
 	kernel.SetUpStateKernels()
-	kernelws.SetUpKernelConnections()
+	kernelws.SetUpConnections()
 
 	// Once per process: handlers are appended, so registering again would run each twice. Sessions go
 	// before sockets, so that a client told its socket has closed finds no session left to rejoin.
 	wireOnce.Do(func() {
 		kernel.OnKernelDisconnect(func(kernelId string) { session.DeleteSessionsForKernel(kernelId) })
-		kernel.OnKernelDisconnect(kernelws.CloseKernelConnections)
+		kernel.OnKernelDisconnect(kernelws.CloseConnections)
 		content.OnContentMoved = func(from, to string) { session.RelocateSessions(from, to) }
 	})
 }

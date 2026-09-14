@@ -39,7 +39,7 @@ func TestAKernelProcessIsReapedWhenItExits(t *testing.T) {
 		t.Skip("uses sh")
 	}
 
-	process, err := LaunchKernel([]string{"sh", "-c", "exit 3"}, map[string]interface{}{}, "")
+	process, err := Launch(Spec{Argv: []string{"sh", "-c", "exit 3"}})
 	require.NoError(t, err)
 
 	awaitDone(t, process)

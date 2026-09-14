@@ -40,13 +40,10 @@ func dialOptions(opts ...zmq4.Option) []zmq4.Option {
 	)
 }
 
-// connectionFileMixin
+// Connection is where a kernel's sockets are: the transport, the address and a port per channel.
 type Connection struct {
-	DataDir    string
-	IP         string
-	Transport  string
-	KernelName string
-	Context    context.Context
+	IP        string
+	Transport string
 
 	HbPort      int
 	ShellPort   int
@@ -144,12 +141,6 @@ func (km *KernelManager) writeConnectionFile(connectionFile string) error {
 
 	return nil
 }
-
-/*********************************************************************
-**********************************************************************
-***                  Create Connected Sockets                      ***
-**********************************************************************
-*********************************************************************/
 
 func (conn *Connection) makeURL(channel string, port int) string {
 

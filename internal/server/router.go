@@ -181,8 +181,8 @@ func NewRouter(spa http.Handler) *mux.Router {
 
 	// terminals. The shells live in the terminal package because the connection is what starts and
 	// ends one; these two are how anything that is not that connection can see them.
-	apiRouter.HandleFunc("/terminals", terminal.TerminalListAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/terminals/{terminalId}", terminal.TerminalKillAPIHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/terminals", terminal.ListHandler).Methods("GET")
+	apiRouter.HandleFunc("/terminals/{terminalId}", terminal.KillHandler).Methods("DELETE")
 
 	// sessions
 	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")
@@ -191,7 +191,7 @@ func NewRouter(spa http.Handler) *mux.Router {
 
 	//web sockets
 	wsRouter.HandleFunc("/kernels/{kernelId}/channels", kernelws.HandleWebSocket)
-	wsRouter.HandleFunc("/terminals/{terminalId}", terminal.HandleTerminalWebSocket)
+	wsRouter.HandleFunc("/terminals/{terminalId}", terminal.HandleWebSocket)
 
 	if spa != nil {
 		router.PathPrefix("/").Handler(spa)

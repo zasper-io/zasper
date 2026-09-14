@@ -18,7 +18,7 @@ import (
 
 // Signal 0 still reaches a zombie, so it failing is what says the process was reaped and not only exited.
 func TestAnExitedKernelIsNotLeftAsAZombie(t *testing.T) {
-	process, err := LaunchKernel([]string{"sh", "-c", "exit 0"}, map[string]interface{}{}, "")
+	process, err := Launch(Spec{Argv: []string{"sh", "-c", "exit 0"}})
 	require.NoError(t, err)
 
 	awaitDone(t, process)
@@ -27,8 +27,7 @@ func TestAnExitedKernelIsNotLeftAsAZombie(t *testing.T) {
 
 func TestKillEndsWhatTheKernelStartedToo(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "child.pid")
-	process, err := LaunchKernel(
-		[]string{"sh", "-c", `sleep 60 & echo $! > "$0"; wait`, out}, map[string]interface{}{}, "")
+	process, err := Launch(Spec{Argv: []string{"sh", "-c", `sleep 60 & echo $! > "$0"; wait`, out}})
 	require.NoError(t, err)
 
 	var child int

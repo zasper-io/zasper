@@ -81,10 +81,10 @@ func TestStoppingTerminalsKillsEveryShell(t *testing.T) {
 	tty, cmd, err := startTTY(t.TempDir())
 	require.NoError(t, err)
 	t.Cleanup(func() { tty.Close() })
-	registerTerminalSession("stop-every-shell", &TerminalSession{TTY: tty, Cmd: cmd})
-	t.Cleanup(func() { unregisterTerminalSession("stop-every-shell") })
+	registerSession("stop-every-shell", &Session{TTY: tty, Cmd: cmd})
+	t.Cleanup(func() { unregisterSession("stop-every-shell") })
 
-	StopTerminals()
+	StopAll()
 
 	assert.True(t, errors.Is(cmd.Process.Signal(syscall.Signal(0)), os.ErrProcessDone), "the shell is still running")
 }

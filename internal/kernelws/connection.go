@@ -26,7 +26,7 @@ type Connection struct {
 	Conn          *websocket.Conn
 	Send          chan []byte
 	KernelId      string
-	KernelManager kernel.KernelManager
+	KernelManager *kernel.KernelManager
 	Context       context.Context
 	PollingCancel context.CancelFunc
 	Channels      map[string]zmq4.Socket

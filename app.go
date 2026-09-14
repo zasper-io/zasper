@@ -290,6 +290,6 @@ func cleanup(tracking bool) {
 		analytics.CloseClient()
 	}
 	log.Debug().Msg("performing cleanup")
-	terminal.StopTerminals()
+	terminal.StopAll()
 	kernel.Cleanup()
 }

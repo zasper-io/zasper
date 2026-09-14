@@ -22,8 +22,8 @@ shutdownProcess stops a kernel's process and everything it started, and returns 
 It asks first, with a shutdown_request on the control channel, so the kernel runs its own cleanup
 (atexit handlers, temporary files) before anything is signalled.
 */
-func shutdownProcess(km KernelManager) {
-	process := km.Provisioner.Process
+func shutdownProcess(km *KernelManager) {
+	process := km.Process
 	if process == nil {
 		return
 	}
@@ -48,7 +48,7 @@ func shutdownProcess(km KernelManager) {
 
 // sendControlRequest sends one request on a control socket of its own, and gives up after
 // controlRequestTimeout: a kernel that is not listening must not hold up whoever asked.
-func (km KernelManager) sendControlRequest(msgType string, content map[string]interface{}) error {
+func (km *KernelManager) sendControlRequest(msgType string, content map[string]interface{}) error {
 	ctx, cancel := context.WithTimeout(context.Background(), controlRequestTimeout)
 	defer cancel()
 
@@ -69,7 +69,7 @@ func waitForExit(done <-chan struct{}, within time.Duration) bool {
 	}
 }
 
-func logSignalError(km KernelManager, err error) {
+func logSignalError(km *KernelManager, err error) {
 	if err != nil {
 		log.Warn().Err(err).Str("kernel", km.KernelId).Msg("could not signal the kernel")
 	}
@@ -80,8 +80,8 @@ watchForExit notices a kernel that exits without being asked to: a crash, the ou
 os._exit in a cell. It is treated as a kill would be, so nothing goes on offering a kernel that is gone.
 A kernel stopped on purpose has already been taken out of the store by then, and is left alone.
 */
-func watchForExit(km KernelManager) {
-	process := km.Provisioner.Process
+func watchForExit(km *KernelManager) {
+	process := km.Process
 	if process == nil {
 		return
 	}
@@ -94,7 +94,7 @@ func watchForExit(km KernelManager) {
 
 	NotifyDisconnect(km.KernelId)
 	stopWatchingKernel(km)
-	km.StopKernel(km.KernelId)
+	km.stop()
 }
 
 // Cleanup stops every kernel at once, since each can take a few seconds to shut down cleanly.
@@ -109,7 +109,7 @@ func Cleanup() {
 		go func() {
 			defer stopping.Done()
 			stopWatchingKernel(km)
-			km.StopKernel(km.KernelId)
+			km.stop()
 		}()
 	}
 	stopping.Wait()

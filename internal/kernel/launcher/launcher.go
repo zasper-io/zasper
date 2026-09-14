@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -56,25 +57,25 @@ func (p *Process) validPid() error {
 	return nil
 }
 
-func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) (*Process, error) {
-	for i, arg := range kernelCmd {
-		if arg == "{connection_file}" {
-			kernelCmd[i] = connFile
-		}
-	}
-	log.Debug().Msgf("kernelCmd is %v", kernelCmd)
+// Spec is how a kernel is started: its command line, its whole environment and the folder it starts in.
+// A nil Env inherits the server's, and an empty Dir is the server's working directory.
+type Spec struct {
+	Argv []string
+	Env  []string
+	Dir  string
+}
 
-	cmd := exec.Command(kernelCmd[0], kernelCmd[1:]...)
-	// The server's environment with the kernelspec's on top (KernelManager.preLaunch). Without it the
-	// kernel inherits the server's alone, and a spec's own env never reached the process.
-	if env, ok := kw["env"].([]string); ok {
-		cmd.Env = env
+// Launch starts a kernel in a process group of its own, so that interrupting or stopping it reaches what
+// it started.
+func Launch(spec Spec) (*Process, error) {
+	if len(spec.Argv) == 0 {
+		return nil, errors.New("a kernel needs a command to run")
 	}
-	// Without it the kernel inherits the server's working directory, not the notebook's.
-	if dir, ok := kw["cwd"].(string); ok && dir != "" {
-		cmd.Dir = dir
-	}
-	// A process group of its own, so that interrupting or stopping the kernel reaches what it started.
+	log.Debug().Msgf("launching %v", spec.Argv)
+
+	cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
+	cmd.Env = spec.Env
+	cmd.Dir = spec.Dir
 	setProcessGroup(cmd)
 
 	// Create pipes for standard input, output, and error

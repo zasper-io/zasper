@@ -19,7 +19,7 @@ func withKernels(t *testing.T, ids ...string) {
 
 	SetUpStateKernels()
 	for _, id := range ids {
-		setActiveKernel(id, KernelManager{KernelId: id, KernelName: "python3"})
+		setActiveKernel(id, &KernelManager{KernelId: id, KernelName: "python3"})
 	}
 }
 
@@ -71,8 +71,6 @@ func TestListKernelsReportsEveryRunningKernel(t *testing.T) {
 func TestGetKernelSaysSoWhenTheKernelIsNotRunning(t *testing.T) {
 	withKernels(t)
 
-	// It used to answer nil and a model with nothing in it but the id it was handed, which the API
-	// served as a 200.
 	_, err := getKernel("k1")
 	assert.ErrorIs(t, err, ErrKernelNotFound)
 }
@@ -86,16 +84,16 @@ func TestInterruptKernelRefusesRatherThanSignallingNothingInParticular(t *testin
 	assert.ErrorContains(t, interruptKernel("k1"), "no process")
 }
 
-func TestRecordingActivityWritesTheFieldsTheApiReports(t *testing.T) {
+func TestRecordingActivityWritesWhatTheApiReports(t *testing.T) {
 	withKernels(t, "k1")
 
 	recordKernelActivity("k1", "busy")
 
 	km, _ := ActiveKernel("k1")
-	assert.Equal(t, "busy", km.ExecutionState)
-	// RFC 3339 and nothing else: the browser reads this with `new Date`, and Go's own time format is
-	// what /api/sessions used to send, where it showed up as no date at all.
-	when, err := time.Parse(time.RFC3339, km.LastActivity)
+	lastActivity, executionState, _ := km.Status()
+	assert.Equal(t, "busy", executionState)
+	// RFC 3339 and nothing else: the browser reads this with `new Date`.
+	when, err := time.Parse(time.RFC3339, lastActivity)
 	assert.NoError(t, err)
 	assert.WithinDuration(t, time.Now(), when, time.Minute)
 }
@@ -109,15 +107,14 @@ func TestActivityWithNoStateLeavesTheLastOneStanding(t *testing.T) {
 	recordKernelActivity("k1", "")
 
 	km, _ := ActiveKernel("k1")
-	assert.Equal(t, "busy", km.ExecutionState)
+	_, executionState, _ := km.Status()
+	assert.Equal(t, "busy", executionState)
 }
 
 func TestNothingIsRecordedAgainstAKernelThatHasStopped(t *testing.T) {
 	withKernels(t)
 
-	// A message in flight when the kernel was killed, which used to be no risk at all because none of
-	// these three fields was ever written. Writing them must not put the kernel back in the store as an
-	// entry with a timestamp and nothing else.
+	// A message in flight when the kernel was killed must not put the kernel back in the store.
 	recordKernelActivity("k1", "idle")
 	SetKernelConnections("k1", 1)
 
@@ -126,25 +123,20 @@ func TestNothingIsRecordedAgainstAKernelThatHasStopped(t *testing.T) {
 
 func TestConnectionsCountsWhatTheWebsocketLayerReports(t *testing.T) {
 	withKernels(t, "k1")
+	km, _ := ActiveKernel("k1")
 
 	SetKernelConnections("k1", 1)
-	km, _ := ActiveKernel("k1")
-	assert.Equal(t, 1, km.Connections)
+	_, _, connections := km.Status()
+	assert.Equal(t, 1, connections)
 
 	// A browser tab that closed. The kernel stays, which is the whole point of this panel.
 	SetKernelConnections("k1", 0)
-	km, _ = ActiveKernel("k1")
-	assert.Equal(t, 0, km.Connections)
+	_, _, connections = km.Status()
+	assert.Equal(t, 0, connections)
 }
 
-/*
-Everything at once, which is the whole reason the store has a lock.
-
-Kernels used to live in an exported map with nothing guarding it, written by the session handlers, the
-kernel API and the shutdown path. Two of those at the same time is not a lost update but a dead
-server: Go's answer to a concurrent map write is to kill the process. Only the store is exercised
-here — no process is started or signalled.
-*/
+// Every kernel's activity watcher, the websocket layer and the API reach the store and each kernel's
+// activity at once; -race is what this relies on.
 func TestTheKernelStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
 	withKernels(t)
 
@@ -158,11 +150,9 @@ func TestTheKernelStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
 			defer running.Done()
 			for i := 0; i < each; i++ {
 				id := fmt.Sprintf("%d-%d", worker, i)
-				setActiveKernel(id, KernelManager{KernelId: id, KernelName: "python3"})
+				setActiveKernel(id, &KernelManager{KernelId: id, KernelName: "python3"})
 				ActiveKernel(id)
 				activeKernels()
-				// The read-modify-write the rest of the store does not do: every message a kernel
-				// publishes comes through here, on that kernel's own activity watcher.
 				recordKernelActivity(id, "busy")
 				SetKernelConnections(id, 1)
 				if _, err := getKernel(id); err != nil && !errors.Is(err, ErrKernelNotFound) {
@@ -176,6 +166,5 @@ func TestTheKernelStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
 	}
 
 	running.Wait()
-	// Nothing to assert beyond having got here: the failure this is about takes the process with it.
 	assert.NotNil(t, activeKernels())
 }

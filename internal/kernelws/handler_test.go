@@ -11,31 +11,31 @@ import (
 func withKernelConnections(t *testing.T) {
 	t.Helper()
 
-	t.Cleanup(SetUpKernelConnections)
-	SetUpKernelConnections()
+	t.Cleanup(SetUpConnections)
+	SetUpConnections()
 }
 
 func TestClosingAKernelsConnectionsClosesEveryOneOfThem(t *testing.T) {
 	withKernelConnections(t)
 
 	stopped := 0
-	addKernelConnection("k1", &Connection{PollingCancel: func() { stopped++ }})
-	addKernelConnection("k1", &Connection{PollingCancel: func() { stopped++ }})
+	addConnection("k1", &Connection{PollingCancel: func() { stopped++ }})
+	addConnection("k1", &Connection{PollingCancel: func() { stopped++ }})
 
-	CloseKernelConnections("k1")
+	CloseConnections("k1")
 	assert.Equal(t, 2, stopped)
 
 	// Gone, so a second kernel-stopped notification for the same kernel has nothing left to close.
-	CloseKernelConnections("k1")
+	CloseConnections("k1")
 	assert.Equal(t, 2, stopped)
 }
 
 func TestClosingAKernelWithNoConnectionDoesNothing(t *testing.T) {
 	withKernelConnections(t)
 
-	CloseKernelConnections("k1")
+	CloseConnections("k1")
 
-	assert.False(t, removeKernelConnection("k1", &Connection{}))
+	assert.False(t, removeConnection("k1", &Connection{}))
 }
 
 // A reloaded page's old connection finishing must not take the new one out with it.
@@ -45,13 +45,13 @@ func TestAConnectionThatEndsTakesOnlyItselfOut(t *testing.T) {
 	oldStopped, newStopped := 0, 0
 	old := &Connection{PollingCancel: func() { oldStopped++ }}
 	current := &Connection{PollingCancel: func() { newStopped++ }}
-	addKernelConnection("k1", old)
-	addKernelConnection("k1", current)
+	addConnection("k1", old)
+	addConnection("k1", current)
 
-	assert.True(t, removeKernelConnection("k1", old))
-	assert.False(t, removeKernelConnection("k1", old))
+	assert.True(t, removeConnection("k1", old))
+	assert.False(t, removeConnection("k1", old))
 
-	CloseKernelConnections("k1")
+	CloseConnections("k1")
 	assert.Equal(t, 0, oldStopped)
 	assert.Equal(t, 1, newStopped)
 }
@@ -73,11 +73,11 @@ func TestTheConnectionStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
 			for i := 0; i < each; i++ {
 				kernelId := fmt.Sprintf("%d-%d", worker, i)
 				connection := &Connection{PollingCancel: func() {}}
-				addKernelConnection(kernelId, connection)
+				addConnection(kernelId, connection)
 				if i%3 == 0 {
-					CloseKernelConnections(kernelId)
+					CloseConnections(kernelId)
 				} else {
-					removeKernelConnection(kernelId, connection)
+					removeConnection(kernelId, connection)
 				}
 			}
 		}(worker)

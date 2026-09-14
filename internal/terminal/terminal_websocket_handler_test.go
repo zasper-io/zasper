@@ -213,19 +213,19 @@ func TestAMalformedResizeMessageIsIgnored(t *testing.T) {
 // The store the handler keeps its live sessions in. One map for the whole process, so a test that
 // left a session behind would be the next one's starting point.
 func TestATerminalSessionIsRememberedUntilItIsUnregistered(t *testing.T) {
-	session := &TerminalSession{}
+	session := &Session{}
 
-	registerTerminalSession("tab-1-123", session)
+	registerSession("tab-1-123", session)
 	stored, _ := terminalSessions.Get("tab-1-123")
 	assert.Same(t, session, stored)
 
-	unregisterTerminalSession("tab-1-123")
+	unregisterSession("tab-1-123")
 	_, found := terminalSessions.Get("tab-1-123")
 	assert.False(t, found)
 
 	// Unregistering something that was never there is not an error: cleanupTTY runs on every exit
 	// path, including the one where the session never got registered.
-	assert.NotPanics(t, func() { unregisterTerminalSession("never-existed") })
+	assert.NotPanics(t, func() { unregisterSession("never-existed") })
 }
 
 // The id is what keeps a reconnecting tab from colliding with the session it is replacing, which is
@@ -254,8 +254,8 @@ func TestTheTerminalSessionStoreSurvivesEverythingAtOnce(t *testing.T) {
 			defer waiter.Done()
 			for i := range each {
 				id := fmt.Sprintf("tab-%d-%d", worker, i)
-				registerTerminalSession(id, &TerminalSession{})
-				unregisterTerminalSession(id)
+				registerSession(id, &Session{})
+				unregisterSession(id)
 			}
 		}()
 	}
@@ -276,7 +276,7 @@ func TestATerminalRunsWhatTheClientTypes(t *testing.T) {
 	dir := projectDir(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker-file.txt"), []byte("x"), 0o644))
 
-	srv := httptest.NewServer(http.HandlerFunc(HandleTerminalWebSocket))
+	srv := httptest.NewServer(http.HandlerFunc(HandleWebSocket))
 	defer srv.Close()
 
 	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
@@ -317,14 +317,14 @@ func TestClosingTheConnectionOnAnIdleShellEndsIt(t *testing.T) {
 	requireShell(t)
 	projectDir(t)
 
-	srv := httptest.NewServer(http.HandlerFunc(HandleTerminalWebSocket))
+	srv := httptest.NewServer(http.HandlerFunc(HandleWebSocket))
 	defer srv.Close()
 
 	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
 	require.NoError(t, err)
 
 	// Wait for the shell rather than assume it: the session is registered on the handler's goroutine.
-	require.Eventually(t, func() bool { return len(ListTerminals()) == 1 }, 10*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { return len(List()) == 1 }, 10*time.Second, 20*time.Millisecond)
 
 	// Held on to across the close, because the assertion afterwards is about this shell and the map it
 	// can be looked up in is the thing being emptied.
@@ -339,7 +339,7 @@ func TestClosingTheConnectionOnAnIdleShellEndsIt(t *testing.T) {
 
 	// Comfortably under the keep-alive's own ten-second wait, which the handler used to sit through
 	// before it would unregister anything.
-	require.Eventually(t, func() bool { return len(ListTerminals()) == 0 }, 5*time.Second, 20*time.Millisecond,
+	require.Eventually(t, func() bool { return len(List()) == 0 }, 5*time.Second, 20*time.Millisecond,
 		"the session outlived the connection")
 
 	// And the shell itself, not merely the bookkeeping about it. Signalling a process Go has already
