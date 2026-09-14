@@ -19,7 +19,7 @@ import {
 } from './atoms';
 import { useClipboard } from './useClipboard';
 import { useContentActions } from './useContentActions';
-import { useContentWatcher } from './useContentWatcher';
+import { useContentWatcher } from '@/ide/useContentWatcher';
 import { useDropTarget } from './useDragDrop';
 import { useFileTree } from './useFileTree';
 import { useSelection } from './useSelection';

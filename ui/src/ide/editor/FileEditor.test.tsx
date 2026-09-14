@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,21 +28,63 @@ function text(content: string) {
   return { format: 'text', content, mimetype: 'text/plain' };
 }
 
-// CodeMirror cannot mount under jsdom, and the editor surface is not what this exercises.
+/**
+ * CodeMirror cannot mount under jsdom, so this stands in for it: a textarea whose typing reaches the
+ * editor as CodeMirror reports it, through onUpdate with the document, and a view whose document is
+ * what the textarea holds, which is where the editor reads its text and applies a change from disk.
+ */
 vi.mock('@uiw/react-codemirror', async () => {
   const react = await import('react');
+  const { Text } = await import('@codemirror/state');
+  const documentOf = (value: string) => Text.of(value.split(/\r\n?|\n/));
   return {
     default: (props: any) => {
       const [mountedWith] = react.useState(props.value);
+      const [value, setValue] = react.useState(props.value);
+      const current = react.useRef(props.value);
+      const latest = react.useRef(props);
+      latest.current = props;
+      const change = (next: string) => {
+        current.current = next;
+        setValue(next);
+        latest.current.onUpdate?.({
+          docChanged: true,
+          state: { doc: documentOf(next), selection: { main: { head: 0 } } },
+        });
+      };
+      react.useEffect(() => {
+        latest.current.onCreateEditor?.({
+          get state() {
+            return { doc: documentOf(current.current) };
+          },
+          dispatch: ({ changes }: any) => {
+            const text = current.current;
+            change(text.slice(0, changes.from) + changes.insert + text.slice(changes.to));
+          },
+        });
+      }, []);
       return react.createElement('textarea', {
-        value: props.value,
+        value,
         'data-mounted-with': mountedWith,
-        onChange: (event: any) => props.onChange?.(event.target.value),
+        onChange: (event: any) => change(event.target.value),
       });
     },
     Prec: { highest: (extension: unknown) => extension },
   };
 });
+
+// The watch socket, as the editor's listener: a test says when the project changed.
+const watchers = vi.hoisted(() => ({ latest: () => {} }));
+vi.mock('@/ide/useContentWatcher', () => ({
+  useContentWatcher: (changed: () => void) => {
+    watchers.latest = changed;
+  },
+}));
+
+/** The project changed on disk, as the watch socket reports it. */
+async function changedOnDisk(): Promise<void> {
+  await act(async () => watchers.latest());
+}
 
 const tab: FileTab = {
   type: 'file',
@@ -136,6 +178,70 @@ describe('FileEditor', () => {
     type('first line\n');
 
     await waitFor(() => expect(unsavedPaths()).toBe(''));
+  });
+
+  describe('when the file changes on disk', () => {
+    it('takes the change into a file with nothing unsaved, and stays saved', async () => {
+      await renderEditor();
+      getFileContent.mockResolvedValue(text('first line\nwritten by git\n'));
+
+      await changedOnDisk();
+
+      await waitFor(() =>
+        expect(screen.getByRole('textbox')).toHaveValue('first line\nwritten by git\n')
+      );
+      expect(unsavedPaths()).toBe('');
+    });
+
+    it('leaves a file with unsaved edits alone', async () => {
+      await renderEditor();
+      type('first line\nmine\n');
+      await waitFor(() => expect(unsavedPaths()).toBe('notes.txt'));
+      getFileContent.mockResolvedValue(text('first line\ntheirs\n'));
+
+      await changedOnDisk();
+
+      expect(screen.getByRole('textbox')).toHaveValue('first line\nmine\n');
+      expect(unsavedPaths()).toBe('notes.txt');
+    });
+
+    it('does nothing when what is on disk is what it last read or saved', async () => {
+      await renderEditor();
+      type('first line\nsaved\n');
+      fireEvent.click(screen.getByText('save it'));
+      await waitFor(() => expect(unsavedPaths()).toBe(''));
+      getFileContent.mockResolvedValue(text('first line\nsaved\n'));
+
+      await changedOnDisk();
+
+      expect(screen.getByRole('textbox')).toHaveValue('first line\nsaved\n');
+    });
+
+    it('waits until a background tab is shown before reading it again', async () => {
+      const { rerender } = render(
+        <Provider>
+          <FileEditor data={{ ...tab, active: false }} />
+          <TabBar />
+        </Provider>
+      );
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('first line\n'));
+      getFileContent.mockClear();
+      getFileContent.mockResolvedValue(text('first line\nwhile hidden\n'));
+
+      await changedOnDisk();
+      expect(getFileContent).not.toHaveBeenCalled();
+
+      rerender(
+        <Provider>
+          <FileEditor data={{ ...tab, active: true, load_required: false }} />
+          <TabBar />
+        </Provider>
+      );
+
+      await waitFor(() =>
+        expect(screen.getByRole('textbox')).toHaveValue('first line\nwhile hidden\n')
+      );
+    });
   });
 
   it('offers no preview for a file that is not markdown', async () => {

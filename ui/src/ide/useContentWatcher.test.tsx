@@ -117,6 +117,26 @@ describe('useContentWatcher', () => {
     });
   });
 
+  it('shares one socket between everyone listening, and keeps it until the last one goes', () => {
+    const first = renderHook(() => useContentWatcher(onChange));
+    const other = vi.fn();
+    const second = renderHook(() => useContentWatcher(other));
+
+    expect(FakeSocket.instances).toHaveLength(1);
+    act(() => {
+      FakeSocket.latest.onmessage?.();
+      vi.advanceTimersByTime(500);
+    });
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(other).toHaveBeenCalledOnce();
+
+    first.unmount();
+    expect(FakeSocket.latest.close).not.toHaveBeenCalled();
+
+    second.unmount();
+    expect(FakeSocket.latest.close).toHaveBeenCalled();
+  });
+
   it('stops when the panel goes', () => {
     const { unmount } = renderHook(() => useContentWatcher(onChange));
     const socket = FakeSocket.latest;

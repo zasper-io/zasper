@@ -1,3 +1,4 @@
+import { LanguageDescription } from '@codemirror/language';
 import { Extension } from '@codemirror/state';
 import { go } from '@codemirror/lang-go';
 import { html } from '@codemirror/lang-html';
@@ -48,4 +49,20 @@ export default function languageFor(extension: string | null): Extension | null 
       return markdown({ base: markdownLanguage, codeLanguages: languages });
   }
   return null;
+}
+
+/**
+ * The highlighting @codemirror/language-data has for a file the table above does not bundle, matched by
+ * its name or extension (`main.rs`, `Dockerfile`) and loaded on demand. Null when nothing claims the
+ * file, which is shown as plain text.
+ */
+export function lazyLanguageFor(fileName: string): Promise<Extension> | null {
+  const description = LanguageDescription.matchFilename(languages, fileName);
+  return description === null ? null : description.load();
+}
+
+/** The same for a kernel's language name, such as `R` or `julia`, for a notebook's code cells. */
+export function lazyLanguageNamed(name: string): Promise<Extension> | null {
+  const description = LanguageDescription.matchLanguageName(languages, name, true);
+  return description === null ? null : description.load();
 }

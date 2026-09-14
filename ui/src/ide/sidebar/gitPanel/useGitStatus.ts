@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 
 import { apiErrorMessage, emptyGitStatus, getGitStatus, GitStatus } from '@/api';
 import { branchNameAtom } from '@/store/git';
-import { useContentWatcher } from '../fileBrowser/useContentWatcher';
+import { useContentWatcher } from '@/ide/useContentWatcher';
 
 export interface GitPanelStatus {
   status: GitStatus;

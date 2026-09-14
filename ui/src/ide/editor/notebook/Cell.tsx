@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { autocompletion } from '@codemirror/autocomplete';
-import { python } from '@codemirror/lang-python';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import { languages } from '@codemirror/language-data';
@@ -271,7 +270,7 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
             height="auto"
             width="100%"
             extensions={[
-              python(),
+              editor.cellLanguage,
               kernelAutocompletion,
               popupPlacement,
               [Prec.highest(keymap.of(tabCompletionKeymap))],

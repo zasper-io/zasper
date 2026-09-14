@@ -18,6 +18,7 @@ import { useRegisterCommands, useRunCommand } from '@/commands/registry';
 import { useEditorCommandKeymap } from '@/commands/useEditorCommandKeymap';
 import { useNotebookCommands } from './notebookCommands';
 import { useKernelSession } from './useKernelSession';
+import { useCellLanguage } from './useCellLanguage';
 import { useNotebookCells } from './useNotebookCells';
 
 interface NotebookEditorProps {
@@ -32,6 +33,14 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
   const { loadNotebook, notebook } = cells;
   const { startSessionForNotebook } = kernel;
+
+  // The attached kernel's language first, then what the file says it was written in.
+  const savedKernelspec = notebook.metadata.kernelspec;
+  const cellLanguage = useCellLanguage(
+    kernel.kernelLanguage ??
+      notebook.metadata.language_info?.name ??
+      (typeof savedKernelspec === 'object' ? savedKernelspec?.language : undefined)
+  );
 
   useEffect(() => {
     if (data.load_required === true) {
@@ -175,6 +184,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const cellContext: NotebookEditorContextValue = {
     run: runCommand,
     commandKeymap,
+    cellLanguage,
     focusedIndex: cells.focusedIndex,
     focusCell: cells.focusCell,
     focusNextCell: cells.focusNextCell,

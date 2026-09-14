@@ -19,6 +19,8 @@ export interface NotebookEditorContextValue {
    * commands.
    */
   commandKeymap: Extension;
+  /** Highlighting for code cells, in the kernel's language: see useCellLanguage. */
+  cellLanguage: Extension;
   focusedIndex: number;
   /** By id, not by index: see `focusCell` in useCellFocus. */
   focusCell: (cellId: string) => void;

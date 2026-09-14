@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { MergeView } from '@codemirror/merge';
-import { EditorState } from '@codemirror/state';
+import { EditorState, Extension } from '@codemirror/state';
 import { EditorView, lineNumbers } from '@codemirror/view';
 
 import { apiErrorMessage, DiffDocuments, DiffTarget, getDiff } from '@/api';
@@ -11,7 +11,7 @@ import getFileExtension from '@/ide/utils';
 import { FileTab } from '@/store/tabState';
 import { useTheme } from '@/themes/useTheme';
 import BreadCrumb from './BreadCrumb';
-import languageFor from './language';
+import languageFor, { lazyLanguageFor } from './language';
 import './DiffTab.scss';
 
 interface DiffTabProps {
@@ -95,27 +95,43 @@ export default function DiffTab(props: DiffTabProps) {
     if (parent === null || documents === null || documents.isBinary || documents.tooLarge) {
       return;
     }
+    let view: MergeView | null = null;
+    let live = true;
+    const build = (language: Extension | null) => {
+      if (!live) {
+        return;
+      }
+      const readOnly = [
+        lineNumbers(),
+        EditorState.readOnly.of(true),
+        EditorView.editable.of(false),
+        theme.codeMirror,
+        ...(language === null ? [] : [language]),
+      ];
+      view = new MergeView({
+        a: { doc: documents.original, extensions: readOnly },
+        b: { doc: documents.modified, extensions: readOnly },
+        parent,
+        gutter: true,
+        highlightChanges: true,
+        // A file with one changed line in a thousand is otherwise a diff someone has to go looking
+        // through for it.
+        collapseUnchanged: { margin: 3, minSize: 4 },
+      });
+    };
 
-    const language = languageFor(getFileExtension(path));
-    const readOnly = [
-      lineNumbers(),
-      EditorState.readOnly.of(true),
-      EditorView.editable.of(false),
-      theme.codeMirror,
-      ...(language === null ? [] : [language]),
-    ];
-
-    const view = new MergeView({
-      a: { doc: documents.original, extensions: readOnly },
-      b: { doc: documents.modified, extensions: readOnly },
-      parent,
-      gutter: true,
-      highlightChanges: true,
-      // A file with one changed line in a thousand is otherwise a diff someone has to go looking
-      // through for it.
-      collapseUnchanged: { margin: 3, minSize: 4 },
-    });
-    return () => view.destroy();
+    // A language nothing bundles is loaded first, so the diff is drawn once and highlighted.
+    const bundled = languageFor(getFileExtension(path));
+    const loading = bundled === null ? lazyLanguageFor(path.split('/').pop() ?? path) : null;
+    if (loading === null) {
+      build(bundled);
+    } else {
+      loading.then(build, () => build(null));
+    }
+    return () => {
+      live = false;
+      view?.destroy();
+    };
   }, [documents, path, theme]);
 
   const [left, right] = sidesOf(props.target);

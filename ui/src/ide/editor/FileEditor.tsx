@@ -10,21 +10,23 @@ import React, {
 } from 'react';
 
 import CodeMirror from '@uiw/react-codemirror';
-import { go } from '@codemirror/lang-go';
-import { keymap, ViewUpdate } from '@codemirror/view';
+import { Extension, Text, Transaction } from '@codemirror/state';
+import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
+import { useAtomValue, useSetAtom } from 'jotai';
+
 import { apiErrorMessage, downloadContent, getFileContent, logApiError, saveFile } from '@/api';
 import { saveAs } from '@/browser';
 import { Icon, IconName } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
+import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
-
-import { useAtom } from 'jotai';
-import { useTheme } from '@/themes/useTheme';
 import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '@/store/editorStatus';
-import BreadCrumb from './BreadCrumb';
-import languageFor from './language';
 import { FileTab } from '@/store/tabState';
 import { useUnsavedChanges } from '@/store/unsavedState';
+import { useTheme } from '@/themes/useTheme';
+
+import BreadCrumb from './BreadCrumb';
+import languageFor, { lazyLanguageFor } from './language';
 import { zoomAwareTooltips } from './tooltipParent';
 
 // The notebook's renderer, and its code-splitting boundary: see MarkdownRenderer.tsx.
@@ -43,14 +45,39 @@ function isMarkdown(extension: string | null): boolean {
   return lower === 'md' || lower === 'markdown';
 }
 
+/** Text split into lines the way CodeMirror splits a document, so the two compare as equal. */
+function documentOf(text: string): Text {
+  return Text.of(text.split(/\r\n?|\n/));
+}
+
+/** The one change that turns `before` into `after`: what lies between their common start and end. */
+function changeBetween(before: string, after: string) {
+  const shorter = Math.min(before.length, after.length);
+  let start = 0;
+  while (start < shorter && before.charCodeAt(start) === after.charCodeAt(start)) {
+    start++;
+  }
+  let end = 0;
+  while (
+    end < shorter - start &&
+    before.charCodeAt(before.length - 1 - end) === after.charCodeAt(after.length - 1 - end)
+  ) {
+    end++;
+  }
+  return { from: start, to: before.length - end, insert: after.slice(start, after.length - end) };
+}
+
 interface FileEditorProps {
   data: FileTab;
 }
 
 export default function FileEditor(props: FileEditorProps) {
-  const [fileContents, setFileContents] = useState('');
-  /** What the file held when it was last read or written. */
-  const [savedContents, setSavedContents] = useState('');
+  const { path } = props.data;
+  const name = props.data.name || baseName(path);
+
+  /** What the editor was mounted with, on the last read. The document lives in CodeMirror after that. */
+  const [initialText, setInitialText] = useState('');
+  const [dirty, setDirty] = useState(false);
   /** Why the file could not be read, when it could not be. */
   const [error, setError] = useState('');
   /** The server sent the file as base64: it is not UTF-8 text, and the editor would change its bytes. */
@@ -58,56 +85,77 @@ export default function FileEditor(props: FileEditorProps) {
   /** Bumped on every successful read; 0 until the first one lands. */
   const [readCount, setReadCount] = useState(0);
   const [markdownView, setMarkdownView] = useState<MarkdownView>('edit');
+  const [previewText, setPreviewText] = useState('');
   const theme = useTheme();
   const sourceRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  /**
+   * The document as it was last read or written. Unsaved means the editor's differs from it — asked of
+   * CodeMirror's own document rather than of a copy of it made on every keystroke.
+   */
+  const savedDoc = useRef(Text.empty);
+  /** A change on disk reported while this tab was in the background, to be looked at once it is not. */
+  const changedWhileHidden = useRef(false);
   // Typing stays responsive in a long document: the rendering catches up between keystrokes.
-  const previewSource = useDeferredValue(fileContents);
+  const previewSource = useDeferredValue(previewText);
+
+  const hasText = error === '' && !notText;
+  const markdown = isMarkdown(props.data.extension);
+  const view: MarkdownView = markdown && hasText ? markdownView : 'edit';
+  const previewing = useRef(false);
+  previewing.current = view !== 'edit';
 
   const saveFileToDisk = useCallback(async () => {
-    // The text that was written, not whatever the editor holds by the time the write returns: a
-    // keystroke made in between leaves the file unsaved again.
-    const written = fileContents;
-    await saveFile(props.data.path, written);
-    setSavedContents(written);
-  }, [fileContents, props.data.path]);
-
-  const handleCmdEnter = () => {
-    // Nothing to save when the read failed: what the editor holds is the empty starting state, and
-    // writing it would create the file the tab is only pointing at.
-    if (error !== '' || notText) {
-      return true;
+    const editor = viewRef.current;
+    if (editor === null) {
+      return;
     }
-    saveFileToDisk().catch(logApiError('Error saving file:'));
+    // The document that was written, not whatever the editor holds by the time the write returns: a
+    // keystroke made in between leaves the file unsaved again.
+    const written = editor.state.doc;
+    await saveFile(path, written.toString());
+    savedDoc.current = written;
+    setDirty(!editor.state.doc.eq(written));
+  }, [path]);
 
-    return true;
+  // Nothing to save when the read failed: what the editor holds is not the file, and writing it would
+  // create the file the tab is only pointing at. The close prompt must not offer to either.
+  const canSave = hasText && readCount > 0;
+  useUnsavedChanges(path, canSave && dirty, saveFileToDisk);
+
+  const save = useRef(() => {});
+  save.current = () => {
+    if (canSave) {
+      saveFileToDisk().catch(logApiError('Error saving file:'));
+    }
   };
-
-  // Not registered while the read failed, for the same reason: the close prompt must not offer to
-  // save a buffer that is not the file.
-  useUnsavedChanges(
-    props.data.path,
-    error === '' && !notText && fileContents !== savedContents,
-    saveFileToDisk
+  const saveKeymap = useMemo(
+    () =>
+      keymap.of([
+        {
+          key: 'Mod-s',
+          run: () => {
+            save.current();
+            return true;
+          },
+        },
+      ]),
+    []
   );
-
-  const customKeymap = keymap.of([
-    {
-      key: 'Mod-s',
-      run: handleCmdEnter,
-    },
-  ]);
 
   // See tooltipParent.ts: a popup left to place itself draws at its own coordinate times the zoom.
   const popupPlacement = useMemo(() => zoomAwareTooltips(), []);
 
-  const FetchFileData = async (path: string) => {
+  const read = useCallback(async () => {
     try {
       const file = await getFileContent(path);
       const text = file.format === 'text' ? file.content : '';
       setNotText(file.format !== 'text');
-      setFileContents(text);
-      setSavedContents(text);
+      savedDoc.current = documentOf(text);
+      setInitialText(text);
+      setPreviewText(text);
+      setDirty(false);
       setError('');
       setReadCount((count) => count + 1);
     } catch (failure) {
@@ -116,50 +164,147 @@ export default function FileEditor(props: FileEditorProps) {
       // an empty file and writes the deleted file back to disk on the first Mod-S.
       setError(apiErrorMessage(failure));
       setNotText(false);
-      setFileContents('');
-      setSavedContents('');
+      setInitialText('');
     }
-  };
-
-  const name = props.data.name || baseName(props.data.path);
-  const download = () => {
-    downloadContent(props.data.path)
-      .then((blob) => saveAs(blob, name))
-      .catch((failure: unknown) => setError(apiErrorMessage(failure)));
-  };
+  }, [path]);
 
   useEffect(() => {
     if (props.data.load_required === true) {
-      void FetchFileData(props.data.path);
+      void read();
     }
-  }, [props.data]);
+  }, [props.data, read]);
 
-  // Go for anything unrecognised, which is what this has always fallen back to.
-  const getExtensionToLoad = () => languageFor(props.data.extension) ?? go();
-  const [, setLinePosition] = useAtom(linePositionAtom);
-  const [, setColumnPosition] = useAtom(columnPositionAtom);
-  const [indentationSize] = useAtom(indentationSizeAtom);
+  /**
+   * Takes in a change made to the file on disk — a `git checkout`, a formatter, another editor — when the
+   * editor holds nothing unsaved. The change is applied as an edit between the common start and end of
+   * the two versions, so the cursor stays where it was, and kept out of the undo history, which would
+   * otherwise step back to what the file no longer says.
+   *
+   * A file with unsaved edits is left alone for now: which of the two to keep is the reader's choice.
+   */
+  const takeChangeFromDisk = useCallback(async () => {
+    let file;
+    try {
+      file = await getFileContent(path);
+    } catch {
+      return;
+    }
+    const editor = viewRef.current;
+    if (editor === null || file.format !== 'text') {
+      return;
+    }
+    const onDisk = documentOf(file.content);
+    if (onDisk.eq(savedDoc.current) || !editor.state.doc.eq(savedDoc.current)) {
+      return;
+    }
+    savedDoc.current = onDisk;
+    editor.dispatch({
+      changes: changeBetween(editor.state.doc.toString(), onDisk.toString()),
+      annotations: Transaction.addToHistory.of(false),
+    });
+  }, [path]);
+
+  useContentWatcher(() => {
+    if (!canSave) {
+      return;
+    }
+    // Every open file would read itself again on every change anywhere in the project; a tab nobody
+    // can see waits until it is shown.
+    if (!props.data.active) {
+      changedWhileHidden.current = true;
+      return;
+    }
+    void takeChangeFromDisk();
+  });
+
+  useEffect(() => {
+    if (props.data.active && changedWhileHidden.current) {
+      changedWhileHidden.current = false;
+      void takeChangeFromDisk();
+    }
+  }, [props.data.active, takeChangeFromDisk]);
+
+  // Highlighted at once for a language the app bundles; any other that @codemirror/language-data knows
+  // is loaded first, and a file nothing claims is plain text.
+  const bundledLanguage = useMemo(() => languageFor(props.data.extension), [props.data.extension]);
+  const [loadedLanguage, setLoadedLanguage] = useState<{ name: string; language: Extension }>();
+  useEffect(() => {
+    if (bundledLanguage !== null) {
+      return;
+    }
+    const loading = lazyLanguageFor(name);
+    if (loading === null) {
+      return;
+    }
+    let live = true;
+    loading
+      .then((language) => {
+        if (live) {
+          setLoadedLanguage({ name, language });
+        }
+      })
+      .catch((failure: unknown) =>
+        console.error(`Could not load highlighting for ${name}:`, failure)
+      );
+    return () => {
+      live = false;
+    };
+  }, [bundledLanguage, name]);
+  const language =
+    bundledLanguage ?? (loadedLanguage?.name === name ? loadedLanguage.language : null);
+
+  const extensions = useMemo(
+    () => [...(language === null ? [] : [language]), popupPlacement, saveKeymap],
+    [language, popupPlacement, saveKeymap]
+  );
+
+  // Setters only: reading these atoms would render the whole editor again on every cursor move.
+  const setLinePosition = useSetAtom(linePositionAtom);
+  const setColumnPosition = useSetAtom(columnPositionAtom);
+  const indentationSize = useAtomValue(indentationSizeAtom);
+  const basicSetup = useMemo(
+    () => ({
+      bracketMatching: true,
+      highlightActiveLineGutter: true,
+      autocompletion: true,
+      lintKeymap: true,
+      foldGutter: true,
+      completionKeymap: true,
+      tabSize: indentationSize,
+    }),
+    [indentationSize]
+  );
 
   const onUpdate = useCallback(
-    (viewUpdate: ViewUpdate) => {
-      if (viewUpdate) {
-        const { state } = viewUpdate;
-        const position = state.selection.main.head;
+    (update: ViewUpdate) => {
+      const { state } = update;
+      const position = state.selection.main.head;
+      const line = state.doc.lineAt(position);
+      setLinePosition(line.number);
+      setColumnPosition(position - line.from);
 
-        // Get the line and column based on the absolute position
-        const line = state.doc.lineAt(position); // Get the line info for the cursor position
-        const column = position - line.from; // Calculate the column as an offset from line start
-        setLinePosition(line.number);
-        setColumnPosition(column);
+      if (update.docChanged) {
+        setDirty(!state.doc.eq(savedDoc.current));
+        if (previewing.current) {
+          setPreviewText(state.doc.toString());
+        }
       }
     },
     [setColumnPosition, setLinePosition]
   );
 
-  const markdown = isMarkdown(props.data.extension);
-  // A failed read has no text to render, so it keeps the notice in view.
-  const hasText = error === '' && !notText;
-  const view: MarkdownView = markdown && hasText ? markdownView : 'edit';
+  const showView = (next: MarkdownView) => {
+    if (next !== 'edit' && viewRef.current !== null) {
+      setPreviewText(viewRef.current.state.doc.toString());
+    }
+    setMarkdownView(next);
+  };
+
+  const download = () => {
+    downloadContent(path)
+      .then((blob) => saveAs(blob, name))
+      .catch((failure: unknown) => setError(apiErrorMessage(failure)));
+  };
 
   // By proportion: the rendering has no map back to source lines.
   const followSource = () => {
@@ -206,29 +351,20 @@ export default function FileEditor(props: FileEditorProps) {
       ) : readCount === 0 ? null : (
         // Mounted only once the file is read, and afresh on each read: handed the text after
         // mounting, @uiw/react-codemirror records it as an edit, and Mod-z undoes it to a blank
-        // editor. Hidden rather than unmounted in preview, which keeps its undo history.
+        // editor. Hidden rather than unmounted in preview, which keeps its undo history. No onChange:
+        // the wrapper turns the whole document into a string before every call to it.
         <CodeMirror
           key={readCount}
-          value={fileContents}
+          value={initialText}
           theme={theme.codeMirror}
           minHeight="100%"
           width="100%"
-          extensions={[getExtensionToLoad(), popupPlacement, customKeymap]}
-          // , linter(jsonParseLinter())
-          // linter(esLint(new eslint.Linter(), config)),
-          onChange={(fileContents) => {
-            setFileContents(fileContents);
+          extensions={extensions}
+          onCreateEditor={(editor) => {
+            viewRef.current = editor;
           }}
           onUpdate={onUpdate}
-          basicSetup={{
-            bracketMatching: true,
-            highlightActiveLineGutter: true,
-            autocompletion: true,
-            lintKeymap: true,
-            foldGutter: true,
-            completionKeymap: true,
-            tabSize: indentationSize,
-          }}
+          basicSetup={basicSetup}
         />
       )}
     </div>
@@ -238,7 +374,7 @@ export default function FileEditor(props: FileEditorProps) {
     <div className="tab-surface">
       <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         {/* Outside .file-editor-body, so it stays put while the file scrolls. */}
-        <BreadCrumb path={props.data.path} />
+        <BreadCrumb path={path} />
         {markdown && hasText && (
           <div className="editor-strip">
             <span>{MARKDOWN_VIEWS.find((option) => option.view === view)?.label}</span>
@@ -249,7 +385,7 @@ export default function FileEditor(props: FileEditorProps) {
                   icon={option.icon}
                   label={option.label}
                   pressed={view === option.view}
-                  onClick={() => setMarkdownView(option.view)}
+                  onClick={() => showView(option.view)}
                 />
               ))}
             </span>

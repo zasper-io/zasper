@@ -1,7 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 
-import languageFor from './language';
+import languageFor, { lazyLanguageFor, lazyLanguageNamed } from './language';
 
 /**
  * Which language an extension resolves to, asked of the resolved language itself.
@@ -10,6 +10,14 @@ import languageFor from './language';
  * way the editor puts it: what a comment looks like. `#` is Python's answer and `//` is Go's, which is
  * the pair that matters here.
  */
+function commentOf(support: import('@codemirror/state').Extension | null): string | undefined {
+  const state = EditorState.create({
+    doc: 'anything',
+    extensions: support === null ? [] : [support],
+  });
+  return state.languageDataAt<{ line?: string }>('commentTokens', 0)[0]?.line;
+}
+
 function lineComment(extension: string | null): string | undefined {
   const support = languageFor(extension);
   const state = EditorState.create({
@@ -42,5 +50,22 @@ describe('languageFor', () => {
   it('answers nothing for an extension it does not know, and for no extension at all', () => {
     expect(languageFor('conf')).toBeNull();
     expect(languageFor(null)).toBeNull();
+  });
+
+  // Loaded on demand from @codemirror/language-data, so an extension nothing bundles is still highlighted.
+  it("finds a language it does not bundle by the file's name, and loads it", async () => {
+    expect(commentOf(await lazyLanguageFor('main.rs'))).toBe('//');
+    expect(commentOf(await lazyLanguageFor('Dockerfile'))).toBe('#');
+  });
+
+  it('has nothing for a file no language claims, which is plain text', () => {
+    expect(lazyLanguageFor('notes.txt')).toBeNull();
+  });
+
+  // A notebook's code cells follow its kernel: R, Julia and the rest are not Python.
+  it("finds a kernel's language by its name", async () => {
+    expect(commentOf(await lazyLanguageNamed('R'))).toBe('#');
+    expect(commentOf(await lazyLanguageNamed('julia'))).toBe('#');
+    expect(lazyLanguageNamed('no such language')).toBeNull();
   });
 });
