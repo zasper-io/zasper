@@ -19,18 +19,18 @@ makes it affordable on every listing and every watcher-driven re-read.
 What it does not cover: .git/info/exclude, core.excludesFile, and the index (a file that is already
 tracked is not ignored, whatever the patterns say).
 */
-func ignoreMatcherFor(segments []string) gitignore.Matcher {
+func (p Project) ignoreMatcherFor(segments []string) gitignore.Matcher {
 	patterns := []gitignore.Pattern{}
 	for level := 0; level <= len(segments); level++ {
-		patterns = append(patterns, patternsIn(segments[:level])...)
+		patterns = append(patterns, p.patternsIn(segments[:level])...)
 	}
 	return gitignore.NewMatcher(patterns)
 }
 
 // patternsIn reads the .gitignore of one directory. A pattern's domain is where it was found, which
 // is how `/dist` in a subdirectory's file stays about that subdirectory.
-func patternsIn(domain []string) []gitignore.Pattern {
-	osDir := GetSafePath(filepath.Join(domain...))
+func (p Project) patternsIn(domain []string) []gitignore.Pattern {
+	osDir := p.SafePath(filepath.Join(domain...))
 	if osDir == "" {
 		return nil
 	}

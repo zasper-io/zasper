@@ -16,20 +16,20 @@ import (
 	"github.com/zasper-io/zasper/internal/models"
 )
 
-func download(t *testing.T, path string) *httptest.ResponseRecorder {
+func download(t *testing.T, project Project, path string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	request := httptest.NewRequest(http.MethodGet, "/api/contents/download?path="+path, nil)
 	recorder := httptest.NewRecorder()
-	ContentDownloadAPIHandler(recorder, request)
+	NewHandler(project).Download(recorder, request)
 	return recorder
 }
 
 func TestDownloadSendsTheFileAsAnAttachment(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte("hello"), 0o644))
 
-	response := download(t, "notes.txt")
+	response := download(t, project, "notes.txt")
 
 	assert.Equal(t, http.StatusOK, response.Code)
 	assert.Equal(t, "hello", response.Body.String())
@@ -41,10 +41,10 @@ func TestDownloadSendsTheFileAsAnAttachment(t *testing.T) {
 }
 
 func TestDownloadKeepsANameThatIsNotPlainASCII(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes für mich.txt"), []byte("hi"), 0o644))
 
-	response := download(t, "notes%20f%C3%BCr%20mich.txt")
+	response := download(t, project, "notes%20f%C3%BCr%20mich.txt")
 
 	assert.Equal(t, http.StatusOK, response.Code)
 	_, params, err := mime.ParseMediaType(response.Header().Get("Content-Disposition"))
@@ -53,7 +53,7 @@ func TestDownloadKeepsANameThatIsNotPlainASCII(t *testing.T) {
 }
 
 func TestDownloadRefusesWhatItCannotSend(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.Mkdir(filepath.Join(projectDir, "src"), 0o755))
 
 	cases := map[string]struct {
@@ -69,12 +69,12 @@ func TestDownloadRefusesWhatItCannotSend(t *testing.T) {
 
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, testCase.want, download(t, testCase.path).Code)
+			assert.Equal(t, testCase.want, download(t, project, testCase.path).Code)
 		})
 	}
 }
 
-func upload(t *testing.T, fields map[string]string, name, body string) *httptest.ResponseRecorder {
+func upload(t *testing.T, project Project, fields map[string]string, name, body string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	form := &bytes.Buffer{}
@@ -91,15 +91,15 @@ func upload(t *testing.T, fields map[string]string, name, body string) *httptest
 	request := httptest.NewRequest(http.MethodPost, "/api/contents/upload", form)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	recorder := httptest.NewRecorder()
-	UploadFileHandler(recorder, request)
+	NewHandler(project).Upload(recorder, request)
 	return recorder
 }
 
 func TestUploadAnswersWithWhatItWrote(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.Mkdir(filepath.Join(projectDir, "docs"), 0o755))
 
-	response := upload(t, map[string]string{"parent_dir": "docs"}, "notes.txt", "hello")
+	response := upload(t, project, map[string]string{"parent_dir": "docs"}, "notes.txt", "hello")
 
 	assert.Equal(t, http.StatusCreated, response.Code)
 	var model models.ContentModel
@@ -112,20 +112,20 @@ func TestUploadAnswersWithWhatItWrote(t *testing.T) {
 }
 
 func TestUploadPutsAFolderUploadWhereItBelongs(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 
 	// The browser sends the part's own filename too; relative_path is the one that decides.
-	response := upload(t, map[string]string{"relative_path": "notes/img/logo.png"}, "logo.png", "png")
+	response := upload(t, project, map[string]string{"relative_path": "notes/img/logo.png"}, "logo.png", "png")
 
 	assert.Equal(t, http.StatusCreated, response.Code)
 	assert.FileExists(t, filepath.Join(projectDir, "notes", "img", "logo.png"))
 }
 
 func TestUploadSaysWhenSomethingIsAlreadyThere(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte("keep"), 0o644))
 
-	response := upload(t, nil, "notes.txt", "new")
+	response := upload(t, project, nil, "notes.txt", "new")
 
 	// A 409 is what lets the browser offer to replace rather than silently overwriting.
 	assert.Equal(t, http.StatusConflict, response.Code)
@@ -133,14 +133,14 @@ func TestUploadSaysWhenSomethingIsAlreadyThere(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "keep", string(kept))
 
-	assert.Equal(t, http.StatusCreated, upload(t, map[string]string{"replace": "true"}, "notes.txt", "new").Code)
+	assert.Equal(t, http.StatusCreated, upload(t, project, map[string]string{"replace": "true"}, "notes.txt", "new").Code)
 	replaced, err := os.ReadFile(filepath.Join(projectDir, "notes.txt"))
 	assert.NoError(t, err)
 	assert.Equal(t, "new", string(replaced))
 }
 
 func TestUploadRefusesAPathThatClimbsOut(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 
 	cases := map[string]map[string]string{
 		"in the parent":   {"parent_dir": ".."},
@@ -149,19 +149,19 @@ func TestUploadRefusesAPathThatClimbsOut(t *testing.T) {
 
 	for name, fields := range cases {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, http.StatusBadRequest, upload(t, fields, "escaped.txt", "hello").Code)
+			assert.Equal(t, http.StatusBadRequest, upload(t, project, fields, "escaped.txt", "hello").Code)
 			assert.NoFileExists(t, filepath.Join(filepath.Dir(projectDir), "escaped.txt"))
 		})
 	}
 }
 
 func TestUploadSaysWhenTheRequestCarriedNoFile(t *testing.T) {
-	projectDirElsewhere(t)
+	project, _ := testProject(t)
 
 	request := httptest.NewRequest(http.MethodPost, "/api/contents/upload", strings.NewReader(""))
 	request.Header.Set("Content-Type", "multipart/form-data; boundary=nothing")
 	recorder := httptest.NewRecorder()
-	UploadFileHandler(recorder, request)
+	NewHandler(project).Upload(recorder, request)
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 }

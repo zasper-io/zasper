@@ -15,14 +15,14 @@ Creating something can fail — a read-only filesystem, a full disk, a parent di
 gone — and the client shows the new row by the path in the answer, so a failure that answered 200
 with a model for a file that is not there left the panel lying.
 */
-func createContent(payload ContentPayload) (models.ContentModel, error) {
+func (p Project) createContent(payload ContentPayload) (models.ContentModel, error) {
 	switch payload.ContentType {
 	case "notebook":
-		return newUntitledNotebook(payload)
+		return p.newUntitledNotebook(payload)
 	case "directory":
-		return CreateDirectory(payload)
+		return p.CreateDirectory(payload)
 	default:
-		return newUntitledFile(payload)
+		return p.newUntitledFile(payload)
 	}
 }
 
@@ -77,8 +77,8 @@ func createdModel(contentType, parentDir, name, osPath string) (models.ContentMo
 	}, nil
 }
 
-func newUntitledFile(payload ContentPayload) (models.ContentModel, error) {
-	parentDir, err := safeWritePath(payload.ParentDir)
+func (p Project) newUntitledFile(payload ContentPayload) (models.ContentModel, error) {
+	parentDir, err := p.safeWritePath(payload.ParentDir)
 	if err != nil {
 		return models.ContentModel{}, err
 	}
@@ -99,8 +99,8 @@ func newUntitledFile(payload ContentPayload) (models.ContentModel, error) {
 	return createdModel(payload.ContentType, payload.ParentDir, name, osPath)
 }
 
-func newUntitledNotebook(payload ContentPayload) (models.ContentModel, error) {
-	parentDir, err := safeWritePath(payload.ParentDir)
+func (p Project) newUntitledNotebook(payload ContentPayload) (models.ContentModel, error) {
+	parentDir, err := p.safeWritePath(payload.ParentDir)
 	if err != nil {
 		return models.ContentModel{}, err
 	}
@@ -128,8 +128,8 @@ func newUntitledNotebook(payload ContentPayload) (models.ContentModel, error) {
 	return createdModel(payload.ContentType, payload.ParentDir, name, osPath)
 }
 
-func CreateDirectory(payload ContentPayload) (models.ContentModel, error) {
-	parentDir, err := safeWritePath(payload.ParentDir)
+func (p Project) CreateDirectory(payload ContentPayload) (models.ContentModel, error) {
+	parentDir, err := p.safeWritePath(payload.ParentDir)
 	if err != nil {
 		return models.ContentModel{}, err
 	}

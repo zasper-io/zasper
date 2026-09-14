@@ -6,7 +6,7 @@ emptied on a reload while the shells went on running and went on naming a shell 
 `exit` into. These endpoints are what it reads instead, so the two things worth pinning down are that
 the list says what the session map holds and that a shutdown reaches the right shell.
 
-core.Zasper.HomeDir and the session map are both process-wide, so nothing here runs in parallel.
+Each test has terminals of its own, so they run in parallel.
 */
 package terminal
 
@@ -26,27 +26,27 @@ import (
 
 // aSession registers a session that is not attached to any shell — enough for everything here except
 // the kill, which is covered against a real process below — and takes it out again with the test.
-func aSession(t *testing.T, id string, session *Session) *Session {
+func aSession(t *testing.T, terminals *Terminals, id string, session *Session) *Session {
 	t.Helper()
 
-	registerSession(id, session)
-	t.Cleanup(func() { unregisterSession(id) })
+	terminals.register(id, session)
+	t.Cleanup(func() { terminals.unregister(id) })
 	return session
 }
 
 func TestTheTerminalListReportsWhatTheServerIsRunning(t *testing.T) {
-	dir := projectDir(t)
+	terminals, dir := testTerminals(t)
 	start := time.Date(2026, 9, 10, 8, 0, 0, 0, time.UTC)
 
 	// Out of order on purpose: the map has none, and the list is meant to impose one.
-	aSession(t, "Terminal 2-2-x", &Session{
+	aSession(t, terminals, "Terminal 2-2-x", &Session{
 		Name: "Terminal 2", Dir: filepath.Join(dir, "src", "deep"), Started: start.Add(time.Minute),
 	})
-	aSession(t, "Terminal 1-1-x", &Session{
+	aSession(t, terminals, "Terminal 1-1-x", &Session{
 		Name: "Terminal 1", Dir: dir, Started: start,
 	})
 
-	listed := List()
+	listed := terminals.List()
 	require.Len(t, listed, 2)
 
 	assert.Equal(t, "Terminal 1-1-x", listed[0].ID)
@@ -62,11 +62,11 @@ func TestTheTerminalListReportsWhatTheServerIsRunning(t *testing.T) {
 // Two windows each number their terminals from one, so the name cannot be the handle. Both rows are
 // listed, and each carries the id a shutdown has to name.
 func TestTwoTerminalsOfTheSameNameAreBothListed(t *testing.T) {
-	dir := projectDir(t)
-	aSession(t, "Terminal 1-1-x", &Session{Name: "Terminal 1", Dir: dir})
-	aSession(t, "Terminal 1-2-x", &Session{Name: "Terminal 1", Dir: dir})
+	terminals, dir := testTerminals(t)
+	aSession(t, terminals, "Terminal 1-1-x", &Session{Name: "Terminal 1", Dir: dir})
+	aSession(t, terminals, "Terminal 1-2-x", &Session{Name: "Terminal 1", Dir: dir})
 
-	listed := List()
+	listed := terminals.List()
 	require.Len(t, listed, 2)
 	assert.Equal(t, "Terminal 1", listed[0].Name)
 	assert.Equal(t, "Terminal 1", listed[1].Name)
@@ -76,26 +76,27 @@ func TestTwoTerminalsOfTheSameNameAreBothListed(t *testing.T) {
 // A shell started outside the project — nothing does that today, but the field is a path off disk —
 // is reported as where it is rather than as a run of `..` segments.
 func TestAShellOutsideTheProjectIsReportedByItsRealPath(t *testing.T) {
-	projectDir(t)
+	terminals, _ := testTerminals(t)
 	outside := t.TempDir()
 
-	aSession(t, "Terminal 1-1-x", &Session{Name: "Terminal 1", Dir: outside})
+	aSession(t, terminals, "Terminal 1-1-x", &Session{Name: "Terminal 1", Dir: outside})
 
-	listed := List()
+	listed := terminals.List()
 	require.Len(t, listed, 1)
 	assert.Equal(t, outside, listed[0].Dir)
 }
 
 func TestKillingATerminalStopsItsShell(t *testing.T) {
+	terminals, _ := testTerminals(t)
 	requireShell(t)
 
 	tty, cmd, err := startTTY(t.TempDir())
 	require.NoError(t, err)
 	defer tty.Close()
 
-	aSession(t, "Terminal 1-1-x", &Session{TTY: tty, Cmd: cmd, Name: "Terminal 1"})
+	aSession(t, terminals, "Terminal 1-1-x", &Session{TTY: tty, Cmd: cmd, Name: "Terminal 1"})
 
-	require.NoError(t, Kill("Terminal 1-1-x"))
+	require.NoError(t, terminals.Kill("Terminal 1-1-x"))
 	// Signal 0 asks the kernel whether the process is still there without sending anything.
 	assert.Error(t, cmd.Process.Signal(syscall.Signal(0)), "the shell should be gone")
 }
@@ -103,35 +104,38 @@ func TestKillingATerminalStopsItsShell(t *testing.T) {
 // The session stays in the map until its own connection notices and unregisters it, so a second
 // shutdown of the same terminal is something the panel can send. It must not reap the child twice.
 func TestKillingATerminalTwiceIsHarmless(t *testing.T) {
+	terminals, _ := testTerminals(t)
 	requireShell(t)
 
 	tty, cmd, err := startTTY(t.TempDir())
 	require.NoError(t, err)
 	defer tty.Close()
 
-	aSession(t, "Terminal 1-1-x", &Session{TTY: tty, Cmd: cmd, Name: "Terminal 1"})
+	aSession(t, terminals, "Terminal 1-1-x", &Session{TTY: tty, Cmd: cmd, Name: "Terminal 1"})
 
-	require.NoError(t, Kill("Terminal 1-1-x"))
-	assert.NotPanics(t, func() { assert.NoError(t, Kill("Terminal 1-1-x")) })
+	require.NoError(t, terminals.Kill("Terminal 1-1-x"))
+	assert.NotPanics(t, func() { assert.NoError(t, terminals.Kill("Terminal 1-1-x")) })
 }
 
 func TestKillingATerminalThatIsNotThereSaysSo(t *testing.T) {
-	assert.ErrorIs(t, Kill("never-existed"), ErrNotFound)
+	terminals, _ := testTerminals(t)
+	assert.ErrorIs(t, terminals.Kill("never-existed"), ErrNotFound)
 }
 
 // A session that never got a shell — the window between registering and startTTY failing — must not
 // take the process down when something asks for it to be killed.
 func TestKillingATerminalWithNoProcessIsHarmless(t *testing.T) {
-	aSession(t, "Terminal 1-1-x", &Session{Name: "Terminal 1"})
-	assert.NotPanics(t, func() { assert.NoError(t, Kill("Terminal 1-1-x")) })
+	terminals, _ := testTerminals(t)
+	aSession(t, terminals, "Terminal 1-1-x", &Session{Name: "Terminal 1"})
+	assert.NotPanics(t, func() { assert.NoError(t, terminals.Kill("Terminal 1-1-x")) })
 }
 
 func TestTheTerminalListEndpointAnswersAnArray(t *testing.T) {
-	dir := projectDir(t)
-	aSession(t, "Terminal 1-1-x", &Session{Name: "Terminal 1", Dir: dir})
+	terminals, dir := testTerminals(t)
+	aSession(t, terminals, "Terminal 1-1-x", &Session{Name: "Terminal 1", Dir: dir})
 
 	recorder := httptest.NewRecorder()
-	ListHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/terminals", nil))
+	terminals.ListHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/terminals", nil))
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
@@ -144,28 +148,31 @@ func TestTheTerminalListEndpointAnswersAnArray(t *testing.T) {
 
 // An empty list is `[]` and not `null`, which the frontend would have to guard against separately.
 func TestTheTerminalListEndpointAnswersAnEmptyArrayWhenNothingIsRunning(t *testing.T) {
+	terminals, _ := testTerminals(t)
 	recorder := httptest.NewRecorder()
-	ListHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/terminals", nil))
+	terminals.ListHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/terminals", nil))
 
 	assert.Equal(t, "[]\n", recorder.Body.String())
 }
 
 // The id carries the terminal's name, so it has a space in it and reaches the handler percent-encoded.
 func TestTheTerminalDeleteEndpointTakesAnEncodedId(t *testing.T) {
-	aSession(t, "Terminal 1-1-x", &Session{Name: "Terminal 1"})
+	terminals, _ := testTerminals(t)
+	aSession(t, terminals, "Terminal 1-1-x", &Session{Name: "Terminal 1"})
 
 	recorder := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/api/terminals/{terminalId}", KillHandler).Methods(http.MethodDelete)
+	router.HandleFunc("/api/terminals/{terminalId}", terminals.KillHandler).Methods(http.MethodDelete)
 	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodDelete, "/api/terminals/Terminal%201-1-x", nil))
 
 	assert.Equal(t, http.StatusOK, recorder.Code)
 }
 
 func TestTheTerminalDeleteEndpointIsA404ForAnIdNothingIsRunning(t *testing.T) {
+	terminals, _ := testTerminals(t)
 	recorder := httptest.NewRecorder()
 	router := mux.NewRouter()
-	router.HandleFunc("/api/terminals/{terminalId}", KillHandler).Methods(http.MethodDelete)
+	router.HandleFunc("/api/terminals/{terminalId}", terminals.KillHandler).Methods(http.MethodDelete)
 	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodDelete, "/api/terminals/never-existed", nil))
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)

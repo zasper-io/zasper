@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernelspec"
 )
 
 func TestASpecsEnvIsLaidOverTheServersWithItsReferencesFilled(t *testing.T) {
+	t.Parallel()
 	base := []string{"PATH=/usr/bin", "HOME=/home/me", "KEEP=server"}
 
 	env := kernelEnv(base, map[string]string{
@@ -40,20 +40,20 @@ func TestASpecsEnvIsLaidOverTheServersWithItsReferencesFilled(t *testing.T) {
 }
 
 func TestASpecWithNoEnvLeavesTheServersAlone(t *testing.T) {
+	t.Parallel()
 	base := []string{"PATH=/usr/bin"}
 	assert.Equal(t, base, kernelEnv(base, nil))
 }
 
 // A kernel name nobody installed must fail before any port is taken or connection file written.
 func TestAnUnknownKernelFailsBeforeAnythingIsSetUp(t *testing.T) {
-	previous := core.Zasper.JupyterPath
-	core.Zasper.JupyterPath = []string{t.TempDir()}
-	t.Cleanup(func() { core.Zasper.JupyterPath = previous })
+	t.Parallel()
+	specs := kernelspec.NewCatalog([]string{t.TempDir()}, "")
 
 	connectionFile := filepath.Join(t.TempDir(), "kernel-test.json")
 	km := &KernelManager{KernelName: "no-such-kernel", ConnectionFile: connectionFile}
 
-	err := km.start()
+	err := km.start(specs)
 
 	require.ErrorIs(t, err, kernelspec.ErrKernelspecNotFound)
 	_, statErr := os.Stat(connectionFile)
@@ -63,10 +63,8 @@ func TestAnUnknownKernelFailsBeforeAnythingIsSetUp(t *testing.T) {
 
 // A launch that fails gives back what it took: the ports and the connection file with its signing key.
 func TestAKernelThatCannotLaunchLeavesNothingBehind(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
-	previous := core.Zasper.JupyterPath
-	core.Zasper.JupyterPath = []string{root}
-	t.Cleanup(func() { core.Zasper.JupyterPath = previous })
 
 	dir := filepath.Join(root, "kernels", "broken")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
@@ -76,7 +74,7 @@ func TestAKernelThatCannotLaunchLeavesNothingBehind(t *testing.T) {
 	connectionFile := filepath.Join(t.TempDir(), "kernel-test.json")
 	km := &KernelManager{KernelName: "broken", ConnectionFile: connectionFile}
 
-	require.Error(t, km.start())
+	require.Error(t, km.start(kernelspec.NewCatalog([]string{root}, "")))
 
 	_, statErr := os.Stat(connectionFile)
 	assert.True(t, os.IsNotExist(statErr), "the connection file was left behind")
@@ -88,6 +86,7 @@ func TestAKernelThatCannotLaunchLeavesNothingBehind(t *testing.T) {
 // ipykernel exits once the process JPY_PARENT_PID names has gone, which is what keeps a crashed server
 // from leaving its kernels running.
 func TestAKernelIsToldWhichProcessStartedIt(t *testing.T) {
+	t.Parallel()
 	env := (&KernelManager{}).launchSpec().Env
 
 	parent := "JPY_PARENT_PID=" + strconv.Itoa(os.Getpid())
@@ -99,6 +98,7 @@ func TestAKernelIsToldWhichProcessStartedIt(t *testing.T) {
 }
 
 func TestAKernelStartsInItsFolderWithItsOwnVariablesLast(t *testing.T) {
+	t.Parallel()
 	km := &KernelManager{
 		Dir: "/work/notebooks",
 		Env: map[string]string{"JPY_SESSION_NAME": "/work/notebooks/a$b.ipynb"},
@@ -112,6 +112,7 @@ func TestAKernelStartsInItsFolderWithItsOwnVariablesLast(t *testing.T) {
 }
 
 func TestTheConnectionFileIsFilledIntoTheCommand(t *testing.T) {
+	t.Parallel()
 	km := &KernelManager{
 		ConnectionFile: "/run/kernel-1.json",
 		Spec:           kernelspec.KernelSpecJsonData{Argv: []string{"ir", "--connection-file", "{connection_file}"}},

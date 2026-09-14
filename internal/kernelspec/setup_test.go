@@ -45,83 +45,73 @@ EOF
 chmod +x "$3/bin/python3"
 `
 
-func stubSetupTools(t *testing.T, uv, base string) {
-	t.Helper()
-	previous := setupTools
-	setupTools = func() (string, string) { return uv, base }
-	t.Cleanup(func() {
-		setupTools = previous
-		setupMu.Lock()
-		setupStatus = SetupStatus{State: "idle"}
-		setupMu.Unlock()
-	})
+func stubSetupTools(catalog *Catalog, uv, base string) {
+	catalog.setupTools = func() (string, string) { return uv, base }
 }
 
 // projectCandidates is what defaultInterpreterCandidates finds in the project, and nothing else.
-func projectCandidates(t *testing.T, project string) {
-	t.Helper()
-	previous := interpreterCandidates
-	interpreterCandidates = func() []candidate {
+func projectCandidates(catalog *Catalog, project string) {
+	catalog.candidates = func() []candidate {
 		if env := projectEnvironment(project); env != "" {
 			return []candidate{{path: pythonIn(env), env: env}}
 		}
 		return nil
 	}
-	t.Cleanup(func() { interpreterCandidates = previous })
 }
 
-func finished(t *testing.T) SetupStatus {
+func finished(t *testing.T, catalog *Catalog) SetupStatus {
 	t.Helper()
-	require.Eventually(t, func() bool { return CurrentSetup().State != "running" }, 10*time.Second, 10*time.Millisecond)
-	return CurrentSetup()
+	require.Eventually(t, func() bool { return catalog.CurrentSetup().State != "running" }, 10*time.Second, 10*time.Millisecond)
+	return catalog.CurrentSetup()
 }
 
 func TestSettingUpWithUvMakesTheProjectKernel(t *testing.T) {
 	unixOnly(t)
-	jupyterPath(t)
+	catalog, _ := jupyterPath(t)
 	project := t.TempDir()
 	uv := writeTool(t, "uv", fakeUV)
-	stubSetupTools(t, uv, "")
-	projectCandidates(t, project)
+	stubSetupTools(catalog, uv, "")
+	projectCandidates(catalog, project)
 
-	require.NoError(t, StartSetup(project))
-	status := finished(t)
+	require.NoError(t, catalog.StartSetup(project))
+	status := finished(t, catalog)
 
 	require.Equal(t, "succeeded", status.State, "log was:\n%s", status.Log)
 	assert.Equal(t, ProjectKernelName, status.Kernel)
 	assert.Contains(t, status.Log, "$ "+uv+" venv "+filepath.Join(project, ".venv"))
 	assert.Contains(t, status.Log, "Installed 1 package")
 
-	spec, err := GetKernelSpec(ProjectKernelName)
+	spec, err := catalog.Spec(ProjectKernelName)
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(project, ".venv", "bin", "python3"), spec.Argv[0])
 }
 
 func TestSettingUpWithoutUvUsesAPythonsOwnVenv(t *testing.T) {
 	unixOnly(t)
-	jupyterPath(t)
+	catalog, _ := jupyterPath(t)
 	project := t.TempDir()
-	stubSetupTools(t, "", writeTool(t, "python3", fakeBase))
-	projectCandidates(t, project)
+	stubSetupTools(catalog, "", writeTool(t, "python3", fakeBase))
+	projectCandidates(catalog, project)
 
-	require.NoError(t, StartSetup(project))
-	status := finished(t)
+	require.NoError(t, catalog.StartSetup(project))
+	status := finished(t, catalog)
 
 	require.Equal(t, "succeeded", status.State, "log was:\n%s", status.Log)
 	assert.Contains(t, status.Log, "Successfully installed ipykernel")
-	assert.Contains(t, GetAllSpecs(), ProjectKernelName)
+	assert.Contains(t, catalog.Specs(), ProjectKernelName)
 }
 
 func TestAnExistingVenvWithoutPythonIsLeftAlone(t *testing.T) {
+	catalog, _ := jupyterPath(t)
 	unixOnly(t)
 	project := t.TempDir()
 	mine := filepath.Join(project, ".venv", "notes.txt")
 	require.NoError(t, os.MkdirAll(filepath.Dir(mine), 0o755))
 	require.NoError(t, os.WriteFile(mine, []byte("mine"), 0o644))
-	stubSetupTools(t, writeTool(t, "uv", fakeUV), "")
+	stubSetupTools(catalog, writeTool(t, "uv", fakeUV), "")
 
-	require.NoError(t, StartSetup(project))
-	status := finished(t)
+	require.NoError(t, catalog.StartSetup(project))
+	status := finished(t, catalog)
 
 	assert.Equal(t, "failed", status.State)
 	assert.Contains(t, status.Error, "remove it and try again")
@@ -129,30 +119,32 @@ func TestAnExistingVenvWithoutPythonIsLeftAlone(t *testing.T) {
 }
 
 func TestWithNoPythonAtAllTheSetupSaysSo(t *testing.T) {
-	stubSetupTools(t, "", "")
+	catalog, _ := jupyterPath(t)
+	stubSetupTools(catalog, "", "")
 
-	require.NoError(t, StartSetup(t.TempDir()))
-	status := finished(t)
+	require.NoError(t, catalog.StartSetup(t.TempDir()))
+	status := finished(t, catalog)
 
 	assert.Equal(t, "failed", status.State)
 	assert.Contains(t, status.Error, "no Python was found")
 }
 
 func TestASecondSetupWhileOneRunsIsRefused(t *testing.T) {
-	stubSetupTools(t, "", "")
-	setupMu.Lock()
-	setupStatus = SetupStatus{State: "running", Log: "$ uv venv\n"}
-	setupMu.Unlock()
+	catalog, _ := jupyterPath(t)
+	stubSetupTools(catalog, "", "")
+	catalog.setupMu.Lock()
+	catalog.setupStatus = SetupStatus{State: "running", Log: "$ uv venv\n"}
+	catalog.setupMu.Unlock()
 
-	assert.ErrorIs(t, StartSetup(t.TempDir()), ErrSetupRunning)
+	assert.ErrorIs(t, catalog.StartSetup(t.TempDir()), ErrSetupRunning)
 
 	recorder := httptest.NewRecorder()
-	EnvironmentSetupHandler(recorder, httptest.NewRequest(http.MethodPost, "/api/environment/setup", nil))
+	catalog.SetupHandler(recorder, httptest.NewRequest(http.MethodPost, "/api/environment/setup", nil))
 	assert.Equal(t, http.StatusConflict, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), `"state":"running"`)
 
 	recorder = httptest.NewRecorder()
-	EnvironmentSetupStatusHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/environment/setup", nil))
+	catalog.SetupStatusHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/environment/setup", nil))
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), "$ uv venv")
 }

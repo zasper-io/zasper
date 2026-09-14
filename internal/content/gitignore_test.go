@@ -10,10 +10,10 @@ import (
 )
 
 // ignoredNames is the listing as the file browser sees it: which rows would be dimmed.
-func ignoredNames(t *testing.T, relativePath string) map[string]bool {
+func ignoredNames(t *testing.T, project Project, relativePath string) map[string]bool {
 	t.Helper()
 
-	model, err := getDirectoryModel(relativePath)
+	model, err := project.getDirectoryModel(relativePath)
 	assert.NoError(t, err)
 
 	ignored := map[string]bool{}
@@ -24,7 +24,7 @@ func ignoredNames(t *testing.T, relativePath string) map[string]bool {
 }
 
 func TestListingMarksWhatGitWouldNotTrack(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, ".gitignore"),
 		[]byte("# build output\nnode_modules/\n*.log\n!keep.log\n"), 0o644))
 	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "node_modules"), 0o755))
@@ -33,7 +33,7 @@ func TestListingMarksWhatGitWouldNotTrack(t *testing.T) {
 		assert.NoError(t, os.WriteFile(filepath.Join(projectDir, name), []byte(""), 0o644))
 	}
 
-	ignored := ignoredNames(t, "")
+	ignored := ignoredNames(t, project, "")
 
 	assert.True(t, ignored["node_modules"])
 	assert.True(t, ignored["debug.log"])
@@ -43,7 +43,7 @@ func TestListingMarksWhatGitWouldNotTrack(t *testing.T) {
 }
 
 func TestListingAppliesAParentFolderPatternsButNotASiblings(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "src"), 0o755))
 	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "other"), 0o755))
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, ".gitignore"), []byte("*.log\n"), 0o644))
@@ -52,19 +52,19 @@ func TestListingAppliesAParentFolderPatternsButNotASiblings(t *testing.T) {
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "src", "debug.log"), []byte(""), 0o644))
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "src", "secret.py"), []byte(""), 0o644))
 
-	ignored := ignoredNames(t, "src")
+	ignored := ignoredNames(t, project, "src")
 
 	assert.True(t, ignored["debug.log"], "the project root's patterns reach every folder")
 	assert.False(t, ignored["secret.py"], "another folder's .gitignore does not")
 }
 
 func TestEverythingInsideAnIgnoredFolderIsIgnored(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, ".gitignore"), []byte("node_modules/\n"), 0o644))
 	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "node_modules", "react"), 0o755))
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "node_modules", "index.js"), []byte(""), 0o644))
 
-	ignored := ignoredNames(t, "node_modules")
+	ignored := ignoredNames(t, project, "node_modules")
 
 	// Nothing here matches `node_modules/` by name; they are ignored because of where they are.
 	assert.True(t, ignored["index.js"])
@@ -72,20 +72,20 @@ func TestEverythingInsideAnIgnoredFolderIsIgnored(t *testing.T) {
 }
 
 func TestListingIsUnbotheredByAProjectWithoutGitignore(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "main.py"), []byte(""), 0o644))
 
-	ignored := ignoredNames(t, "")
+	ignored := ignoredNames(t, project, "")
 
 	assert.False(t, ignored["main.py"])
 }
 
 func TestListingSaysWhetherAnEntryCanBeWritten(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "editable.txt"), []byte(""), 0o644))
 	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "locked.txt"), []byte(""), 0o444))
 
-	model, err := getDirectoryModel("")
+	model, err := project.getDirectoryModel("")
 	assert.NoError(t, err)
 
 	writable := map[string]bool{}

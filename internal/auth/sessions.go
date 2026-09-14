@@ -6,35 +6,39 @@ import (
 )
 
 /*
-revoked holds the sessions signed out before they expired, until they would have expired anyway.
+revokedSessions holds the sessions signed out before they expired, until they would have expired anyway.
 
 In memory only. A restart with a fresh access token invalidates every session regardless; one with
 ZASPER_ACCESS_TOKEN pinned forgets these, so a session signed out before such a restart is valid again
 until it expires. The README says so.
 */
-var revoked = struct {
+type revokedSessions struct {
 	mu       sync.Mutex
 	sessions map[string]time.Time
-}{sessions: map[string]time.Time{}}
-
-func revoke(id string, expires time.Time) {
-	revoked.mu.Lock()
-	defer revoked.mu.Unlock()
-
-	now := time.Now()
-	for other, until := range revoked.sessions {
-		if now.After(until) {
-			delete(revoked.sessions, other)
-		}
-	}
-	revoked.sessions[id] = expires
 }
 
-func isRevoked(id string) bool {
-	revoked.mu.Lock()
-	defer revoked.mu.Unlock()
+func newRevokedSessions() *revokedSessions {
+	return &revokedSessions{sessions: map[string]time.Time{}}
+}
 
-	_, found := revoked.sessions[id]
+func (r *revokedSessions) add(id string, expires time.Time) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := time.Now()
+	for other, until := range r.sessions {
+		if now.After(until) {
+			delete(r.sessions, other)
+		}
+	}
+	r.sessions[id] = expires
+}
+
+func (r *revokedSessions) has(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	_, found := r.sessions[id]
 	return found
 }
 
@@ -60,8 +64,6 @@ type loginLimiter struct {
 func newLoginLimiter() *loginLimiter {
 	return &loginLimiter{clients: map[string]*failedLogins{}}
 }
-
-var logins = newLoginLimiter()
 
 // blocked answers how long client has to wait before it may try again, or zero.
 func (l *loginLimiter) blocked(client string, now time.Time) time.Duration {

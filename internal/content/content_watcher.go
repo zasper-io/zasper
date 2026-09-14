@@ -40,21 +40,8 @@ type watchSubscriber struct {
 	changed chan struct{}
 }
 
-var watch = &projectWatch{subscribers: map[*watchSubscriber]struct{}{}}
-
-// SetUpActiveWatcherConnections stops the watcher and forgets its subscribers, for a server that is
-// starting up. The project directory is read here, on the goroutine that has just set it, and not by each
-// connection or the walk, which would be reading a global that a restart may be writing.
-func SetUpActiveWatcherConnections() {
-	watch.mu.Lock()
-	defer watch.mu.Unlock()
-
-	if watch.watcher != nil {
-		watch.watcher.Close()
-		watch.watcher = nil
-	}
-	watch.root = GetSafePath(".")
-	watch.subscribers = map[*watchSubscriber]struct{}{}
+func newProjectWatch(root string) *projectWatch {
+	return &projectWatch{root: root, subscribers: map[*watchSubscriber]struct{}{}}
 }
 
 func (p *projectWatch) subscribe() (*watchSubscriber, error) {
@@ -169,8 +156,8 @@ func watchTree(watcher *fsnotify.Watcher, root, dir string) {
 	})
 }
 
-// HandleWatchWebSocket sends a client "reload" whenever something in the project changes.
-func HandleWatchWebSocket(w http.ResponseWriter, req *http.Request) {
+// Watch sends a client "reload" whenever something in the project changes.
+func (h *Handler) Watch(w http.ResponseWriter, req *http.Request) {
 	connection, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to upgrade connection")
@@ -178,7 +165,7 @@ func HandleWatchWebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 	defer connection.Close()
 
-	subscriber, err := watch.subscribe()
+	subscriber, err := h.watch.subscribe()
 	if err != nil {
 		// Closed with a reason: a socket that will never report anything looks like a project where
 		// nothing is changing.
@@ -187,7 +174,7 @@ func HandleWatchWebSocket(w http.ResponseWriter, req *http.Request) {
 		connection.WriteControl(websocket.CloseMessage, closing, time.Now().Add(time.Second))
 		return
 	}
-	defer watch.unsubscribe(subscriber)
+	defer h.watch.unsubscribe(subscriber)
 
 	stop := make(chan struct{})
 	written := make(chan struct{})

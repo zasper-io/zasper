@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-git/go-git/v5"
 
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/pathsafe"
 )
 
@@ -16,12 +15,10 @@ worktree.
 
 DetectDotGit, because the project directory need not be the top of the checkout: Zasper opened on
 `~/work/thing/notebooks` is opened on a repository whose `.git` is two levels up, and looking only at
-the directory itself reported that as no repository at all. Everything else in this package takes the
-root rather than reading core.Zasper, both because git paths are relative to it and so the tests can
-work on a directory of their own.
+the directory itself reported that as no repository at all.
 */
-func openRepo() (*git.Repository, string, error) {
-	repo, err := git.PlainOpenWithOptions(core.Zasper.HomeDir, &git.PlainOpenOptions{DetectDotGit: true})
+func openRepo(projectDir string) (*git.Repository, string, error) {
+	repo, err := git.PlainOpenWithOptions(projectDir, &git.PlainOpenOptions{DetectDotGit: true})
 	if err != nil {
 		return nil, "", err
 	}
@@ -34,24 +31,22 @@ func openRepo() (*git.Repository, string, error) {
 	return repo, tree.Filesystem.Root(), nil
 }
 
-/*
-projectDir is the directory Zasper was opened on.
+// Handler answers /api/git for the project at projectDir, which need not be the top of its repository.
+type Handler struct {
+	projectDir string
+}
 
-The one thing in this package that is about the project rather than the repository, and it is here so it
-stays the only one: everything else takes a root, which is what makes the tests able to work on a
-directory of their own. A new repository goes here and not at the worktree root, because there is no
-worktree yet.
-*/
-func projectDir() string {
-	return core.Zasper.HomeDir
+// NewHandler serves the repository the project at projectDir belongs to.
+func NewHandler(projectDir string) *Handler {
+	return &Handler{projectDir: projectDir}
 }
 
 /*
 relPath confines a path from a request to the repository, and answers with it relative to the root,
 which is the form git wants.
 
-content.GetSafePath is the equivalent for content requests and cannot be reused: it confines to
-core.Zasper.HomeDir, and the repository root is often above that. So the check is the same one, against
+content.Project.SafePath is the equivalent for content requests and cannot be reused: it confines to
+the project directory, and the repository root is often above that. So the check is the same one, against
 a different root — resolved with EvalSymlinks so a link out of the tree cannot be followed out of it.
 */
 func relPath(root, path string) (string, error) {

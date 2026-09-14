@@ -89,7 +89,7 @@ func TestTheTwoSidesAreTheOnesTheQuestionAskedAbout(t *testing.T) {
 	gitIn(t, dir, "add", "notes.txt")
 	writeIn(t, dir, "notes.txt", "on disk\n")
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	t.Run("staged is what a commit would record", func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestAnAddedFileHasNoOriginalAndADeletedFileHasNoModifiedVersion(t *testing.
 	writeIn(t, dir, "new.txt", "brand new\n")
 	require.NoError(t, os.Remove(filepath.Join(dir, "notes.txt")))
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	// Untracked: the index has nothing at that path, so the left side is empty rather than absent.
@@ -161,7 +161,7 @@ func TestAPathOnNeitherSideIsNotAnEmptyComparison(t *testing.T) {
 	gitIn(t, dir, "add", "notes.txt")
 	gitIn(t, dir, "commit", "-m", "the first one")
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	_, err = getDiff(repo, root, "never-existed.txt", "", false, "")
@@ -188,7 +188,7 @@ func TestARenamedFileIsComparedAgainstTheNameItHad(t *testing.T) {
 	gitIn(t, dir, "commit", "-m", "the first one")
 	gitIn(t, dir, "mv", "notes.txt", "renamed.txt")
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	diff, err := getDiff(repo, root, "renamed.txt", "notes.txt", true, "")
@@ -213,7 +213,7 @@ func TestANotebookIsComparedAsItsCellSources(t *testing.T) {
 	gitIn(t, dir, "commit", "-m", "the first one")
 	writeIn(t, dir, "analysis.ipynb", theNotebookRunAgain)
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	diff, err := getDiff(repo, root, "analysis.ipynb", "", false, "")
@@ -251,7 +251,7 @@ func TestSomethingThatIsNotAReadableNotebookIsComparedAsText(t *testing.T) {
 	gitIn(t, dir, "commit", "-m", "the first one")
 	writeIn(t, dir, "broken.ipynb", "{still not json\n")
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	diff, err := getDiff(repo, root, "broken.ipynb", "", false, "")
@@ -273,7 +273,7 @@ func TestABinaryFileIsReportedRatherThanSent(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "logo.png"),
 		[]byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRx"), 0o644))
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	diff, err := getDiff(repo, root, "logo.png", "", false, "")
@@ -298,7 +298,7 @@ func TestAFileTooLargeToCompareSaysSo(t *testing.T) {
 	gitIn(t, dir, "commit", "-m", "the first one")
 	writeIn(t, dir, "big.txt", strings.Repeat("a line of text\n", (maxDiffBytes/15)+100))
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	diff, err := getDiff(repo, root, "big.txt", "", false, "")
@@ -334,7 +334,7 @@ func TestAConflictedFileIsComparedAgainstOurs(t *testing.T) {
 	_, err := run(t.Context(), dir, "merge", "other")
 	require.Error(t, err)
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 
 	diff, err := getDiff(repo, root, "notes.txt", "", false, "")

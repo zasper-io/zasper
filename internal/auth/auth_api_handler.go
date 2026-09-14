@@ -18,24 +18,6 @@ import (
 	"github.com/zasper-io/zasper/internal/httpx"
 )
 
-/*
-sessionKey is the key browser sessions are signed with, derived from the server access token.
-
-There is no separate secret to configure: the access token already grants a session — anyone holding
-it can ask /auth/login for one — so signing with a key derived from it gives away nothing further. It
-also makes the lifetime of a session follow the thing it was traded for. A token that is random per
-start signs everyone out on restart; pinning ZASPER_ACCESS_TOKEN keeps sessions valid across one, and
-changing that token invalidates every session minted under the old one.
-
-Derived per call rather than settled once, so that nothing has to run in a particular order at
-startup and a token changed in a test is honoured immediately.
-*/
-func sessionKey() []byte {
-	// The label keeps this key distinct from any other use the same token is ever put to.
-	sum := sha256.Sum256([]byte("zasper/session-key\x00" + core.ServerAccessToken))
-	return sum[:]
-}
-
 const (
 	// sessionCookie carries a browser's session. HttpOnly, so a script running in the page — a
 	// notebook output that got past the sanitiser — cannot read it and take it elsewhere.
@@ -45,6 +27,29 @@ const (
 
 // sessionUserID is the one user a Zasper server has: whoever holds its access token.
 const sessionUserID = "1"
+
+// Auth is the gate in front of the API: it trades the access token for sessions and checks them.
+type Auth struct {
+	accessToken string
+	// Sessions are signed with a key derived from the access token, so there is no second secret to
+	// configure: a pinned ZASPER_ACCESS_TOKEN keeps sessions valid across a restart, and a new token
+	// signs everyone out.
+	key     []byte
+	revoked *revokedSessions
+	logins  *loginLimiter
+}
+
+// New builds the gate for a server whose access token is accessToken.
+func New(accessToken string) *Auth {
+	// The label keeps this key distinct from any other use the same token is ever put to.
+	key := sha256.Sum256([]byte("zasper/session-key\x00" + accessToken))
+	return &Auth{
+		accessToken: accessToken,
+		key:         key[:],
+		revoked:     newRevokedSessions(),
+		logins:      newLoginLimiter(),
+	}
+}
 
 // contextKey is this package's own key type, so that a value stored here cannot be read or shadowed
 // by another package storing something under the same name.
@@ -73,10 +78,7 @@ func bearerToken(r *http.Request) string {
 /*
 sessionToken finds the session a request carries: the Authorization header, which scripts and API
 clients send, or the session cookie, which a browser sends on every request and websocket upgrade.
-
-A token in the query string is not read. Websockets used to authenticate that way, because a browser
-cannot put a header on one, and the token then sat in history, proxy logs and anything the URL was
-pasted into; the cookie reaches a websocket upgrade without any of that.
+A token in the query string is not read, since it would end up in history and proxy logs.
 */
 func sessionToken(r *http.Request) (token string, fromCookie bool) {
 	if token := bearerToken(r); token != "" {
@@ -95,17 +97,16 @@ type session struct {
 }
 
 // parseSession validates a JWT this server issued and answers the session it names.
-func parseSession(tokenStr string) (session, error) {
+func (a *Auth) parseSession(tokenStr string) (session, error) {
 	if tokenStr == "" {
 		return session{}, fmt.Errorf("missing credentials")
 	}
 
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-		// Make sure the signing method is HMAC
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		return sessionKey(), nil
+		return a.key, nil
 	})
 	if err != nil || !token.Valid {
 		return session{}, fmt.Errorf("invalid token")
@@ -116,14 +117,12 @@ func parseSession(tokenStr string) (session, error) {
 		return session{}, fmt.Errorf("invalid token claims")
 	}
 
-	// Comma-ok rather than a bare assertion: a token carrying user_id as a JSON number is still a
-	// correctly signed token, and asserting on it would panic the handler.
+	// Comma-ok: a correctly signed token carrying user_id as a number would otherwise panic the handler.
 	userID, ok := claims["user_id"].(string)
 	if !ok || userID == "" {
 		return session{}, fmt.Errorf("invalid token claims")
 	}
-	// The id is what signing out revokes, and the expiry is how long that has to be remembered, so a
-	// token without either cannot be signed out and is not accepted.
+	// Without an id and an expiry a token could not be signed out, so it is not accepted.
 	id, ok := claims["jti"].(string)
 	if !ok || id == "" {
 		return session{}, fmt.Errorf("invalid token claims")
@@ -133,25 +132,23 @@ func parseSession(tokenStr string) (session, error) {
 		return session{}, fmt.Errorf("invalid token claims")
 	}
 
-	if isRevoked(id) {
+	if a.revoked.has(id) {
 		return session{}, fmt.Errorf("this session has been signed out")
 	}
 	return session{userID: userID, id: id, expires: expires.Time}, nil
 }
 
 // userFromToken validates a JWT and answers the user id it carries.
-func userFromToken(tokenStr string) (string, error) {
-	s, err := parseSession(tokenStr)
+func (a *Auth) userFromToken(tokenStr string) (string, error) {
+	s, err := a.parseSession(tokenStr)
 	return s.userID, err
 }
 
 /*
 crossSiteWrite reports whether a request changes something and came from a page other than Zasper's.
 
-A browser attaches the session cookie to any request for this host, including one a page on another
-site makes. SameSite=Strict stops a different site, but not another app on this machine, which is the
-same site on another port. So a request that is authenticated by the cookie and changes something has
-to come from Zasper's own page. Reads are left alone, because another origin cannot see what they
+SameSite=Strict stops another site from sending the cookie, but not another app on this machine, which
+is the same site on another port. Reads are left alone, because another origin cannot see what they
 answer.
 */
 func crossSiteWrite(r *http.Request) bool {
@@ -162,11 +159,10 @@ func crossSiteWrite(r *http.Request) bool {
 	return !httpx.SameOrigin(r)
 }
 
-// authenticate gates a route on the session the request carries.
-func authenticate(next http.Handler) http.Handler {
+func (a *Auth) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, fromCookie := sessionToken(r)
-		s, err := parseSession(token)
+		s, err := a.parseSession(token)
 		if err != nil {
 			httpx.SendErrorResponse(w, http.StatusUnauthorized, err.Error())
 			return
@@ -181,15 +177,15 @@ func authenticate(next http.Handler) http.Handler {
 	})
 }
 
-// JwtAuthMiddleware gates a REST route.
-func JwtAuthMiddleware(next http.Handler) http.Handler {
-	return authenticate(next)
+// Middleware gates a REST route.
+func (a *Auth) Middleware(next http.Handler) http.Handler {
+	return a.authenticate(next)
 }
 
-// JwtWebsocketMiddleware gates a websocket route. The upgrade is a GET, and the websocket handlers
-// check its Origin themselves.
-func JwtWebsocketMiddleware(next http.Handler) http.Handler {
-	return authenticate(next)
+// WebsocketMiddleware gates a websocket route. The upgrade is a GET, and the websocket handlers check
+// its Origin themselves.
+func (a *Auth) WebsocketMiddleware(next http.Handler) http.Handler {
+	return a.authenticate(next)
 }
 
 type LoginResponse struct {
@@ -219,13 +215,11 @@ func clientAddress(r *http.Request) string {
 	return host
 }
 
-/*
-LoginHandler trades the access token for a session: set as a cookie for the browser, and also in the
-answer for a script, which sends it back as a bearer token.
-*/
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
+// Login trades the access token for a session: set as a cookie for the browser, and also in the answer
+// for a script, which sends it back as a bearer token.
+func (a *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	client := clientAddress(r)
-	if wait := logins.blocked(client, time.Now()); wait > 0 {
+	if wait := a.logins.blocked(client, time.Now()); wait > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
 		httpx.SendErrorResponse(w, http.StatusTooManyRequests, "Too many failed sign-ins; try again in a minute")
 		return
@@ -240,12 +234,12 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Constant time, so that the answer does not say how much of the token was right.
-	if subtle.ConstantTimeCompare([]byte(creds.AccessToken), []byte(core.ServerAccessToken)) != 1 {
-		logins.failed(client, time.Now())
+	if subtle.ConstantTimeCompare([]byte(creds.AccessToken), []byte(a.accessToken)) != 1 {
+		a.logins.failed(client, time.Now())
 		httpx.SendErrorResponse(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
-	logins.succeeded(client)
+	a.logins.succeeded(client)
 
 	id, err := core.GenerateRandomToken(16)
 	if err != nil {
@@ -257,7 +251,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		"jti":     id,
 		"exp":     time.Now().Add(sessionLifetime).Unix(),
 	})
-	tokenString, err := token.SignedString(sessionKey())
+	tokenString, err := token.SignedString(a.key)
 	if err != nil {
 		httpx.SendErrorResponse(w, http.StatusInternalServerError, "Could not generate token")
 		return
@@ -268,18 +262,18 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-LogoutHandler signs a session out. It is revoked on the server, so a copy of the token held anywhere
-else stops working too, and the browser is told to drop the cookie. A request without a valid session
-still has its cookie cleared and answers 204: there is nothing left to sign out.
+Logout signs a session out. It is revoked on the server, so a copy of the token held anywhere else stops
+working too, and the browser is told to drop the cookie. A request without a valid session still has its
+cookie cleared and answers 204: there is nothing left to sign out.
 */
-func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 	token, fromCookie := sessionToken(r)
 	if fromCookie && crossSiteWrite(r) {
 		httpx.SendErrorResponse(w, http.StatusForbidden, "this request did not come from Zasper's own page")
 		return
 	}
-	if s, err := parseSession(token); err == nil {
-		revoke(s.id, s.expires)
+	if s, err := a.parseSession(token); err == nil {
+		a.revoked.add(s.id, s.expires)
 	}
 
 	http.SetCookie(w, sessionCookieFor(r, "", -1))

@@ -13,10 +13,6 @@ import (
 	"github.com/zasper-io/zasper/internal/kernelspec/jupyterpaths"
 )
 
-var Zasper Application
-
-var ServerAccessToken string
-
 func GenerateRandomToken(n int) (string, error) {
 	b := make([]byte, n)
 	_, err := rand.Read(b)
@@ -34,9 +30,12 @@ type Application struct {
 	ProjectName string
 	OSName      string
 	Version     string
+	// What /auth/login takes in exchange for a session.
+	AccessToken string
 }
 
-func SetUpZasper(version string, cwd string) Application {
+// NewApplication settles what a server for the project at cwd starts with.
+func NewApplication(version string, cwd string) Application {
 	// Absolute, so the project is where --cwd said when it was given, whatever the process's working
 	// directory is later.
 	projectDir, err := filepath.Abs(cwd)
@@ -45,15 +44,16 @@ func SetUpZasper(version string, cwd string) Application {
 	}
 
 	// Pinned for a hosted server whose users keep a link, and for the e2e suite, which has to sign in.
-	ServerAccessToken = os.Getenv("ZASPER_ACCESS_TOKEN")
-	if ServerAccessToken == "" {
-		ServerAccessToken, err = GenerateRandomToken(16) // 16 bytes = 32 hex characters
+	accessToken := os.Getenv("ZASPER_ACCESS_TOKEN")
+	if accessToken == "" {
+		accessToken, err = GenerateRandomToken(16) // 16 bytes = 32 hex characters
 		if err != nil {
 			log.Fatal().Msgf("Failed to generate access token: %v", err)
 		}
 	}
 
 	return Application{
+		AccessToken: accessToken,
 		ProjectName: filepath.Base(projectDir),
 		HomeDir:     projectDir,
 		Version:     version,

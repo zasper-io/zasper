@@ -8,19 +8,10 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/zasper-io/zasper/internal/analytics"
-	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/config"
-	"github.com/zasper-io/zasper/internal/content"
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/gitclient"
 	"github.com/zasper-io/zasper/internal/health"
 	"github.com/zasper-io/zasper/internal/httpx"
-	"github.com/zasper-io/zasper/internal/kernel"
-	"github.com/zasper-io/zasper/internal/kernelspec"
-	"github.com/zasper-io/zasper/internal/kernelws"
-	"github.com/zasper-io/zasper/internal/search"
-	"github.com/zasper-io/zasper/internal/session"
-	"github.com/zasper-io/zasper/internal/terminal"
 )
 
 // Response structure to return as JSON
@@ -43,16 +34,16 @@ type ConfigResponse struct {
 	Version string `json:"version"`
 }
 
-func InfoHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) infoHandler(w http.ResponseWriter, r *http.Request) {
 	// The default when the config cannot be read, which is what the frontend would fall back to anyway.
 	theme, _ := config.GetTheme()
 	response := InfoResponse{
-		ProjectName: core.Zasper.ProjectName,
-		Directory:   core.Zasper.HomeDir,
-		UserName:    core.Zasper.UserName,
-		OS:          core.Zasper.OSName,
+		ProjectName: s.app.ProjectName,
+		Directory:   s.app.HomeDir,
+		UserName:    s.app.UserName,
+		OS:          s.app.OSName,
 		Arch:        runtime.GOARCH,
-		Version:     core.Zasper.Version,
+		Version:     s.app.Version,
 		Theme:       theme,
 		WidgetCDN:   config.WidgetCDNEnabled(),
 	}
@@ -60,9 +51,9 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, response)
 }
 
-func ConfigHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) configHandler(w http.ResponseWriter, r *http.Request) {
 	response := ConfigResponse{
-		Version: core.Zasper.Version,
+		Version: s.app.Version,
 	}
 
 	httpx.SendJSON(w, http.StatusOK, response)
@@ -70,17 +61,17 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 
 // websocketRoute gates a websocket handler that sits outside the /ws subrouter, so that it is
 // protected on exactly the same terms as the routes inside it.
-func websocketRoute(handler http.HandlerFunc) http.Handler {
-	return auth.JwtWebsocketMiddleware(handler)
+func (s *Server) websocketRoute(handler http.HandlerFunc) http.Handler {
+	return s.auth.WebsocketMiddleware(handler)
 }
 
-// NewRouter builds the route table. The SPA handler is passed in because it embeds ui/build behind a
+// Router builds the route table. The SPA handler is passed in because it embeds ui/build behind a
 // build tag (see spa.go / spa_apiserver.go), so a build without the frontend — a test, or the api-only
 // server — has nothing to serve and passes nil.
 //
 // Every route but /api/health, /api/config and /auth/login needs a session: there is no unprotected
 // mode to switch the gate off.
-func NewRouter(spa http.Handler) *mux.Router {
+func (s *Server) Router(spa http.Handler) *mux.Router {
 	router := mux.NewRouter()
 
 	// API routes
@@ -91,21 +82,21 @@ func NewRouter(spa http.Handler) *mux.Router {
 	// Jupyter Server's address for a kernelspec's files, which is the one /api/kernelspecs hands out.
 	kernelspecRouter := router.PathPrefix("/kernelspecs").Subrouter()
 	wsRouter := router.PathPrefix("/ws").Subrouter()
-	apiRouter.Use(auth.JwtAuthMiddleware)
+	apiRouter.Use(s.auth.Middleware)
 	// Kernelspec resources are read off disk by name, so they are gated like the rest of the API.
-	staticRouter.Use(auth.JwtAuthMiddleware)
-	kernelspecRouter.Use(auth.JwtAuthMiddleware)
+	staticRouter.Use(s.auth.Middleware)
+	kernelspecRouter.Use(s.auth.Middleware)
 	// The websocket routes take their token from the query string, which is the only place a browser
 	// can put one.
-	wsRouter.Use(auth.JwtWebsocketMiddleware)
+	wsRouter.Use(s.auth.WebsocketMiddleware)
 	// Sized for what the routes read. Signing in is read before anyone is authenticated, so it gets a
 	// few kilobytes; the API's largest bodies are notebooks saved whole. Uploads are not capped.
 	authRouter.Use(httpx.LimitBody(16 << 10))
 	apiRouter.Use(httpx.LimitBody(512<<20, "/api/contents/upload"))
 	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
-	router.HandleFunc("/api/config", ConfigHandler).Methods("GET")
+	router.HandleFunc("/api/config", s.configHandler).Methods("GET")
 
-	apiRouter.HandleFunc("/info", InfoHandler).Methods("GET")
+	apiRouter.HandleFunc("/info", s.infoHandler).Methods("GET")
 
 	// config
 	apiRouter.HandleFunc("/config/modify", config.ConfigModifyHandler).Methods("POST")
@@ -117,81 +108,81 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/telemetry/settings", analytics.TelemetrySettingsHandler).Methods("GET")
 	apiRouter.HandleFunc("/telemetry/settings", analytics.TelemetrySettingsModifyHandler).Methods("POST")
 
-	authRouter.HandleFunc("/login", auth.LoginHandler).Methods("POST")
-	authRouter.HandleFunc("/logout", auth.LogoutHandler).Methods("POST")
+	authRouter.HandleFunc("/login", s.auth.Login).Methods("POST")
+	authRouter.HandleFunc("/logout", s.auth.Logout).Methods("POST")
 
 	// contents
-	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents", content.ContentAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents", content.ContentUpdateAPIHandler).Methods("PUT")
+	apiRouter.HandleFunc("/contents/create", s.content.Create).Methods("POST")
+	apiRouter.HandleFunc("/contents", s.content.Read).Methods("POST")
+	apiRouter.HandleFunc("/contents", s.content.Update).Methods("PUT")
 
-	apiRouter.HandleFunc("/contents/rename", content.ContentRenameAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents/move", content.ContentMoveAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents/copy", content.ContentCopyAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/contents", content.ContentDeleteAPIHandler).Methods("DELETE")
-	apiRouter.HandleFunc("/contents/download", content.ContentDownloadAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/contents/upload", content.UploadFileHandler).Methods("POST")
+	apiRouter.HandleFunc("/contents/rename", s.content.Rename).Methods("POST")
+	apiRouter.HandleFunc("/contents/move", s.content.Move).Methods("POST")
+	apiRouter.HandleFunc("/contents/copy", s.content.Copy).Methods("POST")
+	apiRouter.HandleFunc("/contents", s.content.Delete).Methods("DELETE")
+	apiRouter.HandleFunc("/contents/download", s.content.Download).Methods("GET")
+	apiRouter.HandleFunc("/contents/upload", s.content.Upload).Methods("POST")
 
 	// The watcher is a websocket that happens to live under /api, so it authenticates like the /ws
 	// routes rather than by header — on apiRouter it answered 401 to a browser that had no way to send
 	// one. Registered on the root router, which /api falls through to once apiRouter has no route for
 	// the path, the same way /api/health does.
-	router.Handle("/api/contents/watch", websocketRoute(content.HandleWatchWebSocket)).Methods("GET")
+	router.Handle("/api/contents/watch", s.websocketRoute(s.content.Watch)).Methods("GET")
 
 	// search
-	apiRouter.HandleFunc("/files", search.GetFileSuggestions).Methods("GET")
+	apiRouter.HandleFunc("/files", s.search.Files).Methods("GET")
 
 	// git
-	apiRouter.HandleFunc("/git/status", gitclient.StatusHandler).Methods("GET")
-	apiRouter.HandleFunc("/git/log", gitclient.LogHandler).Methods("GET")
-	apiRouter.HandleFunc("/git/commit/{hash}", gitclient.CommitDetailHandler).Methods("GET")
-	apiRouter.HandleFunc("/git/diff", gitclient.DiffHandler).Methods("GET")
-	apiRouter.HandleFunc("/git/stage", gitclient.Tracked("stage", gitclient.StageHandler)).Methods("POST")
-	apiRouter.HandleFunc("/git/unstage", gitclient.Tracked("unstage", gitclient.UnstageHandler)).Methods("POST")
-	apiRouter.HandleFunc("/git/discard", gitclient.Tracked("discard", gitclient.DiscardHandler)).Methods("POST")
-	apiRouter.HandleFunc("/git/commit", gitclient.Tracked("commit", gitclient.CommitHandler)).Methods("POST")
-	apiRouter.HandleFunc("/git/branches", gitclient.BranchesHandler).Methods("GET")
-	apiRouter.HandleFunc("/git/branches", gitclient.Tracked("branch_delete", gitclient.DeleteBranchHandler)).Methods("DELETE")
-	apiRouter.HandleFunc("/git/checkout", gitclient.Tracked("checkout", gitclient.CheckoutHandler)).Methods("POST")
-	apiRouter.HandleFunc("/git/fetch", gitclient.Tracked("fetch", gitclient.FetchHandler)).Methods("POST")
-	apiRouter.HandleFunc("/git/pull", gitclient.Tracked("pull", gitclient.PullHandler)).Methods("POST")
-	apiRouter.HandleFunc("/git/push", gitclient.Tracked("push", gitclient.PushHandler)).Methods("POST")
-	apiRouter.HandleFunc("/git/init", gitclient.Tracked("init", gitclient.InitHandler)).Methods("POST")
+	apiRouter.HandleFunc("/git/status", s.git.Status).Methods("GET")
+	apiRouter.HandleFunc("/git/log", s.git.Log).Methods("GET")
+	apiRouter.HandleFunc("/git/commit/{hash}", s.git.CommitDetail).Methods("GET")
+	apiRouter.HandleFunc("/git/diff", s.git.Diff).Methods("GET")
+	apiRouter.HandleFunc("/git/stage", gitclient.Tracked("stage", s.git.Stage)).Methods("POST")
+	apiRouter.HandleFunc("/git/unstage", gitclient.Tracked("unstage", s.git.Unstage)).Methods("POST")
+	apiRouter.HandleFunc("/git/discard", gitclient.Tracked("discard", s.git.Discard)).Methods("POST")
+	apiRouter.HandleFunc("/git/commit", gitclient.Tracked("commit", s.git.Commit)).Methods("POST")
+	apiRouter.HandleFunc("/git/branches", s.git.Branches).Methods("GET")
+	apiRouter.HandleFunc("/git/branches", gitclient.Tracked("branch_delete", s.git.DeleteBranch)).Methods("DELETE")
+	apiRouter.HandleFunc("/git/checkout", gitclient.Tracked("checkout", s.git.Checkout)).Methods("POST")
+	apiRouter.HandleFunc("/git/fetch", gitclient.Tracked("fetch", s.git.Fetch)).Methods("POST")
+	apiRouter.HandleFunc("/git/pull", gitclient.Tracked("pull", s.git.Pull)).Methods("POST")
+	apiRouter.HandleFunc("/git/push", gitclient.Tracked("push", s.git.Push)).Methods("POST")
+	apiRouter.HandleFunc("/git/init", gitclient.Tracked("init", s.git.Init)).Methods("POST")
 	// The status bar wants one string on boot and nothing else, so it keeps an endpoint of its own
 	// rather than reading a whole status.
-	apiRouter.HandleFunc("/current-branch", gitclient.BranchHandler).Methods("GET")
+	apiRouter.HandleFunc("/current-branch", s.git.Branch).Methods("GET")
 
 	// kernelspecs
-	apiRouter.HandleFunc("/kernelspecs", kernelspec.KernelspecAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/kernelspecs/{kernelName}", kernelspec.SingleKernelspecAPIHandler).Methods("GET")
+	apiRouter.HandleFunc("/kernelspecs", s.specs.ListHandler).Methods("GET")
+	apiRouter.HandleFunc("/kernelspecs/{kernelName}", s.specs.GetHandler).Methods("GET")
 	// The launcher's "Set up a Python kernel". Not Jupyter's, so not under /api/kernelspecs, where a GET
 	// would be read as a kernel named "setup".
-	apiRouter.HandleFunc("/environment/setup", kernelspec.EnvironmentSetupStatusHandler).Methods("GET")
-	apiRouter.HandleFunc("/environment/setup", kernelspec.EnvironmentSetupHandler).Methods("POST")
-	kernelspecRouter.HandleFunc("/{kernel}/{resource}", kernelspec.ServeKernelResource).Methods("GET")
+	apiRouter.HandleFunc("/environment/setup", s.specs.SetupStatusHandler).Methods("GET")
+	apiRouter.HandleFunc("/environment/setup", s.specs.SetupHandler).Methods("POST")
+	kernelspecRouter.HandleFunc("/{kernel}/{resource}", s.specs.ResourceHandler).Methods("GET")
 	// Zasper's old address for the same files, kept for anything that learned it.
-	staticRouter.HandleFunc("/kernelspecs/{kernel}/{resource}", kernelspec.ServeKernelResource).Methods("GET")
+	staticRouter.HandleFunc("/kernelspecs/{kernel}/{resource}", s.specs.ResourceHandler).Methods("GET")
 
 	// kernels
-	apiRouter.HandleFunc("/kernels", kernel.KernelListAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelReadAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/kernels/{kernelId}/interrupt", kernel.KernelInterruptAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/kernels/{kernelId}/stop", kernel.KernelKillAPIHandler).Methods("POST")
-	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelKillAPIHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/kernels", s.kernels.ListHandler).Methods("GET")
+	apiRouter.HandleFunc("/kernels/{kernelId}", s.kernels.GetHandler).Methods("GET")
+	apiRouter.HandleFunc("/kernels/{kernelId}/interrupt", s.kernels.InterruptHandler).Methods("POST")
+	apiRouter.HandleFunc("/kernels/{kernelId}/stop", s.kernels.KillHandler).Methods("POST")
+	apiRouter.HandleFunc("/kernels/{kernelId}", s.kernels.KillHandler).Methods("DELETE")
 
 	// terminals. The shells live in the terminal package because the connection is what starts and
 	// ends one; these two are how anything that is not that connection can see them.
-	apiRouter.HandleFunc("/terminals", terminal.ListHandler).Methods("GET")
-	apiRouter.HandleFunc("/terminals/{terminalId}", terminal.KillHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/terminals", s.terminals.ListHandler).Methods("GET")
+	apiRouter.HandleFunc("/terminals/{terminalId}", s.terminals.KillHandler).Methods("DELETE")
 
 	// sessions
-	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")
-	apiRouter.HandleFunc("/sessions", session.SessionCreateApiHandler).Methods("POST")
-	apiRouter.HandleFunc("/sessions/{sessionId}", session.SessionDeleteApiHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/sessions", s.sessions.ListHandler).Methods("GET")
+	apiRouter.HandleFunc("/sessions", s.sessions.CreateHandler).Methods("POST")
+	apiRouter.HandleFunc("/sessions/{sessionId}", s.sessions.DeleteHandler).Methods("DELETE")
 
 	//web sockets
-	wsRouter.HandleFunc("/kernels/{kernelId}/channels", kernelws.HandleWebSocket)
-	wsRouter.HandleFunc("/terminals/{terminalId}", terminal.HandleWebSocket)
+	wsRouter.HandleFunc("/kernels/{kernelId}/channels", s.kernelSockets.HandleWebSocket)
+	wsRouter.HandleFunc("/terminals/{terminalId}", s.terminals.HandleWebSocket)
 
 	if spa != nil {
 		router.PathPrefix("/").Handler(spa)

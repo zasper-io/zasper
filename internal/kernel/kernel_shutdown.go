@@ -80,28 +80,28 @@ watchForExit notices a kernel that exits without being asked to: a crash, the ou
 os._exit in a cell. It is treated as a kill would be, so nothing goes on offering a kernel that is gone.
 A kernel stopped on purpose has already been taken out of the store by then, and is left alone.
 */
-func watchForExit(km *KernelManager) {
+func (k *Kernels) watchForExit(km *KernelManager) {
 	process := km.Process
 	if process == nil {
 		return
 	}
 	<-process.Done()
 
-	if _, ok := removeActiveKernel(km.KernelId); !ok {
+	if _, ok := k.take(km.KernelId); !ok {
 		return
 	}
 	log.Warn().Str("kernel", km.KernelId).Int("exit_code", process.ExitCode()).Msg("kernel exited on its own")
 
-	NotifyDisconnect(km.KernelId)
+	k.notifyDisconnect(km.KernelId)
 	stopWatchingKernel(km)
 	km.stop()
 }
 
-// Cleanup stops every kernel at once, since each can take a few seconds to shut down cleanly.
-func Cleanup() {
+// StopAll stops every kernel at once, since each can take a few seconds to shut down cleanly.
+func (k *Kernels) StopAll() {
 	var stopping sync.WaitGroup
-	for _, running := range activeKernels() {
-		km, ok := removeActiveKernel(running.KernelId)
+	for _, running := range k.running.Values() {
+		km, ok := k.take(running.KernelId)
 		if !ok {
 			continue
 		}

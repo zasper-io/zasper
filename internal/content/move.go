@@ -25,7 +25,7 @@ func isInside(osPath, folder string) bool {
 	return strings.HasPrefix(osPath, strings.TrimSuffix(folder, string(os.PathSeparator))+string(os.PathSeparator))
 }
 
-func rename(parentDir, oldName, newName string) error {
+func (p Project) rename(parentDir, oldName, newName string) error {
 	if strings.TrimSpace(newName) == "" {
 		return errors.New("a name is required")
 	}
@@ -39,21 +39,21 @@ func rename(parentDir, oldName, newName string) error {
 		return errors.New("a name cannot be only dots")
 	}
 
-	return moveContent(filepath.Join(parentDir, oldName), filepath.Join(parentDir, newName))
+	return p.moveContent(filepath.Join(parentDir, oldName), filepath.Join(parentDir, newName))
 }
 
 // moveContent moves a file or folder to another project-relative path, which is both a rename and
 // what a drag between folders or a cut-and-paste does.
-func moveContent(from, to string) error {
+func (p Project) moveContent(from, to string) error {
 	if strings.TrimSpace(to) == "" {
 		return errors.New("a destination is required")
 	}
 
-	source, err := safeWritePath(from)
+	source, err := p.safeWritePath(from)
 	if err != nil {
 		return err
 	}
-	target, err := safeWritePath(to)
+	target, err := p.safeWritePath(to)
 	if err != nil {
 		return err
 	}

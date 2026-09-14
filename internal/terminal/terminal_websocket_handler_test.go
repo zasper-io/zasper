@@ -11,7 +11,7 @@ whether the frame was a resize, without asking whether there was a byte to read,
 send a frame of no bytes.
 
 A real pty and a real shell are used rather than a stand-in, which is what requireShell guards.
-core.Zasper.HomeDir is process-wide, so nothing here runs in parallel.
+Each test has terminals of its own, so they run in parallel.
 */
 package terminal
 
@@ -33,7 +33,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zasper-io/zasper/internal/core"
+	"github.com/zasper-io/zasper/internal/content"
 )
 
 // requireShell skips where startTTY cannot start one. Everywhere else it falls back to /bin/sh, so
@@ -61,25 +61,24 @@ func aTTY(t *testing.T) *os.File {
 	return tty
 }
 
-func projectDir(t *testing.T) string {
+// testTerminals makes a project and the terminals for it, and runs the test in parallel.
+func testTerminals(t *testing.T) (*Terminals, string) {
 	t.Helper()
+	t.Parallel()
 
 	dir := t.TempDir()
-	previous := core.Zasper.HomeDir
-	core.Zasper.HomeDir = dir
-	t.Cleanup(func() { core.Zasper.HomeDir = previous })
-	return dir
+	return New(content.NewProject(dir)), dir
 }
 
 func TestTerminalStartsInTheFolderItWasOpenedFrom(t *testing.T) {
-	dir := projectDir(t)
+	terminals, dir := testTerminals(t)
 	assert.NoError(t, os.MkdirAll(filepath.Join(dir, "src", "deep"), 0o755))
 
-	assert.Equal(t, filepath.Join(dir, "src", "deep"), terminalWorkingDir("src/deep"))
+	assert.Equal(t, filepath.Join(dir, "src", "deep"), terminals.workingDir("src/deep"))
 }
 
 func TestTerminalFallsBackToTheProjectRoot(t *testing.T) {
-	dir := projectDir(t)
+	terminals, dir := testTerminals(t)
 	assert.NoError(t, os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("hi"), 0o644))
 
 	cases := map[string]string{
@@ -93,12 +92,14 @@ func TestTerminalFallsBackToTheProjectRoot(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// A shell in the wrong directory writes to the wrong place, so a bad answer is
 			// refused rather than passed on to exec.
-			assert.Equal(t, dir, terminalWorkingDir(path))
+			assert.Equal(t, dir, terminals.workingDir(path))
 		})
 	}
 }
 
 func TestEveryWebsocketMessageTypeHasAName(t *testing.T) {
+	t.Parallel()
+
 	cases := map[int]string{
 		websocket.BinaryMessage: "binary",
 		websocket.TextMessage:   "text",
@@ -119,6 +120,8 @@ func TestEveryWebsocketMessageTypeHasAName(t *testing.T) {
 }
 
 func TestWhatIsWrittenToTheTTYReachesTheShell(t *testing.T) {
+	t.Parallel()
+
 	tty := aTTY(t)
 
 	require.NoError(t, writeDataToTTY([]byte("echo zasper-was-here\n"), tty))
@@ -152,6 +155,8 @@ func TestWhatIsWrittenToTheTTYReachesTheShell(t *testing.T) {
 }
 
 func TestWritingToATTYThatHasGoneIsAnErrorRatherThanAPanic(t *testing.T) {
+	t.Parallel()
+
 	requireShell(t)
 
 	tty, cmd, err := startTTY(t.TempDir())
@@ -164,6 +169,8 @@ func TestWritingToATTYThatHasGoneIsAnErrorRatherThanAPanic(t *testing.T) {
 }
 
 func TestAResizeMessageSetsTheWindow(t *testing.T) {
+	t.Parallel()
+
 	tty := aTTY(t)
 
 	// The wire shape: a leading 1 marking the frame as a resize, then the JSON.
@@ -185,6 +192,8 @@ because writeToTTY has already looked at [0]. Both halves are checked here: a sh
 frame must not panic, and must not resize to nothing either.
 */
 func TestAMalformedResizeMessageIsIgnored(t *testing.T) {
+	t.Parallel()
+
 	tty := aTTY(t)
 
 	size, err := json.Marshal(TTYSize{Cols: 100, Rows: 30})
@@ -210,30 +219,31 @@ func TestAMalformedResizeMessageIsIgnored(t *testing.T) {
 	}
 }
 
-// The store the handler keeps its live sessions in. One map for the whole process, so a test that
-// left a session behind would be the next one's starting point.
+// The store the handler keeps its live sessions in.
 func TestATerminalSessionIsRememberedUntilItIsUnregistered(t *testing.T) {
+	terminals, _ := testTerminals(t)
 	session := &Session{}
 
-	registerSession("tab-1-123", session)
-	stored, _ := terminalSessions.Get("tab-1-123")
+	terminals.register("tab-1-123", session)
+	stored, _ := terminals.sessions.Get("tab-1-123")
 	assert.Same(t, session, stored)
 
-	unregisterSession("tab-1-123")
-	_, found := terminalSessions.Get("tab-1-123")
+	terminals.unregister("tab-1-123")
+	_, found := terminals.sessions.Get("tab-1-123")
 	assert.False(t, found)
 
 	// Unregistering something that was never there is not an error: cleanupTTY runs on every exit
 	// path, including the one where the session never got registered.
-	assert.NotPanics(t, func() { unregisterSession("never-existed") })
+	assert.NotPanics(t, func() { terminals.unregister("never-existed") })
 }
 
 // The id is what keeps a reconnecting tab from colliding with the session it is replacing, which is
 // only true if two calls for the same tab differ.
 func TestEachTerminalSessionGetsItsOwnId(t *testing.T) {
+	terminals, _ := testTerminals(t)
 	seen := map[string]bool{}
 	for range 100 {
-		id := generateSessionID("tab-1")
+		id := terminals.newSessionID("tab-1")
 		assert.False(t, seen[id], "id %s was handed out twice", id)
 		assert.True(t, strings.HasPrefix(id, "tab-1-"))
 		seen[id] = true
@@ -244,6 +254,7 @@ func TestEachTerminalSessionGetsItsOwnId(t *testing.T) {
 // map write is to kill the process, so the assertion is largely that we got here; -race does the
 // rest.
 func TestTheTerminalSessionStoreSurvivesEverythingAtOnce(t *testing.T) {
+	terminals, _ := testTerminals(t)
 	const workers = 8
 	const each = 200
 
@@ -254,14 +265,14 @@ func TestTheTerminalSessionStoreSurvivesEverythingAtOnce(t *testing.T) {
 			defer waiter.Done()
 			for i := range each {
 				id := fmt.Sprintf("tab-%d-%d", worker, i)
-				registerSession(id, &Session{})
-				unregisterSession(id)
+				terminals.register(id, &Session{})
+				terminals.unregister(id)
 			}
 		}()
 	}
 	waiter.Wait()
 
-	assert.Empty(t, terminalSessions.Snapshot())
+	assert.Empty(t, terminals.sessions.Snapshot())
 }
 
 /*
@@ -273,10 +284,10 @@ output pumped back, and the frames a client can send.
 */
 func TestATerminalRunsWhatTheClientTypes(t *testing.T) {
 	requireShell(t)
-	dir := projectDir(t)
+	terminals, dir := testTerminals(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker-file.txt"), []byte("x"), 0o644))
 
-	srv := httptest.NewServer(http.HandlerFunc(HandleWebSocket))
+	srv := httptest.NewServer(http.HandlerFunc(terminals.HandleWebSocket))
 	defer srv.Close()
 
 	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
@@ -315,21 +326,21 @@ every window anyone had ever closed left a row in the panel and a zsh in `ps`.
 */
 func TestClosingTheConnectionOnAnIdleShellEndsIt(t *testing.T) {
 	requireShell(t)
-	projectDir(t)
+	terminals, _ := testTerminals(t)
 
-	srv := httptest.NewServer(http.HandlerFunc(HandleWebSocket))
+	srv := httptest.NewServer(http.HandlerFunc(terminals.HandleWebSocket))
 	defer srv.Close()
 
 	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
 	require.NoError(t, err)
 
 	// Wait for the shell rather than assume it: the session is registered on the handler's goroutine.
-	require.Eventually(t, func() bool { return len(List()) == 1 }, 10*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { return len(terminals.List()) == 1 }, 10*time.Second, 20*time.Millisecond)
 
 	// Held on to across the close, because the assertion afterwards is about this shell and the map it
 	// can be looked up in is the thing being emptied.
 	var shell *os.Process
-	for _, session := range terminalSessions.Values() {
+	for _, session := range terminals.sessions.Values() {
 		shell = session.Cmd.Process
 	}
 	require.NotNil(t, shell)
@@ -339,7 +350,7 @@ func TestClosingTheConnectionOnAnIdleShellEndsIt(t *testing.T) {
 
 	// Comfortably under the keep-alive's own ten-second wait, which the handler used to sit through
 	// before it would unregister anything.
-	require.Eventually(t, func() bool { return len(List()) == 0 }, 5*time.Second, 20*time.Millisecond,
+	require.Eventually(t, func() bool { return len(terminals.List()) == 0 }, 5*time.Second, 20*time.Millisecond,
 		"the session outlived the connection")
 
 	// And the shell itself, not merely the bookkeeping about it. Signalling a process Go has already

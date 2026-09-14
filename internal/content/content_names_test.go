@@ -10,23 +10,23 @@ import (
 )
 
 func TestANameMayContainDotsButNotBeThem(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte("hello"), 0o644))
 
-	require.NoError(t, rename("", "notes.txt", "v1..2.txt"))
+	require.NoError(t, project.rename("", "notes.txt", "v1..2.txt"))
 	assert.FileExists(t, filepath.Join(projectDir, "v1..2.txt"))
 
 	for _, name := range []string{".", ".."} {
-		assert.Error(t, rename("", "v1..2.txt", name), "renamed to %q", name)
+		assert.Error(t, project.rename("", "v1..2.txt", name), "renamed to %q", name)
 	}
 	assert.FileExists(t, filepath.Join(projectDir, "v1..2.txt"))
 }
 
 func TestAListingIsNamedAfterItsFolder(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	project, projectDir := testProject(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(projectDir, "data", "raw"), 0o755))
 
-	model, err := GetContent("data/raw", "directory", "text", false)
+	model, err := project.GetContent("data/raw", "directory", "text", false)
 	require.NoError(t, err)
 
 	assert.Equal(t, "raw", model.Name)

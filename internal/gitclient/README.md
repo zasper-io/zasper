@@ -46,10 +46,10 @@ one, and a machine without it gets a panel that lists changes and cannot change 
 | [gitclient_manager.go](gitclient_manager.go)             | Three small questions asked from everywhere: current branch, unborn HEAD, has a remote.                     |
 | [gitclient_api_handler.go](gitclient_api_handler.go)     | The HTTP layer, and the rules about what a failure answers with.                                             |
 
-Every function below the handlers takes a **repository root** rather than reading
-`core.Zasper.HomeDir` itself. Git paths are relative to that root, and it is what lets the tests work
-on a directory of their own. [repo.go](repo.go) holds the one exception, `projectDir()`, so that it
-stays the only one.
+The handlers are methods on `Handler`, which holds the project directory it was built with; `openRepo`
+takes that directory and answers the repository and its root. Every function below the handlers takes
+the **repository root**: git paths are relative to it, and it is what lets the tests work on a
+directory of their own.
 
 ## Endpoints
 
@@ -142,8 +142,8 @@ or pay for the whole history. A branch with no upstream is not a failure: it is 
 ## Paths from a request
 
 Every path a request carries goes through `relPath` in [repo.go](repo.go), which confines it to the
-repository and returns it relative to the root, in the form git wants. `content.GetSafePath` cannot
-be reused: it confines to `core.Zasper.HomeDir`, and the repository root is often **above** that.
+repository and returns it relative to the root, in the form git wants. `content.Project.SafePath`
+cannot be reused: it confines to the project directory, and the repository root is often **above** that.
 
 The check resolves symlinks so a link out of the tree cannot be followed out of it, and compares with
 the separator attached, since a plain prefix test lets `../repoX-secrets` out of `.../repoX`. A path

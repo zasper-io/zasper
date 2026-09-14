@@ -12,12 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// subscribe starts the project watch afresh for a test, and ends it when the test does.
-func subscribe(t *testing.T) *watchSubscriber {
+// watchedProject makes a project and a watch over it, and runs the test in parallel.
+func watchedProject(t *testing.T) (*projectWatch, string) {
 	t.Helper()
 
-	SetUpActiveWatcherConnections()
-	t.Cleanup(SetUpActiveWatcherConnections)
+	_, projectDir := testProject(t)
+	return newProjectWatch(projectDir), projectDir
+}
+
+// subscribe adds a subscriber to watch until the test ends.
+func subscribe(t *testing.T, watch *projectWatch) *watchSubscriber {
+	t.Helper()
 
 	subscriber, err := watch.subscribe()
 	require.NoError(t, err)
@@ -57,8 +62,8 @@ func hears(subscriber *watchSubscriber, path string, within time.Duration) bool 
 }
 
 func TestChangesInAFolderCreatedLaterAreHeard(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
-	subscriber := subscribe(t)
+	watch, projectDir := watchedProject(t)
+	subscriber := subscribe(t, watch)
 	settle(subscriber)
 
 	nested := filepath.Join(projectDir, "later", "deeper")
@@ -69,12 +74,12 @@ func TestChangesInAFolderCreatedLaterAreHeard(t *testing.T) {
 }
 
 func TestIgnoredFoldersAreNotWatchedButOrdinaryOnesAre(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	watch, projectDir := watchedProject(t)
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, ".gitignore"), []byte("build/\n"), 0o644))
 	for _, dir := range []string{"build", "node_modules", "tests"} {
 		require.NoError(t, os.MkdirAll(filepath.Join(projectDir, dir), 0o755))
 	}
-	subscriber := subscribe(t)
+	subscriber := subscribe(t, watch)
 	settle(subscriber)
 
 	assert.False(t, hears(subscriber, filepath.Join(projectDir, "build", "out.txt"), time.Second),
@@ -89,7 +94,7 @@ func TestAnUnreadableFolderDoesNotStopTheRestBeingWatched(t *testing.T) {
 	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
 		t.Skip("needs a folder the test cannot read")
 	}
-	projectDir := projectDirElsewhere(t)
+	watch, projectDir := watchedProject(t)
 	locked := filepath.Join(projectDir, "a-locked")
 	open := filepath.Join(projectDir, "z-open")
 	require.NoError(t, os.MkdirAll(locked, 0o755))
@@ -97,17 +102,17 @@ func TestAnUnreadableFolderDoesNotStopTheRestBeingWatched(t *testing.T) {
 	require.NoError(t, os.Chmod(locked, 0))
 	t.Cleanup(func() { os.Chmod(locked, 0o755) })
 
-	subscriber := subscribe(t)
+	subscriber := subscribe(t, watch)
 	settle(subscriber)
 
 	assert.True(t, hears(subscriber, filepath.Join(open, "notes.txt"), 5*time.Second))
 }
 
 func TestAFileRenamedOutOfTheProjectIsHeard(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
+	watch, projectDir := watchedProject(t)
 	leaving := filepath.Join(projectDir, "leaving.txt")
 	require.NoError(t, os.WriteFile(leaving, []byte("bye"), 0o644))
-	subscriber := subscribe(t)
+	subscriber := subscribe(t, watch)
 	settle(subscriber)
 
 	require.NoError(t, os.Rename(leaving, filepath.Join(t.TempDir(), "leaving.txt")))
@@ -120,8 +125,8 @@ func TestAFileRenamedOutOfTheProjectIsHeard(t *testing.T) {
 }
 
 func TestOneWatcherServesEverySubscriber(t *testing.T) {
-	projectDirElsewhere(t)
-	first := subscribe(t)
+	watch, _ := watchedProject(t)
+	first := subscribe(t, watch)
 
 	watch.mu.Lock()
 	shared := watch.watcher
@@ -143,8 +148,8 @@ func TestOneWatcherServesEverySubscriber(t *testing.T) {
 }
 
 func TestASubscriberThatIsNotListeningHoldsNobodyUp(t *testing.T) {
-	projectDir := projectDirElsewhere(t)
-	subscribe(t)
+	watch, projectDir := watchedProject(t)
+	subscribe(t, watch)
 	listening, err := watch.subscribe()
 	require.NoError(t, err)
 	t.Cleanup(func() { watch.unsubscribe(listening) })

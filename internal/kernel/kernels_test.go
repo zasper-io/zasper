@@ -8,88 +8,92 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func withKernels(t *testing.T, ids ...string) {
+// testKernels answers kernels with a manager stored under each id and no process behind any of them, and
+// runs the test in parallel.
+func testKernels(t *testing.T, ids ...string) *Kernels {
 	t.Helper()
+	t.Parallel()
 
-	// One store per process, so a test that left its kernels behind would be the next one's starting
-	// point.
-	t.Cleanup(SetUpStateKernels)
-
-	SetUpStateKernels()
+	k := New(nil)
 	for _, id := range ids {
-		setActiveKernel(id, &KernelManager{KernelId: id, KernelName: "python3"})
+		k.running.Set(id, &KernelManager{KernelId: id, KernelName: "python3"})
 	}
+	return k
 }
 
-func TestActiveKernelFindsARunningKernelAndOnlyThat(t *testing.T) {
-	withKernels(t, "k1")
+func TestAKernelIsFoundByItsIdAndOnlyThat(t *testing.T) {
+	k := testKernels(t, "k1")
 
-	km, ok := ActiveKernel("k1")
+	km, ok := k.Get("k1")
 	assert.True(t, ok)
 	assert.Equal(t, "python3", km.KernelName)
 
-	_, ok = ActiveKernel("k2")
+	_, ok = k.Get("k2")
 	assert.False(t, ok)
 }
 
-func TestSetUpStateKernelsEmptiesTheStore(t *testing.T) {
-	withKernels(t, "k1")
+func TestTakingAKernelOnlyAnswersOnceForTheSameKernel(t *testing.T) {
+	k := testKernels(t, "k1")
 
-	SetUpStateKernels()
-
-	assert.Empty(t, activeKernels())
-}
-
-func TestRemoveActiveKernelOnlyAnswersOnceForTheSameKernel(t *testing.T) {
-	withKernels(t, "k1")
-
-	km, ok := removeActiveKernel("k1")
+	km, ok := k.take("k1")
 	assert.True(t, ok)
 	assert.Equal(t, "k1", km.KernelId)
 
 	// What stops two callers stopping the same kernel from both signalling its pid.
-	_, ok = removeActiveKernel("k1")
+	_, ok = k.take("k1")
 	assert.False(t, ok)
 }
 
-func TestListKernelsReportsEveryRunningKernel(t *testing.T) {
-	withKernels(t, "k1", "k2")
+// Sessions are told before sockets, so a client told its socket has closed finds no session to rejoin.
+func TestStoppingAKernelTellsWhatDependsOnItInOrder(t *testing.T) {
+	k := testKernels(t, "k1")
+	var told []string
+	k.OnDisconnect(func(id string) { told = append(told, "sessions "+id) })
+	k.OnDisconnect(func(id string) { told = append(told, "sockets "+id) })
 
-	listed, err := listKernels()
-	assert.NoError(t, err)
+	require.NoError(t, k.Stop("k1"))
+	assert.Equal(t, []string{"sessions k1", "sockets k1"}, told)
+
+	assert.ErrorIs(t, k.Stop("k1"), ErrKernelNotFound)
+	assert.Len(t, told, 2, "a kernel that was already stopped was reported again")
+}
+
+func TestTheListReportsEveryRunningKernel(t *testing.T) {
+	k := testKernels(t, "k1", "k2")
 
 	ids := []string{}
-	for _, kernel := range listed {
+	for _, kernel := range k.list() {
 		ids = append(ids, kernel.Id)
 		assert.Equal(t, "python3", kernel.Name)
 	}
 	assert.ElementsMatch(t, []string{"k1", "k2"}, ids)
 }
 
-func TestGetKernelSaysSoWhenTheKernelIsNotRunning(t *testing.T) {
-	withKernels(t)
+func TestAKernelThatIsNotRunningIsNotFound(t *testing.T) {
+	k := testKernels(t)
 
-	_, err := getKernel("k1")
+	_, err := k.model("k1")
 	assert.ErrorIs(t, err, ErrKernelNotFound)
 }
 
-func TestInterruptKernelRefusesRatherThanSignallingNothingInParticular(t *testing.T) {
-	withKernels(t, "k1")
+func TestInterruptRefusesRatherThanSignallingNothingInParticular(t *testing.T) {
+	k := testKernels(t, "k1")
 
 	// A manager that never launched has no process, and SIGINT to its zero pid would go to every process
 	// in this process group, the server included. Returning here is the assertion: nothing was signalled.
-	assert.ErrorIs(t, interruptKernel("k2"), ErrKernelNotFound)
-	assert.ErrorContains(t, interruptKernel("k1"), "no process")
+	assert.ErrorIs(t, k.interrupt("k2"), ErrKernelNotFound)
+	assert.ErrorContains(t, k.interrupt("k1"), "no process")
 }
 
 func TestRecordingActivityWritesWhatTheApiReports(t *testing.T) {
-	withKernels(t, "k1")
+	k := testKernels(t, "k1")
+	km, _ := k.Get("k1")
 
-	recordKernelActivity("k1", "busy")
+	km.recordActivity("busy")
 
-	km, _ := ActiveKernel("k1")
 	lastActivity, executionState, _ := km.Status()
 	assert.Equal(t, "busy", executionState)
 	// RFC 3339 and nothing else: the browser reads this with `new Date`.
@@ -99,38 +103,37 @@ func TestRecordingActivityWritesWhatTheApiReports(t *testing.T) {
 }
 
 func TestActivityWithNoStateLeavesTheLastOneStanding(t *testing.T) {
-	withKernels(t, "k1")
+	k := testKernels(t, "k1")
+	km, _ := k.Get("k1")
 
-	recordKernelActivity("k1", "busy")
+	km.recordActivity("busy")
 	// A stream message, an execute_result, a display_data: the kernel is talking, and none of them says
 	// what it is doing. Blanking the state on one of those would leave a running cell showing idle.
-	recordKernelActivity("k1", "")
+	km.recordActivity("")
 
-	km, _ := ActiveKernel("k1")
 	_, executionState, _ := km.Status()
 	assert.Equal(t, "busy", executionState)
 }
 
-func TestNothingIsRecordedAgainstAKernelThatHasStopped(t *testing.T) {
-	withKernels(t)
+// A count in flight when the kernel was killed must not put the kernel back in the store.
+func TestConnectionsAreNotRecordedAgainstAKernelThatHasStopped(t *testing.T) {
+	k := testKernels(t)
 
-	// A message in flight when the kernel was killed must not put the kernel back in the store.
-	recordKernelActivity("k1", "idle")
-	SetKernelConnections("k1", 1)
+	k.SetConnections("k1", 1)
 
-	assert.Empty(t, activeKernels())
+	assert.Empty(t, k.list())
 }
 
 func TestConnectionsCountsWhatTheWebsocketLayerReports(t *testing.T) {
-	withKernels(t, "k1")
-	km, _ := ActiveKernel("k1")
+	k := testKernels(t, "k1")
+	km, _ := k.Get("k1")
 
-	SetKernelConnections("k1", 1)
+	k.SetConnections("k1", 1)
 	_, _, connections := km.Status()
 	assert.Equal(t, 1, connections)
 
 	// A browser tab that closed. The kernel stays, which is the whole point of this panel.
-	SetKernelConnections("k1", 0)
+	k.SetConnections("k1", 0)
 	_, _, connections = km.Status()
 	assert.Equal(t, 0, connections)
 }
@@ -138,7 +141,7 @@ func TestConnectionsCountsWhatTheWebsocketLayerReports(t *testing.T) {
 // Every kernel's activity watcher, the websocket layer and the API reach the store and each kernel's
 // activity at once; -race is what this relies on.
 func TestTheKernelStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
-	withKernels(t)
+	k := testKernels(t)
 
 	const workers = 8
 	const each = 200
@@ -150,21 +153,22 @@ func TestTheKernelStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
 			defer running.Done()
 			for i := 0; i < each; i++ {
 				id := fmt.Sprintf("%d-%d", worker, i)
-				setActiveKernel(id, &KernelManager{KernelId: id, KernelName: "python3"})
-				ActiveKernel(id)
-				activeKernels()
-				recordKernelActivity(id, "busy")
-				SetKernelConnections(id, 1)
-				if _, err := getKernel(id); err != nil && !errors.Is(err, ErrKernelNotFound) {
+				km := &KernelManager{KernelId: id, KernelName: "python3"}
+				k.running.Set(id, km)
+				k.Get(id)
+				k.list()
+				km.recordActivity("busy")
+				k.SetConnections(id, 1)
+				if _, err := k.model(id); err != nil && !errors.Is(err, ErrKernelNotFound) {
 					t.Errorf("unexpected error: %v", err)
 				}
 				if i%3 == 0 {
-					removeActiveKernel(id)
+					k.take(id)
 				}
 			}
 		}(worker)
 	}
 
 	running.Wait()
-	assert.NotNil(t, activeKernels())
+	assert.NotNil(t, k.list())
 }

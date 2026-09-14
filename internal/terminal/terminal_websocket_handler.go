@@ -18,10 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/analytics"
-	"github.com/zasper-io/zasper/internal/content"
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/httpx"
-	"github.com/zasper-io/zasper/internal/store"
 )
 
 var upgrader = websocket.Upgrader{
@@ -95,37 +92,6 @@ func (c *terminalConn) sincePong() time.Duration {
 	return time.Since(time.Unix(0, c.lastPong.Load()))
 }
 
-// The running terminals, by session id, written from every connection's goroutine.
-var terminalSessions store.Map[string, *Session]
-
-// Counts the sessions this process has handed out, which is what actually makes their ids unique.
-var terminalSessionSeq atomic.Uint64
-
-/*
-generateSessionID names one connection's shell.
-
-The terminal id identifies the client tab; the counter keeps reconnects of the same tab from
-colliding with a session that is still shutting down, and keeps two tabs opened together apart.
-
-The counter is there because the timestamp alone was not enough. `time.Now().UnixNano()` reads a
-wall clock that is far coarser than a nanosecond — on macOS a thousand calls in a loop land on about
-thirty-six distinct values — so two terminals opened in the same tick were handed the same id, and
-the second registration evicted the first from the session map. That left a shell running that
-nothing could list or kill, and now that the id is what /api/terminals reports and DELETE names, a
-collision would also shut down the wrong terminal. The timestamp is kept for the log lines.
-*/
-func generateSessionID(terminalId string) string {
-	return fmt.Sprintf("%s-%d-%d", terminalId, terminalSessionSeq.Add(1), time.Now().UnixNano())
-}
-
-func registerSession(sessionID string, session *Session) {
-	terminalSessions.Set(sessionID, session)
-}
-
-func unregisterSession(sessionID string) {
-	terminalSessions.Take(sessionID)
-}
-
 // Session struct holds the terminal and related processes.
 type Session struct {
 	TTY *os.File
@@ -167,7 +133,7 @@ func (s *Session) stop() {
 }
 
 // HandleWebSocket handles WebSocket connections and manages the lifecycle of a terminal session.
-func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
+func (ts *Terminals) HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	upgraded, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to upgrade connection")
@@ -179,20 +145,20 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	// Generate a unique session ID for each WebSocket connection, tagged with the
 	// terminal the client asked for.
 	terminalId := mux.Vars(req)["terminalId"]
-	sessionID := generateSessionID(terminalId)
+	sessionID := ts.newSessionID(terminalId)
 	log.Debug().Msgf("Opening terminal session %s for terminal %s", sessionID, terminalId)
 
 	// Start a new TTY session, in the folder the client asked for if it asked for one.
-	dir := terminalWorkingDir(req.URL.Query().Get("cwd"))
+	dir := ts.workingDir(req.URL.Query().Get("cwd"))
 	tty, cmd, err := startTTY(dir)
 	if err != nil {
 		sendErrorMessage(connection, err.Error())
 		return
 	}
 
-	// Store the session in the global map, which is also what /api/terminals answers from.
+	// Registered, which is also what /api/terminals answers from.
 	session := &Session{TTY: tty, Cmd: cmd, Name: terminalId, Dir: dir, Started: time.Now().UTC()}
-	registerSession(sessionID, session)
+	ts.register(sessionID, session)
 
 	// Counted only once the shell is actually up, so a terminal that failed to start is not one that
 	// was opened. Neither the folder nor the tab's name travels — the duration is bucketed, and that
@@ -205,7 +171,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		})
 	}()
 
-	defer cleanupTTY(sessionID, session, connection)
+	defer ts.cleanupTTY(sessionID, session, connection)
 
 	/*
 		Whichever of the three ends first ends the other two.
@@ -228,7 +194,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		// Out of the map here rather than in cleanupTTY, which runs only once all three have stopped:
 		// the shell is dead from the line below, and a terminal listed for as long as the keep-alive
 		// takes to notice is a row the panel offers to shut down twice.
-		unregisterSession(sessionID)
+		ts.unregister(sessionID)
 		session.stop()
 		connection.Close()
 	}
@@ -246,25 +212,25 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 }
 
 /*
-terminalWorkingDir turns the folder the client asked for into an OS path, falling back to the project
+workingDir turns the folder the client asked for into an OS path, falling back to the project
 root for anything that is not a folder inside the project. A shell is the one place where landing in
 the wrong directory is worth being careful about, so a bad answer is refused rather than passed on.
 */
-func terminalWorkingDir(relativePath string) string {
+func (ts *Terminals) workingDir(relativePath string) string {
 	if relativePath == "" {
-		return core.Zasper.HomeDir
+		return ts.project.Root()
 	}
 
-	osPath := content.GetSafePath(relativePath)
+	osPath := ts.project.SafePath(relativePath)
 	if osPath == "" {
 		log.Warn().Msgf("Terminal asked to start outside the project: %s", relativePath)
-		return core.Zasper.HomeDir
+		return ts.project.Root()
 	}
 
 	info, err := os.Stat(osPath)
 	if err != nil || !info.IsDir() {
 		log.Warn().Msgf("Terminal asked to start somewhere that is not a folder: %s", relativePath)
-		return core.Zasper.HomeDir
+		return ts.project.Root()
 	}
 	return osPath
 }
@@ -295,13 +261,13 @@ func startTTY(dir string) (*os.File, *exec.Cmd, error) {
 }
 
 // cleanupTTY gracefully stops the terminal and closes the connection.
-func cleanupTTY(sessionID string, session *Session, connection *terminalConn) {
+func (ts *Terminals) cleanupTTY(sessionID string, session *Session, connection *terminalConn) {
 	log.Debug().Msg("Gracefully stopping spawned TTY...")
 
 	// The session was taken out of the map and the shell killed the moment any one of this terminal's
 	// three goroutines stopped; both are repeated here because this also runs on the paths where the
 	// handler gives up before that, and both are safe to do twice.
-	unregisterSession(sessionID)
+	ts.unregister(sessionID)
 	session.stop()
 
 	if err := session.TTY.Close(); err != nil {

@@ -11,8 +11,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/zasper-io/zasper/internal/core"
-
 	"github.com/rs/zerolog/log"
 )
 
@@ -85,9 +83,9 @@ func kernelspecModel(name string, spec KernelSpecJsonData) KernelspecModel {
 	}
 }
 
-// GetAllSpecs answers every kernelspec by name, with the directory it was read from.
-func GetAllSpecs() map[string]KspecData {
-	specs := findKernelSpecs()
+// Specs answers every kernelspec by name, with the directory it was read from.
+func (k *Catalog) Specs() map[string]KspecData {
+	specs := k.findKernelSpecs()
 	res := make(map[string]KspecData)
 	for kname, resourceDir := range specs {
 		spec, err := fromResourceDir(resourceDir)
@@ -102,19 +100,19 @@ func GetAllSpecs() map[string]KspecData {
 			ResourceDir: resourceDir,
 		}
 	}
-	for name, spec := range virtualSpecs(res) {
+	for name, spec := range k.virtualSpecs(res) {
 		res[name] = KspecData{Spec: spec, ResourceDir: spec.ResourceDir}
 	}
 	return res
 }
 
-// GetKernelSpec reads the spec a kernel name resolves to. An unknown name is ErrKernelspecNotFound,
+// Spec reads the spec a kernel name resolves to. An unknown name is ErrKernelspecNotFound,
 // never a read of kernel.json from the server's working directory.
-func GetKernelSpec(kernelName string) (KernelSpecJsonData, error) {
-	resourceDir := findSpecDirectory(kernelName)
+func (k *Catalog) Spec(kernelName string) (KernelSpecJsonData, error) {
+	resourceDir := k.findSpecDirectory(kernelName)
 	if resourceDir == "" {
 		// Not on disk: one of the kernels held in memory for a Python with ipykernel, or nothing.
-		if data, ok := GetAllSpecs()[strings.ToLower(kernelName)]; ok {
+		if data, ok := k.Specs()[strings.ToLower(kernelName)]; ok {
 			return data.Spec, nil
 		}
 		return KernelSpecJsonData{}, fmt.Errorf("%w: %s", ErrKernelspecNotFound, kernelName)
@@ -122,10 +120,10 @@ func GetKernelSpec(kernelName string) (KernelSpecJsonData, error) {
 	return fromResourceDir(resourceDir)
 }
 
-func findSpecDirectory(kernelName string) string {
+func (k *Catalog) findSpecDirectory(kernelName string) string {
 	// Case-insensitive, as Jupyter lists and resolves names lowercased.
 	kernelName = strings.ToLower(kernelName)
-	kernelDirs := getKernelDirs()
+	kernelDirs := k.kernelDirs()
 	for _, kernelDir := range kernelDirs {
 		dir, err := os.Open(kernelDir)
 		if err != nil {
@@ -224,11 +222,11 @@ func urlPathJoin(pieces ...string) string {
 	return result
 }
 
-func findKernelSpecs() map[string]string {
+func (k *Catalog) findKernelSpecs() map[string]string {
 	/*
 		Returns a dict mapping kernel names to resource directories.
 	*/
-	kernelDirs := getKernelDirs()
+	kernelDirs := k.kernelDirs()
 	kernelsDict := make(map[string]string)
 	for _, kernelDir := range kernelDirs {
 		kernels := listKernelsIn(kernelDir)
@@ -244,8 +242,8 @@ func findKernelSpecs() map[string]string {
 	return kernelsDict
 }
 
-func getKernelDirs() []string {
-	dirs := core.Zasper.JupyterPath
+func (k *Catalog) kernelDirs() []string {
+	dirs := k.jupyterPath
 	kernelDirs := []string{}
 	for _, v := range dirs {
 		kernelDirs = append(kernelDirs, filepath.Join(v, "kernels"))
@@ -381,11 +379,11 @@ The containment check below is for the caller after next: the route hands over a
 today, so `..` cannot arrive in pieces, but Join cleans what it is given and a resource of ".." would
 otherwise leave the directory quietly.
 */
-func getResourceFile(kernelName, resourcePath string) (string, bool) {
-	resourceDir := findSpecDirectory(kernelName)
+func (k *Catalog) getResourceFile(kernelName, resourcePath string) (string, bool) {
+	resourceDir := k.findSpecDirectory(kernelName)
 	if resourceDir == "" {
 		// A kernel held in memory serves ipykernel's own logos.
-		if data, ok := GetAllSpecs()[strings.ToLower(kernelName)]; ok {
+		if data, ok := k.Specs()[strings.ToLower(kernelName)]; ok {
 			resourceDir = data.ResourceDir
 		}
 	}

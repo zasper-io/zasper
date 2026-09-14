@@ -25,19 +25,24 @@ var upgrader = websocket.Upgrader{
 
 type kernelConnectionSet = map[*Connection]struct{}
 
-// The client connections attached to each kernel. Several is normal: a notebook open in two tabs, or a
-// reloaded page whose old connection has not closed yet.
-var kernelConnections store.Map[string, kernelConnectionSet]
-
-// SetUpConnections empties the store, for a server that is starting up.
-func SetUpConnections() {
-	kernelConnections.Clear()
+// Handler bridges notebooks' websockets to the kernels a server runs.
+type Handler struct {
+	kernels  *kernel.Kernels
+	sessions *session.Sessions
+	// The client connections attached to each kernel. Several is normal: a notebook open in two tabs, or
+	// a reloaded page whose old connection has not closed yet.
+	connections store.Map[string, kernelConnectionSet]
 }
 
-// The count is told to the kernel store outside this lock, because that call takes a lock of its own.
-func addConnection(kernelId string, connection *Connection) {
+// NewHandler connects clients to kernels, for sessions they have joined.
+func NewHandler(kernels *kernel.Kernels, sessions *session.Sessions) *Handler {
+	return &Handler{kernels: kernels, sessions: sessions}
+}
+
+// The count is told to the kernels outside this lock, because that call takes a lock of its own.
+func (h *Handler) addConnection(kernelId string, connection *Connection) {
 	count := 0
-	kernelConnections.With(func(all map[string]kernelConnectionSet) {
+	h.connections.With(func(all map[string]kernelConnectionSet) {
 		connections := all[kernelId]
 		if connections == nil {
 			connections = kernelConnectionSet{}
@@ -46,13 +51,13 @@ func addConnection(kernelId string, connection *Connection) {
 		connections[connection] = struct{}{}
 		count = len(connections)
 	})
-	kernel.SetKernelConnections(kernelId, count)
+	h.kernels.SetConnections(kernelId, count)
 }
 
 // removeConnection takes out this connection and no other, and says whether it was still there.
-func removeConnection(kernelId string, connection *Connection) bool {
+func (h *Handler) removeConnection(kernelId string, connection *Connection) bool {
 	removed, count := false, 0
-	kernelConnections.With(func(all map[string]kernelConnectionSet) {
+	h.connections.With(func(all map[string]kernelConnectionSet) {
 		connections := all[kernelId]
 		if _, removed = connections[connection]; removed {
 			delete(connections, connection)
@@ -63,15 +68,15 @@ func removeConnection(kernelId string, connection *Connection) bool {
 		count = len(connections)
 	})
 	if removed {
-		kernel.SetKernelConnections(kernelId, count)
+		h.kernels.SetConnections(kernelId, count)
 	}
 	return removed
 }
 
-// CloseConnections drops every client connection attached to a kernel, so notebooks stop
-// listening on channels whose kernel no longer exists. Registered with kernel.OnKernelDisconnect.
-func CloseConnections(kernelId string) {
-	connections, _ := kernelConnections.Take(kernelId)
+// CloseConnections drops every client connection attached to a kernel, so notebooks stop listening on
+// channels whose kernel no longer exists. The server registers it with the kernels' OnDisconnect.
+func (h *Handler) CloseConnections(kernelId string) {
+	connections, _ := h.connections.Take(kernelId)
 
 	// Closed outside the lock: closing writes to a socket.
 	for connection := range connections {
@@ -79,29 +84,23 @@ func CloseConnections(kernelId string) {
 		connection.Close()
 	}
 	if len(connections) > 0 {
-		kernel.SetKernelConnections(kernelId, 0)
+		h.kernels.SetConnections(kernelId, 0)
 	}
 }
 
-func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
-	log.Debug().Msg("receieved kernel connection request")
-	vars := mux.Vars(req)
-	kernelId := vars["kernelId"]
+// HandleWebSocket attaches a notebook to its session's kernel for as long as the socket stays open.
+func (h *Handler) HandleWebSocket(w http.ResponseWriter, req *http.Request) {
+	kernelId := mux.Vars(req)["kernelId"]
 	sessionId := req.URL.Query().Get("session_id")
+	log.Debug().Msgf("kernel connection requested for kernel %s, session %s", kernelId, sessionId)
 
-	log.Debug().Msgf("kernelName : %s, sessionId : %s", kernelId, sessionId)
-
-	found, ok := session.GetSession(sessionId)
-
-	log.Debug().Msgf("session %v", found)
-	if !ok {
+	if _, ok := h.sessions.Get(sessionId); !ok {
 		log.Warn().Msg("session not found")
 		http.NotFound(w, req)
 		return
 	}
 
-	kernelManager, ok := kernel.ActiveKernel(kernelId)
-
+	kernelManager, ok := h.kernels.Get(kernelId)
 	if !ok {
 		log.Error().Msg("kernel not found")
 		http.NotFound(w, req)
@@ -109,13 +108,11 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	}
 
 	conn, err := upgrader.Upgrade(w, req, nil)
-
 	if err != nil {
 		log.Error().Msgf("%s", err)
 		return
 	}
 
-	// Create a new context for the polling operation
 	ctx, cancel := context.WithCancel(context.Background())
 
 	kernelConnection := Connection{
@@ -125,18 +122,14 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		Conn:          conn,
 		Send:          make(chan []byte),
 		Context:       ctx,
-		PollingCancel: cancel, // Store the cancel function so it can be called later to stop polling
+		PollingCancel: cancel,
 	}
 
-	// Registered before it is connected, not after: connecting dials five sockets at a kernel that may
-	// still be starting, and a kernel killed in that window left the client socket open forever on
-	// channels that no longer had a kernel behind them.
-	addConnection(kernelId, &kernelConnection)
+	// Registered before it is connected: connecting dials five sockets at a kernel that may still be
+	// starting, and a kernel killed in that window would otherwise leave the client socket open forever.
+	h.addConnection(kernelId, &kernelConnection)
 
-	log.Debug().Msg("preparing kernel connection")
 	kernelConnection.Prepare(sessionId)
-
-	log.Debug().Msg("connecting kernel")
 	kernelConnection.Connect()
 
 	var waiter sync.WaitGroup
@@ -147,7 +140,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 
 	// Both loops return once the client goes away, whether or not the kernel is saying anything.
 	waiter.Wait()
-	if removeConnection(kernelId, &kernelConnection) {
+	if h.removeConnection(kernelId, &kernelConnection) {
 		log.Debug().Msgf("client for kernel %s went away", kernelId)
 	}
 	kernelConnection.Close()

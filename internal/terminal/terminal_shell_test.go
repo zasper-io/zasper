@@ -30,6 +30,8 @@ func environment(values map[string]string) func(string) string {
 }
 
 func TestATerminalRunsTheShellInSHELL(t *testing.T) {
+	t.Parallel()
+
 	fish := installedShell(t, "fish")
 	askedForLoginShell := false
 
@@ -43,6 +45,8 @@ func TestATerminalRunsTheShellInSHELL(t *testing.T) {
 }
 
 func TestWithoutSHELLATerminalRunsTheLoginShell(t *testing.T) {
+	t.Parallel()
+
 	bash := installedShell(t, "bash")
 
 	shell := shellFor(environment(nil), func() string { return bash })
@@ -53,6 +57,8 @@ func TestWithoutSHELLATerminalRunsTheLoginShell(t *testing.T) {
 // Alpine, minimal containers and FreeBSD's default install have no bash, which was the only shell
 // tried outside macOS.
 func TestAShellThatIsNotInstalledIsPassedOverForBinSh(t *testing.T) {
+	t.Parallel()
+
 	installedShell(t, "unused")
 
 	shell := shellFor(environment(map[string]string{"SHELL": "/nowhere/fish"}), func() string { return "/nowhere/zsh" })
@@ -61,6 +67,8 @@ func TestAShellThatIsNotInstalledIsPassedOverForBinSh(t *testing.T) {
 }
 
 func TestTheLoginShellIsReadFromPasswd(t *testing.T) {
+	t.Parallel()
+
 	passwd := "root:x:0:0:root:/root:/bin/bash\n" +
 		"# a comment\n" +
 		"ada:x:1001:1001:Ada:/home/ada:/usr/bin/fish\n"
@@ -70,21 +78,24 @@ func TestTheLoginShellIsReadFromPasswd(t *testing.T) {
 }
 
 func TestTheLoginShellIsReadFromDirectoryServices(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "/bin/zsh", dsclShell("UserShell: /bin/zsh\n"))
 	assert.Equal(t, "", dsclShell("No such key: UserShell\n"))
 }
 
 // Their connections are hijacked, so the server's own shutdown neither waits for nor closes them.
 func TestStoppingTerminalsKillsEveryShell(t *testing.T) {
+	terminals, _ := testTerminals(t)
 	requireShell(t)
 
 	tty, cmd, err := startTTY(t.TempDir())
 	require.NoError(t, err)
 	t.Cleanup(func() { tty.Close() })
-	registerSession("stop-every-shell", &Session{TTY: tty, Cmd: cmd})
-	t.Cleanup(func() { unregisterSession("stop-every-shell") })
+	terminals.register("stop-every-shell", &Session{TTY: tty, Cmd: cmd})
+	t.Cleanup(func() { terminals.unregister("stop-every-shell") })
 
-	StopAll()
+	terminals.StopAll()
 
 	assert.True(t, errors.Is(cmd.Process.Signal(syscall.Signal(0)), os.ErrProcessDone), "the shell is still running")
 }

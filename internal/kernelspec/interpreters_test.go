@@ -9,20 +9,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/zasper-io/zasper/internal/core"
 )
 
 // noInterpreters leaves out every Python on this machine, so what is listed is what a test wrote.
-func noInterpreters(t *testing.T) {
-	stubCandidates(t)
+func noInterpreters(catalog *Catalog) {
+	stubCandidates(catalog)
 }
 
-func stubCandidates(t *testing.T, candidates ...candidate) {
-	t.Helper()
-	previous := interpreterCandidates
-	interpreterCandidates = func() []candidate { return candidates }
-	t.Cleanup(func() { interpreterCandidates = previous })
+func stubCandidates(catalog *Catalog, candidates ...candidate) {
+	catalog.candidates = func() []candidate { return candidates }
 }
 
 func unixOnly(t *testing.T) {
@@ -54,17 +49,17 @@ func installIpykernel(t *testing.T, sitePackages string) {
 
 func TestAPythonWithIpykernelAndNoSpecIsOfferedWithoutWritingOne(t *testing.T) {
 	unixOnly(t)
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	python, sitePackages := fakePython(t, t.TempDir())
 	installIpykernel(t, sitePackages)
-	stubCandidates(t, candidate{path: python})
+	stubCandidates(catalog, candidate{path: python})
 
-	spec, err := GetKernelSpec("python3")
+	spec, err := catalog.Spec("python3")
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{python, "-m", "ipykernel_launcher", "-f", "{connection_file}"}, spec.Argv)
 	assert.Contains(t, spec.DisplayName, "Python 3.12")
-	logo, ok := getResourceFile("python3", "logo-64x64.png")
+	logo, ok := catalog.getResourceFile("python3", "logo-64x64.png")
 	assert.True(t, ok)
 	assert.FileExists(t, logo)
 
@@ -76,25 +71,25 @@ func TestAPythonWithIpykernelAndNoSpecIsOfferedWithoutWritingOne(t *testing.T) {
 // Asked once; whether ipykernel is there is looked at every time.
 func TestIpykernelInstalledLaterIsSeenWithoutRestarting(t *testing.T) {
 	unixOnly(t)
-	jupyterPath(t)
+	catalog, _ := jupyterPath(t)
 	python, sitePackages := fakePython(t, t.TempDir())
-	stubCandidates(t, candidate{path: python})
+	stubCandidates(catalog, candidate{path: python})
 
-	assert.Empty(t, GetAllSpecs())
+	assert.Empty(t, catalog.Specs())
 
 	installIpykernel(t, sitePackages)
-	assert.Contains(t, GetAllSpecs(), "python3")
+	assert.Contains(t, catalog.Specs(), "python3")
 }
 
 func TestAPythonThatASpecAlreadyRunsIsNotOfferedTwice(t *testing.T) {
 	unixOnly(t)
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	python, sitePackages := fakePython(t, t.TempDir())
 	installIpykernel(t, sitePackages)
-	stubCandidates(t, candidate{path: python})
+	stubCandidates(catalog, candidate{path: python})
 	kernelDir(t, kernels, "mine", `{"argv": ["`+python+`", "-m", "ipykernel_launcher", "-f", "{connection_file}"], "display_name": "Mine", "language": "python"}`)
 
-	specs := GetAllSpecs()
+	specs := catalog.Specs()
 
 	assert.Len(t, specs, 1)
 	assert.Contains(t, specs, "mine")
@@ -103,15 +98,15 @@ func TestAPythonThatASpecAlreadyRunsIsNotOfferedTwice(t *testing.T) {
 // python3 is the installed spec's; this one is named for its version and kind, and runs activated.
 func TestWithPython3TakenAVenvIsNamedForItsVersionAndRunsActivated(t *testing.T) {
 	unixOnly(t)
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	kernelDir(t, kernels, "python3", `{"argv": ["/elsewhere/bin/python3"], "display_name": "Python 3", "language": "python"}`)
 	prefix := t.TempDir()
 	python, sitePackages := fakePython(t, prefix)
 	require.NoError(t, os.WriteFile(filepath.Join(prefix, "pyvenv.cfg"), []byte("version = 3.12.4\n"), 0o644))
 	installIpykernel(t, sitePackages)
-	stubCandidates(t, candidate{path: python})
+	stubCandidates(catalog, candidate{path: python})
 
-	spec, err := GetKernelSpec("python3.12-venv")
+	spec, err := catalog.Spec("python3.12-venv")
 
 	require.NoError(t, err)
 	assert.Equal(t, prefix, spec.Env["VIRTUAL_ENV"])
@@ -124,7 +119,7 @@ file when it is executed, and the file must not appear.
 */
 func TestTheProjectsVenvIsOfferedFirstAndNeverRunToFindIt(t *testing.T) {
 	unixOnly(t)
-	jupyterPath(t)
+	catalog, _ := jupyterPath(t)
 	project := t.TempDir()
 	venv := filepath.Join(project, ".venv")
 	ran := filepath.Join(t.TempDir(), "ran")
@@ -134,14 +129,11 @@ func TestTheProjectsVenvIsOfferedFirstAndNeverRunToFindIt(t *testing.T) {
 	sitePackages := filepath.Join(venv, "lib", "python3.12", "site-packages")
 	installIpykernel(t, sitePackages)
 
-	previous := core.Zasper.HomeDir
-	core.Zasper.HomeDir = project
-	t.Cleanup(func() { core.Zasper.HomeDir = previous })
-	first := defaultInterpreterCandidates()[0]
+	first := defaultInterpreterCandidates(project)[0]
 	assert.Equal(t, candidate{path: python, env: venv}, first)
-	stubCandidates(t, first)
+	stubCandidates(catalog, first)
 
-	spec, err := GetKernelSpec(ProjectKernelName)
+	spec, err := catalog.Spec(ProjectKernelName)
 
 	require.NoError(t, err)
 	assert.Equal(t, python, spec.Argv[0])
@@ -151,6 +143,8 @@ func TestTheProjectsVenvIsOfferedFirstAndNeverRunToFindIt(t *testing.T) {
 }
 
 func TestTheInstallerShimsAreNeverRun(t *testing.T) {
+	t.Parallel()
+
 	found := usableCandidates([]candidate{
 		{path: "/usr/bin/python3"},
 		{path: "/opt/homebrew/bin/python3"},

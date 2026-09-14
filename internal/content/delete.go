@@ -8,7 +8,7 @@ import (
 
 var errProjectRoot = errors.New("the project folder itself cannot be deleted")
 
-func deleteFile(filename string) error {
+func (p Project) deleteFile(filename string) error {
 	// "", "." and "/" all resolve to the project folder, which RemoveAll would empty without a word.
 	if filepath.Join(".", filename) == "." {
 		return errProjectRoot
@@ -16,7 +16,7 @@ func deleteFile(filename string) error {
 
 	// Via the same helper as the writes, so a rejected path says why rather than failing as
 	// `remove : no such file or directory`.
-	osPath, err := safeWritePath(filename)
+	osPath, err := p.safeWritePath(filename)
 	if err != nil {
 		return err
 	}

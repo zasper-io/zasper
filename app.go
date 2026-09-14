@@ -19,10 +19,8 @@ import (
 	"github.com/zasper-io/zasper/internal/config"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/httpx"
-	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/logging"
 	"github.com/zasper-io/zasper/internal/server"
-	"github.com/zasper-io/zasper/internal/terminal"
 
 	"github.com/rs/zerolog/log"
 
@@ -64,10 +62,10 @@ func main() {
 		log.Warn().Msg("--protected=false is ignored: Zasper always runs in protected mode")
 	}
 
-	core.Zasper = core.SetUpZasper(version, *cwd)
-	server.SetUp()
+	app := core.NewApplication(version, *cwd)
+	zasper := server.New(app)
 
-	router := server.NewRouter(getSpaHandler())
+	router := zasper.Router(getSpaHandler())
 
 	// Anonymous usage tracking. It is what tells me whether anyone is actually using Zasper, which is
 	// most of what keeps me maintaining it. Nothing that identifies a person or names a file leaves
@@ -75,7 +73,7 @@ func main() {
 	// same thing in prose.
 	trackingOn := resolveTracking(*tracking)
 	if trackingOn {
-		analytics.SetUpPostHogClient()
+		analytics.SetUpPostHogClient(version)
 		analytics.TrackServerStart()
 	} else {
 		analytics.DisableForSession()
@@ -93,7 +91,7 @@ func main() {
 		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
 	}
 
-	printBanner(address, core.ServerAccessToken, version, trackingOn)
+	printBanner(address, app.AccessToken, version, trackingOn)
 
 	httpServer := &http.Server{
 		Handler: server.WithRequestLogging(log.Logger, logging.AccessLog(), appHandler(router, address)),
@@ -109,7 +107,7 @@ func main() {
 	// After the bind, so the page never races the server: a request that arrives before Serve is
 	// running waits in the listener's backlog.
 	if shouldOpenBrowser(*noBrowser, logging.Console(), runtime.GOOS, os.Getenv) {
-		launchBrowser(loginURL(address, core.ServerAccessToken))
+		launchBrowser(loginURL(address, app.AccessToken))
 	}
 
 	select {
@@ -121,7 +119,7 @@ func main() {
 	signal.Stop(stop)
 	log.Info().Msg("shutting down server")
 
-	shutDown(httpServer, 5*time.Second, func() { cleanup(trackingOn) })
+	shutDown(httpServer, 5*time.Second, func() { cleanup(zasper, trackingOn) })
 	log.Info().Msg("server stopped")
 }
 
@@ -284,12 +282,11 @@ func appHandler(router http.Handler, address string) http.Handler {
 	return handler
 }
 
-// cleanup performs cleanup operations
-func cleanup(tracking bool) {
+// cleanup stops what outlives the HTTP server: the analytics client, the shells and the kernels.
+func cleanup(zasper *server.Server, tracking bool) {
 	if tracking {
 		analytics.CloseClient()
 	}
 	log.Debug().Msg("performing cleanup")
-	terminal.StopAll()
-	kernel.Cleanup()
+	zasper.Shutdown()
 }

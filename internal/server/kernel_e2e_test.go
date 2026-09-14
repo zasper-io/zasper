@@ -30,9 +30,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/kernelspec"
+	"github.com/zasper-io/zasper/internal/kernelspec/jupyterpaths"
 	"github.com/zasper-io/zasper/internal/models"
 )
 
@@ -46,7 +46,7 @@ it fails with a fork/exec error. Python because these tests execute Python and r
 func requireKernel(t *testing.T) string {
 	t.Helper()
 
-	specs := kernelspec.GetAllSpecs()
+	specs := kernelspec.NewCatalog(jupyterpaths.Dirs(), "").Specs()
 
 	names := make([]string, 0, len(specs))
 	for name := range specs {
@@ -72,16 +72,16 @@ func requireKernel(t *testing.T) string {
 
 /*
 slowKernelspec installs a kernelspec that waits before launching `name`'s kernel, and answers with its
-name.
+name and the Jupyter root to start the server with.
 
 The wait stands in for a cold machine, or an interpreter that imports something large before ipykernel
 runs: the process is spawned at once and binds its ports six seconds later, so every dial and every
 message in between lands on nothing.
 */
-func slowKernelspec(t *testing.T, name string) string {
+func slowKernelspec(t *testing.T, name string) (string, string) {
 	t.Helper()
 
-	spec := kernelspec.GetAllSpecs()[name].Spec
+	spec := kernelspec.NewCatalog(jupyterpaths.Dirs(), "").Specs()[name].Spec
 	require.NotEmpty(t, spec.Argv, "kernelspec %s has no argv", name)
 
 	root := t.TempDir()
@@ -97,12 +97,7 @@ func slowKernelspec(t *testing.T, name string) string {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.json"), kernelJson, 0o644))
 
-	// Prepended rather than replacing, so the machine's own kernels are still there afterwards.
-	restore := core.Zasper.JupyterPath
-	core.Zasper.JupyterPath = append([]string{root}, restore...)
-	t.Cleanup(func() { core.Zasper.JupyterPath = restore })
-
-	return "slow-python"
+	return "slow-python", root
 }
 
 // startSession creates a notebook and a session on it, the way opening a notebook in the file browser
@@ -403,8 +398,8 @@ The request is sent the moment the socket opens, which is a user running a cell 
 just been opened, and the whole point is that it is sent long before the kernel exists.
 */
 func TestAKernelSlowToStartStillAnswersTheFirstCellRun(t *testing.T) {
-	srv, project := testServer(t)
-	kernelName := slowKernelspec(t, requireKernel(t))
+	kernelName, jupyterRoot := slowKernelspec(t, requireKernel(t))
+	srv, project := testServer(t, jupyterRoot)
 
 	created := startSession(t, srv, project, kernelName, "notes.ipynb")
 
@@ -674,11 +669,14 @@ func TestAKernelThatExitsOnItsOwnIsLetGo(t *testing.T) {
 func TestInterruptStopsARunningCell(t *testing.T) {
 	for _, mode := range []string{"signal", "message"} {
 		t.Run(mode, func(t *testing.T) {
-			srv, project := testServer(t)
 			kernelName := requireKernel(t)
+			var jupyterPath []string
 			if mode == "message" {
-				kernelName = messageInterruptKernelspec(t, kernelName)
+				var root string
+				kernelName, root = messageInterruptKernelspec(t, kernelName)
+				jupyterPath = append(jupyterPath, root)
 			}
+			srv, project := testServer(t, jupyterPath...)
 
 			created := startSession(t, srv, project, kernelName, "notes.ipynb")
 			conn := kernelSocket(t, srv, created)
@@ -695,11 +693,11 @@ func TestInterruptStopsARunningCell(t *testing.T) {
 }
 
 // messageInterruptKernelspec installs a copy of name's kernelspec that asks to be interrupted by message,
-// and answers with the copy's name.
-func messageInterruptKernelspec(t *testing.T, name string) string {
+// and answers with the copy's name and the Jupyter root to start the server with.
+func messageInterruptKernelspec(t *testing.T, name string) (string, string) {
 	t.Helper()
 
-	spec := kernelspec.GetAllSpecs()[name].Spec
+	spec := kernelspec.NewCatalog(jupyterpaths.Dirs(), "").Specs()[name].Spec
 	require.NotEmpty(t, spec.Argv, "kernelspec %s has no argv", name)
 
 	// The copy lives outside any Python's share/jupyter, so its interpreter is fixed here.
@@ -718,11 +716,7 @@ func messageInterruptKernelspec(t *testing.T, name string) string {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.json"), kernelJson, 0o644))
 
-	restore := core.Zasper.JupyterPath
-	core.Zasper.JupyterPath = append([]string{root}, restore...)
-	t.Cleanup(func() { core.Zasper.JupyterPath = restore })
-
-	return "message-interrupt"
+	return "message-interrupt", root
 }
 
 // awaitMessage reads until a message of msgType answering msgId arrives, and answers with its content.

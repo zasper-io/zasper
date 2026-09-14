@@ -25,11 +25,11 @@ func watchKernelActivity(ctx context.Context, km *KernelManager) {
 			}
 			return
 		}
-		recordKernelActivity(km.KernelId, km.Session.PublishedState(zmsg))
+		km.recordActivity(km.Session.PublishedState(zmsg))
 	}
 }
 
-// stopWatchingKernel ends the watch on a stopped kernel. A manager built outside StartKernelManager never
+// stopWatchingKernel ends the watch on a stopped kernel. A manager built outside Kernels.Start never
 // started one.
 func stopWatchingKernel(km *KernelManager) {
 	if km.stopWatching != nil {

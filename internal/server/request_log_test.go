@@ -4,7 +4,7 @@ websocket.
 
 WithRequestLogging wraps every response in a responseRecorder. A wrapper that does not forward
 http.Hijacker turns every websocket route in the server into a failed upgrade, and nothing else in
-the suite would notice, because the middleware is installed in app.go rather than in NewRouter.
+the suite would notice, because the middleware is installed in app.go rather than in Router.
 */
 package server
 

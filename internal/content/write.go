@@ -12,8 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func UpdateNbContent(path, ftype, format string, content interface{}) error {
-	osPath, err := savePath(path)
+func (p Project) UpdateNbContent(path, ftype, format string, content interface{}) error {
+	osPath, err := p.savePath(path)
 	if err != nil {
 		return err
 	}
@@ -69,8 +69,8 @@ func UpdateNbContent(path, ftype, format string, content interface{}) error {
 }
 
 // UpdateContent writes a file from text, or from base64 for bytes that are not text.
-func UpdateContent(path, ftype, format, content string) error {
-	osPath, err := savePath(path)
+func (p Project) UpdateContent(path, ftype, format, content string) error {
+	osPath, err := p.savePath(path)
 	if err != nil {
 		return err
 	}

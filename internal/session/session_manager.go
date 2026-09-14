@@ -5,37 +5,29 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
-
-	"github.com/zasper-io/zasper/internal/analytics"
-	"github.com/zasper-io/zasper/internal/content"
-	"github.com/zasper-io/zasper/internal/kernel"
-	"github.com/zasper-io/zasper/internal/models"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+
+	"github.com/zasper-io/zasper/internal/analytics"
+	"github.com/zasper-io/zasper/internal/models"
 )
 
-func ListSessions() map[string]models.SessionModel {
-	return sessions.Snapshot()
-}
-
-// CreateSession starts a session on a new kernel, or answers with the one the file is already running
-// on: see runningSessionFor.
-func CreateSession(req models.SessionModel) (models.SessionModel, error) {
+// Create starts a session on a new kernel, or answers with the one the file is already running on: see
+// runningSessionFor.
+func (s *Sessions) Create(req models.SessionModel) (models.SessionModel, error) {
 	log.Debug().Msgf("creating session %s", req.Kernel.Name)
 
 	// Two requests for the same notebook at once would otherwise both find nothing running and both
 	// start a kernel.
-	defer lockPath(req.Path)()
+	defer s.lockPath(req.Path)()
 
-	// The one place both answers are visible, which is why the kernel events are counted here rather
-	// than down in StartKernelManager: what is worth knowing is how often opening a notebook gets a
-	// fresh kernel versus rejoining one that is already running.
+	// Counted here because this is the one place both answers are visible: how often opening a notebook
+	// gets a fresh kernel versus rejoining one that is already running.
 	language := analytics.NormalizeLanguage(req.Kernel.Name)
 
-	if session, ok := runningSessionFor(req); ok {
+	if session, ok := s.runningSessionFor(req); ok {
 		log.Debug().Msgf("session %s is already running %s", session.Id, session.Path)
 		analytics.Track(analytics.EventKernelStarted, map[string]interface{}{
 			"kernel_language": language,
@@ -44,7 +36,7 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 		return session, nil
 	}
 
-	kernelId, err := startKernelForSession(req.Path, req.Kernel.Name)
+	kernelId, err := s.startKernel(req.Path, req.Kernel.Name)
 	if err != nil {
 		analytics.Track(analytics.EventKernelStartFailed, map[string]interface{}{
 			"kernel_language": language,
@@ -63,9 +55,8 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 		Name:        req.Name,
 		SessionType: req.SessionType,
 		Path:        req.Path,
-		// A snapshot, taken when the session was made and never updated: what a kernel is doing now is
-		// /api/kernels' answer, and this is here because Jupyter's session model carries it. RFC 3339
-		// rather than time.Time.String(), which is Go's own format and which `new Date` cannot read.
+		// A snapshot, taken when the session was made: what a kernel is doing now is /api/kernels' answer,
+		// and this is here because Jupyter's session model carries it. RFC 3339, which `new Date` reads.
 		Kernel: models.KernelModel{
 			Id:             kernelId,
 			Name:           req.Kernel.Name,
@@ -74,47 +65,34 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 			Connections:    0,
 		},
 	}
-	// Written after the kernel is up, and outside any lock: starting one takes as long as it takes,
-	// and nothing else can read this session before it exists.
-	setSession(sessionId, session)
+	s.set(sessionId, session)
 
 	return session, nil
 }
 
-// Per notebook rather than one lock for all: starting a kernel takes seconds, and opening a different
-// notebook should not wait for it.
-var pathLocks = struct {
-	mu   sync.Mutex
-	held map[string]*pathLock
-}{held: map[string]*pathLock{}}
-
-type pathLock struct {
-	sync.Mutex
-	users int
-}
-
-// lockPath waits for its turn on path and answers the function that gives the turn up. A path's lock
-// is dropped once nobody is holding or waiting for it.
-func lockPath(path string) func() {
-	pathLocks.mu.Lock()
-	lock := pathLocks.held[path]
+// lockPath waits for its turn on path and answers the function that gives the turn up. A path's lock is
+// dropped once nobody is holding or waiting for it.
+func (s *Sessions) lockPath(path string) func() {
+	locks := &s.pathLocks
+	locks.mu.Lock()
+	lock := locks.held[path]
 	if lock == nil {
 		lock = &pathLock{}
-		pathLocks.held[path] = lock
+		locks.held[path] = lock
 	}
 	lock.users++
-	pathLocks.mu.Unlock()
+	locks.mu.Unlock()
 
 	lock.Lock()
 	return func() {
 		lock.Unlock()
 
-		pathLocks.mu.Lock()
+		locks.mu.Lock()
 		lock.users--
 		if lock.users == 0 {
-			delete(pathLocks.held, path)
+			delete(locks.held, path)
 		}
-		pathLocks.mu.Unlock()
+		locks.mu.Unlock()
 	}
 }
 
@@ -123,53 +101,52 @@ runningSessionFor finds the session a request is asking to join rather than to s
 by id, or the one already running the same file on the same kernel.
 
 Joining is Jupyter's own answer to a second request for a notebook that is running, and what lets a
-page that has been reloaded pick up where it was — the kernel still holds the state the notebook was
-built on, including the widgets in its outputs. Without it a reload starts a second kernel on the same
-notebook and abandons the first.
+reloaded page pick up where it was: the kernel still holds the state the notebook was built on, including
+the widgets in its outputs.
 */
-func runningSessionFor(req models.SessionModel) (models.SessionModel, bool) {
-	if session, ok := GetSession(req.Id); ok {
+func (s *Sessions) runningSessionFor(req models.SessionModel) (models.SessionModel, bool) {
+	if session, ok := s.Get(req.Id); ok {
 		return session, true
 	}
 
-	session, ok := sessionForPath(req.Path, req.Kernel.Name)
+	session, ok := s.forPath(req.Path, req.Kernel.Name)
 	if !ok {
 		return models.SessionModel{}, false
 	}
-	if _, alive := kernel.ActiveKernel(session.Kernel.Id); !alive {
-		// The session outlived its kernel, which died on its own or was killed from outside. Nothing
-		// can be run on it, so it goes rather than shadowing the session about to replace it.
+	if _, alive := s.kernels.Get(session.Kernel.Id); !alive {
+		// The session outlived its kernel. Nothing can be run on it, so it goes rather than shadowing the
+		// session about to replace it.
 		log.Info().Msgf("session %s outlived its kernel; dropping it", session.Id)
-		removeSession(session.Id)
+		s.remove(session.Id)
 		return models.SessionModel{}, false
 	}
 	return session, true
 }
 
-func DeleteSession(req models.SessionModel) error {
-	/*
-		Deletes a Sesion
-	*/
-	log.Debug().Msgf("deleting session %s", req.Id)
-	// Taken out first, and the kernel stopped only by whoever took it out: two requests deleting the
-	// same session would otherwise both stop the kernel, and both be told it worked.
-	session, ok := removeSession(req.Id)
+// Delete ends a session and stops its kernel.
+func (s *Sessions) Delete(sessionId string) error {
+	log.Debug().Msgf("deleting session %s", sessionId)
+	// Taken out first, and the kernel stopped only by whoever took it out: two requests deleting the same
+	// session would otherwise both stop the kernel, and both be told it worked.
+	session, ok := s.remove(sessionId)
 	if !ok {
-		log.Debug().Msg("session does not exist")
-		return fmt.Errorf("session %s does not exist", req.Id)
+		return fmt.Errorf("session %s does not exist", sessionId)
 	}
-	stopKernelForSession(session.Kernel.Id)
+	if err := s.kernels.Stop(session.Kernel.Id); err != nil {
+		// The session is torn down regardless: its kernel is already gone.
+		log.Error().Msgf("Error stopping kernel %s: %v", session.Kernel.Id, err)
+	}
 	return nil
 }
 
 /*
-RelocateSessions follows a renamed or moved file through the sessions, so the session list stops
-naming a path that no longer exists and a lookup by path still finds the kernel. A running kernel's
-own working directory cannot be changed, so this is the record catching up rather than the kernel
-moving; oldPath may be a folder, in which case every session under it follows.
+Relocate follows a renamed or moved file through the sessions, so the session list stops naming a path
+that no longer exists and a lookup by path still finds the kernel. A running kernel's own working
+directory cannot be changed, so this is the record catching up; oldPath may be a folder, in which case
+every session under it follows.
 */
-func RelocateSessions(oldPath, newPath string) int {
-	relocated := updateSessions(func(session models.SessionModel) (models.SessionModel, bool) {
+func (s *Sessions) Relocate(oldPath, newPath string) int {
+	relocated := s.update(func(session models.SessionModel) (models.SessionModel, bool) {
 		moved, ok := relocate(session.Path, oldPath, newPath)
 		if !ok {
 			return session, false
@@ -187,8 +164,8 @@ func RelocateSessions(oldPath, newPath string) int {
 	return relocated
 }
 
-// relocate rewrites a path that is oldPath or sits under it, by segments rather than by prefix so
-// that `notes2.txt` does not follow `notes.txt`.
+// relocate rewrites a path that is oldPath or sits under it, by segments rather than by prefix so that
+// `notes2.txt` does not follow `notes.txt`.
 func relocate(path, oldPath, newPath string) (string, bool) {
 	if path == oldPath {
 		return newPath, true
@@ -199,26 +176,22 @@ func relocate(path, oldPath, newPath string) (string, bool) {
 	return "", false
 }
 
-func startKernelForSession(path string, name string) (string, error) {
-	dir, env := kernelPlacement(path)
+func (s *Sessions) startKernel(path string, name string) (string, error) {
+	dir, env := s.kernelPlacement(path)
 	log.Debug().Msgf("starting kernel %s in %s", name, dir)
-	kernelId, err := kernel.StartKernelManager(dir, name, env)
-	if err != nil {
-		return "", err
-	}
-	return kernelId, nil
+	return s.kernels.Start(dir, name, env)
 }
 
 /*
 kernelPlacement answers the folder a notebook's kernel starts in, and the environment it is given.
 
-The folder is the notebook's own, so that a relative path in a cell means what it means beside the
-file. A path that names no folder inside the project gets the project root. JPY_SESSION_NAME is the
-notebook's absolute path, which is how code running in a kernel can find the file it belongs to.
+The folder is the notebook's own, so that a relative path in a cell means what it means beside the file.
+A path that names no folder inside the project gets the project root. JPY_SESSION_NAME is the notebook's
+absolute path, which is how code running in a kernel can find the file it belongs to.
 */
-func kernelPlacement(path string) (string, map[string]string) {
-	root := content.GetSafePath(".")
-	notebook := content.GetSafePath(path)
+func (s *Sessions) kernelPlacement(path string) (string, map[string]string) {
+	root := s.project.Root()
+	notebook := s.project.SafePath(path)
 	if notebook == "" || notebook == root {
 		return root, map[string]string{}
 	}
@@ -229,14 +202,4 @@ func kernelPlacement(path string) (string, map[string]string) {
 		return root, env
 	}
 	return dir, env
-}
-
-func stopKernelForSession(kernelId string) {
-	/*
-		Stops a Jupyter Kernel for a Sesion
-	*/
-	if err := kernel.StopKernelManager(kernelId); err != nil {
-		// The session is torn down regardless: its kernel is already gone.
-		log.Error().Msgf("Error stopping kernel %s: %v", kernelId, err)
-	}
 }

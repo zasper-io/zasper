@@ -8,8 +8,7 @@ somebody else's secret, an algorithm the caller chose, an expiry that has passed
 that is not a string, which is the case the comma-ok in parseSession exists for and which a bare
 assertion would turn into a panicked handler.
 
-The signing key is derived from the server access token by sessionKey, so these mint their tokens
-with that rather than replacing it, and nothing here runs in parallel.
+Each test builds a gate of its own, so they run in parallel.
 */
 package auth
 
@@ -23,7 +22,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zasper-io/zasper/internal/core"
 )
 
 // signedWith mints a token from the given claims, using `secret` — which is the server's own unless
@@ -36,7 +34,7 @@ func signedWith(t *testing.T, secret []byte, claims jwt.MapClaims) string {
 	return token
 }
 
-// validClaims is a token the server would itself have issued: LoginHandler's shape.
+// validClaims is a token the server would itself have issued: Login's shape.
 func validClaims() jwt.MapClaims {
 	return jwt.MapClaims{
 		"user_id": "1",
@@ -45,24 +43,12 @@ func validClaims() jwt.MapClaims {
 	}
 }
 
-// withAccessToken pins the server's access token for one test, with no failed sign-ins counted and
-// no sessions signed out.
-func withAccessToken(t *testing.T, token string) {
+// gate builds the gate for a server whose access token is token, and runs the test in parallel.
+func gate(t *testing.T, token string) *Auth {
 	t.Helper()
+	t.Parallel()
 
-	reset := func() {
-		logins = newLoginLimiter()
-		revoked.mu.Lock()
-		revoked.sessions = map[string]time.Time{}
-		revoked.mu.Unlock()
-	}
-	previous := core.ServerAccessToken
-	core.ServerAccessToken = token
-	reset()
-	t.Cleanup(func() {
-		core.ServerAccessToken = previous
-		reset()
-	})
+	return New(token)
 }
 
 func requestWith(header string) *http.Request {
@@ -78,6 +64,8 @@ func answers(status int) http.Handler {
 }
 
 func TestBearerTokenReadsOnlyAWellFormedHeader(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		header string
 		want   string
@@ -104,6 +92,8 @@ func TestBearerTokenReadsOnlyAWellFormedHeader(t *testing.T) {
 }
 
 func TestASessionIsReadFromTheHeaderOrTheCookie(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		header, cookie string
 		want           string
@@ -134,23 +124,25 @@ func TestASessionIsReadFromTheHeaderOrTheCookie(t *testing.T) {
 
 // A token in a URL ends up in history, logs and anything the URL is pasted into.
 func TestATokenInTheQueryStringIsNotASession(t *testing.T) {
-	withAccessToken(t, "the-token")
-	r := httptest.NewRequest(http.MethodGet, "/ws/terminals/x?token="+signedWith(t, sessionKey(), validClaims()), nil)
+	a := gate(t, "the-token")
+	r := httptest.NewRequest(http.MethodGet, "/ws/terminals/x?token="+signedWith(t, a.key, validClaims()), nil)
 	recorder := httptest.NewRecorder()
 
-	JwtWebsocketMiddleware(answers(http.StatusNoContent)).ServeHTTP(recorder, r)
+	a.WebsocketMiddleware(answers(http.StatusNoContent)).ServeHTTP(recorder, r)
 
 	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
 }
 
 func TestAValidTokenAnswersWithItsUser(t *testing.T) {
-	userID, err := userFromToken(signedWith(t, sessionKey(), validClaims()))
+	a := gate(t, "the-token")
+	userID, err := a.userFromToken(signedWith(t, a.key, validClaims()))
 
 	require.NoError(t, err)
 	assert.Equal(t, "1", userID)
 }
 
 func TestATokenIsRefusedUnlessThisServerIssuedIt(t *testing.T) {
+	a := gate(t, "the-token")
 	expired := validClaims()
 	expired["exp"] = time.Now().Add(-time.Minute).Unix()
 
@@ -176,20 +168,20 @@ func TestATokenIsRefusedUnlessThisServerIssuedIt(t *testing.T) {
 		// Somebody else's secret. This is the one that matters most: everything else about the
 		// token can be right.
 		"signed with another secret": signedWith(t, []byte("a different secret entirely"), validClaims()),
-		"expired":                    signedWith(t, sessionKey(), expired),
+		"expired":                    signedWith(t, a.key, expired),
 		// A signed token whose user_id is a JSON number. The claims are valid JWT; it is the type
 		// that is wrong, and asserting on it without the comma-ok would panic the handler.
-		"a numeric user_id": signedWith(t, sessionKey(), numericUser),
-		"no user_id":        signedWith(t, sessionKey(), noUser),
-		"an empty user_id":  signedWith(t, sessionKey(), emptyUser),
+		"a numeric user_id": signedWith(t, a.key, numericUser),
+		"no user_id":        signedWith(t, a.key, noUser),
+		"an empty user_id":  signedWith(t, a.key, emptyUser),
 		// Neither could be signed out.
-		"no session id": signedWith(t, sessionKey(), noID),
-		"no expiry":     signedWith(t, sessionKey(), noExpiry),
+		"no session id": signedWith(t, a.key, noID),
+		"no expiry":     signedWith(t, a.key, noExpiry),
 	}
 
 	for name, token := range cases {
 		t.Run(name, func(t *testing.T) {
-			userID, err := userFromToken(token)
+			userID, err := a.userFromToken(token)
 
 			assert.Error(t, err, "the token was accepted")
 			assert.Empty(t, userID)
@@ -205,11 +197,12 @@ all. The keyfunc refuses anything that is not HMAC before the signature is even 
 what stops both this and an RS256 token signed with the HMAC secret as its public key.
 */
 func TestATokenCannotChooseItsOwnAlgorithm(t *testing.T) {
+	a := gate(t, "the-token")
 	unsigned, err := jwt.NewWithClaims(jwt.SigningMethodNone, validClaims()).
 		SignedString(jwt.UnsafeAllowNoneSignatureType)
 	require.NoError(t, err)
 
-	userID, err := userFromToken(unsigned)
+	userID, err := a.userFromToken(unsigned)
 
 	assert.Error(t, err)
 	assert.Empty(t, userID)
@@ -218,14 +211,15 @@ func TestATokenCannotChooseItsOwnAlgorithm(t *testing.T) {
 // The middleware puts the user on the request context, and UserID is how a handler would read it
 // back. Nothing reads it today, so this is the test that keeps the two halves in step.
 func TestAnAuthenticatedRequestCarriesItsUser(t *testing.T) {
+	a := gate(t, "the-token")
 	var got string
 	var found bool
 
-	handler := JwtAuthMiddleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	handler := a.Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		got, found = UserID(r.Context())
 	}))
 
-	request := requestWith("Bearer " + signedWith(t, sessionKey(), validClaims()))
+	request := requestWith("Bearer " + signedWith(t, a.key, validClaims()))
 	handler.ServeHTTP(httptest.NewRecorder(), request)
 
 	assert.True(t, found)
@@ -241,33 +235,28 @@ func TestAnAuthenticatedRequestCarriesItsUser(t *testing.T) {
 // ZASPER_JWT_SECRET: a session stays valid for as long as the token it was traded for does, so a
 // restart that mints a fresh token signs everyone out and a pinned one does not.
 func TestSessionKeyFollowsAccessToken(t *testing.T) {
-	original := core.ServerAccessToken
-	t.Cleanup(func() { core.ServerAccessToken = original })
-
-	core.ServerAccessToken = "the-first-token"
-	session := signedWith(t, sessionKey(), validClaims())
-	userID, err := userFromToken(session)
+	first := gate(t, "the-first-token")
+	session := signedWith(t, first.key, validClaims())
+	userID, err := first.userFromToken(session)
 	require.NoError(t, err)
 	assert.Equal(t, "1", userID)
 
 	// The same token derives the same key, so a session outlives a restart that pins it.
-	core.ServerAccessToken = "the-first-token"
-	_, err = userFromToken(session)
+	_, err = New("the-first-token").userFromToken(session)
 	assert.NoError(t, err)
 
-	core.ServerAccessToken = "a-different-token"
-	_, err = userFromToken(session)
+	_, err = New("a-different-token").userFromToken(session)
 	assert.Error(t, err)
 }
 
-// signIn posts an access token to LoginHandler as client would.
-func signIn(t *testing.T, accessToken, client string) *httptest.ResponseRecorder {
+// signIn posts an access token to Login as client would.
+func signIn(t *testing.T, a *Auth, accessToken, client string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	r := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"accessToken": "`+accessToken+`"}`))
 	r.RemoteAddr = client + ":40000"
 	recorder := httptest.NewRecorder()
-	LoginHandler(recorder, r)
+	a.Login(recorder, r)
 	return recorder
 }
 
@@ -295,9 +284,9 @@ func cookieRequest(method, path, token, origin string) *http.Request {
 }
 
 func TestSigningInSetsASessionCookieThatScriptsCannotRead(t *testing.T) {
-	withAccessToken(t, "the-token")
+	a := gate(t, "the-token")
 
-	recorder := signIn(t, "the-token", "192.0.2.1")
+	recorder := signIn(t, a, "the-token", "192.0.2.1")
 
 	require.Equal(t, http.StatusOK, recorder.Code, "body was %s", recorder.Body)
 	cookie := sessionCookieIn(t, recorder)
@@ -306,7 +295,7 @@ func TestSigningInSetsASessionCookieThatScriptsCannotRead(t *testing.T) {
 	assert.Equal(t, "/", cookie.Path)
 	assert.Equal(t, int(sessionLifetime.Seconds()), cookie.MaxAge)
 
-	userID, err := userFromToken(cookie.Value)
+	userID, err := a.userFromToken(cookie.Value)
 	require.NoError(t, err)
 	assert.Equal(t, "1", userID)
 }
@@ -314,8 +303,8 @@ func TestSigningInSetsASessionCookieThatScriptsCannotRead(t *testing.T) {
 // Another app on this machine is the same site on another port, so SameSite=Strict still sends the
 // cookie with its requests.
 func TestASessionCookieCannotChangeAnythingFromAnotherPage(t *testing.T) {
-	withAccessToken(t, "the-token")
-	token := signedWith(t, sessionKey(), validClaims())
+	a := gate(t, "the-token")
+	token := signedWith(t, a.key, validClaims())
 
 	cases := map[string]struct {
 		method, origin string
@@ -341,7 +330,7 @@ func TestASessionCookieCannotChangeAnythingFromAnotherPage(t *testing.T) {
 			}
 			recorder := httptest.NewRecorder()
 
-			JwtAuthMiddleware(answers(http.StatusNoContent)).ServeHTTP(recorder, r)
+			a.Middleware(answers(http.StatusNoContent)).ServeHTTP(recorder, r)
 
 			assert.Equal(t, c.want, recorder.Code)
 		})
@@ -350,59 +339,59 @@ func TestASessionCookieCannotChangeAnythingFromAnotherPage(t *testing.T) {
 
 // Signing out used to clear localStorage and nothing else, leaving the token valid for a day.
 func TestSigningOutEndsTheSessionEverywhere(t *testing.T) {
-	withAccessToken(t, "the-token")
-	token := sessionCookieIn(t, signIn(t, "the-token", "192.0.2.1")).Value
+	a := gate(t, "the-token")
+	token := sessionCookieIn(t, signIn(t, a, "the-token", "192.0.2.1")).Value
 
 	recorder := httptest.NewRecorder()
-	LogoutHandler(recorder, cookieRequest(http.MethodPost, "/auth/logout", token, "http://localhost:8048"))
+	a.Logout(recorder, cookieRequest(http.MethodPost, "/auth/logout", token, "http://localhost:8048"))
 
 	assert.Equal(t, http.StatusNoContent, recorder.Code)
 	assert.Negative(t, sessionCookieIn(t, recorder).MaxAge, "the browser was not told to drop the cookie")
 
 	// A copy of the token, held by a script or another browser, stops working too.
 	afterwards := httptest.NewRecorder()
-	JwtAuthMiddleware(answers(http.StatusNoContent)).ServeHTTP(afterwards, requestWith("Bearer "+token))
+	a.Middleware(answers(http.StatusNoContent)).ServeHTTP(afterwards, requestWith("Bearer "+token))
 	assert.Equal(t, http.StatusUnauthorized, afterwards.Code)
 }
 
 func TestAnotherPageCannotSignYouOut(t *testing.T) {
-	withAccessToken(t, "the-token")
-	token := sessionCookieIn(t, signIn(t, "the-token", "192.0.2.1")).Value
+	a := gate(t, "the-token")
+	token := sessionCookieIn(t, signIn(t, a, "the-token", "192.0.2.1")).Value
 
 	recorder := httptest.NewRecorder()
-	LogoutHandler(recorder, cookieRequest(http.MethodPost, "/auth/logout", token, "https://evil.example.com"))
+	a.Logout(recorder, cookieRequest(http.MethodPost, "/auth/logout", token, "https://evil.example.com"))
 
 	assert.Equal(t, http.StatusForbidden, recorder.Code)
-	_, err := userFromToken(token)
+	_, err := a.userFromToken(token)
 	assert.NoError(t, err)
 }
 
 func TestRepeatedFailedSignInsAreHeldOff(t *testing.T) {
-	withAccessToken(t, "the-token")
+	a := gate(t, "the-token")
 
 	for attempt := range maxFailedLogins {
-		assert.Equal(t, http.StatusUnauthorized, signIn(t, "wrong", "192.0.2.1").Code, "attempt %d", attempt+1)
+		assert.Equal(t, http.StatusUnauthorized, signIn(t, a, "wrong", "192.0.2.1").Code, "attempt %d", attempt+1)
 	}
 
-	held := signIn(t, "the-token", "192.0.2.1")
+	held := signIn(t, a, "the-token", "192.0.2.1")
 	assert.Equal(t, http.StatusTooManyRequests, held.Code, "even the right token waits out the window")
 	assert.NotEmpty(t, held.Header().Get("Retry-After"))
 
 	// Only that client is held off.
-	assert.Equal(t, http.StatusOK, signIn(t, "the-token", "198.51.100.7").Code)
+	assert.Equal(t, http.StatusOK, signIn(t, a, "the-token", "198.51.100.7").Code)
 
 	// And the wait ends.
-	assert.Zero(t, logins.blocked("192.0.2.1", time.Now().Add(loginWindow)))
+	assert.Zero(t, a.logins.blocked("192.0.2.1", time.Now().Add(loginWindow)))
 }
 
 func TestASuccessfulSignInForgetsEarlierFailures(t *testing.T) {
-	withAccessToken(t, "the-token")
+	a := gate(t, "the-token")
 
 	for range maxFailedLogins - 1 {
-		signIn(t, "wrong", "192.0.2.1")
+		signIn(t, a, "wrong", "192.0.2.1")
 	}
-	require.Equal(t, http.StatusOK, signIn(t, "the-token", "192.0.2.1").Code)
+	require.Equal(t, http.StatusOK, signIn(t, a, "the-token", "192.0.2.1").Code)
 
-	assert.Equal(t, http.StatusUnauthorized, signIn(t, "wrong", "192.0.2.1").Code)
-	assert.Equal(t, http.StatusOK, signIn(t, "the-token", "192.0.2.1").Code)
+	assert.Equal(t, http.StatusUnauthorized, signIn(t, a, "wrong", "192.0.2.1").Code)
+	assert.Equal(t, http.StatusOK, signIn(t, a, "the-token", "192.0.2.1").Code)
 }

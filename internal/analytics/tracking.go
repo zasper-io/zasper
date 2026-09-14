@@ -11,7 +11,6 @@ import (
 	"github.com/posthog/posthog-go"
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/config"
-	"github.com/zasper-io/zasper/internal/core"
 )
 
 const phEndPoint = "https://us.i.posthog.com"
@@ -55,6 +54,8 @@ var (
 	trackingID string
 	startedAt  time.Time
 	enabled    bool
+	// What this build calls itself, sent with every event.
+	appVersion string
 	// Set when --tracking=false or ZASPER_TELEMETRY=0 said so. Those are per-run and outrank the
 	// config file, so the settings toggle must not be able to undo one for the running process.
 	forcedOff   bool
@@ -91,7 +92,10 @@ func SetEnabled(on bool) {
 	}
 
 	if on && !connected {
-		SetUpPostHogClient()
+		mu.RLock()
+		known := appVersion
+		mu.RUnlock()
+		SetUpPostHogClient(known)
 		return
 	}
 
@@ -140,9 +144,14 @@ func newTrackingID() string {
 	return strings.ReplaceAll(uuid.New().String(), "-", "")[:trackingIDs]
 }
 
-// SetUpPostHogClient connects the client and fixes the properties that ride on every event. It is
+// SetUpPostHogClient connects the client and fixes the properties that ride on every event, the version
+// among them. It is
 // only called when tracking is on; nothing else in this package works until it has run.
-func SetUpPostHogClient() error {
+func SetUpPostHogClient(version string) error {
+	mu.Lock()
+	appVersion = version
+	mu.Unlock()
+
 	mu.RLock()
 	blocked := forcedOff
 	mu.RUnlock()
@@ -173,8 +182,8 @@ func SetUpPostHogClient() error {
 		Set("$ip", "").
 		Set("$geoip_disable", true).
 		Set("$process_person_profile", false).
-		Set("zasper_version", strings.TrimSpace(core.Zasper.Version)).
-		Set("os", core.Zasper.OSName).
+		Set("zasper_version", strings.TrimSpace(version)).
+		Set("os", runtime.GOOS).
 		Set("arch", runtime.GOARCH).
 		Set("source", "web")
 

@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -37,53 +36,48 @@ var ErrSetupRunning = errors.New("the project's environment is already being set
 
 const maxSetupLog = 64 << 10
 
-var (
-	setupMu     sync.Mutex
-	setupStatus = SetupStatus{State: "idle"}
-)
-
-// setupTools answers uv, and a Python to make a venv with when there is no uv; tests replace it.
-var setupTools = findSetupTools
-
-func StartSetup(project string) error {
-	setupMu.Lock()
-	defer setupMu.Unlock()
-	if setupStatus.State == "running" {
+// StartSetup sets up the environment of the project at project in the background, unless a setup is
+// already running.
+func (k *Catalog) StartSetup(project string) error {
+	k.setupMu.Lock()
+	defer k.setupMu.Unlock()
+	if k.setupStatus.State == "running" {
 		return ErrSetupRunning
 	}
-	setupStatus = SetupStatus{State: "running"}
+	k.setupStatus = SetupStatus{State: "running"}
 
 	go func() {
-		err := setUpProjectEnvironment(project)
-		setupMu.Lock()
-		defer setupMu.Unlock()
+		err := k.setUpProjectEnvironment(project)
+		k.setupMu.Lock()
+		defer k.setupMu.Unlock()
 		if err != nil {
-			setupStatus.State, setupStatus.Error = "failed", err.Error()
+			k.setupStatus.State, k.setupStatus.Error = "failed", err.Error()
 			log.Warn().Msgf("setting up a Python environment in %s failed: %v", project, err)
 			return
 		}
-		setupStatus.State, setupStatus.Kernel = "succeeded", ProjectKernelName
+		k.setupStatus.State, k.setupStatus.Kernel = "succeeded", ProjectKernelName
 	}()
 	return nil
 }
 
-func CurrentSetup() SetupStatus {
-	setupMu.Lock()
-	defer setupMu.Unlock()
-	return setupStatus
+// CurrentSetup answers the state of the last setup.
+func (k *Catalog) CurrentSetup() SetupStatus {
+	k.setupMu.Lock()
+	defer k.setupMu.Unlock()
+	return k.setupStatus
 }
 
-func setupLog(line string) {
-	setupMu.Lock()
-	defer setupMu.Unlock()
-	setupStatus.Log += line + "\n"
-	if len(setupStatus.Log) > maxSetupLog {
-		setupStatus.Log = setupStatus.Log[len(setupStatus.Log)-maxSetupLog:]
+func (k *Catalog) setupLog(line string) {
+	k.setupMu.Lock()
+	defer k.setupMu.Unlock()
+	k.setupStatus.Log += line + "\n"
+	if len(k.setupStatus.Log) > maxSetupLog {
+		k.setupStatus.Log = k.setupStatus.Log[len(k.setupStatus.Log)-maxSetupLog:]
 	}
 }
 
-func setUpProjectEnvironment(project string) error {
-	uv, base := setupTools()
+func (k *Catalog) setUpProjectEnvironment(project string) error {
+	uv, base := k.setupTools()
 
 	env := projectEnvironment(project)
 	if env == "" {
@@ -95,9 +89,9 @@ func setUpProjectEnvironment(project string) error {
 		var err error
 		switch {
 		case uv != "":
-			err = runSetupCommand(project, uv, "venv", env)
+			err = k.runSetupCommand(project, uv, "venv", env)
 		case base != "":
-			err = runSetupCommand(project, base, "-m", "venv", env)
+			err = k.runSetupCommand(project, base, "-m", "venv", env)
 		default:
 			err = errors.New("no Python was found to create the environment with; install Python 3 from python.org and try again")
 		}
@@ -111,19 +105,19 @@ func setUpProjectEnvironment(project string) error {
 		return fmt.Errorf("%s has no Python in it", env)
 	}
 	if inspected := inspectEnvironment(env); inspected != nil && ipykernelResources(inspected.Paths) != "" {
-		setupLog("ipykernel is already installed in " + env)
+		k.setupLog("ipykernel is already installed in " + env)
 	} else {
 		var err error
 		if uv != "" {
-			err = runSetupCommand(project, uv, "pip", "install", "--python", python, "ipykernel")
+			err = k.runSetupCommand(project, uv, "pip", "install", "--python", python, "ipykernel")
 		} else {
-			err = runSetupCommand(project, python, "-m", "pip", "install", "ipykernel")
+			err = k.runSetupCommand(project, python, "-m", "pip", "install", "ipykernel")
 		}
 		if err != nil {
 			return err
 		}
 	}
-	if err := runSetupCommand(project, python, "-c", "import ipykernel"); err != nil {
+	if err := k.runSetupCommand(project, python, "-c", "import ipykernel"); err != nil {
 		return fmt.Errorf("ipykernel was installed but cannot be imported: %w", err)
 	}
 
@@ -132,8 +126,8 @@ func setUpProjectEnvironment(project string) error {
 }
 
 // runSetupCommand runs one step with its output going to the job's log, line by line as it comes.
-func runSetupCommand(dir, name string, args ...string) error {
-	setupLog("$ " + strings.Join(append([]string{name}, args...), " "))
+func (k *Catalog) runSetupCommand(dir, name string, args ...string) error {
+	k.setupLog("$ " + strings.Join(append([]string{name}, args...), " "))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -149,7 +143,7 @@ func runSetupCommand(dir, name string, args ...string) error {
 		scanner := bufio.NewScanner(reader)
 		scanner.Buffer(make([]byte, 64<<10), 1<<20)
 		for scanner.Scan() {
-			setupLog(scanner.Text())
+			k.setupLog(scanner.Text())
 		}
 		// A line past the buffer stops the scanner; the rest is drained so the command cannot block.
 		io.Copy(io.Discard, reader)
@@ -175,7 +169,7 @@ func withoutVariable(environ []string, name string) []string {
 	return kept
 }
 
-func findSetupTools() (uv string, base string) {
+func (k *Catalog) findSetupTools() (uv string, base string) {
 	if path, err := exec.LookPath("uv"); err == nil {
 		uv = path
 	} else {
@@ -193,7 +187,7 @@ func findSetupTools() (uv string, base string) {
 			}
 		}
 	}
-	for _, c := range interpreterCandidates() {
+	for _, c := range k.candidates() {
 		if c.env == "" && probe(c.path) != nil {
 			base = c.path
 			break

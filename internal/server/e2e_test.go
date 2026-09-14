@@ -7,8 +7,7 @@ rather than a single call, because the defects worth catching here live between 
 that keeps naming a file that has been renamed, two deletes that both stop the same kernel, a path that
 escapes the project on write but not on read.
 
-core.Zasper and the kernel, session, connection and watcher stores are process-wide, so nothing here
-runs in parallel.
+Each test starts a server of its own, so they run in parallel.
 */
 package server
 
@@ -34,7 +33,6 @@ import (
 	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
-	"github.com/zasper-io/zasper/internal/session"
 )
 
 /*
@@ -44,23 +42,26 @@ and that directory.
 The project sits one level below the temp root, so a test can put something outside the project and
 prove no request reaches it — filepath.Dir of the returned path is that root.
 
-The SPA handler is nil: it embeds ui/build, which a test has no business serving.
+jupyterPath is searched for kernelspecs ahead of the machine's own. The SPA handler is nil: it embeds ui/build, which
+a test has no business serving.
 */
-func testServer(t *testing.T) (*httptest.Server, string) {
+func testServer(t *testing.T, jupyterPath ...string) (*httptest.Server, string) {
 	t.Helper()
+	t.Parallel()
 
 	project := filepath.Join(t.TempDir(), "project")
 	require.NoError(t, os.MkdirAll(project, 0o755))
 
-	core.Zasper = core.SetUpZasper("test", project)
-	SetUp()
+	app := core.NewApplication("test", project)
+	app.JupyterPath = append(jupyterPath, app.JupyterPath...)
+	s := New(app)
 
-	srv := httptest.NewServer(signedIn(t, NewRouter(nil)))
+	srv := httptest.NewServer(signedIn(t, s))
 	t.Cleanup(func() {
 		// Sessions first, and before the server closes: each one owns a kernel process, and neither
 		// closing the server nor emptying the store would stop it.
-		for id := range session.ListSessions() {
-			if err := session.DeleteSession(models.SessionModel{Id: id}); err != nil {
+		for id := range s.sessions.List() {
+			if err := s.sessions.Delete(id); err != nil {
 				t.Errorf("could not clean up session %s: %v", id, err)
 			}
 		}
@@ -75,16 +76,17 @@ signedIn stands in for a browser that has already signed in, by giving every req
 credentials of its own the session /auth/login hands out. The journeys here are about what happens after
 signing in; auth_test.go tests the gate itself, over a server without this.
 */
-func signedIn(t *testing.T, router http.Handler) http.Handler {
+func signedIn(t *testing.T, s *Server) http.Handler {
 	t.Helper()
 
-	credentials, err := json.Marshal(map[string]string{"accessToken": core.ServerAccessToken})
+	credentials, err := json.Marshal(map[string]string{"accessToken": s.app.AccessToken})
 	require.NoError(t, err)
 	recorder := httptest.NewRecorder()
-	auth.LoginHandler(recorder, httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(credentials)))
+	s.auth.Login(recorder, httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(credentials)))
 	require.Equal(t, http.StatusOK, recorder.Code, "body was %s", recorder.Body)
 	session := decode[auth.LoginResponse](t, recorder.Body.Bytes()).Token
 
+	router := s.Router(nil)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") == "" && r.URL.Query().Get("token") == "" {
 			r.Header.Set("Authorization", "Bearer "+session)
@@ -250,7 +252,7 @@ func TestTheSameNameTwiceIsAConflictRatherThanAnOverwrite(t *testing.T) {
 /*
 Nothing reaches outside the project directory.
 
-Every write endpoint roots its path through GetSafePath, and the handlers refuse `..` before that;
+Every write endpoint roots its path through content.Project.SafePath, and the handlers refuse `..` before that;
 this checks both halves at once by keeping a file in the temp root, one level above the project, and
 asserting after every attempt that it is exactly as it was.
 */

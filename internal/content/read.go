@@ -24,10 +24,10 @@ import (
 GetContent reads a directory listing, a notebook, or a file. A file's format is "text", "base64", or ""
 for whichever of the two keeps its bytes; withHash adds a SHA-256 of the file.
 */
-func GetContent(relativePath string, contentType string, format string, withHash bool) (models.ContentModel, error) {
+func (p Project) GetContent(relativePath string, contentType string, format string, withHash bool) (models.ContentModel, error) {
 	log.Debug().Msgf("getting content for path : %s", relativePath)
 	// get path info
-	osPath := GetSafePath(relativePath)
+	osPath := p.SafePath(relativePath)
 	info, err := os.Lstat(osPath)
 
 	if err != nil {
@@ -38,12 +38,12 @@ func GetContent(relativePath string, contentType string, format string, withHash
 
 	log.Debug().Msgf("Is directory %t", info.IsDir())
 	if info.IsDir() {
-		model, err = getDirectoryModel(relativePath)
+		model, err = p.getDirectoryModel(relativePath)
 	} else {
 		if contentType == "notebook" {
-			model, err = getNotebookModel(relativePath)
+			model, err = p.getNotebookModel(relativePath)
 		} else {
-			model, err = getFileModelWithContent(relativePath, format, withHash)
+			model, err = p.getFileModelWithContent(relativePath, format, withHash)
 		}
 
 	}
@@ -54,8 +54,8 @@ func GetContent(relativePath string, contentType string, format string, withHash
 	return model, nil
 }
 
-func getNotebookModel(path string) (models.ContentModel, error) {
-	osPath := GetSafePath(path)
+func (p Project) getNotebookModel(path string) (models.ContentModel, error) {
+	osPath := p.SafePath(path)
 
 	info, err := os.Lstat(osPath)
 
@@ -88,9 +88,9 @@ func getNotebookModel(path string) (models.ContentModel, error) {
 	return output, nil
 }
 
-func getDirectoryModel(relativePath string) (models.ContentModel, error) {
+func (p Project) getDirectoryModel(relativePath string) (models.ContentModel, error) {
 	log.Debug().Msgf("relative path %s", relativePath)
-	abspath := GetSafePath(relativePath)
+	abspath := p.SafePath(relativePath)
 
 	info, err := os.Lstat(abspath)
 	if err != nil {
@@ -119,7 +119,7 @@ func getDirectoryModel(relativePath string) (models.ContentModel, error) {
 	// Built once for the whole listing rather than per entry: every entry here shares the same set of
 	// applicable .gitignore files.
 	segments := pathSegments(relativePath)
-	ignores := ignoreMatcherFor(segments)
+	ignores := p.ignoreMatcherFor(segments)
 	// Everything inside an ignored folder is ignored, whatever the patterns say about the names
 	// themselves.
 	insideIgnored := len(segments) > 0 && ignores.Match(segments, true)
@@ -195,7 +195,6 @@ The largest file sent as content. The model carries the whole file inside one JS
 multi-gigabyte log would be read into memory and encoded in full; the download endpoint streams files of
 any size.
 */
-var maxContentSize int64 = 10 << 20
 
 var errNotText = errors.New("it is not UTF-8 text")
 
@@ -205,16 +204,16 @@ encoding/json replaces invalid UTF-8 with U+FFFD, so a Latin-1 or binary file se
 the editor with its bytes changed. Without a format asked for, a file that is not valid UTF-8, or that holds
 a NUL byte, is sent as base64.
 */
-func getFileModelWithContent(path, format string, withHash bool) (models.ContentModel, error) {
-	osPath := GetSafePath(path)
+func (p Project) getFileModelWithContent(path, format string, withHash bool) (models.ContentModel, error) {
+	osPath := p.SafePath(path)
 
 	// Stat rather than Lstat: through a link, the size that matters is the file's.
 	info, err := os.Stat(osPath)
 	if err != nil {
 		return models.ContentModel{}, err
 	}
-	if info.Size() > maxContentSize {
-		return models.ContentModel{}, fmt.Errorf("%s is %s, and files over %s are not opened here", info.Name(), byteSize(info.Size()), byteSize(maxContentSize))
+	if info.Size() > p.maxFileSize {
+		return models.ContentModel{}, fmt.Errorf("%s is %s, and files over %s are not opened here", info.Name(), byteSize(info.Size()), byteSize(p.maxFileSize))
 	}
 
 	data, err := os.ReadFile(osPath)

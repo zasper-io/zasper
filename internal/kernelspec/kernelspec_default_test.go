@@ -8,6 +8,8 @@ import (
 
 // The listing's default used to be python3 whether or not one was installed.
 func TestTheDefaultKernelIsOneThatIsInstalled(t *testing.T) {
+	t.Parallel()
+
 	spec := func(language string) KspecData {
 		return KspecData{Spec: KernelSpecJsonData{Language: language}}
 	}

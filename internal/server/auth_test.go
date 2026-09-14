@@ -6,7 +6,7 @@ remembering to add it here. That is the whole point: every one of the three defe
 route that had simply been left out of the gate — the two websocket routes were never behind it, and
 the watcher was behind the one gate a browser cannot pass.
 
-core.Zasper is process-wide and these set Protected on it, so nothing here runs in parallel.
+Each test starts a server of its own. All but the one that pins the access token run in parallel.
 */
 package server
 
@@ -45,13 +45,12 @@ func protectedServer(t *testing.T) (*httptest.Server, string) {
 	project := filepath.Join(t.TempDir(), "project")
 	require.NoError(t, os.MkdirAll(project, 0o755))
 
-	core.Zasper = core.SetUpZasper("test", project)
-	SetUp()
+	s := New(core.NewApplication("test", project))
 
-	srv := httptest.NewServer(NewRouter(nil))
+	srv := httptest.NewServer(s.Router(nil))
 	t.Cleanup(srv.Close)
 
-	return srv, core.ServerAccessToken
+	return srv, s.app.AccessToken
 }
 
 // route is one entry of the table, with its path variables filled in so it can actually be called.
@@ -116,9 +115,11 @@ Two of these used to pass anonymously: /ws/terminals/{id} handed out a shell, an
 /ws/kernels/{id}/channels attached to a running kernel.
 */
 func TestProtectedModeRejectsEveryAnonymousRequest(t *testing.T) {
+	t.Parallel()
+
 	srv, _ := protectedServer(t)
 
-	for _, route := range tableRoutes(t, NewRouter(nil)) {
+	for _, route := range tableRoutes(t, srv.Config.Handler.(*mux.Router)) {
 		t.Run(route.method+" "+route.path, func(t *testing.T) {
 			request, err := http.NewRequest(route.method, srv.URL+route.path, nil)
 			require.NoError(t, err)
@@ -134,6 +135,8 @@ func TestProtectedModeRejectsEveryAnonymousRequest(t *testing.T) {
 
 // The token the login hands back opens the API, or protected mode would reject its own frontend too.
 func TestProtectedModeAcceptsTheLoginToken(t *testing.T) {
+	t.Parallel()
+
 	srv, accessToken := protectedServer(t)
 	jwt := login(t, srv, accessToken)
 
@@ -151,6 +154,8 @@ func TestProtectedModeAcceptsTheLoginToken(t *testing.T) {
 // Signing in is read before anyone is authenticated, so its body is capped at a few kilobytes: a
 // valid sign-in padded past that is refused, where it used to be read however large it was.
 func TestASignInLargerThanASignInIsNotRead(t *testing.T) {
+	t.Parallel()
+
 	srv, accessToken := protectedServer(t)
 	body, err := json.Marshal(map[string]string{
 		"padding":     strings.Repeat("x", 32<<10),
@@ -167,6 +172,8 @@ func TestASignInLargerThanASignInIsNotRead(t *testing.T) {
 
 // The cookie the login sets is what a browser authenticates the API with.
 func TestTheSessionCookieOpensTheAPI(t *testing.T) {
+	t.Parallel()
+
 	srv, accessToken := protectedServer(t)
 	body, err := json.Marshal(map[string]string{"accessToken": accessToken})
 	require.NoError(t, err)
@@ -204,6 +211,8 @@ func TestLoginAcceptsAPinnedAccessToken(t *testing.T) {
 }
 
 func TestLoginRejectsTheWrongAccessToken(t *testing.T) {
+	t.Parallel()
+
 	srv, _ := protectedServer(t)
 
 	response, err := http.Post(
@@ -222,6 +231,8 @@ Websockets authenticate by the session cookie, which a browser sends on the upgr
 is refused: it used to be how they authenticated, and it left the token in history and logs.
 */
 func TestWebsocketsAuthenticateByTheSessionCookie(t *testing.T) {
+	t.Parallel()
+
 	srv, accessToken := protectedServer(t)
 	jwt := login(t, srv, accessToken)
 

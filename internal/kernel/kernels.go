@@ -8,65 +8,52 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/models"
 	"github.com/zasper-io/zasper/internal/store"
 )
 
-// The running kernels. Starting or stopping one launches or signals a process, which is never done under
-// the store's lock; the lock is for claiming a kernel, so that only one caller acts on it.
-var kernels store.Map[string, *KernelManager]
-
-// SetUpStateKernels empties the store, for a server that is starting up.
-func SetUpStateKernels() {
-	kernels.Clear()
+// Kernels are the kernels a server runs. Starting or stopping one launches or signals a process, which is
+// never done under the store's lock; the lock is for claiming a kernel, so that only one caller acts on it.
+type Kernels struct {
+	specs   *kernelspec.Catalog
+	running store.Map[string, *KernelManager]
+	// Told when a kernel stops, by what depends on it and cannot be imported from here: its sessions and
+	// its client sockets. Registered before the server serves anything.
+	disconnectHandlers []func(kernelId string)
 }
 
-// ActiveKernel answers the manager for a running kernel.
-func ActiveKernel(kernelId string) (*KernelManager, bool) {
-	return kernels.Get(kernelId)
+// New starts kernels from the kernelspecs in specs.
+func New(specs *kernelspec.Catalog) *Kernels {
+	return &Kernels{specs: specs}
 }
 
-func setActiveKernel(kernelId string, km *KernelManager) {
-	kernels.Set(kernelId, km)
+// Get answers the manager for a running kernel.
+func (k *Kernels) Get(kernelId string) (*KernelManager, bool) {
+	return k.running.Get(kernelId)
 }
 
-// removeActiveKernel takes a kernel out and reports whether this call took it, so that two callers do
-// not both signal its pid, which by the second time may belong to another process.
-func removeActiveKernel(kernelId string) (*KernelManager, bool) {
-	return kernels.Take(kernelId)
+// take takes a kernel out and reports whether this call took it, so that two callers do not both signal
+// its pid, which by the second time may belong to another process.
+func (k *Kernels) take(kernelId string) (*KernelManager, bool) {
+	return k.running.Take(kernelId)
 }
 
-func activeKernels() []*KernelManager {
-	return kernels.Values()
-}
-
-// recordKernelActivity notes what a running kernel has just said. Nothing is recorded for a kernel that
-// has stopped.
-func recordKernelActivity(kernelId string, state string) {
-	if km, ok := ActiveKernel(kernelId); ok {
-		km.recordActivity(state)
-	}
-}
-
-// SetKernelConnections records how many clients are attached to a running kernel. The websocket layer owns
+// SetConnections records how many clients are attached to a running kernel. The websocket layer owns
 // those connections and cannot be imported from here, so it reports them.
-func SetKernelConnections(kernelId string, count int) {
-	if km, ok := ActiveKernel(kernelId); ok {
+func (k *Kernels) SetConnections(kernelId string, count int) {
+	if km, ok := k.Get(kernelId); ok {
 		km.setConnections(count)
 	}
 }
 
-// disconnectHandlers are told when a kernel stops, by the packages holding what depends on it — its
-// sessions and its client sockets — which this package cannot import.
-var disconnectHandlers []func(kernelId string)
-
-// OnKernelDisconnect registers a handler, called in registration order whenever a kernel stops.
-func OnKernelDisconnect(handler func(kernelId string)) {
-	disconnectHandlers = append(disconnectHandlers, handler)
+// OnDisconnect registers a handler, called in registration order whenever a kernel stops.
+func (k *Kernels) OnDisconnect(handler func(kernelId string)) {
+	k.disconnectHandlers = append(k.disconnectHandlers, handler)
 }
 
-func NotifyDisconnect(kernelId string) {
-	for _, handler := range disconnectHandlers {
+func (k *Kernels) notifyDisconnect(kernelId string) {
+	for _, handler := range k.disconnectHandlers {
 		handler(kernelId)
 	}
 }
@@ -74,32 +61,58 @@ func NotifyDisconnect(kernelId string) {
 // ErrKernelNotFound is returned when a kernel id does not belong to a running kernel.
 var ErrKernelNotFound = errors.New("kernel not found")
 
-func KillKernelById(kernelId string) error {
-	km, ok := removeActiveKernel(kernelId)
+// Start starts a kernel in dir, with env set for it on top of its kernelspec's own, and answers its id.
+func (k *Kernels) Start(dir string, kernelName string, env map[string]string) (string, error) {
+	kernelId := uuid.New().String()
+
+	km := newKernelManager(kernelName, kernelId)
+	km.Dir = dir
+	km.Env = env
+	if err := km.start(k.specs); err != nil {
+		return "", err
+	}
+
+	// Jupyter's name for a kernel that is up and has published nothing yet; its first status message
+	// replaces it.
+	km.recordActivity("starting")
+
+	// Not the request's context: the watch lasts as long as the kernel, and whatever stops it cancels it.
+	watching, stopWatching := context.WithCancel(context.Background())
+	km.stopWatching = stopWatching
+
+	k.running.Set(kernelId, km)
+	go watchKernelActivity(watching, km)
+	go k.watchForExit(km)
+
+	return kernelId, nil
+}
+
+// Stop stops a running kernel, and tells what depended on it.
+func (k *Kernels) Stop(kernelId string) error {
+	km, ok := k.take(kernelId)
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrKernelNotFound, kernelId)
 	}
 
-	NotifyDisconnect(kernelId)
+	k.notifyDisconnect(kernelId)
 	stopWatchingKernel(km)
 	km.stop()
 	return nil
 }
 
-// listKernels answers from one snapshot, so a kernel that stops while the list is built is either in it
-// or not.
-func listKernels() ([]models.KernelModel, error) {
-	running := activeKernels()
+// list answers from one snapshot, so a kernel that stops while the list is built is either in it or not.
+func (k *Kernels) list() []models.KernelModel {
+	running := k.running.Values()
 
 	listed := make([]models.KernelModel, 0, len(running))
 	for _, km := range running {
 		listed = append(listed, kernelModel(km))
 	}
-	return listed, nil
+	return listed
 }
 
-func getKernel(kernelId string) (models.KernelModel, error) {
-	km, ok := ActiveKernel(kernelId)
+func (k *Kernels) model(kernelId string) (models.KernelModel, error) {
+	km, ok := k.Get(kernelId)
 	if !ok {
 		return models.KernelModel{}, fmt.Errorf("%w: %s", ErrKernelNotFound, kernelId)
 	}
@@ -117,8 +130,8 @@ func kernelModel(km *KernelManager) models.KernelModel {
 	}
 }
 
-func interruptKernel(kernelId string) error {
-	km, ok := ActiveKernel(kernelId)
+func (k *Kernels) interrupt(kernelId string) error {
+	km, ok := k.Get(kernelId)
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrKernelNotFound, kernelId)
 	}
@@ -134,46 +147,6 @@ func interruptKernel(kernelId string) error {
 		return fmt.Errorf("kernel %s has no process to interrupt", kernelId)
 	}
 	return km.Process.Interrupt()
-}
-
-// StartKernelManager starts a kernel in dir, with env set for it on top of its kernelspec's own, and
-// answers its id.
-func StartKernelManager(dir string, kernelName string, env map[string]string) (string, error) {
-	kernelId := uuid.New().String()
-
-	km := newKernelManager(kernelName, kernelId)
-	km.Dir = dir
-	km.Env = env
-	if err := km.start(); err != nil {
-		return "", err
-	}
-
-	// Jupyter's name for a kernel that is up and has published nothing yet; its first status message
-	// replaces it.
-	km.recordActivity("starting")
-
-	// Not the request's context: the watch lasts as long as the kernel, and whatever stops it cancels it.
-	watching, stopWatching := context.WithCancel(context.Background())
-	km.stopWatching = stopWatching
-
-	// Stored before the watchers start, because activity for a kernel that is not in the store is dropped.
-	setActiveKernel(kernelId, km)
-	go watchKernelActivity(watching, km)
-	go watchForExit(km)
-
-	return kernelId, nil
-}
-
-func StopKernelManager(kernelId string) error {
-	km, ok := removeActiveKernel(kernelId)
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrKernelNotFound, kernelId)
-	}
-
-	NotifyDisconnect(kernelId)
-	stopWatchingKernel(km)
-	km.stop()
-	return nil
 }
 
 func newKernelManager(kernelName string, kernelId string) *KernelManager {

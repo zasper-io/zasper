@@ -70,9 +70,9 @@ func TestNothingIdentifyingReachesTheWire(t *testing.T) {
 	t.Setenv(endpointEnvVar, server.URL)
 	resetPackageState(t)
 
-	core.Zasper = core.SetUpZasper("9.9.9-test", ".")
+	app := core.NewApplication("9.9.9-test", ".")
 
-	if err := SetUpPostHogClient(); err != nil {
+	if err := SetUpPostHogClient(app.Version); err != nil {
 		t.Fatalf("SetUpPostHogClient: %v", err)
 	}
 	if !Enabled() {
@@ -132,9 +132,9 @@ func TestNothingIdentifyingReachesTheWire(t *testing.T) {
 
 	// Nor anything the machine knows about itself.
 	for _, needle := range []string{
-		core.Zasper.UserName,
-		core.Zasper.HomeDir,
-		core.Zasper.ProjectName,
+		app.UserName,
+		app.HomeDir,
+		app.ProjectName,
 	} {
 		lowerNeedle := strings.ToLower(needle)
 		// Two characters would match by accident; there is nothing to check in an empty one.
@@ -174,7 +174,7 @@ func TestDisabledSessionMakesNoRequests(t *testing.T) {
 
 	DisableForSession()
 
-	if err := SetUpPostHogClient(); err != nil {
+	if err := SetUpPostHogClient("9.9.9-test"); err != nil {
 		t.Fatalf("SetUpPostHogClient: %v", err)
 	}
 	Track(EventServerStarted, nil)

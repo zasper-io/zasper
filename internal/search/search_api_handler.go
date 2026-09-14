@@ -19,7 +19,7 @@ import (
 How long one walk of the project answers searches for. The palette asks again on every keystroke, so a
 word typed is one walk rather than one per letter; a file created since appears once this has passed.
 */
-var listingTTL = 10 * time.Second
+const listingTTL = 10 * time.Second
 
 // The most suggestions one answer carries: the palette shows a screenful, and a one-letter query in a
 // large project would otherwise send every file in it.
@@ -31,25 +31,32 @@ type projectFile struct {
 	modified time.Time
 }
 
-// listing is the most recent walk: one project's files, and when they were read.
-var listing struct {
+// Handler answers file suggestions for one project, from a listing of its files that is walked again once it
+// is older than ttl.
+type Handler struct {
+	project content.Project
+	ttl     time.Duration
+
 	mu    sync.Mutex
-	root  string
 	files []projectFile
 	at    time.Time
 }
 
-// projectFiles answers the files of the project at root, walking it only when the last walk was of
-// another project or is older than listingTTL. Requests that arrive during a walk wait for it rather than
-// starting walks of their own.
-func projectFiles(root string) []projectFile {
-	listing.mu.Lock()
-	defer listing.mu.Unlock()
+// NewHandler suggests the files of project.
+func NewHandler(project content.Project) *Handler {
+	return &Handler{project: project, ttl: listingTTL}
+}
 
-	if listing.root != root || time.Since(listing.at) >= listingTTL {
-		listing.root, listing.files, listing.at = root, walkProject(root), time.Now()
+// projectFiles answers the project's files, walking it only when the last walk is older than ttl. Requests
+// that arrive during a walk wait for it rather than starting walks of their own.
+func (h *Handler) projectFiles() []projectFile {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.files == nil || time.Since(h.at) >= h.ttl {
+		h.files, h.at = walkProject(h.project.Root()), time.Now()
 	}
-	return listing.files
+	return h.files
 }
 
 /*
@@ -93,8 +100,8 @@ func walkProject(root string) []projectFile {
 	return files
 }
 
-// GetFileSuggestions answers the project's files whose name contains the query, whatever its case.
-func GetFileSuggestions(w http.ResponseWriter, r *http.Request) {
+// Files answers the project's files whose name contains the query, whatever its case.
+func (h *Handler) Files(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	if query == "" {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, "Query parameter is required")
@@ -105,7 +112,7 @@ func GetFileSuggestions(w http.ResponseWriter, r *http.Request) {
 	// disagree about whether `README` and `readme` are the same word is a bug report.
 	needle := strings.ToLower(query)
 	suggestions := []models.ContentModel{}
-	for _, file := range projectFiles(content.GetSafePath(".")) {
+	for _, file := range h.projectFiles() {
 		if !strings.Contains(strings.ToLower(file.name), needle) {
 			continue
 		}

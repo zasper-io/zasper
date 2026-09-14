@@ -11,8 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/zasper-io/zasper/internal/core"
 )
 
 /*
@@ -57,12 +55,9 @@ var (
 	probeCache = map[string]probed{}
 )
 
-// interpreterCandidates is where Pythons are looked for; tests replace it.
-var interpreterCandidates = defaultInterpreterCandidates
-
-func defaultInterpreterCandidates() []candidate {
+func defaultInterpreterCandidates(project string) []candidate {
 	var found []candidate
-	if env := projectEnvironment(core.Zasper.HomeDir); env != "" {
+	if env := projectEnvironment(project); env != "" {
 		found = append(found, candidate{path: pythonIn(env), env: env})
 	}
 	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
@@ -243,8 +238,8 @@ func ipykernelResources(paths []string) string {
 virtualSpecs answers a kernel for each Python found with ipykernel in it, skipping any whose
 environment a spec on disk already runs: that spec is the kernel for it, and wins on name as well.
 */
-func virtualSpecs(onDisk map[string]KspecData) map[string]KernelSpecJsonData {
-	candidates := interpreterCandidates()
+func (k *Catalog) virtualSpecs(onDisk map[string]KspecData) map[string]KernelSpecJsonData {
+	candidates := k.candidates()
 	found := make([]*interpreter, len(candidates))
 	var wg sync.WaitGroup
 	for i, c := range candidates {

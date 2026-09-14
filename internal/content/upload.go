@@ -24,7 +24,7 @@ The body is written to a temporary file beside the target and renamed into place
 cancelled or drops halfway leaves nothing behind, and one that is replacing a file does not truncate
 it until every byte has arrived.
 */
-func uploadContent(parentDir, relativePath string, replace bool, body io.Reader) (models.ContentModel, error) {
+func (p Project) uploadContent(parentDir, relativePath string, replace bool, body io.Reader) (models.ContentModel, error) {
 	fromBrowser := filepath.FromSlash(relativePath)
 	relative := filepath.Clean(fromBrowser)
 	name := filepath.Base(relative)
@@ -35,7 +35,7 @@ func uploadContent(parentDir, relativePath string, replace bool, body io.Reader)
 
 	// The whole target confirmed to be inside the project, not just its folder: `..` in the browser's
 	// string is the reason this is not filepath.Join on its own.
-	target, err := safeWritePath(filepath.Join(parentDir, relative))
+	target, err := p.safeWritePath(filepath.Join(parentDir, relative))
 	if err != nil {
 		return models.ContentModel{}, err
 	}
@@ -46,7 +46,7 @@ func uploadContent(parentDir, relativePath string, replace bool, body io.Reader)
 	if !replace && pathExists(target) {
 		return models.ContentModel{}, errTargetExists
 	}
-	if target, err = throughLink(target); err != nil {
+	if target, err = p.throughLink(target); err != nil {
 		return models.ContentModel{}, err
 	}
 

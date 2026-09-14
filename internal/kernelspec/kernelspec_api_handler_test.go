@@ -1,7 +1,7 @@
 /*
 The three kernelspec routes, called as the router calls them.
 
-ServeKernelResource is the one worth the trouble. It is the only route in the app that reads a file
+ResourceHandler is the one worth the trouble. It is the only route in the app that reads a file
 off disk chosen by name from the URL, and until these tests it had no coverage at all: a kernel that
 is not installed served a file relative to the server's working directory, and a resource name with
 no dot in it panicked the handler on the line after the read succeeded.
@@ -25,34 +25,34 @@ import (
 )
 
 // serveResource calls the handler the way the route would, and answers the recorder.
-func serveResource(kernel, resource string) *httptest.ResponseRecorder {
+func serveResource(catalog *Catalog, kernel, resource string) *httptest.ResponseRecorder {
 	request := httptest.NewRequest(http.MethodGet, "/static/kernelspecs/"+kernel+"/"+resource, nil)
 	request = mux.SetURLVars(request, map[string]string{"kernel": kernel, "resource": resource})
 
 	recorder := httptest.NewRecorder()
-	ServeKernelResource(recorder, request)
+	catalog.ResourceHandler(recorder, request)
 	return recorder
 }
 
 func TestAKernelsOwnLogoIsServedWithItsType(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	dir := kernelDir(t, kernels, "python3", pythonSpec)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "logo-64x64.png"), []byte("png bytes"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.js"), []byte("// js"), 0o644))
 
-	png := serveResource("python3", "logo-64x64.png")
+	png := serveResource(catalog, "python3", "logo-64x64.png")
 	assert.Equal(t, http.StatusOK, png.Code)
 	assert.Equal(t, "image/png", png.Header().Get("Content-Type"))
 	assert.Equal(t, "png bytes", png.Body.String())
 
 	// Anything the switch does not name is handed over as bytes rather than guessed at.
-	js := serveResource("python3", "kernel.js")
+	js := serveResource(catalog, "python3", "kernel.js")
 	assert.Equal(t, http.StatusOK, js.Code)
 	assert.Equal(t, "application/octet-stream", js.Header().Get("Content-Type"))
 }
 
 func TestAResourceRequestCannotReachOutsideTheKernelsOwnFolder(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPathHere(t)
 	kernelDir(t, kernels, "python3", pythonSpec)
 	require.NoError(t, os.WriteFile(filepath.Join(kernels, "secrets.txt"), []byte("shh"), 0o644))
 
@@ -76,7 +76,7 @@ func TestAResourceRequestCannotReachOutsideTheKernelsOwnFolder(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// A panic here is the failure: the extension was taken with [1:], so a resource with no
 			// dot in it took the handler down once the read had succeeded.
-			recorder := serveResource(c.kernel, c.resource)
+			recorder := serveResource(catalog, c.kernel, c.resource)
 
 			assert.Equal(t, http.StatusNotFound, recorder.Code)
 			assert.NotContains(t, recorder.Body.String(), "module secret")
@@ -92,11 +92,11 @@ Separate from the refusals above because this one has to be *served*, not refuse
 that proves the fix is about how the extension is read rather than about turning the name away.
 */
 func TestAResourceWithNoExtensionIsServedRatherThanCrashing(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	dir := kernelDir(t, kernels, "python3", pythonSpec)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "LICENSE"), []byte("MIT"), 0o644))
 
-	recorder := serveResource("python3", "LICENSE")
+	recorder := serveResource(catalog, "python3", "LICENSE")
 
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Equal(t, "application/octet-stream", recorder.Header().Get("Content-Type"))
@@ -104,13 +104,13 @@ func TestAResourceWithNoExtensionIsServedRatherThanCrashing(t *testing.T) {
 }
 
 func TestTheKernelspecsAreListedWithTheirResources(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	dir := kernelDir(t, kernels, "python3", pythonSpec)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "logo-64x64.png"), []byte("png"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.js"), []byte("// js"), 0o644))
 
 	recorder := httptest.NewRecorder()
-	KernelspecAPIHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/kernelspecs", nil))
+	catalog.ListHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/kernelspecs", nil))
 	require.Equal(t, http.StatusOK, recorder.Code)
 
 	var answer KernelspecResponse
@@ -145,26 +145,26 @@ func TestTheKernelspecsAreListedWithTheirResources(t *testing.T) {
 }
 
 func TestAKernelspecNobodyInstalledIsNotFound(t *testing.T) {
-	jupyterPath(t)
+	catalog, _ := jupyterPath(t)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/kernelspecs/nosuchkernel", nil)
 	request = mux.SetURLVars(request, map[string]string{"kernelName": "nosuchkernel"})
 
 	recorder := httptest.NewRecorder()
-	SingleKernelspecAPIHandler(recorder, request)
+	catalog.GetHandler(recorder, request)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
 }
 
 func TestOneKernelspecIsAskedForByName(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	kernelDir(t, kernels, "python3", pythonSpec)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/kernelspecs/python3", nil)
 	request = mux.SetURLVars(request, map[string]string{"kernelName": "python3"})
 
 	recorder := httptest.NewRecorder()
-	SingleKernelspecAPIHandler(recorder, request)
+	catalog.GetHandler(recorder, request)
 
 	// Jupyter Server's kernelspec_model, as in the list: it used to answer the bare spec.
 	require.Equal(t, http.StatusOK, recorder.Code)

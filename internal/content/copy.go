@@ -17,12 +17,12 @@ copyContent copies a file or folder into toDir under a free name, which covers d
 (toDir being where it already is) as well as pasting elsewhere. The name it took is in the answer,
 since the client has no way to predict it.
 */
-func copyContent(from, toDir string) (models.ContentModel, error) {
-	source, err := safeWritePath(from)
+func (p Project) copyContent(from, toDir string) (models.ContentModel, error) {
+	source, err := p.safeWritePath(from)
 	if err != nil {
 		return models.ContentModel{}, err
 	}
-	targetDir, err := safeWritePath(toDir)
+	targetDir, err := p.safeWritePath(toDir)
 	if err != nil {
 		return models.ContentModel{}, err
 	}

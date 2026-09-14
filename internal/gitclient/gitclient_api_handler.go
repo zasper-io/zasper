@@ -49,8 +49,8 @@ func notARepository(err error) bool {
 }
 
 // repoForRead opens the repository, answering whenAbsent for a project that is not under git.
-func repoForRead(w http.ResponseWriter, whenAbsent any) (*git.Repository, string, bool) {
-	repo, root, err := openRepo()
+func (h *Handler) repoForRead(w http.ResponseWriter, whenAbsent any) (*git.Repository, string, bool) {
+	repo, root, err := openRepo(h.projectDir)
 	if notARepository(err) {
 		httpx.SendJSON(w, http.StatusOK, whenAbsent)
 		return nil, "", false
@@ -67,13 +67,13 @@ repoForWrite is the same for the endpoints that change something, where being as
 directory that is not a repository — or on a machine with no git — is a refusal rather than a state to
 render: the panel does not offer those buttons, so a request carrying one is already wrong.
 */
-func repoForWrite(w http.ResponseWriter) (*git.Repository, string, bool) {
+func (h *Handler) repoForWrite(w http.ResponseWriter) (*git.Repository, string, bool) {
 	if !Available() {
 		httpx.SendErrorResponse(w, http.StatusConflict, "Git is not installed, so this project cannot be changed from here.")
 		return nil, "", false
 	}
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(h.projectDir)
 	if notARepository(err) {
 		httpx.SendErrorResponse(w, http.StatusConflict, "This project is not a git repository.")
 		return nil, "", false
@@ -131,16 +131,16 @@ func sendStatus(w http.ResponseWriter, r *http.Request, repo *git.Repository, ro
 	httpx.SendJSON(w, http.StatusOK, status)
 }
 
-func StatusHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForRead(w, newStatus())
+func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForRead(w, newStatus())
 	if !ok {
 		return
 	}
 	sendStatus(w, r, repo, root)
 }
 
-func BranchHandler(w http.ResponseWriter, r *http.Request) {
-	repo, _, ok := repoForRead(w, BranchResponse{})
+func (h *Handler) Branch(w http.ResponseWriter, r *http.Request) {
+	repo, _, ok := h.repoForRead(w, BranchResponse{})
 	if !ok {
 		return
 	}
@@ -155,13 +155,13 @@ func BranchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-LogHandler answers a page of the history.
+Log answers a page of the history.
 
 Paged because the panel shows a screenful and the old endpoint walked to the root commit for every read
 — on every commit, pull and branch switch, in a repository as long as this one's.
 */
-func LogHandler(w http.ResponseWriter, r *http.Request) {
-	repo, _, ok := repoForRead(w, LogResponse{Commits: []Commit{}})
+func (h *Handler) Log(w http.ResponseWriter, r *http.Request) {
+	repo, _, ok := h.repoForRead(w, LogResponse{Commits: []Commit{}})
 	if !ok {
 		return
 	}
@@ -205,15 +205,15 @@ func intParam(r *http.Request, name string, fallback, min, max int) int {
 }
 
 /*
-CommitDetailHandler answers with one commit and the files in it, which is what a row of the history
+CommitDetail answers with one commit and the files in it, which is what a row of the history
 expands into.
 
 The one read that does not carry isRepository: an empty commit is not a state to render, and nothing asks
 about a commit it did not just see in a history read from this same repository. So a project that is not
 under git is a 404 here like any other commit that is not there.
 */
-func CommitDetailHandler(w http.ResponseWriter, r *http.Request) {
-	repo, _, err := openRepo()
+func (h *Handler) CommitDetail(w http.ResponseWriter, r *http.Request) {
+	repo, _, err := openRepo(h.projectDir)
 	if notARepository(err) {
 		httpx.SendErrorResponse(w, http.StatusNotFound, "This project is not a git repository.")
 		return
@@ -240,19 +240,19 @@ func CommitDetailHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-InitHandler makes the project a repository.
+Init makes the project a repository.
 
 Run rather than reimplemented with go-git so init.defaultBranch is honoured — go-git's PlainInit hardcodes
 master, and a project whose first branch is not the one every other tool on the machine would have made is
 a surprise nobody asked this panel for. Templates and hooks come along for the same reason.
 */
-func InitHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Init(w http.ResponseWriter, r *http.Request) {
 	if !Available() {
 		httpx.SendErrorResponse(w, http.StatusConflict, "Git is not installed, so a repository cannot be created from here.")
 		return
 	}
 
-	_, _, err := openRepo()
+	_, _, err := openRepo(h.projectDir)
 	if err == nil {
 		// Including a project inside someone else's checkout, where this would make a second repository
 		// nested in the first. The panel does not offer the button in that case; a request carrying it is
@@ -265,12 +265,12 @@ func InitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := initRepository(r.Context(), projectDir()); err != nil {
+	if err := initRepository(r.Context(), h.projectDir); err != nil {
 		failed(w, err)
 		return
 	}
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(h.projectDir)
 	if err != nil {
 		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("The repository was created but could not be opened: %v", err))
 		return
@@ -279,14 +279,14 @@ func InitHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-DiffHandler answers the two sides of one file's comparison.
+Diff answers the two sides of one file's comparison.
 
-Not a repository is a 404 here rather than a state to render, for the same reason as CommitDetailHandler:
+Not a repository is a 404 here rather than a state to render, for the same reason as CommitDetail:
 nothing asks for a diff except a panel that has just been shown the file in a status or a commit read
 from this same repository.
 */
-func DiffHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, err := openRepo()
+func (h *Handler) Diff(w http.ResponseWriter, r *http.Request) {
+	repo, root, err := openRepo(h.projectDir)
 	if notARepository(err) {
 		httpx.SendErrorResponse(w, http.StatusNotFound, "This project is not a git repository.")
 		return
@@ -326,8 +326,8 @@ func DiffHandler(w http.ResponseWriter, r *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, diff)
 }
 
-func BranchesHandler(w http.ResponseWriter, r *http.Request) {
-	repo, _, ok := repoForRead(w, BranchesResponse{Branches: []Branch{}})
+func (h *Handler) Branches(w http.ResponseWriter, r *http.Request) {
+	repo, _, ok := h.repoForRead(w, BranchesResponse{Branches: []Branch{}})
 	if !ok {
 		return
 	}
@@ -341,8 +341,8 @@ func BranchesHandler(w http.ResponseWriter, r *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, BranchesResponse{Branches: branches, IsRepository: true})
 }
 
-func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}
@@ -367,14 +367,14 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-DeleteBranchHandler takes the branch in the body rather than in the path.
+DeleteBranch takes the branch in the body rather than in the path.
 
 A branch is called `feature/thing` as often as not, and a name with a slash in it cannot be a path segment
 without encoding a slash — which proxies and routers are entitled to decode again before this handler sees
 it. The content API already deletes with a body for the same reason.
 */
-func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) DeleteBranch(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}
@@ -399,8 +399,8 @@ func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 // The three remote endpoints take no body: which branch and which remote are the repository's own
 // business, and a panel that let the browser choose them would be a worse `git push`.
 
-func FetchHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) Fetch(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}
@@ -413,8 +413,8 @@ func FetchHandler(w http.ResponseWriter, r *http.Request) {
 	sendStatus(w, r, repo, root)
 }
 
-func PullHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) Pull(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}
@@ -426,8 +426,8 @@ func PullHandler(w http.ResponseWriter, r *http.Request) {
 	sendStatus(w, r, repo, root)
 }
 
-func PushHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) Push(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}
@@ -462,8 +462,8 @@ func decodePaths(w http.ResponseWriter, r *http.Request, root string) (pathsRequ
 	return request, paths, true
 }
 
-func StageHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) Stage(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}
@@ -479,8 +479,8 @@ func StageHandler(w http.ResponseWriter, r *http.Request) {
 	sendStatus(w, r, repo, root)
 }
 
-func UnstageHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) Unstage(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}
@@ -496,8 +496,8 @@ func UnstageHandler(w http.ResponseWriter, r *http.Request) {
 	sendStatus(w, r, repo, root)
 }
 
-func DiscardHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) Discard(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}
@@ -513,8 +513,8 @@ func DiscardHandler(w http.ResponseWriter, r *http.Request) {
 	sendStatus(w, r, repo, root)
 }
 
-func CommitHandler(w http.ResponseWriter, r *http.Request) {
-	repo, root, ok := repoForWrite(w)
+func (h *Handler) Commit(w http.ResponseWriter, r *http.Request) {
+	repo, root, ok := h.repoForWrite(w)
 	if !ok {
 		return
 	}

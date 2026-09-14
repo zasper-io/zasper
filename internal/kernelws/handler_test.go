@@ -6,61 +6,63 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/zasper-io/zasper/internal/kernel"
 )
 
-func withKernelConnections(t *testing.T) {
+// testHandler answers a handler with no kernels running, and runs the test in parallel.
+func testHandler(t *testing.T) *Handler {
 	t.Helper()
+	t.Parallel()
 
-	t.Cleanup(SetUpConnections)
-	SetUpConnections()
+	return NewHandler(kernel.New(nil), nil)
 }
 
 func TestClosingAKernelsConnectionsClosesEveryOneOfThem(t *testing.T) {
-	withKernelConnections(t)
+	h := testHandler(t)
 
 	stopped := 0
-	addConnection("k1", &Connection{PollingCancel: func() { stopped++ }})
-	addConnection("k1", &Connection{PollingCancel: func() { stopped++ }})
+	h.addConnection("k1", &Connection{PollingCancel: func() { stopped++ }})
+	h.addConnection("k1", &Connection{PollingCancel: func() { stopped++ }})
 
-	CloseConnections("k1")
+	h.CloseConnections("k1")
 	assert.Equal(t, 2, stopped)
 
 	// Gone, so a second kernel-stopped notification for the same kernel has nothing left to close.
-	CloseConnections("k1")
+	h.CloseConnections("k1")
 	assert.Equal(t, 2, stopped)
 }
 
 func TestClosingAKernelWithNoConnectionDoesNothing(t *testing.T) {
-	withKernelConnections(t)
+	h := testHandler(t)
 
-	CloseConnections("k1")
+	h.CloseConnections("k1")
 
-	assert.False(t, removeConnection("k1", &Connection{}))
+	assert.False(t, h.removeConnection("k1", &Connection{}))
 }
 
 // A reloaded page's old connection finishing must not take the new one out with it.
 func TestAConnectionThatEndsTakesOnlyItselfOut(t *testing.T) {
-	withKernelConnections(t)
+	h := testHandler(t)
 
 	oldStopped, newStopped := 0, 0
 	old := &Connection{PollingCancel: func() { oldStopped++ }}
 	current := &Connection{PollingCancel: func() { newStopped++ }}
-	addConnection("k1", old)
-	addConnection("k1", current)
+	h.addConnection("k1", old)
+	h.addConnection("k1", current)
 
-	assert.True(t, removeConnection("k1", old))
-	assert.False(t, removeConnection("k1", old))
+	assert.True(t, h.removeConnection("k1", old))
+	assert.False(t, h.removeConnection("k1", old))
 
-	CloseConnections("k1")
+	h.CloseConnections("k1")
 	assert.Equal(t, 0, oldStopped)
 	assert.Equal(t, 1, newStopped)
 }
 
-// The store was an exported map guarded by a package-level mutex the caller had to remember to take.
-// Every client connection and every kernel that stops reaches it, so it is exercised from several
-// goroutines at once here; a concurrent map write would kill the process rather than fail the test.
+// Every client connection and every kernel that stops reaches the store, so it is exercised from several
+// goroutines at once; -race is what this relies on.
 func TestTheConnectionStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
-	withKernelConnections(t)
+	h := testHandler(t)
 
 	const workers = 8
 	const each = 200
@@ -73,11 +75,11 @@ func TestTheConnectionStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
 			for i := 0; i < each; i++ {
 				kernelId := fmt.Sprintf("%d-%d", worker, i)
 				connection := &Connection{PollingCancel: func() {}}
-				addConnection(kernelId, connection)
+				h.addConnection(kernelId, connection)
 				if i%3 == 0 {
-					CloseConnections(kernelId)
+					h.CloseConnections(kernelId)
 				} else {
-					removeConnection(kernelId, connection)
+					h.removeConnection(kernelId, connection)
 				}
 			}
 		}(worker)

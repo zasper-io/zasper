@@ -18,8 +18,6 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/zasper-io/zasper/internal/core"
 )
 
 // gitIn runs git in a directory, for the setup a test needs and the endpoints do not offer.
@@ -33,11 +31,10 @@ func gitIn(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
-// projectRepo makes a repository with an identity and points core.Zasper at it, since that is where
-// openRepo looks. Only HomeDir is set: the rest of the application config has nothing to do with git,
-// and building it runs subprocesses this test does not need.
+// projectRepo makes a repository with an identity, and runs the test in parallel.
 func projectRepo(t *testing.T) string {
 	t.Helper()
+	t.Parallel()
 
 	if !Available() {
 		t.Skip("no git binary is installed")
@@ -49,10 +46,6 @@ func projectRepo(t *testing.T) string {
 	gitIn(t, dir, "config", "user.name", "Test")
 	gitIn(t, dir, "config", "user.email", "test@example.com")
 	gitIn(t, dir, "config", "commit.gpgsign", "false")
-
-	restore := core.Zasper.HomeDir
-	core.Zasper.HomeDir = dir
-	t.Cleanup(func() { core.Zasper.HomeDir = restore })
 
 	return dir
 }
@@ -91,7 +84,7 @@ func TestAConflictedFileIsReportedAsConflicted(t *testing.T) {
 	out, err := merge.CombinedOutput()
 	require.Error(t, err, "the merge should have conflicted: %s", out)
 
-	repo, root, err := openRepo()
+	repo, root, err := openRepo(dir)
 	require.NoError(t, err)
 	assert.Equal(t, dirResolved(t, dir), dirResolved(t, root))
 
@@ -124,7 +117,7 @@ func TestAFileRemovedFromTheIndexButNotFromDiskIsInBothLists(t *testing.T) {
 	gitIn(t, dir, "commit", "-m", "the first one")
 	gitIn(t, dir, "rm", "--cached", "--quiet", "notes.txt")
 
-	repo, _, err := openRepo()
+	repo, _, err := openRepo(dir)
 	require.NoError(t, err)
 
 	status, err := getStatus(repo)
@@ -157,7 +150,7 @@ func TestAMovedFileIsOneStagedRename(t *testing.T) {
 	gitIn(t, dir, "commit", "-m", "the first one")
 	gitIn(t, dir, "mv", "notes.txt", filepath.Join("src", "renamed.txt"))
 
-	repo, _, err := openRepo()
+	repo, _, err := openRepo(dir)
 	require.NoError(t, err)
 
 	status, err := getStatus(repo)
@@ -192,7 +185,7 @@ func TestAFileStillOnDiskIsNotTreatedAsRenamedAway(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "copy.txt"), []byte("first\n"), 0o644))
 	gitIn(t, dir, "add", "copy.txt")
 
-	repo, _, err := openRepo()
+	repo, _, err := openRepo(dir)
 	require.NoError(t, err)
 
 	status, err := getStatus(repo)
@@ -216,7 +209,7 @@ func TestACleanRepositoryAnswersWithEmptyListsAndNotNulls(t *testing.T) {
 	gitIn(t, dir, "add", "notes.txt")
 	gitIn(t, dir, "commit", "-m", "the first one")
 
-	repo, _, err := openRepo()
+	repo, _, err := openRepo(dir)
 	require.NoError(t, err)
 
 	status, err := getStatus(repo)

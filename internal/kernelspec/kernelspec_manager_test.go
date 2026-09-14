@@ -1,14 +1,13 @@
 /*
 Finding kernelspecs on disk, and serving the files that sit beside them.
 
-Everything here reads the filesystem, so each test builds its own Jupyter path under t.TempDir() and
-swaps core.Zasper.JupyterPath for it — the same trick slowKernelspec uses in
-internal/server/kernel_e2e_test.go. That global is the only input getKernelDirs has.
+Everything here reads the filesystem, so each test builds a catalog over a Jupyter path of its own under
+t.TempDir(), and they run in parallel.
 
 Two of these were written against defects. findSpecDirectory answers "" for a kernel it cannot find,
 and getResourceFile joined that empty string to the resource the caller asked for — which is just the
 resource, resolved against the server's own working directory, so a URL naming a kernel that does not
-exist read a file from wherever Zasper was started. ServeKernelResource then took the extension with
+exist read a file from wherever Zasper was started. ResourceHandler then took the extension with
 `filepath.Ext(p)[1:]`, which panics on a name with no dot at all, and it does so *after* the read has
 already succeeded.
 */
@@ -21,24 +20,26 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/zasper-io/zasper/internal/core"
 )
 
-// jupyterPath builds a Jupyter root whose `kernels` directory is the one the package will search,
-// and points core.Zasper at it for the length of the test.
-func jupyterPath(t *testing.T) string {
+// jupyterPath builds a catalog over a Jupyter root of its own, with none of this machine's Pythons in it,
+// and answers it with the root's kernels directory. The test runs in parallel.
+func jupyterPath(t *testing.T) (*Catalog, string) {
+	t.Helper()
+	t.Parallel()
+
+	return jupyterPathHere(t)
+}
+
+// jupyterPathHere is jupyterPath for a test that cannot run in parallel, because it changes directory.
+func jupyterPathHere(t *testing.T) (*Catalog, string) {
 	t.Helper()
 
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "kernels"), 0o755))
-
-	previous := core.Zasper.JupyterPath
-	core.Zasper.JupyterPath = []string{root}
-	t.Cleanup(func() { core.Zasper.JupyterPath = previous })
-	noInterpreters(t)
-
-	return filepath.Join(root, "kernels")
+	catalog := NewCatalog([]string{root}, "")
+	noInterpreters(catalog)
+	return catalog, filepath.Join(root, "kernels")
 }
 
 // kernelDir writes a kernel.json and answers the directory holding it, which is what the package
@@ -60,7 +61,7 @@ const pythonSpec = `{
 }`
 
 func TestOnlyAFolderHoldingAKernelJsonIsAKernel(t *testing.T) {
-	kernels := jupyterPath(t)
+	_, kernels := jupyterPath(t)
 
 	withSpec := kernelDir(t, kernels, "python3", pythonSpec)
 
@@ -88,7 +89,7 @@ func TestOnlyAFolderHoldingAKernelJsonIsAKernel(t *testing.T) {
 }
 
 func TestTheKernelsInADirectoryAreListedByName(t *testing.T) {
-	kernels := jupyterPath(t)
+	_, kernels := jupyterPath(t)
 	python := kernelDir(t, kernels, "python3", pythonSpec)
 	other := kernelDir(t, kernels, "test-zasper", pythonSpec)
 
@@ -107,10 +108,10 @@ func TestTheKernelsInADirectoryAreListedByName(t *testing.T) {
 }
 
 func TestASpecIsReadFromItsKernelJson(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	dir := kernelDir(t, kernels, "python3", pythonSpec)
 
-	spec, err := GetKernelSpec("python3")
+	spec, err := catalog.Spec("python3")
 	require.NoError(t, err)
 
 	assert.Equal(t, "Python 3", spec.DisplayName)
@@ -123,7 +124,7 @@ func TestASpecIsReadFromItsKernelJson(t *testing.T) {
 
 // An empty spec used to come back instead, and the launcher panicked on its Argv[0].
 func TestASpecThatCannotBeLoadedIsAnError(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 
 	for name, dir := range map[string]string{
 		"not json":   kernelDir(t, kernels, "broken", "{ this is not json"),
@@ -138,18 +139,18 @@ func TestASpecThatCannotBeLoadedIsAnError(t *testing.T) {
 	}
 
 	// Nor are they listed, where each was a nameless launcher entry that could not start.
-	assert.Empty(t, GetAllSpecs())
+	assert.Empty(t, catalog.Specs())
 }
 
 func TestASpecsEnvIsRead(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	kernelDir(t, kernels, "ir", `{
   "argv": ["R", "--slave", "-f", "{connection_file}"],
   "display_name": "R",
   "env": {"R_HOME": "/opt/R", "PATH": "/opt/R/bin:${PATH}"}
 }`)
 
-	spec, err := GetKernelSpec("ir")
+	spec, err := catalog.Spec("ir")
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"R_HOME": "/opt/R", "PATH": "/opt/R/bin:${PATH}"}, spec.Env)
@@ -162,13 +163,13 @@ to read filepath.Join("", "kernel.json") — a kernel.json in the server's worki
 the launcher would then run.
 */
 func TestAnUnknownKernelIsNotReadFromTheWorkingDirectory(t *testing.T) {
-	jupyterPath(t)
+	catalog, _ := jupyterPathHere(t)
 	cwd := t.TempDir()
 	t.Chdir(cwd)
 	require.NoError(t, os.WriteFile(filepath.Join(cwd, "kernel.json"),
 		[]byte(`{"argv": ["touch", "pwned"], "display_name": "From the project"}`), 0o644))
 
-	spec, err := GetKernelSpec("no-such-kernel")
+	spec, err := catalog.Spec("no-such-kernel")
 
 	assert.ErrorIs(t, err, ErrKernelspecNotFound)
 	assert.Empty(t, spec.Argv)
@@ -177,43 +178,43 @@ func TestAnUnknownKernelIsNotReadFromTheWorkingDirectory(t *testing.T) {
 // The Jupyter path is in priority order. Listing used to let the last directory win while launching
 // took the first, so the launcher showed one kernel and started another.
 func TestTheFirstDirectoryOnTheJupyterPathWins(t *testing.T) {
+	t.Parallel()
+
 	user, system := t.TempDir(), t.TempDir()
 	for root, name := range map[string]string{user: "Mine", system: "The system's"} {
 		kernelDir(t, filepath.Join(root, "kernels"), "python3",
 			`{"argv": ["python3"], "display_name": "`+name+`"}`)
 	}
-	previous := core.Zasper.JupyterPath
-	core.Zasper.JupyterPath = []string{user, system}
-	t.Cleanup(func() { core.Zasper.JupyterPath = previous })
-	noInterpreters(t)
+	catalog := NewCatalog([]string{user, system}, "")
+	noInterpreters(catalog)
 
-	launched, err := GetKernelSpec("python3")
+	launched, err := catalog.Spec("python3")
 	require.NoError(t, err)
 
-	assert.Equal(t, "Mine", GetAllSpecs()["python3"].Spec.DisplayName)
+	assert.Equal(t, "Mine", catalog.Specs()["python3"].Spec.DisplayName)
 	assert.Equal(t, "Mine", launched.DisplayName)
 }
 
 // Jupyter lowercases names when it lists and when it resolves, and notebooks it saved carry them so.
 func TestKernelNamesAreMatchedWhateverTheirCase(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	dir := kernelDir(t, kernels, "Python3", pythonSpec)
 
 	assert.Equal(t, map[string]string{"python3": dir}, listKernelsIn(kernels))
 
 	for _, name := range []string{"python3", "Python3", "PYTHON3"} {
-		spec, err := GetKernelSpec(name)
+		spec, err := catalog.Spec(name)
 		require.NoError(t, err, name)
 		assert.Equal(t, dir, spec.ResourceDir, name)
 	}
 }
 
 func TestAllTheSpecsAreFoundAcrossTheJupyterPath(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	kernelDir(t, kernels, "python3", pythonSpec)
 	kernelDir(t, kernels, "test-zasper", pythonSpec)
 
-	specs := GetAllSpecs()
+	specs := catalog.Specs()
 
 	require.Len(t, specs, 2)
 	assert.Equal(t, "Python 3", specs["python3"].Spec.DisplayName)
@@ -221,12 +222,12 @@ func TestAllTheSpecsAreFoundAcrossTheJupyterPath(t *testing.T) {
 }
 
 func TestAResourceIsServedFromItsOwnSpecDirectory(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	dir := kernelDir(t, kernels, "python3", pythonSpec)
 	logo := filepath.Join(dir, "logo-64x64.png")
 	require.NoError(t, os.WriteFile(logo, []byte("png bytes"), 0o644))
 
-	path, ok := getResourceFile("python3", "logo-64x64.png")
+	path, ok := catalog.getResourceFile("python3", "logo-64x64.png")
 
 	assert.True(t, ok)
 	assert.Equal(t, logo, path)
@@ -241,21 +242,21 @@ the process, not to a kernelspec. The handler then read it and answered with its
 was started in.
 */
 func TestAResourceForAKernelThatIsNotInstalledIsRefused(t *testing.T) {
-	jupyterPath(t)
+	catalog, _ := jupyterPathHere(t)
 
 	// Somewhere to be, with a file in it that a relative path would find.
 	cwd := t.TempDir()
 	t.Chdir(cwd)
 	require.NoError(t, os.WriteFile(filepath.Join(cwd, "go.mod"), []byte("module secret"), 0o644))
 
-	path, ok := getResourceFile("nosuchkernel", "go.mod")
+	path, ok := catalog.getResourceFile("nosuchkernel", "go.mod")
 
 	assert.False(t, ok, "a kernel that is not installed served a file")
 	assert.Empty(t, path)
 }
 
 func TestAResourceOutsideTheSpecDirectoryIsRefused(t *testing.T) {
-	kernels := jupyterPath(t)
+	catalog, kernels := jupyterPath(t)
 	kernelDir(t, kernels, "python3", pythonSpec)
 
 	// A sibling kernel's private file, and something further up still.
@@ -271,7 +272,7 @@ func TestAResourceOutsideTheSpecDirectoryIsRefused(t *testing.T) {
 		".",
 	} {
 		t.Run("resource "+resource, func(t *testing.T) {
-			path, ok := getResourceFile("python3", resource)
+			path, ok := catalog.getResourceFile("python3", resource)
 
 			assert.False(t, ok, "%q escaped the spec directory", resource)
 			assert.Empty(t, path)
@@ -280,6 +281,8 @@ func TestAResourceOutsideTheSpecDirectoryIsRefused(t *testing.T) {
 }
 
 func TestUrlPathJoinKeepsTheSlashesAtBothEnds(t *testing.T) {
+	t.Parallel()
+
 	cases := map[string]struct {
 		pieces []string
 		want   string

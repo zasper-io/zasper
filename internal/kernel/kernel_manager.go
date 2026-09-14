@@ -91,8 +91,8 @@ start launches the kernel: it reads the kernelspec, takes five ports, writes the
 starts the process. The spec is read first, so that a kernel that cannot start leaves nothing to clean up,
 and a launch that fails gives back its ports and its file.
 */
-func (km *KernelManager) start() error {
-	spec, err := kernelspec.GetKernelSpec(km.KernelName)
+func (km *KernelManager) start(specs *kernelspec.Catalog) error {
+	spec, err := specs.Spec(km.KernelName)
 	if err != nil {
 		return err
 	}

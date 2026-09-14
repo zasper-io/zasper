@@ -25,6 +25,8 @@ func specUnder(t *testing.T, prefix, name string) string {
 }
 
 func TestASpecInsideAPythonInstallRunsWithThatPython(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skip("unix layout")
 	}
@@ -37,6 +39,8 @@ func TestASpecInsideAPythonInstallRunsWithThatPython(t *testing.T) {
 }
 
 func TestASpecInsideAVenvRunsWithTheVenvsPython(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skip("unix layout")
 	}
@@ -50,6 +54,8 @@ func TestASpecInsideAVenvRunsWithTheVenvsPython(t *testing.T) {
 // ~/.local has site-packages and may have a bin/python3 (uv puts one there), but that Python did not
 // install the kernels in ~/.local/share/jupyter, so it is not offered as their owner.
 func TestADirectoryWithSitePackagesIsNotTakenForAPythonInstall(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skip("unix layout")
 	}
@@ -81,7 +87,7 @@ func TestAMacUserBaseSpecRunsWithThePythonOfItsVersion(t *testing.T) {
 }
 
 func TestASpecOutsideAnyPythonsDirectoriesHasNoOwner(t *testing.T) {
-	kernels := jupyterPath(t)
+	_, kernels := jupyterPath(t)
 	assert.Empty(t, Interpreter(kernelDir(t, kernels, "python3", pythonSpec)))
 	assert.Empty(t, Interpreter(""))
 }
