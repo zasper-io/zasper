@@ -142,7 +142,7 @@ func getDirectoryModel(relativePath string) (models.ContentModel, error) {
 
 	output := models.ContentModel{
 		ContentType:   "directory",
-		Name:          relativePath,
+		Name:          filepath.Base(abspath),
 		Path:          relativePath,
 		Created:       info.ModTime().UTC().Format(time.RFC3339),
 		Last_modified: info.ModTime().UTC().Format(time.RFC3339),
@@ -200,7 +200,6 @@ func getFileModel(abspath, relativePath, fileName string) (models.ContentModel, 
 	info, err := os.Lstat(os_path)
 
 	if err != nil {
-		log.Info().Msgf("error getting content data %s", err)
 		return models.ContentModel{}, err
 	}
 	contentType := contentTypeFor(fileName, info.IsDir())
@@ -437,6 +436,9 @@ func rename(parentDir, oldName, newName string) error {
 	if strings.ContainsAny(newName, `/\`) {
 		return errors.New("a name cannot contain a path separator")
 	}
+	if newName == "." || newName == ".." {
+		return errors.New("a name cannot be only dots")
+	}
 
 	return moveContent(filepath.Join(parentDir, oldName), filepath.Join(parentDir, newName))
 }
@@ -637,6 +639,9 @@ func uploadContent(parentDir, relativePath string, replace bool, body io.Reader)
 	if !replace && pathExists(target) {
 		return models.ContentModel{}, errTargetExists
 	}
+	if target, err = throughLink(target); err != nil {
+		return models.ContentModel{}, err
+	}
 
 	written, err := writeFileAtomically(target, body, 0o644)
 	if err != nil {
@@ -678,15 +683,6 @@ func deleteFile(filename string) error {
 	return os.Remove(osPath)
 }
 
-func IsDir(path string) bool {
-	info, err := os.Lstat(path)
-
-	if err != nil {
-		log.Info().Msgf("error getting content data %s", err)
-	}
-	return info.IsDir()
-}
-
 func GetSafePath(path string) string {
 	// Resolved, because the containment check below compares strings and HomeDir is whatever came
 	// in on -cwd: a relative one would make every path look like an escape.
@@ -720,10 +716,44 @@ func safeWritePath(path string) (string, error) {
 	return osPath, nil
 }
 
-func UpdateNbContent(path, ftype, format string, content interface{}) error {
-	log.Info().Msgf("Updating notebook content for path: %s", path)
+var errLinkOutside = errors.New("this is a link to something outside the project, so it is not saved through")
 
+// savePath is safeWritePath for a save, which replaces an existing file: see throughLink.
+func savePath(path string) (string, error) {
 	osPath, err := safeWritePath(path)
+	if err != nil {
+		return "", err
+	}
+	return throughLink(osPath)
+}
+
+/*
+throughLink answers the file a write to osPath should replace. For a symbolic link that is the file it
+points to, so that saving keeps the link rather than swapping it for a copy. A link that leads out of the
+project is refused, since writing there is writing somewhere the project directory does not cover.
+*/
+func throughLink(osPath string) (string, error) {
+	info, err := os.Lstat(osPath)
+	if err != nil || info.Mode()&os.ModeSymlink == 0 {
+		return osPath, nil
+	}
+
+	resolved, err := filepath.EvalSymlinks(osPath)
+	if err != nil {
+		return "", err
+	}
+	root, err := filepath.EvalSymlinks(GetSafePath("."))
+	if err != nil {
+		return "", err
+	}
+	if relative, err := filepath.Rel(root, resolved); err != nil || !filepath.IsLocal(relative) {
+		return "", errLinkOutside
+	}
+	return resolved, nil
+}
+
+func UpdateNbContent(path, ftype, format string, content interface{}) error {
+	osPath, err := savePath(path)
 	if err != nil {
 		return err
 	}
@@ -768,20 +798,18 @@ func UpdateNbContent(path, ftype, format string, content interface{}) error {
 		return fmt.Errorf("failed to marshal notebook: %w", err)
 	}
 
-	log.Debug().Msgf("nbJSON: %s", string(nbJSON))
-
 	// Atomically: a notebook half-written by a crash is a notebook lost, and this is the save path.
 	if _, err := writeFileAtomically(osPath, bytes.NewReader(nbJSON), 0o644); err != nil {
 		log.Error().Err(err).Msgf("Error updating notebook content for path: %s", osPath)
 		return fmt.Errorf("error writing notebook to path %s: %w", path, err)
 	}
 
-	log.Info().Msgf("Successfully updated notebook content for path: %s", osPath)
+	log.Debug().Msgf("saved notebook %s", path)
 	return nil
 }
 
 func UpdateContent(path, ftype, format, content string) error {
-	osPath, err := safeWritePath(path)
+	osPath, err := savePath(path)
 	if err != nil {
 		return err
 	}

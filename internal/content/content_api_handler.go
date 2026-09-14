@@ -7,7 +7,6 @@ import (
 	"mime"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"net/http"
 	"slices"
@@ -35,7 +34,6 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if relativePath == "" {
 		relativePath = "."
 	}
-	log.Print("path :", relativePath)
 
 	allowedTypes := []string{"directory", "file", "notebook"}
 	allowedFormats := []string{"text", "base64"}
@@ -62,8 +60,7 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 		hash = 0
 	}
 
-	if strings.Contains(relativePath, "..") {
-		log.Error().Msg("Invalid path")
+	if outsideProject(relativePath) {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
@@ -97,13 +94,13 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if strings.Contains(body.Path, "..") {
-		log.Error().Msg("Invalid path")
+	if outsideProject(body.Path) {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
-	if body.Type == "notebook" {
+	switch body.Type {
+	case "notebook":
 		err = UpdateNbContent(body.Path, body.Type, body.Format, body.Content)
 
 		if err != nil {
@@ -111,9 +108,7 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 			zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving notebook content: %v", err))
 			return
 		}
-	}
-
-	if body.Type == "file" {
+	case "file":
 		contentStr, ok := body.Content.(string)
 		if !ok {
 			log.Error().Msg("Invalid content type")
@@ -126,6 +121,10 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 			zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving content: %v", err))
 			return
 		}
+	default:
+		// Answering 200 here told a client whose save wrote nothing that it had worked.
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot save content of type %q", body.Type))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -143,8 +142,7 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if strings.Contains(body.Path, "..") {
-		log.Error().Msg("Invalid path")
+	if outsideProject(body.Path) {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
@@ -177,11 +175,11 @@ func relocateSessions(from, to string) {
 	}
 }
 
-// hasTraversal is the guard the handlers here have always spelled inline. GetSafePath refuses an
-// escape anyway; this answers before anything is attempted.
-func hasTraversal(paths ...string) bool {
+// outsideProject reports whether any of paths resolves outside the project directory. A name that only
+// contains two dots, such as `v1..2.txt`, is inside it: `..` climbs only as a whole path segment.
+func outsideProject(paths ...string) bool {
 	for _, path := range paths {
-		if strings.Contains(path, "..") {
+		if GetSafePath(path) == "" {
 			return true
 		}
 	}
@@ -210,8 +208,7 @@ func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if hasTraversal(contentPayload.ParentDir) {
-		log.Error().Msg("Invalid path")
+	if outsideProject(contentPayload.ParentDir) {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
@@ -240,8 +237,8 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 	oldName := renameContentPayload.OldName
 	log.Debug().Msgf("old path : %s", oldName)
 
-	if hasTraversal(renameContentPayload.ParentDir, oldName, renameContentPayload.NewName) {
-		log.Error().Msg("Invalid path")
+	parentDir := renameContentPayload.ParentDir
+	if outsideProject(parentDir, filepath.Join(parentDir, oldName), filepath.Join(parentDir, renameContentPayload.NewName)) {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
@@ -269,8 +266,7 @@ func ContentMoveAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if hasTraversal(payload.From, payload.To) {
-		log.Error().Msg("Invalid path")
+	if outsideProject(payload.From, payload.To) {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
@@ -294,8 +290,7 @@ func ContentCopyAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if hasTraversal(payload.From, payload.ToDir) {
-		log.Error().Msg("Invalid path")
+	if outsideProject(payload.From, payload.ToDir) {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
@@ -322,13 +317,8 @@ feature, and answering with something other than what was asked for is worse tha
 */
 func ContentDownloadAPIHandler(w http.ResponseWriter, req *http.Request) {
 	relativePath := req.URL.Query().Get("path")
-	if relativePath == "" || hasTraversal(relativePath) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
-		return
-	}
-
 	osPath := GetSafePath(relativePath)
-	if osPath == "" {
+	if relativePath == "" || osPath == "" {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
@@ -387,8 +377,7 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 		relativePath = header.Filename
 	}
 
-	if hasTraversal(parentDir, relativePath) {
-		log.Error().Msg("Invalid path")
+	if outsideProject(parentDir, filepath.Join(parentDir, relativePath)) {
 		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
