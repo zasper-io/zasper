@@ -55,10 +55,6 @@ type Connection struct {
 	ControlPort int
 }
 
-func (km *KernelManager) getConnectionInfo() Connection {
-	return km.ConnectionInfo
-}
-
 type ConnectionFileData struct {
 	Transport       string `json:"transport"`
 	IP              string `json:"ip"`

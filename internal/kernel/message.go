@@ -26,7 +26,6 @@ type (
 		// base64 strings, which is what Go does with [][]byte and what the frontend decodes.
 		Buffers  [][]byte    `json:"buffers"`
 		Metadata interface{} `json:"metadata"`
-		Tracker  int         `json:"tracker"`
 		Channel  string      `json:"channel"`
 	}
 )
@@ -42,22 +41,6 @@ func (ks *KernelSession) newMsgHeader(msgType string, userName string) MessageHe
 	}
 }
 
-func (ks *KernelSession) createMsg(
-	content interface{},
-	parent MessageHeader,
-	header MessageHeader,
-	metadata map[string]interface{}) Message {
-
-	msg := Message{}
-
-	msg.MsgId = msg.Header.MsgID
-	msg.ParentHeader = parent
-	msg.Header = header
-	msg.Content = content
-	msg.Metadata = metadata
-	return msg
-}
-
 func (ks *KernelSession) MessageFromString(value string) Message {
 	msg := Message{}
 	msg.Header = ks.newMsgHeader(value, GetUsername())
@@ -66,8 +49,4 @@ func (ks *KernelSession) MessageFromString(value string) Message {
 	msg.Metadata = make(map[string]interface{})
 	msg.Buffers = [][]byte{}
 	return msg
-}
-
-func (ks *KernelSession) MessageFromDict(value map[string]interface{}) Message {
-	return Message{}
 }

@@ -7,29 +7,22 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/zasper-io/zasper/internal/kernel/provisioner"
 	"github.com/zasper-io/zasper/internal/kernelspec"
 
 	"github.com/rs/zerolog/log"
-
-	"github.com/go-zeromq/zmq4"
 )
 
 type KernelManager struct {
 	ConnectionFile string
-	OwnsKernel     bool
-	ShutdownStatus bool
-	AttemptedStart bool
-	Ready          bool
 	KernelName     string
-	ControlSocket  zmq4.Socket
-	CachePorts     bool
 	Provisioner    provisioner.LocalProvisioner
-	Kernelspec     string
 
 	// What /api/kernels reports about a kernel nobody in a given window is attached to: when it last
 	// said anything, whether it is busy, and how many clients are on it. Written by the supervisor and
@@ -44,8 +37,7 @@ type KernelManager struct {
 	// listening to it in the same hand.
 	stopWatching context.CancelFunc
 
-	KernelId     string
-	ShuttingDown bool
+	KernelId string
 
 	// The folder the kernel starts in, and variables set for it on top of the kernelspec's.
 	Dir string
@@ -64,21 +56,14 @@ type KernelManager struct {
 func (km *KernelManager) StartKernel(kernelName string) error {
 	log.Debug().Msg("kernel manager is launching a kernel")
 
-	km.AttemptedStart = true
-
 	kernelCmd, kw, err := km.asyncPrestartKernel(kernelName)
 	if err != nil {
 		return err
 	}
-	if err := km.LaunchKernel(kernelCmd, kw); err != nil {
-		return err
-	}
-	km.Ready = true
-	return nil
+	return km.LaunchKernel(kernelCmd, kw)
 }
 
 func (km *KernelManager) StopKernel(kernelId string) error {
-	km.ShuttingDown = true
 	shutdownProcess(*km)
 
 	// The kernel has let go of its five ports, so they go back on offer. Without this the
@@ -100,8 +85,6 @@ func (km *KernelManager) StopKernel(kernelId string) error {
 }
 
 func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[string]interface{}, error) {
-	km.ShuttingDown = false
-
 	// Before any port is taken or connection file written, so a missing or broken spec leaves nothing
 	// behind to clean up.
 	spec, err := kernelspec.GetKernelSpec(km.KernelName)
@@ -110,9 +93,8 @@ func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[s
 	}
 
 	km.Provisioner = provisioner.LocalProvisioner{
-		KernelId:    km.KernelId,
-		Kernelspec:  spec,
-		PortsCached: false,
+		KernelId:   km.KernelId,
+		Kernelspec: spec,
 	}
 
 	log.Debug().Msgf("kernelspec created is: %v", km.Provisioner.Kernelspec)
@@ -124,13 +106,6 @@ func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[s
 	kernelCmd := kw["cmd"].([]string)
 	log.Debug().Msgf("kenelName: %s", kernelName)
 	return kernelCmd, kw, nil
-}
-
-var LOCAL_IPS []string
-
-func isLocalIP(ip string) bool {
-	//does `ip` point to this machine?
-	return slices.Contains(LOCAL_IPS, ip)
 }
 
 /*********************************************************************
@@ -149,32 +124,23 @@ func (km *KernelManager) LaunchKernel(kernelCmd []string, kw map[string]interfac
 }
 
 func (km *KernelManager) preLaunch() (map[string]interface{}, error) {
-
-	if km.ConnectionInfo.Transport == "tcp" && !isLocalIP(km.ConnectionInfo.IP) {
-		log.Debug().Msg("Can only launch a kernel on a local interface.")
-	}
-	log.Debug().Msgf("cache ports: %t", km.CachePorts)
-	log.Debug().Msgf("km.Provisioner.PortsCached %t", km.Provisioner.PortsCached)
-
-	if km.CachePorts && !km.Provisioner.PortsCached {
-		// Every one of them, or none: a connection file with a 0 in it launches a kernel that binds a
-		// port the client will never dial, and the failure surfaces much later as a kernel that starts
-		// and then says nothing.
-		for _, port := range []*int{
-			&km.ConnectionInfo.ShellPort,
-			&km.ConnectionInfo.IopubPort,
-			&km.ConnectionInfo.StdinPort,
-			&km.ConnectionInfo.HbPort,
-			&km.ConnectionInfo.ControlPort,
-		} {
-			assigned, err := findAvailablePort()
-			if err != nil {
-				return nil, fmt.Errorf("no port for the kernel's channels: %w", err)
-			}
-			*port = assigned
+	// Every one of them, or none: a connection file with a 0 in it launches a kernel that binds a port
+	// the client will never dial, and the failure surfaces much later as a kernel that starts and then
+	// says nothing.
+	for _, port := range []*int{
+		&km.ConnectionInfo.ShellPort,
+		&km.ConnectionInfo.IopubPort,
+		&km.ConnectionInfo.StdinPort,
+		&km.ConnectionInfo.HbPort,
+		&km.ConnectionInfo.ControlPort,
+	} {
+		assigned, err := findAvailablePort()
+		if err != nil {
+			return nil, fmt.Errorf("no port for the kernel's channels: %w", err)
 		}
-		log.Debug().Msgf("connectionInfo : %+v", km.ConnectionInfo)
+		*port = assigned
 	}
+	log.Debug().Msgf("connectionInfo : %+v", km.ConnectionInfo)
 	log.Debug().Msgf("km.ConnectionFile : %+v", km.ConnectionFile)
 
 	if err := km.writeConnectionFile(km.ConnectionFile); err != nil {
@@ -185,6 +151,11 @@ func (km *KernelManager) preLaunch() (map[string]interface{}, error) {
 	log.Debug().Msgf("kernel cmd is %s", kernelCmd)
 
 	processEnv := kernelEnv(os.Environ(), km.Provisioner.Kernelspec.Env)
+	// A kernel that honours it, as ipykernel does, exits once this process has gone, so a server that
+	// crashes does not leave its kernels running. A Windows kernel reads it as a handle, not a pid.
+	if runtime.GOOS != "windows" {
+		processEnv = append(processEnv, "JPY_PARENT_PID="+strconv.Itoa(os.Getpid()))
+	}
 	// Appended as they are rather than through kernelEnv, which would expand a `$` in a notebook's path.
 	for _, name := range slices.Sorted(maps.Keys(km.Env)) {
 		processEnv = append(processEnv, name+"="+km.Env[name])
@@ -211,8 +182,7 @@ func (km *KernelManager) formatKernelCmd() []string {
 	if interpreter := kernelspec.Interpreter(km.Provisioner.Kernelspec.ResourceDir); interpreter != "" {
 		cmd[0] = interpreter
 	} else if cmd[0] == "python3" || cmd[0] == "python" {
-		pythonVersion, _ := getPython()
-		cmd[0] = pythonVersion
+		cmd[0] = getPython()
 	}
 	return cmd
 }
@@ -257,13 +227,10 @@ func kernelEnv(base []string, specEnv map[string]string) []string {
 	return env
 }
 
-func getPython() (string, error) {
-	// Try running "python --version" or "python3 --version" depending on system
-	cmd := exec.Command("python", "--version")
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		return "python3", err
+// getPython answers the bare Python on PATH, looked up rather than run.
+func getPython() string {
+	if _, err := exec.LookPath("python"); err == nil {
+		return "python"
 	}
-
-	return "python", err
+	return "python3"
 }

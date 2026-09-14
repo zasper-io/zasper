@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"hash"
-	"os"
 	"slices"
 
 	"github.com/rs/zerolog/log"
@@ -22,29 +21,11 @@ const ProtocolVersion = "5.3"
 
 type KernelSession struct {
 	Key             string
-	Pid             int
-	Auth            hash.Hash
 	SignatureScheme string
-	CheckPid        bool
-	Packer          string
-	Unpacker        string
-	AdaptVersion    string
-	Debug           bool
-	CopyThreshold   int
-	session         string
-	messageCount    int
 }
 
 func getSession() KernelSession {
-	session := KernelSession{}
-	session.setKey(string(newIDBytes()))
-	session.SignatureScheme = "hmac-sha256"
-	return session
-}
-
-func (ks *KernelSession) setKey(value string) {
-	ks.Key = value
-	ks.Auth = newAuth(value)
+	return KernelSession{Key: string(newIDBytes()), SignatureScheme: "hmac-sha256"}
 }
 
 func newAuth(key string) hash.Hash {
@@ -57,13 +38,9 @@ func json_packer(obj interface{}) []byte {
 }
 
 func (ks *KernelSession) SendStreamMsg(stream zmq4.Socket, msg Message) Message {
-	if ks.CheckPid && os.Getpid() != ks.Pid {
-		log.Info().Msgf("WARNING: attempted to send message from fork %+v", msg)
-	}
 	if err := ks.send(stream, msg); err != nil {
 		log.Error().Err(err).Msg("failed to send message")
 	}
-	msg.Tracker = 0 // Set to default value since we're not tracking
 	return msg
 }
 
@@ -83,58 +60,6 @@ func (ks *KernelSession) send(stream zmq4.Socket, msg Message) error {
 //	b"\xf0\x9f\x90\xb1"  # extra raw data buffer(s)
 //	# ...
 // ]
-
-func (ks *KernelSession) Send(
-	stream zmq4.Socket,
-	msgOrType interface{},
-	content interface{},
-	parent MessageHeader,
-	buffers [][]byte,
-	track bool,
-	header MessageHeader,
-	metadata map[string]interface{},
-) Message {
-
-	var msg Message
-	switch v := msgOrType.(type) {
-	case Message:
-		msg = v
-		if buffers == nil {
-			buffers = msg.Buffers
-		}
-	case string:
-		msg = ks.createMsg(content, parent, header, metadata)
-	default:
-		log.Debug().Msgf("msg_or_type must be of type Message or string, got %T", v)
-	}
-
-	log.Debug().Msgf("message is %+v", msg)
-
-	if buffers == nil {
-		buffers = [][]byte{}
-	}
-
-	if ks.AdaptVersion != "" {
-		// msg = adapt(msg, s.adaptVersion)
-	}
-
-	toSend := ks.serialize(msg)
-
-	err := stream.SendMulti(zmq4.NewMsgFrom(toSend...))
-
-	if err != nil {
-		log.Error().Err(err).Msg("failed to send message")
-	}
-	msg.Tracker = 0 // Set to default value since we're not tracking
-
-	if ks.Debug {
-		log.Debug().Msgf("Message: %s\n", msg.MsgId)
-		log.Debug().Msgf("ToSend: %s\n", toSend)
-		log.Debug().Msgf("Buffers: %s\n", buffers)
-	}
-
-	return msg
-}
 
 // parts[0] = key
 // parts[1] = header

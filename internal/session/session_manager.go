@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zasper-io/zasper/internal/analytics"
@@ -25,6 +26,10 @@ func ListSessions() map[string]models.SessionModel {
 // on: see runningSessionFor.
 func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	log.Debug().Msgf("creating session %s", req.Kernel.Name)
+
+	// Two requests for the same notebook at once would otherwise both find nothing running and both
+	// start a kernel.
+	defer lockPath(req.Path)()
 
 	// The one place both answers are visible, which is why the kernel events are counted here rather
 	// than down in StartKernelManager: what is worth knowing is how often opening a notebook gets a
@@ -75,6 +80,43 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	core.SetSession(session_id, session)
 
 	return session, nil
+}
+
+// Per notebook rather than one lock for all: starting a kernel takes seconds, and opening a different
+// notebook should not wait for it.
+var pathLocks = struct {
+	mu   sync.Mutex
+	held map[string]*pathLock
+}{held: map[string]*pathLock{}}
+
+type pathLock struct {
+	sync.Mutex
+	users int
+}
+
+// lockPath waits for its turn on path and answers the function that gives the turn up. A path's lock
+// is dropped once nobody is holding or waiting for it.
+func lockPath(path string) func() {
+	pathLocks.mu.Lock()
+	lock := pathLocks.held[path]
+	if lock == nil {
+		lock = &pathLock{}
+		pathLocks.held[path] = lock
+	}
+	lock.users++
+	pathLocks.mu.Unlock()
+
+	lock.Lock()
+	return func() {
+		lock.Unlock()
+
+		pathLocks.mu.Lock()
+		lock.users--
+		if lock.users == 0 {
+			delete(pathLocks.held, path)
+		}
+		pathLocks.mu.Unlock()
+	}
 }
 
 /*

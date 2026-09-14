@@ -3,9 +3,11 @@ package kernelspec
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -76,19 +78,37 @@ func SingleKernelspecAPIHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func KernelspecAPIHandler(w http.ResponseWriter, req *http.Request) {
+	specs := GetAllSpecs()
 	response := KernelspecResponse{
-		// Jupyter Server's default_kernel_name, which is python3 whether or not one is installed.
-		Default:    "python3",
+		Default:    defaultKernelName(specs),
 		Kernespecs: make(map[string]KernelspecModel),
 	}
 
-	for kernelName, kernelInfo := range GetAllSpecs() {
+	for kernelName, kernelInfo := range specs {
 		response.Kernespecs[kernelName] = kernelspecModel(kernelName, kernelInfo.Spec)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// defaultKernelName answers a kernel that is installed: python3 when there is one, then the first Python
+// by name, then the first kernel of any language, and "" when there is none at all.
+func defaultKernelName(specs map[string]KspecData) string {
+	if _, ok := specs["python3"]; ok {
+		return "python3"
+	}
+	names := slices.Sorted(maps.Keys(specs))
+	for _, name := range names {
+		if strings.EqualFold(specs[name].Spec.Language, "python") {
+			return name
+		}
+	}
+	if len(names) > 0 {
+		return names[0]
+	}
+	return ""
 }
 
 // EnvironmentSetupHandler starts setting up the project's .venv: 202 with the job's state when it

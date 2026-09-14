@@ -135,9 +135,6 @@ func activeKernels() []KernelManager {
 	return all
 }
 
-func NotifyConnect() {
-}
-
 // disconnectHandlers are notified when a kernel stops. The websocket layer
 // registers one to tear down the client connections attached to that kernel; it
 // cannot be called from here directly without an import cycle.
@@ -295,9 +292,6 @@ func createKernelManager(kernelName string, kernelId string) (KernelManager, str
 		ConnectionFile: connectionFile,
 		KernelName:     kernelName,
 		KernelId:       kernelId,
-		CachePorts:     true,
-		Kernelspec:     kernelName,
-		// todo find from kernelspec dict
 	}
 	km.ConnectionInfo.Transport = "tcp"
 	km.ConnectionInfo.IP = "127.0.0.1"

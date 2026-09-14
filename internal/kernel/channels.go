@@ -23,24 +23,17 @@ const DELIM = "<IDS|MSG>"
 const nudgeRetryInterval = 500 * time.Millisecond
 
 type KernelWebSocketConnection struct {
-	pollingWait          sync.WaitGroup
-	Conn                 *websocket.Conn
-	Send                 chan []byte
-	KernelId             string
-	KernelManager        KernelManager
-	Context              context.Context
-	PollingCancel        context.CancelFunc
-	Channels             map[string]zmq4.Socket
-	Session              KernelSession
-	IOPubWindowMsgCount  int
-	IOPubWindowByteCount int
-	IOPubMsgsExceeded    int
-	IOPubDataExceeded    int
-	IOPubWindowByteQueue []interface{}
-	KernelInfoChannel    zmq4.Socket
-	Subprotocol          string
-	mu                   sync.Mutex
-	closeOnce            sync.Once
+	pollingWait   sync.WaitGroup
+	Conn          *websocket.Conn
+	Send          chan []byte
+	KernelId      string
+	KernelManager KernelManager
+	Context       context.Context
+	PollingCancel context.CancelFunc
+	Channels      map[string]zmq4.Socket
+	Session       KernelSession
+	mu            sync.Mutex
+	closeOnce     sync.Once
 
 	// The handshake. `iopubSeen` is closed by the iopub poller on the first message it receives, `ready`
 	// once the kernel has both answered a kernel_info_request and published that message. Made by
@@ -177,19 +170,10 @@ func (kwsConn *KernelWebSocketConnection) startPolling() { //msg interface{}, bi
 }
 
 func (kwsConn *KernelWebSocketConnection) Prepare(sessionId string) {
-	km := kwsConn.KernelManager
-	if km.Ready {
-		log.Debug().Msgf("%s", km.Session.Key)
-	} else {
-		log.Debug().Msg("Kernel is not ready")
-	}
-	kwsConn.Session = km.Session
+	kwsConn.Session = kwsConn.KernelManager.Session
 }
 
 func (kwsConn *KernelWebSocketConnection) Connect() {
-	log.Debug().Msg("notifying connection")
-	NotifyConnect()
-
 	log.Debug().Msg("creating stream")
 	kwsConn.createStream()
 
@@ -301,30 +285,25 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 	}
 
 	var msg Message
-	if kwsConn.Subprotocol == "v1.kernel.websocket.jupyter.org" {
-		msg = Message{}
+	if err := json.Unmarshal([]byte(wsMsg), &msg); err != nil {
+		log.Info().Msgf("Error unmarshalling message: %s", err)
+		return
+	}
+	log.Debug().Msgf("msg is => %v", msg)
+
+	// Every client->kernel message is already parsed here, which makes this the one place a cell
+	// run can be counted without the frontend being trusted to report it — and without the cell's
+	// source going anywhere near a property.
+	if msg.Header.MsgType == "execute_request" {
+		analytics.Track(analytics.EventCodeCellExecuted, map[string]interface{}{
+			"kernel_language": analytics.NormalizeLanguage(kwsConn.KernelManager.KernelName),
+		})
+	}
+
+	if msg.Channel == "stdin" {
+		kwsConn.Session.SendStreamMsg(kwsConn.Channels["stdin"], msg)
 	} else {
-		if err := json.Unmarshal([]byte(wsMsg), &msg); err != nil {
-			log.Info().Msgf("Error unmarshalling message: %s", err)
-			return
-		}
-		log.Debug().Msgf("msg is => %v", msg)
-
-		// Every client->kernel message is already parsed here, which makes this the one place a cell
-		// run can be counted without the frontend being trusted to report it — and without the cell's
-		// source going anywhere near a property.
-		if msg.Header.MsgType == "execute_request" {
-			analytics.Track(analytics.EventCodeCellExecuted, map[string]interface{}{
-				"kernel_language": analytics.NormalizeLanguage(kwsConn.KernelManager.KernelName),
-			})
-		}
-
-		if msg.Channel == "stdin" {
-			kwsConn.Session.SendStreamMsg(kwsConn.Channels["stdin"], msg)
-		} else {
-			kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
-		}
-
+		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
 	}
 }
 

@@ -9,8 +9,10 @@ interesting failures are the ones where those three stop agreeing.
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -761,4 +763,48 @@ func awaitClosed(t *testing.T, conn *websocket.Conn, within time.Duration) {
 			return
 		}
 	}
+}
+
+// Two tabs restoring the same notebook at once ask for it at the same moment: one kernel between them.
+func TestOpeningANotebookTwiceAtOnceStartsOneKernel(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+	require.NoError(t, os.WriteFile(filepath.Join(project, "notes.ipynb"), []byte(`{"cells":[]}`), 0o644))
+
+	request, err := json.Marshal(map[string]any{
+		"path": "notes.ipynb", "name": "notes.ipynb", "type": "notebook",
+		"kernel": map[string]string{"name": kernelName},
+	})
+	require.NoError(t, err)
+
+	const tabs = 4
+	statuses := make([]int, tabs)
+	answers := make([][]byte, tabs)
+	var opening sync.WaitGroup
+	for tab := range tabs {
+		opening.Add(1)
+		go func() {
+			defer opening.Done()
+			// Not call(), whose require cannot stop the test from a goroutine other than the test's own.
+			res, err := srv.Client().Post(srv.URL+"/api/sessions", "application/json", bytes.NewReader(request))
+			if err != nil {
+				return
+			}
+			defer res.Body.Close()
+			statuses[tab] = res.StatusCode
+			answers[tab], _ = io.ReadAll(res.Body)
+		}()
+	}
+	opening.Wait()
+
+	sessions := map[string]bool{}
+	for tab := range tabs {
+		require.Equal(t, http.StatusCreated, statuses[tab], "body was %s", answers[tab])
+		sessions[decode[models.SessionModel](t, answers[tab]).Id] = true
+	}
+	assert.Len(t, sessions, 1, "the tabs were given different sessions")
+
+	status, body := call(t, srv, http.MethodGet, "/api/kernels", nil)
+	require.Equal(t, http.StatusOK, status)
+	assert.Len(t, decode[[]models.KernelModel](t, body), 1)
 }

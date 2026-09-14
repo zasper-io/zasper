@@ -14,9 +14,8 @@ type LocalProvisioner struct {
 	KernelId       string
 	ConnectionInfo KernelConnectionInfo
 	// The launched kernel, nil until LaunchKernel has run.
-	Process     *launcher.Process
-	IP          string
-	PortsCached bool
+	Process *launcher.Process
+	IP      string
 }
 
 func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) (KernelConnectionInfo, error) {
