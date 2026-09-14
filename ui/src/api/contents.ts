@@ -45,13 +45,26 @@ export function getDirectory(path: string): Promise<IContentEntry> {
   });
 }
 
-/** Reads a single file as text. */
-export async function getFileContent(path: string): Promise<string> {
-  const model = await requestJson<IContentModel<string>>('/api/contents', {
-    method: 'POST',
-    body: { path },
-  });
-  return model.content;
+/**
+ * A file as the server sent it: its text when it is UTF-8 text, and base64 of its bytes when it is
+ * not, since text that is not UTF-8 would come back from an editor with its bytes changed.
+ */
+export interface IFileContent {
+  format: 'text' | 'base64';
+  content: string;
+  mimetype: string;
+}
+
+/** Reads a single file, as text when it is text. */
+export async function getFileContent(path: string): Promise<IFileContent> {
+  const model = await requestJson<IContentModel<string> & Omit<IFileContent, 'content'>>(
+    '/api/contents',
+    {
+      method: 'POST',
+      body: { path },
+    }
+  );
+  return { format: model.format, content: model.content, mimetype: model.mimetype };
 }
 
 /** Reads a notebook document. */

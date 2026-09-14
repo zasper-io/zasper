@@ -14,8 +14,8 @@ interface PdfViewerProps {
 /**
  * A PDF, drawn by the viewer the browser already has.
  *
- * The bytes come from the download endpoint rather than from the content model: that model is text,
- * or a base64 data URL for the few types that have one, and a PDF read as text arrives as mojibake.
+ * The bytes come from the download endpoint rather than from the content model, which would carry
+ * them as base64 inside JSON and refuses large files.
  * They are re-wrapped as `application/pdf` because the endpoint answers `application/octet-stream`,
  * which an iframe offers to save instead of showing.
  */

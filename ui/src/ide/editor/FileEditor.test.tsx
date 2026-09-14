@@ -9,13 +9,24 @@ import { unsavedTabsAtom } from '@/store/UnsavedState';
 
 const getFileContent = vi.fn();
 const saveFile = vi.fn();
+const downloadContent = vi.fn();
+const saveAs = vi.fn();
 
 vi.mock('@/api', () => ({
   getFileContent: (path: string) => getFileContent(path),
   saveFile: (path: string, content: string) => saveFile(path, content),
+  downloadContent: (path: string) => downloadContent(path),
   logApiError: () => () => {},
   apiErrorMessage: (error: unknown) => (error as Error).message,
 }));
+
+vi.mock('@/browser', () => ({
+  saveAs: (blob: Blob, filename: string) => saveAs(blob, filename),
+}));
+
+function text(content: string) {
+  return { format: 'text', content, mimetype: 'text/plain' };
+}
 
 // CodeMirror cannot mount under jsdom, and the editor surface is not what this exercises.
 vi.mock('@uiw/react-codemirror', async () => {
@@ -71,7 +82,9 @@ describe('FileEditor', () => {
   beforeEach(() => {
     getFileContent.mockReset();
     saveFile.mockReset();
-    getFileContent.mockResolvedValue('first line\n');
+    downloadContent.mockReset();
+    saveAs.mockReset();
+    getFileContent.mockResolvedValue(text('first line\n'));
     saveFile.mockResolvedValue(undefined);
   });
 
@@ -137,7 +150,7 @@ describe('FileEditor', () => {
     const markdownTab: IfileTab = { ...tab, path: 'notes.md', name: 'notes.md', extension: 'md' };
 
     beforeEach(() => {
-      getFileContent.mockResolvedValue('# Title\n');
+      getFileContent.mockResolvedValue(text('# Title\n'));
     });
 
     async function renderMarkdown() {
@@ -179,6 +192,51 @@ describe('FileEditor', () => {
       type('# Renamed\n');
 
       expect(await screen.findByRole('heading', { name: 'Renamed' })).toBeInTheDocument();
+    });
+  });
+
+  // Shown as its bytes decoded, a Latin-1 or binary file was written back changed on the next save.
+  describe('a file that is not text', () => {
+    beforeEach(() => {
+      getFileContent.mockResolvedValue({
+        format: 'base64',
+        content: 'Y2Fm6Qo=',
+        mimetype: 'application/octet-stream',
+      });
+    });
+
+    async function renderNotText() {
+      render(
+        <Provider>
+          <FileEditor data={tab} />
+          <TabBar />
+        </Provider>
+      );
+      await screen.findByText('notes.txt is not a text file.');
+    }
+
+    it('says so instead of offering an editor', async () => {
+      await renderNotText();
+
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
+    it('holds nothing the tab bar could save back over the file', async () => {
+      await renderNotText();
+
+      expect(unsavedPaths()).toBe('');
+      expect(saveFile).not.toHaveBeenCalled();
+    });
+
+    it('offers the file as a download', async () => {
+      const bytes = new Blob(['caf\xe9\n']);
+      downloadContent.mockResolvedValue(bytes);
+      await renderNotText();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+
+      await waitFor(() => expect(saveAs).toHaveBeenCalledWith(bytes, 'notes.txt'));
+      expect(downloadContent).toHaveBeenCalledWith('notes.txt');
     });
   });
 

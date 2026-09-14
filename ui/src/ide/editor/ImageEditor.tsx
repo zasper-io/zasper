@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { apiErrorMessage, getFileContent } from '@/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { apiErrorMessage, downloadContent } from '@/api';
 import { Icon } from '@/ide/icons';
 import BreadCrumb from './BreadCrumb';
 import { IfileTab } from '@/store/TabState';
@@ -8,33 +8,56 @@ interface ImageEditorProps {
   data: IfileTab;
 }
 
+/**
+ * An image, read from the download endpoint: the content model would carry it as base64 inside JSON,
+ * a third larger, and refuses large files. The <img> reads the format from the bytes themselves.
+ */
 export default function ImageEditor(props: ImageEditorProps) {
   const { data } = props;
-  const [fileContents, setFileContents] = useState('');
+  const [src, setSrc] = useState('');
   /** Why the image could not be read, when it could not be. */
   const [error, setError] = useState('');
+  const objectUrl = useRef<string | null>(null);
+  const mounted = useRef(true);
 
-  const FetchFileData = useCallback(
-    async (path: string) => {
-      try {
-        setFileContents(await getFileContent(path));
-        setError('');
-      } catch (failure) {
-        // A tab restored from a previous visit can name a file since deleted. Without this the read
-        // was an unhandled rejection and the pane an <img> with no source: a broken-image glyph, and
-        // nothing saying why.
-        setError(apiErrorMessage(failure));
-        setFileContents('');
+  // Revoked when the tab closes, not when it goes to the background: see PdfViewer.
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (objectUrl.current !== null) {
+        URL.revokeObjectURL(objectUrl.current);
       }
-    },
-    [setFileContents]
-  );
+    };
+  }, []);
 
   useEffect(() => {
-    if (data.load_required === true) {
-      void FetchFileData(data.path);
+    if (data.load_required !== true) {
+      return;
     }
-  }, [FetchFileData, data]);
+    downloadContent(data.path)
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        if (!mounted.current) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        if (objectUrl.current !== null) {
+          URL.revokeObjectURL(objectUrl.current);
+        }
+        objectUrl.current = url;
+        setSrc(url);
+        setError('');
+      })
+      .catch((failure: unknown) => {
+        // A tab restored from a previous visit can name a file since deleted, and the pane would
+        // otherwise be a broken-image glyph with nothing saying why.
+        if (mounted.current) {
+          setError(apiErrorMessage(failure));
+          setSrc('');
+        }
+      });
+  }, [data.path, data.load_required]);
 
   return (
     <div className="tab-surface">
@@ -49,7 +72,7 @@ export default function ImageEditor(props: ImageEditorProps) {
           </div>
         ) : (
           <div className="viewerArea viewerArea-image">
-            <img src={fileContents} className="viewerContent" alt={data.name || data.path} />
+            {src !== '' && <img src={src} className="viewerContent" alt={data.name || data.path} />}
           </div>
         )}
       </div>

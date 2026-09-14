@@ -1,7 +1,6 @@
 package content
 
 import (
-	"encoding/base64"
 	"errors"
 	"os"
 	"path/filepath"
@@ -77,76 +76,6 @@ func TestGetSafePath(t *testing.T) {
 
 	// A prefix test alone would pass this: the sibling directory's path starts with HomeDir's.
 	assert.Equal(t, "", GetSafePath(".."+string(os.PathSeparator)+filepath.Base(projectDir)+"-secrets"))
-}
-
-func TestReadFileContent(t *testing.T) {
-
-	tests := []struct {
-		name        string
-		filePath    string
-		fileContent string
-		expected    string
-		expectedErr error
-	}{
-		{
-			name:        "Read normal text file",
-			filePath:    "testfile.txt",
-			fileContent: "This is a normal text file",
-			expected:    "This is a normal text file",
-			expectedErr: nil,
-		},
-		{
-			name:        "Read .png file",
-			filePath:    "image.png",
-			fileContent: string([]byte{0x89, 0x50, 0x4E, 0x47}), // Part of a PNG file
-			expected:    "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte{0x89, 0x50, 0x4E, 0x47}),
-			expectedErr: nil,
-		},
-		{
-			name:        "Error reading nonexistent file",
-			filePath:    "nonexistentfile.txt",
-			fileContent: "",
-			expected:    "",
-			expectedErr: errors.New("open nonexistentfile.txt: no such file or directory"),
-		},
-	}
-
-	// Iterate over the test cases
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.expectedErr == nil {
-				tmpFile, err := os.CreateTemp("", tt.filePath)
-				if err != nil {
-					t.Fatalf("Failed to create temporary file: %v", err)
-				}
-				if err != os.Rename(tmpFile.Name(), tt.filePath) {
-					t.Fatalf("Failed to rename file: %v", err)
-				}
-
-				defer os.Remove(tt.filePath) // Clean up the file after the test
-
-				if err := os.WriteFile(tt.filePath, []byte(tt.fileContent), 0644); err != nil {
-					t.Fatalf("Failed to write content to temporary file: %v", err)
-				}
-
-				result, err := readFileContent(tt.filePath)
-
-				if tt.expectedErr != nil {
-					assert.Error(t, err)
-					assert.Contains(t, err.Error(), tt.expectedErr.Error())
-				} else {
-					assert.NoError(t, err)
-					assert.Equal(t, tt.expected, result)
-				}
-			} else {
-				result, err := readFileContent(tt.filePath)
-
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedErr.Error())
-				assert.Equal(t, tt.expected, result)
-			}
-		})
-	}
 }
 
 func TestGetFileModel(t *testing.T) {

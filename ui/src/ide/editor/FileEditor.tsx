@@ -12,9 +12,11 @@ import React, {
 import CodeMirror from '@uiw/react-codemirror';
 import { go } from '@codemirror/lang-go';
 import { keymap, ViewUpdate } from '@codemirror/view';
-import { apiErrorMessage, getFileContent, logApiError, saveFile } from '@/api';
+import { apiErrorMessage, downloadContent, getFileContent, logApiError, saveFile } from '@/api';
+import { saveAs } from '@/browser';
 import { Icon, IconName } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
+import { baseName } from '@/paths';
 
 import { useAtom } from 'jotai';
 import { useTheme } from '@/themes/useTheme';
@@ -51,6 +53,8 @@ export default function FileEditor(props: FileEditorProps) {
   const [savedContents, setSavedContents] = useState('');
   /** Why the file could not be read, when it could not be. */
   const [error, setError] = useState('');
+  /** The server sent the file as base64: it is not UTF-8 text, and the editor would change its bytes. */
+  const [notText, setNotText] = useState(false);
   /** Bumped on every successful read; 0 until the first one lands. */
   const [readCount, setReadCount] = useState(0);
   const [markdownView, setMarkdownView] = useState<MarkdownView>('edit');
@@ -71,7 +75,7 @@ export default function FileEditor(props: FileEditorProps) {
   const handleCmdEnter = () => {
     // Nothing to save when the read failed: what the editor holds is the empty starting state, and
     // writing it would create the file the tab is only pointing at.
-    if (error !== '') {
+    if (error !== '' || notText) {
       return true;
     }
     saveFileToDisk().catch(logApiError('Error saving file:'));
@@ -83,7 +87,7 @@ export default function FileEditor(props: FileEditorProps) {
   // save a buffer that is not the file.
   useUnsavedChanges(
     props.data.path,
-    error === '' && fileContents !== savedContents,
+    error === '' && !notText && fileContents !== savedContents,
     saveFileToDisk
   );
 
@@ -99,9 +103,11 @@ export default function FileEditor(props: FileEditorProps) {
 
   const FetchFileData = async (path: string) => {
     try {
-      const content = await getFileContent(path);
-      setFileContents(content);
-      setSavedContents(content);
+      const file = await getFileContent(path);
+      const text = file.format === 'text' ? file.content : '';
+      setNotText(file.format !== 'text');
+      setFileContents(text);
+      setSavedContents(text);
       setError('');
       setReadCount((count) => count + 1);
     } catch (failure) {
@@ -109,9 +115,17 @@ export default function FileEditor(props: FileEditorProps) {
       // something since deleted. Said out loud, because the alternative is an editor that looks like
       // an empty file and writes the deleted file back to disk on the first Mod-S.
       setError(apiErrorMessage(failure));
+      setNotText(false);
       setFileContents('');
       setSavedContents('');
     }
+  };
+
+  const name = props.data.name || baseName(props.data.path);
+  const download = () => {
+    downloadContent(props.data.path)
+      .then((blob) => saveAs(blob, name))
+      .catch((failure: unknown) => setError(apiErrorMessage(failure)));
   };
 
   useEffect(() => {
@@ -144,7 +158,8 @@ export default function FileEditor(props: FileEditorProps) {
 
   const markdown = isMarkdown(props.data.extension);
   // A failed read has no text to render, so it keeps the notice in view.
-  const view: MarkdownView = markdown && error === '' ? markdownView : 'edit';
+  const hasText = error === '' && !notText;
+  const view: MarkdownView = markdown && hasText ? markdownView : 'edit';
 
   // By proportion: the rendering has no map back to source lines.
   const followSource = () => {
@@ -173,6 +188,20 @@ export default function FileEditor(props: FileEditorProps) {
           <p>
             <strong>This file could not be loaded.</strong> {error}
           </p>
+        </div>
+      ) : notText ? (
+        <div className="z-notice">
+          <p>
+            <strong>{name} is not a text file.</strong> It is not opened in the editor, which would
+            change its bytes on save.
+          </p>
+          <button
+            type="button"
+            className="z-button z-button-secondary z-notice-action"
+            onClick={download}
+          >
+            Download
+          </button>
         </div>
       ) : readCount === 0 ? null : (
         // Mounted only once the file is read, and afresh on each read: handed the text after
@@ -210,7 +239,7 @@ export default function FileEditor(props: FileEditorProps) {
       <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         {/* Outside .file-editor-body, so it stays put while the file scrolls. */}
         <BreadCrumb path={props.data.path} />
-        {markdown && error === '' && (
+        {markdown && hasText && (
           <div className="editor-strip">
             <span>{MARKDOWN_VIEWS.find((option) => option.view === view)?.label}</span>
             <span className="editor-strip-actions">

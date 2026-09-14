@@ -10,7 +10,6 @@ import (
 
 	"net/http"
 	"slices"
-	"strconv"
 
 	zhttp "github.com/zasper-io/zasper/internal/http"
 
@@ -28,36 +27,20 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	relativePath := body.Path
 	contentType := body.Type
-	format := body.Format
-	hash_str := body.Hash
 
 	if relativePath == "" {
 		relativePath = "."
 	}
 
 	allowedTypes := []string{"directory", "file", "notebook"}
-	allowedFormats := []string{"text", "base64"}
-	allowedHashes := []int{0, 1}
 
 	if !(slices.Contains(allowedTypes, contentType)) {
 		contentType = "file"
 	}
 
-	if !(slices.Contains(allowedFormats, format)) {
-		format = "base64"
-	}
-
-	if hash_str == "" {
-		hash_str = "0"
-	}
-
-	hash, err := strconv.Atoi(hash_str)
-	if err != nil {
-		log.Error().Err(err).Msg("")
-	}
-
-	if !(slices.Contains(allowedHashes, hash)) {
-		hash = 0
+	if !slices.Contains([]string{"", "0", "1"}, body.Hash) {
+		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("hash is 0 or 1, not %q", body.Hash))
+		return
 	}
 
 	if outsideProject(relativePath) {
@@ -65,7 +48,9 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	contentModel, err := GetContent(relativePath, contentType, format, hash)
+	// A file's format is passed through as asked, and not defaulted: an empty one lets the file's own
+	// bytes decide between text and base64. A notebook is always JSON.
+	contentModel, err := GetContent(relativePath, contentType, body.Format, body.Hash == "1")
 
 	if err != nil {
 		log.Error().Msgf("Error fetching content: %v", err)
