@@ -18,6 +18,7 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import type { ICellOutput } from '@/api';
 import { OutputBundles } from '@/ide/editor/notebook/CellOutput';
+import { markProducedHere } from '@/ide/editor/notebook/outputTrust';
 
 import type { WidgetSource } from './WidgetRenderer';
 import type { IWidgetKernelMessage, ZasperWidgetManager } from './widgetManager';
@@ -111,6 +112,7 @@ export class OutputModel extends DOMWidgetModel {
     if (!output) {
       return;
     }
+    markProducedHere(output);
 
     const outputs = this.clearWaiting ? [] : [...((this.get('outputs') ?? []) as ICellOutput[])];
     this.clearWaiting = false;

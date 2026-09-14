@@ -4,6 +4,8 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import type { Options as SanitizeSchema } from 'rehype-sanitize';
 
 import { normalizeMathDelimiters } from './mathDelimiters';
 
@@ -24,12 +26,23 @@ import 'katex/dist/katex.min.css';
  * eagerly loaded tree puts them straight back into the main bundle. Cell.tsx
  * loads it with React.lazy.
  *
- * `rehypeRaw` is what allows raw HTML inside a markdown cell, matching Jupyter.
+ * `rehypeRaw` is what allows raw HTML inside a markdown cell, matching Jupyter. That HTML is the
+ * notebook author's, so it is sanitised before KaTeX adds markup of its own: an `<iframe srcdoc>` would
+ * otherwise run script in this page's origin.
  *
  * `remarkGfm` is not optional either: react-markdown speaks plain CommonMark, which has no tables,
  * strikethrough, task lists or bare-URL links. Jupyter renders all four — JupyterLab runs marked with
  * GFM on — so without it a table in a markdown cell comes out as one paragraph of pipes.
  */
+// GitHub's schema, plus the classes remark-math marks formulas with, which rehype-katex looks for.
+const schema: SanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    code: [['className', /^language-./, 'math-inline', 'math-display']],
+  },
+};
+
 const MarkdownRenderer = ({ source }: { source: string }) => {
   // `remark-math` reads `$x$` and nothing else; Jupyter's own notebooks are full of `\\(x\\)`.
   // See mathDelimiters.ts.
@@ -39,7 +52,10 @@ const MarkdownRenderer = ({ source }: { source: string }) => {
     // The wrapper is the styling hook: markdown produces plain h1/table/blockquote with no classes of
     // their own, so this is what NotebookEditor.scss can reach them through.
     <div className="zasper-markdown">
-      <Markdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>
+      <Markdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, schema], rehypeKatex]}
+      >
         {text}
       </Markdown>
     </div>

@@ -18,3 +18,21 @@ jobs:
       - run: make init
       # The frontend half only: the Go tests are Go Build's job, and `make test` now runs both.
       - run: make test-frontend
+
+  lint:
+    name: Lint and type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12'
+      - run: make init
+      - name: ESLint
+        working-directory: ui
+        run: npx eslint src
+      - name: Prettier
+        working-directory: ui
+        run: npx prettier --check "src/**/*.{ts,tsx,scss,css}"
+      - name: TypeScript
+        run: npm --prefix ./ui run typecheck

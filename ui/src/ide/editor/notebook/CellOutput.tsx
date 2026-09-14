@@ -1,10 +1,12 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
 import { AnsiUp } from 'ansi_up';
+import DOMPurify from 'dompurify';
 
 import { ICell, ICellOutput } from '@/api';
 import WidgetRenderer, { type WidgetSource } from '@/ide/widgets/WidgetRenderer';
 
 import { hasMathDelimiters } from './mathDelimiters';
+import { isProducedHere } from './outputTrust';
 import PlotlyOutput from './PlotlyOutput';
 
 // The boundary Cell.tsx keeps for markdown cells, for the same reason: katex and the markdown
@@ -12,16 +14,21 @@ import PlotlyOutput from './PlotlyOutput';
 const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
 
 /**
- * Renders an HTML output bundle and then re-executes any <script> it contains.
- * dangerouslySetInnerHTML alone will not run them, and some libraries (plotly,
- * bokeh) ship their output as markup plus a bootstrap script.
+ * An HTML output bundle. dangerouslySetInnerHTML does not run scripts, and libraries such as Bokeh ship
+ * markup plus a bootstrap script, so a trusted output's scripts are re-created to run. An untrusted one,
+ * read from a notebook file, is sanitised instead: its scripts would run as the signed-in user.
  */
-const HTMLWithScripts = ({ html }: { html: string }) => {
+const HTMLOutput = ({ html, trusted }: { html: string; trusted: boolean }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  // FORCE_BODY keeps a leading <style>, which is how a DataFrame's HTML starts.
+  const markup = useMemo(
+    () => (trusted ? html : DOMPurify.sanitize(html, { FORCE_BODY: true })),
+    [html, trusted]
+  );
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !trusted) return;
 
     const scripts = container.querySelectorAll('script');
     scripts.forEach((oldScript) => {
@@ -36,10 +43,13 @@ const HTMLWithScripts = ({ html }: { html: string }) => {
       );
       oldScript.parentNode?.replaceChild(newScript, oldScript);
     });
-  }, [html]);
+  }, [markup, trusted]);
 
-  return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: markup }} />;
 };
+
+const sanitiseSvg = (svg: string) =>
+  DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
 
 /** A base64 image bundle. png and jpeg differ only in the mime type the data URL names. */
 const ImageOutput = ({ mime, data }: { mime: string; data: string }) => (
@@ -102,6 +112,7 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
         }
 
         const { text, 'text/plain': textPlain, data: outputData } = output;
+        const trusted = isProducedHere(output);
 
         if (text) {
           const textHtml = ansi_up.ansi_to_html(text);
@@ -149,7 +160,7 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
           }
 
           if (htmlContent) {
-            return <HTMLWithScripts key={index} html={htmlContent} />;
+            return <HTMLOutput key={index} html={htmlContent} trusted={trusted} />;
           }
 
           if (latexContent) {
@@ -164,7 +175,7 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
               <div
                 key={index}
                 className="output-svg"
-                dangerouslySetInnerHTML={{ __html: svgContent }}
+                dangerouslySetInnerHTML={{ __html: trusted ? svgContent : sanitiseSvg(svgContent) }}
               />
             );
           }

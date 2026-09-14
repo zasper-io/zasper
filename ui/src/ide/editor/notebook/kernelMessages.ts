@@ -1,5 +1,7 @@
 import { ICell, ICellOutput, INotebookModel } from '@/api';
 
+import { markProducedHere } from './outputTrust';
+
 /** A message received from, or sent to, the kernel over the websocket channel. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type IKernelMessage = any;
@@ -44,6 +46,7 @@ export function carriesOutput(message: IKernelMessage): boolean {
 }
 
 function appendOutput(cell: ICell, output: ICellOutput, replace: boolean): ICell {
+  markProducedHere(output);
   cell.outputs = replace ? [output] : [...(cell.outputs ?? []), output];
   return cell;
 }

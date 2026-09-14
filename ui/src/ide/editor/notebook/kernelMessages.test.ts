@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { applyKernelMessage, carriesOutput } from './kernelMessages';
+import { isProducedHere } from './outputTrust';
 import { INotebookModel } from '@/api';
 
 function notebookWith(cellId: string): INotebookModel {
@@ -103,6 +104,22 @@ describe('applyKernelMessage', () => {
     expect(withDisplay.cells[0].outputs).toEqual([
       { output_type: 'display_data', data, metadata: { 'image/png': { width: 40 } } },
     ]);
+  });
+
+  // What lets a live output's HTML run its scripts, which an output read from a file may not.
+  it('marks the outputs it appends as sent by a running kernel', () => {
+    const fromFile = notebookWith('cell-1');
+    fromFile.cells[0].outputs = [{ output_type: 'display_data', data: {}, metadata: {} }];
+
+    const updated = applyKernelMessage(
+      fromFile,
+      message('display_data', { data: { 'text/html': '<b>x</b>' }, metadata: {} }),
+      'cell-1'
+    );
+
+    const [loaded, received] = updated.cells[0].outputs ?? [];
+    expect(isProducedHere(loaded)).toBe(false);
+    expect(isProducedHere(received)).toBe(true);
   });
 
   it('appends to a cell whose outputs the file did not give it', () => {

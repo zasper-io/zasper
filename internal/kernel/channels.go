@@ -327,10 +327,13 @@ func (kwsConn *KernelWebSocketConnection) handleIncomingMessage(incomingMsg []by
 	}
 }
 
+// ReadMessagesFromClient and WriteMessages each stop the other on the way out: a client that has gone
+// is noticed by whichever of them touches the socket first.
 func (kwsConn *KernelWebSocketConnection) ReadMessagesFromClient(waiter *sync.WaitGroup) {
 	defer func() {
 		log.Debug().Msg("closing the client read loop")
 		kwsConn.Conn.Close()
+		kwsConn.stopPolling()
 		waiter.Done()
 	}()
 
@@ -355,17 +358,17 @@ func (kwsConn *KernelWebSocketConnection) ReadMessagesFromClient(waiter *sync.Wa
 func (kwsConn *KernelWebSocketConnection) WriteMessages(waiter *sync.WaitGroup) {
 	defer func() {
 		kwsConn.Conn.Close()
+		kwsConn.stopPolling()
 		waiter.Done()
 	}()
 	for {
+		// One select for both: waiting on Send alone never noticed a cancel while the kernel was idle.
 		select {
-		case <-kwsConn.Context.Done(): // Check if context is canceled
-			log.Debug().Msgf("Socket closed, Incoming message handler stopped")
+		case <-kwsConn.Context.Done():
+			log.Debug().Msg("client write loop stopped")
 			return
-		default:
-			message, ok := <-kwsConn.Send
+		case message, ok := <-kwsConn.Send:
 			if !ok {
-				log.Info().Msg("Send channel closed, closing WebSocket connection")
 				kwsConn.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
@@ -373,7 +376,7 @@ func (kwsConn *KernelWebSocketConnection) WriteMessages(waiter *sync.WaitGroup) 
 			err := kwsConn.Conn.WriteMessage(websocket.TextMessage, message)
 			kwsConn.mu.Unlock()
 			if err != nil {
-				log.Info().Msgf("Error writing message: %s", err)
+				log.Debug().Err(err).Msg("could not write to the client")
 				return
 			}
 		}

@@ -37,6 +37,7 @@
     "@xterm/addon-web-links": "0.11.0",
     "@xterm/xterm": "5.5.0",
     "ansi_up": "^6.0.6",
+    "dompurify": "^3.4.15",
     "jotai": "1.7.2",
     "katex": "^0.16.47",
     "lodash": "^4.17.21",
@@ -50,6 +51,7 @@
     "react-toastify": "10.0.5",
     "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "requirejs": "^2.3.8",
@@ -62,7 +64,6 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
-    "@types/dompurify": "^2.4.0",
     "@types/lodash": "^4.17.25",
     "@types/plotly.js-dist-min": "^2.3.4",
     "@types/react": "^19.1.4",

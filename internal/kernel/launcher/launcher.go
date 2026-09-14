@@ -24,6 +24,10 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 	if env, ok := kw["env"].([]string); ok {
 		cmd.Env = env
 	}
+	// Without it the kernel inherits the server's working directory, not the notebook's.
+	if dir, ok := kw["cwd"].(string); ok && dir != "" {
+		cmd.Dir = dir
+	}
 
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()

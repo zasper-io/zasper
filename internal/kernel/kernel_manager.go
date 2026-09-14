@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"regexp"
@@ -45,6 +46,10 @@ type KernelManager struct {
 
 	KernelId     string
 	ShuttingDown bool
+
+	// The folder the kernel starts in, and variables set for it on top of the kernelspec's.
+	Dir string
+	Env map[string]string
 
 	Session        KernelSession
 	ConnectionInfo Connection
@@ -177,9 +182,16 @@ func (km *KernelManager) preLaunch() (map[string]interface{}, error) {
 	kernelCmd := km.formatKernelCmd()
 	log.Debug().Msgf("kernel cmd is %s", kernelCmd)
 
+	processEnv := kernelEnv(os.Environ(), km.Provisioner.Kernelspec.Env)
+	// Appended as they are rather than through kernelEnv, which would expand a `$` in a notebook's path.
+	for _, name := range slices.Sorted(maps.Keys(km.Env)) {
+		processEnv = append(processEnv, name+"="+km.Env[name])
+	}
+
 	env := make(map[string]interface{})
 	env["cmd"] = kernelCmd
-	env["env"] = kernelEnv(os.Environ(), km.Provisioner.Kernelspec.Env)
+	env["env"] = processEnv
+	env["cwd"] = km.Dir
 	return env, nil
 }
 

@@ -1,9 +1,5 @@
 /** The sidebar panels, in the order NavigationPanel lists them. */
-export type PanelName =
-  | 'fileBrowser'
-  | 'gitPanel'
-  | 'jupyterInfoPanel'
-  | 'settingsPanel';
+export type PanelName = 'fileBrowser' | 'gitPanel' | 'jupyterInfoPanel' | 'settingsPanel';
 
 /**
  * Sidebar panels all stay mounted, so each one is told whether it is the visible one.

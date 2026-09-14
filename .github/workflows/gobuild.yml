@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.25'
 
@@ -25,6 +25,46 @@ jobs:
       run: go build -tags apiserver -v ./...
 
     # -race: several tests are about two requests racing for the same kernel or session, and without
-    # it they pass whether or not the lock they are about is there.
+    # it they pass whether or not the lock they are about is there. internal/server is left to the API
+    # journeys in e2e.yml, which run it against a real kernel.
     - name: Test
-      run: go test -race -tags apiserver -v ./...
+      run: go test -race -tags apiserver -v $(go list -tags apiserver ./... | grep -v /internal/server)
+
+  other-platforms:
+    name: Go on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+
+    - name: Vet
+      run: go vet -tags apiserver ./...
+
+    # Windows is built and vetted but not yet tested: its terminal and kernel interrupt are not
+    # supported, and the tests that open them would fail for that reason alone.
+    - name: Test
+      if: runner.os != 'Windows'
+      run: go test -race -tags apiserver ./...
+
+  govulncheck:
+    name: Known vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    # govulncheck v1.8.0 has to be built with a newer Go than the 1.25 Zasper builds with.
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: stable
+
+    - name: govulncheck
+      run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -tags apiserver ./...

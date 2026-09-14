@@ -6,13 +6,76 @@ import { describe, expect, it } from 'vitest';
 import { ICellOutput } from '@/api';
 
 import { OutputBundles } from './CellOutput';
+import { markProducedHere } from './outputTrust';
 
 const PIXEL = 'iVBORw0KGgoAAAANSUhEUg==';
 
+// A script runs in jsdom's own window, not the test's `window`, so it marks the document they share.
+const ran = (mark: string) => document.body.hasAttribute(`data-ran-${mark}`);
+
+/** An output as it arrives in a notebook file. */
 function show(data: Record<string, unknown>) {
   const outputs = [{ output_type: 'display_data', data }] as ICellOutput[];
   return render(<OutputBundles outputs={outputs} widgets={null} />);
 }
+
+/** An output a running kernel has just sent. */
+function showFromKernel(data: Record<string, unknown>) {
+  const outputs = [markProducedHere({ output_type: 'display_data', data } as ICellOutput)];
+  return render(<OutputBundles outputs={outputs} widgets={null} />);
+}
+
+describe('OutputBundles from a notebook file', () => {
+  it('drops the scripts in text/html rather than running them', () => {
+    const { container } = show({
+      'text/html': "<b>kept</b><script>document.body.setAttribute('data-ran-file', '')</script>",
+    });
+
+    expect(container.querySelector('b')).not.toBeNull();
+    expect(container.querySelector('script')).toBeNull();
+    expect(ran('file')).toBe(false);
+  });
+
+  it('drops a same-origin iframe from text/html', () => {
+    const { container } = show({
+      'text/html': '<iframe srcdoc="<script>parent.ranFromFile = true</script>"></iframe>',
+    });
+
+    expect(container.querySelector('iframe')).toBeNull();
+  });
+
+  // A DataFrame's HTML opens with a scoped style, which must survive.
+  it('keeps the table and style a DataFrame renders as', () => {
+    const { container } = show({
+      'text/html':
+        '<style scoped>th { text-align: right; }</style><table><tr><th>a</th></tr></table>',
+    });
+
+    expect(container.querySelector('style')).not.toBeNull();
+    expect(container.querySelector('table th')).not.toBeNull();
+  });
+
+  it('drops event handlers from image/svg+xml', () => {
+    const { container } = show({
+      'image/svg+xml':
+        '<svg xmlns="http://www.w3.org/2000/svg" onload="window.ranFromFile = true"><circle r="4" /></svg>',
+    });
+
+    expect(container.querySelector('.output-svg circle')).not.toBeNull();
+    expect(container.querySelector('[onload]')).toBeNull();
+  });
+});
+
+describe('OutputBundles from a running kernel', () => {
+  // Bokeh and similar libraries ship markup plus a bootstrap script.
+  it('runs the scripts in text/html', () => {
+    showFromKernel({
+      'text/html': "<script>document.body.setAttribute('data-ran-kernel', '')</script>",
+    });
+
+    expect(ran('kernel')).toBe(true);
+  });
+});
 
 describe('OutputBundles', () => {
   it('renders image/png as an image', () => {

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,4 +29,23 @@ func TestTheKernelIsStartedWithTheEnvItWasGiven(t *testing.T) {
 	written, err := os.ReadFile(out)
 	require.NoError(t, err)
 	assert.Equal(t, "from the spec", string(written))
+}
+
+func TestTheKernelIsStartedInTheDirectoryItWasGiven(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
+	}
+	dir := t.TempDir()
+	out := filepath.Join(t.TempDir(), "cwd.txt")
+
+	process, err := LaunchKernel([]string{"sh", "-c", `pwd -P > "$0"`, out}, map[string]interface{}{"cwd": dir}, "")
+	require.NoError(t, err)
+	_, err = process.Wait()
+	require.NoError(t, err)
+
+	written, err := os.ReadFile(out)
+	require.NoError(t, err)
+	resolved, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	assert.Equal(t, resolved, strings.TrimSpace(string(written)))
 }

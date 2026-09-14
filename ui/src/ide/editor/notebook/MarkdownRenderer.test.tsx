@@ -36,4 +36,41 @@ describe('MarkdownRenderer', () => {
     expect(styled.length).toBeGreaterThan(0);
     expect([...styled].some((el) => /top:/.test(el.getAttribute('style') ?? ''))).toBe(true);
   });
+
+  // A srcdoc iframe shares this page's origin, so its script could read the session token.
+  it('drops iframes and scripts from raw HTML', () => {
+    const source = [
+      '<iframe srcdoc="<script>parent.ranFromMarkdown = true</script>"></iframe>',
+      '',
+      "<script>document.body.setAttribute('data-ran-markdown', '')</script>",
+      '',
+      'text',
+    ].join('\n');
+    const { container } = render(<MarkdownRenderer source={source} />);
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(container.querySelector('script')).toBeNull();
+    expect(document.body.hasAttribute('data-ran-markdown')).toBe(false);
+  });
+
+  it('keeps the raw HTML and GFM that notebooks lay text out with', () => {
+    const source = [
+      '<details><summary>More</summary>',
+      '',
+      'hidden',
+      '',
+      '</details>',
+      '',
+      '| a | b |',
+      '|---|---|',
+      '| 1 | 2 |',
+      '',
+      '- [x] done',
+    ].join('\n');
+    const { container } = render(<MarkdownRenderer source={source} />);
+
+    expect(container.querySelector('details > summary')).not.toBeNull();
+    expect(container.querySelector('table td')).not.toBeNull();
+    expect(container.querySelector('input[type="checkbox"]')).not.toBeNull();
+  });
 });

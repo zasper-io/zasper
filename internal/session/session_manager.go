@@ -2,11 +2,13 @@ package session
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/zasper-io/zasper/internal/analytics"
+	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/models"
@@ -157,16 +159,35 @@ func relocate(path, oldPath, newPath string) (string, bool) {
 }
 
 func startKernelForSession(path string, name string) (string, error) {
-	/*
-		Starts a Jupyter Kernel for a new Sesion
-	*/
-	env := getKernelEnv(path, name)
-	log.Debug().Msg("starting kernel")
-	kernelId, err := kernel.StartKernelManager(path, name, env)
+	dir, env := kernelPlacement(path)
+	log.Debug().Msgf("starting kernel %s in %s", name, dir)
+	kernelId, err := kernel.StartKernelManager(dir, name, env)
 	if err != nil {
 		return "", err
 	}
 	return kernelId, nil
+}
+
+/*
+kernelPlacement answers the folder a notebook's kernel starts in, and the environment it is given.
+
+The folder is the notebook's own, so that a relative path in a cell means what it means beside the
+file. A path that names no folder inside the project gets the project root. JPY_SESSION_NAME is the
+notebook's absolute path, which is how code running in a kernel can find the file it belongs to.
+*/
+func kernelPlacement(path string) (string, map[string]string) {
+	root := content.GetSafePath(".")
+	notebook := content.GetSafePath(path)
+	if notebook == "" || notebook == root {
+		return root, map[string]string{}
+	}
+
+	env := map[string]string{"JPY_SESSION_NAME": notebook}
+	dir := filepath.Dir(notebook)
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		return root, env
+	}
+	return dir, env
 }
 
 func stopKernelForSession(kernelId string) {
@@ -177,16 +198,4 @@ func stopKernelForSession(kernelId string) {
 		// The session is torn down regardless: its kernel is already gone.
 		log.Error().Msgf("Error stopping kernel %s: %v", kernelId, err)
 	}
-}
-
-func getKernelEnv(path string, name string) map[string]string {
-	/*
-		Get Kernel Environment variables
-	*/
-	// if name != nil
-	cwd := kernel.CwdForPath(path)
-	path = filepath.Join(cwd, name)
-	env := make(map[string]string)
-	env["JPY_SESSION_NAME"] = path
-	return env
 }

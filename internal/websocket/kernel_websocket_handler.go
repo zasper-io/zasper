@@ -22,63 +22,74 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     zhttp.SameOrigin,
 }
 
-// The client connection attached to each kernel. The map was exported and guarded by a package-level
-// mutex the caller had to remember; it is unexported and carries its own lock instead.
+type kernelConnectionSet = map[*kernel.KernelWebSocketConnection]struct{}
+
+// The client connections attached to each kernel. Several at once is normal: a notebook open in two
+// tabs, or a reloaded page whose old connection has not finished closing.
 var kernelConnections = struct {
 	mu sync.Mutex
-	by map[string]*kernel.KernelWebSocketConnection
-}{by: map[string]*kernel.KernelWebSocketConnection{}}
+	by map[string]kernelConnectionSet
+}{by: map[string]kernelConnectionSet{}}
 
 // SetUpKernelConnections empties the store, for a server that is starting up.
 func SetUpKernelConnections() {
 	kernelConnections.mu.Lock()
 	defer kernelConnections.mu.Unlock()
 
-	kernelConnections.by = map[string]*kernel.KernelWebSocketConnection{}
+	kernelConnections.by = map[string]kernelConnectionSet{}
 }
 
-func setKernelConnection(kernelId string, connection *kernel.KernelWebSocketConnection) {
+// The count is told to the kernel store outside this lock, because that call takes a lock of its own.
+func addKernelConnection(kernelId string, connection *kernel.KernelWebSocketConnection) {
 	kernelConnections.mu.Lock()
-	kernelConnections.by[kernelId] = connection
-	kernelConnections.mu.Unlock()
-
-	// One connection per kernel id, so a set makes the count 1 and a remove makes it 0 — it is a count
-	// of the clients this server is forwarding to, not of the browser windows that know the kernel
-	// exists. Told to the kernel store outside the lock: that call takes a lock of its own, and one held
-	// while another is taken is the shape a deadlock needs.
-	kernel.SetKernelConnections(kernelId, 1)
-}
-
-// removeKernelConnection takes a connection out and says whether it was the one that took it out, so
-// that it is closed once. Closing is left to the caller: it writes to a socket, which the lock has no
-// business waiting on.
-func removeKernelConnection(kernelId string) (*kernel.KernelWebSocketConnection, bool) {
-	kernelConnections.mu.Lock()
-	connection, ok := kernelConnections.by[kernelId]
-	if ok {
-		delete(kernelConnections.by, kernelId)
+	connections := kernelConnections.by[kernelId]
+	if connections == nil {
+		connections = kernelConnectionSet{}
+		kernelConnections.by[kernelId] = connections
 	}
+	connections[connection] = struct{}{}
+	count := len(connections)
+	kernelConnections.mu.Unlock()
+
+	kernel.SetKernelConnections(kernelId, count)
+}
+
+// removeKernelConnection takes out this connection and no other, and says whether it was still there.
+func removeKernelConnection(kernelId string, connection *kernel.KernelWebSocketConnection) bool {
+	kernelConnections.mu.Lock()
+	connections := kernelConnections.by[kernelId]
+	_, ok := connections[connection]
+	if ok {
+		delete(connections, connection)
+		if len(connections) == 0 {
+			delete(kernelConnections.by, kernelId)
+		}
+	}
+	count := len(connections)
 	kernelConnections.mu.Unlock()
 
 	if ok {
-		// A no-op for a kernel that has already been taken out of the store, which is the usual way
-		// round: a kernel is stopped and its connections are closed because it was.
+		kernel.SetKernelConnections(kernelId, count)
+	}
+	return ok
+}
+
+// CloseKernelConnections drops every client connection attached to a kernel, so notebooks stop
+// listening on channels whose kernel no longer exists. Registered with kernel.OnKernelDisconnect.
+func CloseKernelConnections(kernelId string) {
+	kernelConnections.mu.Lock()
+	connections := kernelConnections.by[kernelId]
+	delete(kernelConnections.by, kernelId)
+	kernelConnections.mu.Unlock()
+
+	// Closed outside the lock: closing writes to a socket.
+	for connection := range connections {
+		log.Debug().Msgf("closing a client connection for kernel %s", kernelId)
+		connection.Close()
+	}
+	if len(connections) > 0 {
 		kernel.SetKernelConnections(kernelId, 0)
 	}
-	return connection, ok
-}
-
-// CloseKernelConnections drops every client connection attached to a kernel, so
-// notebooks stop listening on channels whose kernel no longer exists. Registered
-// with kernel.OnKernelDisconnect at startup.
-func CloseKernelConnections(kernelId string) {
-	kwsConn, ok := removeKernelConnection(kernelId)
-	if !ok {
-		return
-	}
-
-	log.Debug().Msgf("closing client connection for kernel %s", kernelId)
-	kwsConn.Close()
 }
 
 func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
@@ -129,7 +140,7 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	// Registered before it is connected, not after: connecting dials five sockets at a kernel that may
 	// still be starting, and a kernel killed in that window left the client socket open forever on
 	// channels that no longer had a kernel behind them.
-	setKernelConnection(kernelId, &kernelConnection)
+	addKernelConnection(kernelId, &kernelConnection)
 
 	log.Debug().Msg("preparing kernel connection")
 	kernelConnection.Prepare(sessionId)
@@ -143,13 +154,10 @@ func HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	go kernelConnection.ReadMessagesFromClient(&waiter)
 	go kernelConnection.WriteMessages(&waiter)
 
-	// Waited on rather than left to finish on its own: the response has been hijacked by the upgrade, so
-	// this goroutine has nothing else to do, and both of those return as soon as the client goes away.
-	// Nothing used to notice that — the connection stayed in the store, its polling was never cancelled,
-	// and /api/kernels went on reporting a client that had closed its tab.
+	// Both loops return once the client goes away, whether or not the kernel is saying anything.
 	waiter.Wait()
-	if _, ok := removeKernelConnection(kernelId); ok {
+	if removeKernelConnection(kernelId, &kernelConnection) {
 		log.Debug().Msgf("client for kernel %s went away", kernelId)
-		kernelConnection.Close()
 	}
+	kernelConnection.Close()
 }

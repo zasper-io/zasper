@@ -494,3 +494,130 @@ func TestTheKernelspecsAreListed(t *testing.T) {
 	require.Equal(t, http.StatusOK, status, "body was %s", body)
 	assert.Contains(t, string(body), kernelName)
 }
+
+// A relative path in a cell means what it means beside the notebook, wherever the server was started.
+func TestAKernelStartsInItsNotebooksFolder(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(project, "analysis"), 0o755))
+
+	created := startSession(t, srv, project, kernelName, "analysis/notes.ipynb")
+	conn := kernelSocket(t, srv, created)
+
+	// One string rather than a tuple, which IPython's pretty printer wraps once it grows long.
+	result := awaitExecuteResult(t, conn, executeOverSocket(t, conn, created.Id,
+		"import os; os.getcwd() + '|' + os.environ.get('JPY_SESSION_NAME', '')"), 30*time.Second)
+
+	folder, err := filepath.EvalSymlinks(filepath.Join(project, "analysis"))
+	require.NoError(t, err)
+	want := "'" + folder + "|" + filepath.Join(project, "analysis", "notes.ipynb") + "'"
+	assert.Equal(t, want, result["data"].(map[string]any)["text/plain"])
+}
+
+// A client that goes away while its kernel is saying nothing is still let go of.
+func TestAClientLeavingAnIdleKernelIsNoLongerCounted(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+	conn := kernelSocket(t, srv, created)
+	msgId := executeOverSocket(t, conn, created.Id, "1 + 1")
+	awaitExecuteResult(t, conn, msgId, 30*time.Second)
+	// Closed only once the kernel has nothing left to say, or its last status message wakes the server.
+	awaitIdle(t, conn, msgId, 30*time.Second)
+	awaitConnections(t, srv, created.Kernel.Id, 1)
+
+	conn.Close()
+
+	awaitConnections(t, srv, created.Kernel.Id, 0)
+}
+
+// Two clients of one kernel, as a reloaded page is until its old socket has finished closing: the one
+// that leaves takes only itself out, and killing the kernel closes the one that stayed.
+func TestEveryClientOfAKernelIsCountedAndClosed(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+	first := kernelSocket(t, srv, created)
+	awaitExecuteResult(t, first, executeOverSocket(t, first, created.Id, "1 + 1"), 30*time.Second)
+	second := kernelSocket(t, srv, created)
+	awaitExecuteResult(t, second, executeOverSocket(t, second, created.Id, "2 + 2"), 30*time.Second)
+	awaitConnections(t, srv, created.Kernel.Id, 2)
+
+	first.Close()
+	// Output the first socket's poller also hears, which is what used to take the second one out.
+	awaitExecuteResult(t, second, executeOverSocket(t, second, created.Id, "3 + 3"), 30*time.Second)
+	awaitConnections(t, srv, created.Kernel.Id, 1)
+
+	status, _ := call(t, srv, http.MethodDelete, "/api/kernels/"+created.Kernel.Id, nil)
+	require.Equal(t, http.StatusOK, status)
+
+	require.NoError(t, second.SetReadDeadline(time.Now().Add(15*time.Second)))
+	for {
+		if _, _, err := second.ReadMessage(); err != nil {
+			var expired net.Error
+			require.False(t, errors.As(err, &expired) && expired.Timeout(),
+				"the second client's socket stayed open after its kernel was killed")
+			break
+		}
+	}
+}
+
+func kernelSocket(t *testing.T, srv *httptest.Server, session models.SessionModel) *websocket.Conn {
+	t.Helper()
+
+	conn, _, err := websocket.DefaultDialer.Dial(
+		wsURL(t, srv, "/ws/kernels/"+session.Kernel.Id+"/channels")+"?session_id="+session.Id, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { conn.Close() })
+	return conn
+}
+
+// awaitIdle reads until the kernel reports it has finished the request msgId.
+func awaitIdle(t *testing.T, conn *websocket.Conn, msgId string, within time.Duration) {
+	t.Helper()
+
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(within)))
+	for {
+		_, raw, err := conn.ReadMessage()
+		require.NoError(t, err, "the kernel never went idle")
+
+		var message struct {
+			Header struct {
+				MsgType string `json:"msg_type"`
+			} `json:"header"`
+			ParentHeader struct {
+				MsgId string `json:"msg_id"`
+			} `json:"parent_header"`
+			Content struct {
+				ExecutionState string `json:"execution_state"`
+			} `json:"content"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &message))
+
+		if message.Header.MsgType == "status" && message.ParentHeader.MsgId == msgId &&
+			message.Content.ExecutionState == "idle" {
+			return
+		}
+	}
+}
+
+// awaitConnections waits for /api/kernels to report want clients attached to the kernel.
+func awaitConnections(t *testing.T, srv *httptest.Server, kernelId string, want int) {
+	t.Helper()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		status, body := call(t, srv, http.MethodGet, "/api/kernels/"+kernelId, nil)
+		require.Equal(t, http.StatusOK, status, "body was %s", body)
+		got := decode[models.KernelModel](t, body).Connections
+		if got == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("kernel %s reports %d connections, want %d", kernelId, got, want)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}

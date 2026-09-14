@@ -16,18 +16,19 @@ func withKernelConnections(t *testing.T) {
 	SetUpKernelConnections()
 }
 
-func TestClosingAKernelsConnectionsTakesItOutOfTheStore(t *testing.T) {
+func TestClosingAKernelsConnectionsClosesEveryOneOfThem(t *testing.T) {
 	withKernelConnections(t)
 
 	stopped := 0
-	setKernelConnection("k1", &kernel.KernelWebSocketConnection{PollingCancel: func() { stopped++ }})
+	addKernelConnection("k1", &kernel.KernelWebSocketConnection{PollingCancel: func() { stopped++ }})
+	addKernelConnection("k1", &kernel.KernelWebSocketConnection{PollingCancel: func() { stopped++ }})
 
 	CloseKernelConnections("k1")
-	assert.Equal(t, 1, stopped)
+	assert.Equal(t, 2, stopped)
 
 	// Gone, so a second kernel-stopped notification for the same kernel has nothing left to close.
 	CloseKernelConnections("k1")
-	assert.Equal(t, 1, stopped)
+	assert.Equal(t, 2, stopped)
 }
 
 func TestClosingAKernelWithNoConnectionDoesNothing(t *testing.T) {
@@ -35,8 +36,25 @@ func TestClosingAKernelWithNoConnectionDoesNothing(t *testing.T) {
 
 	CloseKernelConnections("k1")
 
-	_, ok := removeKernelConnection("k1")
-	assert.False(t, ok)
+	assert.False(t, removeKernelConnection("k1", &kernel.KernelWebSocketConnection{}))
+}
+
+// A reloaded page's old connection finishing must not take the new one out with it.
+func TestAConnectionThatEndsTakesOnlyItselfOut(t *testing.T) {
+	withKernelConnections(t)
+
+	oldStopped, newStopped := 0, 0
+	old := &kernel.KernelWebSocketConnection{PollingCancel: func() { oldStopped++ }}
+	current := &kernel.KernelWebSocketConnection{PollingCancel: func() { newStopped++ }}
+	addKernelConnection("k1", old)
+	addKernelConnection("k1", current)
+
+	assert.True(t, removeKernelConnection("k1", old))
+	assert.False(t, removeKernelConnection("k1", old))
+
+	CloseKernelConnections("k1")
+	assert.Equal(t, 0, oldStopped)
+	assert.Equal(t, 1, newStopped)
 }
 
 // The store was an exported map guarded by a package-level mutex the caller had to remember to take.
@@ -55,11 +73,12 @@ func TestTheConnectionStoreHoldsUpWhenEverythingReachesItAtOnce(t *testing.T) {
 			defer running.Done()
 			for i := 0; i < each; i++ {
 				kernelId := fmt.Sprintf("%d-%d", worker, i)
-				setKernelConnection(kernelId, &kernel.KernelWebSocketConnection{PollingCancel: func() {}})
+				connection := &kernel.KernelWebSocketConnection{PollingCancel: func() {}}
+				addKernelConnection(kernelId, connection)
 				if i%3 == 0 {
 					CloseKernelConnections(kernelId)
 				} else {
-					removeKernelConnection(kernelId)
+					removeKernelConnection(kernelId, connection)
 				}
 			}
 		}(worker)

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -32,6 +33,24 @@ func stored(t *testing.T, id string) models.SessionModel {
 	session, ok := core.GetSession(id)
 	assert.True(t, ok, "no session %s", id)
 	return session
+}
+
+func TestAKernelIsPlacedInItsNotebooksFolder(t *testing.T) {
+	project := t.TempDir()
+	previous := core.Zasper.HomeDir
+	core.Zasper.HomeDir = project
+	t.Cleanup(func() { core.Zasper.HomeDir = previous })
+	require.NoError(t, os.MkdirAll(filepath.Join(project, "analysis"), 0o755))
+
+	dir, env := kernelPlacement("analysis/notes.ipynb")
+	assert.Equal(t, filepath.Join(project, "analysis"), dir)
+	assert.Equal(t, filepath.Join(project, "analysis", "notes.ipynb"), env["JPY_SESSION_NAME"])
+
+	// Anything that names no folder inside the project starts at the root instead.
+	for _, path := range []string{"", ".", "../elsewhere.ipynb", "missing/notes.ipynb"} {
+		dir, _ := kernelPlacement(path)
+		assert.Equal(t, project, dir, "path %q", path)
+	}
 }
 
 // running registers a session on a path and a kernel, as CreateSession would have.

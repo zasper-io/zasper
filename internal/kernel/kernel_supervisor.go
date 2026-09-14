@@ -275,10 +275,13 @@ func interruptKernel(kernelId string) error {
 	return nil
 }
 
-func StartKernelManager(kernelPath string, kernelName string, env map[string]string) (string, error) {
+// StartKernelManager starts a kernel in dir, with env set for it on top of its kernelspec's own.
+func StartKernelManager(dir string, kernelName string, env map[string]string) (string, error) {
 	kernelId := uuid.New().String()
 
 	km, kernel_name, kernel_id := createKernelManager(kernelName, kernelId)
+	km.Dir = dir
+	km.Env = env
 	log.Debug().Msgf("%v | %v | %v ", km, kernel_name, kernel_id)
 
 	err := km.StartKernel(kernelName)
@@ -325,10 +328,6 @@ func StopKernelManager(kernelId string) error {
 	}
 
 	return nil
-}
-
-func CwdForPath(path string) string {
-	return path
 }
 
 func createKernelManager(kernelName string, kernelId string) (KernelManager, string, string) {
