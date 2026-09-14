@@ -8,13 +8,7 @@ import { chordParts } from '@/commands/keys';
 import { ALL_COMMANDS } from '@/commands/catalog';
 import { CommandInfo } from '@/commands/define';
 import { Icon } from '@/ide/icons';
-import {
-  configPathAtom,
-  helpAboutRequestAtom,
-  platformAtom,
-  projectDirAtom,
-  zasperVersionAtom,
-} from '@/store/AppState';
+import { helpAboutRequestAtom, platformAtom, zasperVersionAtom } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
 import './HelpTab.scss';
 
@@ -160,16 +154,13 @@ function Chords({ keys }: { keys: string[] }) {
 function About() {
   const version = useAtomValue(zasperVersionAtom);
   const platform = useAtomValue(platformAtom);
-  const directory = useAtomValue(projectDirAtom);
-  const config = useAtomValue(configPathAtom);
-  // All four arrive together from `/api/info`.
+  // Both arrive together from `/api/info`. Nothing here names a user or a folder: this is pasted
+  // into public issues.
   const loaded = version !== '';
 
   const facts: [string, string][] = [
     ['Version', version],
     ['Platform', platform],
-    ['Directory', directory],
-    ['Config', config],
   ];
 
   const copyDetails = async () => {

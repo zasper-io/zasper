@@ -91,15 +91,6 @@ func getConfigFilePath() (string, error) {
 	return homeDir + "/.zasper/config.json", nil
 }
 
-// ConfigFilePath is where the server keeps its settings, or "" when the home directory cannot be found.
-func ConfigFilePath() string {
-	path, err := getConfigFilePath()
-	if err != nil {
-		return ""
-	}
-	return path
-}
-
 // Function to read the config from the file
 func ReadConfig() (*Config, error) {
 	filePath, err := getConfigFilePath()

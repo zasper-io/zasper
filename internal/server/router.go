@@ -31,8 +31,6 @@ type InfoResponse struct {
 	UserName  string `json:"username"`
 	OS        string `json:"os"`
 	Arch      string `json:"arch"`
-	// Where the server reads and writes its settings, for a bug report to name.
-	Config    string `json:"config"`
 	Version   string `json:"version"`
 	Theme     string `json:"theme"`
 	Protected bool   `json:"protected"`
@@ -51,7 +49,6 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 		UserName:    core.Zasper.UserName,
 		OS:          core.Zasper.OSName,
 		Arch:        runtime.GOARCH,
-		Config:      core.ConfigFilePath(),
 		Version:     core.Zasper.Version,
 		Theme:       theme,
 		Protected:   core.Zasper.Protected,

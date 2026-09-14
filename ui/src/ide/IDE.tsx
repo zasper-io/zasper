@@ -21,7 +21,6 @@ import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
 import {
-  configPathAtom,
   fileBrowserReloadCountAtom,
   platformAtom,
   projectDirAtom,
@@ -53,7 +52,6 @@ function IDE() {
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
   const [, setPlatform] = useAtom(platformAtom);
-  const [, setConfigPath] = useAtom(configPathAtom);
   const { loadKernelspecs } = useKernelspecActions();
 
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
@@ -118,7 +116,6 @@ function IDE() {
     setUserName(info.username);
     setVersion(info.version);
     setPlatform(info.arch ? `${info.os} · ${info.arch}` : info.os);
-    setConfigPath(info.config);
     // Resolve through the registry so a config naming a theme we no longer ship
     // falls back instead of writing a data-theme with no stylesheet behind it.
     setTheme(getTheme(info.theme).id);
@@ -129,7 +126,6 @@ function IDE() {
     setUserName,
     setVersion,
     setPlatform,
-    setConfigPath,
     setTheme,
     setProtectedState,
   ]);

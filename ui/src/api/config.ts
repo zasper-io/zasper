@@ -12,8 +12,6 @@ export interface IInfo {
   username: string;
   os: string;
   arch: string;
-  /** Where the server keeps its settings; '' when it could not find a home directory. */
-  config: string;
   version: string;
   theme: string;
   protected: boolean;
