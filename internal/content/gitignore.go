@@ -33,7 +33,11 @@ func patternsIn(domain []string) []gitignore.Pattern {
 	if osDir == "" {
 		return nil
 	}
+	return patternsInDir(osDir, domain)
+}
 
+// patternsInDir is patternsIn for a caller that already has the directory's OS path.
+func patternsInDir(osDir string, domain []string) []gitignore.Pattern {
 	file, err := os.Open(filepath.Join(osDir, ".gitignore"))
 	if err != nil {
 		// Most directories have none, which is not a problem to report.

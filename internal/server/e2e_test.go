@@ -354,8 +354,8 @@ func upload(t *testing.T, srv *httptest.Server, parentDir, name, body string) (i
 Every open watch socket hears about a change.
 
 Two clients at once is the case that used to kill the server: each connection joined the store under
-its own mutex, which guards nothing shared. It also proves the fan-out, which no unit test can — one
-fsnotify watcher per connection, each writing to its own socket.
+its own mutex, which guards nothing shared. It also proves the fan-out end to end: one fsnotify watcher
+shared by every connection, each connection writing to its own socket.
 */
 func TestEveryWatchSocketIsToldToReload(t *testing.T) {
 	srv, project := testServer(t)

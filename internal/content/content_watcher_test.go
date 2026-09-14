@@ -1,77 +1,156 @@
 package content
 
 import (
-	"fmt"
+	"os"
 	"path/filepath"
-	"sync"
+	"runtime"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestShouldExcludeMatchesFoldersRatherThanSubstrings(t *testing.T) {
-	root := filepath.Join("/tmp", "my-project")
+// subscribe starts the project watch afresh for a test, and ends it when the test does.
+func subscribe(t *testing.T) *watchSubscriber {
+	t.Helper()
 
-	// The project root is watched whatever it is called, which is what was broken: a project under
-	// /tmp matched "tmp" and nothing in it was watched at all.
-	assert.False(t, shouldExclude(root, root))
-	assert.False(t, shouldExclude(root, filepath.Join(root, "src")))
-	assert.False(t, shouldExclude(root, filepath.Join(root, "contests")), "not a folder named tests")
-	assert.False(t, shouldExclude(root, filepath.Join(root, "distance")))
-
-	assert.True(t, shouldExclude(root, filepath.Join(root, "node_modules")))
-	assert.True(t, shouldExclude(root, filepath.Join(root, "ui", ".git")))
-	assert.True(t, shouldExclude(root, filepath.Join(root, "tests")))
-}
-
-// openWatchers reads the store the way the store's own accessors do, since nothing in the package
-// needs to and it is not worth an exported reader.
-func openWatchers() int {
-	watchers.mu.Lock()
-	defer watchers.mu.Unlock()
-
-	return len(watchers.by)
-}
-
-func TestWatchersAreAddedAndRemovedByWatchId(t *testing.T) {
-	t.Cleanup(SetUpActiveWatcherConnections)
 	SetUpActiveWatcherConnections()
+	t.Cleanup(SetUpActiveWatcherConnections)
 
-	addWatcher("w1", &ContentWatchConnection{})
-	addWatcher("w2", &ContentWatchConnection{})
-	assert.Equal(t, 2, openWatchers())
-
-	removeWatcher("w1")
-	assert.Equal(t, 1, openWatchers())
+	subscriber, err := watch.subscribe()
+	require.NoError(t, err)
+	t.Cleanup(func() { watch.unsubscribe(subscriber) })
+	return subscriber
 }
 
-// Every watch connection joins and leaves the store from its own goroutine. This used to be done
-// under the connection's own mutex, one per connection, which guarded nothing shared: two clients
-// connecting at once were a concurrent map write, and Go answers that by killing the server.
-func TestTheWatcherStoreHoldsUpWhenEveryConnectionArrivesAtOnce(t *testing.T) {
-	t.Cleanup(SetUpActiveWatcherConnections)
-	SetUpActiveWatcherConnections()
-
-	const workers = 8
-	const each = 200
-	var running sync.WaitGroup
-
-	for worker := 0; worker < workers; worker++ {
-		running.Add(1)
-		go func(worker int) {
-			defer running.Done()
-			for i := 0; i < each; i++ {
-				watchId := fmt.Sprintf("%d-%d", worker, i)
-				addWatcher(watchId, &ContentWatchConnection{})
-				openWatchers()
-				if i%2 == 0 {
-					removeWatcher(watchId)
-				}
-			}
-		}(worker)
+// settle waits until changes already made have been reported, so the next change heard is a new one.
+func settle(subscriber *watchSubscriber) {
+	for {
+		select {
+		case <-subscriber.changed:
+		case <-time.After(300 * time.Millisecond):
+			return
+		}
 	}
+}
 
-	running.Wait()
-	// Every other connection closed again, and each one is its own key, so the count is exact.
-	assert.Equal(t, workers*each/2, openWatchers())
+// hears keeps writing to path until the subscriber is told of a change, and says whether that happened
+// within the time. The writes keep coming because a folder's watch is added a moment after the walk
+// reaches it.
+func hears(subscriber *watchSubscriber, path string, within time.Duration) bool {
+	deadline := time.After(within)
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
+
+	for i := 0; ; i++ {
+		os.WriteFile(path, []byte(strconv.Itoa(i)), 0o644)
+		select {
+		case <-subscriber.changed:
+			return true
+		case <-deadline:
+			return false
+		case <-tick.C:
+		}
+	}
+}
+
+func TestChangesInAFolderCreatedLaterAreHeard(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	subscriber := subscribe(t)
+	settle(subscriber)
+
+	nested := filepath.Join(projectDir, "later", "deeper")
+	require.NoError(t, os.MkdirAll(nested, 0o755))
+	settle(subscriber)
+
+	assert.True(t, hears(subscriber, filepath.Join(nested, "notes.txt"), 5*time.Second))
+}
+
+func TestIgnoredFoldersAreNotWatchedButOrdinaryOnesAre(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, ".gitignore"), []byte("build/\n"), 0o644))
+	for _, dir := range []string{"build", "node_modules", "tests"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(projectDir, dir), 0o755))
+	}
+	subscriber := subscribe(t)
+	settle(subscriber)
+
+	assert.False(t, hears(subscriber, filepath.Join(projectDir, "build", "out.txt"), time.Second),
+		"a folder .gitignore ignores was watched")
+	assert.False(t, hears(subscriber, filepath.Join(projectDir, "node_modules", "index.js"), time.Second),
+		"node_modules was watched")
+	assert.True(t, hears(subscriber, filepath.Join(projectDir, "tests", "test_notes.py"), 5*time.Second),
+		"a folder called tests was not watched")
+}
+
+func TestAnUnreadableFolderDoesNotStopTheRestBeingWatched(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs a folder the test cannot read")
+	}
+	projectDir := projectDirElsewhere(t)
+	locked := filepath.Join(projectDir, "a-locked")
+	open := filepath.Join(projectDir, "z-open")
+	require.NoError(t, os.MkdirAll(locked, 0o755))
+	require.NoError(t, os.MkdirAll(open, 0o755))
+	require.NoError(t, os.Chmod(locked, 0))
+	t.Cleanup(func() { os.Chmod(locked, 0o755) })
+
+	subscriber := subscribe(t)
+	settle(subscriber)
+
+	assert.True(t, hears(subscriber, filepath.Join(open, "notes.txt"), 5*time.Second))
+}
+
+func TestAFileRenamedOutOfTheProjectIsHeard(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	leaving := filepath.Join(projectDir, "leaving.txt")
+	require.NoError(t, os.WriteFile(leaving, []byte("bye"), 0o644))
+	subscriber := subscribe(t)
+	settle(subscriber)
+
+	require.NoError(t, os.Rename(leaving, filepath.Join(t.TempDir(), "leaving.txt")))
+
+	select {
+	case <-subscriber.changed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the rename was not heard")
+	}
+}
+
+func TestOneWatcherServesEverySubscriber(t *testing.T) {
+	projectDirElsewhere(t)
+	first := subscribe(t)
+
+	watch.mu.Lock()
+	shared := watch.watcher
+	watch.mu.Unlock()
+
+	second, err := watch.subscribe()
+	require.NoError(t, err)
+
+	watch.mu.Lock()
+	assert.Same(t, shared, watch.watcher, "a second subscriber started a watcher of its own")
+	watch.mu.Unlock()
+
+	watch.unsubscribe(second)
+	watch.unsubscribe(first)
+
+	watch.mu.Lock()
+	defer watch.mu.Unlock()
+	assert.Nil(t, watch.watcher, "the watcher outlived its last subscriber")
+}
+
+func TestASubscriberThatIsNotListeningHoldsNobodyUp(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	subscribe(t)
+	listening, err := watch.subscribe()
+	require.NoError(t, err)
+	t.Cleanup(func() { watch.unsubscribe(listening) })
+	settle(listening)
+
+	for range 3 {
+		assert.True(t, hears(listening, filepath.Join(projectDir, "notes.txt"), 5*time.Second))
+	}
 }
