@@ -311,6 +311,18 @@ func TestDeleteFileSaysWhenThereIsNothingToDelete(t *testing.T) {
 	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
+func TestDeleteFileRefusesTheProjectItself(t *testing.T) {
+	projectDir := projectDirElsewhere(t)
+	notebook := filepath.Join(projectDir, "analysis.ipynb")
+	assert.NoError(t, os.WriteFile(notebook, []byte("{}"), 0o644))
+
+	for _, path := range []string{"", ".", "/", "./", "folder/.."} {
+		assert.ErrorIs(t, deleteFile(path), errProjectRoot, "path %q", path)
+	}
+
+	assert.FileExists(t, notebook)
+}
+
 func TestCreateDirectoryAnswersWithAProjectRelativePath(t *testing.T) {
 	projectDir := projectDirElsewhere(t)
 	assert.NoError(t, os.MkdirAll(filepath.Join(projectDir, "src", "untitled-directory"), 0o755))

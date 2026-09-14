@@ -33,6 +33,12 @@ The temporary file is made in the target's own directory, because a rename is on
 filesystem.
 */
 func writeFileAtomically(target string, source io.Reader, perm os.FileMode) (int64, error) {
+	// perm is for a new file only: a replaced 0600 secret must not become world-readable, nor a script
+	// lose its execute bit.
+	if existing, statErr := os.Stat(target); statErr == nil && existing.Mode().IsRegular() {
+		perm = existing.Mode().Perm()
+	}
+
 	temporary, err := os.CreateTemp(filepath.Dir(target), ".zasper-write-*")
 	if err != nil {
 		return 0, err
@@ -410,6 +416,8 @@ var errTargetExists = errors.New("a file or folder with that name already exists
 // the kernel with a bare EINVAL or, for a copy, recurse until the disk filled.
 var errIntoItself = errors.New("a folder cannot be moved or copied inside itself")
 
+var errProjectRoot = errors.New("the project folder itself cannot be deleted")
+
 // isInside reports whether osPath is the folder itself or something under it, segment by segment
 // rather than by string prefix: `.../projectX-secrets` is not inside `.../projectX`.
 func isInside(osPath, folder string) bool {
@@ -645,6 +653,11 @@ func uploadContent(parentDir, relativePath string, replace bool, body io.Reader)
 }
 
 func deleteFile(filename string) error {
+	// "", "." and "/" all resolve to the project folder, which RemoveAll would empty without a word.
+	if filepath.Join(".", filename) == "." {
+		return errProjectRoot
+	}
+
 	// Via the same helper as the writes, so a rejected path says why rather than failing as
 	// `remove : no such file or directory`.
 	osPath, err := safeWritePath(filename)

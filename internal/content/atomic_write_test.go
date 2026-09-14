@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -69,6 +70,26 @@ func TestASuccessfulWriteReplacesAndCleansUp(t *testing.T) {
 	info, err := os.Stat(notebook)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o644), info.Mode().Perm())
+}
+
+func TestAReplacedFileKeepsItsPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no permission bits beyond read-only")
+	}
+	dir := t.TempDir()
+
+	for name, mode := range map[string]os.FileMode{"secret.env": 0o600, "run.sh": 0o755} {
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(path, []byte("before"), mode))
+		require.NoError(t, os.Chmod(path, mode))
+
+		_, err := writeFileAtomically(path, strings.NewReader("after"), 0o644)
+		require.NoError(t, err)
+
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, mode, info.Mode().Perm(), name)
+	}
 }
 
 func TestWriteFileAtomicallyCreatesAFileThatIsNotThereYet(t *testing.T) {

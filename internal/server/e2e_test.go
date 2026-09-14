@@ -281,6 +281,20 @@ func TestNoRequestReachesOutsideTheProjectDirectory(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(project, "taken.txt"))
 }
 
+// An empty path names the project folder itself, which a delete must never take.
+func TestDeletingTheProjectFolderItselfIsRefused(t *testing.T) {
+	srv, project := testServer(t)
+	notebook := filepath.Join(project, "analysis.ipynb")
+	require.NoError(t, os.WriteFile(notebook, []byte("{}"), 0o644))
+
+	for _, path := range []string{"", ".", "/"} {
+		status, body := call(t, srv, http.MethodDelete, "/api/contents", map[string]string{"path": path})
+		assert.Equal(t, http.StatusBadRequest, status, "path %q answered %s", path, body)
+	}
+
+	assert.FileExists(t, notebook)
+}
+
 func TestAnUploadLandsInTheProjectAndWillNotSilentlyReplace(t *testing.T) {
 	srv, project := testServer(t)
 
