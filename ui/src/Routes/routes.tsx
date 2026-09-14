@@ -2,17 +2,13 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { JSX, lazy, Suspense, useEffect, useState } from 'react';
 
 import { login, logApiError } from '@/api';
+import { isSignedIn, markSignedIn } from '@/auth/signedIn';
 
 // Both route components load on demand, so the two screens don't pay for each
 // other: /login would otherwise pull in the whole IDE (CodeMirror and all), and /
 // would pull in the login carousel.
 const IDE = lazy(() => import('@/ide/IDE'));
 const Login = lazy(() => import('@/auth/Login'));
-
-const isAuthenticated = () => {
-  // For example, check for token in localStorage or context
-  return localStorage.getItem('token') !== null;
-};
 
 const routes = [
   {
@@ -29,7 +25,7 @@ const routes = [
 
 // Wrapper for protected routes
 function ProtectedRoute({ element }: { element: JSX.Element }) {
-  return isAuthenticated() ? element : <Navigate to="/login" replace />;
+  return isSignedIn() ? element : <Navigate to="/login" replace />;
 }
 
 /** The access token in the link the server opens, `/?token=…`. A pure read, so safe as an initializer. */
@@ -56,7 +52,7 @@ export default function RouteConfig() {
     }
     forgetLinkToken();
     login(pendingToken)
-      .then((data) => localStorage.setItem('token', data.token))
+      .then(() => markSignedIn())
       .catch(logApiError('The access token in the link was not accepted:'))
       .finally(() => setSigningIn(false));
   }, [pendingToken]);

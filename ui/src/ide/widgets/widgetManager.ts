@@ -159,7 +159,8 @@ type CommOpenMsg = Parameters<ManagerBase['handle_comm_open']>[1];
  *
  * ipywidgets' own models and views are bundled (`@jupyter-widgets/base` and `controls`, which is
  * every widget in ipywidgets itself); anything else — bqplot, ipyleaflet, ipyvolume — is fetched from
- * the CDN by name and version when a widget of it first turns up. See createCdnLoader.
+ * the CDN by name and version when a widget of it first turns up, unless that is turned off in
+ * Settings. See createCdnLoader.
  */
 export class ZasperWidgetManager extends ManagerBase {
   private readonly loader: WidgetModuleLoader = createCdnLoader({

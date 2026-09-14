@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAtom } from 'jotai';
 import { toast } from 'react-toastify';
-import { telemetryAtom, themeAtom } from '@/store/Settings';
+import { telemetryAtom, themeAtom, widgetCdnAtom } from '@/store/Settings';
 import { logApiError, modifyConfig } from '@/api';
 import { setTelemetrySettings } from '@/api/telemetry';
 import { PanelProps } from '../types';
@@ -11,6 +11,15 @@ import { setEnabled, track } from '@/telemetry';
 export default function SettingsPanel({ hidden }: PanelProps) {
   const [theme, setTheme] = useAtom(themeAtom);
   const [telemetry, setTelemetry] = useAtom(telemetryAtom);
+  const [widgetCdn, setWidgetCdn] = useAtom(widgetCdnAtom);
+
+  const changeWidgetCdn = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const allowed = e.target.checked;
+    setWidgetCdn(allowed);
+    modifyConfig('widget_cdn', allowed ? 'on' : 'off').catch(
+      logApiError('Error saving the widget setting:')
+    );
+  };
 
   const changeTheme = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTheme(e.target.value);
@@ -88,6 +97,16 @@ export default function SettingsPanel({ hidden }: PanelProps) {
           </button>
           <p className="z-form-help">
             Breaks the link between what has already been sent and what is sent next.
+          </p>
+        </div>
+        <div className="panel-section-body z-form-field">
+          <label className="z-checkbox">
+            <input type="checkbox" checked={widgetCdn} onChange={changeWidgetCdn} />
+            Load widget libraries from the internet
+          </label>
+          <p className="z-form-help">
+            Widgets from outside ipywidgets, such as bqplot or ipyleaflet, get their code from
+            cdn.jsdelivr.net. Turned off, those widgets are not shown.
           </p>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import { ApiError, login } from '@/api';
+import { isSignedIn, markSignedIn } from './signedIn';
 import { useAppCommands } from '@/commands/appCommands';
 import { useRegisterCommands } from '@/commands/registry';
 import { useCommandKeymap } from '@/commands/useCommandKeymap';
@@ -31,8 +32,7 @@ function Login() {
   useApplyZoom();
 
   useEffect(() => {
-    const token = localStorage.getItem('token'); // Or your auth key
-    if (token) {
+    if (isSignedIn()) {
       navigate('/', { replace: true });
     }
   }, [navigate]);
@@ -46,7 +46,7 @@ function Login() {
     try {
       const data = await login(accessToken);
       toast.success('Login successful');
-      localStorage.setItem('token', data.token); // store for auth headers
+      markSignedIn();
       navigate(data.redirect_path);
     } catch (err) {
       setError(failureMessage(err instanceof ApiError ? err.status : 0));

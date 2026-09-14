@@ -7,7 +7,7 @@ import {
   PanelResizeHandle,
 } from 'react-resizable-panels';
 import { ToastContainer } from 'react-toastify';
-import { themeAtom } from '../store/Settings';
+import { themeAtom, widgetCdnAtom } from '../store/Settings';
 
 import NavigationPanel from './sidebar/NavigationPanel/NavigationPanel';
 import FileBrowser from './sidebar/FileBrowser/FileBrowser';
@@ -42,6 +42,8 @@ import { useRegisterCommands } from '../commands/registry';
 import { ICommand } from '../commands/types';
 import { useCommandKeymap } from '../commands/useCommandKeymap';
 import { useTelemetry } from '../telemetry';
+import { markSignedOut } from '../auth/signedIn';
+import { allowWidgetCdn } from './widgets/cdnLoader';
 
 function IDE() {
   const [theme, setTheme] = useAtom(themeAtom);
@@ -52,6 +54,7 @@ function IDE() {
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
   const [, setPlatform] = useAtom(platformAtom);
+  const [widgetCdn, setWidgetCdn] = useAtom(widgetCdnAtom);
   const { loadKernelspecs } = useKernelspecActions();
 
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
@@ -104,7 +107,7 @@ function IDE() {
       info = await getInfo();
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        localStorage.removeItem('token');
+        markSignedOut();
         window.location.href = '/login';
         return;
       }
@@ -120,11 +123,26 @@ function IDE() {
     // falls back instead of writing a data-theme with no stylesheet behind it.
     setTheme(getTheme(info.theme).id);
     setServerOs(info.os);
-  }, [setProjectName, setProjectDir, setUserName, setVersion, setPlatform, setTheme, setServerOs]);
+    // A server from before the setting existed sends nothing, which means on.
+    setWidgetCdn(info.widget_cdn !== false);
+  }, [
+    setProjectName,
+    setProjectDir,
+    setUserName,
+    setVersion,
+    setPlatform,
+    setTheme,
+    setServerOs,
+    setWidgetCdn,
+  ]);
 
   useEffect(() => {
     initConfig();
   }, [initConfig]);
+
+  useEffect(() => {
+    allowWidgetCdn(widgetCdn);
+  }, [widgetCdn]);
 
   // Read once for the whole session rather than by whoever happens to want them first. The launcher
   // used to fetch them, so the Jupyter info panel listed no kernels at all until the launcher had

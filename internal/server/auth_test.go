@@ -33,6 +33,8 @@ var openRoutes = map[string]bool{
 	"/api/health": true,
 	"/api/config": true,
 	"/auth/login": true,
+	// Signing out answers 204 to anyone, since without a session there is nothing to refuse.
+	"/auth/logout": true,
 }
 
 // protectedServer starts the real route table with protected mode on, and answers with the server and
@@ -146,6 +148,52 @@ func TestProtectedModeAcceptsTheLoginToken(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode)
 }
 
+// Signing in is read before anyone is authenticated, so its body is capped at a few kilobytes: a
+// valid sign-in padded past that is refused, where it used to be read however large it was.
+func TestASignInLargerThanASignInIsNotRead(t *testing.T) {
+	srv, accessToken := protectedServer(t)
+	body, err := json.Marshal(map[string]string{
+		"padding":     strings.Repeat("x", 32<<10),
+		"accessToken": accessToken,
+	})
+	require.NoError(t, err)
+
+	response, err := http.Post(srv.URL+"/auth/login", "application/json", strings.NewReader(string(body)))
+	require.NoError(t, err)
+	defer response.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+}
+
+// The cookie the login sets is what a browser authenticates the API with.
+func TestTheSessionCookieOpensTheAPI(t *testing.T) {
+	srv, accessToken := protectedServer(t)
+	body, err := json.Marshal(map[string]string{"accessToken": accessToken})
+	require.NoError(t, err)
+
+	signedIn, err := http.Post(srv.URL+"/auth/login", "application/json", strings.NewReader(string(body)))
+	require.NoError(t, err)
+	defer signedIn.Body.Close()
+	require.Equal(t, http.StatusOK, signedIn.StatusCode)
+
+	var session *http.Cookie
+	for _, cookie := range signedIn.Cookies() {
+		if cookie.Name == "zasper_session" {
+			session = cookie
+		}
+	}
+	require.NotNil(t, session, "signing in set no session cookie")
+
+	request, err := http.NewRequest(http.MethodGet, srv.URL+"/api/info", nil)
+	require.NoError(t, err)
+	request.AddCookie(session)
+	response, err := http.DefaultClient.Do(request)
+	require.NoError(t, err)
+	defer response.Body.Close()
+
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+}
+
 // ZASPER_ACCESS_TOKEN replaces the random token, so a link or a script can carry it across restarts.
 func TestLoginAcceptsAPinnedAccessToken(t *testing.T) {
 	t.Setenv("ZASPER_ACCESS_TOKEN", "pinned-token")
@@ -170,25 +218,23 @@ func TestLoginRejectsTheWrongAccessToken(t *testing.T) {
 }
 
 /*
-Websockets authenticate by query parameter, both ways round.
-
-The watcher is the case that was broken rather than open: it sat behind the header middleware, which a
-browser has no way to satisfy, so the file browser stopped hearing about changes whenever protected
-mode was on.
+Websockets authenticate by the session cookie, which a browser sends on the upgrade. A token in the URL
+is refused: it used to be how they authenticated, and it left the token in history and logs.
 */
-func TestWebsocketsAuthenticateByQueryParameter(t *testing.T) {
+func TestWebsocketsAuthenticateByTheSessionCookie(t *testing.T) {
 	srv, accessToken := protectedServer(t)
 	jwt := login(t, srv, accessToken)
 
 	for _, path := range []string{"/api/contents/watch", "/ws/terminals/placeholder"} {
 		t.Run(path, func(t *testing.T) {
-			_, response, err := websocket.DefaultDialer.Dial(wsURL(t, srv, path), nil)
-			require.Error(t, err, "the socket opened without a token")
+			_, response, err := websocket.DefaultDialer.Dial(wsURL(t, srv, path)+"?token="+jwt, nil)
+			require.Error(t, err, "the socket opened with the token in its URL")
 			require.NotNil(t, response)
 			assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
 
-			conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, srv, path)+"?token="+jwt, nil)
-			require.NoError(t, err, "the socket refused a valid token")
+			header := http.Header{"Cookie": []string{"zasper_session=" + jwt}}
+			conn, _, err := websocket.DefaultDialer.Dial(wsURL(t, srv, path), header)
+			require.NoError(t, err, "the socket refused a valid session cookie")
 			conn.Close()
 		})
 	}

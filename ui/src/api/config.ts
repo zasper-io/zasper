@@ -14,6 +14,8 @@ export interface IInfo {
   arch: string;
   version: string;
   theme: string;
+  /** Whether widget libraries that are not bundled may be loaded from the CDN: Settings → Privacy. */
+  widget_cdn: boolean;
 }
 
 export function getInfo(): Promise<IInfo> {

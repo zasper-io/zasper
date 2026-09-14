@@ -14,6 +14,7 @@ import (
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/gitclient"
 	"github.com/zasper-io/zasper/internal/health"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/search"
@@ -33,6 +34,8 @@ type InfoResponse struct {
 	Arch      string `json:"arch"`
 	Version   string `json:"version"`
 	Theme     string `json:"theme"`
+	// Whether widget libraries may be loaded from cdn.jsdelivr.net: Settings → Privacy.
+	WidgetCDN bool `json:"widget_cdn"`
 }
 
 type ConfigResponse struct {
@@ -50,6 +53,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 		Arch:        runtime.GOARCH,
 		Version:     core.Zasper.Version,
 		Theme:       theme,
+		WidgetCDN:   core.WidgetCDNEnabled(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -99,6 +103,10 @@ func NewRouter(spa http.Handler) *mux.Router {
 	// The websocket routes take their token from the query string, which is the only place a browser
 	// can put one.
 	wsRouter.Use(auth.JwtWebsocketMiddleware)
+	// Sized for what the routes read. Signing in is read before anyone is authenticated, so it gets a
+	// few kilobytes; the API's largest bodies are notebooks saved whole. Uploads are not capped.
+	authRouter.Use(zhttp.LimitBody(16 << 10))
+	apiRouter.Use(zhttp.LimitBody(512<<20, "/api/contents/upload"))
 	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
 	router.HandleFunc("/api/config", ConfigHandler).Methods("GET")
 
@@ -115,6 +123,7 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/telemetry/settings", analytics.TelemetrySettingsModifyHandler).Methods("POST")
 
 	authRouter.HandleFunc("/login", auth.LoginHandler).Methods("POST")
+	authRouter.HandleFunc("/logout", auth.LogoutHandler).Methods("POST")
 
 	// contents
 	apiRouter.HandleFunc("/contents/create", content.ContentCreateAPIHandler).Methods("POST")

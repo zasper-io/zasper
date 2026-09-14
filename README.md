@@ -209,11 +209,13 @@ zasper --host=0.0.0.0 --no-browser
 ```
 
 `--host` makes the server reachable from other machines. Zasper binds `127.0.0.1` by default;
-widen it only when you mean to. The banner then reports the wider binding:
+widen it only when you mean to. Bound to `127.0.0.1`, it answers only to `localhost`, `127.0.0.1` and
+`[::1]`, which stops a web page that points its own domain at your machine from reaching it; a name
+of your own for the loopback address needs `--host` too. The banner then reports the wider binding:
 
 ```text
  📡 Bound to:            0.0.0.0:8048
- 🖥️  Webapp available at: http://localhost:8048
+ 🖥️ Webapp available at: http://localhost:8048
  🔐 Server Access Token: 14be1b674a3b9196a82c01129028d0dd
  🔗 Sign in with:        http://localhost:8048/?token=14be1b674a3b9196a82c01129028d0dd
 ```
@@ -237,7 +239,11 @@ When Zasper's output is not a terminal (under Docker, systemd, or piped to a fil
 JSON line instead of the banner; the token is that line's `access_token` field.
 `ZASPER_LOG_FORMAT=console` brings the banner back.
 
-A session lasts 24 hours, after which you sign in again.
+A session lasts 24 hours, after which you sign in again. It is an `HttpOnly` cookie, so no script
+running in the page can read it, and **Sign out** ends it on the server, so a copy of it stops working
+too. A client that is not a browser can send the `token` from `/auth/login`'s answer as
+`Authorization: Bearer …` instead. After ten wrong tokens in a minute, sign-in from that address waits
+out the rest of the minute.
 
 ![The Zasper sign-in page](https://raw.githubusercontent.com/zasper-io/assets/refs/heads/main/login.png)
 
@@ -252,7 +258,15 @@ export ZASPER_ACCESS_TOKEN=your-access-token
 ```
 
 There is nothing else to configure: sessions follow the access token, and changing it signs everyone
-out on purpose.
+out on purpose. Sign-outs are remembered only while the server runs, so with the token pinned, a
+session signed out before a restart works again after it until its 24 hours are up.
+
+### Symbolic links
+
+The file browser and the editor follow symbolic links, including ones that lead out of the project,
+so a `data` folder linked to a large mount opens like any other. It also means a project containing a
+link to `~/.ssh` shows those files, as a terminal in the project would. Saving over a file that is
+itself a link out of the project is refused.
 
 ## Jupyter kernels
 

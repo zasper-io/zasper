@@ -14,8 +14,9 @@ type ConfigModifierPayload struct {
 	Value string `json:"value"`
 }
 
-// ConfigModifyHandler changes one setting. The theme is the only one: telemetry has an endpoint of its
-// own, because turning it off also has to stop the client that is sending.
+// ConfigModifyHandler changes one setting: the theme, or whether widget code may be loaded from the
+// CDN. Telemetry has an endpoint of its own, because turning it off also has to stop the client that
+// is sending.
 func ConfigModifyHandler(w http.ResponseWriter, req *http.Request) {
 	var body ConfigModifierPayload
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
@@ -33,6 +34,16 @@ func ConfigModifyHandler(w http.ResponseWriter, req *http.Request) {
 		if err := changeTheme(body.Value); err != nil {
 			log.Warn().Err(err).Msg("could not save the theme")
 			zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the theme: %v", err))
+			return
+		}
+	case "widget_cdn":
+		if body.Value != "on" && body.Value != "off" {
+			zhttp.SendErrorResponse(w, http.StatusBadRequest, `widget_cdn is "on" or "off"`)
+			return
+		}
+		if err := setWidgetCDN(body.Value == "on"); err != nil {
+			log.Warn().Err(err).Msg("could not save the widget setting")
+			zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the widget setting: %v", err))
 			return
 		}
 	default:

@@ -5,6 +5,8 @@ import { useAtom } from 'jotai';
 import { userNameAtom } from '@/store/AppState';
 import { useNavigate } from 'react-router-dom';
 
+import { logApiError, logout as signOut } from '@/api';
+import { markSignedOut } from '@/auth/signedIn';
 import { formatChord, isMac, terminalHasFocus } from '@/commands/keys';
 import { useCommands, useRegisterCommands } from '@/commands/registry';
 import { Icon } from '@/ide/icons';
@@ -122,10 +124,15 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
 const LogoutButton = () => {
   const navigate = useNavigate();
 
+  // Revoked on the server, so the session stops working wherever a copy of it is held. The page goes
+  // to /login even when that fails, since a server that cannot be reached is not keeping anyone in.
   const logout = () => {
-    console.log('Logging out...');
-    localStorage.removeItem('token'); // Remove token from local storage
-    navigate('/login');
+    signOut()
+      .catch(logApiError('Error signing out:'))
+      .finally(() => {
+        markSignedOut();
+        navigate('/login');
+      });
   };
 
   return <IconButton icon="log-out" className="on-chrome" label="Sign out" onClick={logout} />;

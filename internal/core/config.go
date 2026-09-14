@@ -70,6 +70,7 @@ type Config struct {
 	TrackingID       string `json:"tracking_id"`
 	Theme            string `json:"theme"`
 	TelemetryEnabled *bool  `json:"telemetry_enabled,omitempty"`
+	WidgetCDNEnabled *bool  `json:"widget_cdn_enabled,omitempty"`
 }
 
 // DefaultTheme names a theme in ui/src/themes, which is the only place that knows what one means: the
@@ -193,6 +194,24 @@ func TelemetryPreference() (enabled bool, chosen bool) {
 		return true, false
 	}
 	return *config.TelemetryEnabled, true
+}
+
+// WidgetCDNEnabled reports whether widget libraries that are not bundled may be loaded from the CDN,
+// which they may until it is turned off.
+func WidgetCDNEnabled() bool {
+	config, err := ReadConfig()
+	if err != nil || config.WidgetCDNEnabled == nil {
+		return true
+	}
+	return *config.WidgetCDNEnabled
+}
+
+func setWidgetCDN(enabled bool) error {
+	_, err := UpdateConfig(func(config *Config) bool {
+		config.WidgetCDNEnabled = &enabled
+		return true
+	})
+	return err
 }
 
 // SetTelemetryEnabled persists the choice, which also marks the install as having been asked.

@@ -35,7 +35,7 @@ func (ks *KernelSession) newMsgHeader(msgType string, userName string) MessageHe
 		MsgID:           newID(),
 		MsgType:         msgType,
 		Username:        userName,
-		Session:         ks.Key,
+		Session:         ks.ID,
 		Date:            time.Now().UTC().Format(time.RFC3339),
 		ProtocolVersion: ProtocolVersion,
 	}

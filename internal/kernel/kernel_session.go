@@ -22,10 +22,14 @@ const ProtocolVersion = "5.3"
 type KernelSession struct {
 	Key             string
 	SignatureScheme string
+	// ID names this session in the header of every message it sends. Not Key, which signs them: the
+	// kernel echoes a request's header back on iopub, where every notebook socket and the debug log
+	// see it.
+	ID string
 }
 
 func getSession() KernelSession {
-	return KernelSession{Key: string(newIDBytes()), SignatureScheme: "hmac-sha256"}
+	return KernelSession{Key: string(newIDBytes()), SignatureScheme: "hmac-sha256", ID: newID()}
 }
 
 func newAuth(key string) hash.Hash {

@@ -15,8 +15,9 @@ This document is the complete list. If something is not on it, Zasper does not s
 - Your IP address — every event carries `$ip: ""` and `$geoip_disable: true`, which tells PostHog to
   discard the source address rather than store it or look up a location from it
 
-There is no session recording, no autocapture, no cookie, and no third-party script in the app.
-Nothing is read from your browser's storage for this.
+There is no session recording, no autocapture and no tracking cookie. The one cookie is the session
+that keeps you signed in, which goes only to your own Zasper server. Nothing is read from your
+browser's storage for this.
 
 ## What is sent
 
@@ -55,6 +56,19 @@ And the values those properties may take:
 - **`theme_id`** — one of the eight themes that ship with Zasper.
 - **`uptime_bucket`, `duration_bucket`** — a range rather than a number: `0`, `1`, `2-5`, `6-10`,
   `11-25`, `26-50`, `51-100`, `100+`, in minutes.
+
+## Widget libraries
+
+This is not usage data, but it is the one other request the app makes to someone else. Widgets from
+outside ipywidgets itself, such as bqplot, ipyleaflet or ipyvolume, ship their JavaScript separately
+from their Python package, so Zasper fetches it from `cdn.jsdelivr.net` the first time a notebook
+shows one. The request names the package and its version, and jsdelivr sees your IP address. The code
+it returns runs inside Zasper's page, with the same access to your project as Zasper's own.
+
+Nothing is fetched for ipywidgets' own widgets, or for a notebook without widgets. Turn it off in
+**Settings → Privacy → Load widget libraries from the internet**, which stores the choice in
+`~/.zasper/config.json` as `widget_cdn_enabled`. Widgets from other libraries then say they cannot
+be shown.
 
 ## Your anonymous ID
 

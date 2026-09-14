@@ -237,6 +237,21 @@ func TestOnlyASettingThatExistsCanBeChanged(t *testing.T) {
 	}
 }
 
+func TestWidgetCodeFromTheCDNCanBeTurnedOffOverTheApi(t *testing.T) {
+	path := aHome(t)
+	assert.True(t, WidgetCDNEnabled(), "on until it is turned off")
+
+	assert.Equal(t, http.StatusNoContent, modify(t, `{"key":"widget_cdn","value":"off"}`).Code)
+	assert.False(t, WidgetCDNEnabled())
+	require.NotNil(t, readRaw(t, path).WidgetCDNEnabled)
+
+	assert.Equal(t, http.StatusBadRequest, modify(t, `{"key":"widget_cdn","value":"maybe"}`).Code)
+	assert.False(t, WidgetCDNEnabled())
+
+	assert.Equal(t, http.StatusNoContent, modify(t, `{"key":"widget_cdn","value":"on"}`).Code)
+	assert.True(t, WidgetCDNEnabled())
+}
+
 // A theme that could not be written used to answer 200, so the UI showed a change that did not survive
 // the restart.
 func TestAThemeThatCannotBeSavedSaysSo(t *testing.T) {

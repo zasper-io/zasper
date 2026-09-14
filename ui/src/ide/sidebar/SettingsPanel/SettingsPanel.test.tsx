@@ -64,6 +64,17 @@ describe('SettingsPanel', () => {
     expect(screen.getByTestId('theme')).toHaveTextContent('orange-light');
   });
 
+  it('turns loading widget code from the CDN off, and saves that', () => {
+    renderPanel();
+    const box = screen.getByLabelText('Load widget libraries from the internet');
+    expect(box).toBeChecked();
+
+    fireEvent.click(box);
+
+    expect(box).not.toBeChecked();
+    expect(modifyConfig).toHaveBeenCalledWith('widget_cdn', 'off');
+  });
+
   it('hides itself without unmounting, so the panel keeps its state', () => {
     const { container, rerender } = renderPanel();
     expect(container.querySelector('.nav-content')).not.toHaveClass('is-hidden');

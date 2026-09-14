@@ -17,6 +17,7 @@ import (
 
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
+	zhttp "github.com/zasper-io/zasper/internal/http"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/logging"
 	"github.com/zasper-io/zasper/internal/server"
@@ -67,26 +68,6 @@ func main() {
 
 	router := server.NewRouter(getSpaHandler())
 
-	// In a release build this process serves the SPA itself, so the app is same-origin and needs no
-	// CORS at all; the list below is for `make dev`, where vite serves the frontend on 3000. It was a
-	// wildcard, which let any page the user happened to have open read and write the whole project.
-	corsOpts := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:3000", "http://127.0.0.1:3000"},
-		AllowedMethods: []string{
-			http.MethodGet, //http methods for your app
-			http.MethodPost,
-			http.MethodPut,
-			http.MethodPatch,
-			http.MethodDelete,
-			http.MethodOptions,
-			http.MethodHead,
-		},
-
-		AllowedHeaders: []string{
-			"*", //or you can your header key values which you are using in your application
-		},
-	})
-
 	// Anonymous usage tracking. It is what tells me whether anyone is actually using Zasper, which is
 	// most of what keeps me maintaining it. Nothing that identifies a person or names a file leaves
 	// the machine — internal/analytics/events.go is the list of what does, and PRIVACY.md says the
@@ -114,10 +95,12 @@ func main() {
 	printBanner(address, core.ServerAccessToken, version, trackingOn)
 
 	httpServer := &http.Server{
-		Handler: server.WithRequestLogging(log.Logger, logging.AccessLog(), corsOpts.Handler(router)),
+		Handler: server.WithRequestLogging(log.Logger, logging.AccessLog(), appHandler(router, address)),
 		// Only the headers are timed: a whole-request or write timeout would cut off a long upload, a
 		// large download and every websocket.
 		ReadHeaderTimeout: 10 * time.Second,
+		// A kept-alive connection with nothing on it is closed after this rather than held forever.
+		IdleTimeout: 2 * time.Minute,
 	}
 	serving := make(chan error, 1)
 	go func() { serving <- httpServer.Serve(listener) }()
@@ -265,6 +248,39 @@ func resolveTracking(flagValue bool) bool {
 
 	stored, _ := core.TelemetryPreference()
 	return stored
+}
+
+/*
+appHandler wraps the route table in what every request meets first.
+
+CORS is only for `make dev`, where vite serves the frontend on 3000 while this process serves the API.
+A release build serves its own page and has no dev origins, so it gets no CORS handler at all: rs/cors
+reads an empty list of origins as every origin. On a loopback bind, a request also has to name a
+loopback host, which is what stops a DNS-rebound page reaching the server.
+*/
+func appHandler(router http.Handler, address string) http.Handler {
+	handler := router
+	if origins := zhttp.DevOrigins(); len(origins) > 0 {
+		handler = cors.New(cors.Options{
+			AllowedOrigins: origins,
+			AllowedMethods: []string{
+				http.MethodGet,
+				http.MethodPost,
+				http.MethodPut,
+				http.MethodPatch,
+				http.MethodDelete,
+				http.MethodOptions,
+				http.MethodHead,
+			},
+			AllowedHeaders: []string{"*"},
+			// The session is a cookie, which a cross-origin fetch sends and receives only with credentials.
+			AllowCredentials: true,
+		}).Handler(handler)
+	}
+	if zhttp.IsLoopbackBind(address) {
+		handler = zhttp.LoopbackHostOnly(handler)
+	}
+	return handler
 }
 
 // cleanup performs cleanup operations

@@ -6,7 +6,10 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"math"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +36,16 @@ func sessionKey() []byte {
 	return sum[:]
 }
 
+const (
+	// sessionCookie carries a browser's session. HttpOnly, so a script running in the page — a
+	// notebook output that got past the sanitiser — cannot read it and take it elsewhere.
+	sessionCookie   = "zasper_session"
+	sessionLifetime = 24 * time.Hour
+)
+
+// sessionUserID is the one user a Zasper server has: whoever holds its access token.
+const sessionUserID = "1"
+
 // contextKey is this package's own key type, so that a value stored here cannot be read or shadowed
 // by another package storing something under the same name.
 type contextKey string
@@ -58,26 +71,33 @@ func bearerToken(r *http.Request) string {
 }
 
 /*
-websocketToken is bearerToken for a websocket route, falling back to a `token` query parameter.
+sessionToken finds the session a request carries: the Authorization header, which scripts and API
+clients send, or the session cookie, which a browser sends on every request and websocket upgrade.
 
-A browser cannot authenticate one any other way: `new WebSocket(url)` takes a URL and nothing else, so
-there is no header to put a token in. It is why /api/contents/watch answered 401 to the file browser
-for as long as protected mode existed. Jupyter passes its token the same way, for the same reason.
-
-A token in a URL is a token in the access log, which is why only the routes with no alternative read
-one from there.
+A token in the query string is not read. Websockets used to authenticate that way, because a browser
+cannot put a header on one, and the token then sat in history, proxy logs and anything the URL was
+pasted into; the cookie reaches a websocket upgrade without any of that.
 */
-func websocketToken(r *http.Request) string {
+func sessionToken(r *http.Request) (token string, fromCookie bool) {
 	if token := bearerToken(r); token != "" {
-		return token
+		return token, false
 	}
-	return r.URL.Query().Get("token")
+	if cookie, err := r.Cookie(sessionCookie); err == nil && cookie.Value != "" {
+		return cookie.Value, true
+	}
+	return "", false
 }
 
-// userFromToken validates a JWT and answers the user id it carries.
-func userFromToken(tokenStr string) (string, error) {
+type session struct {
+	userID  string
+	id      string
+	expires time.Time
+}
+
+// parseSession validates a JWT this server issued and answers the session it names.
+func parseSession(tokenStr string) (session, error) {
 	if tokenStr == "" {
-		return "", fmt.Errorf("missing credentials")
+		return session{}, fmt.Errorf("missing credentials")
 	}
 
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
@@ -87,48 +107,89 @@ func userFromToken(tokenStr string) (string, error) {
 		}
 		return sessionKey(), nil
 	})
-
 	if err != nil || !token.Valid {
-		return "", fmt.Errorf("invalid token")
+		return session{}, fmt.Errorf("invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", fmt.Errorf("invalid token claims")
+		return session{}, fmt.Errorf("invalid token claims")
 	}
 
 	// Comma-ok rather than a bare assertion: a token carrying user_id as a JSON number is still a
 	// correctly signed token, and asserting on it would panic the handler.
 	userID, ok := claims["user_id"].(string)
 	if !ok || userID == "" {
-		return "", fmt.Errorf("invalid token claims")
+		return session{}, fmt.Errorf("invalid token claims")
 	}
-	return userID, nil
+	// The id is what signing out revokes, and the expiry is how long that has to be remembered, so a
+	// token without either cannot be signed out and is not accepted.
+	id, ok := claims["jti"].(string)
+	if !ok || id == "" {
+		return session{}, fmt.Errorf("invalid token claims")
+	}
+	expires, err := claims.GetExpirationTime()
+	if err != nil || expires == nil {
+		return session{}, fmt.Errorf("invalid token claims")
+	}
+
+	if isRevoked(id) {
+		return session{}, fmt.Errorf("this session has been signed out")
+	}
+	return session{userID: userID, id: id, expires: expires.Time}, nil
 }
 
-// authenticate gates a route on the token that readToken finds in the request.
-func authenticate(next http.Handler, readToken func(*http.Request) string) http.Handler {
+// userFromToken validates a JWT and answers the user id it carries.
+func userFromToken(tokenStr string) (string, error) {
+	s, err := parseSession(tokenStr)
+	return s.userID, err
+}
+
+/*
+crossSiteWrite reports whether a request changes something and came from a page other than Zasper's.
+
+A browser attaches the session cookie to any request for this host, including one a page on another
+site makes. SameSite=Strict stops a different site, but not another app on this machine, which is the
+same site on another port. So a request that is authenticated by the cookie and changes something has
+to come from Zasper's own page. Reads are left alone, because another origin cannot see what they
+answer.
+*/
+func crossSiteWrite(r *http.Request) bool {
+	switch r.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return false
+	}
+	return !zhttp.SameOrigin(r)
+}
+
+// authenticate gates a route on the session the request carries.
+func authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userID, err := userFromToken(readToken(r))
+		token, fromCookie := sessionToken(r)
+		s, err := parseSession(token)
 		if err != nil {
 			zhttp.SendErrorResponse(w, http.StatusUnauthorized, err.Error())
 			return
 		}
+		if fromCookie && crossSiteWrite(r) {
+			zhttp.SendErrorResponse(w, http.StatusForbidden, "this request did not come from Zasper's own page")
+			return
+		}
 
-		ctx := context.WithValue(r.Context(), userIDKey, userID)
+		ctx := context.WithValue(r.Context(), userIDKey, s.userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-// JwtAuthMiddleware gates a REST route on the Authorization header.
+// JwtAuthMiddleware gates a REST route.
 func JwtAuthMiddleware(next http.Handler) http.Handler {
-	return authenticate(next, bearerToken)
+	return authenticate(next)
 }
 
-// JwtWebsocketMiddleware gates a websocket route, which authenticates by query parameter; see
-// websocketToken for why it cannot use the header.
+// JwtWebsocketMiddleware gates a websocket route. The upgrade is a GET, and the websocket handlers
+// check its Origin themselves.
 func JwtWebsocketMiddleware(next http.Handler) http.Handler {
-	return authenticate(next, websocketToken)
+	return authenticate(next)
 }
 
 type LoginResponse struct {
@@ -136,10 +197,40 @@ type LoginResponse struct {
 	RedirectPath string `json:"redirect_path"`
 }
 
-// sessionUserID is the one user a Zasper server has: whoever holds its access token.
-const sessionUserID = "1"
+func sessionCookieFor(r *http.Request, value string, maxAge int) *http.Cookie {
+	return &http.Cookie{
+		Name:     sessionCookie,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Secure:   r.TLS != nil,
+	}
+}
 
+// clientAddress is who a sign-in attempt is counted against. Behind a reverse proxy every client is
+// the proxy, so they share one allowance.
+func clientAddress(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+/*
+LoginHandler trades the access token for a session: set as a cookie for the browser, and also in the
+answer for a script, which sends it back as a bearer token.
+*/
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	client := clientAddress(r)
+	if wait := logins.blocked(client, time.Now()); wait > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
+		zhttp.SendErrorResponse(w, http.StatusTooManyRequests, "Too many failed sign-ins; try again in a minute")
+		return
+	}
+
 	var creds struct {
 		AccessToken string `json:"accessToken"`
 	}
@@ -150,26 +241,48 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Constant time, so that the answer does not say how much of the token was right.
 	if subtle.ConstantTimeCompare([]byte(creds.AccessToken), []byte(core.ServerAccessToken)) != 1 {
+		logins.failed(client, time.Now())
 		zhttp.SendErrorResponse(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
+	logins.succeeded(client)
 
+	id, err := core.GenerateRandomToken(16)
+	if err != nil {
+		zhttp.SendErrorResponse(w, http.StatusInternalServerError, "Could not generate token")
+		return
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": sessionUserID,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"jti":     id,
+		"exp":     time.Now().Add(sessionLifetime).Unix(),
 	})
-
 	tokenString, err := token.SignedString(sessionKey())
 	if err != nil {
 		zhttp.SendErrorResponse(w, http.StatusInternalServerError, "Could not generate token")
 		return
 	}
 
-	resp := LoginResponse{
-		Token:        tokenString,
-		RedirectPath: "/",
+	http.SetCookie(w, sessionCookieFor(r, tokenString, int(sessionLifetime.Seconds())))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(LoginResponse{Token: tokenString, RedirectPath: "/"})
+}
+
+/*
+LogoutHandler signs a session out. It is revoked on the server, so a copy of the token held anywhere
+else stops working too, and the browser is told to drop the cookie. A request without a valid session
+still has its cookie cleared and answers 204: there is nothing left to sign out.
+*/
+func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	token, fromCookie := sessionToken(r)
+	if fromCookie && crossSiteWrite(r) {
+		zhttp.SendErrorResponse(w, http.StatusForbidden, "this request did not come from Zasper's own page")
+		return
+	}
+	if s, err := parseSession(token); err == nil {
+		revoke(s.id, s.expires)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	http.SetCookie(w, sessionCookieFor(r, "", -1))
+	w.WriteHeader(http.StatusNoContent)
 }

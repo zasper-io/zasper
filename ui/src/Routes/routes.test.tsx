@@ -35,7 +35,7 @@ describe('RouteConfig', () => {
 
     await shows('the IDE');
     expect(login).toHaveBeenCalledWith('the-access-token');
-    expect(localStorage.getItem('token')).toBe('a-jwt');
+    expect(localStorage.getItem('zasper.signedIn')).not.toBeNull();
     expect(window.location.search).toBe('');
   });
 
@@ -50,7 +50,7 @@ describe('RouteConfig', () => {
   });
 
   it('keeps the session it holds when the token in the link is refused', async () => {
-    localStorage.setItem('token', 'held');
+    localStorage.setItem('zasper.signedIn', '1');
     login.mockRejectedValue(new Error('401'));
     window.history.replaceState(null, '', '/?token=stale');
 
@@ -58,11 +58,21 @@ describe('RouteConfig', () => {
 
     await waitFor(() => expect(login).toHaveBeenCalled());
     await shows('the IDE');
-    expect(localStorage.getItem('token')).toBe('held');
+    expect(localStorage.getItem('zasper.signedIn')).not.toBeNull();
+  });
+
+  // Earlier versions kept the session itself in localStorage, where any script could read it. Such a
+  // token is not a session any more, so the browser signs in again.
+  it('sends a browser holding only an old token to sign in', async () => {
+    localStorage.setItem('token', 'an-old-jwt');
+
+    render(<RouteConfig />);
+
+    await shows('the login page');
   });
 
   it('does not sign in when the link carries no token', async () => {
-    localStorage.setItem('token', 'held');
+    localStorage.setItem('zasper.signedIn', '1');
 
     render(<RouteConfig />);
 

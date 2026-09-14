@@ -44,19 +44,12 @@ function buildHeaders(body: unknown): Record<string, string> {
   if (!(body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
-  const token = localStorage.getItem('token');
-  if (token !== null) {
-    headers.Authorization = `Bearer ${token}`;
-  }
   return headers;
 }
 
 /**
- * A websocket URL, carrying the auth token when there is one.
- *
- * `new WebSocket(url)` takes no headers, so a protected server reads the token from the query string
- * instead — see JwtWebsocketMiddleware on the Go side. Every other call authenticates by header, which
- * is why this is the only place a token appears in a URL.
+ * A websocket URL. The session travels as the cookie the browser sends with the upgrade, and never in
+ * the URL, where it would be left in history and logs.
  */
 export function websocketUrl(path: string, query?: RequestOptions['query']): string {
   const params = new URLSearchParams();
@@ -65,10 +58,6 @@ export function websocketUrl(path: string, query?: RequestOptions['query']): str
       params.set(key, String(value));
     }
   });
-  const token = localStorage.getItem('token');
-  if (token !== null) {
-    params.set('token', token);
-  }
   const search = params.toString();
   return search === '' ? BaseWebSocketUrl + path : `${BaseWebSocketUrl}${path}?${search}`;
 }
@@ -87,6 +76,9 @@ async function request(path: string, options: RequestOptions = {}): Promise<Resp
     method,
     headers: buildHeaders(body),
     body: payload,
+    // The session is an HttpOnly cookie. A same-origin request carries it anyway; this is for
+    // `make dev`, whose frontend is on another port.
+    credentials: 'include',
   });
 
   if (!res.ok) {
@@ -121,14 +113,14 @@ export function requestBeacon(path: string, body: unknown): void {
     method: 'POST',
     headers: buildHeaders(body),
     body: JSON.stringify(body),
+    credentials: 'include',
     keepalive: true,
   }).catch(() => {});
 }
 
 /**
  * The response body as bytes, for a download. It goes through fetch like everything else rather than
- * being handed to the browser as a link, because a link cannot carry the Authorization header a
- * protected server requires.
+ * being handed to the browser as a link, so that a failure reaches the code that asked.
  */
 export async function requestBlob(path: string, options?: RequestOptions): Promise<Blob> {
   const res = await request(path, options);
@@ -153,10 +145,7 @@ export function requestUpload<T>(path: string, options: UploadOptions): Promise<
     const request = new XMLHttpRequest();
     request.open('POST', buildUrl(path, undefined));
 
-    const token = localStorage.getItem('token');
-    if (token !== null) {
-      request.setRequestHeader('Authorization', `Bearer ${token}`);
-    }
+    request.withCredentials = true;
     // Content-Type is left to the browser, which is the only thing that knows the multipart boundary.
 
     request.upload.addEventListener('progress', (event) => {

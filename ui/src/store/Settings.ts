@@ -27,3 +27,10 @@ export const themeAtom = atom(storedTheme().id);
  * either of them asking the server again.
  */
 export const telemetryAtom = atom({ enabled: false, chosen: true });
+
+/**
+ * Whether widget libraries that are not bundled may be loaded from cdn.jsdelivr.net. Kept in the
+ * server's config and read from /api/info, because it is a choice about the install rather than about
+ * one browser.
+ */
+export const widgetCdnAtom = atom(true);

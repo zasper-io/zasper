@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -18,6 +19,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestALoopbackServerRefusesARequestNamingAnotherHost(t *testing.T) {
+	answered := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+
+	for _, c := range []struct {
+		bind, host string
+		want       int
+	}{
+		{"127.0.0.1:8048", "localhost:8048", http.StatusNoContent},
+		{"127.0.0.1:8048", "rebound.example.com:8048", http.StatusForbidden},
+		// Bound to the network, the server is reached by whatever name the network gives it.
+		{"0.0.0.0:8048", "my-server:8048", http.StatusNoContent},
+	} {
+		r := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+		r.Host = c.host
+		recorder := httptest.NewRecorder()
+
+		appHandler(answered, c.bind).ServeHTTP(recorder, r)
+
+		assert.Equal(t, c.want, recorder.Code, "%s asked of a server bound to %s", c.host, c.bind)
+	}
+}
 
 // runningServer serves handler on a loopback port and answers the server and its address.
 func runningServer(t *testing.T, handler http.HandlerFunc) (*http.Server, string) {

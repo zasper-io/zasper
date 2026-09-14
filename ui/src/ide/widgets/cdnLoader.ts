@@ -5,6 +5,18 @@ export type WidgetModuleLoader = (moduleName: string, moduleVersion: string) => 
 
 const CDN = 'https://cdn.jsdelivr.net/npm/';
 
+/** Settings → Privacy, from the server's config. See allowWidgetCdn. */
+let cdnAllowed = true;
+
+/**
+ * Whether widget code may be fetched from the CDN. It runs in Zasper's own page and every fetch is a
+ * request to a third party, so an install can turn it off; the widgets that need it then fail to
+ * display with a message saying why.
+ */
+export function allowWidgetCdn(allowed: boolean): void {
+  cdnAllowed = allowed;
+}
+
 /**
  * requirejs gives up on a module it has not seen load after this long. The default is seven seconds,
  * which a first visit to the CDN for a megabyte of plotting library can lose to.
@@ -79,6 +91,11 @@ export function createCdnLoader(localModules: Record<string, unknown>): WidgetMo
   return async (moduleName, moduleVersion) => {
     if (moduleName in localModules) {
       return localModules[moduleName];
+    }
+    if (!cdnAllowed) {
+      throw new Error(
+        `${moduleName}@${moduleVersion} is not bundled with Zasper, and loading widget code from ${CDN} is turned off in Settings`
+      );
     }
 
     const requirejs = await loadRequirejs();

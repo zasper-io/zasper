@@ -66,18 +66,15 @@ func TestSameOriginAnswersForEachKindOfCaller(t *testing.T) {
 }
 
 /*
-The dev server is allowed from anywhere, in every build.
-
-`make dev` serves the frontend on 3000 while this process serves the API, and there is no build tag
-separating that from a release. So a page on localhost:3000 can open a terminal socket on a machine
-running a released Zasper — a real if narrow hole, and one worth failing a test if anybody widens it.
+The dev server's origins are trusted exactly, and only by a build that trusts them at all: see
+dev_origins.go. A page on localhost:3000 used to be able to open a terminal socket on a released
+Zasper, because nothing separated `make dev` from a release.
 */
-func TestTheViteDevServerIsAllowedAgainstAnyHost(t *testing.T) {
-	for _, origin := range devOrigins {
-		t.Run(origin, func(t *testing.T) {
-			assert.True(t, SameOrigin(request("localhost:8048", origin)))
-			assert.True(t, SameOrigin(request("192.168.1.10:8048", origin)))
-		})
+func TestTheViteDevServerIsTrustedOnlyByADevelopmentBuild(t *testing.T) {
+	trusted := len(DevOrigins()) > 0
+	for _, origin := range []string{"http://localhost:3000", "http://127.0.0.1:3000"} {
+		assert.Equal(t, trusted, SameOrigin(request("localhost:8048", origin)), origin)
+		assert.Equal(t, trusted, SameOrigin(request("192.168.1.10:8048", origin)), origin)
 	}
 
 	// The allowance is the exact origin and not the host, so the same port over https, or a

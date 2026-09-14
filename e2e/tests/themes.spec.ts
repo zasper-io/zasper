@@ -121,7 +121,8 @@ test('the login page follows the theme the IDE was left in', async ({ page }) =>
   await chooseTheme(page, 'orange-dark');
 
   // Signed out, or /login would send a session it already holds straight back to the IDE.
-  await page.evaluate(() => localStorage.removeItem('token'));
+  await page.context().clearCookies();
+  await page.evaluate(() => localStorage.removeItem('zasper.signedIn'));
   await page.goto('/login');
   await expect(page.locator('.login-form')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'orange');

@@ -52,7 +52,9 @@ describe('Login', () => {
     submit('a-server-token');
 
     await waitFor(() => expect(login).toHaveBeenCalledWith('a-server-token'));
-    await waitFor(() => expect(localStorage.getItem('token')).toBe('abc123'));
+    await waitFor(() => expect(localStorage.getItem('zasper.signedIn')).not.toBeNull());
+    // The session is the cookie the server set, which no script can read, so none is kept here.
+    expect(localStorage.getItem('token')).toBeNull();
     expect(navigate).toHaveBeenCalledWith('/');
   });
 
@@ -104,8 +106,8 @@ describe('Login', () => {
     expect(localStorage.getItem('zasper.zoom')).toBe('-1');
   });
 
-  it('does not ask for a token that is already held', () => {
-    localStorage.setItem('token', 'abc123');
+  it('does not ask a browser that is already signed in', () => {
+    localStorage.setItem('zasper.signedIn', '1');
     renderLogin();
 
     expect(navigate).toHaveBeenCalledWith('/', { replace: true });
