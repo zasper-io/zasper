@@ -7,6 +7,7 @@ import (
 	"github.com/go-git/go-git/v5"
 
 	"github.com/zasper-io/zasper/internal/core"
+	"github.com/zasper-io/zasper/internal/pathsafe"
 )
 
 /*
@@ -72,12 +73,8 @@ func relPath(root, path string) (string, error) {
 	}
 	resolved := resolveExisting(absolute)
 
-	relative, err := filepath.Rel(resolvedRoot, resolved)
-	if err != nil {
-		return "", err
-	}
-	// IsLocal is segment-wise, so `../repoX-secrets` is not taken to be inside `.../repoX`.
-	if !filepath.IsLocal(relative) {
+	relative, ok := pathsafe.Within(resolvedRoot, resolved)
+	if !ok {
 		return "", fmt.Errorf("path %s is outside the repository", path)
 	}
 	// Git wants forward slashes whatever the platform, which is also what Worktree.Status answers with.

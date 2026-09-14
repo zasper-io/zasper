@@ -6,7 +6,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import { languages } from '@codemirror/language-data';
 
-import { ICell } from '@/api';
+import { NotebookCell } from '@/api';
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { useTheme } from '@/themes/useTheme';
@@ -15,7 +15,7 @@ import CellOutput from './CellOutput';
 import Prompt from './Prompt';
 import { kernelCompletionSource, tabCompletionKeymap } from './kernelCompletion';
 import { zoomAwareTooltips } from '../tooltipParent';
-import { ICompleteReply, IKernelMessage } from './kernelMessages';
+import { CompleteReply, KernelMessage } from './kernelMessages';
 import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
 
 // react-markdown + remark-math + rehype-katex is the heaviest thing in the
@@ -23,8 +23,8 @@ import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
 // it loads on demand. See MarkdownRenderer.tsx.
 const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
 
-interface ICellProps {
-  cell: ICell;
+interface CellProps {
+  cell: NotebookCell;
   index: number;
   /** Dispatches a notebook command by id, for the cell's own toolbar. */
   run: (id: string) => void;
@@ -66,11 +66,11 @@ interface ICellProps {
   codeMirrorRefs: React.RefObject<CodeMirrorRef[] | null>;
   updateCellSource: (value: string, cellId: string) => void;
   showPrompt: Boolean;
-  promptContent: IKernelMessage;
+  promptContent: KernelMessage;
   promptCellId: string | undefined;
-  submitPrompt: (parentHeader: IKernelMessage, inputValue: string) => void;
+  submitPrompt: (parentHeader: KernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
-  requestCompletions: (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
+  requestCompletions: (source: string, cursorPos: number) => Promise<CompleteReply | null>;
   widgets: WidgetBridge | null;
 }
 
@@ -80,7 +80,7 @@ export interface CodeMirrorRef {
   };
 }
 
-const Cell = React.forwardRef((props: ICellProps, ref) => {
+const Cell = React.forwardRef((props: CellProps, ref) => {
   const { cell, updateCellSource } = props;
   const theme = useTheme();
   const [cellContents, setCellContents] = useState(cell.source);

@@ -1,7 +1,6 @@
 package kernelspec
 
 import (
-	"encoding/json"
 	"errors"
 	"maps"
 	"net/http"
@@ -72,25 +71,21 @@ func SingleKernelspecAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(kernelspecModel(kernelName, kspec))
+	zhttp.SendJSON(w, http.StatusOK, kernelspecModel(kernelName, kspec))
 }
 
 func KernelspecAPIHandler(w http.ResponseWriter, req *http.Request) {
 	specs := GetAllSpecs()
 	response := KernelspecResponse{
-		Default:    defaultKernelName(specs),
-		Kernespecs: make(map[string]KernelspecModel),
+		Default:     defaultKernelName(specs),
+		Kernelspecs: make(map[string]KernelspecModel),
 	}
 
 	for kernelName, kernelInfo := range specs {
-		response.Kernespecs[kernelName] = kernelspecModel(kernelName, kernelInfo.Spec)
+		response.Kernelspecs[kernelName] = kernelspecModel(kernelName, kernelInfo.Spec)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	zhttp.SendJSON(w, http.StatusOK, response)
 }
 
 // defaultKernelName answers a kernel that is installed: python3 when there is one, then the first Python
@@ -118,13 +113,9 @@ func EnvironmentSetupHandler(w http.ResponseWriter, req *http.Request) {
 	if err := StartSetup(core.Zasper.HomeDir); errors.Is(err, ErrSetupRunning) {
 		status = http.StatusConflict
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(CurrentSetup())
+	zhttp.SendJSON(w, status, CurrentSetup())
 }
 
 func EnvironmentSetupStatusHandler(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(CurrentSetup())
+	zhttp.SendJSON(w, http.StatusOK, CurrentSetup())
 }

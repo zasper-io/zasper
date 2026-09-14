@@ -16,12 +16,12 @@
 import { DOMWidgetModel, DOMWidgetView } from '@jupyter-widgets/base';
 import { createRoot, type Root } from 'react-dom/client';
 
-import type { ICellOutput } from '@/api';
+import type { NotebookOutput } from '@/api';
 import { OutputBundles } from '@/ide/editor/notebook/CellOutput';
 import { markProducedHere } from '@/ide/editor/notebook/outputTrust';
 
 import type { WidgetSource } from './WidgetRenderer';
-import type { IWidgetKernelMessage, ZasperWidgetManager } from './widgetManager';
+import type { WidgetKernelMessage, ZasperWidgetManager } from './widgetManager';
 
 /** The module name the Output widget's models and views name themselves by. */
 export const MODULE_NAME = '@jupyter-widgets/output';
@@ -30,7 +30,7 @@ export const MODULE_NAME = '@jupyter-widgets/output';
 export const MODULE_VERSION = '1.0.0';
 
 /** The fields of the iopub messages an Output widget holds, across all of their types. */
-interface IOutputContent {
+interface OutputContent {
   name?: string;
   text?: string;
   data?: Record<string, string>;
@@ -44,7 +44,7 @@ interface IOutputContent {
 }
 
 /** The nbformat output an iopub message carries, or undefined for one that carries none. */
-function asOutput(msgType: string, content: IOutputContent): ICellOutput | undefined {
+function asOutput(msgType: string, content: OutputContent): NotebookOutput | undefined {
   switch (msgType) {
     case 'stream':
       return { output_type: 'stream', name: content.name, text: content.text };
@@ -94,9 +94,9 @@ export class OutputModel extends DOMWidgetModel {
   }
 
   /** Folds one of the messages this widget captured into what it shows. */
-  addMessage(message: IWidgetKernelMessage): void {
+  addMessage(message: WidgetKernelMessage): void {
     const msgType = message.header.msg_type;
-    const content = (message.content ?? {}) as IOutputContent;
+    const content = (message.content ?? {}) as OutputContent;
 
     if (msgType === 'clear_output') {
       if (content.wait) {
@@ -114,7 +114,7 @@ export class OutputModel extends DOMWidgetModel {
     }
     markProducedHere(output);
 
-    const outputs = this.clearWaiting ? [] : [...((this.get('outputs') ?? []) as ICellOutput[])];
+    const outputs = this.clearWaiting ? [] : [...((this.get('outputs') ?? []) as NotebookOutput[])];
     this.clearWaiting = false;
 
     const last = outputs[outputs.length - 1];
@@ -136,7 +136,7 @@ export class OutputModel extends DOMWidgetModel {
    * The kernel is told as well as the view: `outputs` is documented as what the frontend captured, so
    * `out.outputs` in Python reads back what is on screen, and a saved notebook reopened shows it.
    */
-  private setOutputs(outputs: ICellOutput[]): void {
+  private setOutputs(outputs: NotebookOutput[]): void {
     this.set('outputs', outputs);
     this.save_changes();
   }
@@ -172,7 +172,7 @@ export class OutputView extends DOMWidgetView {
   }
 
   private draw(): void {
-    const outputs = (this.model.get('outputs') ?? []) as ICellOutput[];
+    const outputs = (this.model.get('outputs') ?? []) as NotebookOutput[];
     this.root?.render(<OutputBundles outputs={outputs} widgets={this.source} />);
   }
 }

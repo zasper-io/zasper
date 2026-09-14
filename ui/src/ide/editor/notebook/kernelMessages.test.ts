@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { applyKernelMessage, carriesOutput } from './kernelMessages';
 import { isProducedHere } from './outputTrust';
-import { INotebookModel } from '@/api';
+import { NotebookModel } from '@/api';
 
-function notebookWith(cellId: string): INotebookModel {
+function notebookWith(cellId: string): NotebookModel {
   return {
     cells: [
       {

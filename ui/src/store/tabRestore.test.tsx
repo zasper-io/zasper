@@ -10,8 +10,8 @@ import { useAtomValue } from 'jotai';
 import { Provider } from '@/testing/Provider';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { projectDirAtom } from './AppState';
-import { defaultFileTabState, fileTabsAtom } from './TabState';
+import { projectDirAtom } from '@/store/serverInfo';
+import { defaultFileTabState, fileTabsAtom } from './tabState';
 import { useRememberTabs } from './useRememberTabs';
 
 const KEY = 'zasper.tabs';
@@ -20,8 +20,8 @@ const DIRECTORY = '/Users/x/work/demo';
 /** The directory the seeded strip was remembered for, which TabState reads once at import. */
 const mocked = vi.hoisted(() => ({ rememberedDirectory: null as string | null }));
 
-vi.mock('./TabState', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./TabState')>();
+vi.mock('./tabState', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./tabState')>();
   return {
     ...actual,
     get rememberedDirectory() {

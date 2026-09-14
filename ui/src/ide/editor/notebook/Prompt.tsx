@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
-import { IKernelMessage } from './kernelMessages';
+import { KernelMessage } from './kernelMessages';
 
 interface PromptProps {
-  content: IKernelMessage;
-  submitPrompt: (parentHeader: IKernelMessage, inputValue: string) => void;
+  content: KernelMessage;
+  submitPrompt: (parentHeader: KernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
 }
 

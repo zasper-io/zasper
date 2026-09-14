@@ -121,13 +121,13 @@ func TestGetFileModel(t *testing.T) {
 			relativePath: ".",
 			fileName:     "testfile.txt",
 			expectedModel: models.ContentModel{
-				Name:          "testfile.txt",
-				Path:          "testfile.txt",
-				ContentType:   "file",
-				Created:       time.Now().UTC().Format(time.RFC3339),
-				Last_modified: time.Now().UTC().Format(time.RFC3339),
-				Writable:      true,
-				Size:          int64(22), // Size of the file content
+				Name:         "testfile.txt",
+				Path:         "testfile.txt",
+				ContentType:  "file",
+				Created:      time.Now().UTC().Format(time.RFC3339),
+				LastModified: time.Now().UTC().Format(time.RFC3339),
+				Writable:     true,
+				Size:         int64(22), // Size of the file content
 			},
 			expectedErr: nil,
 		},
@@ -137,13 +137,13 @@ func TestGetFileModel(t *testing.T) {
 			relativePath: ".",
 			fileName:     "testnotebook.ipynb",
 			expectedModel: models.ContentModel{
-				Name:          "testnotebook.ipynb",
-				Path:          "testnotebook.ipynb",
-				ContentType:   "notebook",
-				Created:       time.Now().UTC().Format(time.RFC3339),
-				Last_modified: time.Now().UTC().Format(time.RFC3339),
-				Writable:      true,
-				Size:          int64(2), // Size of the notebook file content
+				Name:         "testnotebook.ipynb",
+				Path:         "testnotebook.ipynb",
+				ContentType:  "notebook",
+				Created:      time.Now().UTC().Format(time.RFC3339),
+				LastModified: time.Now().UTC().Format(time.RFC3339),
+				Writable:     true,
+				Size:         int64(2), // Size of the notebook file content
 			},
 			expectedErr: nil,
 		},
@@ -161,13 +161,13 @@ func TestGetFileModel(t *testing.T) {
 			relativePath: "some/relative/path",
 			fileName:     "testfile.txt",
 			expectedModel: models.ContentModel{
-				Name:          "testfile.txt",
-				Path:          "some/relative/path/testfile.txt",
-				ContentType:   "file",
-				Created:       time.Now().UTC().Format(time.RFC3339),
-				Last_modified: time.Now().UTC().Format(time.RFC3339),
-				Writable:      true,
-				Size:          int64(22),
+				Name:         "testfile.txt",
+				Path:         "some/relative/path/testfile.txt",
+				ContentType:  "file",
+				Created:      time.Now().UTC().Format(time.RFC3339),
+				LastModified: time.Now().UTC().Format(time.RFC3339),
+				Writable:     true,
+				Size:         int64(22),
 			},
 			expectedErr: nil,
 		},
@@ -179,10 +179,9 @@ func TestGetFileModel(t *testing.T) {
 			result, err := getFileModel(tt.abspath, tt.relativePath, tt.fileName)
 			if tt.expectedErr == nil {
 
-				// can't test Created and Last_modified because they will be different each time
-				// ignore those fields for comparison
+				// The timestamps differ on every run, so they are not compared.
 				tt.expectedModel.Created = result.Created
-				tt.expectedModel.Last_modified = result.Last_modified
+				tt.expectedModel.LastModified = result.LastModified
 
 				assert.Equal(t, tt.expectedModel, result)
 			} else {
@@ -298,7 +297,7 @@ func TestCreateContentAnswersWithWhatIsOnDisk(t *testing.T) {
 	assert.Equal(t, "Untitled.ipynb", notebook.Name)
 	// Empty until now: a size and a date the client can show have to come from the file.
 	assert.Greater(t, notebook.Size, int64(0))
-	assert.NotEmpty(t, notebook.Last_modified)
+	assert.NotEmpty(t, notebook.LastModified)
 
 	written, err := os.ReadFile(filepath.Join(projectDir, "Untitled.ipynb"))
 	assert.NoError(t, err)

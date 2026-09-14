@@ -1,22 +1,22 @@
 import { requestBeacon, requestJson } from './client';
 
 /** Response of /api/telemetry/settings. */
-export interface ITelemetrySettings {
+export interface TelemetrySettings {
   /** Whether anything is actually being sent, after the flag and the environment have had their say. */
   enabled: boolean;
   /** False only on an install that has never been asked, which is what shows the notice once. */
   chosen: boolean;
 }
 
-export function getTelemetrySettings(): Promise<ITelemetrySettings> {
-  return requestJson<ITelemetrySettings>('/api/telemetry/settings');
+export function getTelemetrySettings(): Promise<TelemetrySettings> {
+  return requestJson<TelemetrySettings>('/api/telemetry/settings');
 }
 
 export function setTelemetrySettings(body: {
   enabled?: boolean;
   reset_id?: boolean;
-}): Promise<ITelemetrySettings> {
-  return requestJson<ITelemetrySettings>('/api/telemetry/settings', {
+}): Promise<TelemetrySettings> {
+  return requestJson<TelemetrySettings>('/api/telemetry/settings', {
     method: 'POST',
     body,
   });

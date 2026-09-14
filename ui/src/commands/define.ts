@@ -1,8 +1,8 @@
-import { ICommand } from './types';
+import { Command } from './types';
 
 /** What a command is, without what it does: enough for Help to list it and for a key to reach it. */
 export type CommandInfo = Pick<
-  ICommand,
+  Command,
   'id' | 'label' | 'category' | 'scope' | 'keys' | 'description'
 >;
 

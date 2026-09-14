@@ -1,6 +1,6 @@
-import { useTabActions } from '@/store/TabActions';
+import { useTabActions } from '@/store/tabActions';
 import { defineCommands } from './define';
-import { ICommand } from './types';
+import { Command } from './types';
 
 export const DOCS_URL = 'https://zasper.io/docs';
 export const ISSUES_URL = 'https://github.com/zasper-io/zasper/issues/new';
@@ -21,7 +21,7 @@ function openExternal(url: string): void {
 }
 
 /** Not memoized, like the notebook's: `useRegisterCommands` re-registers only when the ids change. */
-export function useHelpCommands(): ICommand[] {
+export function useHelpCommands(): Command[] {
   const { openHelp } = useTabActions();
 
   return [

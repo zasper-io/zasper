@@ -3,12 +3,12 @@ import { type Extension } from '@codemirror/state';
 
 import Cell, { CodeMirrorRef } from './Cell';
 import CellInsert from './CellInsert';
-import { ICompleteReply, IKernelMessage } from './kernelMessages';
-import { ICell, INotebookModel } from '@/api';
+import { CompleteReply, KernelMessage } from './kernelMessages';
+import { NotebookCell, NotebookModel } from '@/api';
 import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
 
 interface NotebookCellsProps {
-  notebook: INotebookModel;
+  notebook: NotebookModel;
   focusedIndex: number;
   focusCell: (cellId: string) => void;
   divRefs: React.RefObject<(HTMLDivElement | null)[]>;
@@ -19,7 +19,7 @@ interface NotebookCellsProps {
   focusPreviousCell: () => void;
   updateCellSource: (value: string, cellId: string) => void;
   /** Puts a cell where the pointer is, for the rail between two cells. */
-  addCellAt: (index: number, cellType: ICell['cell_type']) => void;
+  addCellAt: (index: number, cellType: NotebookCell['cell_type']) => void;
   /** Runs one named cell, for the button in its gutter. See `submitCell` in Cell.tsx. */
   submitCell: (source: string, cellId: string) => void;
   interruptKernel: () => void;
@@ -32,12 +32,12 @@ interface NotebookCellsProps {
   beginEditing: (cellId: string) => void;
   endEditing: () => void;
   showPrompt: Boolean;
-  promptContent: IKernelMessage;
+  promptContent: KernelMessage;
   /** Which cell the kernel is asking input for, so only that cell shows the prompt. */
   promptCellId: string | undefined;
-  submitPrompt: (parentHeader: IKernelMessage, inputValue: string) => void;
+  submitPrompt: (parentHeader: KernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
-  requestCompletions: (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
+  requestCompletions: (source: string, cursorPos: number) => Promise<CompleteReply | null>;
   widgets: WidgetBridge | null;
 }
 

@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ImageEditor from './ImageEditor';
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 
 const downloadContent = vi.fn();
 
@@ -12,7 +12,7 @@ vi.mock('@/api', () => ({
   apiErrorMessage: (error: unknown) => (error as Error).message,
 }));
 
-const tab: IfileTab = {
+const tab: FileTab = {
   type: 'file',
   path: 'figures/plot.png',
   name: 'plot.png',

@@ -1,15 +1,15 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ICell } from '@/api';
+import { NotebookCell } from '@/api';
 import { parseChord } from '@/commands/keys';
-import { ICommand } from '@/commands/types';
+import { Command } from '@/commands/types';
 
-import { INotebookCommandTargets, useNotebookCommands } from './notebookCommands';
+import { NotebookCommandTargets, useNotebookCommands } from './notebookCommands';
 import { KernelSession } from './useKernelSession';
 import { NotebookCells } from './useNotebookCells';
 
-function cell(overrides: Partial<ICell> = {}): ICell {
+function cell(overrides: Partial<NotebookCell> = {}): NotebookCell {
   return {
     cell_type: 'code',
     id: 'cell-1',
@@ -22,10 +22,10 @@ function cell(overrides: Partial<ICell> = {}): ICell {
   };
 }
 
-interface IFakeOptions {
-  cells?: ICell[];
+interface FakeOptions {
+  cells?: NotebookCell[];
   focusedIndex?: number;
-  copiedCell?: ICell | null;
+  copiedCell?: NotebookCell | null;
   session?: unknown;
   /** What useNotebookCells reports when the notebook could not be loaded. */
   error?: string;
@@ -37,7 +37,7 @@ interface IFakeOptions {
  * The targets a notebook command acts on. Only the fields the commands touch are real — the two
  * hooks behind them are large and none of the rest is reachable from here.
  */
-function fakeTargets(options: IFakeOptions = {}) {
+function fakeTargets(options: FakeOptions = {}) {
   const spies = {
     addCellUp: vi.fn(),
     addCellDown: vi.fn(),
@@ -66,7 +66,7 @@ function fakeTargets(options: IFakeOptions = {}) {
     restartAndExecuteAllCells: vi.fn(),
   };
 
-  const targets: INotebookCommandTargets = {
+  const targets: NotebookCommandTargets = {
     cells: {
       notebook: { cells: options.cells ?? [cell()], nbformat: 4, nbformat_minor: 5, metadata: {} },
       focusedIndex: options.focusedIndex ?? 0,
@@ -107,13 +107,13 @@ function fakeTargets(options: IFakeOptions = {}) {
   return { targets, spies };
 }
 
-function build(options: IFakeOptions = {}) {
+function build(options: FakeOptions = {}) {
   const { targets, spies } = fakeTargets(options);
   const { result } = renderHook(() => useNotebookCommands(targets));
   return { commands: result.current, spies };
 }
 
-function byId(commands: ICommand[], id: string): ICommand {
+function byId(commands: Command[], id: string): Command {
   const command = commands.find((candidate) => candidate.id === id);
   if (!command) {
     throw new Error(`no such command: ${id}`);

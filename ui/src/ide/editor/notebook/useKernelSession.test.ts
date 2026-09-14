@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { INotebookMetadata } from '@/api';
-import { IKernelspecsState } from '@/store/AppState';
+import { NotebookMetadata } from '@/api';
+import { KernelspecsState } from '@/store/kernels';
 
 import { kernelToStart } from './useKernelSession';
 
 /** The installed kernels, as /api/kernelspecs reports them: keyed by name. */
-function installed(...names: string[]): IKernelspecsState {
+function installed(...names: string[]): KernelspecsState {
   return Object.fromEntries(
     names.map((name) => [name, { name, spec: { display_name: name }, resources: {} }])
   );
@@ -18,7 +18,7 @@ function installed(...names: string[]): IKernelspecsState {
  * of the kernel it was last saved with.
  */
 describe('kernelToStart', () => {
-  const python3: INotebookMetadata = {
+  const python3: NotebookMetadata = {
     kernelspec: { name: 'python3', display_name: 'Python 3' },
   };
 

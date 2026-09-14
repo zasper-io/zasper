@@ -1,5 +1,5 @@
 import { defineCommands } from '@/commands/define';
-import type { IfileTab, IfileTabDict } from '@/store/TabState';
+import type { FileTab, FileTabDict } from '@/store/tabState';
 
 const TAB = { category: 'Tab', scope: 'app' } as const;
 
@@ -37,7 +37,7 @@ export const CLOSE_COMMANDS = [
  * front when nothing else is left there. A terminal or Help has nothing to save, so it counts as saved.
  */
 export function tabsToClose(
-  tabs: IfileTabDict,
+  tabs: FileTabDict,
   target: string,
   scope: CloseScope,
   unsaved: Record<string, unknown>
@@ -73,7 +73,7 @@ export function keepsTarget(scope: CloseScope): boolean {
 }
 
 /** The file a tab is about, for Copy Path and Reveal; null for the tabs that are not a file. */
-export function tabFilePath(tab: IfileTab): string | null {
+export function tabFilePath(tab: FileTab): string | null {
   if (tab.type === 'launcher' || tab.type === 'terminal' || tab.type === 'help') {
     return null;
   }

@@ -4,13 +4,13 @@ import { act, render, renderHook } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 
 import { commandsAtom, useCommands, useRegisterCommands, useRunCommand } from './registry';
-import { ICommand } from './types';
+import { Command } from './types';
 
 // A fresh jotai store per test: the registry is global by design, so without this the commands
 // one test registers would still be there in the next.
 const wrapper = ({ children }: { children: React.ReactNode }) => <Provider>{children}</Provider>;
 
-function command(overrides: Partial<ICommand> = {}): ICommand {
+function command(overrides: Partial<Command> = {}): Command {
   return {
     id: 'test:one',
     label: 'One',
@@ -22,7 +22,7 @@ function command(overrides: Partial<ICommand> = {}): ICommand {
 }
 
 /** Registers whatever it is given and exposes the registry back, as a component would. */
-function useHarness(commands: ICommand[], active = true) {
+function useHarness(commands: Command[], active = true) {
   useRegisterCommands(commands, active);
   return {
     registry: useAtomValue(commandsAtom),

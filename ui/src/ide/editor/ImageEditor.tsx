@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { apiErrorMessage, downloadContent } from '@/api';
 import { Icon } from '@/ide/icons';
 import BreadCrumb from './BreadCrumb';
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 
 interface ImageEditorProps {
-  data: IfileTab;
+  data: FileTab;
 }
 
 /**

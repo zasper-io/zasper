@@ -3,7 +3,7 @@ import './Launcher.scss';
 import {
   ApiError,
   ContentType,
-  IEnvironmentSetup,
+  EnvironmentSetup,
   PROJECT_KERNEL_NAME,
   createContent,
   getEnvironmentSetup,
@@ -12,14 +12,11 @@ import {
   startEnvironmentSetup,
 } from '@/api';
 import { useAtom, useAtomValue } from 'jotai';
-import {
-  kernelspecsAtom,
-  kernelspecsStatusAtom,
-  fileBrowserReloadCountAtom,
-  terminalsAvailableAtom,
-} from '@/store/AppState';
-import { useTabActions } from '@/store/TabActions';
-import { useKernelspecActions } from '@/store/KernelspecActions';
+import { kernelspecsAtom, kernelspecsStatusAtom } from '@/store/kernels';
+import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
+import { terminalsAvailableAtom } from '@/store/serverInfo';
+import { useTabActions } from '@/store/tabActions';
+import { useKernelspecActions } from '@/store/kernelspecActions';
 import { Icon } from '../icons';
 
 interface LauncherProps {
@@ -172,7 +169,7 @@ const SETUP_POLL_MS = 1000;
  * No glyph in the heading: a red mark beside "No kernels available" is the sentence twice.
  */
 const NoKernelsFound: React.FC<NoticeProps> = ({ onRetry }) => {
-  const [setup, setSetup] = useState<IEnvironmentSetup | null>(null);
+  const [setup, setSetup] = useState<EnvironmentSetup | null>(null);
   const log = useRef<HTMLPreElement>(null);
   const running = setup?.state === 'running';
 

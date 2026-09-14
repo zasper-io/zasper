@@ -4,11 +4,11 @@ import { apiErrorMessage, downloadContent } from '@/api';
 import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
 import { baseName } from '@/paths';
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 import BreadCrumb from './BreadCrumb';
 
 interface PdfViewerProps {
-  data: IfileTab;
+  data: FileTab;
 }
 
 /**

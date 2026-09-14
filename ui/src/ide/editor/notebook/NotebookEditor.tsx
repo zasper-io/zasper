@@ -3,16 +3,16 @@ import './NotebookEditor.scss';
 
 import { logApiError, saveNotebook } from '@/api';
 import { Icon } from '@/ide/icons';
-import { IfileTab } from '@/store/TabState';
-import { useUnsavedChanges } from '@/store/UnsavedState';
+import { FileTab } from '@/store/tabState';
+import { useUnsavedChanges } from '@/store/unsavedState';
 import BreadCrumb from '../BreadCrumb';
 import { CodeMirrorRef } from './Cell';
 import ConfirmRestartDialog, { RestartIntent } from './ConfirmRestartDialog';
-import { IKernelMessage } from './kernelMessages';
+import { KernelMessage } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
 import NotebookCells from './NotebookCells';
-import { INotebookMetadata } from '@/api';
+import { NotebookMetadata } from '@/api';
 
 import { useRegisterCommands, useRunCommand } from '@/commands/registry';
 import { useEditorCommandKeymap } from '@/commands/useEditorCommandKeymap';
@@ -21,7 +21,7 @@ import { NO_KERNEL, useKernelSession } from './useKernelSession';
 import { useNotebookCells } from './useNotebookCells';
 
 interface NotebookEditorProps {
-  data: IfileTab;
+  data: FileTab;
 }
 
 export default function NotebookEditor({ data }: NotebookEditorProps) {
@@ -50,7 +50,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const saveNotebookToDisk = async () => {
     // Merged, not replaced: the server round-trips metadata it does not understand, so replacing
     // the object here would drop language_info and whatever else the file arrived with.
-    const metadata: INotebookMetadata = { ...notebook.metadata };
+    const metadata: NotebookMetadata = { ...notebook.metadata };
     // Only a kernel that is actually attached: writing the 'none' placeholder would replace the
     // kernel the file remembers with a name that starts nothing.
     if (kernel.kernelName && kernel.kernelName !== NO_KERNEL) {
@@ -78,16 +78,17 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // Registered whether or not this is the active tab: any open tab can be closed.
   useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
 
+  const { markCellRunning } = cells;
+  const { sendExecuteRequest } = kernel;
   const submitCell = useCallback(
     (source: string, cellId: string) => {
-      cells.markCellRunning(cellId);
-      kernel.sendExecuteRequest(source, cellId);
+      markCellRunning(cellId);
+      sendExecuteRequest(source, cellId);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cells.markCellRunning, kernel.sendExecuteRequest]
+    [markCellRunning, sendExecuteRequest]
   );
 
-  const submitPrompt = (parentHeader: IKernelMessage, inputValue: string) => {
+  const submitPrompt = (parentHeader: KernelMessage, inputValue: string) => {
     // Which cell the kernel is waiting on is resolved by the kernel session: the prompt itself
     // carries a message id, not a cell.
     if (kernel.promptCellId) {

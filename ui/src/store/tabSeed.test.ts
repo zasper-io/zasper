@@ -23,7 +23,7 @@ const remembered = {
 /** The strip TabState seeds itself with, for whatever is in storage now. */
 async function seededStrip() {
   vi.resetModules();
-  const fresh = await import('./TabState');
+  const fresh = await import('./tabState');
   return fresh.fileTabsAtom.init;
 }
 
@@ -47,7 +47,7 @@ describe('the strip a visit starts with', () => {
     localStorage.setItem(KEY, JSON.stringify(remembered));
 
     vi.resetModules();
-    const fresh = await import('./TabState');
+    const fresh = await import('./tabState');
 
     expect(fresh.rememberedDirectory).toBe('/Users/x/work/demo');
   });

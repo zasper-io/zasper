@@ -7,19 +7,19 @@ import {
   createSession,
   deleteSession,
   interruptKernel,
-  INotebookMetadata,
-  ISession,
+  NotebookMetadata,
+  Session,
   sessionForPath,
   websocketUrl,
 } from '@/api';
 import {
-  IKernelspecsState,
+  KernelspecsState,
   kernelspecsAtom,
   kernelStatusAtom,
   notebookKernelMapAtom,
-  userNameAtom,
-} from '@/store/AppState';
-import { IfileTab } from '@/store/TabState';
+} from '@/store/kernels';
+import { userNameAtom } from '@/store/serverInfo';
+import { FileTab } from '@/store/tabState';
 import { WidgetBridge } from '@/ide/widgets/widgetBridge';
 import {
   buildWidgetMessage,
@@ -27,8 +27,8 @@ import {
   buildExecuteRequest,
   buildInputReply,
   decodeBuffers,
-  ICompleteReply,
-  IKernelMessage,
+  CompleteReply,
+  KernelMessage,
 } from './kernelMessages';
 
 /**
@@ -54,8 +54,8 @@ export const NO_KERNEL = 'none';
  */
 export function kernelToStart(
   tabKernelspec: string,
-  metadata: INotebookMetadata,
-  installed: IKernelspecsState,
+  metadata: NotebookMetadata,
+  installed: KernelspecsState,
   running?: string
 ): string {
   // The kernel already running this notebook outranks everything below, because it is not an opinion
@@ -89,7 +89,7 @@ export function kernelToStart(
   return saved;
 }
 
-type IKernelWebSocketClient = WebSocket;
+type KernelWebSocketClient = WebSocket;
 
 /** Stand-in until the real socket is connected, so senders never hit a null client. */
 const disconnectedClient = {
@@ -99,7 +99,7 @@ const disconnectedClient = {
   onmessage: () => {},
   onerror: () => {},
   onclose: () => {},
-} as unknown as IKernelWebSocketClient;
+} as unknown as KernelWebSocketClient;
 
 /**
  * Owns the kernel side of a notebook tab: the session, the websocket carrying
@@ -107,13 +107,13 @@ const disconnectedClient = {
  * cells are handed to `applyMessage`, which the notebook document hook provides.
  */
 export function useKernelSession(
-  tab: IfileTab,
-  applyMessage: (message: IKernelMessage, cellId: string | undefined) => void
+  tab: FileTab,
+  applyMessage: (message: KernelMessage, cellId: string | undefined) => void
 ) {
-  const [session, setSession] = useState<ISession | null>();
+  const [session, setSession] = useState<Session | null>();
   const [kernelName, setKernelName] = useState<string>(tab.kernelspec);
   const [kernelStatus, setKernelStatus] = useState('idle');
-  const [connection, setConnection] = useState<IKernelWebSocketClient>(disconnectedClient);
+  const [connection, setConnection] = useState<KernelWebSocketClient>(disconnectedClient);
   /*
    * The widget runtime for the kernel behind the current socket, null until one has been connected.
    * Widget models belong to a kernel, so every connection gets its own and a replaced one lets go of
@@ -130,12 +130,12 @@ export function useKernelSession(
    */
   const [kernelError, setKernelError] = useState<string>('');
   const [showPrompt, setShowPrompt] = useState<Boolean>(false);
-  const [promptContent, setPromptContent] = useState<IKernelMessage>();
+  const [promptContent, setPromptContent] = useState<KernelMessage>();
   // Which cell the kernel is asking input for, resolved from the request the prompt answers.
   const [promptCellId, setPromptCellId] = useState<string>();
   // Keyed by the request's msg_id, which is what a reply's parent_header carries. A ref rather
   // than state: resolving a promise is not a render, and the callbacks have to survive one.
-  const pendingCompletions = useRef(new Map<string, (reply: ICompleteReply) => void>());
+  const pendingCompletions = useRef(new Map<string, (reply: CompleteReply) => void>());
   /*
    * Which cell each execute_request was sent for, keyed by its msg_id, so a reply can be routed back.
    * The cell id cannot serve as the msg_id: a cell is run many times over, and one id for all of
@@ -145,7 +145,7 @@ export function useKernelSession(
 
   // Sockets opened but not yet `connection`: the gap between `new` and the state update, which the
   // effect that closes the connection cannot see.
-  const pendingSockets = useRef(new Set<IKernelWebSocketClient>());
+  const pendingSockets = useRef(new Set<KernelWebSocketClient>());
   /**
    * The same set of cells as `executingCells`, as state rather than a ref, so that a cell can draw a
    * spinner for as long as it is actually running. The ref cannot do that job — writing to one is
@@ -181,7 +181,7 @@ export function useKernelSession(
   const toggleShowPrompt = () => setShowPrompt((prev) => !prev);
 
   const handleMessage = useCallback(
-    (message: IKernelMessage) => {
+    (message: KernelMessage) => {
       const requestId: string | undefined = message.parent_header?.msg_id;
       const cellId = requestId ? executingCells.current.get(requestId) : undefined;
 
@@ -218,10 +218,10 @@ export function useKernelSession(
   );
 
   const startWebSocket = useCallback(
-    (newSession: ISession | null | undefined): Promise<IKernelWebSocketClient> => {
+    (newSession: Session | null | undefined): Promise<KernelWebSocketClient> => {
       if (!newSession) return Promise.reject('No session provided');
 
-      return new Promise<IKernelWebSocketClient>((resolve, reject) => {
+      return new Promise<KernelWebSocketClient>((resolve, reject) => {
         const client = new WebSocket(
           websocketUrl(`/ws/kernels/${newSession.kernel.id}/channels`, {
             session_id: newSession.id,
@@ -395,7 +395,7 @@ export function useKernelSession(
    * remembers has died.
    */
   const startSessionForNotebook = useCallback(
-    async (metadata: INotebookMetadata) => {
+    async (metadata: NotebookMetadata) => {
       // Failing to ask is not failing to start: with no answer this falls back to what the tab and the
       // file say, which is all there was to go on before kernels outlived their tabs.
       const running = await sessionForPath(tab.path).catch((error) => {
@@ -499,7 +499,7 @@ export function useKernelSession(
     [session, connection, userName, syncRunningCells]
   );
 
-  const sendInputReply = (parentHeader: IKernelMessage, inputValue: string) => {
+  const sendInputReply = (parentHeader: KernelMessage, inputValue: string) => {
     if (session) {
       connection.send(buildInputReply(session.id, userName, uuidv4(), parentHeader, inputValue));
     }
@@ -512,7 +512,7 @@ export function useKernelSession(
    * in flight at once and only the newer answer is wanted.
    */
   const requestCompletions = useCallback(
-    (source: string, cursorPos: number): Promise<ICompleteReply | null> => {
+    (source: string, cursorPos: number): Promise<CompleteReply | null> => {
       if (!session || !connection || connection.readyState !== WebSocket.OPEN) {
         return Promise.resolve(null);
       }

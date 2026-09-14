@@ -3,14 +3,14 @@ import { CompletionContext } from '@codemirror/autocomplete';
 import { EditorState } from '@codemirror/state';
 
 import { kernelCompletionSource } from './kernelCompletion';
-import { ICompleteReply } from './kernelMessages';
+import { CompleteReply } from './kernelMessages';
 
 function contextFor(source: string, cursorPos: number): CompletionContext {
   const state = EditorState.create({ doc: source });
   return new CompletionContext(state, cursorPos, true);
 }
 
-function reply(overrides: Partial<ICompleteReply> = {}): ICompleteReply {
+function reply(overrides: Partial<CompleteReply> = {}): CompleteReply {
   return {
     status: 'ok',
     matches: ['np.arange', 'np.array'],

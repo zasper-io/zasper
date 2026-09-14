@@ -264,8 +264,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, sessionCookieFor(r, tokenString, int(sessionLifetime.Seconds())))
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(LoginResponse{Token: tokenString, RedirectPath: "/"})
+	zhttp.SendJSON(w, http.StatusOK, LoginResponse{Token: tokenString, RedirectPath: "/"})
 }
 
 /*

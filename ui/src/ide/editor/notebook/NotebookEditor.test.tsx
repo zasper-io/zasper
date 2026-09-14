@@ -9,12 +9,12 @@ import NotebookEditor from './NotebookEditor';
 // with, and the banner is meant to read the reason out of it.
 import { ApiError } from '@/api/client';
 import { useRunCommand } from '@/commands/registry';
-import { IKernelspecsState, kernelspecsAtom } from '@/store/AppState';
-import { IfileTab } from '@/store/TabState';
-import { unsavedTabsAtom } from '@/store/UnsavedState';
+import { KernelspecsState, kernelspecsAtom } from '@/store/kernels';
+import { FileTab } from '@/store/tabState';
+import { unsavedTabsAtom } from '@/store/unsavedState';
 
 /** The installed kernels, as /api/kernelspecs reports them: keyed by name. */
-function installedKernelspecs(...names: string[]): IKernelspecsState {
+function installedKernelspecs(...names: string[]): KernelspecsState {
   return Object.fromEntries(
     names.map((name) => [name, { name, spec: { display_name: name }, resources: {} }])
   );
@@ -84,7 +84,7 @@ vi.mock('uuid', () => ({ v4: nextId }));
 // first request sent.
 const firstRequestId = 'generated-cell-1';
 
-interface IFakeSocket {
+interface RecordedSocket {
   url: string;
   sent: string[];
   opened: boolean;
@@ -94,7 +94,7 @@ interface IFakeSocket {
 
 /** Collects the fake sockets the editor opens so tests can push kernel messages. */
 const { sockets, FakeSocket } = vi.hoisted(() => {
-  const sockets: IFakeSocket[] = [];
+  const sockets: RecordedSocket[] = [];
 
   class FakeSocket {
     // The code under test compares readyState against WebSocket.OPEN, which is this class now.
@@ -152,7 +152,7 @@ vi.mock('@uiw/react-codemirror', async () => {
   };
 });
 
-const tab: IfileTab = {
+const tab: FileTab = {
   type: 'notebook',
   path: 'notebook.ipynb',
   name: 'notebook.ipynb',
@@ -172,7 +172,7 @@ function kernelMessage(msgType: string, requestId: string, content: unknown) {
 }
 
 /** The msg_id of the nth request this socket sent, which its replies will be addressed to. */
-function requestIdOf(socket: IFakeSocket, index: number): string {
+function requestIdOf(socket: RecordedSocket, index: number): string {
   return JSON.parse(socket.sent[index]).header.msg_id;
 }
 
@@ -749,7 +749,7 @@ describe('NotebookEditor commands', () => {
     saveNotebook.mockResolvedValue(undefined);
   });
 
-  function socketFor(path: string): IFakeSocket {
+  function socketFor(path: string): RecordedSocket {
     const socket = sockets.find((candidate) =>
       candidate.url.includes(`session_id=session-${path}`)
     );
@@ -782,7 +782,7 @@ describe('NotebookEditor commands', () => {
   // window listener that used to live in useNotebookCells fired in all of them at once — Ctrl-B
   // added a cell to every open notebook. Commands are registered only by the active tab.
   it('reaches the active notebook only, not the hidden ones', async () => {
-    const hidden: IfileTab = { ...tab, path: 'hidden.ipynb', name: 'hidden.ipynb', active: false };
+    const hidden: FileTab = { ...tab, path: 'hidden.ipynb', name: 'hidden.ipynb', active: false };
 
     render(
       <Provider>

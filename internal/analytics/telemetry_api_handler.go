@@ -82,8 +82,7 @@ func TelemetrySettingsHandler(w http.ResponseWriter, req *http.Request) {
 	// the config file, and the toggle has to show what is actually happening.
 	response := telemetrySettings{Enabled: Enabled(), Chosen: chosen || !stored}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	zhttp.SendJSON(w, http.StatusOK, response)
 }
 
 // TelemetrySettingsModifyHandler applies a change from the settings panel: turning tracking off, or

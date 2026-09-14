@@ -58,9 +58,9 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	})
 	log.Debug().Msgf("started kernel with id %s", kernelId)
 
-	session_id := uuid.New().String()
+	sessionId := uuid.New().String()
 	session := models.SessionModel{
-		Id:          session_id,
+		Id:          sessionId,
 		Name:        req.Name,
 		SessionType: req.SessionType,
 		Path:        req.Path,
@@ -77,7 +77,7 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	}
 	// Written after the kernel is up, and outside any lock: starting one takes as long as it takes,
 	// and nothing else can read this session before it exists.
-	core.SetSession(session_id, session)
+	core.SetSession(sessionId, session)
 
 	return session, nil
 }

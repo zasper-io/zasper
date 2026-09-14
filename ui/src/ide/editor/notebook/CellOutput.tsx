@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
 import { AnsiUp } from 'ansi_up';
 import DOMPurify from 'dompurify';
 
-import { ICell, ICellOutput } from '@/api';
+import { NotebookCell, NotebookOutput } from '@/api';
 import WidgetRenderer, { type WidgetSource } from '@/ide/widgets/WidgetRenderer';
 
 import { hasMathDelimiters } from './mathDelimiters';
@@ -73,7 +73,7 @@ const LatexOutput = ({ latex }: { latex: string }) => (
 );
 
 interface OutputBundlesProps {
-  outputs: ICellOutput[];
+  outputs: NotebookOutput[];
   widgets: WidgetSource | null;
 }
 
@@ -94,7 +94,7 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
 
   return (
     <>
-      {outputs.map((output: ICellOutput, index: number) => {
+      {outputs.map((output: NotebookOutput, index: number) => {
         if (output.output_type === 'error') {
           const { ename, evalue, traceback } = output;
           const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
@@ -213,7 +213,7 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
 };
 
 interface CellOutputProps {
-  data: ICell;
+  data: NotebookCell;
   widgets: WidgetSource | null;
 }
 

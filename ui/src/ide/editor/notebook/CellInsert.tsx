@@ -1,12 +1,12 @@
 import React from 'react';
 
-import type { ICell } from '@/api';
+import type { NotebookCell } from '@/api';
 import { Icon } from '@/ide/icons';
 
 interface CellInsertProps {
   /** Where a cell added here would land. */
   index: number;
-  addCellAt: (index: number, cellType: ICell['cell_type']) => void;
+  addCellAt: (index: number, cellType: NotebookCell['cell_type']) => void;
   /**
    * The rail after the last cell, which is the one that is always on screen. Every other rail has
    * two cells to sit between and a pointer arrives at it on the way past; this one has nothing below

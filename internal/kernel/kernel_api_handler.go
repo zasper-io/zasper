@@ -1,7 +1,6 @@
 package kernel
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -21,9 +20,7 @@ func KernelListAPIHandler(w http.ResponseWriter, req *http.Request) {
 		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error listing kernels: %v", err))
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(kernels)
+	zhttp.SendJSON(w, http.StatusOK, kernels)
 }
 
 func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -42,9 +39,7 @@ func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(kernel)
+	zhttp.SendJSON(w, http.StatusOK, kernel)
 }
 
 func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -71,9 +66,7 @@ func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
 		"kernel_language": language,
 	})
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	zhttp.SendJSON(w, http.StatusOK, map[string]string{
 		"message": "Kernel interrupted successfully",
 	})
 }
@@ -95,9 +88,7 @@ func KernelKillAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	zhttp.SendJSON(w, http.StatusOK, map[string]string{
 		"message": "Kernel killed successfully",
 	})
 }

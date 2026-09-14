@@ -8,7 +8,7 @@ type PlotlyModule = typeof import('plotly.js-dist-min');
  * the element to draw into. `config` is usually absent — plotly.py sends one only for a figure that
  * was given one.
  */
-export interface IPlotlyFigure {
+export interface PlotlyFigure {
   data?: Plotly.Data[];
   layout?: Partial<Plotly.Layout>;
   config?: Partial<Plotly.Config>;
@@ -32,7 +32,7 @@ async function loadPlotly(): Promise<PlotlyModule> {
  * JSON under its own mime type and nothing else — no HTML, no image. So this is the only thing that
  * can draw it, and without it a `fig.show()` puts ten kilobytes of JSON in the cell.
  */
-const PlotlyOutput = ({ figure }: { figure: IPlotlyFigure }) => {
+const PlotlyOutput = ({ figure }: { figure: PlotlyFigure }) => {
   const host = useRef<HTMLDivElement>(null);
   const [failure, setFailure] = useState<string>();
 

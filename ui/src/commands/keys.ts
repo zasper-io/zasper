@@ -1,5 +1,5 @@
 /**
- * Chord parsing for `ICommand.keys`, in CodeMirror's notation so that one string serves both the
+ * Chord parsing for `Command.keys`, in CodeMirror's notation so that one string serves both the
  * window dispatcher and a CodeMirror `keymap`.
  *
  * Hand-written rather than pulled from `w3c-keyname`: that package is present, but only as a
@@ -15,7 +15,7 @@ export const isMac = /Mac|iPhone|iPad|iPod/.test(
   typeof navigator === 'undefined' ? '' : navigator.platform || navigator.userAgent
 );
 
-export interface IParsedChord {
+export interface ParsedChord {
   meta: boolean;
   ctrl: boolean;
   alt: boolean;
@@ -23,7 +23,7 @@ export interface IParsedChord {
   key: string;
 }
 
-const PREFIXES: { prefix: string; apply: (chord: IParsedChord, mac: boolean) => void }[] = [
+const PREFIXES: { prefix: string; apply: (chord: ParsedChord, mac: boolean) => void }[] = [
   {
     prefix: 'Mod-',
     apply: (chord, mac) => {
@@ -48,8 +48,8 @@ const PREFIXES: { prefix: string; apply: (chord: IParsedChord, mac: boolean) => 
  * Prefixes are stripped one at a time rather than split on `-`, so that `Mod--` (decrease font
  * size) parses as Mod plus the `-` key instead of as an empty key name.
  */
-export function parseChord(binding: string, mac: boolean = isMac): IParsedChord {
-  const chord: IParsedChord = { meta: false, ctrl: false, alt: false, shift: false, key: '' };
+export function parseChord(binding: string, mac: boolean = isMac): ParsedChord {
+  const chord: ParsedChord = { meta: false, ctrl: false, alt: false, shift: false, key: '' };
   let rest = binding;
 
   for (;;) {

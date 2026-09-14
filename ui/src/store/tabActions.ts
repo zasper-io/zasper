@@ -1,0 +1,253 @@
+import { useAtomValue, useSetAtom } from 'jotai';
+
+import { deleteKernel, DiffTarget, logApiError } from '@/api';
+import { trackTabOpened } from '@/telemetry';
+import getFileExtension from '@/ide/utils';
+import { baseName, isInside, rewritePath } from '@/paths';
+import { helpAboutRequestAtom } from '@/store/helpTab';
+import { notebookKernelMapAtom } from '@/store/kernels';
+import { terminalsAtom, terminalsCountAtom } from '@/store/terminals';
+import { fileTabsAtom, FileTab, FileTabDict, withActive } from './tabState';
+
+/** What a caller has to say to open a tab; the rest of FileTab follows from it. */
+export interface OpenTab {
+  name: string;
+  path: string;
+  type: string;
+  kernelspec?: string;
+  cwd?: string;
+  diff?: DiffTarget;
+  /** Which language this holds, when the tab's name is not the file name it can be read from. */
+  extension?: string | null;
+}
+
+/**
+ * The key a diff tab is stored under, which is not the path of the file it is about.
+ *
+ * Tabs are keyed by path, so a diff keyed by the file's path would collide with the editor for that
+ * file — clicking a change in the panel would bring the editor forward and nothing else. Naming the
+ * comparison as well as the file also means the staged and unstaged diffs of one file are two tabs,
+ * which they have to be: they are different pairs of documents.
+ *
+ * The cost of a synthetic key is that a diff tab is not rewritten when the file is renamed or closed
+ * when it is deleted, since both walk the tabs by path. A stale diff is a tab showing a comparison
+ * that was true when it was opened, which is what any diff already is.
+ */
+export function diffTabKey(target: DiffTarget): string {
+  const against =
+    target.ref !== undefined ? target.ref : target.staged === true ? 'staged' : 'worktree';
+  return `diff:${against}:${target.path}`;
+}
+
+/** The Help tab's key. Not a path, so there is one Help tab and a file called `Help` is not it. */
+export const HELP_TAB_KEY = 'zasper:help';
+
+export interface TabActions {
+  /** Opens a tab, or brings it to the front when that path is already open. */
+  openTab: (tab: OpenTab) => void;
+  /**
+   * Brings an open tab to the front. A tab restored from a previous session reads its file the first
+   * time this reaches it; one that has already loaded is only raised, so an unsaved buffer survives
+   * being switched away from.
+   */
+  activateTab: (path: string) => void;
+  /** Opens the two sides of one file's comparison, or brings that comparison to the front. */
+  openDiff: (target: DiffTarget) => void;
+  /** Opens a new terminal, in `cwd` if one is given. */
+  openTerminal: (cwd?: string) => void;
+  /** Opens the Help tab or brings it to the front; `about` also scrolls it to About. */
+  openHelp: (section?: 'about') => void;
+  /**
+   * Closes a tab. A notebook's kernel keeps running, as it does in JupyterLab: reopening the notebook
+   * plugs back into that session, with everything still in memory.
+   */
+  closeTab: (path: string) => void;
+  /**
+   * Closes several tabs at once, kernels left running as `closeTab` leaves them. If the tab in front
+   * goes, `focus` comes to the front when it is still open, and the Launcher otherwise.
+   */
+  closeTabs: (paths: string[], focus?: string) => void;
+  /** After a delete on disk: closes the tab, and every tab inside it if it was a folder. */
+  closeDeleted: (path: string) => void;
+  /** After a rename on disk: moves the affected tabs, so a save goes to the file that now exists. */
+  renameTab: (oldPath: string, newPath: string) => void;
+}
+
+/**
+ * What the tab bar and the file browser both do to open tabs. Shared because the file browser has to
+ * do it too: a tab left pointing at a path that no longer exists recreates the old file on its next
+ * save.
+ */
+export function useTabActions(): TabActions {
+  const fileTabs = useAtomValue(fileTabsAtom);
+  const setFileTabs = useSetAtom(fileTabsAtom);
+  const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
+  const setNotebookKernelMap = useSetAtom(notebookKernelMapAtom);
+  const setTerminals = useSetAtom(terminalsAtom);
+  const terminalCount = useAtomValue(terminalsCountAtom);
+  const setTerminalCount = useSetAtom(terminalsCountAtom);
+  const setHelpAboutRequest = useSetAtom(helpAboutRequestAtom);
+
+  const openTab = (tab: OpenTab) => {
+    // Outside the updater, which React may run more than once. `fileTabs` is the render's snapshot, so
+    // a tab opened twice in one tick counts twice — better than a side effect inside a state updater.
+    if (fileTabs[tab.path] === undefined) {
+      trackTabOpened(tab.type, tab.name);
+    }
+
+    setFileTabs((previous) => {
+      // Inserted unloaded, then activated: `withActive` is the one place that decides what loads, so a
+      // tab opened now and a restored tab reached for the first time take the same path.
+      const opened =
+        previous[tab.path] === undefined
+          ? {
+              ...previous,
+              [tab.path]: {
+                ...tab,
+                kernelspec: tab.kernelspec ?? 'none',
+                extension: tab.extension ?? getFileExtension(tab.name),
+                active: false,
+                load_required: false,
+                unloaded: true,
+              } satisfies FileTab,
+            }
+          : previous;
+      return withActive(opened, tab.path);
+    });
+  };
+
+  /**
+   * Kills the kernels running those paths. Only a deleted file's, now: closing a tab leaves its kernel
+   * alive. A path need not have one — a notebook can be closed while its session is still starting, or
+   * after starting one failed.
+   */
+  const releaseKernels = (paths: string[]) => {
+    const ids = paths
+      .map((path) => notebookKernelMap[path]?.id)
+      .filter((id): id is string => id !== undefined);
+    if (ids.length === 0) {
+      return;
+    }
+
+    ids.forEach((id) => deleteKernel(id).catch(logApiError('Failed to kill kernel:')));
+    setNotebookKernelMap((previous) => {
+      const next = { ...previous };
+      paths.forEach((path) => delete next[path]);
+      return next;
+    });
+  };
+
+  const removeTabs = (paths: string[], focus?: string) => {
+    if (paths.length === 0) {
+      return;
+    }
+
+    setFileTabs((previous) => {
+      const next: FileTabDict = {};
+      Object.entries(previous).forEach(([key, tab]) => {
+        if (!paths.includes(key)) {
+          next[key] = { ...tab, load_required: false };
+        }
+      });
+      // Something has to be in front once a tab goes: the tab a close was measured from if it stayed,
+      // or the Launcher, the one tab always there. Only when the tab that went was the one in front,
+      // or closing a background tab shows two.
+      if (Object.values(next).some((tab) => tab.active)) {
+        return next;
+      }
+      if (focus !== undefined && next[focus] !== undefined) {
+        return withActive(next, focus);
+      }
+      if (next.Launcher) {
+        next.Launcher = { ...next.Launcher, active: true };
+      }
+      return next;
+    });
+
+    setTerminals((previous) => {
+      const next = { ...previous };
+      paths.forEach((path) => delete next[path]);
+      return next;
+    });
+  };
+
+  return {
+    openTab,
+
+    activateTab: (path: string) => setFileTabs((previous) => withActive(previous, path)),
+
+    openDiff: (target: DiffTarget) => {
+      // Which comparison, in the tab name: two diffs of one file are two tabs, and a strip of tabs all
+      // called `notes.txt (diff)` cannot be told apart.
+      const against =
+        target.ref !== undefined
+          ? target.ref.slice(0, 7)
+          : target.staged === true
+            ? 'staged'
+            : 'diff';
+      openTab({
+        name: `${baseName(target.path)} (${against})`,
+        path: diffTabKey(target),
+        type: 'diff',
+        diff: target,
+        // From the file rather than from the name, which ends in the comparison: the status bar prints
+        // this, and `txt (diff)` is not a kind of file.
+        extension: getFileExtension(baseName(target.path)),
+      });
+    },
+
+    openTerminal: (cwd?: string) => {
+      // Numbered rather than named after the folder: the tab is keyed by this name, and two
+      // terminals in the same folder are two terminals.
+      const name = `Terminal ${terminalCount + 1}`;
+      setTerminalCount(terminalCount + 1);
+      setTerminals((previous) => ({ ...previous, [name]: { id: name, name } }));
+      openTab({ name, path: name, type: 'terminal', cwd });
+    },
+
+    openHelp: (section?: 'about') => {
+      openTab({ name: 'Help', path: HELP_TAB_KEY, type: 'help', extension: null });
+      if (section === 'about') {
+        setHelpAboutRequest((count) => count + 1);
+      }
+    },
+
+    closeTab: (path: string) => removeTabs([path]),
+
+    closeTabs: (paths: string[], focus?: string) => removeTabs(paths, focus),
+
+    closeDeleted: (path: string) => {
+      // The one close that does take the kernel with it: the file is gone, so there is no reopening the
+      // notebook to reach the kernel again, and a session on a path that no longer exists is one the
+      // server would hand back to a new file of the same name. Walking the kernels rather than the tabs
+      // because a kernel now outlives its tab — the notebook may have been closed hours ago.
+      releaseKernels(Object.keys(notebookKernelMap).filter((key) => isInside(key, path)));
+      removeTabs(Object.keys(fileTabs).filter((key) => isInside(key, path)));
+    },
+
+    renameTab: (oldPath: string, newPath: string) => {
+      setFileTabs((previous) => {
+        const next: FileTabDict = {};
+        // Rebuilt in order rather than reassigned: the key is the path, so a rename is a new key,
+        // and the tab has to stay where it was in the strip.
+        Object.entries(previous).forEach(([key, tab]) => {
+          const moved = rewritePath(key, oldPath, newPath);
+          if (moved === null) {
+            next[key] = tab;
+          } else {
+            next[moved] = { ...tab, path: moved, name: baseName(moved) };
+          }
+        });
+        return next;
+      });
+
+      setNotebookKernelMap((previous) => {
+        const next: typeof previous = {};
+        Object.entries(previous).forEach(([key, kernel]) => {
+          next[rewritePath(key, oldPath, newPath) ?? key] = kernel;
+        });
+        return next;
+      });
+    },
+  };
+}

@@ -4,7 +4,7 @@ import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside, useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
-import { zoomLevelAtom } from '@/store/AppState';
+import { zoomLevelAtom } from '@/zoom/atoms';
 import { MAX_ZOOM_LEVEL, MIN_ZOOM_LEVEL, zoomLevelLabel } from '@/zoom';
 
 // Largest first, so the list runs the way a scale does with the bigger end up, and so 0 lands in

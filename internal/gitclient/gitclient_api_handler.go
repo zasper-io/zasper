@@ -48,20 +48,11 @@ func notARepository(err error) bool {
 	return errors.Is(err, git.ErrRepositoryNotExists)
 }
 
-func sendJSON(w http.ResponseWriter, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	// The status is already written, so a failure here is the client having gone away rather than
-	// anything this handler can answer differently.
-	_ = json.NewEncoder(w).Encode(payload)
-}
-
 // repoForRead opens the repository, answering whenAbsent for a project that is not under git.
 func repoForRead(w http.ResponseWriter, whenAbsent any) (*git.Repository, string, bool) {
 	repo, root, err := openRepo()
 	if notARepository(err) {
-		sendJSON(w, whenAbsent)
+		zhttp.SendJSON(w, http.StatusOK, whenAbsent)
 		return nil, "", false
 	}
 	if err != nil {
@@ -137,7 +128,7 @@ func sendStatus(w http.ResponseWriter, r *http.Request, repo *git.Repository, ro
 		failed(w, err)
 		return
 	}
-	sendJSON(w, status)
+	zhttp.SendJSON(w, http.StatusOK, status)
 }
 
 func StatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +151,7 @@ func BranchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendJSON(w, BranchResponse{Branch: branch, IsRepository: true})
+	zhttp.SendJSON(w, http.StatusOK, BranchResponse{Branch: branch, IsRepository: true})
 }
 
 /*
@@ -184,7 +175,7 @@ func LogHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendJSON(w, LogResponse{Commits: commits, HasMore: hasMore, IsRepository: true})
+	zhttp.SendJSON(w, http.StatusOK, LogResponse{Commits: commits, HasMore: hasMore, IsRepository: true})
 }
 
 /*
@@ -245,7 +236,7 @@ func CommitDetailHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendJSON(w, detail)
+	zhttp.SendJSON(w, http.StatusOK, detail)
 }
 
 /*
@@ -332,7 +323,7 @@ func DiffHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendJSON(w, diff)
+	zhttp.SendJSON(w, http.StatusOK, diff)
 }
 
 func BranchesHandler(w http.ResponseWriter, r *http.Request) {
@@ -347,7 +338,7 @@ func BranchesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendJSON(w, BranchesResponse{Branches: branches, IsRepository: true})
+	zhttp.SendJSON(w, http.StatusOK, BranchesResponse{Branches: branches, IsRepository: true})
 }
 
 func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -572,18 +563,6 @@ func CommitHandler(w http.ResponseWriter, r *http.Request) {
 	sendStatus(w, r, repo, root)
 }
 
-// Records the status a handler answered with, so an operation is counted only if it worked: a push
-// git rejected is not a push anybody did.
-type statusRecorder struct {
-	http.ResponseWriter
-	status int
-}
-
-func (recorder *statusRecorder) WriteHeader(code int) {
-	recorder.status = code
-	recorder.ResponseWriter.WriteHeader(code)
-}
-
 /*
 Tracked counts one git operation, named here rather than inside the handler so that the handlers stay
 unaware of telemetry and the route table stays the list of what is counted.
@@ -593,9 +572,9 @@ everything else under them.
 */
 func Tracked(operation string, handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		recorder := zhttp.NewResponseRecorder(w)
 		handler(recorder, req)
-		if recorder.status < http.StatusBadRequest {
+		if recorder.Status < http.StatusBadRequest {
 			analytics.Track(analytics.EventGitOperation, map[string]interface{}{"operation": operation})
 		}
 	}

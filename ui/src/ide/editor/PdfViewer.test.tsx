@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import PdfViewer from './PdfViewer';
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 
 const downloadContent = vi.fn();
 const saveAs = vi.fn();
@@ -17,7 +17,7 @@ vi.mock('@/browser', () => ({
   saveAs: (blob: Blob, filename: string) => saveAs(blob, filename),
 }));
 
-const tab: IfileTab = {
+const tab: FileTab = {
   type: 'file',
   path: 'docs/paper.pdf',
   name: 'paper.pdf',

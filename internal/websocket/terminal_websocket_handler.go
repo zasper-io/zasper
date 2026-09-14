@@ -20,6 +20,7 @@ import (
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
+	"github.com/zasper-io/zasper/internal/store"
 )
 
 const (
@@ -87,12 +88,8 @@ func (c *terminalConn) sincePong() time.Duration {
 	return time.Since(time.Unix(0, c.lastPong.Load()))
 }
 
-// Global map to store active terminal sessions, keyed by connection ID. Written
-// from every connection's goroutine, so it is guarded by terminalSessionsMu.
-var (
-	terminalSessions   = make(map[string]*TerminalSession)
-	terminalSessionsMu sync.Mutex
-)
+// The running terminals, by session id, written from every connection's goroutine.
+var terminalSessions store.Map[string, *TerminalSession]
 
 // Counts the sessions this process has handed out, which is what actually makes their ids unique.
 var terminalSessionSeq atomic.Uint64
@@ -115,15 +112,11 @@ func generateSessionID(terminalId string) string {
 }
 
 func registerTerminalSession(sessionID string, session *TerminalSession) {
-	terminalSessionsMu.Lock()
-	defer terminalSessionsMu.Unlock()
-	terminalSessions[sessionID] = session
+	terminalSessions.Set(sessionID, session)
 }
 
 func unregisterTerminalSession(sessionID string) {
-	terminalSessionsMu.Lock()
-	defer terminalSessionsMu.Unlock()
-	delete(terminalSessions, sessionID)
+	terminalSessions.Take(sessionID)
 }
 
 // TerminalSession struct holds the terminal and related processes.

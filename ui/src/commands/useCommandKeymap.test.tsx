@@ -4,11 +4,11 @@ import { act, render } from '@testing-library/react';
 import { Provider } from 'jotai';
 
 import { useRegisterCommands } from './registry';
-import { ICommand } from './types';
+import { Command } from './types';
 import { useCommandKeymap } from './useCommandKeymap';
 
 /** Mounts the dispatcher and the given commands together, as `IDE.tsx` and a tab do. */
-function mount(commands: ICommand[]) {
+function mount(commands: Command[]) {
   const Host = () => {
     useCommandKeymap();
     useRegisterCommands(commands);
@@ -38,7 +38,7 @@ function press(
   return event;
 }
 
-function command(overrides: Partial<ICommand>): ICommand {
+function command(overrides: Partial<Command>): Command {
   return { id: 'x', label: 'X', category: 'Test', scope: 'app', execute: () => {}, ...overrides };
 }
 

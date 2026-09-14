@@ -7,14 +7,14 @@ import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
 import ImageEditor from './ImageEditor';
 import PdfViewer from './PdfViewer';
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 
 // The xterm.js core plus its five addons are only needed once a terminal tab is
 // opened, which many sessions never do, so they load on demand.
 const TerminalTab = lazy(() => import('../terminal/Terminal'));
 
 interface EditorProps {
-  data: IfileTab;
+  data: FileTab;
 }
 
 export default function Editor(props: EditorProps) {

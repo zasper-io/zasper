@@ -14,9 +14,7 @@ import (
 func SessionApiHandler(w http.ResponseWriter, req *http.Request) {
 	sessions := ListSessions()
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sessions)
+	zhttp.SendJSON(w, http.StatusOK, sessions)
 }
 
 func SessionCreateApiHandler(w http.ResponseWriter, req *http.Request) {
@@ -37,9 +35,7 @@ func SessionCreateApiHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(sessions)
+	zhttp.SendJSON(w, http.StatusCreated, sessions)
 }
 
 func SessionDeleteApiHandler(w http.ResponseWriter, req *http.Request) {
@@ -50,7 +46,5 @@ func SessionDeleteApiHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode("Session deleted")
+	zhttp.SendJSON(w, http.StatusOK, "Session deleted")
 }

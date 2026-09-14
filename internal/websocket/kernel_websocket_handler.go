@@ -8,6 +8,7 @@ import (
 	"github.com/zasper-io/zasper/internal/core"
 	zhttp "github.com/zasper-io/zasper/internal/http"
 	"github.com/zasper-io/zasper/internal/kernel"
+	"github.com/zasper-io/zasper/internal/store"
 
 	"github.com/go-zeromq/zmq4"
 	"github.com/gorilla/mux"
@@ -24,63 +25,53 @@ var upgrader = websocket.Upgrader{
 
 type kernelConnectionSet = map[*kernel.KernelWebSocketConnection]struct{}
 
-// The client connections attached to each kernel. Several at once is normal: a notebook open in two
-// tabs, or a reloaded page whose old connection has not finished closing.
-var kernelConnections = struct {
-	mu sync.Mutex
-	by map[string]kernelConnectionSet
-}{by: map[string]kernelConnectionSet{}}
+// The client connections attached to each kernel. Several is normal: a notebook open in two tabs, or a
+// reloaded page whose old connection has not closed yet.
+var kernelConnections store.Map[string, kernelConnectionSet]
 
 // SetUpKernelConnections empties the store, for a server that is starting up.
 func SetUpKernelConnections() {
-	kernelConnections.mu.Lock()
-	defer kernelConnections.mu.Unlock()
-
-	kernelConnections.by = map[string]kernelConnectionSet{}
+	kernelConnections.Clear()
 }
 
 // The count is told to the kernel store outside this lock, because that call takes a lock of its own.
 func addKernelConnection(kernelId string, connection *kernel.KernelWebSocketConnection) {
-	kernelConnections.mu.Lock()
-	connections := kernelConnections.by[kernelId]
-	if connections == nil {
-		connections = kernelConnectionSet{}
-		kernelConnections.by[kernelId] = connections
-	}
-	connections[connection] = struct{}{}
-	count := len(connections)
-	kernelConnections.mu.Unlock()
-
+	count := 0
+	kernelConnections.With(func(all map[string]kernelConnectionSet) {
+		connections := all[kernelId]
+		if connections == nil {
+			connections = kernelConnectionSet{}
+			all[kernelId] = connections
+		}
+		connections[connection] = struct{}{}
+		count = len(connections)
+	})
 	kernel.SetKernelConnections(kernelId, count)
 }
 
 // removeKernelConnection takes out this connection and no other, and says whether it was still there.
 func removeKernelConnection(kernelId string, connection *kernel.KernelWebSocketConnection) bool {
-	kernelConnections.mu.Lock()
-	connections := kernelConnections.by[kernelId]
-	_, ok := connections[connection]
-	if ok {
-		delete(connections, connection)
-		if len(connections) == 0 {
-			delete(kernelConnections.by, kernelId)
+	removed, count := false, 0
+	kernelConnections.With(func(all map[string]kernelConnectionSet) {
+		connections := all[kernelId]
+		if _, removed = connections[connection]; removed {
+			delete(connections, connection)
+			if len(connections) == 0 {
+				delete(all, kernelId)
+			}
 		}
-	}
-	count := len(connections)
-	kernelConnections.mu.Unlock()
-
-	if ok {
+		count = len(connections)
+	})
+	if removed {
 		kernel.SetKernelConnections(kernelId, count)
 	}
-	return ok
+	return removed
 }
 
 // CloseKernelConnections drops every client connection attached to a kernel, so notebooks stop
 // listening on channels whose kernel no longer exists. Registered with kernel.OnKernelDisconnect.
 func CloseKernelConnections(kernelId string) {
-	kernelConnections.mu.Lock()
-	connections := kernelConnections.by[kernelId]
-	delete(kernelConnections.by, kernelId)
-	kernelConnections.mu.Unlock()
+	connections, _ := kernelConnections.Take(kernelId)
 
 	// Closed outside the lock: closing writes to a socket.
 	for connection := range connections {

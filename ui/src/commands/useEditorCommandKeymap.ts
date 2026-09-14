@@ -5,7 +5,7 @@ import { keymap, type KeyBinding, type EditorView } from '@codemirror/view';
 
 import { trackCommand } from '@/telemetry';
 
-import { ICommand } from './types';
+import { Command } from './types';
 
 /**
  * Turns the `cell-editor` commands out of `commands` into a CodeMirror extension.
@@ -20,23 +20,21 @@ import { ICommand } from './types';
  * the editor's configuration whenever the extensions it is handed change identity — a fresh
  * extension per render would drop the completion popup mid-word.
  */
-export function useEditorCommandKeymap(commands: ICommand[]): Extension {
+export function useEditorCommandKeymap(commands: Command[]): Extension {
   const latest = useRef(commands);
   latest.current = commands;
 
+  // The ids and chords of the cell-editor commands, one per line: all the keymap is built from.
   const signature = commands
-    .filter((command) => command.scope === 'cell-editor')
+    .filter((command) => command.scope === 'cell-editor' && command.keys)
     .map((command) => `${command.id}\0${command.keys?.join(' ')}`)
     .join('\n');
 
   return useMemo(() => {
     const bindings: KeyBinding[] = [];
 
-    for (const command of latest.current) {
-      if (command.scope !== 'cell-editor' || !command.keys) {
-        continue;
-      }
-      const { id } = command;
+    for (const line of signature === '' ? [] : signature.split('\n')) {
+      const [id, keys] = line.split('\0');
       const run = (view: EditorView) => {
         const current = latest.current.find((candidate) => candidate.id === id);
         if (!current || (current.isEnabled && !current.isEnabled())) {
@@ -54,12 +52,11 @@ export function useEditorCommandKeymap(commands: ICommand[]): Extension {
         current.execute();
         return true;
       };
-      for (const key of command.keys) {
+      for (const key of keys.split(' ')) {
         bindings.push({ key, run });
       }
     }
 
     return Prec.highest(keymap.of(bindings));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 }

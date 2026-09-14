@@ -1,7 +1,7 @@
 import { requestEmpty, requestJson } from './client';
 
 /** Response of /api/info, the IDE's boot payload. */
-export interface IInfo {
+export interface ServerInfo {
   project: string;
   /**
    * The absolute path of the project directory. `project` is only its last segment and so is not an
@@ -18,8 +18,8 @@ export interface IInfo {
   widget_cdn: boolean;
 }
 
-export function getInfo(): Promise<IInfo> {
-  return requestJson<IInfo>('/api/info');
+export function getInfo(): Promise<ServerInfo> {
+  return requestJson<ServerInfo>('/api/info');
 }
 
 export function modifyConfig(key: string, value: string): Promise<void> {

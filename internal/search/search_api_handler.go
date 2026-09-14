@@ -1,7 +1,6 @@
 package search
 
 import (
-	"encoding/json"
 	"io/fs"
 	"net/http"
 	"path/filepath"
@@ -111,18 +110,17 @@ func GetFileSuggestions(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		suggestions = append(suggestions, models.ContentModel{
-			ContentType:   fileType(file.name),
-			Name:          file.name,
-			Path:          file.path,
-			Last_modified: file.modified.UTC().Format(time.RFC3339),
+			ContentType:  fileType(file.name),
+			Name:         file.name,
+			Path:         file.path,
+			LastModified: file.modified.UTC().Format(time.RFC3339),
 		})
 		if len(suggestions) == maxSuggestions {
 			break
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(suggestions)
+	zhttp.SendJSON(w, http.StatusOK, suggestions)
 }
 
 func fileType(name string) string {

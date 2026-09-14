@@ -7,7 +7,7 @@ import { EditorState } from '@codemirror/state';
 
 import DiffTab from './DiffTab';
 import type { DiffTarget } from '@/api';
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 
 const getDiff = vi.fn();
 
@@ -45,7 +45,7 @@ const documents = {
   tooLarge: false,
 };
 
-const tab: IfileTab = {
+const tab: FileTab = {
   type: 'diff',
   path: 'diff:worktree:src/notes.txt',
   name: 'notes.txt (diff)',

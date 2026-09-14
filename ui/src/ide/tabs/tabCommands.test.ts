@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { IfileTab, IfileTabDict } from '@/store/TabState';
+import type { FileTab, FileTabDict } from '@/store/tabState';
 import { tabFilePath, tabsToClose } from './tabCommands';
 
-function tab(path: string, type = 'file'): IfileTab {
+function tab(path: string, type = 'file'): FileTab {
   return {
     type,
     path,
@@ -15,7 +15,7 @@ function tab(path: string, type = 'file'): IfileTab {
   };
 }
 
-const strip: IfileTabDict = {
+const strip: FileTabDict = {
   Launcher: tab('Launcher', 'launcher'),
   'a.txt': tab('a.txt'),
   'b.py': tab('b.py'),

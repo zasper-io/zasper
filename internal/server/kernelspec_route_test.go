@@ -28,7 +28,7 @@ func TestAKernelspecsFilesAreServedWhereTheListSaysTheyAre(t *testing.T) {
 
 	status, body := call(t, srv, http.MethodGet, "/api/kernelspecs", nil)
 	require.Equal(t, http.StatusOK, status, "body was %s", body)
-	logo := decode[kernelspec.KernelspecResponse](t, body).Kernespecs["python3"].Resources["logo-64x64"]
+	logo := decode[kernelspec.KernelspecResponse](t, body).Kernelspecs["python3"].Resources["logo-64x64"]
 	require.Equal(t, "/kernelspecs/python3/logo-64x64.png", logo)
 
 	for _, path := range []string{logo, "/static/kernelspecs/python3/logo-64x64.png"} {

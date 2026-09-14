@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { useSetAtom } from 'jotai';
 
-import { zoomLevelAtom } from '@/store/AppState';
+import { zoomLevelAtom } from '@/zoom/atoms';
 import { clampZoomLevel } from '@/zoom';
 import { defineCommands } from './define';
-import { ICommand } from './types';
+import { Command } from './types';
 
 const view = { category: 'View', scope: 'app' } as const;
 
@@ -31,7 +31,7 @@ export const APP_COMMANDS = defineCommands({
  * The palette's own two commands are not here: they act on state the Topbar owns, so the Topbar
  * registers them itself.
  */
-export function useAppCommands(): ICommand[] {
+export function useAppCommands(): Command[] {
   const setZoomLevel = useSetAtom(zoomLevelAtom);
 
   return useMemo(

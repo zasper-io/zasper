@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import { apiErrorMessage, getNotebook, ICell, INotebookModel } from '@/api';
+import { apiErrorMessage, getNotebook, NotebookCell, NotebookModel } from '@/api';
 
-import { applyKernelMessage, carriesOutput, IKernelMessage } from './kernelMessages';
+import { applyKernelMessage, carriesOutput, KernelMessage } from './kernelMessages';
 
 /** How many structural changes stay undoable. Bounded so a long session cannot grow without end. */
 const UNDO_HISTORY_LIMIT = 100;
 
-const emptyNotebook: INotebookModel = {
+const emptyNotebook: NotebookModel = {
   cells: [],
   nbformat: 4,
   nbformat_minor: 5,
   metadata: {},
 };
 
-function newCell(cellType: ICell['cell_type'] = 'code'): ICell {
+function newCell(cellType: NotebookCell['cell_type'] = 'code'): NotebookCell {
   return {
     // null, not 0: nbformat's way of saying the cell has not run, and what renders as `[ ]`.
     execution_count: null,
@@ -34,17 +34,17 @@ function newCell(cellType: ICell['cell_type'] = 'code'): ICell {
  * document stays a single immutable value.
  */
 export function useNotebookCells() {
-  const [notebook, setNotebook] = useState<INotebookModel>(emptyNotebook);
+  const [notebook, setNotebook] = useState<NotebookModel>(emptyNotebook);
   /**
    * The document as it last reached disk, or as it was read. Every change replaces the notebook
    * object and an update that changes nothing returns the same one, so identity against this is
    * what "unsaved" means.
    */
-  const [savedNotebook, setSavedNotebook] = useState<INotebookModel>(emptyNotebook);
+  const [savedNotebook, setSavedNotebook] = useState<NotebookModel>(emptyNotebook);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [focusedIndex, setFocusedIndex] = useState(0);
-  const [copiedCell, setCopiedCell] = useState<ICell | null>(null);
+  const [copiedCell, setCopiedCell] = useState<NotebookCell | null>(null);
   /**
    * The markdown cell whose source is open for editing, if any. Focus and editing used to be the
    * same thing: a markdown cell rendered its editor whenever it was the focused cell, so a single
@@ -85,7 +85,7 @@ export function useNotebookCells() {
    * outputs are shared, not duplicated. The focused index rides along because undoing a delete that
    * does not put the caret back where it was is disorienting.
    */
-  const [undoStack, setUndoStack] = useState<{ notebook: INotebookModel; focusedIndex: number }[]>(
+  const [undoStack, setUndoStack] = useState<{ notebook: NotebookModel; focusedIndex: number }[]>(
     []
   );
 
@@ -94,7 +94,7 @@ export function useNotebookCells() {
    * never rejects, the reason is left in `error` for the editor to show. The document is handed back
    * because the caller needs it to start the kernel it names, before this state has been committed.
    */
-  const loadNotebook = useCallback(async (path: string): Promise<INotebookModel | null> => {
+  const loadNotebook = useCallback(async (path: string): Promise<NotebookModel | null> => {
     try {
       const resJson = await getNotebook(path);
 
@@ -237,7 +237,7 @@ export function useNotebookCells() {
    * takes the focus, because the only reason to add one is to type in it.
    */
   const addCellAt = useCallback(
-    (index: number, cellType: ICell['cell_type'] = 'code') => {
+    (index: number, cellType: NotebookCell['cell_type'] = 'code') => {
       pushUndo();
       setNotebook((prevNotebook) => {
         const at = Math.max(0, Math.min(index, prevNotebook.cells.length));
@@ -403,7 +403,7 @@ export function useNotebookCells() {
   }, [pushUndo]);
 
   const applyMessage = useCallback(
-    (message: IKernelMessage, cellId: string | undefined) => {
+    (message: KernelMessage, cellId: string | undefined) => {
       if (cellId && message.header.msg_type === 'clear_output') {
         if (message.content?.wait) {
           // Held until there is something to replace what is on screen, which is the whole point of
@@ -432,7 +432,7 @@ export function useNotebookCells() {
    * Records that `saved` is now what the file holds. It takes the document that was written rather
    * than reading the current one, so a change made while the write was in flight stays unsaved.
    */
-  const markSaved = useCallback((saved: INotebookModel) => {
+  const markSaved = useCallback((saved: NotebookModel) => {
     setSavedNotebook(saved);
   }, []);
 

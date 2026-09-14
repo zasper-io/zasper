@@ -7,30 +7,30 @@ import {
   PanelResizeHandle,
 } from 'react-resizable-panels';
 import { ToastContainer } from 'react-toastify';
-import { themeAtom, widgetCdnAtom } from '../store/Settings';
+import { themeAtom, widgetCdnAtom } from '../store/settings';
 
-import NavigationPanel from './sidebar/NavigationPanel/NavigationPanel';
-import FileBrowser from './sidebar/FileBrowser/FileBrowser';
+import NavigationPanel from './sidebar/navigationPanel/NavigationPanel';
+import FileBrowser from './sidebar/fileBrowser/FileBrowser';
 import ContentPanel from './editor/ContentPanel';
 import TabIndex from './tabs/TabIndex';
-import Topbar from './topbar/Topbar';
-import GitPanel from './sidebar/GitPanel/GitPanel';
-import JupyterInfoPanel from './sidebar/JupyterInfoPanel/JupyterInfoPanel';
-import SettingsPanel from './sidebar/SettingsPanel/SettingsPanel';
+import Topbar from './topBar/Topbar';
+import GitPanel from './sidebar/gitPanel/GitPanel';
+import JupyterInfoPanel from './sidebar/jupyterInfoPanel/JupyterInfoPanel';
+import SettingsPanel from './sidebar/settingsPanel/SettingsPanel';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
+import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
 import {
-  fileBrowserReloadCountAtom,
   platformAtom,
   projectDirAtom,
   projectNameAtom,
   serverOsAtom,
   userNameAtom,
   zasperVersionAtom,
-} from '../store/AppState';
+} from '@/store/serverInfo';
 import { ApiError, getInfo } from '../api';
-import { useKernelspecActions } from '../store/KernelspecActions';
+import { useKernelspecActions } from '../store/kernelspecActions';
 import { useRememberTabs } from '../store/useRememberTabs';
 import { applyTheme, getTheme, rememberTheme } from '../themes';
 import { useApplyZoom } from '../zoom/useApplyZoom';
@@ -39,7 +39,7 @@ import { APP_COMMANDS, useAppCommands } from '../commands/appCommands';
 import { useHelpCommands } from '../commands/helpCommands';
 import { isMac, terminalHasFocus } from '../commands/keys';
 import { useRegisterCommands } from '../commands/registry';
-import { ICommand } from '../commands/types';
+import { Command } from '../commands/types';
 import { useCommandKeymap } from '../commands/useCommandKeymap';
 import { useTelemetry } from '../telemetry';
 import { markSignedOut } from '../auth/signedIn';
@@ -82,7 +82,7 @@ function IDE() {
     sidebarRef.current?.expand();
   }, []);
 
-  const sidebarCommands = useMemo<ICommand[]>(
+  const sidebarCommands = useMemo<Command[]>(
     () => [
       {
         ...APP_COMMANDS['view:toggle-sidebar'],

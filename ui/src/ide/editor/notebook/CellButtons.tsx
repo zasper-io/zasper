@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 
-import type { ICell } from '@/api';
+import type { NotebookCell } from '@/api';
 import { formatChord } from '@/commands/keys';
 import { useCommandEnabled, useCommands } from '@/commands/registry';
 import type { IconName } from '@/ide/icons';
@@ -8,13 +8,13 @@ import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
-import ContextMenu from '@/ide/sidebar/ContextMenu/ContextMenu';
+import ContextMenu from '@/ide/sidebar/contextMenu/ContextMenu';
 
 interface CellButtonsProps {
   /** Dispatches a command by id — see notebookCommands.ts for the ids. */
   run: (id: string) => void;
   /** The cell's type, so the menu can mark which of the three it currently is. */
-  cellType: ICell['cell_type'];
+  cellType: NotebookCell['cell_type'];
 }
 
 /**
@@ -44,7 +44,7 @@ const CELL_MENU: {
   label: string;
   icon: IconName;
   group?: string;
-  type?: ICell['cell_type'];
+  type?: NotebookCell['cell_type'];
   danger?: boolean;
 }[] = [
   {

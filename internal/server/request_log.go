@@ -1,13 +1,12 @@
 package server
 
 import (
-	"bufio"
-	"fmt"
-	"net"
 	"net/http"
 	"time"
 
 	"github.com/rs/zerolog"
+
+	zhttp "github.com/zasper-io/zasper/internal/http"
 )
 
 /*
@@ -30,15 +29,15 @@ default.
 func WithRequestLogging(logger zerolog.Logger, verbose bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
-		recorder := &responseRecorder{ResponseWriter: w, status: http.StatusOK}
+		recorder := zhttp.NewResponseRecorder(w)
 
 		next.ServeHTTP(recorder, r)
 
-		event(logger, verbose, recorder.status, r.URL.Path).
+		event(logger, verbose, recorder.Status, r.URL.Path).
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
-			Int("status", recorder.status).
-			Int("bytes", recorder.written).
+			Int("status", recorder.Status).
+			Int("bytes", recorder.Written).
 			// Microseconds rather than Dur, which renders the full float and buries the number that
 			// matters under six digits of noise.
 			Float64("took_ms", float64(time.Since(started).Microseconds())/1000).
@@ -72,42 +71,5 @@ func event(logger zerolog.Logger, verbose bool, status int, path string) *zerolo
 		return logger.Info()
 	default:
 		return logger.Debug()
-	}
-}
-
-// responseRecorder remembers what the handler answered. It has to forward Hijack and Flush by hand:
-// a websocket upgrade hijacks the connection, and wrapping a ResponseWriter without passing those
-// through is how a wrapper like this silently breaks every websocket route in the server.
-type responseRecorder struct {
-	http.ResponseWriter
-	status  int
-	written int
-}
-
-func (rec *responseRecorder) WriteHeader(status int) {
-	rec.status = status
-	rec.ResponseWriter.WriteHeader(status)
-}
-
-func (rec *responseRecorder) Write(b []byte) (int, error) {
-	n, err := rec.ResponseWriter.Write(b)
-	rec.written += n
-	return n, err
-}
-
-func (rec *responseRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	hijacker, ok := rec.ResponseWriter.(http.Hijacker)
-	if !ok {
-		return nil, nil, fmt.Errorf("logging: underlying ResponseWriter does not support hijacking")
-	}
-	// The upgrade wrote its own 101 straight to the connection, so record it here or the line reads
-	// as a 200.
-	rec.status = http.StatusSwitchingProtocols
-	return hijacker.Hijack()
-}
-
-func (rec *responseRecorder) Flush() {
-	if flusher, ok := rec.ResponseWriter.(http.Flusher); ok {
-		flusher.Flush()
 	}
 }

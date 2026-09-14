@@ -1,5 +1,5 @@
 import { defineCommands } from '@/commands/define';
-import { ICommand } from '@/commands/types';
+import { Command } from '@/commands/types';
 import { KernelSession } from './useKernelSession';
 import { NotebookCells } from './useNotebookCells';
 
@@ -7,7 +7,7 @@ import { NotebookCells } from './useNotebookCells';
  * The parts of a notebook tab a command can act on. `cells` and `kernel` are the tab's two hooks;
  * the rest are the actions `NotebookEditor` composes out of both of them.
  */
-export interface INotebookCommandTargets {
+export interface NotebookCommandTargets {
   cells: NotebookCells;
   kernel: KernelSession;
   saveNotebook: () => void;
@@ -111,7 +111,7 @@ export const NOTEBOOK_COMMANDS = defineCommands({
  * would have to name everything and would go stale the moment it did not; `useRegisterCommands`
  * is built to be handed a fresh array every render and only re-registers when the ids change.
  */
-export function useNotebookCommands(targets: INotebookCommandTargets): ICommand[] {
+export function useNotebookCommands(targets: NotebookCommandTargets): Command[] {
   const { cells, kernel } = targets;
   const { notebook, focusedIndex } = cells;
 

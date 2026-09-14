@@ -4,8 +4,8 @@ import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FileEditor from './FileEditor';
-import { IfileTab } from '@/store/TabState';
-import { unsavedTabsAtom } from '@/store/UnsavedState';
+import { FileTab } from '@/store/tabState';
+import { unsavedTabsAtom } from '@/store/unsavedState';
 
 const getFileContent = vi.fn();
 const saveFile = vi.fn();
@@ -44,7 +44,7 @@ vi.mock('@uiw/react-codemirror', async () => {
   };
 });
 
-const tab: IfileTab = {
+const tab: FileTab = {
   type: 'file',
   path: 'notes.txt',
   name: 'notes.txt',
@@ -145,7 +145,7 @@ describe('FileEditor', () => {
   });
 
   describe('a markdown file', () => {
-    const markdownTab: IfileTab = { ...tab, path: 'notes.md', name: 'notes.md', extension: 'md' };
+    const markdownTab: FileTab = { ...tab, path: 'notes.md', name: 'notes.md', extension: 'md' };
 
     beforeEach(() => {
       getFileContent.mockResolvedValue(text('# Title\n'));

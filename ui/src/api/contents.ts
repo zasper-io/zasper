@@ -1,5 +1,5 @@
 import { requestBlob, requestEmpty, requestJson, requestUpload } from './client';
-import { INotebookModel } from './notebook';
+import { NotebookModel } from './notebook';
 
 export type ContentType = 'file' | 'directory' | 'notebook';
 
@@ -10,11 +10,11 @@ export type ContentType = 'file' | 'directory' | 'notebook';
  * a reader that does not need it should not have to know it is there, and a listing built by hand in
  * a test is still a listing.
  */
-export interface IContentEntry {
+export interface ContentEntry {
   type: string;
   path: string;
   name: string;
-  content: IContentEntry[];
+  content: ContentEntry[];
   /** Bytes. Meaningless for a directory, which the server reports as its own on-disk size. */
   size?: number;
   last_modified?: string;
@@ -27,7 +27,7 @@ export interface IContentEntry {
 }
 
 /** The server's content model; `content` varies with the requested type. */
-export interface IContentModel<T> {
+export interface ContentModel<T> {
   name: string;
   type: string;
   path: string;
@@ -38,8 +38,8 @@ export interface IContentModel<T> {
  * Reads a directory listing. The server decides between directory, file and
  * notebook from the path itself, so no type has to be passed here.
  */
-export function getDirectory(path: string): Promise<IContentEntry> {
-  return requestJson<IContentEntry>('/api/contents', {
+export function getDirectory(path: string): Promise<ContentEntry> {
+  return requestJson<ContentEntry>('/api/contents', {
     method: 'POST',
     body: { path },
   });
@@ -49,15 +49,15 @@ export function getDirectory(path: string): Promise<IContentEntry> {
  * A file as the server sent it: its text when it is UTF-8 text, and base64 of its bytes when it is
  * not, since text that is not UTF-8 would come back from an editor with its bytes changed.
  */
-export interface IFileContent {
+export interface FileContent {
   format: 'text' | 'base64';
   content: string;
   mimetype: string;
 }
 
 /** Reads a single file, as text when it is text. */
-export async function getFileContent(path: string): Promise<IFileContent> {
-  const model = await requestJson<IContentModel<string> & Omit<IFileContent, 'content'>>(
+export async function getFileContent(path: string): Promise<FileContent> {
+  const model = await requestJson<ContentModel<string> & Omit<FileContent, 'content'>>(
     '/api/contents',
     {
       method: 'POST',
@@ -68,16 +68,16 @@ export async function getFileContent(path: string): Promise<IFileContent> {
 }
 
 /** Reads a notebook document. */
-export function getNotebook(path: string): Promise<IContentModel<INotebookModel>> {
-  return requestJson<IContentModel<INotebookModel>>('/api/contents', {
+export function getNotebook(path: string): Promise<ContentModel<NotebookModel>> {
+  return requestJson<ContentModel<NotebookModel>>('/api/contents', {
     method: 'POST',
     body: { path, type: 'notebook' },
   });
 }
 
 /** Creates an untitled file, directory or notebook inside `parentDir`. */
-export function createContent(parentDir: string, type: ContentType): Promise<IContentEntry> {
-  return requestJson<IContentEntry>('/api/contents/create', {
+export function createContent(parentDir: string, type: ContentType): Promise<ContentEntry> {
+  return requestJson<ContentEntry>('/api/contents/create', {
     method: 'POST',
     body: { parent_dir: parentDir, type },
   });
@@ -107,8 +107,8 @@ export function moveContent(from: string, to: string): Promise<void> {
  * destination folder is named: the server picks a free name, so duplicating in place is a copy into
  * the folder the original is already in.
  */
-export function copyContent(from: string, toDir: string): Promise<IContentEntry> {
-  return requestJson<IContentEntry>('/api/contents/copy', {
+export function copyContent(from: string, toDir: string): Promise<ContentEntry> {
+  return requestJson<ContentEntry>('/api/contents/copy', {
     method: 'POST',
     body: { from, to_dir: toDir },
   });
@@ -137,7 +137,7 @@ export function saveFile(path: string, content: string): Promise<void> {
   });
 }
 
-export function saveNotebook(path: string, notebook: INotebookModel): Promise<void> {
+export function saveNotebook(path: string, notebook: NotebookModel): Promise<void> {
   return requestEmpty('/api/contents', {
     method: 'PUT',
     body: { path, content: notebook, type: 'notebook', format: 'json' },
@@ -165,7 +165,7 @@ export interface UploadRequest {
  * for the batch, so that progress can be shown per file and one refused file does not take the rest
  * of a folder with it.
  */
-export function uploadFile(request: UploadRequest): Promise<IContentEntry> {
+export function uploadFile(request: UploadRequest): Promise<ContentEntry> {
   const form = new FormData();
   form.append('parent_dir', request.parentDir);
   form.append('relative_path', request.relativePath ?? request.file.name);
@@ -174,7 +174,7 @@ export function uploadFile(request: UploadRequest): Promise<IContentEntry> {
   }
   form.append('file', request.file);
 
-  return requestUpload<IContentEntry>('/api/contents/upload', {
+  return requestUpload<ContentEntry>('/api/contents/upload', {
     body: form,
     onProgress: request.onProgress,
     signal: request.signal,

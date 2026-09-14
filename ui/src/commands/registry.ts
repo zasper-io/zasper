@@ -3,7 +3,7 @@ import { atom, useAtomValue, useSetAtom } from 'jotai';
 
 import { trackCommand } from '@/telemetry';
 
-import { ICommand } from './types';
+import { Command } from './types';
 
 /**
  * Every command currently available, keyed by id. An atom rather than a module-level map because
@@ -14,10 +14,10 @@ import { ICommand } from './types';
  * "Currently available" is the point: a component registers its commands only while it is the
  * active tab, so a keybinding cannot reach a notebook that is open but hidden.
  */
-export const commandsAtom = atom<Record<string, ICommand>>({});
+export const commandsAtom = atom<Record<string, Command>>({});
 
 /** Sorted for display, so the palette's order does not depend on mount order. */
-export function useCommands(): ICommand[] {
+export function useCommands(): Command[] {
   const commands = useAtomValue(commandsAtom);
 
   return useMemo(
@@ -81,7 +81,7 @@ export function useCommandEnabled(): (id: string) => boolean {
  * set of *ids* changes. Labels and keys are therefore captured once; keep them static and put
  * anything that varies in `isEnabled`.
  */
-export function useRegisterCommands(commands: ICommand[], active: boolean = true): void {
+export function useRegisterCommands(commands: Command[], active: boolean = true): void {
   const setCommands = useSetAtom(commandsAtom);
   const latest = useRef(commands);
   latest.current = commands;
@@ -93,7 +93,7 @@ export function useRegisterCommands(commands: ICommand[], active: boolean = true
       return;
     }
 
-    const proxies: Record<string, ICommand> = {};
+    const proxies: Record<string, Command> = {};
     for (const registered of latest.current) {
       const id = registered.id;
       const find = () => latest.current.find((command) => command.id === id);

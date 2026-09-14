@@ -1,20 +1,20 @@
-import { IKernel } from '../store/AppState';
+import { Kernel } from '@/store/kernels';
 import { requestEmpty, requestJson } from './client';
 
-export interface ISession {
+export interface Session {
   id: string;
   path: string;
   name: string;
   type: string;
-  kernel: IKernel;
+  kernel: Kernel;
 }
 
 /**
  * Every open session, keyed by session id as the server sends it. This is the only thing that knows
  * which file a running kernel belongs to — a kernel on its own is a name and an id.
  */
-export function listSessions(): Promise<Record<string, ISession>> {
-  return requestJson<Record<string, ISession>>('/api/sessions');
+export function listSessions(): Promise<Record<string, Session>> {
+  return requestJson<Record<string, Session>>('/api/sessions');
 }
 
 /**
@@ -24,7 +24,7 @@ export function listSessions(): Promise<Record<string, ISession>> {
  * already there — Jupyter's own `findByPath`. By path alone: the point is to find the kernel whatever
  * it turns out to be, and matching on a name as well is how a notebook ends up with two.
  */
-export async function sessionForPath(path: string): Promise<ISession | undefined> {
+export async function sessionForPath(path: string): Promise<Session | undefined> {
   const open = await listSessions();
   return Object.values(open).find((session) => session.path === path);
 }
@@ -35,8 +35,8 @@ export function createSession(
   name: string,
   type: string,
   kernelspec: string
-): Promise<ISession> {
-  return requestJson<ISession>('/api/sessions', {
+): Promise<Session> {
+  return requestJson<Session>('/api/sessions', {
     method: 'POST',
     body: { path, name, type, kernel: { name: kernelspec } },
   });

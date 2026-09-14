@@ -3,7 +3,7 @@ import { useAtom } from 'jotai';
 import { toast } from 'react-toastify';
 
 import { getTelemetrySettings, setTelemetrySettings } from '@/api/telemetry';
-import { telemetryAtom } from '@/store/Settings';
+import { telemetryAtom } from '@/store/settings';
 
 import { installFlushOnUnload, setEnabled } from './client';
 

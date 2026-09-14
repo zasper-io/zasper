@@ -6,13 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Launcher from './Launcher';
 import {
-  IKernelspecsState,
+  KernelspecsState,
   KernelspecsStatus,
   kernelspecsAtom,
   kernelspecsStatusAtom,
-  serverOsAtom,
-} from '@/store/AppState';
-import { fileTabsAtom } from '@/store/TabState';
+} from '@/store/kernels';
+import { serverOsAtom } from '@/store/serverInfo';
+import { fileTabsAtom } from '@/store/tabState';
 
 const createContent = vi.fn();
 const listKernelspecs = vi.fn();
@@ -31,7 +31,7 @@ vi.mock('@/api', async () => ({
   PROJECT_KERNEL_NAME: 'project-venv',
 }));
 
-const kernelspecs: IKernelspecsState = {
+const kernelspecs: KernelspecsState = {
   python3: {
     name: 'python3',
     spec: { display_name: 'Python 3 (ipykernel)' },
@@ -57,7 +57,7 @@ function OpenTabs() {
 }
 
 function renderLauncher(
-  specs: IKernelspecsState = kernelspecs,
+  specs: KernelspecsState = kernelspecs,
   status: KernelspecsStatus = 'ready',
   os = 'darwin'
 ) {

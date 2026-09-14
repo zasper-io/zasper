@@ -9,11 +9,11 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
 import { websocketUrl } from '@/api';
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 import { terminalTheme } from './theme';
 
 interface TerminalTabProps {
-  data: IfileTab;
+  data: FileTab;
 }
 
 // The size the canvas is drawn at, read off the element like the family and the sixteen colours are.

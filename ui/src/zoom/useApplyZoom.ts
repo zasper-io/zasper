@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAtomValue } from 'jotai';
 
-import { zoomLevelAtom } from '@/store/AppState';
+import { zoomLevelAtom } from '@/zoom/atoms';
 import { applyZoom, rememberZoomLevel } from '.';
 
 /**

@@ -1,18 +1,18 @@
 package models
 
 type ContentModel struct {
-	Name           string      `json:"name"`
-	ContentType    string      `json:"type"`
-	Path           string      `json:"path"`
-	Last_modified  string      `json:"last_modified"`
-	Created        string      `json:"created"`
-	Content        interface{} `json:"content"`
-	Format         string      `json:"format"`
-	Mimetype       string      `json:"mimetype"`
-	Size           int64       `json:"size"`
-	Writable       bool        `json:"writable"`
-	Hash           string      `json:"hash,omitempty"`
-	Hash_algorithm string      `json:"hash_algorithm,omitempty"`
+	Name          string      `json:"name"`
+	ContentType   string      `json:"type"`
+	Path          string      `json:"path"`
+	LastModified  string      `json:"last_modified"`
+	Created       string      `json:"created"`
+	Content       interface{} `json:"content"`
+	Format        string      `json:"format"`
+	Mimetype      string      `json:"mimetype"`
+	Size          int64       `json:"size"`
+	Writable      bool        `json:"writable"`
+	Hash          string      `json:"hash,omitempty"`
+	HashAlgorithm string      `json:"hash_algorithm,omitempty"`
 	// Ignored is what git would not track. Set on listing entries only, since it is a property of
 	// where a file sits rather than of the file, and the file browser dims those rows.
 	Ignored bool `json:"ignored"`

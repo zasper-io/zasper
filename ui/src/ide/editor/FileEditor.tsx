@@ -20,11 +20,11 @@ import { baseName } from '@/paths';
 
 import { useAtom } from 'jotai';
 import { useTheme } from '@/themes/useTheme';
-import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '@/store/AppState';
+import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '@/store/editorStatus';
 import BreadCrumb from './BreadCrumb';
 import languageFor from './language';
-import { IfileTab } from '@/store/TabState';
-import { useUnsavedChanges } from '@/store/UnsavedState';
+import { FileTab } from '@/store/tabState';
+import { useUnsavedChanges } from '@/store/unsavedState';
 import { zoomAwareTooltips } from './tooltipParent';
 
 // The notebook's renderer, and its code-splitting boundary: see MarkdownRenderer.tsx.
@@ -44,7 +44,7 @@ function isMarkdown(extension: string | null): boolean {
 }
 
 interface FileEditorProps {
-  data: IfileTab;
+  data: FileTab;
 }
 
 export default function FileEditor(props: FileEditorProps) {

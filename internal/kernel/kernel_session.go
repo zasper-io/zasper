@@ -36,7 +36,7 @@ func newAuth(key string) hash.Hash {
 	return hmac.New(sha256.New, []byte(key))
 }
 
-func json_packer(obj interface{}) []byte {
+func packJSON(obj interface{}) []byte {
 	val, _ := json.Marshal(obj)
 	return val
 }
@@ -76,29 +76,29 @@ func (ks *KernelSession) serialize(msg Message) [][]byte {
 	log.Debug().Msgf("message header is %v", msg.Header)
 
 	realMessage := [][]byte{
-		json_packer(msg.Header),
-		json_packer(msg.ParentHeader),
-		json_packer(msg.Metadata),
-		json_packer(msg.Content),
+		packJSON(msg.Header),
+		packJSON(msg.ParentHeader),
+		packJSON(msg.Metadata),
+		packJSON(msg.Content),
 	}
-	to_send := [][]byte{}
+	toSend := [][]byte{}
 	log.Debug().Msgf("real message is %s", realMessage)
 	// Signed over those four frames only. Buffers are appended after the signature is taken, which is
 	// what the protocol says and what a kernel checks.
 	signature := ks.sign(realMessage)
 
 	log.Debug().Msgf("signature is %s", signature)
-	to_send = append(to_send, []byte(DELIM))
-	to_send = append(to_send, []byte(signature))
-	to_send = append(to_send, realMessage...)
-	to_send = append(to_send, msg.Buffers...)
+	toSend = append(toSend, []byte(DELIM))
+	toSend = append(toSend, []byte(signature))
+	toSend = append(toSend, realMessage...)
+	toSend = append(toSend, msg.Buffers...)
 	log.Debug().Msgf("after signing message is %s", realMessage)
-	return to_send
+	return toSend
 }
 
-func (ks *KernelSession) sign(msg_list [][]byte) string {
+func (ks *KernelSession) sign(msgList [][]byte) string {
 	hash := newAuth(ks.Key)
-	for _, msg := range msg_list {
+	for _, msg := range msgList {
 		hash.Write(msg)
 	}
 	return hex.EncodeToString(hash.Sum(nil))

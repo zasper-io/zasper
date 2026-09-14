@@ -3,7 +3,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { ICellOutput } from '@/api';
+import { NotebookOutput } from '@/api';
 
 import { OutputBundles } from './CellOutput';
 import { markProducedHere } from './outputTrust';
@@ -15,13 +15,13 @@ const ran = (mark: string) => document.body.hasAttribute(`data-ran-${mark}`);
 
 /** An output as it arrives in a notebook file. */
 function show(data: Record<string, unknown>) {
-  const outputs = [{ output_type: 'display_data', data }] as ICellOutput[];
+  const outputs = [{ output_type: 'display_data', data }] as NotebookOutput[];
   return render(<OutputBundles outputs={outputs} widgets={null} />);
 }
 
 /** An output a running kernel has just sent. */
 function showFromKernel(data: Record<string, unknown>) {
-  const outputs = [markProducedHere({ output_type: 'display_data', data } as ICellOutput)];
+  const outputs = [markProducedHere({ output_type: 'display_data', data } as NotebookOutput)];
   return render(<OutputBundles outputs={outputs} widgets={null} />);
 }
 

@@ -63,9 +63,7 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(contentModel)
+	zhttp.SendJSON(w, http.StatusOK, contentModel)
 }
 
 func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -111,7 +109,6 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -139,9 +136,7 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
 }
 
 /*
@@ -203,9 +198,7 @@ func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(data)
+	zhttp.SendJSON(w, http.StatusCreated, data)
 }
 
 func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -237,7 +230,6 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 		filepath.Join(renameContentPayload.ParentDir, renameContentPayload.NewName),
 	)
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -261,7 +253,6 @@ func ContentMoveAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	relocateSessions(payload.From, payload.To)
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -284,9 +275,7 @@ func ContentCopyAPIHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(data)
+	zhttp.SendJSON(w, http.StatusCreated, data)
 }
 
 /*
@@ -371,7 +360,5 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(data)
+	zhttp.SendJSON(w, http.StatusCreated, data)
 }

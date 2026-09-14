@@ -8,8 +8,9 @@ import { chordParts } from '@/commands/keys';
 import { ALL_COMMANDS } from '@/commands/catalog';
 import { CommandInfo } from '@/commands/define';
 import { Icon } from '@/ide/icons';
-import { helpAboutRequestAtom, platformAtom, zasperVersionAtom } from '@/store/AppState';
-import { IfileTab } from '@/store/TabState';
+import { helpAboutRequestAtom } from '@/store/helpTab';
+import { platformAtom, zasperVersionAtom } from '@/store/serverInfo';
+import { FileTab } from '@/store/tabState';
 import './HelpTab.scss';
 
 /** Every command with a key, sorted once: the list is fixed, and a group is then a run. */
@@ -18,7 +19,7 @@ const SHORTCUTS = ALL_COMMANDS.filter((command) => command.keys?.length).sort(
 );
 
 interface HelpTabProps {
-  data: IfileTab;
+  data: FileTab;
 }
 
 /** Every keyboard shortcut, filtered, and what a bug report asks for. */

@@ -10,7 +10,7 @@ export type CellType = 'code' | 'markdown' | 'raw' | string;
  * named; the index signature covers the mime-typed keys such as `text/plain`
  * and `image/png` that kernels send.
  */
-export interface ICellOutput {
+export interface NotebookOutput {
   output_type?: string;
   name?: string;
   text?: string;
@@ -21,7 +21,7 @@ export interface ICellOutput {
   [key: string]: any;
 }
 
-export interface ICell {
+export interface NotebookCell {
   cell_type: CellType;
   /**
    * The document's own cell id, from nbformat 4.5 onwards. A cell out of an older notebook has
@@ -33,40 +33,40 @@ export interface ICell {
   /** Code cells only, and null until the cell has run. */
   execution_count?: number | null;
   /** Code cells only. */
-  outputs?: ICellOutput[];
+  outputs?: NotebookOutput[];
   /** Markdown and raw cells only: images pasted into the cell, keyed by name then mime type. */
   attachments?: Record<string, Record<string, unknown>>;
   /**
-   * Client-side only, like IContentEntry.id in contents.ts — the server neither
+   * Client-side only, like ContentEntry.id in contents.ts — the server neither
    * sends nor stores it. Set when a cell's editor needs to be remounted.
    */
   reload: boolean;
 }
 
-export interface INotebookModel {
-  cells: Array<ICell>;
+export interface NotebookModel {
+  cells: Array<NotebookCell>;
   nbformat: number;
   nbformat_minor: number;
-  metadata: INotebookMetadata;
+  metadata: NotebookMetadata;
 }
 
-export interface INotebookMetadata {
+export interface NotebookMetadata {
   /** An object per nbformat; the bare string is what Zasper wrote here before, so it is on disk. */
-  kernelspec?: IKernelspecMetadata | string;
+  kernelspec?: KernelspecMetadata | string;
   name?: string;
   display_name?: string;
-  language_info?: ILanguageInfoMetadata;
+  language_info?: LanguageInfoMetadata;
   [key: string]: any;
 }
 
-export interface IKernelspecMetadata {
+export interface KernelspecMetadata {
   name: string;
   display_name: string;
   /** Optional per nbformat, but what a reader picks a lexer from, so it is kept on save. */
   language?: string;
 }
 
-export interface ILanguageInfoMetadata {
+export interface LanguageInfoMetadata {
   name: string;
   /** A mode name, or the object form that IPython writes: `{name: 'ipython', version: 3}`. */
   codemirror_mode?: string | Record<string, unknown>;

@@ -1,8 +1,8 @@
-import { IKernel, IKernelspecsState } from '../store/AppState';
+import { Kernel, KernelspecsState } from '@/store/kernels';
 import { requestBlob, requestEmpty, requestJson } from './client';
 
-export async function listKernelspecs(): Promise<IKernelspecsState> {
-  const res = await requestJson<{ kernelspecs?: IKernelspecsState }>('/api/kernelspecs');
+export async function listKernelspecs(): Promise<KernelspecsState> {
+  const res = await requestJson<{ kernelspecs?: KernelspecsState }>('/api/kernelspecs');
   return res.kernelspecs || {};
 }
 
@@ -15,7 +15,7 @@ export function getKernelspecResource(path: string): Promise<Blob> {
 export const PROJECT_KERNEL_NAME = 'project-venv';
 
 /** Setting up that .venv, as /api/environment/setup reports it. */
-export interface IEnvironmentSetup {
+export interface EnvironmentSetup {
   state: 'idle' | 'running' | 'succeeded' | 'failed';
   log: string;
   error?: string;
@@ -23,21 +23,21 @@ export interface IEnvironmentSetup {
 }
 
 /** Starts the setup. A 409 is an ApiError: one is already running, and its state is in the body. */
-export function startEnvironmentSetup(): Promise<IEnvironmentSetup> {
-  return requestJson<IEnvironmentSetup>('/api/environment/setup', { method: 'POST' });
+export function startEnvironmentSetup(): Promise<EnvironmentSetup> {
+  return requestJson<EnvironmentSetup>('/api/environment/setup', { method: 'POST' });
 }
 
-export function getEnvironmentSetup(): Promise<IEnvironmentSetup> {
-  return requestJson<IEnvironmentSetup>('/api/environment/setup');
+export function getEnvironmentSetup(): Promise<EnvironmentSetup> {
+  return requestJson<EnvironmentSetup>('/api/environment/setup');
 }
 
 /**
  * A kernel as `/api/kernels` reports it, in the server's own snake case.
  *
- * `IKernel` is the pair every other endpoint sends — a name and an id — and these three are what the
+ * `Kernel` is the pair every other endpoint sends — a name and an id — and these three are what the
  * server knows about a kernel that this window may have nothing to do with.
  */
-export interface IKernelModel extends IKernel {
+export interface KernelModel extends Kernel {
   /** RFC 3339, UTC. When the kernel last published anything, or when it started if it never has. */
   last_activity: string;
   /**
@@ -55,8 +55,8 @@ export interface IKernelModel extends IKernel {
  * Every kernel this server is running, which is not the same as every kernel this browser tab started
  * one of. A reload loses the second list and not the first.
  */
-export function listKernels(): Promise<IKernelModel[]> {
-  return requestJson<IKernelModel[]>('/api/kernels');
+export function listKernels(): Promise<KernelModel[]> {
+  return requestJson<KernelModel[]>('/api/kernels');
 }
 
 export function interruptKernel(kernelId: string): Promise<void> {

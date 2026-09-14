@@ -494,8 +494,8 @@ func TestTheKernelspecsAreListed(t *testing.T) {
 	require.Equal(t, http.StatusOK, status, "body was %s", body)
 
 	listed := decode[kernelspec.KernelspecResponse](t, body)
-	require.Contains(t, listed.Kernespecs, kernelName)
-	assert.Equal(t, "python", listed.Kernespecs[kernelName].Spec.Language)
+	require.Contains(t, listed.Kernelspecs, kernelName)
+	assert.Equal(t, "python", listed.Kernelspecs[kernelName].Spec.Language)
 
 	status, body = call(t, srv, http.MethodGet, "/api/kernelspecs/"+kernelName, nil)
 	require.Equal(t, http.StatusOK, status, "body was %s", body)

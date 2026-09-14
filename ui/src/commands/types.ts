@@ -4,7 +4,7 @@
  * by id. Before this existed the same action was written out separately in the toolbar, in a
  * `keydown` handler and in the palette, and the copies drifted apart.
  */
-export interface ICommand {
+export interface Command {
   /** Namespaced and stable — it is what buttons and tests refer to. `notebook:run-cell`. */
   id: string;
   label: string;

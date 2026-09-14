@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
-import { projectDirAtom } from './AppState';
-import { defaultFileTabState, fileTabsAtom, rememberedDirectory } from './TabState';
-import { forgetTabs, rememberTabs } from './TabStorage';
+import { projectDirAtom } from '@/store/serverInfo';
+import { defaultFileTabState, fileTabsAtom, rememberedDirectory } from './tabState';
+import { forgetTabs, rememberTabs } from './tabStorage';
 
 /**
  * Keeps the remembered strip in step with the open one, and confirms it belongs to this project.

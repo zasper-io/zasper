@@ -2,7 +2,6 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 	"runtime"
 
@@ -56,10 +55,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 		WidgetCDN:   core.WidgetCDNEnabled(),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	json.NewEncoder(w).Encode(response)
+	zhttp.SendJSON(w, http.StatusOK, response)
 }
 
 func ConfigHandler(w http.ResponseWriter, r *http.Request) {
@@ -67,10 +63,7 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 		Version: core.Zasper.Version,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	json.NewEncoder(w).Encode(response)
+	zhttp.SendJSON(w, http.StatusOK, response)
 }
 
 // websocketRoute gates a websocket handler that sits outside the /ws subrouter, so that it is

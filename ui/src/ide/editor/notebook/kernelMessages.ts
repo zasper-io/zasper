@@ -1,9 +1,9 @@
-import { ICell, ICellOutput, INotebookModel } from '@/api';
+import { NotebookCell, NotebookOutput, NotebookModel } from '@/api';
 
 import { markProducedHere } from './outputTrust';
 
 /** A message received from, or sent to, the kernel over the websocket channel. */
-export type IKernelMessage = any;
+export type KernelMessage = any;
 
 export const getTimeStamp = (): string => new Date().toISOString();
 
@@ -15,10 +15,10 @@ export const getTimeStamp = (): string => new Date().toISOString();
 export const PROTOCOL_VERSION = '5.3';
 
 function updateCellById(
-  notebook: INotebookModel,
+  notebook: NotebookModel,
   cellId: string,
-  update: (cell: ICell) => ICell
-): INotebookModel {
+  update: (cell: NotebookCell) => NotebookCell
+): NotebookModel {
   const updatedCells = notebook.cells.map((cell) =>
     cell.id === cellId ? update({ ...cell }) : cell
   );
@@ -32,7 +32,7 @@ function updateCellById(
  * It is what a `clear_output(wait=True)` is waiting for, so it has to agree with the switch below to
  * the message: a stream the switch drops is not the replacement the clear was holding out for.
  */
-export function carriesOutput(message: IKernelMessage): boolean {
+export function carriesOutput(message: KernelMessage): boolean {
   switch (message.header.msg_type) {
     case 'error':
     case 'execute_result':
@@ -44,7 +44,7 @@ export function carriesOutput(message: IKernelMessage): boolean {
   }
 }
 
-function appendOutput(cell: ICell, output: ICellOutput, replace: boolean): ICell {
+function appendOutput(cell: NotebookCell, output: NotebookOutput, replace: boolean): NotebookCell {
   markProducedHere(output);
   cell.outputs = replace ? [output] : [...(cell.outputs ?? []), output];
   return cell;
@@ -64,11 +64,11 @@ function appendOutput(cell: ICell, output: ICellOutput, replace: boolean): ICell
  * whether a clear is outstanding is a message that has been seen, not anything the document holds.
  */
 export function applyKernelMessage(
-  notebook: INotebookModel,
-  message: IKernelMessage,
+  notebook: NotebookModel,
+  message: KernelMessage,
   cellId: string | undefined,
   replaceOutputs: boolean = false
-): INotebookModel {
+): NotebookModel {
   if (!cellId) {
     return notebook;
   }
@@ -198,7 +198,7 @@ export function buildInputReply(
   sessionId: string,
   userName: string,
   msgId: string,
-  parentHeader: IKernelMessage,
+  parentHeader: KernelMessage,
   inputValue: string
 ): string {
   return JSON.stringify({
@@ -299,7 +299,7 @@ export function buildWidgetMessage(
  * `_jupyter_types_experimental` is IPython's per-match kind (`function`, `instance`, `module`,
  * …). Optional by name and in practice: kernels other than IPython need not send it.
  */
-export interface ICompleteReply {
+export interface CompleteReply {
   status: 'ok' | 'error';
   matches: string[];
   cursor_start: number;

@@ -222,7 +222,7 @@ func TestASuggestionSaysWhatItIsAndWhenItChanged(t *testing.T) {
 			want = "notebook"
 		}
 		assert.Equal(t, want, suggestion.ContentType, suggestion.Name)
-		_, err := time.Parse(time.RFC3339, suggestion.Last_modified)
-		assert.NoError(t, err, "last_modified %q is not RFC 3339", suggestion.Last_modified)
+		_, err := time.Parse(time.RFC3339, suggestion.LastModified)
+		assert.NoError(t, err, "last_modified %q is not RFC 3339", suggestion.LastModified)
 	}
 }

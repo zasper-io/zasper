@@ -216,14 +216,11 @@ func TestATerminalSessionIsRememberedUntilItIsUnregistered(t *testing.T) {
 	session := &TerminalSession{}
 
 	registerTerminalSession("tab-1-123", session)
-	terminalSessionsMu.Lock()
-	assert.Same(t, session, terminalSessions["tab-1-123"])
-	terminalSessionsMu.Unlock()
+	stored, _ := terminalSessions.Get("tab-1-123")
+	assert.Same(t, session, stored)
 
 	unregisterTerminalSession("tab-1-123")
-	terminalSessionsMu.Lock()
-	_, found := terminalSessions["tab-1-123"]
-	terminalSessionsMu.Unlock()
+	_, found := terminalSessions.Get("tab-1-123")
 	assert.False(t, found)
 
 	// Unregistering something that was never there is not an error: cleanupTTY runs on every exit
@@ -264,9 +261,7 @@ func TestTheTerminalSessionStoreSurvivesEverythingAtOnce(t *testing.T) {
 	}
 	waiter.Wait()
 
-	terminalSessionsMu.Lock()
-	defer terminalSessionsMu.Unlock()
-	assert.Empty(t, terminalSessions)
+	assert.Empty(t, terminalSessions.Snapshot())
 }
 
 /*
@@ -333,12 +328,10 @@ func TestClosingTheConnectionOnAnIdleShellEndsIt(t *testing.T) {
 
 	// Held on to across the close, because the assertion afterwards is about this shell and the map it
 	// can be looked up in is the thing being emptied.
-	terminalSessionsMu.Lock()
 	var shell *os.Process
-	for _, session := range terminalSessions {
+	for _, session := range terminalSessions.Values() {
 		shell = session.Cmd.Process
 	}
-	terminalSessionsMu.Unlock()
 	require.NotNil(t, shell)
 
 	// Nothing is typed, so the pty has nothing more to say — which is the case that used to hang.

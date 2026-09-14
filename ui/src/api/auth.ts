@@ -1,6 +1,6 @@
 import { requestEmpty, requestJson } from './client';
 
-export interface ILoginResponse {
+export interface LoginResponse {
   token: string;
   redirect_path: string;
 }
@@ -14,8 +14,8 @@ export function logout(): Promise<void> {
  * Exchanges a server access token for a session, which the server sets as a cookie. Rejects with an
  * ApiError on 401, 429 and 500.
  */
-export function login(accessToken: string): Promise<ILoginResponse> {
-  return requestJson<ILoginResponse>('/auth/login', {
+export function login(accessToken: string): Promise<LoginResponse> {
+  return requestJson<LoginResponse>('/auth/login', {
     method: 'POST',
     body: { accessToken },
   });

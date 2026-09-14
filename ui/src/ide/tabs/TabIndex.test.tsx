@@ -7,9 +7,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TabIndex from './TabIndex';
 import { useCommandKeymap } from '@/commands/useCommandKeymap';
 import { ApiError } from '@/api/client';
-import { INotebookKernelMap, notebookKernelMapAtom } from '@/store/AppState';
-import { fileTabsAtom, IfileTab, IfileTabDict } from '@/store/TabState';
-import { SaveTab, unsavedTabsAtom } from '@/store/UnsavedState';
+import { NotebookKernelMap, notebookKernelMapAtom } from '@/store/kernels';
+import { fileTabsAtom, FileTab, FileTabDict } from '@/store/tabState';
+import { SaveTab, unsavedTabsAtom } from '@/store/unsavedState';
 
 const deleteKernel = vi.fn();
 
@@ -20,7 +20,7 @@ vi.mock('@/api', async () => ({
   apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
 }));
 
-const launcher: IfileTab = {
+const launcher: FileTab = {
   type: 'launcher',
   path: 'Launcher',
   name: 'Launcher',
@@ -30,7 +30,7 @@ const launcher: IfileTab = {
   kernelspec: 'none',
 };
 
-const fileTab: IfileTab = {
+const fileTab: FileTab = {
   type: 'file',
   path: 'notes.txt',
   name: 'notes.txt',
@@ -40,7 +40,7 @@ const fileTab: IfileTab = {
   kernelspec: 'none',
 };
 
-const notebookTab: IfileTab = {
+const notebookTab: FileTab = {
   type: 'notebook',
   path: 'demo.ipynb',
   name: 'demo.ipynb',
@@ -50,7 +50,7 @@ const notebookTab: IfileTab = {
   kernelspec: 'python3',
 };
 
-const tabs: IfileTabDict = { Launcher: launcher, 'notes.txt': fileTab };
+const tabs: FileTabDict = { Launcher: launcher, 'notes.txt': fileTab };
 
 /** The tab bar with `notes.txt` open, unsaved or not. A jotai Provider per render: the atoms are global. */
 function renderTabs(save?: SaveTab) {
@@ -66,9 +66,9 @@ function renderTabs(save?: SaveTab) {
   );
 }
 
-const scriptTab: IfileTab = { ...fileTab, path: 'prepare.py', name: 'prepare.py', active: false };
+const scriptTab: FileTab = { ...fileTab, path: 'prepare.py', name: 'prepare.py', active: false };
 
-const terminalTab: IfileTab = {
+const terminalTab: FileTab = {
   ...fileTab,
   type: 'terminal',
   path: 'Terminal 1',
@@ -344,7 +344,7 @@ describe('TabIndex', () => {
       return <span data-testid="kernels">{Object.keys(notebookKernelMap).join(',')}</span>;
     }
 
-    function renderNotebookTab(notebookKernelMap: INotebookKernelMap) {
+    function renderNotebookTab(notebookKernelMap: NotebookKernelMap) {
       return render(
         <Provider
           initialValues={[

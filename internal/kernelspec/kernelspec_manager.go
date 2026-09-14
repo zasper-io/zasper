@@ -20,8 +20,8 @@ import (
 var ErrKernelspecNotFound = errors.New("kernelspec not found")
 
 type KernelspecResponse struct {
-	Default    string                     `json:"default"`
-	Kernespecs map[string]KernelspecModel `json:"kernelspecs"`
+	Default     string                     `json:"default"`
+	Kernelspecs map[string]KernelspecModel `json:"kernelspecs"`
 }
 
 type KernelSpecJsonData struct {
@@ -85,20 +85,8 @@ func kernelspecModel(name string, spec KernelSpecJsonData) KernelspecModel {
 	}
 }
 
+// GetAllSpecs answers every kernelspec by name, with the directory it was read from.
 func GetAllSpecs() map[string]KspecData {
-	/*
-		Returns a dict mapping kernel names to kernelspecs.
-
-		Returns a dict of the form::
-
-			{
-			  'kernel_name': {
-				'resource_dir': '/path/to/kernel_name',
-				'spec': {"the spec itself": ...}
-			  },
-			  ...
-			}
-	*/
 	specs := findKernelSpecs()
 	res := make(map[string]KspecData)
 	for kname, resourceDir := range specs {
@@ -258,11 +246,11 @@ func findKernelSpecs() map[string]string {
 
 func getKernelDirs() []string {
 	dirs := core.Zasper.JupyterPath
-	kernel_dirs := []string{}
+	kernelDirs := []string{}
 	for _, v := range dirs {
-		kernel_dirs = append(kernel_dirs, filepath.Join(v, "kernels"))
+		kernelDirs = append(kernelDirs, filepath.Join(v, "kernels"))
 	}
-	return kernel_dirs
+	return kernelDirs
 }
 
 func listKernelsIn(kernelDir string) map[string]string {

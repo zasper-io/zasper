@@ -1,6 +1,6 @@
 import { useAtom } from 'jotai';
 
-import { themeAtom } from '../store/Settings';
+import { themeAtom } from '../store/settings';
 import { getTheme, ZasperTheme } from '.';
 
 /** The registry entry for the active theme. */

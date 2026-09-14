@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
 import { useDismissOnEscape } from '@/ide/overlays';
-import { IKernelspecsState, kernelspecsAtom } from '@/store/AppState';
+import { KernelspecsState, kernelspecsAtom } from '@/store/kernels';
 import { NO_KERNEL } from './useKernelSession';
 
 interface ModalProps {
@@ -14,7 +14,7 @@ interface ModalProps {
 }
 
 function KernelSwitcher(props: ModalProps) {
-  const [kernelspecs] = useAtom<IKernelspecsState>(kernelspecsAtom);
+  const [kernelspecs] = useAtom<KernelspecsState>(kernelspecsAtom);
 
   // The kernel already attached, so that confirming the dialog is a no-op rather than a move to
   // whichever kernelspec happens to sort first. This read `length >= 1` and always took the first

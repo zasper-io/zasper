@@ -9,7 +9,7 @@ import {
 import { indentMore } from '@codemirror/commands';
 import { KeyBinding } from '@codemirror/view';
 
-import { ICompleteReply } from './kernelMessages';
+import { CompleteReply } from './kernelMessages';
 
 /**
  * Completions come from the kernel rather than from the editor, which is the whole point: only
@@ -17,7 +17,7 @@ import { ICompleteReply } from './kernelMessages';
  * offers nothing to fall back on either — the pinned 6.0.0 predates its own completion sources —
  * so with no kernel running a code cell has no suggestions at all.
  */
-type CompletionRequest = (source: string, cursorPos: number) => Promise<ICompleteReply | null>;
+type CompletionRequest = (source: string, cursorPos: number) => Promise<CompleteReply | null>;
 
 /**
  * IPython's kinds, mapped onto the ones @codemirror/autocomplete draws an icon for. Anything

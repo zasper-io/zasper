@@ -1,19 +1,19 @@
 import { useAtomValue } from 'jotai';
 import React from 'react';
 import { toast } from 'react-toastify';
-import { activeTabPathAtom, fileTabsAtom, IfileTab } from '@/store/TabState';
-import { useTabActions } from '@/store/TabActions';
-import { unsavedTabsAtom } from '@/store/UnsavedState';
+import { activeTabPathAtom, fileTabsAtom, FileTab } from '@/store/tabState';
+import { useTabActions } from '@/store/tabActions';
+import { unsavedTabsAtom } from '@/store/unsavedState';
 import './TabIndex.scss';
 import { apiErrorMessage } from '@/api';
 import { copyToClipboard } from '@/browser';
 import { formatChord } from '@/commands/keys';
 import { useRegisterCommands } from '@/commands/registry';
-import { ICommand } from '@/commands/types';
+import { Command } from '@/commands/types';
 import { FileMark, Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
-import ContextMenu from '@/ide/sidebar/ContextMenu/ContextMenu';
-import { useRevealInTree } from '@/ide/sidebar/FileBrowser/useRevealInTree';
+import ContextMenu from '@/ide/sidebar/contextMenu/ContextMenu';
+import { useRevealInTree } from '@/ide/sidebar/fileBrowser/useRevealInTree';
 import Tooltip from '@/ide/Tooltip';
 import {
   CLOSE_COMMANDS,
@@ -31,7 +31,7 @@ import UnsavedChangesDialog from './UnsavedChangesDialog';
  * Only a file gets a file-type mark; the other kinds of tab are not files, and a launcher
  * keeps the product logo because that is what it is.
  */
-function TabMark({ tab }: { tab: IfileTab }) {
+function TabMark({ tab }: { tab: FileTab }) {
   if (tab.type === 'launcher') {
     return <img className="tabIcon" src="./images/logo-icon.svg" alt="" />;
   }
@@ -51,7 +51,7 @@ interface TabIndexProps {
   onShowFileBrowser: () => void;
 }
 
-interface IPendingClose {
+interface PendingClose {
   /** The unsaved tabs the prompt is asking about, in strip order. */
   keys: string[];
   /** The tab to bring to the front if the front tab goes; see `keepsTarget`. */
@@ -64,7 +64,7 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   const { activateTab, closeTabs } = useTabActions();
   const unsavedTabs = useAtomValue(unsavedTabsAtom);
   const revealInTree = useRevealInTree();
-  const [pendingClose, setPendingClose] = React.useState<IPendingClose | null>(null);
+  const [pendingClose, setPendingClose] = React.useState<PendingClose | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
   const [menu, setMenu] = React.useState<{ key: string; xPos: number; yPos: number } | null>(null);
@@ -142,7 +142,7 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   };
 
   // A close while the prompt is up would replace the question being answered.
-  const commands: ICommand[] = [
+  const commands: Command[] = [
     ...CLOSE_COMMANDS.map(({ id, scope }) => ({
       ...TAB_COMMANDS[id],
       isEnabled: () =>
@@ -241,7 +241,7 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
 }
 
 interface TabProps {
-  tab: IfileTab;
+  tab: FileTab;
   isDirty: boolean;
   onActivate: () => void;
   onClose: (event: React.MouseEvent) => void;

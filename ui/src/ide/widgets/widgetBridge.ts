@@ -1,4 +1,4 @@
-import type { IWidgetKernelMessage, SendComm, ZasperWidgetManager } from './widgetManager';
+import type { WidgetKernelMessage, SendComm, ZasperWidgetManager } from './widgetManager';
 
 /**
  * The message types an Output widget can hold (see outputWidget.tsx). Listed here rather than
@@ -48,7 +48,7 @@ export class WidgetBridge {
     );
   }
 
-  handleKernelMessage(message: IWidgetKernelMessage): void {
+  handleKernelMessage(message: WidgetKernelMessage): void {
     if (this.disposed) {
       return;
     }
@@ -70,7 +70,7 @@ export class WidgetBridge {
    * Hands a message to the Output widget capturing the request it belongs to, and says whether one
    * did — in which case the cell that ran the request shows nothing for it.
    */
-  captureOutput(message: IWidgetKernelMessage): boolean {
+  captureOutput(message: WidgetKernelMessage): boolean {
     if (this.disposed || !OUTPUT_MESSAGE_TYPES.has(message.header.msg_type)) {
       return false;
     }
@@ -115,7 +115,7 @@ export class WidgetBridge {
    * time there was a model to ask, the cell would have shown it. `msg_id` is the trait ipywidgets'
    * Output widget carries for exactly this, and the only widget trait of that name.
    */
-  private noteCapture(message: IWidgetKernelMessage): void {
+  private noteCapture(message: WidgetKernelMessage): void {
     const commId = message.content?.comm_id;
     const data = message.content?.data as
       | { method?: string; state?: Record<string, unknown> }

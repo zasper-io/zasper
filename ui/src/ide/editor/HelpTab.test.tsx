@@ -3,13 +3,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { Provider } from 'jotai';
 import { describe, expect, it, vi } from 'vitest';
 
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 import HelpTab from './HelpTab';
 
 // The catalogue reaches helpCommands, and so useTabActions and the API client.
 vi.mock('@/api', () => ({ deleteKernel: vi.fn(), logApiError: () => () => {} }));
 
-const help: IfileTab = {
+const help: FileTab = {
   type: 'help',
   path: 'zasper:help',
   name: 'Help',

@@ -1,4 +1,4 @@
-import Routes from './Routes/routes';
+import Routes from './routes/routes';
 import React from 'react';
 import { Provider } from 'jotai';
 

@@ -8,14 +8,14 @@ import { apiErrorMessage, DiffDocuments, DiffTarget, getDiff } from '@/api';
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import getFileExtension from '@/ide/utils';
-import { IfileTab } from '@/store/TabState';
+import { FileTab } from '@/store/tabState';
 import { useTheme } from '@/themes/useTheme';
 import BreadCrumb from './BreadCrumb';
 import languageFor from './language';
 import './DiffTab.scss';
 
 interface DiffTabProps {
-  data: IfileTab;
+  data: FileTab;
   /** Which comparison of which file. Separate from `data`, whose `path` is the tab's own key. */
   target: DiffTarget;
 }

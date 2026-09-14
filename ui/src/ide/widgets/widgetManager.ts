@@ -45,7 +45,7 @@ export type SendComm = (
  * waits on them: a model that has sent an update sends no other until the kernel reports itself idle
  * again.
  */
-export interface IWidgetKernelMessage {
+export interface WidgetKernelMessage {
   header: { msg_type: string };
   parent_header?: { msg_id?: string };
   metadata?: unknown;
@@ -60,7 +60,7 @@ export interface IWidgetKernelMessage {
 }
 
 /** What a comm needs of the kernel: somewhere to send, and somewhere to be answered. */
-interface ICommChannel {
+interface CommChannel {
   send: SendComm;
   /** Registers the handlers for the messages answering the request with that id. */
   expect(msgId: string, callbacks: base.ICallbacks | undefined): void;
@@ -73,13 +73,13 @@ interface ICommChannel {
  * where the manager hands the ones addressed to this comm id.
  */
 class KernelComm implements base.IClassicComm {
-  private msgHandler?: (msg: IWidgetKernelMessage) => void;
-  private closeHandler?: (msg: IWidgetKernelMessage) => void;
+  private msgHandler?: (msg: WidgetKernelMessage) => void;
+  private closeHandler?: (msg: WidgetKernelMessage) => void;
 
   constructor(
     readonly comm_id: string,
     readonly target_name: string,
-    private readonly channel: ICommChannel
+    private readonly channel: CommChannel
   ) {}
 
   open(
@@ -121,19 +121,19 @@ class KernelComm implements base.IClassicComm {
     );
   }
 
-  on_msg(callback: (msg: IWidgetKernelMessage) => void): void {
+  on_msg(callback: (msg: WidgetKernelMessage) => void): void {
     this.msgHandler = callback;
   }
 
-  on_close(callback: (msg: IWidgetKernelMessage) => void): void {
+  on_close(callback: (msg: WidgetKernelMessage) => void): void {
     this.closeHandler = callback;
   }
 
-  handleMsg(msg: IWidgetKernelMessage): void {
+  handleMsg(msg: WidgetKernelMessage): void {
     this.msgHandler?.(msg);
   }
 
-  handleClose(msg: IWidgetKernelMessage): void {
+  handleClose(msg: WidgetKernelMessage): void {
     this.closeHandler?.(msg);
   }
 
@@ -178,7 +178,7 @@ export class ZasperWidgetManager extends ManagerBase {
   /** The one ask for the widgets the kernel already had. See restore. */
   private restoring?: Promise<void>;
 
-  private readonly channel: ICommChannel;
+  private readonly channel: CommChannel;
 
   constructor(sendComm: SendComm) {
     super();
@@ -202,7 +202,7 @@ export class ZasperWidgetManager extends ManagerBase {
    * Handled as it arrived, that update would be delivered to a comm whose model is not yet listening
    * on it, and a plot would come up empty.
    */
-  handleKernelMessage(msg: IWidgetKernelMessage): Promise<void> {
+  handleKernelMessage(msg: WidgetKernelMessage): Promise<void> {
     return this.after(() => this.handle(msg), `handle a ${msg.header.msg_type} for a widget`);
   }
 
@@ -210,7 +210,7 @@ export class ZasperWidgetManager extends ManagerBase {
    * Gives an Output widget one of the messages it is capturing, in its turn among the widget messages
    * — a widget can still be being built when the output it is to hold arrives.
    */
-  addToOutputWidget(modelId: string, msg: IWidgetKernelMessage): Promise<void> {
+  addToOutputWidget(modelId: string, msg: WidgetKernelMessage): Promise<void> {
     return this.after(async () => {
       const model = await this.get_model(modelId);
       if (!(model instanceof OutputModel)) {
@@ -243,7 +243,7 @@ export class ZasperWidgetManager extends ManagerBase {
     return this.handling;
   }
 
-  private async handle(msg: IWidgetKernelMessage): Promise<void> {
+  private async handle(msg: WidgetKernelMessage): Promise<void> {
     const commId = msg.content?.comm_id;
 
     switch (msg.header.msg_type) {
@@ -369,7 +369,7 @@ export class ZasperWidgetManager extends ManagerBase {
     });
   }
 
-  private async openWidgetComm(commId: string, msg: IWidgetKernelMessage): Promise<void> {
+  private async openWidgetComm(commId: string, msg: WidgetKernelMessage): Promise<void> {
     const comm = new KernelComm(commId, this.comm_target_name, this.channel);
     this.comms.set(commId, comm);
     try {
@@ -387,7 +387,7 @@ export class ZasperWidgetManager extends ManagerBase {
    * This is how a widget learns its update has been dealt with: a model holds back further updates
    * until the kernel reports itself idle again, so without this a slider moves once and then stops.
    */
-  private answerPending(msg: IWidgetKernelMessage): void {
+  private answerPending(msg: WidgetKernelMessage): void {
     const requestId = msg.parent_header?.msg_id;
     const callbacks = requestId ? this.pending.get(requestId) : undefined;
     if (!requestId || !callbacks) {

@@ -1,7 +1,7 @@
 import { requestJson } from './client';
-import { IContentEntry } from './contents';
+import { ContentEntry } from './contents';
 
 /** Returns the files whose name contains `query`. */
-export function searchFiles(query: string): Promise<IContentEntry[]> {
-  return requestJson<IContentEntry[]>('/api/files', { query: { query } });
+export function searchFiles(query: string): Promise<ContentEntry[]> {
+  return requestJson<ContentEntry[]>('/api/files', { query: { query } });
 }

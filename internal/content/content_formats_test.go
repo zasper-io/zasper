@@ -131,7 +131,7 @@ func TestAHashIsSentOnlyWhenAskedFor(t *testing.T) {
 	require.NoError(t, err)
 	sum := sha256.Sum256([]byte("hello"))
 	assert.Equal(t, hex.EncodeToString(sum[:]), with.Hash)
-	assert.Equal(t, "sha256", with.Hash_algorithm)
+	assert.Equal(t, "sha256", with.HashAlgorithm)
 }
 
 func TestAFileWithNoKnownExtensionIsTypedByWhatItHolds(t *testing.T) {

@@ -56,13 +56,20 @@ resolving, so a mismatch surfaces at runtime rather than as a compile error.
 A component gets a folder as soon as it has more than one file; until then it is a
 single `.tsx` beside its siblings. The entry file inside a folder is named after the
 component (`FileBrowser/FileBrowser.tsx`), not `index.tsx`, so that stack traces and
-editor tabs stay distinguishable. Import it explicitly: `./sidebar/GitPanel/GitPanel`.
+editor tabs stay distinguishable. Import it explicitly: `./sidebar/gitPanel/GitPanel`.
 
 Tests sit next to what they test, as `Subject.test.ts(x)`.
 
 State that only one feature reads belongs to that feature (see
-`ide/sidebar/FileBrowser/atoms.ts`); `store/` is for atoms genuinely shared across
+`ide/sidebar/fileBrowser/atoms.ts`); `store/` is for atoms genuinely shared across
 features.
+
+### Naming
+
+- Folders are camelCase (`sidebar/fileBrowser`, `statusBar`). A component's file is PascalCase
+  (`FileBrowser.tsx`); every other module is camelCase (`tabState.ts`, `useFileTree.ts`).
+- Only a file that holds JSX ends in `.tsx`.
+- Types and interfaces carry no `I` prefix: `FileTab`, `ContentEntry`.
 
 ### Styles
 

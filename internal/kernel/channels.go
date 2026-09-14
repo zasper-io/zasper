@@ -119,7 +119,7 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 				log.Debug().Msgf("Polling of %q socket canceled.", socketName)
 				return
 			default:
-				log.Debug().Msgf("Receive message on %q chanel.", socketName)
+				log.Debug().Msgf("receiving on the %q socket", socketName)
 
 				zmsg, err2 := socket.Recv()
 				if err2 != nil {
@@ -158,15 +158,15 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 }
 
 func (kwsConn *KernelWebSocketConnection) startPolling() { //msg interface{}, binary bool
-	iopub_channel := kwsConn.Channels["iopub"]
-	stdin_channel := kwsConn.Channels["stdin"]
-	control_channel := kwsConn.Channels["control"]
-	shell_channel := kwsConn.Channels["shell"]
+	iopubChannel := kwsConn.Channels["iopub"]
+	stdinChannel := kwsConn.Channels["stdin"]
+	controlChannel := kwsConn.Channels["control"]
+	shellChannel := kwsConn.Channels["shell"]
 
-	kwsConn.pollChannel(iopub_channel, "iopub")
-	kwsConn.pollChannel(control_channel, "control")
-	kwsConn.pollChannel(stdin_channel, "stdin")
-	kwsConn.pollChannel(shell_channel, "shell")
+	kwsConn.pollChannel(iopubChannel, "iopub")
+	kwsConn.pollChannel(controlChannel, "control")
+	kwsConn.pollChannel(stdinChannel, "stdin")
+	kwsConn.pollChannel(shellChannel, "shell")
 }
 
 func (kwsConn *KernelWebSocketConnection) Prepare(sessionId string) {

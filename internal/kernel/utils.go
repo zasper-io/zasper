@@ -5,21 +5,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"os"
-	"runtime"
 	"sync"
 
 	"github.com/rs/zerolog/log"
 )
 
-func GetUsername() string {
-	// Check if the OS is Windows
-	if runtime.GOOS == "windows" {
-		return os.Getenv("USERNAME") // Windows typically uses "USERNAME"
-	}
-	// For UNIX-like systems (Linux, macOS), use "USER"
-	return os.Getenv("USER")
-}
 func newID() string {
 	// newID generates a new random ID as a string.
 	// The ID format is 32 random bytes as hex-encoded text, with chunks separated by '-'.

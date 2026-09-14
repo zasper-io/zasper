@@ -116,11 +116,11 @@ func TestTheKernelspecsAreListedWithTheirResources(t *testing.T) {
 	var answer KernelspecResponse
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &answer), "body was %s", recorder.Body)
 
-	require.Contains(t, answer.Kernespecs, "python3")
-	assert.Equal(t, "Python 3", answer.Kernespecs["python3"].Spec.DisplayName)
+	require.Contains(t, answer.Kernelspecs, "python3")
+	assert.Equal(t, "Python 3", answer.Kernelspecs["python3"].Spec.DisplayName)
 
 	// At Jupyter Server's address for them, which the router serves.
-	resources := answer.Kernespecs["python3"].Resources
+	resources := answer.Kernelspecs["python3"].Resources
 	assert.Equal(t, "/kernelspecs/python3/logo-64x64.png", resources["logo-64x64"])
 	assert.Equal(t, "/kernelspecs/python3/kernel.js", resources["kernel.js"])
 	assert.Equal(t, "python3", answer.Default)

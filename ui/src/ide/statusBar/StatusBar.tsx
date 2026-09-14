@@ -3,24 +3,24 @@ import React, { useEffect, useCallback } from 'react';
 import { useAtom } from 'jotai';
 
 import './StatusBar.scss';
+import { branchNameAtom } from '@/store/git';
 import {
-  branchNameAtom,
   columnPositionAtom,
   encodingAtom,
   eolSequenceAtom,
   indentationModeAtom,
   indentationSizeAtom,
   linePositionAtom,
-} from '@/store/AppState';
+} from '@/store/editorStatus';
 import { getCurrentBranch, logApiError } from '@/api';
 import { Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
-import { fileTabsAtom, IfileTab } from '@/store/TabState';
+import { fileTabsAtom, FileTab } from '@/store/tabState';
 import ZoomStatus from './ZoomStatus';
 
 /** What the status bar calls the thing in the active tab. */
-function describeTab(tab: IfileTab | undefined): string {
+function describeTab(tab: FileTab | undefined): string {
   if (!tab) {
     return '';
   }
