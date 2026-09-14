@@ -123,7 +123,9 @@ export default function TerminalTab({ data }: TerminalTabProps) {
       if (socketRef.current !== null) {
         const attachAddon = new AttachAddon(socketRef.current);
         terminal.loadAddon(attachAddon);
-        fitAddon.fit();
+        // Through refit, not fitAddon.fit(): the socket can open after the tab has been switched
+        // away from, and a fit then is the five-row collapse described above.
+        refit();
         sendSizeToBackend(terminal.cols, terminal.rows);
       }
     };
