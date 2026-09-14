@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { NotebookMetadata } from '@/api';
 import { KernelspecsState } from '@/store/kernels';
 
-import { kernelToStart } from './useKernelSession';
+import { kernelToStart } from './kernelChoice';
 
 /** The installed kernels, as /api/kernelspecs reports them: keyed by name. */
 function installed(...names: string[]): KernelspecsState {

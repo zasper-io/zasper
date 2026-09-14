@@ -1,23 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import './NotebookEditor.scss';
 
-import { logApiError, saveNotebook } from '@/api';
+import { logApiError, NotebookMetadata, saveNotebook } from '@/api';
 import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
 import { useUnsavedChanges } from '@/store/unsavedState';
 import BreadCrumb from '../BreadCrumb';
-import { CodeMirrorRef } from './Cell';
 import ConfirmRestartDialog, { RestartIntent } from './ConfirmRestartDialog';
+import { NO_KERNEL } from './kernelChoice';
 import { KernelMessage } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
 import NotebookCells from './NotebookCells';
-import { NotebookMetadata } from '@/api';
+import { NotebookEditorContext, NotebookEditorContextValue } from './NotebookEditorContext';
 
 import { useRegisterCommands, useRunCommand } from '@/commands/registry';
 import { useEditorCommandKeymap } from '@/commands/useEditorCommandKeymap';
 import { useNotebookCommands } from './notebookCommands';
-import { NO_KERNEL, useKernelSession } from './useKernelSession';
+import { useKernelSession } from './useKernelSession';
 import { useNotebookCells } from './useNotebookCells';
 
 interface NotebookEditorProps {
@@ -25,7 +25,6 @@ interface NotebookEditorProps {
 }
 
 export default function NotebookEditor({ data }: NotebookEditorProps) {
-  const codeMirrorRefs = useRef<CodeMirrorRef[] | null>([]);
   const [executeAllCellsFlag, setExecuteAllCellsFlag] = useState<boolean>(false);
 
   const cells = useNotebookCells();
@@ -173,6 +172,29 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // through the registry, so a cell can only run its own notebook's commands.
   const commandKeymap = useEditorCommandKeymap(commands);
 
+  const cellContext: NotebookEditorContextValue = {
+    run: runCommand,
+    commandKeymap,
+    focusedIndex: cells.focusedIndex,
+    focusCell: cells.focusCell,
+    focusNextCell: cells.focusNextCell,
+    focusPreviousCell: cells.focusPreviousCell,
+    divRefs: cells.divRefs,
+    updateCellSource: cells.updateCellSource,
+    addCellAt: cells.addCellAt,
+    submitCell,
+    interruptKernel: kernel.interruptKernel,
+    beginEditing: cells.beginEditing,
+    endEditing: cells.endEditing,
+    showPrompt: kernel.showPrompt,
+    promptContent: kernel.promptContent,
+    promptCellId: kernel.promptCellId,
+    submitPrompt,
+    toggleShowPrompt: kernel.toggleShowPrompt,
+    requestCompletions: kernel.requestCompletions,
+    widgets: kernel.widgets,
+  };
+
   return (
     <div className="tab-surface">
       <div
@@ -222,33 +244,14 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               </p>
             </div>
           ) : (
-            <NotebookCells
-              notebook={notebook}
-              focusedIndex={cells.focusedIndex}
-              focusCell={cells.focusCell}
-              divRefs={cells.divRefs}
-              codeMirrorRefs={codeMirrorRefs}
-              run={runCommand}
-              commandKeymap={commandKeymap}
-              focusNextCell={cells.focusNextCell}
-              focusPreviousCell={cells.focusPreviousCell}
-              updateCellSource={cells.updateCellSource}
-              addCellAt={cells.addCellAt}
-              submitCell={submitCell}
-              interruptKernel={kernel.interruptKernel}
-              runningCellIds={kernel.runningCellIds}
-              expandedOutputs={cells.expandedOutputs}
-              editingCellId={cells.editingCellId}
-              beginEditing={cells.beginEditing}
-              endEditing={cells.endEditing}
-              showPrompt={kernel.showPrompt}
-              promptContent={kernel.promptContent}
-              promptCellId={kernel.promptCellId}
-              submitPrompt={submitPrompt}
-              toggleShowPrompt={kernel.toggleShowPrompt}
-              requestCompletions={kernel.requestCompletions}
-              widgets={kernel.widgets}
-            />
+            <NotebookEditorContext.Provider value={cellContext}>
+              <NotebookCells
+                notebook={notebook}
+                runningCellIds={kernel.runningCellIds}
+                expandedOutputs={cells.expandedOutputs}
+                editingCellId={cells.editingCellId}
+              />
+            </NotebookEditorContext.Provider>
           )}
         </div>
       </div>

@@ -1,198 +1,38 @@
-import type { ReactElement } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { toast } from 'react-toastify';
-
 import GitPanel from './GitPanel';
-import type { GitStatus } from '@/api';
-import { useCommands, useRunCommand } from '@/commands/registry';
-import { fileTabsAtom } from '@/store/tabState';
+import {
+  checkoutBranch,
+  commitStaged,
+  deleteBranch,
+  discardFiles,
+  fetchRemote,
+  getBranches,
+  getCommitDetail,
+  getGitStatus,
+  getLog,
+  initRepository,
+  pullRemote,
+  pushRemote,
+  stageFiles,
+  unstageFiles,
+} from './gitPanelFakes';
+import {
+  aCommit,
+  aPage,
+  aStatus,
+  empty,
+  openBranchMenu,
+  setUpGitPanel,
+  ThePanel,
+  withTabs,
+} from './gitPanelTestKit';
 
-const getGitStatus = vi.fn();
-const getLog = vi.fn();
-const getCommitDetail = vi.fn();
-const initRepository = vi.fn();
-const stageFiles = vi.fn();
-const unstageFiles = vi.fn();
-const discardFiles = vi.fn();
-const commitStaged = vi.fn();
-const getBranches = vi.fn();
-const checkoutBranch = vi.fn();
-const deleteBranch = vi.fn();
-const fetchRemote = vi.fn();
-const pullRemote = vi.fn();
-const pushRemote = vi.fn();
+vi.mock('@/api', async () => (await import('./gitPanelFakes')).apiModule());
+vi.mock('react-toastify', async () => (await import('./gitPanelFakes')).toastModule());
 
-vi.mock('@/api', async () => ({
-  // Not stubbed: the real one only builds a URL, and the socket it is handed to is mocked anyway.
-  websocketUrl: (await import('@/api/client')).websocketUrl,
-  getGitStatus: () => getGitStatus(),
-  getLog: (options: unknown) => getLog(options),
-  getCommitDetail: (hash: string) => getCommitDetail(hash),
-  initRepository: () => initRepository(),
-  stageFiles: (paths: string[]) => stageFiles(paths),
-  unstageFiles: (paths: string[]) => unstageFiles(paths),
-  discardFiles: (paths: string[], deleteUntracked: boolean) => discardFiles(paths, deleteUntracked),
-  commitStaged: (message: string, options: unknown) => commitStaged(message, options),
-  getBranches: () => getBranches(),
-  checkoutBranch: (...args: unknown[]) => checkoutBranch(...args),
-  deleteBranch: (...args: unknown[]) => deleteBranch(...args),
-  fetchRemote: () => fetchRemote(),
-  pullRemote: () => pullRemote(),
-  pushRemote: () => pushRemote(),
-  // Not the panel's own, but the tab actions it opens diffs through are in its tree.
-  deleteKernel: vi.fn(),
-  logApiError: () => () => {},
-  emptyGitStatus: (await import('@/api/git')).emptyGitStatus,
-  apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
-}));
-
-// The panel raises toasts for what it did; whether they render is IDE.tsx's business, not this test's.
-vi.mock('react-toastify', () => ({
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
-}));
-
-const aCommit = {
-  hash: 'abc1234def5678',
-  shortHash: 'abc1234',
-  subject: 'the first one',
-  author: 'Test',
-  date: '2026-01-02T03:04:05Z',
-  parents: [] as string[],
-};
-
-/** The same commit with what it changed, which is what a row expands into. */
-const itsFiles = {
-  ...aCommit,
-  body: 'and more said about it underneath',
-  files: [
-    { path: 'src/notes.txt', status: 'M', insertions: 3, deletions: 1, isBinary: false },
-    { path: 'logo.png', status: 'A', insertions: 0, deletions: 0, isBinary: true },
-  ],
-  insertions: 3,
-  deletions: 1,
-  truncated: false,
-};
-
-/** A page of the history, as the server sends it. */
-const aPage = (commits: (typeof aCommit)[], hasMore = false) => ({
-  commits,
-  hasMore,
-  isRepository: true,
-});
-
-const empty: GitStatus = {
-  isRepository: true,
-  gitAvailable: true,
-  branch: 'main',
-  upstream: '',
-  ahead: 0,
-  behind: 0,
-  hasRemote: false,
-  staged: [],
-  unstaged: [],
-  untracked: [],
-  conflicted: [],
-};
-
-const aStatus = (overrides: Partial<GitStatus> = {}): GitStatus => ({ ...empty, ...overrides });
-
-const reveal = vi.fn();
-
-/** The panel as the IDE renders it. Only the command tests care where `reveal` goes. */
-const ThePanel = ({ hidden }: { hidden?: boolean }) => (
-  <GitPanel hidden={hidden ?? false} reveal={reveal} />
-);
-
-/** One of each: the branch that is checked out, another of this repository's, and a colleague's. */
-const theBranches = [
-  { name: 'main', current: true, upstream: 'origin/main', isRemote: false },
-  { name: 'topic', current: false, isRemote: false },
-  { name: 'origin/theirs', current: false, isRemote: true },
-];
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  getGitStatus.mockResolvedValue(aStatus());
-  getLog.mockResolvedValue(aPage([]));
-  getCommitDetail.mockResolvedValue(itsFiles);
-  initRepository.mockResolvedValue(aStatus());
-  stageFiles.mockResolvedValue(aStatus());
-  unstageFiles.mockResolvedValue(aStatus());
-  discardFiles.mockResolvedValue(aStatus());
-  commitStaged.mockResolvedValue(aStatus());
-  getBranches.mockResolvedValue({ branches: theBranches, isRepository: true });
-  checkoutBranch.mockResolvedValue(aStatus({ branch: 'topic' }));
-  deleteBranch.mockResolvedValue(aStatus());
-  fetchRemote.mockResolvedValue(aStatus());
-  pullRemote.mockResolvedValue(aStatus());
-  pushRemote.mockResolvedValue(aStatus());
-});
-
-/**
- * The panel with the diff tabs it has opened beside it, in a store of its own.
- *
- * A click on a file name has no effect inside the panel at all — what it does is open a tab — so the
- * tabs have to be readable from here for the assertion to be about anything.
- */
-function withTabs(element: ReactElement) {
-  const OpenDiffs = () => {
-    const tabs = useAtomValue(fileTabsAtom);
-    return (
-      <span data-testid="diffs">
-        {Object.values(tabs)
-          .filter((tab) => tab.type === 'diff')
-          .map((tab) => `${tab.path} ${JSON.stringify(tab.diff)}`)
-          .join(',')}
-      </span>
-    );
-  };
-
-  return render(
-    <Provider>
-      {element}
-      <OpenDiffs />
-    </Provider>
-  );
-}
-
-/**
- * The panel and the command palette over one store, a button per registered command.
- *
- * The palette is the whole way in for these: there is nothing on the panel that runs them, and the
- * registry is per-store, so the two have to be rendered under the same Provider to meet at all.
- */
-function withPalette(hidden = false) {
-  const Palette = () => {
-    const commands = useCommands();
-    const run = useRunCommand();
-
-    return (
-      <>
-        {commands.map((command) => (
-          <button key={command.id} data-testid={command.id} onClick={() => run(command.id)}>
-            {command.label}
-          </button>
-        ))}
-      </>
-    );
-  };
-
-  return render(
-    <Provider>
-      <ThePanel hidden={hidden} />
-      <Palette />
-    </Provider>
-  );
-}
-
-/** Opens the branch menu, which the branch name in the bar is the button for. */
-async function openBranchMenu(): Promise<void> {
-  fireEvent.click(await screen.findByLabelText('Branch: main'));
-  await waitFor(() => expect(getBranches).toHaveBeenCalled());
-}
+beforeEach(setUpGitPanel);
 
 describe('GitPanel', () => {
   it('asks the server for nothing while it is hidden', async () => {
@@ -659,120 +499,5 @@ describe('GitPanel', () => {
 
     fireEvent.click(screen.getByLabelText('Refresh'));
     await waitFor(() => expect(getGitStatus).toHaveBeenCalledTimes(2));
-  });
-});
-
-describe('the git commands', () => {
-  /** One file of each kind, so what a command leaves alone is as visible as what it takes. */
-  const dirty = aStatus({
-    staged: [{ path: 'staged.txt', staged: 'M', worktree: '' }],
-    unstaged: [{ path: 'src/changed.txt', staged: '', worktree: 'M' }],
-    untracked: [{ path: 'new.txt', staged: '', worktree: '?' }],
-    conflicted: [{ path: 'clash.txt', staged: 'U', worktree: 'U' }],
-  });
-
-  it('are all in the palette', async () => {
-    withPalette();
-
-    const labels: Record<string, string> = {
-      'git:stage-all': 'Stage All Changes',
-      'git:commit': 'Commit',
-      'git:fetch': 'Fetch',
-      'git:pull': 'Pull',
-      'git:push': 'Push',
-      'git:checkout-branch': 'Checkout Branch…',
-    };
-    for (const [id, label] of Object.entries(labels)) {
-      expect(await screen.findByTestId(id)).toHaveTextContent(label);
-    }
-  });
-
-  it('are there before anyone has opened the panel, and quiet until used', async () => {
-    withPalette(true);
-
-    expect(await screen.findByTestId('git:stage-all')).toBeInTheDocument();
-    // Registering them must not be what makes a hidden panel talk to the server: for someone who works
-    // from the palette the sidebar may never be opened at all.
-    expect(getGitStatus).not.toHaveBeenCalled();
-  });
-
-  it('stage everything git could be told about, except the conflicts', async () => {
-    getGitStatus.mockResolvedValue(dirty);
-    withPalette(true);
-
-    fireEvent.click(await screen.findByTestId('git:stage-all'));
-
-    // Read when asked, not taken from the panel: the panel was never open, so it holds nothing — and a
-    // list it did hold could be from before a commit made in a terminal.
-    await waitFor(() => expect(stageFiles).toHaveBeenCalledWith(['src/changed.txt', 'new.txt']));
-    // Staging a conflicted file is how git is told it has been resolved, and this one still has the
-    // markers in it.
-    expect(stageFiles).not.toHaveBeenCalledWith(expect.arrayContaining(['clash.txt']));
-  });
-
-  it('say when there is nothing to stage instead of staging nothing', async () => {
-    withPalette();
-
-    fireEvent.click(await screen.findByTestId('git:stage-all'));
-
-    await waitFor(() => expect(toast.info).toHaveBeenCalledWith('Nothing to stage.'));
-    expect(stageFiles).not.toHaveBeenCalled();
-  });
-
-  it('commit the message the box holds', async () => {
-    getGitStatus.mockResolvedValue(
-      aStatus({ staged: [{ path: 'a.txt', staged: 'A', worktree: '' }] })
-    );
-    withPalette();
-
-    fireEvent.change(await screen.findByPlaceholderText('Commit message'), {
-      target: { value: 'from the palette' },
-    });
-    fireEvent.click(screen.getByTestId('git:commit'));
-
-    // The same commit the button makes, because it is the same action behind both.
-    await waitFor(() =>
-      expect(commitStaged).toHaveBeenCalledWith('from the palette', { push: false })
-    );
-  });
-
-  it('show the panel rather than commit nothing', async () => {
-    getGitStatus.mockResolvedValue(dirty);
-    withPalette();
-    await screen.findByPlaceholderText('Commit message');
-
-    fireEvent.click(screen.getByTestId('git:commit'));
-
-    // Nothing is written and there is a conflict besides. Why is on the panel — the disabled button's
-    // reason, the conflicts section — so the panel is the answer, with the caret in the box.
-    expect(commitStaged).not.toHaveBeenCalled();
-    expect(reveal).toHaveBeenCalled();
-    await waitFor(() => expect(screen.getByPlaceholderText('Commit message')).toHaveFocus());
-  });
-
-  it('fetch, pull and push', async () => {
-    withPalette();
-
-    fireEvent.click(await screen.findByTestId('git:fetch'));
-    await waitFor(() => expect(fetchRemote).toHaveBeenCalled());
-
-    fireEvent.click(screen.getByTestId('git:pull'));
-    await waitFor(() => expect(pullRemote).toHaveBeenCalled());
-
-    fireEvent.click(screen.getByTestId('git:push'));
-    await waitFor(() => expect(pushRemote).toHaveBeenCalled());
-  });
-
-  it('open the branch menu on the panel', async () => {
-    withPalette();
-    await screen.findByLabelText('Branch: main');
-
-    fireEvent.click(screen.getByTestId('git:checkout-branch'));
-
-    // Which is a menu that reads its own branches and takes the typing, so opening it is the whole
-    // command: there is no second palette for the branch names.
-    expect(reveal).toHaveBeenCalled();
-    expect(await screen.findByLabelText('Find or create a branch')).toBeInTheDocument();
-    await waitFor(() => expect(getBranches).toHaveBeenCalled());
   });
 });

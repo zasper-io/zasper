@@ -1,12 +1,12 @@
 import React from 'react';
 
-import type { NotebookCell } from '@/api';
 import { Icon } from '@/ide/icons';
+
+import { useNotebookEditor } from './NotebookEditorContext';
 
 interface CellInsertProps {
   /** Where a cell added here would land. */
   index: number;
-  addCellAt: (index: number, cellType: NotebookCell['cell_type']) => void;
   /**
    * The rail after the last cell, which is the one that is always on screen. Every other rail has
    * two cells to sit between and a pointer arrives at it on the way past; this one has nothing below
@@ -29,12 +29,14 @@ interface CellInsertProps {
  * cannot say which.
  */
 export default function CellInsert(props: CellInsertProps) {
+  const { addCellAt } = useNotebookEditor();
+
   return (
     <div className={props.isEnd === true ? 'cell-insert is-end' : 'cell-insert'}>
       <button
         type="button"
         className="cell-insert-button"
-        onClick={() => props.addCellAt(props.index, 'code')}
+        onClick={() => addCellAt(props.index, 'code')}
       >
         <Icon name="plus" size={12} />
         Code
@@ -42,7 +44,7 @@ export default function CellInsert(props: CellInsertProps) {
       <button
         type="button"
         className="cell-insert-button"
-        onClick={() => props.addCellAt(props.index, 'markdown')}
+        onClick={() => addCellAt(props.index, 'markdown')}
       >
         <Icon name="plus" size={12} />
         Markdown

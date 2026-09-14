@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
-import { v4 as uuidv4 } from 'uuid';
+import { useAtom } from 'jotai';
 
 import {
   apiErrorMessage,
@@ -10,101 +9,24 @@ import {
   NotebookMetadata,
   Session,
   sessionForPath,
-  websocketUrl,
 } from '@/api';
-import {
-  KernelspecsState,
-  kernelspecsAtom,
-  kernelStatusAtom,
-  notebookKernelMapAtom,
-} from '@/store/kernels';
+import { kernelspecsAtom, notebookKernelMapAtom } from '@/store/kernels';
 import { userNameAtom } from '@/store/serverInfo';
 import { FileTab } from '@/store/tabState';
 import { WidgetBridge } from '@/ide/widgets/widgetBridge';
-import {
-  buildWidgetMessage,
-  buildCompleteRequest,
-  buildExecuteRequest,
-  buildInputReply,
-  decodeBuffers,
-  CompleteReply,
-  KernelMessage,
-} from './kernelMessages';
+
+import { kernelToStart, NO_KERNEL } from './kernelChoice';
+import { decodeBuffers, KernelMessage } from './kernelMessages';
+import { useInputPrompt } from './useInputPrompt';
+import { useKernelRequests } from './useKernelRequests';
+import { useKernelSocket } from './useKernelSocket';
+import { useKernelStatus } from './useKernelStatus';
 
 /**
- * How long to wait for a `complete_reply` before giving up on it.
- *
- * A kernel handles shell messages one at a time, so a completion asked for while a cell is
- * running is not answered until that cell finishes — by which point the editor has moved on and
- * the answer is wrong. Better to drop it than to pop a stale list over the cursor.
- */
-const COMPLETION_TIMEOUT_MS = 2000;
-
-/** The kernelspec a tab carries when it does not know one, i.e. "ask which kernel". */
-export const NO_KERNEL = 'none';
-
-/**
- * Which kernel to start for a notebook that has just been read.
- *
- * Only the Launcher's "new notebook" knows a kernel up front; every other way of opening one passes
- * 'none', so `metadata.kernelspec` is the only record of the kernel the file was saved with.
- * Returns 'none' when there is no usable answer, which is what raises the picker.
- *
- * `running` is the kernel of a session already on this file, when there is one.
- */
-export function kernelToStart(
-  tabKernelspec: string,
-  metadata: NotebookMetadata,
-  installed: KernelspecsState,
-  running?: string
-): string {
-  // The kernel already running this notebook outranks everything below, because it is not an opinion
-  // about which kernel to use but a fact about which one is in use. Asking for any other name starts a
-  // second kernel beside it and leaves everything the first one holds unreachable — and a reopened
-  // notebook whose file names no kernel gets no picker, since the question is already answered.
-  if (running !== undefined && running !== '' && running !== NO_KERNEL) {
-    return running;
-  }
-
-  // A kernel chosen for this tab outranks the file: for a notebook created from the Launcher the
-  // file names none at all.
-  if (tabKernelspec !== '' && tabKernelspec !== NO_KERNEL) {
-    return tabKernelspec;
-  }
-
-  // Zasper wrote a bare string here before, so both shapes are on disk.
-  const saved =
-    typeof metadata.kernelspec === 'string' ? metadata.kernelspec : metadata.kernelspec?.name;
-  if (saved === undefined || saved === '' || saved === NO_KERNEL) {
-    return NO_KERNEL;
-  }
-
-  // Ask rather than fail: a notebook written elsewhere can name a kernel that is not installed
-  // here. An empty list means the kernelspecs have not been fetched yet, which is no evidence that
-  // the kernel is missing.
-  if (Object.keys(installed).length > 0 && !(saved in installed)) {
-    return NO_KERNEL;
-  }
-
-  return saved;
-}
-
-type KernelWebSocketClient = WebSocket;
-
-/** Stand-in until the real socket is connected, so senders never hit a null client. */
-const disconnectedClient = {
-  send: () => {},
-  close: () => {},
-  onopen: () => {},
-  onmessage: () => {},
-  onerror: () => {},
-  onclose: () => {},
-} as unknown as KernelWebSocketClient;
-
-/**
- * Owns the kernel side of a notebook tab: the session, the websocket carrying
- * kernel messages, and the dialogs driven by kernel state. Messages that mutate
- * cells are handed to `applyMessage`, which the notebook document hook provides.
+ * The kernel side of a notebook tab: which session and kernel it is on, and starting, switching,
+ * interrupting and restarting them. The socket, the requests sent over it, the kernel's status and its
+ * input prompts are hooks of their own. Messages that change cells go to `applyMessage`, which the
+ * notebook document provides.
  */
 export function useKernelSession(
   tab: FileTab,
@@ -112,238 +34,59 @@ export function useKernelSession(
 ) {
   const [session, setSession] = useState<Session | null>();
   const [kernelName, setKernelName] = useState<string>(tab.kernelspec);
-  const [kernelStatus, setKernelStatus] = useState('idle');
-  const [connection, setConnection] = useState<KernelWebSocketClient>(disconnectedClient);
-  /*
-   * The widget runtime for the kernel behind the current socket, null until one has been connected.
-   * Widget models belong to a kernel, so every connection gets its own and a replaced one lets go of
-   * the models it was holding.
-   */
-  const [widgets, setWidgets] = useState<WidgetBridge | null>(null);
-  // Also in a ref, because the socket's message handler is set once and outlives every render.
-  const liveWidgets = useRef<WidgetBridge | null>(null);
+  const [kernelStatus, setKernelStatus] = useKernelStatus(session?.kernel.id);
   const [showKernelSwitcher, setShowKernelSwitcher] = useState<boolean>(false);
   /*
-   * Why the last attempt to start a kernel failed, '' when none has. Shown inside the picker rather
-   * than in a dialog of its own: a failure and "choose a kernel" are the same moment, and raising one
-   * modal for each stacked two on one backdrop with the reason behind the choice.
+   * Why the last attempt to start a kernel failed, '' when none has. Shown inside the picker rather than
+   * in a dialog of its own: a failure and "choose a kernel" are the same moment.
    */
   const [kernelError, setKernelError] = useState<string>('');
-  const [showPrompt, setShowPrompt] = useState<Boolean>(false);
-  const [promptContent, setPromptContent] = useState<KernelMessage>();
-  // Which cell the kernel is asking input for, resolved from the request the prompt answers.
-  const [promptCellId, setPromptCellId] = useState<string>();
-  // Keyed by the request's msg_id, which is what a reply's parent_header carries. A ref rather
-  // than state: resolving a promise is not a render, and the callbacks have to survive one.
-  const pendingCompletions = useRef(new Map<string, (reply: CompleteReply) => void>());
-  /*
-   * Which cell each execute_request was sent for, keyed by its msg_id, so a reply can be routed back.
-   * The cell id cannot serve as the msg_id: a cell is run many times over, and one id for all of
-   * those requests makes a previous run's output indistinguishable from this one's.
-   */
-  const executingCells = useRef(new Map<string, string>());
-
-  // Sockets opened but not yet `connection`: the gap between `new` and the state update, which the
-  // effect that closes the connection cannot see.
-  const pendingSockets = useRef(new Set<KernelWebSocketClient>());
-  /**
-   * The same set of cells as `executingCells`, as state rather than a ref, so that a cell can draw a
-   * spinner for as long as it is actually running. The ref cannot do that job — writing to one is
-   * not a render — and the spinner used to key off `execution_count === -1`, which the kernel's
-   * `execute_input` overwrites within milliseconds of the run starting.
-   */
-  const [runningCellIds, setRunningCellIds] = useState<ReadonlySet<string>>(new Set());
-
-  /** Keeps the state above in step with the ref after every change to it. */
-  const syncRunningCells = useCallback(() => {
-    setRunningCellIds(new Set(executingCells.current.values()));
-  }, []);
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
-  const setKernelStatuses = useSetAtom(kernelStatusAtom);
   const [userName] = useAtom(userNameAtom);
   const [kernelspecs] = useAtom(kernelspecsAtom);
-  // In a ref because `startSessionForNotebook` reads it: as a dependency it would rebuild that
-  // callback when the kernelspecs arrive, and the effect that opens a notebook would run twice.
+  // In a ref because `startSessionForNotebook` reads it: as a dependency it would rebuild that callback
+  // when the kernelspecs arrive, and the effect that opens a notebook would run twice.
   const installedKernels = useRef(kernelspecs);
   useEffect(() => {
     installedKernels.current = kernelspecs;
   }, [kernelspecs]);
 
-  // What the kernel calls itself, for the record a save leaves in the file: `python3` is an id,
-  // `Python 3` is what a reader sees. Undefined until the kernelspecs have arrived.
+  // What the kernel calls itself and its language, for the record a save leaves in the file. Undefined
+  // until the kernelspecs have arrived.
   const kernelDisplayName = kernelspecs[kernelName]?.spec?.display_name;
-
-  // nbformat's kernelspec carries a language beside the two names, and readers use it to pick a
-  // lexer. Rebuilding the record from the kernel's name alone dropped it.
   const kernelLanguage = kernelspecs[kernelName]?.spec?.language;
 
+  const prompt = useInputPrompt();
+  const socket = useKernelSocket(userName, (message) => handleMessage(message), setKernelStatus);
+  const requests = useKernelRequests(session, socket.connection, userName);
+
+  function handleMessage(message: KernelMessage) {
+    const cellId = requests.cellFor(message);
+
+    if (message.header.msg_type === 'input_request') {
+      prompt.askForInput(message, cellId);
+    }
+    if (WidgetBridge.handles(message.header.msg_type)) {
+      socket.liveWidgets.current?.handleKernelMessage({
+        ...message,
+        buffers: decodeBuffers(message.buffers),
+      });
+    }
+    if (message.header.msg_type === 'status') {
+      setKernelStatus(message.content.execution_state);
+    }
+    requests.settle(message);
+    // An Output widget entered while the cell was running holds its output, and a cell whose output a
+    // widget is holding shows none of its own.
+    if (socket.liveWidgets.current?.captureOutput(message)) {
+      return;
+    }
+    applyMessage(message, cellId);
+  }
+
   const toggleKernelSwitcher = () => setShowKernelSwitcher((prev) => !prev);
-  const toggleShowPrompt = () => setShowPrompt((prev) => !prev);
 
-  const handleMessage = useCallback(
-    (message: KernelMessage) => {
-      const requestId: string | undefined = message.parent_header?.msg_id;
-      const cellId = requestId ? executingCells.current.get(requestId) : undefined;
-
-      if (message.header.msg_type === 'input_request') {
-        setShowPrompt(true);
-        setPromptContent(message);
-        setPromptCellId(cellId);
-      }
-      if (message.header.msg_type === 'complete_reply') {
-        pendingCompletions.current.get(message.parent_header.msg_id)?.(message.content);
-      }
-      if (WidgetBridge.handles(message.header.msg_type)) {
-        liveWidgets.current?.handleKernelMessage({
-          ...message,
-          buffers: decodeBuffers(message.buffers),
-        });
-      }
-      if (message.header.msg_type === 'status') {
-        setKernelStatus(message.content.execution_state);
-        // Idle means the kernel has finished with the request and will send nothing further for it.
-        if (message.content.execution_state === 'idle' && requestId) {
-          executingCells.current.delete(requestId);
-          syncRunningCells();
-        }
-      }
-      // An Output widget entered while the cell was running holds the output of it, and a cell whose
-      // output a widget is holding shows none of its own.
-      if (liveWidgets.current?.captureOutput(message)) {
-        return;
-      }
-      applyMessage(message, cellId);
-    },
-    [applyMessage, syncRunningCells]
-  );
-
-  const startWebSocket = useCallback(
-    (newSession: Session | null | undefined): Promise<KernelWebSocketClient> => {
-      if (!newSession) return Promise.reject('No session provided');
-
-      return new Promise<KernelWebSocketClient>((resolve, reject) => {
-        const client = new WebSocket(
-          websocketUrl(`/ws/kernels/${newSession.kernel.id}/channels`, {
-            session_id: newSession.id,
-          })
-        );
-        pendingSockets.current.add(client);
-
-        // Only once the socket is open: a widget output on a page that has just been reloaded asks
-        // the kernel about the widgets it already has, and a question sent before the socket is up is
-        // a question nobody hears.
-        client.onopen = () => {
-          const bridge = new WidgetBridge((msgType, content, metadata, buffers) => {
-            const msgId = uuidv4();
-            try {
-              client.send(
-                buildWidgetMessage(
-                  newSession.id,
-                  userName,
-                  msgId,
-                  msgType,
-                  content,
-                  metadata,
-                  buffers
-                )
-              );
-            } catch (error) {
-              console.error('Failed to send a widget message:', error);
-            }
-            return msgId;
-          });
-          liveWidgets.current = bridge;
-          setWidgets(bridge);
-
-          setKernelStatus('connected');
-          resolve(client);
-        };
-
-        client.onmessage = (message) => {
-          handleMessage(JSON.parse(message.data as string));
-        };
-
-        client.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          reject(error);
-        };
-
-        // The server closes the channel when the kernel dies, so this is how a
-        // notebook learns its kernel is gone.
-        client.onclose = () => {
-          setKernelStatus('disconnected');
-        };
-      });
-    },
-    [handleMessage, userName]
-  );
-
-  // A tab closing, or a kernel being replaced, takes its widgets with it.
-  useEffect(() => () => widgets?.dispose(), [widgets]);
-
-  /*
-   * And it lets go of the socket. Nothing else closes one: the kernel survives its client going away,
-   * which is the whole point of a tab closing without killing anything, so a socket nobody closes is a
-   * socket nobody ever closes — one per open, and a reconnect left the one it replaced running.
-   *
-   * `onclose` goes first. It reports `disconnected`, which is true of the socket and not of the kernel:
-   * on a reconnect it would overwrite the state of the connection that has just replaced this one, and
-   * on a closed tab it would be the last thing the Jupyter info panel heard about a kernel that is
-   * running perfectly well.
-   */
-  useEffect(() => {
-    if (connection === disconnectedClient) {
-      return;
-    }
-    pendingSockets.current.delete(connection);
-    return () => {
-      connection.onclose = () => {};
-      connection.close();
-    };
-  }, [connection]);
-
-  // A tab closed while its kernel was still connecting: that socket was never `connection`, so nothing
-  // above closes it, and it would run for as long as the page did.
-  useEffect(() => {
-    const pending = pendingSockets.current;
-    return () => {
-      for (const client of pending) {
-        client.onclose = () => {};
-        client.close();
-      }
-      pending.clear();
-    };
-  }, []);
-
-  /*
-   * Publish this kernel's state for anything outside the notebook that wants it — the Jupyter info
-   * panel, so far.
-   *
-   * From one effect rather than from each of the five places that set `kernelStatus`: those are
-   * scattered across the socket's lifecycle and an interrupt, and a mirror written by hand at each is
-   * one that will be forgotten at the sixth. The entry is dropped when this notebook lets go of the
-   * kernel, since a status nobody is maintaining is worse than none.
-   */
-  const kernelId = session?.kernel.id;
-  useEffect(() => {
-    if (kernelId === undefined) {
-      return;
-    }
-    setKernelStatuses((previous) => ({ ...previous, [kernelId]: kernelStatus }));
-  }, [kernelId, kernelStatus, setKernelStatuses]);
-
-  useEffect(() => {
-    if (kernelId === undefined) {
-      return;
-    }
-    return () =>
-      setKernelStatuses((previous) => {
-        const next = { ...previous };
-        delete next[kernelId];
-        return next;
-      });
-  }, [kernelId, setKernelStatuses]);
-
+  const { open: openSocket, setConnection } = socket;
   const startSession = useCallback(
     async (path: string, name: string, type: string, kernelspec: string) => {
       setKernelName(kernelspec);
@@ -351,18 +94,14 @@ export function useKernelSession(
 
       if (kernelspec === NO_KERNEL) {
         setShowKernelSwitcher(true);
-        return; // Resolve immediately, no kernel
+        return;
       }
 
       try {
         const data = await createSession(path, name, type, kernelspec);
-
         setSession(data);
-
         setNotebookKernelMap((prev) => ({ ...prev, [data.path]: data.kernel }));
-
-        setConnection(await startWebSocket(data));
-
+        setConnection(await openSocket(data));
         return data;
       } catch (error: unknown) {
         // Recorded rather than shown: the caller decides what to raise, and the only useful thing to
@@ -371,7 +110,7 @@ export function useKernelSession(
         throw error;
       }
     },
-    [setNotebookKernelMap, startWebSocket]
+    [setNotebookKernelMap, openSocket, setConnection]
   );
 
   /** Starts a session for this tab, falling back to the kernel picker on failure. */
@@ -379,25 +118,20 @@ export function useKernelSession(
     (kernelspec: string) => {
       startSession(tab.path, tab.name, tab.type, kernelspec).catch((error) => {
         console.error('Failed to start session:', error);
-        setShowKernelSwitcher(true); // Show kernel switcher if session fails
+        setShowKernelSwitcher(true);
       });
     },
     [startSession, tab.path, tab.name, tab.type]
   );
 
   /**
-   * Starts the session for a notebook just read — or rejoins the one already running that file.
-   *
-   * Closing a tab leaves the kernel alive, so opening a notebook is as often as not a matter of
-   * finding what is already there: the session it was on, with everything still in memory. The POST
-   * that follows is what actually joins it; the server answers a request for a path it is already
-   * running with that session rather than a second one, and starts a fresh kernel if the one it
-   * remembers has died.
+   * Starts the session for a notebook just read, or rejoins the one already running that file: closing
+   * a tab leaves its kernel alive. The POST that follows is what joins it; the server answers a request
+   * for a path it is already running with that session.
    */
   const startSessionForNotebook = useCallback(
     async (metadata: NotebookMetadata) => {
-      // Failing to ask is not failing to start: with no answer this falls back to what the tab and the
-      // file say, which is all there was to go on before kernels outlived their tabs.
+      // Failing to ask is not failing to start: with no answer the tab and the file decide.
       const running = await sessionForPath(tab.path).catch((error) => {
         console.error('Failed to look for a session already running this notebook:', error);
         return undefined;
@@ -422,9 +156,7 @@ export function useKernelSession(
 
     if (session) {
       // Before the new session, not after: the server finds a session by path, so an abandoned one
-      // leaves a kernel running with nothing attached to it and makes a reopened notebook's lookup
-      // ambiguous — which of the two sessions on that path it joins comes down to the kernel name it
-      // asks for, and that is the *old* kernel until the file is saved again.
+      // leaves a kernel running with nothing attached and makes a reopened notebook's lookup ambiguous.
       try {
         await deleteSession(session.id);
       } catch (error) {
@@ -447,31 +179,28 @@ export function useKernelSession(
   const interrupt = () => {
     if (!session) return;
 
-    // Set now, not when the request resolves. The kernel publishes its own `status: idle` the moment
-    // the interrupt lands, and that usually beat the HTTP reply — so 'interrupted' was written *over*
-    // the idle that should have cleared it, and the pill stayed red-ringed until the next cell ran.
-    // Setting it up front means the kernel's own status stream is the last word, as it should be.
+    // Set now, not when the request resolves: the kernel's own `status: idle` usually beats the HTTP
+    // reply, and writing 'interrupted' after it left the pill red-ringed until the next cell ran.
     setKernelStatus('interrupted');
     interruptKernel(session.kernel.id).catch((error) => {
       console.error('Error interrupting kernel:', error);
     });
   };
 
+  const { forgetRunningCells } = requests;
   /** Drops the current session and starts a fresh one with the same kernel. */
   const restartKernel = useCallback(async () => {
     if (!session) return;
 
-    // Nothing the old kernel was running will ever report back, so no cell is running any more.
     // Without this a cell interrupted by the restart keeps its spinner for the rest of the session.
-    executingCells.current.clear();
-    syncRunningCells();
+    forgetRunningCells();
     await deleteSession(session.id);
     await startSession(tab.path, tab.name, tab.type, kernelName);
-  }, [session, startSession, tab.path, tab.name, tab.type, kernelName, syncRunningCells]);
+  }, [session, startSession, tab.path, tab.name, tab.type, kernelName, forgetRunningCells]);
 
   const reconnectKernel = () => {
     if (session) {
-      startWebSocket(session)
+      openSocket(session)
         .then((client) => {
           setConnection(client);
           setKernelStatus('connected');
@@ -482,93 +211,31 @@ export function useKernelSession(
     }
   };
 
-  const sendExecuteRequest = useCallback(
-    (source: string, cellId: string) => {
-      if (session && connection && connection.readyState === WebSocket.OPEN) {
-        const msgId = uuidv4();
-        executingCells.current.set(msgId, cellId);
-        try {
-          connection.send(buildExecuteRequest(session.id, userName, msgId, cellId, source));
-        } catch (error) {
-          executingCells.current.delete(msgId);
-          console.error('Failed to send execute_request message:', error);
-        }
-        syncRunningCells();
-      }
-    },
-    [session, connection, userName, syncRunningCells]
-  );
-
-  const sendInputReply = (parentHeader: KernelMessage, inputValue: string) => {
-    if (session) {
-      connection.send(buildInputReply(session.id, userName, uuidv4(), parentHeader, inputValue));
-    }
-  };
-
-  /**
-   * Asks the kernel what completes at `cursorPos` in `source`, resolving null when there is no
-   * live kernel to ask or when nothing arrives inside COMPLETION_TIMEOUT_MS. Callers get a
-   * promise per request rather than a piece of state, because two keystrokes can have requests
-   * in flight at once and only the newer answer is wanted.
-   */
-  const requestCompletions = useCallback(
-    (source: string, cursorPos: number): Promise<CompleteReply | null> => {
-      if (!session || !connection || connection.readyState !== WebSocket.OPEN) {
-        return Promise.resolve(null);
-      }
-
-      const msgId = uuidv4();
-
-      return new Promise((resolve) => {
-        const timer = window.setTimeout(() => {
-          pendingCompletions.current.delete(msgId);
-          resolve(null);
-        }, COMPLETION_TIMEOUT_MS);
-
-        pendingCompletions.current.set(msgId, (reply) => {
-          window.clearTimeout(timer);
-          pendingCompletions.current.delete(msgId);
-          resolve(reply);
-        });
-
-        try {
-          connection.send(buildCompleteRequest(session.id, userName, msgId, source, cursorPos));
-        } catch (error) {
-          console.error('Failed to send complete_request message:', error);
-          window.clearTimeout(timer);
-          pendingCompletions.current.delete(msgId);
-          resolve(null);
-        }
-      });
-    },
-    [session, connection, userName]
-  );
-
   return {
     session,
     kernelName,
     kernelDisplayName,
     kernelLanguage,
     kernelStatus,
-    runningCellIds,
-    connection,
-    widgets,
+    runningCellIds: requests.runningCellIds,
+    connection: socket.connection,
+    widgets: socket.widgets,
     showKernelSwitcher,
     toggleKernelSwitcher,
     kernelError,
-    showPrompt,
-    promptContent,
-    promptCellId,
-    toggleShowPrompt,
+    showPrompt: prompt.showPrompt,
+    promptContent: prompt.promptContent,
+    promptCellId: prompt.promptCellId,
+    toggleShowPrompt: prompt.toggleShowPrompt,
     startTabSession,
     startSessionForNotebook,
     changeKernel,
     interruptKernel: interrupt,
     restartKernel,
     reconnectKernel,
-    sendExecuteRequest,
-    sendInputReply,
-    requestCompletions,
+    sendExecuteRequest: requests.sendExecuteRequest,
+    sendInputReply: requests.sendInputReply,
+    requestCompletions: requests.requestCompletions,
   };
 }
 

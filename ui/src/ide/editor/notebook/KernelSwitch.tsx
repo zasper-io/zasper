@@ -3,7 +3,7 @@ import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
 import { useDismissOnEscape } from '@/ide/overlays';
 import { KernelspecsState, kernelspecsAtom } from '@/store/kernels';
-import { NO_KERNEL } from './useKernelSession';
+import { NO_KERNEL } from './kernelChoice';
 
 interface ModalProps {
   toggleKernelSwitcher: () => void;
