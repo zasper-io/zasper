@@ -1,17 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { MergeView } from '@codemirror/merge';
-import { EditorState, Extension } from '@codemirror/state';
-import { EditorView, lineNumbers } from '@codemirror/view';
-
 import { apiErrorMessage, DiffDocuments, DiffTarget, getDiff } from '@/api';
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
-import getFileExtension from '@/ide/utils';
 import { FileTab } from '@/store/tabState';
-import { useTheme } from '@/themes/useTheme';
 import BreadCrumb from './BreadCrumb';
-import languageFor, { lazyLanguageFor } from './language';
+import { useMergeView } from './useMergeView';
 import './DiffTab.scss';
 
 interface DiffTabProps {
@@ -49,7 +43,6 @@ export default function DiffTab(props: DiffTabProps) {
   const container = useRef<HTMLDivElement>(null);
   /** The comparison this tab has already read, so being brought forward again is not a re-read. */
   const lastRead = useRef<string>('');
-  const theme = useTheme();
 
   // The parts of the comparison rather than the object holding them: the tab is rebuilt every time
   // another tab is activated, and re-reading a diff on every click of the tab strip is not a refresh.
@@ -90,58 +83,18 @@ export default function DiffTab(props: DiffTabProps) {
     };
   }, [path, staged, ref, from, reloads, props.data.active]);
 
-  useEffect(() => {
-    const parent = container.current;
-    if (parent === null || documents === null || documents.isBinary || documents.tooLarge) {
-      return;
-    }
-    let view: MergeView | null = null;
-    let live = true;
-    const build = (language: Extension | null) => {
-      if (!live) {
-        return;
-      }
-      const readOnly = [
-        lineNumbers(),
-        EditorState.readOnly.of(true),
-        EditorView.editable.of(false),
-        theme.codeMirror,
-        ...(language === null ? [] : [language]),
-      ];
-      view = new MergeView({
-        a: { doc: documents.original, extensions: readOnly },
-        b: { doc: documents.modified, extensions: readOnly },
-        parent,
-        gutter: true,
-        highlightChanges: true,
-        // A file with one changed line in a thousand is otherwise a diff someone has to go looking
-        // through for it.
-        collapseUnchanged: { margin: 3, minSize: 4 },
-      });
-    };
-
-    // A language nothing bundles is loaded first, so the diff is drawn once and highlighted.
-    const bundled = languageFor(getFileExtension(path));
-    const loading = bundled === null ? lazyLanguageFor(path.split('/').pop() ?? path) : null;
-    if (loading === null) {
-      build(bundled);
-    } else {
-      loading.then(build, () => build(null));
-    }
-    return () => {
-      live = false;
-      view?.destroy();
-    };
-  }, [documents, path, theme]);
+  const comparable = documents !== null && !documents.isBinary && !documents.tooLarge;
+  useMergeView(
+    container,
+    comparable ? documents.original : null,
+    comparable ? documents.modified : null,
+    path
+  );
 
   const [left, right] = sidesOf(props.target);
   // Two identical sides say nothing by themselves: a notebook run again and not edited is exactly that,
   // and so is a rename with no edit in it.
-  const unchanged =
-    documents !== null &&
-    !documents.isBinary &&
-    !documents.tooLarge &&
-    documents.original === documents.modified;
+  const unchanged = comparable && documents.original === documents.modified;
 
   return (
     <div className="tab-surface">

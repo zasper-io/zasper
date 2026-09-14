@@ -11,7 +11,7 @@ the outside, which is why the state lives in `store/` behind one hook rather tha
 
 ```ts
 interface IfileTab {
-  type: string; // 'launcher' | 'file' | 'notebook' | 'diff' | 'terminal' | 'help'
+  type: string; // 'launcher' | 'file' | 'notebook' | 'diff' | 'disk-diff' | 'terminal' | 'help' | 'settings'
   path: string; // also the key it is stored under
   name: string; // what the strip shows
   active: boolean; // exactly one tab's is true
@@ -46,6 +46,11 @@ Four kinds carry something extra:
 - **Help** is keyed by `HELP_TAB_KEY`, `zasper:help`, so there is one and a file called `Help` is not
   it. It reads nothing from disk. It lists `ALL_COMMANDS` from `commands/catalog.ts`, every command the app
   declares, so it shows the same shortcuts whatever has been open. It is remembered with the strip.
+- **Settings** is keyed by `SETTINGS_TAB_KEY`, `zasper:settings`, for the same reason, and is remembered too.
+- **A comparison with the disk** is keyed by `diskCompareTabKey(path)` — `disk:notes.txt` — and opened from the
+  band a file editor shows when its file changes on disk under unsaved edits. What it compares lives in
+  `diskComparesAtom`, which the editor fills and empties, so it is not remembered: a reload has no unsaved
+  edits to compare.
 
 ## The pieces
 

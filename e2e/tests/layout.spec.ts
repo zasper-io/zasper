@@ -266,9 +266,10 @@ test('every select is the same box', async ({ page }) => {
   await openNotebook(page);
 
   // The same question for `.z-select`, which is the app drawing a control the platform draws
-  // differently on every OS. Both of these are on screen at once — the notebook's cell-type picker in
-  // the editor, the theme picker in the sidebar — so the comparison is of what a user sees together.
-  await page.getByLabel('Settings').click();
+  // differently on every OS: the notebook's cell-type picker in its toolbar against the pickers in the
+  // Settings tab. The notebook is behind that tab by then, which the comparison does not mind — every
+  // value read below is one the stylesheet sets, and a hidden element resolves it the same way.
+  await page.locator('.navigation-list').getByRole('button', { name: 'Settings' }).click();
   await expect(page.locator('#settings-theme')).toBeVisible();
 
   const wrappers = page.locator('.z-select');

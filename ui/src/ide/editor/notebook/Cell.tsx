@@ -1,13 +1,17 @@
 import React, { useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { autocompletion } from '@codemirror/autocomplete';
+import { indentLess, indentMore } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { keymap, ViewUpdate } from '@codemirror/view';
+import { getIndentUnit, indentString } from '@codemirror/language';
+import { KeyBinding, keymap, ViewUpdate } from '@codemirror/view';
 import { languages } from '@codemirror/language-data';
+import { useAtomValue } from 'jotai';
 
 import { NotebookCell } from '@/api';
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
+import { editorSettingsAtom } from '@/store/settings';
 import { useTheme } from '@/themes/useTheme';
 import CellButtons from './CellButtons';
 import CellOutput from './CellOutput';
@@ -20,6 +24,27 @@ import { useNotebookEditor } from './NotebookEditorContext';
 // notebook and nothing needs it until a markdown cell is actually rendered, so
 // it loads on demand. See MarkdownRenderer.tsx.
 const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
+
+/** Tab with Settings → Notebook → Insert a tab in a cell on: an indent at the cursor, never a completion. */
+const tabIndentKeymap: KeyBinding[] = [
+  {
+    key: 'Tab',
+    run: (view) => {
+      const { state } = view;
+      if (state.selection.ranges.some((range) => !range.empty)) {
+        return indentMore(view);
+      }
+      view.dispatch(
+        state.update(state.replaceSelection(indentString(state, getIndentUnit(state))), {
+          scrollIntoView: true,
+          userEvent: 'input',
+        })
+      );
+      return true;
+    },
+    shift: indentLess,
+  },
+];
 
 interface CellProps {
   cell: NotebookCell;
@@ -43,6 +68,7 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
   const editor = useNotebookEditor();
   const { updateCellSource, requestCompletions } = editor;
   const theme = useTheme();
+  const cellTabIndents = useAtomValue(editorSettingsAtom).cell_tab_indents;
   const [cellContents, setCellContents] = useState(cell.source);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [totalLines, setTotalLines] = useState(0);
@@ -273,7 +299,7 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
               editor.cellLanguage,
               kernelAutocompletion,
               popupPlacement,
-              [Prec.highest(keymap.of(tabCompletionKeymap))],
+              [Prec.highest(keymap.of(cellTabIndents ? tabIndentKeymap : tabCompletionKeymap))],
               editor.commandKeymap,
             ]}
             autoFocus={props.index === editor.focusedIndex ? true : false}

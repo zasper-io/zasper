@@ -96,3 +96,15 @@
     }
   }
 }
+
+// Keep mine and Take theirs, in the head of the comparison of a file with its version on disk.
+.editor-compare-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+
+  .z-button {
+    height: 20px;
+    padding: 0 10px;
+  }
+}

@@ -92,3 +92,15 @@
 .file-editor-body:not(.is-hidden) + .markdown-preview {
   border-left: 1px solid var(--z-border);
 }
+
+// The three answers to a file changed on disk under unsaved edits. `.z-notice-action` pushes one button
+// to the band's right edge; three share that edge as a group.
+.editor-notice-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+
+  .z-notice-action {
+    margin-left: 0;
+  }
+}

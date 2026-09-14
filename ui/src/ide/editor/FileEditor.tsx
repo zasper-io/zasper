@@ -13,19 +13,38 @@ import CodeMirror from '@uiw/react-codemirror';
 import { Extension, Text, Transaction } from '@codemirror/state';
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
 import { useAtomValue, useSetAtom } from 'jotai';
+import { selectAtom } from 'jotai/utils';
 
-import { apiErrorMessage, downloadContent, getFileContent, logApiError, saveFile } from '@/api';
+import {
+  apiErrorMessage,
+  downloadContent,
+  EditorConfig,
+  getEditorConfig,
+  getFileContent,
+  logApiError,
+  saveFile,
+} from '@/api';
 import { saveAs } from '@/browser';
 import { Icon, IconName } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
-import { columnPositionAtom, indentationSizeAtom, linePositionAtom } from '@/store/editorStatus';
+import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
+import {
+  columnPositionAtom,
+  fileFormatsAtom,
+  LineEnding,
+  linePositionAtom,
+} from '@/store/editorStatus';
+import { editorSettingsAtom } from '@/store/settings';
 import { FileTab } from '@/store/tabState';
 import { useUnsavedChanges } from '@/store/unsavedState';
 import { useTheme } from '@/themes/useTheme';
 
 import BreadCrumb from './BreadCrumb';
+import DiskChangeBand from './DiskChangeBand';
+import { editorExtensions } from './editorExtensions';
+import { detectLineEnding, formatFor, indentationOf } from './fileFormat';
 import languageFor, { lazyLanguageFor } from './language';
 import { zoomAwareTooltips } from './tooltipParent';
 
@@ -67,6 +86,15 @@ function changeBetween(before: string, after: string) {
   return { from: start, to: before.length - end, insert: after.slice(start, after.length - end) };
 }
 
+function without<T>(record: Record<string, T>, key: string): Record<string, T> {
+  if (!(key in record)) {
+    return record;
+  }
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
 interface FileEditorProps {
   data: FileTab;
 }
@@ -86,6 +114,11 @@ export default function FileEditor(props: FileEditorProps) {
   const [readCount, setReadCount] = useState(0);
   const [markdownView, setMarkdownView] = useState<MarkdownView>('edit');
   const [previewText, setPreviewText] = useState('');
+  /**
+   * The file as it now is on disk, while that differs from both the version last read or written and
+   * the editor's unsaved text, and the reader has not yet said which to keep.
+   */
+  const [conflict, setConflict] = useState<string | null>(null);
   const theme = useTheme();
   const sourceRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -95,16 +128,45 @@ export default function FileEditor(props: FileEditorProps) {
    * CodeMirror's own document rather than of a copy of it made on every keystroke.
    */
   const savedDoc = useRef(Text.empty);
+  /** The last version seen on disk, so a change already answered is not asked about again. */
+  const diskDoc = useRef(Text.empty);
   /** A change on disk reported while this tab was in the background, to be looked at once it is not. */
   const changedWhileHidden = useRef(false);
   // Typing stays responsive in a long document: the rendering catches up between keystrokes.
   const previewSource = useDeferredValue(previewText);
+
+  const settings = useAtomValue(editorSettingsAtom);
+  // Read when the file is, without making the read depend on the settings.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const formatAtom = useMemo(() => selectAtom(fileFormatsAtom, (formats) => formats[path]), [path]);
+  const format = useAtomValue(formatAtom);
+  const setFormats = useSetAtom(fileFormatsAtom);
+  const setCompares = useSetAtom(diskComparesAtom);
+  const resolutionAtom = useMemo(
+    () => selectAtom(diskResolutionsAtom, (resolutions) => resolutions[path]),
+    [path]
+  );
+  const resolution = useAtomValue(resolutionAtom);
+  const setResolutions = useSetAtom(diskResolutionsAtom);
+
+  const eol: LineEnding = format?.eol ?? 'LF';
+  const eolRef = useRef(eol);
+  eolRef.current = eol;
+  /** The line endings the file had when it was last read or written. */
+  const savedEol = useRef<LineEnding>('LF');
 
   const hasText = error === '' && !notText;
   const markdown = isMarkdown(props.data.extension);
   const view: MarkdownView = markdown && hasText ? markdownView : 'edit';
   const previewing = useRef(false);
   previewing.current = view !== 'edit';
+
+  // Line endings changed from the status bar are an unsaved change too.
+  const isDirty = useCallback(
+    (doc: Text) => !doc.eq(savedDoc.current) || eolRef.current !== savedEol.current,
+    []
+  );
 
   const saveFileToDisk = useCallback(async () => {
     const editor = viewRef.current;
@@ -114,10 +176,18 @@ export default function FileEditor(props: FileEditorProps) {
     // The document that was written, not whatever the editor holds by the time the write returns: a
     // keystroke made in between leaves the file unsaved again.
     const written = editor.state.doc;
-    await saveFile(path, written.toString());
+    const writtenEol = eolRef.current;
+    await saveFile(
+      path,
+      written.sliceString(0, written.length, writtenEol === 'CRLF' ? '\r\n' : '\n')
+    );
     savedDoc.current = written;
-    setDirty(!editor.state.doc.eq(written));
-  }, [path]);
+    diskDoc.current = written;
+    savedEol.current = writtenEol;
+    // A save made while the band is up keeps the reader's version.
+    setConflict(null);
+    setDirty(isDirty(editor.state.doc));
+  }, [path, isDirty]);
 
   // Nothing to save when the read failed: what the editor holds is not the file, and writing it would
   // create the file the tab is only pointing at. The close prompt must not offer to either.
@@ -147,15 +217,45 @@ export default function FileEditor(props: FileEditorProps) {
   // See tooltipParent.ts: a popup left to place itself draws at its own coordinate times the zoom.
   const popupPlacement = useMemo(() => zoomAwareTooltips(), []);
 
+  /** The file's line endings as they are on disk now, for a version of it the editor has taken. */
+  const adoptLineEnding = useCallback(
+    (text: string) => {
+      const found = detectLineEnding(text);
+      if (found === null || found === savedEol.current) {
+        return;
+      }
+      savedEol.current = found;
+      setFormats((formats) =>
+        formats[path] === undefined
+          ? formats
+          : { ...formats, [path]: { ...formats[path], eol: found } }
+      );
+    },
+    [path, setFormats]
+  );
+
   const read = useCallback(async () => {
     try {
-      const file = await getFileContent(path);
+      // A server from before .editorconfig was read has no answer, and the file opens without one.
+      const [file, editorConfig] = await Promise.all([
+        getFileContent(path),
+        getEditorConfig(path).catch((): EditorConfig => ({})),
+      ]);
       const text = file.format === 'text' ? file.content : '';
       setNotText(file.format !== 'text');
       savedDoc.current = documentOf(text);
+      diskDoc.current = savedDoc.current;
+      if (file.format === 'text') {
+        const opened = formatFor(text, settingsRef.current, editorConfig);
+        savedEol.current = opened.eol;
+        setFormats((formats) => ({ ...formats, [path]: opened }));
+      } else {
+        setFormats((formats) => without(formats, path));
+      }
       setInitialText(text);
       setPreviewText(text);
       setDirty(false);
+      setConflict(null);
       setError('');
       setReadCount((count) => count + 1);
     } catch (failure) {
@@ -165,8 +265,9 @@ export default function FileEditor(props: FileEditorProps) {
       setError(apiErrorMessage(failure));
       setNotText(false);
       setInitialText('');
+      setFormats((formats) => without(formats, path));
     }
-  }, [path]);
+  }, [path, setFormats]);
 
   useEffect(() => {
     if (props.data.load_required === true) {
@@ -174,13 +275,29 @@ export default function FileEditor(props: FileEditorProps) {
     }
   }, [props.data, read]);
 
+  // The status bar and the comparison tab show this file only while it is open.
+  useEffect(
+    () => () => {
+      setFormats((formats) => without(formats, path));
+      setCompares((compares) => without(compares, path));
+      setResolutions((resolutions) => without(resolutions, path));
+    },
+    [path, setFormats, setCompares, setResolutions]
+  );
+
+  useEffect(() => {
+    const editor = viewRef.current;
+    if (editor !== null) {
+      setDirty(isDirty(editor.state.doc));
+    }
+  }, [eol, isDirty]);
+
   /**
-   * Takes in a change made to the file on disk — a `git checkout`, a formatter, another editor — when the
-   * editor holds nothing unsaved. The change is applied as an edit between the common start and end of
-   * the two versions, so the cursor stays where it was, and kept out of the undo history, which would
-   * otherwise step back to what the file no longer says.
+   * Looks at a change made to the file on disk — a `git checkout`, a formatter, another editor.
    *
-   * A file with unsaved edits is left alone for now: which of the two to keep is the reader's choice.
+   * With nothing unsaved it is taken in, as an edit between the common start and end of the two versions
+   * so the cursor stays where it was, and kept out of the undo history, which would otherwise step back
+   * to what the file no longer says. With unsaved edits the reader is asked, in the band.
    */
   const takeChangeFromDisk = useCallback(async () => {
     let file;
@@ -194,15 +311,31 @@ export default function FileEditor(props: FileEditorProps) {
       return;
     }
     const onDisk = documentOf(file.content);
-    if (onDisk.eq(savedDoc.current) || !editor.state.doc.eq(savedDoc.current)) {
+    if (onDisk.eq(diskDoc.current)) {
       return;
     }
-    savedDoc.current = onDisk;
-    editor.dispatch({
-      changes: changeBetween(editor.state.doc.toString(), onDisk.toString()),
-      annotations: Transaction.addToHistory.of(false),
-    });
-  }, [path]);
+    diskDoc.current = onDisk;
+    const doc = editor.state.doc;
+
+    if (!isDirty(doc)) {
+      savedDoc.current = onDisk;
+      adoptLineEnding(file.content);
+      setConflict(null);
+      editor.dispatch({
+        changes: changeBetween(doc.toString(), onDisk.toString()),
+        annotations: Transaction.addToHistory.of(false),
+      });
+      return;
+    }
+    // Someone wrote what the editor already holds: nothing is left to choose between.
+    if (doc.eq(onDisk)) {
+      savedDoc.current = onDisk;
+      setConflict(null);
+      setDirty(isDirty(doc));
+      return;
+    }
+    setConflict(file.content);
+  }, [path, isDirty, adoptLineEnding]);
 
   useContentWatcher(() => {
     if (!canSave) {
@@ -223,6 +356,49 @@ export default function FileEditor(props: FileEditorProps) {
       void takeChangeFromDisk();
     }
   }, [props.data.active, takeChangeFromDisk]);
+
+  // The band comes down and the editor stays unsaved, so the next save writes it.
+  const keepMine = useCallback(() => setConflict(null), []);
+
+  // An edit like any other, so undo brings the reader's version back.
+  const takeTheirs = useCallback(() => {
+    const editor = viewRef.current;
+    if (editor === null || conflict === null) {
+      return;
+    }
+    const theirs = documentOf(conflict);
+    savedDoc.current = theirs;
+    adoptLineEnding(conflict);
+    setConflict(null);
+    editor.dispatch({ changes: changeBetween(editor.state.doc.toString(), theirs.toString()) });
+  }, [conflict, adoptLineEnding]);
+
+  const compareWithDisk = () => {
+    const editor = viewRef.current;
+    if (editor !== null && conflict !== null) {
+      const mine = editor.state.doc.toString();
+      setCompares((compares) => ({ ...compares, [path]: { onDisk: conflict, mine } }));
+    }
+  };
+
+  useEffect(() => {
+    if (conflict === null) {
+      setCompares((compares) => without(compares, path));
+    }
+  }, [conflict, path, setCompares]);
+
+  // An answer given in the comparison tab.
+  useEffect(() => {
+    if (resolution === undefined) {
+      return;
+    }
+    setResolutions((resolutions) => without(resolutions, path));
+    if (resolution === 'mine') {
+      keepMine();
+    } else {
+      takeTheirs();
+    }
+  }, [resolution, path, keepMine, takeTheirs, setResolutions]);
 
   // Highlighted at once for a language the app bundles; any other that @codemirror/language-data knows
   // is loaded first, and a file nothing claims is plain text.
@@ -253,26 +429,33 @@ export default function FileEditor(props: FileEditorProps) {
   const language =
     bundledLanguage ?? (loadedLanguage?.name === name ? loadedLanguage.language : null);
 
+  const { indentWithTabs, tabSize } = indentationOf(format, settings);
+  const settingsExtension = useMemo(
+    () => editorExtensions(settings, { indentWithTabs, tabSize }),
+    [settings, indentWithTabs, tabSize]
+  );
+
   const extensions = useMemo(
-    () => [...(language === null ? [] : [language]), popupPlacement, saveKeymap],
-    [language, popupPlacement, saveKeymap]
+    () => [...(language === null ? [] : [language]), settingsExtension, popupPlacement, saveKeymap],
+    [language, settingsExtension, popupPlacement, saveKeymap]
   );
 
   // Setters only: reading these atoms would render the whole editor again on every cursor move.
   const setLinePosition = useSetAtom(linePositionAtom);
   const setColumnPosition = useSetAtom(columnPositionAtom);
-  const indentationSize = useAtomValue(indentationSizeAtom);
+  const lineNumbers = settings.line_numbers;
+  // No tabSize here: the basic setup would turn it into an indent of spaces that outranks the file's.
   const basicSetup = useMemo(
     () => ({
+      lineNumbers,
       bracketMatching: true,
       highlightActiveLineGutter: true,
       autocompletion: true,
       lintKeymap: true,
       foldGutter: true,
       completionKeymap: true,
-      tabSize: indentationSize,
     }),
-    [indentationSize]
+    [lineNumbers]
   );
 
   const onUpdate = useCallback(
@@ -284,13 +467,13 @@ export default function FileEditor(props: FileEditorProps) {
       setColumnPosition(position - line.from);
 
       if (update.docChanged) {
-        setDirty(!state.doc.eq(savedDoc.current));
+        setDirty(isDirty(state.doc));
         if (previewing.current) {
           setPreviewText(state.doc.toString());
         }
       }
     },
-    [setColumnPosition, setLinePosition]
+    [setColumnPosition, setLinePosition, isDirty]
   );
 
   const showView = (next: MarkdownView) => {
@@ -375,6 +558,15 @@ export default function FileEditor(props: FileEditorProps) {
       <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         {/* Outside .file-editor-body, so it stays put while the file scrolls. */}
         <BreadCrumb path={path} />
+        {conflict !== null && (
+          <DiskChangeBand
+            path={path}
+            name={name}
+            onCompare={compareWithDisk}
+            onKeepMine={keepMine}
+            onTakeTheirs={takeTheirs}
+          />
+        )}
         {markdown && hasText && (
           <div className="editor-strip">
             <span>{MARKDOWN_VIEWS.find((option) => option.view === view)?.label}</span>

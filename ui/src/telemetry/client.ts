@@ -82,14 +82,16 @@ export function track(
   schedule();
 }
 
+/** Tabs that are not a file being opened: terminals are counted by the server, and the rest are the app's own. */
+const NOT_FILES = new Set(['terminal', 'launcher', 'help', 'settings', 'disk-diff']);
+
 /** A tab the user just opened, as against one they switched back to. */
 export function trackTabOpened(type: string, name: string): void {
   if (type === 'notebook') {
     track('notebook_opened');
     return;
   }
-  // Terminals are counted by the server when the shell actually starts; a launcher and Help are not files.
-  if (type === 'terminal' || type === 'launcher' || type === 'help') {
+  if (NOT_FILES.has(type)) {
     return;
   }
   track('file_opened', { extension: normalizeExtension(name) });

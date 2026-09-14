@@ -21,13 +21,12 @@ const NAV_ITEMS: { name: PanelName; label: string; icon: IconName }[] = [
   { name: 'fileBrowser', label: 'File explorer', icon: 'files' },
   { name: 'gitPanel', label: 'Source control', icon: 'git-branch' },
   { name: 'jupyterInfoPanel', label: 'Jupyter info', icon: 'cpu' },
-  { name: 'settingsPanel', label: 'Settings', icon: 'settings' },
 ];
 
 // Which button is highlighted comes from the parent, which also decides which panel is
 // visible — one piece of state, so the two cannot disagree.
 const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActivePanel }) => {
-  const { openHelp } = useTabActions();
+  const { openHelp, openSettings } = useTabActions();
 
   return (
     <div className="navigation-list">
@@ -41,8 +40,9 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
         />
       ))}
 
-      {/* `.navButton-last` keeps Help at the foot of the rail. It opens a tab rather than a panel,
-          so it never carries the active marker. */}
+      {/* Settings and Help open tabs rather than panels, so neither carries the active marker.
+          `.navButton-last` keeps Help at the foot of the rail. */}
+      <RailButton icon="settings" label="Settings" onClick={() => openSettings()} />
       <RailButton
         icon="circle-help"
         label="Help"

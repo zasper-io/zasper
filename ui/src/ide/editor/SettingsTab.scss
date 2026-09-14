@@ -1,0 +1,42 @@
+// The Settings tab. Drawn in the design prototype's story-editor.html under the same class names.
+
+// A tab pane's one scroller, as .help-tab-page is.
+.settings-tab {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 24px;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-default);
+}
+
+.settings-tab-search {
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 16px;
+}
+
+.settings-tab-group {
+  margin: 16px 0 4px;
+  color: var(--z-fg-subtle);
+}
+
+// The name and its sentence on the left, the control in a column of its own, so the controls line up
+// down the page whatever the sentences say.
+.settings-tab-row {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) 160px;
+  gap: 24px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--z-border);
+}
+
+.settings-tab-name {
+  font-size: var(--z-font-size-body);
+  font-weight: 500;
+}
+
+.settings-tab-row .z-form-help {
+  margin: 2px 0 0;
+}

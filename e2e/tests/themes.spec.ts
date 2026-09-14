@@ -1,5 +1,5 @@
 /*
-Every theme in the settings panel actually paints, and the one that was chosen is still there after a
+Every theme in the Settings tab actually paints, and the one that was chosen is still there after a
 reload.
 
 A theme is stored as one name and applied as two attributes — `data-theme` for the polarity and
@@ -13,7 +13,7 @@ import { Page, expect, test } from '@playwright/test';
 
 import { openApp } from './helpers';
 
-/** What the registry ships, and the order the panel lists them in (ui/src/themes/index.ts). */
+/** What the registry ships, and the order Settings lists them in (ui/src/themes/index.ts). */
 const THEMES = [
   'teal-light',
   'teal-dark',
@@ -31,8 +31,10 @@ const DEFAULT = 'teal-light';
 /** The tokens a theme has to answer for. Between them: the chrome, a fill, and the accent as ink. */
 const TOKENS = ['--z-bg-topbar', '--z-bg-statusbar', '--z-accent', '--z-fg-accent'];
 
+// The rail's button, which opens the tab or brings it to the front: once the tab is open its search box
+// and its strip entry answer to "Settings" as well.
 async function openSettings(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.locator('.navigation-list').getByRole('button', { name: 'Settings' }).click();
   await expect(page.locator('#settings-theme')).toBeVisible();
 }
 
@@ -53,7 +55,7 @@ test.afterEach(async ({ page }) => {
   await chooseTheme(page, DEFAULT);
 });
 
-test('the panel lists every theme, and each one paints its own chrome', async ({ page }) => {
+test('Settings lists every theme, and each one paints its own chrome', async ({ page }) => {
   await openApp(page);
   await openSettings(page);
 
@@ -139,6 +141,6 @@ test('the login page follows the theme the IDE was left in', async ({ page }) =>
   // Bootstrap's grid and navbar were here and nowhere else, and left with this page.
   expect(await page.locator('.container, .row, .col-12, .navbar, .mx-auto').count()).toBe(0);
 
-  // Back to the IDE for the afterEach, which resets the theme through the settings panel.
+  // Back to the IDE for the afterEach, which resets the theme through the Settings tab.
   await openApp(page);
 });

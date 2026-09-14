@@ -16,6 +16,8 @@ export interface ServerInfo {
   theme: string;
   /** Whether widget libraries that are not bundled may be loaded from the CDN: Settings → Privacy. */
   widget_cdn: boolean;
+  /** Absent from a server older than the setting. */
+  editor?: EditorSettings;
 }
 
 export function getInfo(): Promise<ServerInfo> {
@@ -27,4 +29,23 @@ export function modifyConfig(key: string, value: string): Promise<void> {
     method: 'POST',
     body: { key, value },
   });
+}
+
+/** The file editor's defaults: Settings → Editor. A project's .editorconfig wins for the files it covers. */
+export interface EditorSettings {
+  font_size: number;
+  tab_size: number;
+  indent_with_tabs: boolean;
+  word_wrap: boolean;
+  line_numbers: boolean;
+  show_whitespace: boolean;
+  /** Columns a guide is drawn at. */
+  rulers: number[];
+  /** A notebook cell's Tab inserts an indent rather than asking the kernel to complete. */
+  cell_tab_indents: boolean;
+}
+
+/** Written as one object: a default for one of these alone means nothing. */
+export function saveEditorSettings(settings: EditorSettings): Promise<void> {
+  return modifyConfig('editor', JSON.stringify(settings));
 }

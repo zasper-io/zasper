@@ -180,3 +180,18 @@ export function uploadFile(request: UploadRequest): Promise<ContentEntry> {
     signal: request.signal,
   });
 }
+
+/** What a project's .editorconfig files say about one file: only the properties they set. */
+export interface EditorConfig {
+  indent_style?: 'space' | 'tab';
+  indent_size?: number;
+  tab_width?: number;
+  end_of_line?: 'lf' | 'crlf' | 'cr';
+  charset?: string;
+  trim_trailing_whitespace?: boolean;
+  insert_final_newline?: boolean;
+}
+
+export function getEditorConfig(path: string): Promise<EditorConfig> {
+  return requestJson<EditorConfig>('/api/contents/editorconfig', { query: { path } });
+}

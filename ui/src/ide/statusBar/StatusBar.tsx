@@ -1,22 +1,17 @@
 import React, { useEffect, useCallback } from 'react';
 
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 
 import './StatusBar.scss';
 import { branchNameAtom } from '@/store/git';
-import {
-  columnPositionAtom,
-  encodingAtom,
-  eolSequenceAtom,
-  indentationModeAtom,
-  indentationSizeAtom,
-  linePositionAtom,
-} from '@/store/editorStatus';
+import { columnPositionAtom, fileFormatsAtom, linePositionAtom } from '@/store/editorStatus';
 import { getCurrentBranch, logApiError } from '@/api';
 import { Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 import { fileTabsAtom, FileTab } from '@/store/tabState';
+import EolStatus from './EolStatus';
+import IndentStatus from './IndentStatus';
 import ZoomStatus from './ZoomStatus';
 
 /** What the status bar calls the thing in the active tab. */
@@ -31,6 +26,8 @@ function describeTab(tab: FileTab | undefined): string {
       return 'Terminal';
     case 'help':
       return 'Help';
+    case 'settings':
+      return 'Settings';
     case 'notebook':
       return 'Notebook';
     default:
@@ -45,14 +42,11 @@ interface StatusBarProps {
 
 export default function StatusBar({ onBranchClick }: StatusBarProps) {
   const branchTip = useTooltip();
-  const [indentationMode] = useAtom(indentationModeAtom);
-  const [indentationSize] = useAtom(indentationSizeAtom);
   const [linePosition] = useAtom(linePositionAtom);
   const [columnPosition] = useAtom(columnPositionAtom);
-  const [encoding] = useAtom(encodingAtom);
-  const [eolSequence] = useAtom(eolSequenceAtom);
   const [branchName, setBranchName] = useAtom(branchNameAtom);
   const [fileTabsState] = useAtom(fileTabsAtom);
+  const formats = useAtomValue(fileFormatsAtom);
 
   const FetchBranchData = useCallback(() => {
     getCurrentBranch().then(setBranchName).catch(logApiError('Error fetching current branch:'));
@@ -66,9 +60,12 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
   // it cannot go stale on a tab that isn't a file.
   const activeTab = Object.values(fileTabsState).find((tab) => tab.active);
 
-  // Cursor position, indentation, encoding and line endings are properties of a text buffer,
-  // and only FileEditor sets them — so a terminal or launcher tab shows none of them.
+  // Cursor position is a property of a text buffer, and only FileEditor sets it — so a terminal or
+  // launcher tab shows none of it.
   const isTextEditor = activeTab?.type === 'file';
+  // Set once FileEditor has read the file as text: an image or a PDF has no indentation to change.
+  const formatPath =
+    activeTab?.type === 'file' && formats[activeTab.path] !== undefined ? activeTab.path : null;
 
   return (
     <div className="statusBar">
@@ -91,17 +88,18 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
       </div>
       <div className="rightStatus">
         {isTextEditor && (
+          // Tabular figures: these change on every keystroke, and proportional ones make `Col 9`
+          // narrower than `Col 10`, which shifts everything to their right.
+          <span className="statusItem z-tabular">
+            Ln {linePosition}, Col {columnPosition}
+          </span>
+        )}
+        {formatPath !== null && (
           <>
-            {/* Tabular figures: these change on every keystroke, and proportional ones make
-                `Col 9` narrower than `Col 10`, which shifts everything to their right. */}
-            <span className="statusItem z-tabular">
-              Ln {linePosition}, Col {columnPosition}
-            </span>
-            <span className="statusItem z-tabular">
-              {indentationMode}: {indentationSize}
-            </span>
-            <span className="statusItem">{encoding}</span>
-            <span className="statusItem">{eolSequence}</span>
+            <IndentStatus path={formatPath} />
+            {/* Only UTF-8 text is opened in the editor; anything else is a notice with a Download button. */}
+            <span className="statusItem">UTF-8</span>
+            <EolStatus path={formatPath} />
           </>
         )}
         <span className="statusItem">{describeTab(activeTab)}</span>

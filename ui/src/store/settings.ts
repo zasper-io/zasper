@@ -1,6 +1,8 @@
 import { atom } from 'jotai';
 
-import { defaultTheme, storedTheme } from '../themes';
+import type { EditorSettings } from '@/api';
+
+import { storedTheme } from '../themes';
 
 /**
  * A theme id from the registry (src/themes). IDE.tsx publishes it to <html>.
@@ -24,3 +26,18 @@ export const telemetryAtom = atom({ enabled: false, chosen: true });
  * one browser.
  */
 export const widgetCdnAtom = atom(true);
+
+/** What an install that has chosen nothing gets, and what a server older than the setting implies. */
+export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
+  font_size: 13,
+  tab_size: 4,
+  indent_with_tabs: false,
+  word_wrap: false,
+  line_numbers: true,
+  show_whitespace: false,
+  rulers: [],
+  cell_tab_indents: false,
+};
+
+/** The file editor's defaults, from /api/info and changed in the Settings tab or the status bar. */
+export const editorSettingsAtom = atom<EditorSettings>(DEFAULT_EDITOR_SETTINGS);

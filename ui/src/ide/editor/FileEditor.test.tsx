@@ -8,12 +8,14 @@ import { FileTab } from '@/store/tabState';
 import { unsavedTabsAtom } from '@/store/unsavedState';
 
 const getFileContent = vi.fn();
+const getEditorConfig = vi.fn();
 const saveFile = vi.fn();
 const downloadContent = vi.fn();
 const saveAs = vi.fn();
 
 vi.mock('@/api', () => ({
   getFileContent: (path: string) => getFileContent(path),
+  getEditorConfig: (path: string) => getEditorConfig(path),
   saveFile: (path: string, content: string) => saveFile(path, content),
   downloadContent: (path: string) => downloadContent(path),
   logApiError: () => () => {},
@@ -125,6 +127,8 @@ describe('FileEditor', () => {
     downloadContent.mockReset();
     saveAs.mockReset();
     getFileContent.mockResolvedValue(text('first line\n'));
+    getEditorConfig.mockReset();
+    getEditorConfig.mockResolvedValue({});
     saveFile.mockResolvedValue(undefined);
   });
 
@@ -170,6 +174,24 @@ describe('FileEditor', () => {
     expect(saveFile).toHaveBeenCalledWith('notes.txt', 'first line\nsecond line\n');
   });
 
+  it('writes a file whose lines end in CRLF back with CRLF', async () => {
+    getFileContent.mockResolvedValue(text('first line\r\n'));
+    render(
+      <Provider>
+        <FileEditor data={tab} />
+        <TabBar />
+      </Provider>
+    );
+    await screen.findByRole('textbox');
+    type('first line\nsecond line\n');
+    await waitFor(() => expect(unsavedPaths()).toBe('notes.txt'));
+
+    fireEvent.click(screen.getByText('save it'));
+
+    await waitFor(() => expect(unsavedPaths()).toBe(''));
+    expect(saveFile).toHaveBeenCalledWith('notes.txt', 'first line\r\nsecond line\r\n');
+  });
+
   it('is saved again when the changes are undone by hand', async () => {
     await renderEditor();
     type('something else');
@@ -193,16 +215,71 @@ describe('FileEditor', () => {
       expect(unsavedPaths()).toBe('');
     });
 
-    it('leaves a file with unsaved edits alone', async () => {
-      await renderEditor();
-      type('first line\nmine\n');
-      await waitFor(() => expect(unsavedPaths()).toBe('notes.txt'));
-      getFileContent.mockResolvedValue(text('first line\ntheirs\n'));
+    describe('under unsaved edits', () => {
+      const BAND = 'notes.txt changed on disk.';
 
-      await changedOnDisk();
+      async function editThenChangeOnDisk() {
+        await renderEditor();
+        type('first line\nmine\n');
+        await waitFor(() => expect(unsavedPaths()).toBe('notes.txt'));
+        getFileContent.mockResolvedValue(text('first line\ntheirs\n'));
+        await changedOnDisk();
+        await screen.findByText(BAND);
+      }
 
-      expect(screen.getByRole('textbox')).toHaveValue('first line\nmine\n');
-      expect(unsavedPaths()).toBe('notes.txt');
+      it('keeps the edits and says the file changed on disk', async () => {
+        await editThenChangeOnDisk();
+
+        expect(screen.getByRole('textbox')).toHaveValue('first line\nmine\n');
+        expect(unsavedPaths()).toBe('notes.txt');
+      });
+
+      it('keeps mine unsaved, and does not ask again about the same change', async () => {
+        await editThenChangeOnDisk();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Keep mine' }));
+        expect(screen.queryByText(BAND)).not.toBeInTheDocument();
+
+        await changedOnDisk();
+        await waitFor(() => expect(getFileContent).toHaveBeenCalledTimes(3));
+        expect(screen.queryByText(BAND)).not.toBeInTheDocument();
+        expect(screen.getByRole('textbox')).toHaveValue('first line\nmine\n');
+        expect(unsavedPaths()).toBe('notes.txt');
+      });
+
+      it('takes theirs, and is then saved', async () => {
+        await editThenChangeOnDisk();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Take theirs' }));
+
+        await waitFor(() =>
+          expect(screen.getByRole('textbox')).toHaveValue('first line\ntheirs\n')
+        );
+        expect(unsavedPaths()).toBe('');
+        expect(screen.queryByText(BAND)).not.toBeInTheDocument();
+      });
+
+      it('writes mine when saved while the band is up, and takes the band down', async () => {
+        await editThenChangeOnDisk();
+
+        fireEvent.click(screen.getByText('save it'));
+
+        await waitFor(() => expect(unsavedPaths()).toBe(''));
+        expect(saveFile).toHaveBeenCalledWith('notes.txt', 'first line\nmine\n');
+        expect(screen.queryByText(BAND)).not.toBeInTheDocument();
+      });
+
+      it('asks nothing when the file on disk becomes what the editor holds', async () => {
+        await renderEditor();
+        type('first line\nsame\n');
+        await waitFor(() => expect(unsavedPaths()).toBe('notes.txt'));
+        getFileContent.mockResolvedValue(text('first line\nsame\n'));
+
+        await changedOnDisk();
+
+        await waitFor(() => expect(unsavedPaths()).toBe(''));
+        expect(screen.queryByText(BAND)).not.toBeInTheDocument();
+      });
     });
 
     it('does nothing when what is on disk is what it last read or saved', async () => {

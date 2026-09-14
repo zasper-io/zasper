@@ -85,7 +85,7 @@ export const ICONS = {
   files: Files, // FileBrowserIcon
   'git-branch': GitBranch, // GitPanelIcon, and fa-code-branch in the status bar and git panel
   cpu: Cpu, // JupyterInfoPanelIcon
-  settings: Settings, // SettingsPanelIcon
+  settings: Settings,
   'circle-help': CircleHelp, // HelpIcon
   terminal: Terminal, // TerminalIcon, on the launcher's terminal tile
   search: Search, // images/icons/search.svg

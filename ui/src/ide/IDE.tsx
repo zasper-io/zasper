@@ -7,7 +7,12 @@ import {
   PanelResizeHandle,
 } from 'react-resizable-panels';
 import { ToastContainer } from 'react-toastify';
-import { themeAtom, widgetCdnAtom } from '../store/settings';
+import {
+  DEFAULT_EDITOR_SETTINGS,
+  editorSettingsAtom,
+  themeAtom,
+  widgetCdnAtom,
+} from '../store/settings';
 
 import NavigationPanel from './sidebar/navigationPanel/NavigationPanel';
 import FileBrowser from './sidebar/fileBrowser/FileBrowser';
@@ -16,7 +21,6 @@ import TabIndex from './tabs/TabIndex';
 import Topbar from './topBar/Topbar';
 import GitPanel from './sidebar/gitPanel/GitPanel';
 import JupyterInfoPanel from './sidebar/jupyterInfoPanel/JupyterInfoPanel';
-import SettingsPanel from './sidebar/settingsPanel/SettingsPanel';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
@@ -56,6 +60,7 @@ function IDE() {
   const [, setVersion] = useAtom(zasperVersionAtom);
   const [, setPlatform] = useAtom(platformAtom);
   const [widgetCdn, setWidgetCdn] = useAtom(widgetCdnAtom);
+  const [, setEditorSettings] = useAtom(editorSettingsAtom);
   const { loadKernelspecs } = useKernelspecActions();
 
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
@@ -126,6 +131,7 @@ function IDE() {
     setServerOs(info.os);
     // A server from before the setting existed sends nothing, which means on.
     setWidgetCdn(info.widget_cdn !== false);
+    setEditorSettings(info.editor ?? DEFAULT_EDITOR_SETTINGS);
   }, [
     setProjectName,
     setProjectDir,
@@ -135,6 +141,7 @@ function IDE() {
     setTheme,
     setServerOs,
     setWidgetCdn,
+    setEditorSettings,
   ]);
 
   useEffect(() => {
@@ -192,7 +199,6 @@ function IDE() {
             <div className="navigation">
               <div className="sideBar">
                 <FileBrowser hidden={activePanel !== 'fileBrowser'} reloadCount={reloadCount} />
-                <SettingsPanel hidden={activePanel !== 'settingsPanel'} />
                 <JupyterInfoPanel hidden={activePanel !== 'jupyterInfoPanel'} />
                 <GitPanel
                   hidden={activePanel !== 'gitPanel'}

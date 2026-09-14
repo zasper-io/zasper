@@ -1,4 +1,5 @@
 import { defineCommands } from '@/commands/define';
+import { diskComparePath } from '@/store/diskChanges';
 import type { FileTab, FileTabDict } from '@/store/tabState';
 
 const TAB = { category: 'Tab', scope: 'app' } as const;
@@ -74,8 +75,16 @@ export function keepsTarget(scope: CloseScope): boolean {
 
 /** The file a tab is about, for Copy Path and Reveal; null for the tabs that are not a file. */
 export function tabFilePath(tab: FileTab): string | null {
-  if (tab.type === 'launcher' || tab.type === 'terminal' || tab.type === 'help') {
+  if (
+    tab.type === 'launcher' ||
+    tab.type === 'terminal' ||
+    tab.type === 'help' ||
+    tab.type === 'settings'
+  ) {
     return null;
+  }
+  if (tab.type === 'disk-diff') {
+    return diskComparePath(tab.path);
   }
   return tab.diff?.path ?? tab.path;
 }

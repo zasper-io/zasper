@@ -4,6 +4,7 @@ import { deleteKernel, DiffTarget, logApiError } from '@/api';
 import { trackTabOpened } from '@/telemetry';
 import getFileExtension from '@/ide/utils';
 import { baseName, isInside, rewritePath } from '@/paths';
+import { diskCompareTabKey } from '@/store/diskChanges';
 import { helpAboutRequestAtom } from '@/store/helpTab';
 import { notebookKernelMapAtom } from '@/store/kernels';
 import { terminalsAtom, terminalsCountAtom } from '@/store/terminals';
@@ -42,6 +43,9 @@ export function diffTabKey(target: DiffTarget): string {
 /** The Help tab's key. Not a path, so there is one Help tab and a file called `Help` is not it. */
 export const HELP_TAB_KEY = 'zasper:help';
 
+/** The Settings tab's key, for the same reason. */
+export const SETTINGS_TAB_KEY = 'zasper:settings';
+
 export interface TabActions {
   /** Opens a tab, or brings it to the front when that path is already open. */
   openTab: (tab: OpenTab) => void;
@@ -57,6 +61,10 @@ export interface TabActions {
   openTerminal: (cwd?: string) => void;
   /** Opens the Help tab or brings it to the front; `about` also scrolls it to About. */
   openHelp: (section?: 'about') => void;
+  /** Opens the Settings tab or brings it to the front. */
+  openSettings: () => void;
+  /** Opens the comparison of a file's unsaved edits with the version of it now on disk. */
+  openDiskCompare: (path: string) => void;
   /**
    * Closes a tab. A notebook's kernel keeps running, as it does in JupyterLab: reopening the notebook
    * plugs back into that session, with everything still in memory.
@@ -210,6 +218,19 @@ export function useTabActions(): TabActions {
       if (section === 'about') {
         setHelpAboutRequest((count) => count + 1);
       }
+    },
+
+    openSettings: () => {
+      openTab({ name: 'Settings', path: SETTINGS_TAB_KEY, type: 'settings', extension: null });
+    },
+
+    openDiskCompare: (path: string) => {
+      openTab({
+        name: `${baseName(path)} (on disk)`,
+        path: diskCompareTabKey(path),
+        type: 'disk-diff',
+        extension: getFileExtension(baseName(path)),
+      });
     },
 
     closeTab: (path: string) => removeTabs([path]),

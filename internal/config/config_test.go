@@ -266,3 +266,50 @@ func TestAThemeThatCannotBeSavedSaysSo(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), "could not save the theme")
 }
+
+func TestEditorSettingsAreTheDefaultsUntilChosen(t *testing.T) {
+	aHome(t)
+
+	assert.Equal(t, DefaultEditorSettings(), GetEditorSettings())
+}
+
+func TestEditorSettingsCanBeChangedOverTheApi(t *testing.T) {
+	path := aHome(t)
+
+	recorder := modify(t, `{"key":"editor","value":"{\"font_size\":15,\"tab_size\":2,\"indent_with_tabs\":true,\"word_wrap\":true,\"line_numbers\":false,\"show_whitespace\":true,\"rulers\":[100,80],\"cell_tab_indents\":true}"}`)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code, "body was %s", recorder.Body)
+	assert.Equal(t, EditorSettings{
+		FontSize:       15,
+		TabSize:        2,
+		IndentWithTabs: true,
+		WordWrap:       true,
+		LineNumbers:    false,
+		ShowWhitespace: true,
+		Rulers:         []int{80, 100},
+		CellTabIndents: true,
+	}, GetEditorSettings())
+	assert.NotNil(t, readRaw(t, path).Editor)
+}
+
+// A hand-edited config or a made-up request: the editor gets values it can draw.
+func TestEditorSettingsOutsideWhatTheEditorCanDrawAreBroughtInside(t *testing.T) {
+	aHome(t)
+
+	recorder := modify(t, `{"key":"editor","value":"{\"font_size\":400,\"tab_size\":0,\"rulers\":[0,80,80,9000,90,100,120,140]}"}`)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code)
+	settings := GetEditorSettings()
+	assert.Equal(t, 13, settings.FontSize)
+	assert.Equal(t, 4, settings.TabSize)
+	assert.Equal(t, []int{80, 90, 100, 120}, settings.Rulers)
+}
+
+func TestEditorSettingsThatAreNotJsonAreRefused(t *testing.T) {
+	aHome(t)
+
+	recorder := modify(t, `{"key":"editor","value":"font_size=13"}`)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	assert.Equal(t, DefaultEditorSettings(), GetEditorSettings())
+}

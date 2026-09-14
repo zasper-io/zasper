@@ -1,6 +1,7 @@
 import { useAtomValue } from 'jotai';
 import React from 'react';
 import { toast } from 'react-toastify';
+import { diskComparePath } from '@/store/diskChanges';
 import { activeTabPathAtom, fileTabsAtom, FileTab } from '@/store/tabState';
 import { useTabActions } from '@/store/tabActions';
 import { unsavedTabsAtom } from '@/store/unsavedState';
@@ -41,9 +42,13 @@ function TabMark({ tab }: { tab: FileTab }) {
   if (tab.type === 'help') {
     return <Icon name="circle-help" className="tabIcon" />;
   }
+  if (tab.type === 'settings') {
+    return <Icon name="settings" className="tabIcon" />;
+  }
   // The file's own name for a diff: its tab is named `notes.txt (diff)`, whose extension is
   // `txt (diff)` and which would therefore get the mark for an unknown type.
-  return <FileMark name={tab.diff?.path ?? tab.name} className="tabIcon" />;
+  const file = tab.type === 'disk-diff' ? diskComparePath(tab.path) : (tab.diff?.path ?? tab.name);
+  return <FileMark name={file} className="tabIcon" />;
 }
 
 interface TabIndexProps {
@@ -259,8 +264,14 @@ interface TabProps {
  */
 function Tab({ tab, isDirty, onActivate, onClose, onMenu }: TabProps) {
   const tip = useTooltip();
-  // A path names a file; the Launcher's and Help's keys are not paths.
-  const label = [tab.type === 'launcher' || tab.type === 'help' ? tab.name : tab.path];
+  // A path names a file; the Launcher's, Help's and Settings' keys are not paths.
+  const label = [
+    tab.type === 'launcher' || tab.type === 'help' || tab.type === 'settings'
+      ? tab.name
+      : tab.type === 'disk-diff'
+        ? diskComparePath(tab.path)
+        : tab.path,
+  ];
   if (isDirty) {
     label.push('Unsaved changes');
   }

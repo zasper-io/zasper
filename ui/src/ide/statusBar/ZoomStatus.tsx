@@ -37,10 +37,10 @@ export default function ZoomStatus() {
   useDismissOnPressOutside(picker, close, open);
 
   return (
-    <div className="statusItem zoomPicker" ref={picker}>
+    <div className="statusItem statusPicker" ref={picker}>
       <button
         type="button"
-        className="statusButton zoomButton"
+        className="statusButton"
         aria-label={spokenLabel}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -54,7 +54,7 @@ export default function ZoomStatus() {
       <Tooltip tip={tip} label="Zoom" />
 
       {open && (
-        <div className="z-overlay z-menu zoomMenu">
+        <div className="z-overlay z-menu statusMenu zoomMenu">
           <ul className="z-overlay-list" role="menu">
             {LEVELS.map((level) => (
               <li key={level} className="panel-row" role="none">
@@ -69,7 +69,7 @@ export default function ZoomStatus() {
                   }}
                 >
                   {/* The tick's place is held whether or not there is one, so the numbers line up. */}
-                  <span className="zoomTick">
+                  <span className="menuTick">
                     {level === zoomLevel && <Icon name="check" size={12} />}
                   </span>
                   <span className="panel-row-label z-tabular">{zoomLevelLabel(level)}</span>

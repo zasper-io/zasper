@@ -14,8 +14,8 @@ type ConfigModifierPayload struct {
 	Value string `json:"value"`
 }
 
-// ConfigModifyHandler changes one setting: the theme, or whether widget code may be loaded from the
-// CDN. Telemetry has an endpoint of its own, because turning it off also has to stop the client that
+// ConfigModifyHandler changes one setting: the theme, whether widget code may be loaded from the CDN, or
+// the editor settings. Telemetry has an endpoint of its own, because turning it off also has to stop the client that
 // is sending.
 func ConfigModifyHandler(w http.ResponseWriter, req *http.Request) {
 	var body ConfigModifierPayload
@@ -44,6 +44,18 @@ func ConfigModifyHandler(w http.ResponseWriter, req *http.Request) {
 		if err := setWidgetCDN(body.Value == "on"); err != nil {
 			log.Warn().Err(err).Msg("could not save the widget setting")
 			httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the widget setting: %v", err))
+			return
+		}
+	case "editor":
+		// The whole set, as JSON: the settings are written together, and a default for one alone means nothing.
+		var settings EditorSettings
+		if err := json.Unmarshal([]byte(body.Value), &settings); err != nil {
+			httpx.SendErrorResponse(w, http.StatusBadRequest, "editor settings are a JSON object")
+			return
+		}
+		if err := setEditorSettings(settings); err != nil {
+			log.Warn().Err(err).Msg("could not save the editor settings")
+			httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the editor settings: %v", err))
 			return
 		}
 	default:

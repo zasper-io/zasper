@@ -28,6 +28,8 @@ type InfoResponse struct {
 	Theme     string `json:"theme"`
 	// Whether widget libraries may be loaded from cdn.jsdelivr.net: Settings → Privacy.
 	WidgetCDN bool `json:"widget_cdn"`
+	// The file editor's defaults: Settings → Editor.
+	Editor config.EditorSettings `json:"editor"`
 }
 
 type ConfigResponse struct {
@@ -46,6 +48,7 @@ func (s *Server) infoHandler(w http.ResponseWriter, r *http.Request) {
 		Version:     s.app.Version,
 		Theme:       theme,
 		WidgetCDN:   config.WidgetCDNEnabled(),
+		Editor:      config.GetEditorSettings(),
 	}
 
 	httpx.SendJSON(w, http.StatusOK, response)
@@ -121,6 +124,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/contents/copy", s.content.Copy).Methods("POST")
 	apiRouter.HandleFunc("/contents", s.content.Delete).Methods("DELETE")
 	apiRouter.HandleFunc("/contents/download", s.content.Download).Methods("GET")
+	apiRouter.HandleFunc("/contents/editorconfig", s.content.EditorConfig).Methods("GET")
 	apiRouter.HandleFunc("/contents/upload", s.content.Upload).Methods("POST")
 
 	// The watcher is a websocket that happens to live under /api, so it authenticates like the /ws

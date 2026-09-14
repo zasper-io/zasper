@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	"github.com/rs/zerolog/log"
@@ -14,10 +15,11 @@ import (
 
 // Config is what config.json holds.
 type Config struct {
-	TrackingID       string `json:"tracking_id"`
-	Theme            string `json:"theme"`
-	TelemetryEnabled *bool  `json:"telemetry_enabled,omitempty"`
-	WidgetCDNEnabled *bool  `json:"widget_cdn_enabled,omitempty"`
+	TrackingID       string          `json:"tracking_id"`
+	Theme            string          `json:"theme"`
+	TelemetryEnabled *bool           `json:"telemetry_enabled,omitempty"`
+	WidgetCDNEnabled *bool           `json:"widget_cdn_enabled,omitempty"`
+	Editor           *EditorSettings `json:"editor,omitempty"`
 }
 
 // DefaultTheme names a theme in ui/src/themes, which is the only place that knows what one means: the
@@ -165,6 +167,66 @@ func setWidgetCDN(enabled bool) error {
 func SetTelemetryEnabled(enabled bool) error {
 	_, err := UpdateConfig(func(config *Config) bool {
 		config.TelemetryEnabled = &enabled
+		return true
+	})
+	return err
+}
+
+// EditorSettings are the file editor's defaults: Settings → Editor, and "Use for every file" in the
+// status bar. A project's .editorconfig wins over them for the files it covers.
+type EditorSettings struct {
+	FontSize       int   `json:"font_size"`
+	TabSize        int   `json:"tab_size"`
+	IndentWithTabs bool  `json:"indent_with_tabs"`
+	WordWrap       bool  `json:"word_wrap"`
+	LineNumbers    bool  `json:"line_numbers"`
+	ShowWhitespace bool  `json:"show_whitespace"`
+	Rulers         []int `json:"rulers"`
+	// A notebook cell's Tab inserts an indent rather than asking the kernel to complete.
+	CellTabIndents bool `json:"cell_tab_indents"`
+}
+
+// DefaultEditorSettings are what an install that has chosen nothing gets.
+func DefaultEditorSettings() EditorSettings {
+	return EditorSettings{FontSize: 13, TabSize: 4, LineNumbers: true, Rulers: []int{}}
+}
+
+// normalised keeps settings from a hand-edited file or a made-up request inside what the editor can draw.
+func (s EditorSettings) normalised() EditorSettings {
+	defaults := DefaultEditorSettings()
+	if s.FontSize < 8 || s.FontSize > 32 {
+		s.FontSize = defaults.FontSize
+	}
+	if s.TabSize < 1 || s.TabSize > 16 {
+		s.TabSize = defaults.TabSize
+	}
+	rulers := []int{}
+	seen := map[int]bool{}
+	for _, column := range s.Rulers {
+		if column > 0 && column <= 500 && !seen[column] && len(rulers) < 4 {
+			seen[column] = true
+			rulers = append(rulers, column)
+		}
+	}
+	sort.Ints(rulers)
+	s.Rulers = rulers
+	return s
+}
+
+// GetEditorSettings answers the chosen editor settings, or the defaults when none have been chosen or the
+// file cannot be read.
+func GetEditorSettings() EditorSettings {
+	config, err := ReadConfig()
+	if err != nil || config.Editor == nil {
+		return DefaultEditorSettings()
+	}
+	return config.Editor.normalised()
+}
+
+func setEditorSettings(settings EditorSettings) error {
+	normalised := settings.normalised()
+	_, err := UpdateConfig(func(config *Config) bool {
+		config.Editor = &normalised
 		return true
 	})
 	return err

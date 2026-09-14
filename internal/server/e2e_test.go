@@ -455,6 +455,8 @@ func TestTheServerDescribesItself(t *testing.T) {
 	assert.Equal(t, project, info.Directory)
 	assert.True(t, filepath.IsAbs(info.Directory), "the directory is absolute: %q", info.Directory)
 	assert.Equal(t, runtime.GOARCH, info.Arch)
+	// The editor's defaults ride along, so the first file opened is indented the way the reader chose.
+	assert.Positive(t, info.Editor.TabSize)
 
 	// Not a route, rather than the SPA's index.html: this router was built without one.
 	status, _ = call(t, srv, http.MethodGet, "/api/nothing-here", nil)

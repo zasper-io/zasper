@@ -1,12 +1,14 @@
 import React, { lazy, Suspense } from 'react';
 
 import DiffTab from './DiffTab';
+import DiskCompareTab from './DiskCompareTab';
 import FileEditor from './FileEditor';
 import HelpTab from './HelpTab';
 import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
 import ImageEditor from './ImageEditor';
 import PdfViewer from './PdfViewer';
+import SettingsTab from './SettingsTab';
 import { FileTab } from '@/store/tabState';
 
 // The xterm.js core plus its five addons are only needed once a terminal tab is
@@ -40,8 +42,14 @@ export default function Editor(props: EditorProps) {
   if (props.data.type === 'diff' && props.data.diff !== undefined) {
     return <DiffTab data={props.data} target={props.data.diff} />;
   }
+  if (props.data.type === 'disk-diff') {
+    return <DiskCompareTab data={props.data} />;
+  }
   if (props.data.type === 'help') {
     return <HelpTab data={props.data} />;
+  }
+  if (props.data.type === 'settings') {
+    return <SettingsTab data={props.data} />;
   }
   if (props.data.type === 'terminal') {
     return (
