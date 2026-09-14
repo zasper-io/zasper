@@ -5,7 +5,8 @@ import { toast } from 'react-toastify';
 import { copyToClipboard } from '@/browser';
 import { DOCS_URL, ISSUES_URL } from '@/commands/helpCommands';
 import { chordParts } from '@/commands/keys';
-import { CommandCatalogEntry, useCommandCatalog } from '@/commands/registry';
+import { ALL_COMMANDS } from '@/commands/catalog';
+import { CommandInfo } from '@/commands/define';
 import { Icon } from '@/ide/icons';
 import {
   configPathAtom,
@@ -16,6 +17,11 @@ import {
 } from '@/store/AppState';
 import { IfileTab } from '@/store/TabState';
 import './HelpTab.scss';
+
+/** Every command with a key, sorted once: the list is fixed, and a group is then a run. */
+const SHORTCUTS = ALL_COMMANDS.filter((command) => command.keys?.length).sort(
+  (a, b) => a.category.localeCompare(b.category) || a.label.localeCompare(b.label)
+);
 
 interface HelpTabProps {
   data: IfileTab;
@@ -59,27 +65,18 @@ export default function HelpTab({ data }: HelpTabProps) {
         <section ref={about} className="help-about" aria-label="About Zasper">
           <About />
         </section>
-        <p className="z-form-help help-tab-note">
-          A tab&apos;s own shortcuts are listed once that kind of tab has been in front in this
-          window.
-        </p>
       </div>
     </div>
   );
 }
 
 function Shortcuts({ query }: { query: string }) {
-  const catalog = useCommandCatalog();
   const needle = query.trim().toLowerCase();
 
-  // The catalogue is sorted by category then label, so a group is a run. Matched on category as well
-  // as label, as the palette does.
+  // Matched on category as well as label, as the palette does.
   const groups = useMemo(() => {
-    const byCategory = new Map<string, CommandCatalogEntry[]>();
-    for (const entry of catalog) {
-      if (!entry.keys?.length) {
-        continue;
-      }
+    const byCategory = new Map<string, CommandInfo[]>();
+    for (const entry of SHORTCUTS) {
       if (
         needle !== '' &&
         !entry.label.toLowerCase().includes(needle) &&
@@ -95,13 +92,13 @@ function Shortcuts({ query }: { query: string }) {
       }
     }
     return [...byCategory];
-  }, [catalog, needle]);
+  }, [needle]);
 
   if (groups.length === 0) {
     return (
       <p className="z-note help-empty">
         {needle === ''
-          ? 'No keyboard shortcuts are registered.'
+          ? 'There are no keyboard shortcuts.'
           : `No shortcut matches “${query.trim()}”.`}
       </p>
     );

@@ -3,7 +3,26 @@ import { useSetAtom } from 'jotai';
 
 import { zoomLevelAtom } from '@/store/AppState';
 import { clampZoomLevel } from '@/zoom';
+import { defineCommands } from './define';
 import { ICommand } from './types';
+
+const view = { category: 'View', scope: 'app' } as const;
+
+/** The window's own commands. `view:toggle-sidebar` is registered by IDE.tsx, which owns the sidebar. */
+export const APP_COMMANDS = defineCommands({
+  // Cmd +/-/0 zoom the window, as they do in VS Code and in the browser around it. They used to
+  // resize the editor's font instead, which left every other length in the app where it was.
+  'view:zoom-in': {
+    ...view,
+    label: 'Zoom In',
+    // Two spellings because the shifted `=` key reports itself as `+`, and both are how
+    // people press this.
+    keys: ['Mod-=', 'Mod-+'],
+  },
+  'view:zoom-out': { ...view, label: 'Zoom Out', keys: ['Mod--'] },
+  'view:zoom-reset': { ...view, label: 'Reset Zoom', keys: ['Mod-0'] },
+  'view:toggle-sidebar': { ...view, label: 'Toggle Sidebar', keys: ['Mod-b'] },
+});
 
 /**
  * Commands that belong to the window rather than to any tab. Registered by `IDE.tsx`, so they are
@@ -17,34 +36,15 @@ export function useAppCommands(): ICommand[] {
 
   return useMemo(
     () => [
-      // Cmd +/-/0 zoom the window, as they do in VS Code and in the browser around it. They used to
-      // resize the editor's font instead, which left every other length in the app where it was.
       {
-        id: 'view:zoom-in',
-        label: 'Zoom In',
-        category: 'View',
-        scope: 'app',
-        // Two spellings because the shifted `=` key reports itself as `+`, and both are how
-        // people press this.
-        keys: ['Mod-=', 'Mod-+'],
+        ...APP_COMMANDS['view:zoom-in'],
         execute: () => setZoomLevel((level) => clampZoomLevel(level + 1)),
       },
       {
-        id: 'view:zoom-out',
-        label: 'Zoom Out',
-        category: 'View',
-        scope: 'app',
-        keys: ['Mod--'],
+        ...APP_COMMANDS['view:zoom-out'],
         execute: () => setZoomLevel((level) => clampZoomLevel(level - 1)),
       },
-      {
-        id: 'view:zoom-reset',
-        label: 'Reset Zoom',
-        category: 'View',
-        scope: 'app',
-        keys: ['Mod-0'],
-        execute: () => setZoomLevel(0),
-      },
+      { ...APP_COMMANDS['view:zoom-reset'], execute: () => setZoomLevel(0) },
     ],
     [setZoomLevel]
   );

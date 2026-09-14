@@ -36,7 +36,7 @@ import { useRememberTabs } from '../store/useRememberTabs';
 import { applyTheme, getTheme, rememberTheme } from '../themes';
 import { useApplyZoom } from '../zoom/useApplyZoom';
 import { PanelName } from './sidebar/types';
-import { useAppCommands } from '../commands/appCommands';
+import { APP_COMMANDS, useAppCommands } from '../commands/appCommands';
 import { useHelpCommands } from '../commands/helpCommands';
 import { isMac, terminalHasFocus } from '../commands/keys';
 import { useRegisterCommands } from '../commands/registry';
@@ -83,11 +83,7 @@ function IDE() {
   const sidebarCommands = useMemo<ICommand[]>(
     () => [
       {
-        id: 'view:toggle-sidebar',
-        label: 'Toggle Sidebar',
-        category: 'View',
-        scope: 'app',
-        keys: ['Mod-b'],
+        ...APP_COMMANDS['view:toggle-sidebar'],
         // Off mac this is Ctrl-B, which a shell reads as back-a-character.
         isEnabled: () => isMac || !terminalHasFocus(),
         execute: toggleSidebar,

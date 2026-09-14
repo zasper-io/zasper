@@ -11,8 +11,7 @@ import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 import { ICommand } from '@/commands/types';
-
-const SEARCH_CHORD = 'Mod-k';
+import { PALETTE_COMMANDS, SEARCH_CHORD } from './paletteCommands';
 
 interface TopbarProps {
   sidebarOpen: boolean;
@@ -49,34 +48,13 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
   const paletteCommands = useMemo<ICommand[]>(
     () => [
       {
-        id: 'palette:open',
-        label: 'Search Files and Commands',
-        category: 'View',
-        scope: 'app',
-        keys: [SEARCH_CHORD],
+        ...PALETTE_COMMANDS['palette:open'],
         // Off mac this is Ctrl-K, which a shell reads as kill-line.
         isEnabled: () => isMac || !terminalHasFocus(),
         execute: openFiles,
       },
-      {
-        id: 'palette:open-commands',
-        label: 'Show All Commands',
-        category: 'View',
-        scope: 'app',
-        // Cmd is what every other editor uses on mac, but Ctrl is what this app was bound to
-        // before, so both are accepted and nobody's habit breaks. (Off mac they are the same
-        // chord, and the palette dedupes the display.)
-        keys: ['Mod-Shift-p', 'Ctrl-Shift-p'],
-        execute: openCommands,
-      },
-      {
-        id: 'palette:open-files',
-        label: 'Go to File',
-        category: 'View',
-        scope: 'app',
-        keys: ['Mod-Shift-o', 'Ctrl-Shift-o'],
-        execute: openFiles,
-      },
+      { ...PALETTE_COMMANDS['palette:open-commands'], execute: openCommands },
+      { ...PALETTE_COMMANDS['palette:open-files'], execute: openFiles },
     ],
     [openCommands, openFiles]
   );

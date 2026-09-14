@@ -44,9 +44,8 @@ Four kinds carry something extra:
   opened, which is what any diff already is.
 - **A terminal** is keyed by its display name (`Terminal 1`), minted from `terminalsCountAtom`.
 - **Help** is keyed by `HELP_TAB_KEY`, `zasper:help`, so there is one and a file called `Help` is not
-  it. It reads nothing from disk. It lists `commandCatalogAtom` — every command registered in this
-  window — rather than the live registry, since Help is the tab in front while it is read and a
-  notebook's commands are withdrawn whenever the notebook is not. It is remembered with the strip.
+  it. It reads nothing from disk. It lists `ALL_COMMANDS` from `commands/catalog.ts`, every command the app
+  declares, so it shows the same shortcuts whatever has been open. It is remembered with the strip.
 
 ## The pieces
 
