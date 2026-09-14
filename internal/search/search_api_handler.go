@@ -2,56 +2,98 @@ package search
 
 import (
 	"encoding/json"
-	"fmt"
+	"io/fs"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/zasper-io/zasper/internal/core"
+	"github.com/rs/zerolog/log"
+
+	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/models"
 )
 
-// Cache structure with expiration time
-type FileCache struct {
-	data      []models.ContentModel
-	timestamp time.Time
+/*
+How long one walk of the project answers searches for. The palette asks again on every keystroke, so a
+word typed is one walk rather than one per letter; a file created since appears once this has passed.
+*/
+var listingTTL = 10 * time.Second
+
+// The most suggestions one answer carries: the palette shows a screenful, and a one-letter query in a
+// large project would otherwise send every file in it.
+const maxSuggestions = 500
+
+type projectFile struct {
+	name     string
+	path     string
+	modified time.Time
 }
 
-// In-memory cache for file search results (sync.Map for concurrency safety)
-var cache sync.Map
+// listing is the most recent walk: one project's files, and when they were read.
+var listing struct {
+	mu    sync.Mutex
+	root  string
+	files []projectFile
+	at    time.Time
+}
 
-// Cache expiry time (e.g., 5 minutes)
-var cacheExpiry = 5 * time.Minute
+// projectFiles answers the files of the project at root, walking it only when the last walk was of
+// another project or is older than listingTTL. Requests that arrive during a walk wait for it rather than
+// starting walks of their own.
+func projectFiles(root string) []projectFile {
+	listing.mu.Lock()
+	defer listing.mu.Unlock()
+
+	if listing.root != root || time.Since(listing.at) >= listingTTL {
+		listing.root, listing.files, listing.at = root, walkProject(root), time.Now()
+	}
+	return listing.files
+}
 
 /*
-How many answers are kept at once.
-
-There has to be a limit because the key is the query, and the query is whatever the caller typed:
-expiry is only consulted when an entry is read again, so an entry nobody asks for twice is never
-removed and the map grew for the life of the process. The cache is here to save the second keystroke
-of one search rather than to remember a session, so the whole thing is dropped on reaching the limit
-instead of the oldest entry being tracked.
+walkProject lists the project's files, leaving out what content.ProjectIgnores skips: generated folders
+such as .git and node_modules, and whatever the project's .gitignore files ignore. A folder that cannot be
+read is passed over rather than failing the whole search.
 */
-const maxCachedQueries = 128
+func walkProject(root string) []projectFile {
+	ignores := content.NewProjectIgnores(root)
+	files := []projectFile{}
 
-// cacheKey names the project as well as the query. The two are not separable: the same word means
-// different files in different projects, and the store outlives a change of project.
-func cacheKey(projectDir, query string) string {
-	return projectDir + "\x00" + query
+	filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			log.Debug().Err(err).Str("path", path).Msg("not searching a folder that cannot be read")
+			return nil
+		}
+		if path == root {
+			return nil
+		}
+		if ignores.Skips(path, entry.IsDir()) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if entry.IsDir() {
+			return nil
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return nil
+		}
+		files = append(files, projectFile{name: entry.Name(), path: filepath.ToSlash(relative), modified: info.ModTime()})
+		return nil
+	})
+	return files
 }
 
-func getRelativePath(targetPath string) (string, error) {
-	relPath, err := filepath.Rel(core.Zasper.HomeDir, targetPath)
-	if err != nil {
-		return "", err
-	}
-	return relPath, nil
-}
-
-// Function to check and collect files from the directory tree recursively, with caching
+// GetFileSuggestions answers the project's files whose name contains the query, whatever its case.
 func GetFileSuggestions(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	if query == "" {
@@ -59,110 +101,32 @@ func GetFileSuggestions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Proceed with the search logic if no valid cache
-	directory := core.Zasper.HomeDir
-	key := cacheKey(directory, query)
-
-	// Check cache first
-	if cachedResults, found := cache.Load(key); found {
-		// Comma-ok: nothing else writes to this map today, and a bare assertion is how that stops
-		// being true quietly.
-		cacheData, ok := cachedResults.(FileCache)
-		if ok && time.Since(cacheData.timestamp) < cacheExpiry {
-			// Return cached results if still valid
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(cacheData.data)
-			return
-		}
-	}
-
+	// Case-insensitively: the palette matches its commands that way, and one query box whose two halves
+	// disagree about whether `README` and `readme` are the same word is a bug report.
+	needle := strings.ToLower(query)
 	suggestions := []models.ContentModel{}
-
-	// Walk through the directory tree recursively
-	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	for _, file := range projectFiles(content.GetSafePath(".")) {
+		if !strings.Contains(strings.ToLower(file.name), needle) {
+			continue
 		}
-
-		// Skip directories, we only want files
-		if info.IsDir() {
-			return nil
+		suggestions = append(suggestions, models.ContentModel{
+			ContentType:   fileType(file.name),
+			Name:          file.name,
+			Path:          file.path,
+			Last_modified: file.modified.UTC().Format(time.RFC3339),
+		})
+		if len(suggestions) == maxSuggestions {
+			break
 		}
-		// Git's own directory, matched as a whole path segment. `strings.Contains(path, ".git")`
-		// was also hiding .gitignore, .gitattributes and everything under .github/.
-		if insideGitDir(directory, path) {
-			return nil
-		}
-
-		// Case-insensitively: the palette matches its commands that way, and one query box whose two
-		// halves disagree about whether `README` and `readme` are the same word is a bug report.
-		if strings.Contains(strings.ToLower(info.Name()), strings.ToLower(query)) {
-
-			relPath, err := getRelativePath(path)
-			if err != nil {
-				// Nothing useful can be said about a file the client cannot ask for by path, so it
-				// is left out rather than offered with an empty one.
-				return nil
-			}
-
-			suggestion := models.ContentModel{
-				ContentType:   "file",
-				Name:          info.Name(),
-				Path:          relPath,
-				Last_modified: info.ModTime().GoString(),
-			}
-
-			// Add the file to the suggestions list
-			suggestions = append(suggestions, suggestion)
-
-		}
-
-		return nil
-	})
-
-	// If there was an error during the walk, return it
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error walking the directory tree: %v", err), http.StatusInternalServerError)
-		return
 	}
 
-	// Cache the result (along with the current timestamp)
-	rememberSuggestions(key, suggestions)
-
-	// Return the matching file names as a JSON response
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(suggestions); err != nil {
-		http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
-	}
+	json.NewEncoder(w).Encode(suggestions)
 }
 
-// insideGitDir reports whether path sits inside the project's own .git directory.
-func insideGitDir(projectDir, path string) bool {
-	relative, err := filepath.Rel(projectDir, path)
-	if err != nil {
-		return false
+func fileType(name string) string {
+	if filepath.Ext(name) == ".ipynb" {
+		return "notebook"
 	}
-	for _, segment := range strings.Split(filepath.ToSlash(relative), "/") {
-		if segment == ".git" {
-			return true
-		}
-	}
-	return false
-}
-
-// rememberSuggestions stores an answer, emptying the cache first if it has reached its limit.
-func rememberSuggestions(key string, suggestions []models.ContentModel) {
-	held := 0
-	cache.Range(func(_, _ any) bool {
-		held++
-		return held < maxCachedQueries
-	})
-	if held >= maxCachedQueries {
-		cache.Clear()
-	}
-
-	cache.Store(key, FileCache{
-		data:      suggestions,
-		timestamp: time.Now(),
-	})
+	return "file"
 }

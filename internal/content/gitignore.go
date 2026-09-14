@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
@@ -55,6 +56,59 @@ func patternsInDir(osDir string, domain []string) []gitignore.Pattern {
 		patterns = append(patterns, gitignore.ParsePattern(line, domain))
 	}
 
+	return patterns
+}
+
+// alwaysSkipped are folders nobody edits by hand, each holding more folders than are worth walking.
+var alwaysSkipped = map[string]bool{
+	".git": true, "node_modules": true, "__pycache__": true, ".ipynb_checkpoints": true, ".venv": true,
+}
+
+/*
+ProjectIgnores answers whether a path under a project is left out of what Zasper watches and searches:
+the folders in alwaysSkipped, and whatever the project's .gitignore files ignore. It reads each .gitignore
+once and remembers it, so one is made per walk.
+*/
+type ProjectIgnores struct {
+	root     string
+	patterns map[string][]gitignore.Pattern
+}
+
+func NewProjectIgnores(root string) *ProjectIgnores {
+	return &ProjectIgnores{root: root, patterns: map[string][]gitignore.Pattern{}}
+}
+
+// Skips reports whether the folder or file at osPath is left out.
+func (p *ProjectIgnores) Skips(osPath string, isDir bool) bool {
+	if isDir && alwaysSkipped[filepath.Base(osPath)] {
+		return true
+	}
+	relative, err := filepath.Rel(p.root, osPath)
+	if err != nil {
+		return false
+	}
+	segments := pathSegments(relative)
+	if len(segments) == 0 {
+		return false
+	}
+	return gitignore.NewMatcher(p.patternsFor(segments[:len(segments)-1])).Match(segments, isDir)
+}
+
+// patternsFor answers every pattern that applies to the entries of the folder at segments: its own
+// .gitignore's and those of every folder above it.
+func (p *ProjectIgnores) patternsFor(segments []string) []gitignore.Pattern {
+	key := strings.Join(segments, "/")
+	if patterns, ok := p.patterns[key]; ok {
+		return patterns
+	}
+
+	var inherited []gitignore.Pattern
+	if len(segments) > 0 {
+		inherited = p.patternsFor(segments[:len(segments)-1])
+	}
+	osDir := filepath.Join(append([]string{p.root}, segments...)...)
+	patterns := append(slices.Clip(inherited), patternsInDir(osDir, segments)...)
+	p.patterns[key] = patterns
 	return patterns
 }
 

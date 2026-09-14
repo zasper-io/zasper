@@ -6,13 +6,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	zhttp "github.com/zasper-io/zasper/internal/http"
@@ -24,15 +21,6 @@ var upgrader = websocket.Upgrader{
 
 // How long a reload message may take to reach a client before the client is taken to have stalled.
 const watchWriteTimeout = 10 * time.Second
-
-/*
-alwaysSkipped are folders nobody edits by hand, each holding more folders than are worth a watch apiece.
-Everything else is watched unless the project's .gitignore files ignore it, so a folder called tests or
-build is watched like any other.
-*/
-var alwaysSkipped = map[string]bool{
-	".git": true, "node_modules": true, "__pycache__": true, ".ipynb_checkpoints": true, ".venv": true,
-}
 
 /*
 projectWatch is one fsnotify watcher over the project, shared by every open watch socket. It starts with
@@ -152,11 +140,12 @@ func (p *projectWatch) run(watcher *fsnotify.Watcher, root string) {
 }
 
 /*
-watchTree adds dir and the folders under it, leaving out what is skipped or ignored. A folder that cannot
-be read or watched is passed over rather than ending the walk, so the rest of the project is still watched.
+watchTree adds dir and the folders under it, leaving out what ProjectIgnores skips, so a folder called
+tests or build is watched like any other. A folder that cannot be read or watched is passed over rather
+than ending the walk, so the rest of the project is still watched.
 */
 func watchTree(watcher *fsnotify.Watcher, root, dir string) {
-	ignores := &ignoreTree{root: root, patterns: map[string][]gitignore.Pattern{}}
+	ignores := NewProjectIgnores(root)
 
 	filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -166,7 +155,7 @@ func watchTree(watcher *fsnotify.Watcher, root, dir string) {
 		if !entry.IsDir() {
 			return nil
 		}
-		if path != root && ignores.skip(path) {
+		if path != root && ignores.Skips(path, true) {
 			return fs.SkipDir
 		}
 		if err := watcher.Add(path); err != nil {
@@ -178,45 +167,6 @@ func watchTree(watcher *fsnotify.Watcher, root, dir string) {
 		}
 		return nil
 	})
-}
-
-// ignoreTree answers whether a folder is left unwatched, reading each .gitignore once per walk.
-type ignoreTree struct {
-	root     string
-	patterns map[string][]gitignore.Pattern
-}
-
-func (t *ignoreTree) skip(dir string) bool {
-	if alwaysSkipped[filepath.Base(dir)] {
-		return true
-	}
-	relative, err := filepath.Rel(t.root, dir)
-	if err != nil {
-		return false
-	}
-	segments := pathSegments(relative)
-	if len(segments) == 0 {
-		return false
-	}
-	return gitignore.NewMatcher(t.patternsFor(segments[:len(segments)-1])).Match(segments, true)
-}
-
-// patternsFor answers every pattern that applies to the entries of the folder at segments: its own
-// .gitignore's and those of every folder above it.
-func (t *ignoreTree) patternsFor(segments []string) []gitignore.Pattern {
-	key := strings.Join(segments, "/")
-	if patterns, ok := t.patterns[key]; ok {
-		return patterns
-	}
-
-	var inherited []gitignore.Pattern
-	if len(segments) > 0 {
-		inherited = t.patternsFor(segments[:len(segments)-1])
-	}
-	osDir := filepath.Join(append([]string{t.root}, segments...)...)
-	patterns := append(slices.Clip(inherited), patternsInDir(osDir, segments)...)
-	t.patterns[key] = patterns
-	return patterns
 }
 
 // HandleWatchWebSocket sends a client "reload" whenever something in the project changes.

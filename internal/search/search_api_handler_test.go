@@ -1,23 +1,21 @@
 /*
 The file suggestions behind the command palette's file half.
 
-This handler had no coverage at all — not a unit test, and no end-to-end journey either, since
-internal/server/auth_test.go only ever sees it answer 401. It walks the whole project on every miss
-and keeps what it found in a package-level cache, so the things worth pinning are what it matches,
-what it hides, and what that cache does when the query is chosen by somebody else.
-
-The cache is process-wide, so each test uses a query of its own rather than resetting it — the same
-habit the store tests keep, for the same reason.
+The handler lists a project once and answers every query from that listing until it is listingTTL old, so
+each test uses a project of its own: a different project is always walked afresh.
 */
 package search
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,8 +43,8 @@ func projectWith(t *testing.T, paths ...string) string {
 	return dir
 }
 
-// suggest calls the handler and answers the status and the paths it offered.
-func suggest(t *testing.T, query string) (int, []string) {
+// suggestions calls the handler and answers the status and what it offered.
+func suggestions(t *testing.T, query string) (int, []models.ContentModel) {
 	t.Helper()
 
 	target := "/api/files"
@@ -62,12 +60,19 @@ func suggest(t *testing.T, query string) (int, []string) {
 
 	var found []models.ContentModel
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &found), "body was %s", recorder.Body)
+	return recorder.Code, found
+}
 
+// suggest is suggestions reduced to the paths offered.
+func suggest(t *testing.T, query string) (int, []string) {
+	t.Helper()
+
+	status, found := suggestions(t, query)
 	paths := make([]string, len(found))
 	for i, f := range found {
-		paths[i] = filepath.ToSlash(f.Path)
+		paths[i] = f.Path
 	}
-	return recorder.Code, paths
+	return status, paths
 }
 
 func TestAQueryIsRequired(t *testing.T) {
@@ -84,8 +89,6 @@ func TestFilesAreMatchedOnTheirNameWhateverTheCase(t *testing.T) {
 	status, paths := suggest(t, "READ")
 
 	require.Equal(t, http.StatusOK, status)
-	// The palette matches its commands case-insensitively and one query box whose two halves
-	// disagree about `README` and `readme` is a bug report.
 	assert.ElementsMatch(t, []string{"README.md", "src/reader.py"}, paths)
 }
 
@@ -113,14 +116,13 @@ func TestNothingMatchingIsAnEmptyAnswerRatherThanAnError(t *testing.T) {
 /*
 Git's own directory is hidden; files that merely begin the same way are not.
 
-The skip was `strings.Contains(path, ".git")` over the whole path, so it also swallowed `.gitignore`,
-`.gitattributes` and everything under `.github/` — files a reader would expect to be able to open,
-and the last of which is a directory of workflows people edit.
+The skip was once `strings.Contains(path, ".git")` over the whole path, so it also swallowed `.gitignore`,
+`.gitattributes` and everything under `.github/`.
 */
 func TestTheGitDirectoryIsHiddenButGitFilesAreNot(t *testing.T) {
 	projectWith(t,
-		// Named so they would match the query on their own, which is what makes their absence from
-		// the answer mean the directory was skipped rather than the name simply not matching.
+		// Named so they would match the query on their own, which is what makes their absence from the
+		// answer mean the directory was skipped rather than the name simply not matching.
 		".git/gitconfig",
 		".git/refs/heads/gitmain",
 		".gitignore",
@@ -131,52 +133,31 @@ func TestTheGitDirectoryIsHiddenButGitFilesAreNot(t *testing.T) {
 	status, paths := suggest(t, "git")
 
 	require.Equal(t, http.StatusOK, status)
-	assert.ElementsMatch(t, []string{
-		".gitignore",
-		".gitattributes",
-		".github/workflows/gitflow.yml",
-	}, paths)
+	assert.ElementsMatch(t, []string{".gitignore", ".gitattributes", ".github/workflows/gitflow.yml"}, paths)
 }
 
-func TestTheSecondAskForTheSameQueryIsAnsweredFromTheCache(t *testing.T) {
-	dir := projectWith(t, "cached-alpha.txt")
+func TestOneWalkAnswersEveryQueryUntilItIsStale(t *testing.T) {
+	dir := projectWith(t, "alpha-one.txt", "beta-one.txt")
 
-	status, first := suggest(t, "cached-alpha")
-	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, []string{"cached-alpha.txt"}, first)
+	_, first := suggest(t, "alpha")
+	require.Equal(t, []string{"alpha-one.txt"}, first)
 
-	// Written after the first answer, so it can only appear if the walk ran again.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "cached-alpha-two.txt"), []byte("x"), 0o644))
+	// Written after the walk, so it can only appear if the project is walked again.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "beta-two.txt"), []byte("x"), 0o644))
 
-	_, second := suggest(t, "cached-alpha")
-	assert.Equal(t, first, second, "the walk ran again rather than the cache answering")
+	_, second := suggest(t, "beta")
+	assert.Equal(t, []string{"beta-one.txt"}, second, "a different query walked the project again")
+
+	previous := listingTTL
+	listingTTL = 0
+	t.Cleanup(func() { listingTTL = previous })
+
+	_, third := suggest(t, "beta")
+	assert.ElementsMatch(t, []string{"beta-one.txt", "beta-two.txt"}, third, "a stale listing was not walked again")
 }
 
-/*
-A cache keyed on what the caller typed cannot grow without limit.
-
-Nothing evicts: the five-minute expiry is only consulted on a read, so it never removes an entry that
-is not asked for again. Every distinct query held a full slice of results for the life of the
-process, and the query is a URL parameter.
-*/
-func TestTheCacheDoesNotGrowWithoutBound(t *testing.T) {
-	projectWith(t, "notes.txt")
-
-	for i := range maxCachedQueries * 2 {
-		_, _ = suggest(t, "flood-"+string(rune('a'+i%26))+string(rune('a'+i/26)))
-	}
-
-	held := 0
-	cache.Range(func(_, _ any) bool {
-		held++
-		return true
-	})
-	assert.LessOrEqual(t, held, maxCachedQueries, "the cache holds %d queries", held)
-}
-
-// Two projects, one query. The cache is keyed on the query alone unless it is told otherwise, so a
-// second project would be answered with the first one's files.
-func TestAnotherProjectIsNotAnsweredFromThisOnesCache(t *testing.T) {
+// Two projects, one query: the listing of the first must not answer for the second.
+func TestAnotherProjectIsNotAnsweredFromThisOnesListing(t *testing.T) {
 	projectWith(t, "shared-name-here.txt")
 	_, first := suggest(t, "shared-name-here")
 	require.Equal(t, []string{"shared-name-here.txt"}, first)
@@ -185,4 +166,63 @@ func TestAnotherProjectIsNotAnsweredFromThisOnesCache(t *testing.T) {
 	_, second := suggest(t, "shared-name-here")
 
 	assert.Equal(t, []string{"elsewhere/shared-name-here.txt"}, second)
+}
+
+func TestIgnoredFilesAndFoldersAreNotSuggested(t *testing.T) {
+	dir := projectWith(t,
+		"build/report-x.txt",
+		"node_modules/pkg/report-x.js",
+		".venv/lib/report-x.py",
+		"debug-report-x.log",
+		"tests/report-x.py",
+	)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("build/\n*.log\n"), 0o644))
+
+	_, paths := suggest(t, "report-x")
+
+	assert.Equal(t, []string{"tests/report-x.py"}, paths)
+}
+
+func TestAnUnreadableFolderDoesNotFailTheSearch(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs a folder the test cannot read")
+	}
+	dir := projectWith(t, "locked/secret-y.txt", "open/notes-y.txt")
+	locked := filepath.Join(dir, "locked")
+	require.NoError(t, os.Chmod(locked, 0))
+	t.Cleanup(func() { os.Chmod(locked, 0o755) })
+
+	status, paths := suggest(t, "-y")
+
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, []string{"open/notes-y.txt"}, paths)
+}
+
+func TestAShortQueryInALargeProjectIsCapped(t *testing.T) {
+	names := make([]string, maxSuggestions+10)
+	for i := range names {
+		names[i] = fmt.Sprintf("file-%d.txt", i)
+	}
+	projectWith(t, names...)
+
+	_, paths := suggest(t, "file")
+
+	assert.Len(t, paths, maxSuggestions)
+}
+
+func TestASuggestionSaysWhatItIsAndWhenItChanged(t *testing.T) {
+	projectWith(t, "analysis.ipynb", "analysis.py")
+
+	_, found := suggestions(t, "analysis")
+	require.Len(t, found, 2)
+
+	for _, suggestion := range found {
+		want := "file"
+		if suggestion.Name == "analysis.ipynb" {
+			want = "notebook"
+		}
+		assert.Equal(t, want, suggestion.ContentType, suggestion.Name)
+		_, err := time.Parse(time.RFC3339, suggestion.Last_modified)
+		assert.NoError(t, err, "last_modified %q is not RFC 3339", suggestion.Last_modified)
+	}
 }
