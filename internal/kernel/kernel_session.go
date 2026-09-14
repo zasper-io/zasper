@@ -19,6 +19,9 @@ import (
 // above all, would otherwise send messages no kernel will answer.
 const ProtocolVersion = "5.3"
 
+// DELIM separates the routing identities at the front of a message from the frames that are signed.
+const DELIM = "<IDS|MSG>"
+
 type KernelSession struct {
 	Key             string
 	SignatureScheme string

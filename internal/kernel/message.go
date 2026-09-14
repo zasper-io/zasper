@@ -3,7 +3,7 @@ package kernel
 import (
 	"time"
 
-	"github.com/zasper-io/zasper/internal/utils"
+	"github.com/zasper-io/zasper/internal/core"
 )
 
 type (
@@ -45,7 +45,7 @@ func (ks *KernelSession) newMsgHeader(msgType string, userName string) MessageHe
 
 func (ks *KernelSession) MessageFromString(value string) Message {
 	msg := Message{}
-	msg.Header = ks.newMsgHeader(value, utils.GetUsername())
+	msg.Header = ks.newMsgHeader(value, core.GetUsername())
 	msg.MsgId = msg.Header.MsgID
 	msg.Content = make(map[string]interface{})
 	msg.Metadata = make(map[string]interface{})

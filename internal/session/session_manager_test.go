@@ -16,12 +16,12 @@ func sessionsFor(t *testing.T, paths ...string) {
 
 	// The store is one per process, so a test that left its sessions behind would be the next one's
 	// starting point.
-	t.Cleanup(core.SetUpActiveSessions)
+	t.Cleanup(SetUpActiveSessions)
 
-	core.SetUpActiveSessions()
+	SetUpActiveSessions()
 	for i, path := range paths {
 		id := string(rune('a' + i))
-		core.SetSession(id, models.SessionModel{Id: id, Name: filepath.Base(path), Path: path})
+		setSession(id, models.SessionModel{Id: id, Name: filepath.Base(path), Path: path})
 	}
 }
 
@@ -30,7 +30,7 @@ func sessionsFor(t *testing.T, paths ...string) {
 func stored(t *testing.T, id string) models.SessionModel {
 	t.Helper()
 
-	session, ok := core.GetSession(id)
+	session, ok := GetSession(id)
 	assert.True(t, ok, "no session %s", id)
 	return session
 }
@@ -61,7 +61,7 @@ func running(id, path, kernelName string) models.SessionModel {
 		Path:   path,
 		Kernel: models.KernelModel{Id: id + "-kernel", Name: kernelName},
 	}
-	core.SetSession(id, session)
+	setSession(id, session)
 	return session
 }
 
@@ -83,7 +83,7 @@ func TestARequestForADifferentKernelStartsItsOwnSession(t *testing.T) {
 	_, ok := runningSessionFor(models.SessionModel{Path: "notes.ipynb", Kernel: models.KernelModel{Name: "julia"}})
 	assert.False(t, ok)
 	// And the session that is there is left alone: it is still running.
-	_, still := core.GetSession("a")
+	_, still := GetSession("a")
 	assert.True(t, still)
 }
 
@@ -96,7 +96,7 @@ func TestASessionThatOutlivedItsKernelIsDropped(t *testing.T) {
 	_, ok := runningSessionFor(models.SessionModel{Path: "notes.ipynb", Kernel: models.KernelModel{Name: "python3"}})
 	assert.False(t, ok)
 
-	_, still := core.GetSession("a")
+	_, still := GetSession("a")
 	assert.False(t, still, "the stale session should have been dropped")
 }
 
@@ -122,10 +122,10 @@ func TestRelocateSessionsFollowsEveryNotebookUnderAMovedFolder(t *testing.T) {
 
 func TestRelocateSessionsRenamesTheSessionWithTheFile(t *testing.T) {
 	sessionsFor(t)
-	core.SetSession("a", models.SessionModel{Id: "a", Name: "notes.ipynb", Path: "src/notes.ipynb"})
+	setSession("a", models.SessionModel{Id: "a", Name: "notes.ipynb", Path: "src/notes.ipynb"})
 	// A session named something of its own keeps that name; only one that was named after the file
 	// follows it.
-	core.SetSession("b", models.SessionModel{Id: "b", Name: "my analysis", Path: "src/other.ipynb"})
+	setSession("b", models.SessionModel{Id: "b", Name: "my analysis", Path: "src/other.ipynb"})
 
 	RelocateSessions("src/notes.ipynb", "src/renamed.ipynb")
 	RelocateSessions("src/other.ipynb", "src/moved.ipynb")

@@ -4,30 +4,29 @@ import (
 	"sync"
 
 	"github.com/zasper-io/zasper/internal/content"
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
+	"github.com/zasper-io/zasper/internal/kernelws"
 	"github.com/zasper-io/zasper/internal/session"
-	zwebsocket "github.com/zasper-io/zasper/internal/websocket"
 )
 
 /*
 SetUp puts the server's process-wide state into its starting shape and connects the parts that cannot
-import each other: killing a kernel has to close the sockets its notebooks are listening on, and a
-renamed notebook's session has to follow the file.
+import each other: a stopped kernel takes its sessions and its notebooks' sockets with it, and a renamed
+notebook's session follows the file.
 
-Called once at startup, and once per test — which is why emptying the stores lives here rather than at
-the call site, so that a test server is put together exactly the way the real one is.
+Called once at startup and once per test, so that a test server is put together the way the real one is.
 */
 func SetUp() {
-	core.SetUpActiveSessions()
+	session.SetUpActiveSessions()
 	content.SetUpActiveWatcherConnections()
 	kernel.SetUpStateKernels()
-	zwebsocket.SetUpKernelConnections()
+	kernelws.SetUpKernelConnections()
 
-	// Once per process: the kernel package appends its disconnect handlers, so registering again would
-	// leave two handlers closing the same connections.
+	// Once per process: handlers are appended, so registering again would run each twice. Sessions go
+	// before sockets, so that a client told its socket has closed finds no session left to rejoin.
 	wireOnce.Do(func() {
-		kernel.OnKernelDisconnect(zwebsocket.CloseKernelConnections)
+		kernel.OnKernelDisconnect(func(kernelId string) { session.DeleteSessionsForKernel(kernelId) })
+		kernel.OnKernelDisconnect(kernelws.CloseKernelConnections)
 		content.OnContentMoved = func(from, to string) { session.RelocateSessions(from, to) }
 	})
 }

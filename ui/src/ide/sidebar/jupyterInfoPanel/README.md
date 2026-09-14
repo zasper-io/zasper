@@ -152,7 +152,7 @@ lifecycle — a closed tab's kernel surviving, and a reopened notebook still kno
 ## Not implemented
 
 - **A terminals endpoint.** The server has a registry of terminal sessions in
-  [terminal_websocket_handler.go](../../../../../internal/websocket/terminal_websocket_handler.go), but its
+  [terminal_websocket_handler.go](../../../../../internal/terminal/terminal_websocket_handler.go), but its
   keys are generated ids unrelated to the tab names, so there is no way to reattach to a terminal whose
   tab has been closed. The empty state says "in this window" because that is all this list knows.
 - **Restart**, which exists nowhere in `internal/kernel` today.

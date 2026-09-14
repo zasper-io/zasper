@@ -10,7 +10,6 @@ import (
 
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/content"
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/models"
 
@@ -19,7 +18,7 @@ import (
 )
 
 func ListSessions() map[string]models.SessionModel {
-	return core.ListSessions()
+	return sessions.Snapshot()
 }
 
 // CreateSession starts a session on a new kernel, or answers with the one the file is already running
@@ -77,7 +76,7 @@ func CreateSession(req models.SessionModel) (models.SessionModel, error) {
 	}
 	// Written after the kernel is up, and outside any lock: starting one takes as long as it takes,
 	// and nothing else can read this session before it exists.
-	core.SetSession(sessionId, session)
+	setSession(sessionId, session)
 
 	return session, nil
 }
@@ -129,11 +128,11 @@ built on, including the widgets in its outputs. Without it a reload starts a sec
 notebook and abandons the first.
 */
 func runningSessionFor(req models.SessionModel) (models.SessionModel, bool) {
-	if session, ok := core.GetSession(req.Id); ok {
+	if session, ok := GetSession(req.Id); ok {
 		return session, true
 	}
 
-	session, ok := core.SessionForPath(req.Path, req.Kernel.Name)
+	session, ok := sessionForPath(req.Path, req.Kernel.Name)
 	if !ok {
 		return models.SessionModel{}, false
 	}
@@ -141,7 +140,7 @@ func runningSessionFor(req models.SessionModel) (models.SessionModel, bool) {
 		// The session outlived its kernel, which died on its own or was killed from outside. Nothing
 		// can be run on it, so it goes rather than shadowing the session about to replace it.
 		log.Info().Msgf("session %s outlived its kernel; dropping it", session.Id)
-		core.RemoveSession(session.Id)
+		removeSession(session.Id)
 		return models.SessionModel{}, false
 	}
 	return session, true
@@ -154,7 +153,7 @@ func DeleteSession(req models.SessionModel) error {
 	log.Debug().Msgf("deleting session %s", req.Id)
 	// Taken out first, and the kernel stopped only by whoever took it out: two requests deleting the
 	// same session would otherwise both stop the kernel, and both be told it worked.
-	session, ok := core.RemoveSession(req.Id)
+	session, ok := removeSession(req.Id)
 	if !ok {
 		log.Debug().Msg("session does not exist")
 		return fmt.Errorf("session %s does not exist", req.Id)
@@ -170,7 +169,7 @@ own working directory cannot be changed, so this is the record catching up rathe
 moving; oldPath may be a folder, in which case every session under it follows.
 */
 func RelocateSessions(oldPath, newPath string) int {
-	relocated := core.UpdateSessions(func(session models.SessionModel) (models.SessionModel, bool) {
+	relocated := updateSessions(func(session models.SessionModel) (models.SessionModel, bool) {
 		moved, ok := relocate(session.Path, oldPath, newPath)
 		if !ok {
 			return session, false

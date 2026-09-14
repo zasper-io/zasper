@@ -8,7 +8,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/analytics"
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 
 	"github.com/gorilla/mux"
 )
@@ -17,10 +17,10 @@ func KernelListAPIHandler(w http.ResponseWriter, req *http.Request) {
 	kernels, err := listKernels()
 	if err != nil {
 		log.Error().Msgf("Error listing kernels: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error listing kernels: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error listing kernels: %v", err))
 		return
 	}
-	zhttp.SendJSON(w, http.StatusOK, kernels)
+	httpx.SendJSON(w, http.StatusOK, kernels)
 }
 
 func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -30,16 +30,16 @@ func KernelReadAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	kernel, err := getKernel(kernelId)
 	if errors.Is(err, ErrKernelNotFound) {
-		zhttp.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error getting kernel: %v", err))
+		httpx.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error getting kernel: %v", err))
 		return
 	}
 	if err != nil {
 		log.Error().Msgf("Error getting kernel: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting kernel: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting kernel: %v", err))
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, kernel)
+	httpx.SendJSON(w, http.StatusOK, kernel)
 }
 
 func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -49,12 +49,12 @@ func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	err := interruptKernel(kernelId)
 	if errors.Is(err, ErrKernelNotFound) {
-		zhttp.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error interrupting kernel: %v", err))
+		httpx.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error interrupting kernel: %v", err))
 		return
 	}
 	if err != nil {
 		log.Error().Msgf("Error interrupting kernel: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error interrupting kernel: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error interrupting kernel: %v", err))
 		return
 	}
 
@@ -66,7 +66,7 @@ func KernelInterruptAPIHandler(w http.ResponseWriter, req *http.Request) {
 		"kernel_language": language,
 	})
 
-	zhttp.SendJSON(w, http.StatusOK, map[string]string{
+	httpx.SendJSON(w, http.StatusOK, map[string]string{
 		"message": "Kernel interrupted successfully",
 	})
 }
@@ -79,16 +79,16 @@ func KernelKillAPIHandler(w http.ResponseWriter, req *http.Request) {
 	err := KillKernelById(kernelId)
 	if errors.Is(err, ErrKernelNotFound) {
 		log.Error().Msgf("Error killing kernel: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error killing kernel: %v", err))
+		httpx.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error killing kernel: %v", err))
 		return
 	}
 	if err != nil {
 		log.Error().Msgf("Error killing kernel: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error killing kernel: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error killing kernel: %v", err))
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, map[string]string{
+	httpx.SendJSON(w, http.StatusOK, map[string]string{
 		"message": "Kernel killed successfully",
 	})
 }

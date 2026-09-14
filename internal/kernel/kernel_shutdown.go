@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-
-	"github.com/zasper-io/zasper/internal/core"
 )
 
 // A kernel asked to shut down usually exits well within shutdownGrace; one that has not is sent SIGTERM,
@@ -94,8 +92,6 @@ func watchForExit(km KernelManager) {
 	}
 	log.Warn().Str("kernel", km.KernelId).Int("exit_code", process.ExitCode()).Msg("kernel exited on its own")
 
-	// Sessions first, so that a client told its socket has closed finds nothing left to rejoin.
-	core.DeleteSessionsForKernel(km.KernelId)
 	NotifyDisconnect(km.KernelId)
 	stopWatchingKernel(km)
 	km.StopKernel(km.KernelId)

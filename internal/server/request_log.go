@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 )
 
 /*
@@ -29,7 +29,7 @@ default.
 func WithRequestLogging(logger zerolog.Logger, verbose bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
-		recorder := zhttp.NewResponseRecorder(w)
+		recorder := httpx.NewResponseRecorder(w)
 
 		next.ServeHTTP(recorder, r)
 

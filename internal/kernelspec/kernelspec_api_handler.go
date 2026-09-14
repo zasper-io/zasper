@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/zasper-io/zasper/internal/core"
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 )
 
 // Handler to serve kernel resources (like logos)
@@ -25,14 +25,14 @@ func ServeKernelResource(w http.ResponseWriter, req *http.Request) {
 
 	fullPath, ok := getResourceFile(kernelName, resourcePath)
 	if !ok {
-		zhttp.SendErrorResponse(w, http.StatusNotFound, "File not found")
+		httpx.SendErrorResponse(w, http.StatusNotFound, "File not found")
 		return
 	}
 
 	resourceData, err := os.ReadFile(fullPath)
 	if err != nil {
 		log.Error().Msgf("Error reading file: %v", err)
-		zhttp.SendErrorResponse(w, http.StatusNotFound, "File not found")
+		httpx.SendErrorResponse(w, http.StatusNotFound, "File not found")
 		return
 	}
 
@@ -63,15 +63,15 @@ func SingleKernelspecAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	kspec, err := GetKernelSpec(kernelName)
 	if errors.Is(err, ErrKernelspecNotFound) {
-		zhttp.SendErrorResponse(w, http.StatusNotFound, err.Error())
+		httpx.SendErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, kernelspecModel(kernelName, kspec))
+	httpx.SendJSON(w, http.StatusOK, kernelspecModel(kernelName, kspec))
 }
 
 func KernelspecAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -85,7 +85,7 @@ func KernelspecAPIHandler(w http.ResponseWriter, req *http.Request) {
 		response.Kernelspecs[kernelName] = kernelspecModel(kernelName, kernelInfo.Spec)
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, response)
+	httpx.SendJSON(w, http.StatusOK, response)
 }
 
 // defaultKernelName answers a kernel that is installed: python3 when there is one, then the first Python
@@ -113,9 +113,9 @@ func EnvironmentSetupHandler(w http.ResponseWriter, req *http.Request) {
 	if err := StartSetup(core.Zasper.HomeDir); errors.Is(err, ErrSetupRunning) {
 		status = http.StatusConflict
 	}
-	zhttp.SendJSON(w, status, CurrentSetup())
+	httpx.SendJSON(w, status, CurrentSetup())
 }
 
 func EnvironmentSetupStatusHandler(w http.ResponseWriter, req *http.Request) {
-	zhttp.SendJSON(w, http.StatusOK, CurrentSetup())
+	httpx.SendJSON(w, http.StatusOK, CurrentSetup())
 }

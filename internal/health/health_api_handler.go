@@ -3,9 +3,9 @@ package health
 import (
 	"net/http"
 
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 )
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	zhttp.SendJSON(w, http.StatusOK, map[string]bool{"alive": true})
+	httpx.SendJSON(w, http.StatusOK, map[string]bool{"alive": true})
 }

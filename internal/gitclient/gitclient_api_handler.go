@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/zasper-io/zasper/internal/analytics"
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 )
 
 /*
@@ -52,11 +52,11 @@ func notARepository(err error) bool {
 func repoForRead(w http.ResponseWriter, whenAbsent any) (*git.Repository, string, bool) {
 	repo, root, err := openRepo()
 	if notARepository(err) {
-		zhttp.SendJSON(w, http.StatusOK, whenAbsent)
+		httpx.SendJSON(w, http.StatusOK, whenAbsent)
 		return nil, "", false
 	}
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
 		return nil, "", false
 	}
 	return repo, root, true
@@ -69,17 +69,17 @@ render: the panel does not offer those buttons, so a request carrying one is alr
 */
 func repoForWrite(w http.ResponseWriter) (*git.Repository, string, bool) {
 	if !Available() {
-		zhttp.SendErrorResponse(w, http.StatusConflict, "Git is not installed, so this project cannot be changed from here.")
+		httpx.SendErrorResponse(w, http.StatusConflict, "Git is not installed, so this project cannot be changed from here.")
 		return nil, "", false
 	}
 
 	repo, root, err := openRepo()
 	if notARepository(err) {
-		zhttp.SendErrorResponse(w, http.StatusConflict, "This project is not a git repository.")
+		httpx.SendErrorResponse(w, http.StatusConflict, "This project is not a git repository.")
 		return nil, "", false
 	}
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
 		return nil, "", false
 	}
 	return repo, root, true
@@ -97,10 +97,10 @@ func failed(w http.ResponseWriter, err error) {
 	var fromGit *CommandError
 	var refused *Refusal
 	if errors.As(err, &fromGit) || errors.As(err, &refused) {
-		zhttp.SendErrorResponse(w, http.StatusConflict, err.Error())
+		httpx.SendErrorResponse(w, http.StatusConflict, err.Error())
 		return
 	}
-	zhttp.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+	httpx.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 }
 
 // statusFor assembles the whole panel's state: what has changed, and where the branch stands.
@@ -128,7 +128,7 @@ func sendStatus(w http.ResponseWriter, r *http.Request, repo *git.Repository, ro
 		failed(w, err)
 		return
 	}
-	zhttp.SendJSON(w, http.StatusOK, status)
+	httpx.SendJSON(w, http.StatusOK, status)
 }
 
 func StatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -147,11 +147,11 @@ func BranchHandler(w http.ResponseWriter, r *http.Request) {
 
 	branch, err := getCurrentBranch(repo)
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting current branch: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error getting current branch: %v", err))
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, BranchResponse{Branch: branch, IsRepository: true})
+	httpx.SendJSON(w, http.StatusOK, BranchResponse{Branch: branch, IsRepository: true})
 }
 
 /*
@@ -171,11 +171,11 @@ func LogHandler(w http.ResponseWriter, r *http.Request) {
 
 	commits, hasMore, err := getLog(repo, limit, skip)
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the history: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the history: %v", err))
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, LogResponse{Commits: commits, HasMore: hasMore, IsRepository: true})
+	httpx.SendJSON(w, http.StatusOK, LogResponse{Commits: commits, HasMore: hasMore, IsRepository: true})
 }
 
 /*
@@ -215,11 +215,11 @@ under git is a 404 here like any other commit that is not there.
 func CommitDetailHandler(w http.ResponseWriter, r *http.Request) {
 	repo, _, err := openRepo()
 	if notARepository(err) {
-		zhttp.SendErrorResponse(w, http.StatusNotFound, "This project is not a git repository.")
+		httpx.SendErrorResponse(w, http.StatusNotFound, "This project is not a git repository.")
 		return
 	}
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
 		return
 	}
 
@@ -228,15 +228,15 @@ func CommitDetailHandler(w http.ResponseWriter, r *http.Request) {
 	if errors.As(err, &missing) {
 		// The one read here that is genuinely absent rather than empty: a panel left open across a rebase
 		// asks about commits that no longer exist, and that is a 404 rather than a fault.
-		zhttp.SendErrorResponse(w, http.StatusNotFound, err.Error())
+		httpx.SendErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the commit: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the commit: %v", err))
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, detail)
+	httpx.SendJSON(w, http.StatusOK, detail)
 }
 
 /*
@@ -248,7 +248,7 @@ a surprise nobody asked this panel for. Templates and hooks come along for the s
 */
 func InitHandler(w http.ResponseWriter, r *http.Request) {
 	if !Available() {
-		zhttp.SendErrorResponse(w, http.StatusConflict, "Git is not installed, so a repository cannot be created from here.")
+		httpx.SendErrorResponse(w, http.StatusConflict, "Git is not installed, so a repository cannot be created from here.")
 		return
 	}
 
@@ -257,11 +257,11 @@ func InitHandler(w http.ResponseWriter, r *http.Request) {
 		// Including a project inside someone else's checkout, where this would make a second repository
 		// nested in the first. The panel does not offer the button in that case; a request carrying it is
 		// stale.
-		zhttp.SendErrorResponse(w, http.StatusConflict, "This project is already in a git repository.")
+		httpx.SendErrorResponse(w, http.StatusConflict, "This project is already in a git repository.")
 		return
 	}
 	if !notARepository(err) {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
 		return
 	}
 
@@ -272,7 +272,7 @@ func InitHandler(w http.ResponseWriter, r *http.Request) {
 
 	repo, root, err := openRepo()
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("The repository was created but could not be opened: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("The repository was created but could not be opened: %v", err))
 		return
 	}
 	sendStatus(w, r, repo, root)
@@ -288,25 +288,25 @@ from this same repository.
 func DiffHandler(w http.ResponseWriter, r *http.Request) {
 	repo, root, err := openRepo()
 	if notARepository(err) {
-		zhttp.SendErrorResponse(w, http.StatusNotFound, "This project is not a git repository.")
+		httpx.SendErrorResponse(w, http.StatusNotFound, "This project is not a git repository.")
 		return
 	}
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open the repository: %v", err))
 		return
 	}
 
 	query := r.URL.Query()
 	path, err := relPath(root, query.Get("path"))
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	// Confined like any other path from a request: it names the original side, so it reads a blob.
 	from := ""
 	if raw := query.Get("from"); raw != "" {
 		if from, err = relPath(root, raw); err != nil {
-			zhttp.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+			httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
@@ -315,15 +315,15 @@ func DiffHandler(w http.ResponseWriter, r *http.Request) {
 	var missing *missingPath
 	var unknown *notFound
 	if errors.As(err, &missing) || errors.As(err, &unknown) {
-		zhttp.SendErrorResponse(w, http.StatusNotFound, err.Error())
+		httpx.SendErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the comparison: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error reading the comparison: %v", err))
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, diff)
+	httpx.SendJSON(w, http.StatusOK, diff)
 }
 
 func BranchesHandler(w http.ResponseWriter, r *http.Request) {
@@ -334,11 +334,11 @@ func BranchesHandler(w http.ResponseWriter, r *http.Request) {
 
 	branches, err := getBranches(repo)
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error listing branches: %v", err))
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Error listing branches: %v", err))
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, BranchesResponse{Branches: branches, IsRepository: true})
+	httpx.SendJSON(w, http.StatusOK, BranchesResponse{Branches: branches, IsRepository: true})
 }
 
 func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -355,7 +355,7 @@ func CheckoutHandler(w http.ResponseWriter, r *http.Request) {
 		From string `json:"from"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
 
@@ -385,7 +385,7 @@ func DeleteBranchHandler(w http.ResponseWriter, r *http.Request) {
 		Force bool `json:"force"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
 
@@ -450,13 +450,13 @@ type pathsRequest struct {
 func decodePaths(w http.ResponseWriter, r *http.Request, root string) (pathsRequest, []string, bool) {
 	var request pathsRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return request, nil, false
 	}
 
 	paths, err := relPaths(root, request.Paths)
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return request, nil, false
 	}
 	return request, paths, true
@@ -525,11 +525,11 @@ func CommitHandler(w http.ResponseWriter, r *http.Request) {
 		Push    bool   `json:"push"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
 	if request.Message == "" {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "A commit needs a message.")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "A commit needs a message.")
 		return
 	}
 
@@ -542,7 +542,7 @@ func CommitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(status.Staged) == 0 && !request.Amend {
-		zhttp.SendErrorResponse(w, http.StatusConflict, "Nothing is staged. Stage a change before committing.")
+		httpx.SendErrorResponse(w, http.StatusConflict, "Nothing is staged. Stage a change before committing.")
 		return
 	}
 
@@ -555,7 +555,7 @@ func CommitHandler(w http.ResponseWriter, r *http.Request) {
 		if err := pushCurrent(r.Context(), repo, root); err != nil {
 			// Said precisely, because the commit did happen: told only that it failed, the user
 			// commits again and gets an empty second commit or an amend they did not mean.
-			zhttp.SendErrorResponse(w, http.StatusConflict,
+			httpx.SendErrorResponse(w, http.StatusConflict,
 				fmt.Sprintf("The commit was made, but the push failed: %v", err))
 			return
 		}
@@ -572,7 +572,7 @@ everything else under them.
 */
 func Tracked(operation string, handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		recorder := zhttp.NewResponseRecorder(w)
+		recorder := httpx.NewResponseRecorder(w)
 		handler(recorder, req)
 		if recorder.Status < http.StatusBadRequest {
 			analytics.Track(analytics.EventGitOperation, map[string]interface{}{"operation": operation})

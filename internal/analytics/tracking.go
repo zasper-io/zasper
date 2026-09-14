@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/posthog/posthog-go"
 	"github.com/rs/zerolog/log"
+	"github.com/zasper-io/zasper/internal/config"
 	"github.com/zasper-io/zasper/internal/core"
 )
 
@@ -103,11 +104,11 @@ func SetEnabled(on bool) {
 // use. It identifies an installation, never a person: nothing else about the machine goes into it.
 func GetAnonymousTrackingId() (string, error) {
 	// One read-modify-write, so two first events at once settle on one id rather than each writing its own.
-	config, err := core.UpdateConfig(func(config *core.Config) bool {
-		if len(config.TrackingID) == trackingIDs {
+	settings, err := config.UpdateConfig(func(settings *config.Config) bool {
+		if len(settings.TrackingID) == trackingIDs {
 			return false
 		}
-		config.TrackingID = newTrackingID()
+		settings.TrackingID = newTrackingID()
 		return true
 	})
 	if err != nil {
@@ -115,14 +116,14 @@ func GetAnonymousTrackingId() (string, error) {
 		return "", err
 	}
 
-	return config.TrackingID, nil
+	return settings.TrackingID, nil
 }
 
 // ResetTrackingId throws the current id away and starts a new one, so a user can break the link
 // between what they have already sent and what they send next.
 func ResetTrackingId() error {
-	config, err := core.UpdateConfig(func(config *core.Config) bool {
-		config.TrackingID = newTrackingID()
+	settings, err := config.UpdateConfig(func(settings *config.Config) bool {
+		settings.TrackingID = newTrackingID()
 		return true
 	})
 	if err != nil {
@@ -130,7 +131,7 @@ func ResetTrackingId() error {
 	}
 
 	mu.Lock()
-	trackingID = config.TrackingID
+	trackingID = settings.TrackingID
 	mu.Unlock()
 	return nil
 }

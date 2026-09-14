@@ -16,12 +16,13 @@ import (
 	"os"
 
 	"github.com/zasper-io/zasper/internal/analytics"
+	"github.com/zasper-io/zasper/internal/config"
 	"github.com/zasper-io/zasper/internal/core"
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/logging"
 	"github.com/zasper-io/zasper/internal/server"
-	zwebsocket "github.com/zasper-io/zasper/internal/websocket"
+	"github.com/zasper-io/zasper/internal/terminal"
 
 	"github.com/rs/zerolog/log"
 
@@ -246,7 +247,7 @@ func resolveTracking(flagValue bool) bool {
 		return true
 	}
 
-	stored, _ := core.TelemetryPreference()
+	stored, _ := config.TelemetryPreference()
 	return stored
 }
 
@@ -260,7 +261,7 @@ loopback host, which is what stops a DNS-rebound page reaching the server.
 */
 func appHandler(router http.Handler, address string) http.Handler {
 	handler := router
-	if origins := zhttp.DevOrigins(); len(origins) > 0 {
+	if origins := httpx.DevOrigins(); len(origins) > 0 {
 		handler = cors.New(cors.Options{
 			AllowedOrigins: origins,
 			AllowedMethods: []string{
@@ -277,8 +278,8 @@ func appHandler(router http.Handler, address string) http.Handler {
 			AllowCredentials: true,
 		}).Handler(handler)
 	}
-	if zhttp.IsLoopbackBind(address) {
-		handler = zhttp.LoopbackHostOnly(handler)
+	if httpx.IsLoopbackBind(address) {
+		handler = httpx.LoopbackHostOnly(handler)
 	}
 	return handler
 }
@@ -289,6 +290,6 @@ func cleanup(tracking bool) {
 		analytics.CloseClient()
 	}
 	log.Debug().Msg("performing cleanup")
-	zwebsocket.StopTerminals()
+	terminal.StopTerminals()
 	kernel.Cleanup()
 }

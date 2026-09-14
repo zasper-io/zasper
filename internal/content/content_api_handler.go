@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"slices"
 
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 
 	"github.com/rs/zerolog/log"
 )
@@ -19,7 +19,7 @@ import (
 func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var body ContentRequestBody
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
 	log.Debug().Msgf("content requested: %+v", body)
@@ -38,12 +38,12 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !slices.Contains([]string{"", "0", "1"}, body.Hash) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("hash is 0 or 1, not %q", body.Hash))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("hash is 0 or 1, not %q", body.Hash))
 		return
 	}
 
 	if outsideProject(relativePath) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
@@ -55,15 +55,15 @@ func ContentAPIHandler(w http.ResponseWriter, req *http.Request) {
 		log.Error().Msgf("Error fetching content: %v", err)
 		// A file that is missing and a file that cannot be parsed are different answers.
 		if errors.Is(err, os.ErrNotExist) {
-			zhttp.SendErrorResponse(w, http.StatusNotFound, "Content not found")
+			httpx.SendErrorResponse(w, http.StatusNotFound, "Content not found")
 			return
 		}
 		// The reason alone: the editor shows this sentence to the reader, under its own heading.
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, contentModel)
+	httpx.SendJSON(w, http.StatusOK, contentModel)
 }
 
 func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
@@ -72,12 +72,12 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		log.Error().Err(err).Msg("Error decoding request body")
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error updating content: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error updating content: %v", err))
 		return
 	}
 
 	if outsideProject(body.Path) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
@@ -87,25 +87,25 @@ func ContentUpdateAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 		if err != nil {
 			log.Error().Err(err).Msg("Error saving notebook content")
-			zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving notebook content: %v", err))
+			httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving notebook content: %v", err))
 			return
 		}
 	case "file":
 		contentStr, ok := body.Content.(string)
 		if !ok {
 			log.Error().Msg("Invalid content type")
-			zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid content type")
+			httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid content type")
 			return
 		}
 		err = UpdateContent(body.Path, body.Type, body.Format, contentStr)
 		if err != nil {
 			log.Error().Err(err).Msg("Error saving content")
-			zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving content: %v", err))
+			httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving content: %v", err))
 			return
 		}
 	default:
 		// Answering 200 here told a client whose save wrote nothing that it had worked.
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot save content of type %q", body.Type))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Cannot save content of type %q", body.Type))
 		return
 	}
 
@@ -117,22 +117,22 @@ func ContentDeleteAPIHandler(w http.ResponseWriter, req *http.Request) {
 	err := json.NewDecoder(req.Body).Decode(&body)
 	if err != nil {
 		log.Error().Err(err).Msg("Error decoding request body")
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))
 		return
 	}
 
 	if outsideProject(body.Path) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
 	if err := deleteFile(body.Path); err != nil {
 		log.Error().Err(err).Msg("Error deleting content")
 		if errors.Is(err, os.ErrNotExist) {
-			zhttp.SendErrorResponse(w, http.StatusNotFound, "Content not found")
+			httpx.SendErrorResponse(w, http.StatusNotFound, "Content not found")
 			return
 		}
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error deleting content: %v", err))
 		return
 	}
 
@@ -181,12 +181,12 @@ func statusFor(err error) int {
 func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var contentPayload ContentPayload
 	if err := json.NewDecoder(req.Body).Decode(&contentPayload); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error creating content: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error creating content: %v", err))
 		return
 	}
 
 	if outsideProject(contentPayload.ParentDir) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
@@ -194,18 +194,18 @@ func ContentCreateAPIHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Error().Err(err).Msg("Error creating content")
 		// The reason alone: the file browser shows this sentence to the reader.
-		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		httpx.SendErrorResponse(w, statusFor(err), err.Error())
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusCreated, data)
+	httpx.SendJSON(w, http.StatusCreated, data)
 }
 
 func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	var renameContentPayload RenameContentPayload
 	if err := json.NewDecoder(req.Body).Decode(&renameContentPayload); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error renaming content: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error renaming content: %v", err))
 		return
 	}
 
@@ -214,14 +214,14 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 
 	parentDir := renameContentPayload.ParentDir
 	if outsideProject(parentDir, filepath.Join(parentDir, oldName), filepath.Join(parentDir, renameContentPayload.NewName)) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
 	if err := rename(renameContentPayload.ParentDir, oldName, renameContentPayload.NewName); err != nil {
 		log.Error().Err(err).Msg("Error renaming content")
 		// The reason alone: the file browser shows this sentence to the reader.
-		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		httpx.SendErrorResponse(w, statusFor(err), err.Error())
 		return
 	}
 
@@ -236,18 +236,18 @@ func ContentRenameAPIHandler(w http.ResponseWriter, req *http.Request) {
 func ContentMoveAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var payload MovePayload
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error moving content: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error moving content: %v", err))
 		return
 	}
 
 	if outsideProject(payload.From, payload.To) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
 	if err := moveContent(payload.From, payload.To); err != nil {
 		log.Error().Err(err).Msg("Error moving content")
-		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		httpx.SendErrorResponse(w, statusFor(err), err.Error())
 		return
 	}
 
@@ -259,23 +259,23 @@ func ContentMoveAPIHandler(w http.ResponseWriter, req *http.Request) {
 func ContentCopyAPIHandler(w http.ResponseWriter, req *http.Request) {
 	var payload CopyPayload
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error copying content: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error copying content: %v", err))
 		return
 	}
 
 	if outsideProject(payload.From, payload.ToDir) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
 	data, err := copyContent(payload.From, payload.ToDir)
 	if err != nil {
 		log.Error().Err(err).Msg("Error copying content")
-		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		httpx.SendErrorResponse(w, statusFor(err), err.Error())
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusCreated, data)
+	httpx.SendJSON(w, http.StatusCreated, data)
 }
 
 /*
@@ -290,23 +290,23 @@ func ContentDownloadAPIHandler(w http.ResponseWriter, req *http.Request) {
 	relativePath := req.URL.Query().Get("path")
 	osPath := GetSafePath(relativePath)
 	if relativePath == "" || osPath == "" {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
 	info, err := os.Stat(osPath)
 	if err != nil {
-		zhttp.SendErrorResponse(w, statusFor(err), "Content not found")
+		httpx.SendErrorResponse(w, statusFor(err), "Content not found")
 		return
 	}
 	if info.IsDir() {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "a folder cannot be downloaded")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "a folder cannot be downloaded")
 		return
 	}
 
 	file, err := os.Open(osPath)
 	if err != nil {
-		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		httpx.SendErrorResponse(w, statusFor(err), err.Error())
 		return
 	}
 	defer file.Close()
@@ -331,13 +331,13 @@ offer to replace is the difference between overwriting a file on purpose and doi
 func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	// The memory limit, not a size limit: anything past it is spooled to a temp file by net/http.
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Unable to read the upload: %v", err))
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Unable to read the upload: %v", err))
 		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "The request carried no file")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "The request carried no file")
 		return
 	}
 	defer file.Close()
@@ -349,16 +349,16 @@ func UploadFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if outsideProject(parentDir, filepath.Join(parentDir, relativePath)) {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
 	}
 
 	data, err := uploadContent(parentDir, relativePath, r.FormValue("replace") == "true", file)
 	if err != nil {
 		log.Error().Err(err).Msg("Error uploading content")
-		zhttp.SendErrorResponse(w, statusFor(err), err.Error())
+		httpx.SendErrorResponse(w, statusFor(err), err.Error())
 		return
 	}
 
-	zhttp.SendJSON(w, http.StatusCreated, data)
+	httpx.SendJSON(w, http.StatusCreated, data)
 }

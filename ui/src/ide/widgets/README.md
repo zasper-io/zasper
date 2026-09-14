@@ -187,7 +187,7 @@ A kernel that never imported ipywidgets has no such target and closes the comm, 
 
 This only works if the reloaded page reaches the _same_ kernel, which is a server-side matter:
 `CreateSession` rejoins a session found by path
-([sessions.go](../../../../internal/core/sessions.go)) instead of starting a second kernel, the way
+([store.go](../../../../internal/session/store.go)) instead of starting a second kernel, the way
 jupyter_server does.
 
 When there is genuinely no model — a notebook read from disk whose kernel has since been restarted —

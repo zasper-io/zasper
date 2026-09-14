@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/zasper-io/zasper/internal/content"
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/models"
 )
 
@@ -97,7 +97,7 @@ func walkProject(root string) []projectFile {
 func GetFileSuggestions(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	if query == "" {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Query parameter is required")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Query parameter is required")
 		return
 	}
 
@@ -120,7 +120,7 @@ func GetFileSuggestions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, suggestions)
+	httpx.SendJSON(w, http.StatusOK, suggestions)
 }
 
 func fileType(name string) string {

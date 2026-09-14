@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/models"
 	"github.com/zasper-io/zasper/internal/store"
 
@@ -111,12 +110,6 @@ func KillKernelById(kernelId string) error {
 	stopWatchingKernel(km)
 	if err := km.StopKernel(kernelId); err != nil {
 		log.Error().Msgf("Error stopping kernel %s: %v", kernelId, err)
-	}
-
-	// The session outlives its kernel otherwise, so /api/sessions would keep
-	// advertising a kernel that is gone.
-	for _, sessionId := range core.DeleteSessionsForKernel(kernelId) {
-		log.Debug().Msgf("removed session %s attached to kernel %s", sessionId, kernelId)
 	}
 
 	return nil

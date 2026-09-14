@@ -15,7 +15,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/zasper-io/zasper/internal/core"
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 )
 
 /*
@@ -159,7 +159,7 @@ func crossSiteWrite(r *http.Request) bool {
 	case http.MethodGet, http.MethodHead, http.MethodOptions:
 		return false
 	}
-	return !zhttp.SameOrigin(r)
+	return !httpx.SameOrigin(r)
 }
 
 // authenticate gates a route on the session the request carries.
@@ -168,11 +168,11 @@ func authenticate(next http.Handler) http.Handler {
 		token, fromCookie := sessionToken(r)
 		s, err := parseSession(token)
 		if err != nil {
-			zhttp.SendErrorResponse(w, http.StatusUnauthorized, err.Error())
+			httpx.SendErrorResponse(w, http.StatusUnauthorized, err.Error())
 			return
 		}
 		if fromCookie && crossSiteWrite(r) {
-			zhttp.SendErrorResponse(w, http.StatusForbidden, "this request did not come from Zasper's own page")
+			httpx.SendErrorResponse(w, http.StatusForbidden, "this request did not come from Zasper's own page")
 			return
 		}
 
@@ -227,7 +227,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	client := clientAddress(r)
 	if wait := logins.blocked(client, time.Now()); wait > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
-		zhttp.SendErrorResponse(w, http.StatusTooManyRequests, "Too many failed sign-ins; try again in a minute")
+		httpx.SendErrorResponse(w, http.StatusTooManyRequests, "Too many failed sign-ins; try again in a minute")
 		return
 	}
 
@@ -235,21 +235,21 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		AccessToken string `json:"accessToken"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		zhttp.SendErrorResponse(w, http.StatusBadRequest, "Invalid request")
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
 
 	// Constant time, so that the answer does not say how much of the token was right.
 	if subtle.ConstantTimeCompare([]byte(creds.AccessToken), []byte(core.ServerAccessToken)) != 1 {
 		logins.failed(client, time.Now())
-		zhttp.SendErrorResponse(w, http.StatusUnauthorized, "Invalid credentials")
+		httpx.SendErrorResponse(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 	logins.succeeded(client)
 
 	id, err := core.GenerateRandomToken(16)
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, "Could not generate token")
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, "Could not generate token")
 		return
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -259,12 +259,12 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	tokenString, err := token.SignedString(sessionKey())
 	if err != nil {
-		zhttp.SendErrorResponse(w, http.StatusInternalServerError, "Could not generate token")
+		httpx.SendErrorResponse(w, http.StatusInternalServerError, "Could not generate token")
 		return
 	}
 
 	http.SetCookie(w, sessionCookieFor(r, tokenString, int(sessionLifetime.Seconds())))
-	zhttp.SendJSON(w, http.StatusOK, LoginResponse{Token: tokenString, RedirectPath: "/"})
+	httpx.SendJSON(w, http.StatusOK, LoginResponse{Token: tokenString, RedirectPath: "/"})
 }
 
 /*
@@ -275,7 +275,7 @@ still has its cookie cleared and answers 204: there is nothing left to sign out.
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	token, fromCookie := sessionToken(r)
 	if fromCookie && crossSiteWrite(r) {
-		zhttp.SendErrorResponse(w, http.StatusForbidden, "this request did not come from Zasper's own page")
+		httpx.SendErrorResponse(w, http.StatusForbidden, "this request did not come from Zasper's own page")
 		return
 	}
 	if s, err := parseSession(token); err == nil {

@@ -25,5 +25,5 @@ func TestASessionOnAKernelNobodyInstalledIsNotFound(t *testing.T) {
 	SessionCreateApiHandler(recorder, request)
 
 	assert.Equal(t, http.StatusNotFound, recorder.Code)
-	assert.Empty(t, core.ListSessions())
+	assert.Empty(t, sessions.Snapshot())
 }

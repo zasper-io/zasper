@@ -12,11 +12,11 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: zhttp.SameOrigin,
+	CheckOrigin: httpx.SameOrigin,
 }
 
 // How long a reload message may take to reach a client before the client is taken to have stalled.

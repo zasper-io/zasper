@@ -9,16 +9,18 @@ import (
 
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/auth"
+	"github.com/zasper-io/zasper/internal/config"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/gitclient"
 	"github.com/zasper-io/zasper/internal/health"
-	zhttp "github.com/zasper-io/zasper/internal/http"
+	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/kernelspec"
+	"github.com/zasper-io/zasper/internal/kernelws"
 	"github.com/zasper-io/zasper/internal/search"
 	"github.com/zasper-io/zasper/internal/session"
-	"github.com/zasper-io/zasper/internal/websocket"
+	"github.com/zasper-io/zasper/internal/terminal"
 )
 
 // Response structure to return as JSON
@@ -43,7 +45,7 @@ type ConfigResponse struct {
 
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	// The default when the config cannot be read, which is what the frontend would fall back to anyway.
-	theme, _ := core.GetTheme()
+	theme, _ := config.GetTheme()
 	response := InfoResponse{
 		ProjectName: core.Zasper.ProjectName,
 		Directory:   core.Zasper.HomeDir,
@@ -52,10 +54,10 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 		Arch:        runtime.GOARCH,
 		Version:     core.Zasper.Version,
 		Theme:       theme,
-		WidgetCDN:   core.WidgetCDNEnabled(),
+		WidgetCDN:   config.WidgetCDNEnabled(),
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, response)
+	httpx.SendJSON(w, http.StatusOK, response)
 }
 
 func ConfigHandler(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +65,7 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 		Version: core.Zasper.Version,
 	}
 
-	zhttp.SendJSON(w, http.StatusOK, response)
+	httpx.SendJSON(w, http.StatusOK, response)
 }
 
 // websocketRoute gates a websocket handler that sits outside the /ws subrouter, so that it is
@@ -98,15 +100,15 @@ func NewRouter(spa http.Handler) *mux.Router {
 	wsRouter.Use(auth.JwtWebsocketMiddleware)
 	// Sized for what the routes read. Signing in is read before anyone is authenticated, so it gets a
 	// few kilobytes; the API's largest bodies are notebooks saved whole. Uploads are not capped.
-	authRouter.Use(zhttp.LimitBody(16 << 10))
-	apiRouter.Use(zhttp.LimitBody(512<<20, "/api/contents/upload"))
+	authRouter.Use(httpx.LimitBody(16 << 10))
+	apiRouter.Use(httpx.LimitBody(512<<20, "/api/contents/upload"))
 	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
 	router.HandleFunc("/api/config", ConfigHandler).Methods("GET")
 
 	apiRouter.HandleFunc("/info", InfoHandler).Methods("GET")
 
 	// config
-	apiRouter.HandleFunc("/config/modify", core.ConfigModifyHandler).Methods("POST")
+	apiRouter.HandleFunc("/config/modify", config.ConfigModifyHandler).Methods("POST")
 
 	// telemetry. The events route is a gateway rather than a passthrough: the frontend names an event
 	// and internal/analytics/events.go decides whether that is a thing Zasper sends. Both sit on
@@ -177,10 +179,10 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/kernels/{kernelId}/stop", kernel.KernelKillAPIHandler).Methods("POST")
 	apiRouter.HandleFunc("/kernels/{kernelId}", kernel.KernelKillAPIHandler).Methods("DELETE")
 
-	// terminals. The shells live in the websocket package because the connection is what starts and
+	// terminals. The shells live in the terminal package because the connection is what starts and
 	// ends one; these two are how anything that is not that connection can see them.
-	apiRouter.HandleFunc("/terminals", websocket.TerminalListAPIHandler).Methods("GET")
-	apiRouter.HandleFunc("/terminals/{terminalId}", websocket.TerminalKillAPIHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/terminals", terminal.TerminalListAPIHandler).Methods("GET")
+	apiRouter.HandleFunc("/terminals/{terminalId}", terminal.TerminalKillAPIHandler).Methods("DELETE")
 
 	// sessions
 	apiRouter.HandleFunc("/sessions", session.SessionApiHandler).Methods("GET")
@@ -188,8 +190,8 @@ func NewRouter(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/sessions/{sessionId}", session.SessionDeleteApiHandler).Methods("DELETE")
 
 	//web sockets
-	wsRouter.HandleFunc("/kernels/{kernelId}/channels", websocket.HandleWebSocket)
-	wsRouter.HandleFunc("/terminals/{terminalId}", websocket.HandleTerminalWebSocket)
+	wsRouter.HandleFunc("/kernels/{kernelId}/channels", kernelws.HandleWebSocket)
+	wsRouter.HandleFunc("/terminals/{terminalId}", terminal.HandleTerminalWebSocket)
 
 	if spa != nil {
 		router.PathPrefix("/").Handler(spa)
