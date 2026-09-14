@@ -78,7 +78,7 @@ a {
   display: inline-block;
   // Bootstrap's reboot colours an unstyled link `--bs-link-color`, a literal #0d6efd, which was the
   // last colour above the token layer and a blue link in an orange window. Both prose links in the app
-  // — the launcher's "installing Jupyter kernels" and the help dialog's — were it in all eight themes.
+  // — the launcher's "installing Jupyter kernels" and the old help dialog's — were it in all eight themes.
   // One declaration is enough for hover too: reboot's `a:hover` only redefines its own variable.
   color: var(--z-fg-accent);
   // Two properties rather than `all`, which is what this was and which animated every property a

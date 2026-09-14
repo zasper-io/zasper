@@ -1,0 +1,127 @@
+// The Help tab. Drawn in the design prototype's story-help.html under the same class names.
+
+// A tab pane's one scroller, so it takes the pane's height rather than its content's.
+.help-tab-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 0;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-default);
+}
+
+// A measure, so a label and its chord stay in one eye span on a wide window.
+.help-tab-measure {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.help-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px 8px;
+  color: var(--z-fg-subtle);
+
+  .z-field {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+.help-group {
+  margin: 0;
+  padding: 12px 16px 2px;
+}
+
+.help-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  .panel-row {
+    height: 26px;
+  }
+
+  // On the editor's surface a row needs the hairline a narrow panel does without.
+  .panel-row + .panel-row {
+    border-top: 1px solid var(--z-border-subtle);
+  }
+
+  // Nothing here acts on a press, so a row does not light up as though it would.
+  .panel-row:hover {
+    background: none;
+  }
+}
+
+// `.z-note` has no side padding, and the measure does not indent.
+.help-empty {
+  padding: 0 16px;
+}
+
+// A key, drawn as a key: the heavier bottom border is the whole of the illusion.
+.help-key {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--z-border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--z-bg-panel);
+  color: var(--z-fg-default);
+  font-family: var(--z-mono-font-family);
+  font-size: 11px;
+  line-height: 15px;
+  text-align: center;
+
+  & + & {
+    margin-left: 2px;
+  }
+}
+
+.help-chord + .help-chord {
+  margin-left: 8px;
+}
+
+.help-about {
+  margin-top: 8px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--z-border-subtle);
+  font-size: var(--z-ui-font-size);
+
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px 12px;
+    margin: 0 0 12px;
+  }
+
+  dt {
+    color: var(--z-fg-subtle);
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.help-about-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.help-about-links {
+  display: flex;
+  gap: 12px;
+
+  a {
+    color: var(--z-fg-accent);
+  }
+}
+
+.help-tab-note {
+  padding: 12px 16px 0;
+}

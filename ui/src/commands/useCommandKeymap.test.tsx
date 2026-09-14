@@ -101,6 +101,17 @@ describe('useCommandKeymap', () => {
     expect(execute).toHaveBeenCalledOnce();
   });
 
+  // F1 is Help's key and types nothing, so a cell having focus must not swallow it.
+  it('delivers a function key from inside a text field or an editor', () => {
+    const execute = vi.fn();
+    const { getByTestId } = mount([command({ keys: ['F1'], execute })]);
+
+    press('F1', {}, getByTestId('field'));
+    press('F1', {}, getByTestId('cm'));
+
+    expect(execute).toHaveBeenCalledTimes(2);
+  });
+
   it('ignores the modifier keys themselves', () => {
     const execute = vi.fn();
     mount([command({ keys: ['Shift-Shift'], execute })]);

@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 
 import DiffTab from './DiffTab';
 import FileEditor from './FileEditor';
+import HelpTab from './HelpTab';
 import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
 import ImageEditor from './ImageEditor';
@@ -38,6 +39,9 @@ export default function Editor(props: EditorProps) {
   // from its own path: that is the tab's key, not the file's.
   if (props.data.type === 'diff' && props.data.diff !== undefined) {
     return <DiffTab data={props.data} target={props.data.diff} />;
+  }
+  if (props.data.type === 'help') {
+    return <HelpTab data={props.data} />;
   }
   if (props.data.type === 'terminal') {
     return (

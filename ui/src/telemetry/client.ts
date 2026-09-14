@@ -88,8 +88,8 @@ export function trackTabOpened(type: string, name: string): void {
     track('notebook_opened');
     return;
   }
-  // Terminals are counted by the server when the shell actually starts, and a launcher is not a file.
-  if (type === 'terminal' || type === 'launcher') {
+  // Terminals are counted by the server when the shell actually starts; a launcher and Help are not files.
+  if (type === 'terminal' || type === 'launcher' || type === 'help') {
     return;
   }
   track('file_opened', { extension: normalizeExtension(name) });

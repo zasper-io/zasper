@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import HelpDialog from '../HelpDialog/HelpDialog';
+import React from 'react';
 
 import './NavigationPanel.scss';
 import type { IconName } from '@/ide/icons';
 import { Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
+import { useTabActions } from '@/store/TabActions';
 import { PanelName } from '../types';
 
 interface NavigationPanelProps {
@@ -27,11 +27,7 @@ const NAV_ITEMS: { name: PanelName; label: string; icon: IconName }[] = [
 // Which button is highlighted comes from the parent, which also decides which panel is
 // visible — one piece of state, so the two cannot disagree.
 const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActivePanel }) => {
-  const [showHelpDialog, setShowHelpDialog] = useState<boolean>(false);
-
-  const toggleHelpDialog = () => {
-    setShowHelpDialog(!showHelpDialog);
-  };
+  const { openHelp } = useTabActions();
 
   return (
     <div className="navigation-list">
@@ -45,17 +41,14 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
         />
       ))}
 
-      {/* Help icon button. `.navButton-last` is what pushes it to the bottom of the rail — it was
-          Bootstrap's `.mt-auto`, the only utility class left in the app and the reason a whole
-          utility-generation pass ran over the stylesheet for one declaration. */}
+      {/* `.navButton-last` keeps Help at the foot of the rail. It opens a tab rather than a panel,
+          so it never carries the active marker. */}
       <RailButton
         icon="circle-help"
         label="Help"
         className="navButton-last"
-        onClick={toggleHelpDialog}
+        onClick={() => openHelp()}
       />
-
-      {showHelpDialog && <HelpDialog toggleHelpDialog={toggleHelpDialog} />}
     </div>
   );
 };

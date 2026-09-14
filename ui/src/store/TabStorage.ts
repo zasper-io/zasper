@@ -39,8 +39,8 @@ const VERSION = 1;
  */
 const MAX_TABS = 25;
 
-/** The tab kinds worth restoring: the ones that are a file on disk, or a comparison of one. */
-const RESTORABLE = new Set(['file', 'notebook', 'diff']);
+/** The tab kinds worth restoring: a file on disk, a comparison of one, and Help, which is only itself. */
+const RESTORABLE = new Set(['file', 'notebook', 'diff', 'help']);
 
 /** One remembered tab. A subset of IfileTab: what it takes to open the same thing again. */
 export interface StoredTab {

@@ -136,7 +136,7 @@ const KEY_NAMES: Record<string, string> = {
 /**
  * A binding split into one entry per key cap, in the order the platform writes them.
  *
- * Separate from `formatChord` below because the help dialog draws each cap as a `<kbd>` and cannot
+ * Separate from `formatChord` below because the Help tab draws each cap as a `<kbd>` and cannot
  * take the joined string apart again: on a mac the parts are joined with nothing, so `⌘⇧P` has no
  * separator to split on.
  */

@@ -25,7 +25,14 @@ export function useCommandKeymap(): void {
       }
       // Nothing without a real modifier may be stolen from a text field, and CodeMirror's editable
       // surface is a contenteditable, so this is what keeps typing in a cell from firing commands.
-      if (!event.ctrlKey && !event.metaKey && !event.altKey && isTypingTarget(event.target)) {
+      // A function key types nothing, so F1 still reaches Help from inside a cell.
+      if (
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !isFunctionKey(event.key) &&
+        isTypingTarget(event.target)
+      ) {
         return;
       }
 
@@ -54,6 +61,10 @@ export function useCommandKeymap(): void {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+}
+
+function isFunctionKey(key: string): boolean {
+  return /^F([1-9]|1[0-9]|2[0-4])$/.test(key);
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {

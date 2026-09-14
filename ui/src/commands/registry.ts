@@ -16,6 +16,32 @@ import { ICommand } from './types';
  */
 export const commandsAtom = atom<Record<string, ICommand>>({});
 
+/** A command as the Help tab lists it: what it is called and what presses it, without its behaviour. */
+export interface CommandCatalogEntry {
+  id: string;
+  label: string;
+  category: string;
+  keys?: string[];
+}
+
+/**
+ * Every command registered at any point in this window. `commandsAtom` loses a tab's commands when
+ * another tab comes to the front, and the Help tab is always in front while it is read.
+ */
+export const commandCatalogAtom = atom<Record<string, CommandCatalogEntry>>({});
+
+export function useCommandCatalog(): CommandCatalogEntry[] {
+  const catalog = useAtomValue(commandCatalogAtom);
+
+  return useMemo(
+    () =>
+      Object.values(catalog).sort(
+        (a, b) => a.category.localeCompare(b.category) || a.label.localeCompare(b.label)
+      ),
+    [catalog]
+  );
+}
+
 /** Sorted for display, so the palette's order does not depend on mount order. */
 export function useCommands(): ICommand[] {
   const commands = useAtomValue(commandsAtom);
@@ -83,6 +109,7 @@ export function useCommandEnabled(): (id: string) => boolean {
  */
 export function useRegisterCommands(commands: ICommand[], active: boolean = true): void {
   const setCommands = useSetAtom(commandsAtom);
+  const setCatalog = useSetAtom(commandCatalogAtom);
   const latest = useRef(commands);
   latest.current = commands;
 
@@ -111,6 +138,13 @@ export function useRegisterCommands(commands: ICommand[], active: boolean = true
     }
 
     setCommands((previous) => ({ ...previous, ...proxies }));
+    setCatalog((previous) => {
+      const next = { ...previous };
+      for (const { id, label, category, keys } of latest.current) {
+        next[id] = { id, label, category, keys };
+      }
+      return next;
+    });
 
     return () => {
       setCommands((previous) => {
@@ -125,5 +159,5 @@ export function useRegisterCommands(commands: ICommand[], active: boolean = true
         return next;
       });
     };
-  }, [ids, active, setCommands]);
+  }, [ids, active, setCommands, setCatalog]);
 }

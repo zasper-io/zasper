@@ -29,6 +29,8 @@ function describeTab(tab: IfileTab | undefined): string {
       return 'Launcher';
     case 'terminal':
       return 'Terminal';
+    case 'help':
+      return 'Help';
     case 'notebook':
       return 'Notebook';
     default:

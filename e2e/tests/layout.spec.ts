@@ -113,7 +113,7 @@ test('the topbar name sits on the same line as its buttons', async ({ page }) =>
   for (const control of [
     page.getByRole('button', { name: 'Toggle sidebar' }),
     page.locator('.topBar .userName'),
-    page.getByRole('button', { name: 'Log out' }),
+    page.getByRole('button', { name: 'Sign out' }),
   ]) {
     expect(Math.abs((await centre(control)) - bar)).toBeLessThanOrEqual(0.5);
   }
@@ -403,68 +403,54 @@ test('every tab fills the height of the tab strip', async ({ page }) => {
 });
 
 /*
- * A selected row in a dialog looks selected.
+ * Help is a tab, opened from the foot of the rail.
  *
- * The third finding of this shape, after the focused cell above and the tab strip below it, and the
- * cheapest one to have missed: `.helpNavButton.active` was on the markup with no rule behind it
- * anywhere in `src`, so the help dialog opened on General and said nothing about which of its three
- * sections it was showing. React held the right state, put the right class on the right button, and a
- * unit test asserting `toHaveClass(/active/)` would have passed — the class resolved to
- * `rgba(0, 0, 0, 0)`, which is a question only a browser can be asked.
- *
- * Asserted as a difference between the two states of one button rather than against a colour, so it
- * survives all eight themes and says nothing about which fill the answer is.
+ * It was a modal that dimmed the window a shortcut is read in order to be used on. The button's place
+ * is asserted as geometry: `margin-top: auto` on the wrong element is still a button on the rail.
  */
-test('the help dialog says which section it is showing', async ({ page }) => {
+test('the rail opens Help as a tab, from the foot of the rail', async ({ page }) => {
   await openApp(page);
 
-  await page.getByLabel('Help').click();
-  const dialog = page.locator('.modal');
-  await expect(dialog).toBeVisible();
+  const rail = page.locator('.navigation-list');
+  const button = rail.getByLabel('Help');
+  const railBox = await rail.boundingBox();
+  const buttonBox = await button.boundingBox();
+  expect(railBox, 'the rail has no box').not.toBeNull();
+  expect(buttonBox, 'the Help button has no box').not.toBeNull();
+  const gap = railBox!.y + railBox!.height - (buttonBox!.y + buttonBox!.height);
+  expect(gap, 'Help is not at the foot of the rail').toBeLessThan(16);
 
-  const general = dialog.locator('.helpNavButton', { hasText: 'General' });
-  const support = dialog.locator('.helpNavButton', { hasText: 'Support' });
-  const fill = (row: Locator) => row.evaluate((el) => getComputedStyle(el).backgroundColor);
+  await button.click();
+  await expect(page.locator('.tab.is-active', { hasText: 'Help' })).toBeVisible();
+  await expect(page.locator('.modal')).toHaveCount(0);
+  await expect(page.getByPlaceholder('Filter shortcuts')).toBeFocused();
 
-  await expect(general).toHaveClass(/active/);
-  const selected = await fill(general);
-  const unselected = await fill(support);
-  expect(selected, 'the selected section is filled with nothing').not.toBe(unselected);
-
-  // And it moves, which is the half that a fill on the first item alone would fake.
-  await support.click();
-  await expect(support).toHaveClass(/active/);
-  expect(await fill(support), 'the fill did not follow the selection').toBe(selected);
-  expect(await fill(general), 'the section left behind is still filled').toBe(unselected);
+  // F1 reaches the same tab from inside a notebook cell, where a key with no modifier is typing.
+  await openNotebook(page);
+  await page.locator('.cellEditor .cm-content').first().click();
+  await page.keyboard.press('F1');
+  await expect(page.locator('.tab.is-active', { hasText: 'Help' })).toBeVisible();
 });
 
 /*
- * The key bindings are read off the command registry rather than written into the dialog, so what this
- * guards is the join: a chord reaches the list at all, and it reaches it as one <kbd> per key cap
- * rather than as the single string the palette shows.
- *
- * `Show All Commands` because it is registered by the Topbar and so is there with nothing open, and
- * because its chord is three caps — a modifier pair and a letter — which is what would collapse if the
- * formatted string were rendered whole.
+ * A chord reaches the Help tab as one <kbd> per key cap rather than the palette's joined string.
+ * `Show All Commands` is registered by the Topbar, so it is there with nothing open, and its chord
+ * is three caps.
  */
-test('the help dialog draws each key of a shortcut as a key', async ({ page }) => {
+test('the Help tab draws each key of a shortcut as a key', async ({ page }) => {
   await openApp(page);
+  await page.locator('.navigation-list').getByLabel('Help').click();
 
-  await page.getByLabel('Help').click();
-  const dialog = page.locator('.modal');
-  await dialog.locator('.helpNavButton', { hasText: 'Key Bindings' }).click();
-
-  const row = dialog.locator('.keyBindings tr', { hasText: 'Show All Commands' }).first();
+  const pane = page.locator('.help-tab-page');
+  const row = pane.locator('.panel-row', { hasText: 'Show All Commands' }).first();
   await expect(row).toBeVisible();
 
-  // Three caps, and none of them is the whole chord run together.
-  const caps = row.locator('.keyBindings-chord').first().locator('kbd');
+  const caps = row.locator('.help-chord').first().locator('kbd');
   await expect(caps).toHaveCount(3);
   for (const cap of await caps.all()) {
     expect((await cap.innerText()).length, 'a cap is holding more than one key').toBeLessThan(6);
   }
 
-  // Drawn as a key rather than as text: the heavier bottom edge is the whole of that.
   const edges = await caps.first().evaluate((el) => {
     const style = getComputedStyle(el);
     return { top: style.borderTopWidth, bottom: style.borderBottomWidth };
@@ -472,6 +458,10 @@ test('the help dialog draws each key of a shortcut as a key', async ({ page }) =
   expect(parseFloat(edges.bottom), 'the cap has no bottom edge to sit on').toBeGreaterThan(
     parseFloat(edges.top)
   );
+
+  await pane.getByPlaceholder('Filter shortcuts').fill('zoom');
+  await expect(row).toHaveCount(0);
+  await expect(pane.locator('.panel-row', { hasText: 'Zoom In' })).toBeVisible();
 });
 
 /**

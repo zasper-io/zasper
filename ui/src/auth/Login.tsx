@@ -62,7 +62,7 @@ function Login() {
             <img className="login-hero-logo" src="./images/logo-white.svg" alt="Zasper" />
           </Link>
           <div className="login-hero-body">
-            <p className="login-hero-title">High-performance IDE, inspired by Jupyter.</p>
+            <p className="login-hero-title">High-performance IDE, for Jupyter Notebooks.</p>
             <TextCarousel />
           </div>
           <p className="login-hero-foot">

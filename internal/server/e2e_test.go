@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -414,6 +415,8 @@ func TestTheServerDescribesItself(t *testing.T) {
 	// apart, which is what a client remembering anything per project needs.
 	assert.Equal(t, project, info.Directory)
 	assert.True(t, filepath.IsAbs(info.Directory), "the directory is absolute: %q", info.Directory)
+	assert.Equal(t, runtime.GOARCH, info.Arch)
+	assert.Equal(t, "config.json", filepath.Base(info.Config))
 
 	// Not a route, rather than the SPA's index.html: this router was built without one.
 	status, _ = call(t, srv, http.MethodGet, "/api/nothing-here", nil)

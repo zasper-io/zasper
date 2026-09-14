@@ -11,7 +11,7 @@ the outside, which is why the state lives in `store/` behind one hook rather tha
 
 ```ts
 interface IfileTab {
-  type: string; // 'launcher' | 'file' | 'notebook' | 'diff' | 'terminal'
+  type: string; // 'launcher' | 'file' | 'notebook' | 'diff' | 'terminal' | 'help'
   path: string; // also the key it is stored under
   name: string; // what the strip shows
   active: boolean; // exactly one tab's is true
@@ -32,7 +32,7 @@ everywhere, and anything rebuilding the dictionary has to rebuild it _in order_ 
 `type` decides which editor is rendered, in [../editor/Editor.tsx](../editor/Editor.tsx): a `file`
 whose extension is `png` gets the image editor, everything else the code editor.
 
-Three kinds carry something extra:
+Four kinds carry something extra:
 
 - **The Launcher** is always open, always first, and is the fallback when the tab in front is closed.
   It is the only tab with no close button, and `removeTabs` re-activates it when nothing is left
@@ -43,6 +43,10 @@ Three kinds carry something extra:
   since both of those walk the tabs by path. A stale diff is a comparison that was true when it was
   opened, which is what any diff already is.
 - **A terminal** is keyed by its display name (`Terminal 1`), minted from `terminalsCountAtom`.
+- **Help** is keyed by `HELP_TAB_KEY`, `zasper:help`, so there is one and a file called `Help` is not
+  it. It reads nothing from disk. It lists `commandCatalogAtom` — every command registered in this
+  window — rather than the live registry, since Help is the tab in front while it is read and a
+  notebook's commands are withdrawn whenever the notebook is not. It is remembered with the strip.
 
 ## The pieces
 
@@ -69,6 +73,7 @@ Every change to the set of tabs goes through `useTabActions()`:
 | `openTab(tab)`        | Open a path, or bring it to the front if it is already open.                                                                                                                    |
 | `activateTab(path)`   | Bring an open tab to the front. A no-op for a path that is not open.                                                                                                            |
 | `openDiff(target)`    | Open one comparison of one file.                                                                                                                                                |
+| `openHelp(section?)`  | Open the Help tab; `'about'` also scrolls it to About.                                                                                                                          |
 | `openTerminal(cwd?)`  | Open a numbered terminal.                                                                                                                                                       |
 | `closeTab(path)`      | Close a tab. **The kernel keeps running**, as in JupyterLab.                                                                                                                    |
 | `closeDeleted(path)`  | After a delete on disk: close the tab, and everything inside it if it was a folder. **This one does kill the kernels**, since there is no reopening the notebook to reach them. |

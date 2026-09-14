@@ -229,3 +229,16 @@ describe('restoring a strip from a record', () => {
     expect(seeded()['src/demo.ipynb'].kernelspec).toBe('none');
   });
 });
+
+describe('the Help tab', () => {
+  it('is remembered with the strip, and restored under the key it had', () => {
+    const helpTab = tab('zasper:help', 'help', { name: 'Help', extension: null });
+    rememberTabs(DIRECTORY, { ...open, 'zasper:help': helpTab });
+    expect(written().tabs.map((stored) => stored.path)).toContain('zasper:help');
+
+    const record = readStoredTabs();
+    expect(record).not.toBeNull();
+    const restored = restoreTabs(record as StoredTabs, launcher);
+    expect(restored['zasper:help']).toMatchObject({ type: 'help', name: 'Help' });
+  });
+});

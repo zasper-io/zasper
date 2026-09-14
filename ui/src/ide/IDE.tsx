@@ -21,7 +21,9 @@ import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
 import {
+  configPathAtom,
   fileBrowserReloadCountAtom,
+  platformAtom,
   projectDirAtom,
   projectNameAtom,
   protectedStateAtom,
@@ -35,6 +37,7 @@ import { applyTheme, getTheme, rememberTheme } from '../themes';
 import { useApplyZoom } from '../zoom/useApplyZoom';
 import { PanelName } from './sidebar/types';
 import { useAppCommands } from '../commands/appCommands';
+import { useHelpCommands } from '../commands/helpCommands';
 import { isMac, terminalHasFocus } from '../commands/keys';
 import { useRegisterCommands } from '../commands/registry';
 import { ICommand } from '../commands/types';
@@ -49,6 +52,8 @@ function IDE() {
   const [, setProtectedState] = useAtom(protectedStateAtom);
   const [, setUserName] = useAtom(userNameAtom);
   const [, setVersion] = useAtom(zasperVersionAtom);
+  const [, setPlatform] = useAtom(platformAtom);
+  const [, setConfigPath] = useAtom(configPathAtom);
   const { loadKernelspecs } = useKernelspecActions();
 
   const [activePanel, setActivePanel] = useState<PanelName>('fileBrowser');
@@ -96,6 +101,7 @@ function IDE() {
   useCommandKeymap();
   useRegisterCommands(useAppCommands());
   useRegisterCommands(sidebarCommands);
+  useRegisterCommands(useHelpCommands());
   useTelemetry();
 
   const initConfig = useCallback(async () => {
@@ -115,11 +121,22 @@ function IDE() {
     setProjectDir(info.directory);
     setUserName(info.username);
     setVersion(info.version);
+    setPlatform(info.arch ? `${info.os} · ${info.arch}` : info.os);
+    setConfigPath(info.config);
     // Resolve through the registry so a config naming a theme we no longer ship
     // falls back instead of writing a data-theme with no stylesheet behind it.
     setTheme(getTheme(info.theme).id);
     setProtectedState(info.protected);
-  }, [setProjectName, setProjectDir, setUserName, setVersion, setTheme, setProtectedState]);
+  }, [
+    setProjectName,
+    setProjectDir,
+    setUserName,
+    setVersion,
+    setPlatform,
+    setConfigPath,
+    setTheme,
+    setProtectedState,
+  ]);
 
   useEffect(() => {
     initConfig();

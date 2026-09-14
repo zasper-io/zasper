@@ -4,7 +4,12 @@ import { deleteKernel, DiffTarget, logApiError } from '@/api';
 import { trackTabOpened } from '@/telemetry';
 import getFileExtension from '@/ide/utils';
 import { baseName, isInside, rewritePath } from '@/paths';
-import { notebookKernelMapAtom, terminalsAtom, terminalsCountAtom } from './AppState';
+import {
+  helpAboutRequestAtom,
+  notebookKernelMapAtom,
+  terminalsAtom,
+  terminalsCountAtom,
+} from './AppState';
 import { fileTabsAtom, IfileTab, IfileTabDict, withActive } from './TabState';
 
 /** What a caller has to say to open a tab; the rest of IfileTab follows from it. */
@@ -37,6 +42,9 @@ export function diffTabKey(target: DiffTarget): string {
   return `diff:${against}:${target.path}`;
 }
 
+/** The Help tab's key. Not a path, so there is one Help tab and a file called `Help` is not it. */
+export const HELP_TAB_KEY = 'zasper:help';
+
 export interface ITabActions {
   /** Opens a tab, or brings it to the front when that path is already open. */
   openTab: (tab: IOpenTab) => void;
@@ -50,6 +58,8 @@ export interface ITabActions {
   openDiff: (target: DiffTarget) => void;
   /** Opens a new terminal, in `cwd` if one is given. */
   openTerminal: (cwd?: string) => void;
+  /** Opens the Help tab or brings it to the front; `about` also scrolls it to About. */
+  openHelp: (section?: 'about') => void;
   /**
    * Closes a tab. A notebook's kernel keeps running, as it does in JupyterLab: reopening the notebook
    * plugs back into that session, with everything still in memory.
@@ -74,6 +84,7 @@ export function useTabActions(): ITabActions {
   const setTerminals = useSetAtom(terminalsAtom);
   const terminalCount = useAtomValue(terminalsCountAtom);
   const setTerminalCount = useSetAtom(terminalsCountAtom);
+  const setHelpAboutRequest = useSetAtom(helpAboutRequestAtom);
 
   const openTab = (tab: IOpenTab) => {
     // Outside the updater, which React may run more than once. `fileTabs` is the render's snapshot, so
@@ -184,6 +195,13 @@ export function useTabActions(): ITabActions {
       setTerminalCount(terminalCount + 1);
       setTerminals((previous) => ({ ...previous, [name]: { id: name, name } }));
       openTab({ name, path: name, type: 'terminal', cwd });
+    },
+
+    openHelp: (section?: 'about') => {
+      openTab({ name: 'Help', path: HELP_TAB_KEY, type: 'help', extension: null });
+      if (section === 'about') {
+        setHelpAboutRequest((count) => count + 1);
+      }
     },
 
     closeTab: (path: string) => removeTabs([path]),

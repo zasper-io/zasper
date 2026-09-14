@@ -151,5 +151,5 @@ const LogoutButton = () => {
     navigate('/login');
   };
 
-  return <IconButton icon="log-out" className="on-chrome" label="Log out" onClick={logout} />;
+  return <IconButton icon="log-out" className="on-chrome" label="Sign out" onClick={logout} />;
 };

@@ -37,6 +37,12 @@ export interface ITerminalsState {
 }
 
 export const zasperVersionAtom = atom<string>('');
+/** `darwin · arm64`, from `/api/info`, for the Help tab's About block. */
+export const platformAtom = atom<string>('');
+/** Where the server keeps its settings, from `/api/info`. */
+export const configPathAtom = atom<string>('');
+/** Bumped by the About command, and read by the Help tab as a request to scroll to About. */
+export const helpAboutRequestAtom = atom<number>(0);
 export const projectNameAtom = atom<string>('');
 /**
  * The absolute path of the project this server is serving, from `/api/info`, and `''` until that

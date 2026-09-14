@@ -13,7 +13,7 @@ import UnsavedChangesDialog from './UnsavedChangesDialog';
 /**
  * What a tab wears in front of its name.
  *
- * Only a file gets a file-type mark; the other two kinds of tab are not files, and a launcher
+ * Only a file gets a file-type mark; the other kinds of tab are not files, and a launcher
  * keeps the product logo because that is what it is.
  */
 function TabMark({ tab }: { tab: IfileTab }) {
@@ -22,6 +22,9 @@ function TabMark({ tab }: { tab: IfileTab }) {
   }
   if (tab.type === 'terminal') {
     return <Icon name="terminal" className="tabIcon" />;
+  }
+  if (tab.type === 'help') {
+    return <Icon name="circle-help" className="tabIcon" />;
   }
   // The file's own name for a diff: its tab is named `notes.txt (diff)`, whose extension is
   // `txt (diff)` and which would therefore get the mark for an unknown type.
@@ -125,7 +128,8 @@ interface TabProps {
  */
 function Tab({ tab, isDirty, onActivate, onClose }: TabProps) {
   const tip = useTooltip();
-  const label = [tab.type === 'launcher' ? tab.name : tab.path];
+  // A path names a file; the Launcher's and Help's keys are not paths.
+  const label = [tab.type === 'launcher' || tab.type === 'help' ? tab.name : tab.path];
   if (isDirty) {
     label.push('Unsaved changes');
   }
