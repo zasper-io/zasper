@@ -3,7 +3,6 @@ import { ICell, ICellOutput, INotebookModel } from '@/api';
 import { markProducedHere } from './outputTrust';
 
 /** A message received from, or sent to, the kernel over the websocket channel. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type IKernelMessage = any;
 
 export const getTimeStamp = (): string => new Date().toISOString();

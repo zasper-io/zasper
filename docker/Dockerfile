@@ -1,7 +1,7 @@
 # Built from this repository rather than a fresh clone of main: the old Dockerfile ran
 # `git clone https://github.com/zasper-io/zasper.git`, so the image ignored the checkout it was built
 # from and always shipped whatever main happened to be — including when building from a release tag.
-FROM golang:1.25 AS build
+FROM golang:1.26 AS build
 
 WORKDIR /src
 

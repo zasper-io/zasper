@@ -31,15 +31,17 @@
 // file impossible to change safely, because its name gives no hint that anything
 // else is reading it.
 
-@import 'reset';
-@import 'tokens';
-@import 'accents';
-@import 'base';
-@import 'typography';
-@import 'codemirror';
-@import 'controls';
-@import 'forms';
-@import 'states';
-@import 'panel';
-@import 'overlays';
-@import 'modal';
+// @use rather than @import, which Dart Sass 3 removes. Each partial keeps its own mixins and functions
+// to itself, so nothing here needs a namespace; @use emits each one's CSS once, in this order.
+@use 'reset';
+@use 'tokens';
+@use 'accents';
+@use 'base';
+@use 'typography';
+@use 'codemirror';
+@use 'controls';
+@use 'forms';
+@use 'states';
+@use 'panel';
+@use 'overlays';
+@use 'modal';

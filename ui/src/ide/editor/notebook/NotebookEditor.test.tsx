@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { Provider, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
+import { Provider } from '@/testing/Provider';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import NotebookEditor from './NotebookEditor';
@@ -88,7 +89,6 @@ interface IFakeSocket {
   sent: string[];
   opened: boolean;
   closed: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   receive: (message: any) => void;
 }
 
@@ -97,6 +97,9 @@ const { sockets, FakeSocket } = vi.hoisted(() => {
   const sockets: IFakeSocket[] = [];
 
   class FakeSocket {
+    // The code under test compares readyState against WebSocket.OPEN, which is this class now.
+    static OPEN = 1;
+
     // Off for a test that has to hold the socket unopened, rather than race the timer below.
     static autoOpen = true;
 
@@ -127,7 +130,6 @@ const { sockets, FakeSocket } = vi.hoisted(() => {
       this.closed = true;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     receive(message: any) {
       this.onmessage?.({ data: JSON.stringify(message) });
     }
@@ -136,7 +138,7 @@ const { sockets, FakeSocket } = vi.hoisted(() => {
   return { sockets, FakeSocket };
 });
 
-vi.mock('websocket', () => ({ w3cwebsocket: FakeSocket }));
+vi.stubGlobal('WebSocket', FakeSocket);
 
 // CodeMirror cannot mount under jsdom (its CJS build loads a second copy of
 // @codemirror/state, breaking instanceof checks), and the editor surface is not
@@ -144,7 +146,6 @@ vi.mock('websocket', () => ({ w3cwebsocket: FakeSocket }));
 vi.mock('@uiw/react-codemirror', async () => {
   const react = await import('react');
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     default: (props: any) =>
       react.createElement('textarea', { value: props.value, readOnly: true }),
     Prec: { highest: (extension: unknown) => extension },

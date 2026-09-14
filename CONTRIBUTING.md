@@ -81,7 +81,7 @@ Improving documentation is just as important as improving the code! If you find 
 
 ### Development Setup
 
-You need Go 1.25+ and Node.js 22.12+. `.nvmrc` pins the Node version, so with nvm, `nvm install`
+You need Go 1.26+ and Node.js 22.12+. `.nvmrc` pins the Node version, so with nvm, `nvm install`
 in the repository gets the right one. The `make` targets check both before they start.
 
 ```bash

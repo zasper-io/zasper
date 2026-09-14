@@ -60,7 +60,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.26'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -135,7 +135,7 @@ jobs:
         with:
           # Matches the toolchain in go.mod. It was 1.24 while go.mod asked for 1.25, which only
           # worked because GOTOOLCHAIN=auto silently downloaded the difference.
-          go-version: '1.25'
+          go-version: '1.26'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

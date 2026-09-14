@@ -6,7 +6,8 @@
  * re-import TabState for real and therefore cannot mock it.
  */
 import { render, screen } from '@testing-library/react';
-import { Provider, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
+import { Provider } from '@/testing/Provider';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { projectDirAtom } from './AppState';

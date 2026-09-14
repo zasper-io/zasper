@@ -10,7 +10,7 @@ import { useFileTree } from './useFileTree';
 import { useSelection } from './useSelection';
 
 export interface IRowFocus {
-  ref: React.RefObject<HTMLLIElement | null>;
+  ref: React.RefObject<HTMLLIElement>;
   /** Roving: one row in the tree is reachable by Tab, and the arrow keys move between the rest. */
   tabIndex: number;
   onFocus: (event: React.FocusEvent) => void;
@@ -21,7 +21,7 @@ export interface IRowFocus {
  * is inside it, and so is the group holding its children.
  */
 export function useRowFocus(path: string, isFirstRow: boolean): IRowFocus {
-  const ref = useRef<HTMLLIElement | null>(null);
+  const ref = useRef<HTMLLIElement>(null);
   const [focusedPath, setFocusedPath] = useAtom(focusedPathAtom);
   const isFocused = focusedPath === path;
 

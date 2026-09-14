@@ -62,6 +62,38 @@ export function websocketUrl(path: string, query?: RequestOptions['query']): str
   return search === '' ? BaseWebSocketUrl + path : `${BaseWebSocketUrl}${path}?${search}`;
 }
 
+/**
+ * Whether the session has ended, as the last API request found it. A 401 from /api means the session
+ * cookie has expired or been signed out; a 401 from sign-in is a wrong token, which is not the same.
+ */
+let sessionEnded = false;
+const sessionListeners = new Set<(ended: boolean) => void>();
+
+/**
+ * Tells listener whether the session has ended, now and whenever an API request finds that it has, or
+ * that it works again. Answers the function that stops listening.
+ */
+export function watchSession(listener: (ended: boolean) => void): () => void {
+  sessionListeners.add(listener);
+  listener(sessionEnded);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
+function noteSession(path: string, status: number): void {
+  const succeeded = status >= 200 && status < 300;
+  // Any other failure says nothing either way about the session.
+  if (!path.startsWith('/api/') || (status !== 401 && !succeeded)) {
+    return;
+  }
+  const ended = status === 401;
+  if (ended !== sessionEnded) {
+    sessionEnded = ended;
+    sessionListeners.forEach((listener) => listener(ended));
+  }
+}
+
 async function request(path: string, options: RequestOptions = {}): Promise<Response> {
   const { method = 'GET', body, query } = options;
 
@@ -80,6 +112,7 @@ async function request(path: string, options: RequestOptions = {}): Promise<Resp
     // `make dev`, whose frontend is on another port.
     credentials: 'include',
   });
+  noteSession(path, res.status);
 
   if (!res.ok) {
     const details = await res.text().catch(() => '');
@@ -154,6 +187,7 @@ export function requestUpload<T>(path: string, options: UploadOptions): Promise<
       }
     });
     request.addEventListener('load', () => {
+      noteSession(path, request.status);
       if (request.status >= 200 && request.status < 300) {
         resolve(JSON.parse(request.responseText) as T);
       } else {

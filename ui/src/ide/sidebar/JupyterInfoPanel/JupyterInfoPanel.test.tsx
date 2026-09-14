@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Provider, useAtomValue } from 'jotai';
+import { useAtomValue } from 'jotai';
+import { Provider } from '@/testing/Provider';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { toast } from 'react-toastify';

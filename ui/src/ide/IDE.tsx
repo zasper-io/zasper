@@ -43,6 +43,7 @@ import { ICommand } from '../commands/types';
 import { useCommandKeymap } from '../commands/useCommandKeymap';
 import { useTelemetry } from '../telemetry';
 import { markSignedOut } from '../auth/signedIn';
+import SessionEndedNotice from '../auth/SessionEndedNotice';
 import { allowWidgetCdn } from './widgets/cdnLoader';
 
 function IDE() {
@@ -172,6 +173,7 @@ function IDE() {
   return (
     <div className="editor">
       <Topbar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
+      <SessionEndedNotice />
       <div className="editor-container">
         {/* Outside the resizable group, so hiding the sidebar leaves the rail — and the way back —
             on screen. The activity bar reads the same state it writes, so its highlight and the

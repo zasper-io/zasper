@@ -19,7 +19,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.25'
+        go-version: '1.26'
 
     - name: Build
       run: go build -tags apiserver -v ./...
@@ -43,7 +43,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.25'
+        go-version: '1.26'
 
     - name: Vet
       run: go vet -tags apiserver ./...
@@ -60,7 +60,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    # govulncheck v1.8.0 has to be built with a newer Go than the 1.25 Zasper builds with.
+    # govulncheck v1.8.0 has to be built with a newer Go than the 1.26 Zasper builds with.
     - name: Set up Go
       uses: actions/setup-go@v5
       with:

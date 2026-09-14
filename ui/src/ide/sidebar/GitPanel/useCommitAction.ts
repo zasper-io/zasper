@@ -15,7 +15,7 @@ export interface ICommitAction {
    * The message box, so something outside it can put the caret there — a palette command asked to
    * commit with nothing written yet has nowhere else useful to go.
    */
-  box: RefObject<HTMLTextAreaElement | null>;
+  box: RefObject<HTMLTextAreaElement>;
 }
 
 /**

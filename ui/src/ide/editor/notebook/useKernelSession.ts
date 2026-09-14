@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtom, useSetAtom } from 'jotai';
-import { w3cwebsocket as W3CWebSocket } from 'websocket';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -90,7 +89,7 @@ export function kernelToStart(
   return saved;
 }
 
-type IKernelWebSocketClient = W3CWebSocket;
+type IKernelWebSocketClient = WebSocket;
 
 /** Stand-in until the real socket is connected, so senders never hit a null client. */
 const disconnectedClient = {
@@ -223,7 +222,7 @@ export function useKernelSession(
       if (!newSession) return Promise.reject('No session provided');
 
       return new Promise<IKernelWebSocketClient>((resolve, reject) => {
-        const client = new W3CWebSocket(
+        const client = new WebSocket(
           websocketUrl(`/ws/kernels/${newSession.kernel.id}/channels`, {
             session_id: newSession.id,
           })

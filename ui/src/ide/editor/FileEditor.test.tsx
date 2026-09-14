@@ -32,13 +32,11 @@ function text(content: string) {
 vi.mock('@uiw/react-codemirror', async () => {
   const react = await import('react');
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     default: (props: any) => {
       const [mountedWith] = react.useState(props.value);
       return react.createElement('textarea', {
         value: props.value,
         'data-mounted-with': mountedWith,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onChange: (event: any) => props.onChange?.(event.target.value),
       });
     },

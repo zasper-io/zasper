@@ -92,7 +92,7 @@ export function withActive(tabs: IfileTabDict, path: string): IfileTabDict {
  * that takes `/api/info`. `useRememberTabs` does the confirming, and drops the strip when the answer
  * names a different directory than the one the record was written for.
  *
- * A test that wants the default strip has to pass `initialValues` to its own `<Provider>`, or clear
+ * A test that wants the default strip has to seed its own store (`Provider` in src/testing), or clear
  * storage and `vi.resetModules()` before importing this: the seed happens on import, once.
  */
 const remembered = readStoredTabs();

@@ -96,7 +96,7 @@ UI_SOURCES = $(shell find ui/src ui/public) ui/index.html ui/package.json ui/tsc
 .PHONY: help check-tools init build dev install clean test test-frontend test-go e2e e2e-api e2e-browser bump-version show-version changelog-draft
 
 help:
-	@echo "Building from source (needs Go 1.25+ and Node.js $(NODE_VERSION)+):"
+	@echo "Building from source (needs Go 1.26+ and Node.js $(NODE_VERSION)+):"
 	@echo "  make build           build the zasper binary in this directory"
 	@echo "  make install         build and install zasper into your Go bin directory"
 	@echo "  make dev             run the frontend on :3000 and the backend on :8048"
@@ -110,7 +110,7 @@ help:
 
 # npm only warns about an unsupported Node version, and the build then fails somewhere unrelated.
 check-tools:
-	@command -v go >/dev/null || { echo "Go is not installed; Zasper needs Go 1.25+: https://go.dev/dl/"; exit 1; }
+	@command -v go >/dev/null || { echo "Go is not installed; Zasper needs Go 1.26+: https://go.dev/dl/"; exit 1; }
 	@command -v node >/dev/null || { echo "Node.js is not installed; Zasper needs Node.js $(NODE_VERSION)+ (nvm install)"; exit 1; }
 	@node -e 'const [a, b] = process.versions.node.split(".").map(Number), [x, y] = process.argv[1].split(".").map(Number); process.exit(a > x || (a === x && b >= y) ? 0 : 1)' $(NODE_VERSION) \
 		|| { echo "Node.js $$(node --version) is too old; Zasper needs $(NODE_VERSION)+ (nvm install && nvm use)"; exit 1; }

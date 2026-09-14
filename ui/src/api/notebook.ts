@@ -18,7 +18,6 @@ export interface ICellOutput {
   evalue?: string;
   traceback?: string[];
   execution_count?: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
@@ -57,7 +56,6 @@ export interface INotebookMetadata {
   name?: string;
   display_name?: string;
   language_info?: ILanguageInfoMetadata;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 

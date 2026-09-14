@@ -27,7 +27,6 @@ const destroyed = vi.fn();
 // and on what terms — not how CodeMirror draws them.
 vi.mock('@codemirror/merge', () => ({
   MergeView: class {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(config: any) {
       views.push(config);
     }

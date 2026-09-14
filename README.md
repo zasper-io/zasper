@@ -466,7 +466,7 @@ nothing is collected and no request is made.
 
 ## Building from source
 
-Requires Go 1.25+ and Node.js 22.12+ (`.nvmrc` pins the Node version, so `nvm use` picks it up).
+Requires Go 1.26+ and Node.js 22.12+ (`.nvmrc` pins the Node version, so `nvm use` picks it up).
 
 ```sh
 git clone https://github.com/zasper-io/zasper
