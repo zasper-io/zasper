@@ -1,18 +1,4 @@
-// Which two versions are on screen, in the strip under the breadcrumb. Measured like .breadcrumbArea
-// above it, so the two read as one header rather than two bands.
-.diff-head {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 26px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--z-border-breadcrumb);
-  background: var(--z-bg-editor);
-  color: var(--z-fg-muted);
-  font-size: var(--z-ui-font-size);
-}
-
+// Which two versions are on screen, in the .editor-strip (Editor.scss) under the breadcrumb.
 .diff-side {
   overflow: hidden;
   text-overflow: ellipsis;

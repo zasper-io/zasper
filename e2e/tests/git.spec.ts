@@ -292,7 +292,7 @@ test('a change opens as a diff of what the file was against what it is', async (
   // The index on the left and the file on disk on the right, which is what an unstaged change is.
   await expect(body).toContainText('A plain file');
   await expect(body).toContainText('edited by the git spec');
-  await expect(page.locator('.diff-head')).toContainText('Working tree');
+  await expect(page.locator('.editor-strip')).toContainText('Working tree');
 
   /*
    * And a change is the colour this panel says a change is. @codemirror/merge answers that itself, in a

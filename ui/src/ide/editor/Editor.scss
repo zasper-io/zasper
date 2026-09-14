@@ -40,3 +40,55 @@
     color: var(--z-fg-default);
   }
 }
+
+// The strip under the breadcrumb that belongs to one kind of tab: a diff's two sides, a markdown
+// file's view. Measured like .breadcrumbArea, so the two read as one header rather than two bands.
+.editor-strip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--z-border-breadcrumb);
+  background: var(--z-bg-editor);
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+}
+
+.editor-strip-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+// A markdown file's source and its rendering, one at a time or side by side.
+.markdown-panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.markdown-preview {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background-color: var(--z-bg-editor);
+  color: var(--z-fg-editor);
+
+  // On the child, not the pane: a flex item's own padding counts towards its share, and the split
+  // came out 48px wider on this side.
+  > * {
+    padding: 16px 24px 32px;
+  }
+
+  // A document is read at a measure, not at the width of the pane.
+  .zasper-markdown {
+    max-width: 760px;
+  }
+}
+
+.file-editor-body:not(.is-hidden) + .markdown-preview {
+  border-left: 1px solid var(--z-border);
+}

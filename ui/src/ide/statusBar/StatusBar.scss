@@ -18,9 +18,12 @@
 
 // The zoom control. `position: relative` is what its menu hangs from, and the padding comes off the
 // item because the button inside it carries its own — otherwise the hover fill would stop 10px short
-// of where the pointer is.
+// of where the pointer is. Flex, not block: on a line box the button is baseline-aligned by its SVG's
+// bottom edge, which lifted it off the bar's centre.
 .zoomPicker {
   position: relative;
+  display: flex;
+  align-items: center;
   padding: 0;
 }
 

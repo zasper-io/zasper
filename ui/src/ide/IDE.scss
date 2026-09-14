@@ -179,6 +179,7 @@
   // `.editor-body` — the notebook's, in NotebookEditor.scss — was taken.
   .file-editor-body {
     flex: 1;
+    min-width: 0;
     min-height: 0;
     color: var(--z-fg-editor);
     background-color: var(--z-bg-editor);

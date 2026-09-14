@@ -1,10 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import CodeMirror from '@uiw/react-codemirror';
 import { go } from '@codemirror/lang-go';
 import { keymap, ViewUpdate } from '@codemirror/view';
 import { apiErrorMessage, getFileContent, logApiError, saveFile } from '@/api';
-import { Icon } from '@/ide/icons';
+import { Icon, IconName } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
 
 import { useAtom } from 'jotai';
 import { useTheme } from '@/themes/useTheme';
@@ -14,6 +24,22 @@ import languageFor from './language';
 import { IfileTab } from '@/store/TabState';
 import { useUnsavedChanges } from '@/store/UnsavedState';
 import { zoomAwareTooltips } from './tooltipParent';
+
+// The notebook's renderer, and its code-splitting boundary: see MarkdownRenderer.tsx.
+const MarkdownRenderer = lazy(() => import('./notebook/MarkdownRenderer'));
+
+type MarkdownView = 'edit' | 'preview' | 'split';
+
+const MARKDOWN_VIEWS: { view: MarkdownView; icon: IconName; label: string }[] = [
+  { view: 'edit', icon: 'pencil', label: 'Edit' },
+  { view: 'preview', icon: 'eye', label: 'Preview' },
+  { view: 'split', icon: 'columns-2', label: 'Side by side' },
+];
+
+function isMarkdown(extension: string | null): boolean {
+  const lower = extension?.toLowerCase();
+  return lower === 'md' || lower === 'markdown';
+}
 
 interface FileEditorProps {
   data: IfileTab;
@@ -27,7 +53,12 @@ export default function FileEditor(props: FileEditorProps) {
   const [error, setError] = useState('');
   /** Bumped on every successful read; 0 until the first one lands. */
   const [readCount, setReadCount] = useState(0);
+  const [markdownView, setMarkdownView] = useState<MarkdownView>('edit');
   const theme = useTheme();
+  const sourceRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  // Typing stays responsive in a long document: the rendering catches up between keystrokes.
+  const previewSource = useDeferredValue(fileContents);
 
   const saveFileToDisk = useCallback(async () => {
     // The text that was written, not whatever the editor holds by the time the write returns: a
@@ -111,51 +142,110 @@ export default function FileEditor(props: FileEditorProps) {
     [setColumnPosition, setLinePosition]
   );
 
+  const markdown = isMarkdown(props.data.extension);
+  // A failed read has no text to render, so it keeps the notice in view.
+  const view: MarkdownView = markdown && error === '' ? markdownView : 'edit';
+
+  // By proportion: the rendering has no map back to source lines.
+  const followSource = () => {
+    const source = sourceRef.current;
+    const preview = previewRef.current;
+    if (view !== 'split' || source === null || preview === null) {
+      return;
+    }
+    const range = source.scrollHeight - source.clientHeight;
+    preview.scrollTop =
+      range > 0 ? (source.scrollTop / range) * (preview.scrollHeight - preview.clientHeight) : 0;
+  };
+
+  const editorBody = (
+    <div
+      ref={sourceRef}
+      className={view === 'preview' ? 'file-editor-body is-hidden' : 'file-editor-body'}
+      onScroll={followSource}
+    >
+      {/* No editor once a read failed: it would be the empty starting state wearing the name of
+          a file that is not there, and saving it would write that file. The band is the notebook
+          editor's, which says the same thing for the same reason. */}
+      {error !== '' ? (
+        <div className="z-notice z-notice-error" role="alert">
+          <Icon name="circle-alert" size={14} />
+          <p>
+            <strong>This file could not be loaded.</strong> {error}
+          </p>
+        </div>
+      ) : readCount === 0 ? null : (
+        // Mounted only once the file is read, and afresh on each read: handed the text after
+        // mounting, @uiw/react-codemirror records it as an edit, and Mod-z undoes it to a blank
+        // editor. Hidden rather than unmounted in preview, which keeps its undo history.
+        <CodeMirror
+          key={readCount}
+          value={fileContents}
+          theme={theme.codeMirror}
+          minHeight="100%"
+          width="100%"
+          extensions={[getExtensionToLoad(), popupPlacement, customKeymap]}
+          // , linter(jsonParseLinter())
+          // linter(esLint(new eslint.Linter(), config)),
+          onChange={(fileContents) => {
+            setFileContents(fileContents);
+          }}
+          onUpdate={onUpdate}
+          basicSetup={{
+            bracketMatching: true,
+            highlightActiveLineGutter: true,
+            autocompletion: true,
+            lintKeymap: true,
+            foldGutter: true,
+            completionKeymap: true,
+            tabSize: indentationSize,
+          }}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className="tab-surface">
       <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         {/* Outside .file-editor-body, so it stays put while the file scrolls. */}
         <BreadCrumb path={props.data.path} />
-        <div className="file-editor-body">
-          {/* No editor once a read failed: it would be the empty starting state wearing the name of
-              a file that is not there, and saving it would write that file. The band is the notebook
-              editor's, which says the same thing for the same reason. */}
-          {error !== '' ? (
-            <div className="z-notice z-notice-error" role="alert">
-              <Icon name="circle-alert" size={14} />
-              <p>
-                <strong>This file could not be loaded.</strong> {error}
-              </p>
-            </div>
-          ) : readCount === 0 ? null : (
-            // Mounted only once the file is read, and afresh on each read: handed the text after
-            // mounting, @uiw/react-codemirror records it as an edit, and Mod-z undoes it to a blank
-            // editor.
-            <CodeMirror
-              key={readCount}
-              value={fileContents}
-              theme={theme.codeMirror}
-              minHeight="100%"
-              width="100%"
-              extensions={[getExtensionToLoad(), popupPlacement, customKeymap]}
-              // , linter(jsonParseLinter())
-              // linter(esLint(new eslint.Linter(), config)),
-              onChange={(fileContents) => {
-                setFileContents(fileContents);
-              }}
-              onUpdate={onUpdate}
-              basicSetup={{
-                bracketMatching: true,
-                highlightActiveLineGutter: true,
-                autocompletion: true,
-                lintKeymap: true,
-                foldGutter: true,
-                completionKeymap: true,
-                tabSize: indentationSize,
-              }}
-            />
-          )}
-        </div>
+        {markdown && error === '' && (
+          <div className="editor-strip">
+            <span>{MARKDOWN_VIEWS.find((option) => option.view === view)?.label}</span>
+            <span className="editor-strip-actions">
+              {MARKDOWN_VIEWS.map((option) => (
+                <IconButton
+                  key={option.view}
+                  icon={option.icon}
+                  label={option.label}
+                  pressed={view === option.view}
+                  onClick={() => setMarkdownView(option.view)}
+                />
+              ))}
+            </span>
+          </div>
+        )}
+        {markdown ? (
+          <div className="markdown-panes">
+            {editorBody}
+            {view !== 'edit' && (
+              <div ref={previewRef} className="markdown-preview">
+                <Suspense
+                  fallback={
+                    <p className="z-note">
+                      <span className="z-spinner" /> Loading preview…
+                    </p>
+                  }
+                >
+                  <MarkdownRenderer source={previewSource} />
+                </Suspense>
+              </div>
+            )}
+          </div>
+        ) : (
+          editorBody
+        )}
       </div>
     </div>
   );

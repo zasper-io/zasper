@@ -127,6 +127,61 @@ describe('FileEditor', () => {
     await waitFor(() => expect(unsavedPaths()).toBe(''));
   });
 
+  it('offers no preview for a file that is not markdown', async () => {
+    await renderEditor();
+
+    expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument();
+  });
+
+  describe('a markdown file', () => {
+    const markdownTab: IfileTab = { ...tab, path: 'notes.md', name: 'notes.md', extension: 'md' };
+
+    beforeEach(() => {
+      getFileContent.mockResolvedValue('# Title\n');
+    });
+
+    async function renderMarkdown() {
+      render(
+        <Provider>
+          <FileEditor data={markdownTab} />
+        </Provider>
+      );
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('# Title\n'));
+    }
+
+    function source(): Element | null {
+      return screen.getByRole('textbox').closest('.file-editor-body');
+    }
+
+    it('opens as text', async () => {
+      await renderMarkdown();
+
+      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    });
+
+    it('shows only the rendering in preview, keeping the editor mounted', async () => {
+      await renderMarkdown();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+      expect(await screen.findByRole('heading', { name: 'Title' })).toBeInTheDocument();
+      expect(source()).toHaveClass('is-hidden');
+    });
+
+    it('shows both side by side, rendering unsaved edits', async () => {
+      await renderMarkdown();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Side by side' }));
+      await screen.findByRole('heading', { name: 'Title' });
+      expect(source()).not.toHaveClass('is-hidden');
+
+      type('# Renamed\n');
+
+      expect(await screen.findByRole('heading', { name: 'Renamed' })).toBeInTheDocument();
+    });
+  });
+
   /*
    * A tab restored from a previous visit can name a file that has since been deleted. What used to
    * happen: the read rejected unhandled, the editor stood there looking like an empty file, and

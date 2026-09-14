@@ -133,7 +133,7 @@ export default function DiffTab(props: DiffTabProps) {
         {/* The file's own path, not the tab's key, which is a diff of it. */}
         <BreadCrumb path={path} />
 
-        <div className="diff-head">
+        <div className="editor-strip">
           <span className="diff-side">{left}</span>
           <Icon name="arrow-right" className="diff-arrow" />
           <span className="diff-side">{right}</span>

@@ -13,6 +13,7 @@ import {
   CircleHelp,
   ClipboardPaste,
   CloudDownload,
+  Columns2,
   Copy,
   CornerDownLeft,
   Cpu,
@@ -110,6 +111,9 @@ export const ICONS = {
   'folder-open': FolderOpen, // Open as Root, in a folder row's context menu
   link: Link, // Copy Path, in a row's context menu
   download: Download, // Download, in a file row's context menu
+
+  // --- The file editor -----------------------------------------------------
+  'columns-2': Columns2, // Side by side, in a markdown file's strip
 
   // --- The notebook --------------------------------------------------------
   save: Save, // fa-save
