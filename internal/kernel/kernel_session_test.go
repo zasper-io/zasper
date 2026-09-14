@@ -18,10 +18,10 @@ func roundTrip(t *testing.T, msg Message) Message {
 	frames := session.serialize(msg)
 
 	payload := session.Deserialize(zmq4.NewMsgFrom(frames...), "iopub")
+	require.NotNil(t, payload, "the message was not read back")
 
 	var read Message
 	require.NoError(t, json.Unmarshal(payload, &read))
-	require.NoError(t, read.Error, "the signature did not check out")
 	return read
 }
 
@@ -63,9 +63,7 @@ func TestBuffersAreNotSigned(t *testing.T) {
 
 	payload := session.Deserialize(zmq4.NewMsgFrom(tampered...), "shell")
 
-	var read Message
-	require.NoError(t, json.Unmarshal(payload, &read))
-	assert.NoError(t, read.Error)
+	assert.NotNil(t, payload, "a message whose buffers changed was rejected as unsigned")
 }
 
 // A reply is addressed to the request that asked by its parent header, so sending the header as the
@@ -122,6 +120,18 @@ func TestFramesThatAreNotAMessageSayNothing(t *testing.T) {
 	assert.Equal(t, "", session.PublishedState(zmq4.NewMsgFrom()))
 	assert.Equal(t, "", session.PublishedState(zmq4.NewMsgFrom([]byte("kernel.1.status"))))
 	assert.Equal(t, "", session.PublishedState(zmq4.NewMsgFrom([]byte(DELIM), []byte("signature"))))
+}
+
+// The same frames on the way to a browser: dropped rather than forwarded, and never a panic on the
+// poller goroutine, which would take the whole server down with it.
+func TestFramesThatAreNotASignedMessageAreNotForwarded(t *testing.T) {
+	session := getSession()
+	other := getSession()
+
+	assert.Nil(t, session.Deserialize(zmq4.NewMsgFrom(), "iopub"))
+	assert.Nil(t, session.Deserialize(zmq4.NewMsgFrom([]byte("kernel.1.status")), "iopub"))
+	assert.Nil(t, session.Deserialize(zmq4.NewMsgFrom([]byte(DELIM), []byte("signature")), "iopub"))
+	assert.Nil(t, session.Deserialize(published(other, other.MessageFromString("status")), "iopub"))
 }
 
 func TestEveryMessageCarriesTheProtocolVersion(t *testing.T) {

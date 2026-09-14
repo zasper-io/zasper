@@ -80,11 +80,10 @@ func TestGetKernelSaysSoWhenTheKernelIsNotRunning(t *testing.T) {
 func TestInterruptKernelRefusesRatherThanSignallingNothingInParticular(t *testing.T) {
 	withKernels(t, "k1")
 
-	// Both of these used to reach os.FindProcess with the zero KernelManager's pid of 0, and SIGINT to
-	// pid 0 goes to every process in this process group — the server included. Returning here is the
-	// assertion: nothing was signalled.
+	// A manager that never launched has no process, and SIGINT to its zero pid would go to every process
+	// in this process group, the server included. Returning here is the assertion: nothing was signalled.
 	assert.ErrorIs(t, interruptKernel("k2"), ErrKernelNotFound)
-	assert.ErrorContains(t, interruptKernel("k1"), "invalid pid 0")
+	assert.ErrorContains(t, interruptKernel("k1"), "no process")
 }
 
 func TestRecordingActivityWritesTheFieldsTheApiReports(t *testing.T) {

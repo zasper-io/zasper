@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/zasper-io/zasper/internal/core"
@@ -137,44 +135,6 @@ func activeKernels() []KernelManager {
 	return all
 }
 
-func Cleanup() {
-	for _, km := range activeKernels() {
-		killKernel(km.Provisioner.Pid)
-		removeConnectionFile(km.ConnectionFile)
-	}
-}
-
-func killKernel(pid int) {
-	// A pid of 0 means "every process in this process group" on Unix, which would
-	// take the server down with it, so an unknown pid is never signalled.
-	if pid <= 0 {
-		log.Error().Msgf("Refusing to kill invalid pid %d", pid)
-		return
-	}
-
-	// Get the process by PID
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		log.Error().Msgf("Error finding process: %v\n", err)
-		return
-	}
-
-	// Attempt to kill the process
-	err = process.Kill()
-	if err != nil {
-		if err == syscall.ESRCH {
-			log.Error().Msgf("No such process.")
-		} else if err == syscall.EPERM {
-			log.Error().Msgf("Permission denied.")
-		} else {
-			log.Error().Msgf("Error killing process: %v\n", err)
-		}
-		return
-	}
-
-	log.Debug().Msgf("Process %d killed successfully.\n", pid)
-}
-
 func NotifyConnect() {
 }
 
@@ -206,7 +166,9 @@ func KillKernelById(kernelId string) error {
 
 	NotifyDisconnect(km.KernelId)
 	stopWatchingKernel(km)
-	killKernel(km.Provisioner.Pid)
+	if err := km.StopKernel(kernelId); err != nil {
+		log.Error().Msgf("Error stopping kernel %s: %v", kernelId, err)
+	}
 
 	// The session outlives its kernel otherwise, so /api/sessions would keep
 	// advertising a kernel that is gone.
@@ -257,22 +219,16 @@ func interruptKernel(kernelId string) error {
 		return fmt.Errorf("%w: %s", ErrKernelNotFound, kernelId)
 	}
 
-	pid := km.Provisioner.Pid
-	if pid <= 0 {
-		return fmt.Errorf("refusing to signal invalid pid %d for kernel %s", pid, kernelId)
+	// The messaging protocol's alternative to SIGINT, for a kernelspec that asks for it.
+	if km.Provisioner.Kernelspec.InterruptMode == "message" {
+		return km.sendControlRequest("interrupt_request", map[string]interface{}{})
 	}
 
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return fmt.Errorf("Failed to find process %d: %v", pid, err)
+	process := km.Provisioner.Process
+	if process == nil {
+		return fmt.Errorf("kernel %s has no process to interrupt", kernelId)
 	}
-
-	err = process.Signal(syscall.SIGINT)
-	if err != nil {
-		return fmt.Errorf("Failed to send SIGINT to process %d: %v", pid, err)
-	}
-
-	return nil
+	return process.Interrupt()
 }
 
 // StartKernelManager starts a kernel in dir, with env set for it on top of its kernelspec's own.
@@ -307,6 +263,7 @@ func StartKernelManager(dir string, kernelName string, env map[string]string) (s
 
 	// Started after the store entry, because what it records is dropped for a kernel that is not in it.
 	go watchKernelActivity(watching, km)
+	go watchForExit(km)
 
 	return kernelId, nil
 }

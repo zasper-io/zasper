@@ -13,12 +13,10 @@ type LocalProvisioner struct {
 	Kernelspec     kernelspec.KernelSpecJsonData
 	KernelId       string
 	ConnectionInfo KernelConnectionInfo
-	Process        string
-	Exit_future    string
-	Pid            int
-	Pgid           int
-	IP             string
-	PortsCached    bool
+	// The launched kernel, nil until LaunchKernel has run.
+	Process     *launcher.Process
+	IP          string
+	PortsCached bool
 }
 
 func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) (KernelConnectionInfo, error) {
@@ -27,12 +25,7 @@ func (provisioner *LocalProvisioner) LaunchKernel(kernelCmd []string, kw map[str
 		return nil, err
 	}
 
-	provisioner.Pid = process.Pid
-	log.Info().Msgf("kernel launched with pid: %d", process.Pid)
+	provisioner.Process = process
+	log.Debug().Msgf("kernel launched with pid: %d", process.Pid)
 	return provisioner.ConnectionInfo, nil
-}
-
-func (provisioner *LocalProvisioner) ShutdownKernel() error {
-	log.Info().Msgf("shutting down kernel with pid: %d", provisioner.Pid)
-	return launcher.ShutdownKernel(provisioner.Pid)
 }

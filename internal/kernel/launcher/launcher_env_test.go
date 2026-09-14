@@ -23,8 +23,7 @@ func TestTheKernelIsStartedWithTheEnvItWasGiven(t *testing.T) {
 
 	process, err := LaunchKernel([]string{"sh", "-c", `printf %s "$ZASPER_PROBE" > "$0"`, out}, kw, "")
 	require.NoError(t, err)
-	_, err = process.Wait()
-	require.NoError(t, err)
+	awaitDone(t, process)
 
 	written, err := os.ReadFile(out)
 	require.NoError(t, err)
@@ -40,8 +39,7 @@ func TestTheKernelIsStartedInTheDirectoryItWasGiven(t *testing.T) {
 
 	process, err := LaunchKernel([]string{"sh", "-c", `pwd -P > "$0"`, out}, map[string]interface{}{"cwd": dir}, "")
 	require.NoError(t, err)
-	_, err = process.Wait()
-	require.NoError(t, err)
+	awaitDone(t, process)
 
 	written, err := os.ReadFile(out)
 	require.NoError(t, err)

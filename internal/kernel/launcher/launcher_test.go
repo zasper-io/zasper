@@ -1,16 +1,13 @@
 /*
-Stopping a kernel process.
+Launching and signalling a kernel process.
 
-The guard these are about is one line: a pid of 0 passed to os.FindProcess and then Kill is "every
-process in this process group" on Unix, which is the server and every kernel under it. A kernel
-manager that never launched has a zero pid, so the value reaches here by ordinary means rather than
-by anything exotic.
+Every signal goes through a pid check first: a pid of 0 or below names a whole process group on Unix,
+which is the server and every kernel under it, and a manager that never launched has a pid of 0.
 */
 package launcher
 
 import (
-	"os/exec"
-	"syscall"
+	"runtime"
 	"testing"
 	"time"
 
@@ -18,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestShutdownRefusesAPidThatWouldNotBeOneProcess(t *testing.T) {
+func TestSignalsRefuseAPidThatWouldNotBeOneProcess(t *testing.T) {
 	cases := map[string]int{
 		"a manager that never launched": 0,
 		"a whole process group":         -1,
@@ -27,38 +24,34 @@ func TestShutdownRefusesAPidThatWouldNotBeOneProcess(t *testing.T) {
 
 	for name, pid := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := ShutdownKernel(pid)
-			require.Error(t, err, "pid %d was accepted", pid)
-			assert.Contains(t, err.Error(), "invalid pid")
+			process := &Process{Pid: pid}
+			for _, signal := range []func() error{process.Interrupt, process.Terminate, process.Kill} {
+				err := signal()
+				require.Error(t, err, "pid %d was accepted", pid)
+				assert.Contains(t, err.Error(), "invalid pid")
+			}
 		})
 	}
 }
 
-func TestShutdownStopsTheProcessItWasGiven(t *testing.T) {
-	sleep, err := exec.LookPath("sleep")
-	if err != nil {
-		t.Skip("no sleep binary is installed")
+func TestAKernelProcessIsReapedWhenItExits(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses sh")
 	}
 
-	cmd := exec.Command(sleep, "60")
-	require.NoError(t, cmd.Start())
-	pid := cmd.Process.Pid
-
-	require.NoError(t, ShutdownKernel(pid))
-
-	// Wait rather than poll: the process is this test's child, so nothing else can reap it, and
-	// Wait is what turns it from a zombie into a real exit status.
-	state, err := cmd.Process.Wait()
+	process, err := LaunchKernel([]string{"sh", "-c", "exit 3"}, map[string]interface{}{}, "")
 	require.NoError(t, err)
-	assert.False(t, state.Success(), "the process exited normally rather than being killed")
 
-	// Killed, and killed by the signal Kill sends — not stopped by something else in the meantime.
-	status, ok := state.Sys().(syscall.WaitStatus)
-	require.True(t, ok)
-	assert.Equal(t, syscall.SIGKILL, status.Signal())
+	awaitDone(t, process)
+	assert.Equal(t, 3, process.ExitCode())
+}
 
-	// And it is gone: signal 0 asks whether the process is still there without sending anything.
-	assert.Eventually(t, func() bool {
-		return cmd.Process.Signal(syscall.Signal(0)) != nil
-	}, 2*time.Second, 20*time.Millisecond, "the process is still running")
+func awaitDone(t *testing.T, process *Process) {
+	t.Helper()
+
+	select {
+	case <-process.Done():
+	case <-time.After(10 * time.Second):
+		t.Fatalf("process %d was never reaped", process.Pid)
+	}
 }

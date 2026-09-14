@@ -139,9 +139,10 @@ func (kwsConn *KernelWebSocketConnection) pollChannel(socket zmq4.Socket, socket
 					log.Error().Err(err2).Str("socket", socketName).Msg("could not receive message")
 					continue
 				}
-				log.Debug().Msgf("channel: [%s] [%s] %s\n", socketName, zmsg.Frames[0], zmsg.Frames[1])
-
 				payload := kwsConn.Session.Deserialize(zmsg, socketName)
+				if payload == nil {
+					continue
+				}
 
 				if socketName == "iopub" {
 					// Before the send rather than after: what the handshake is waiting for is that the

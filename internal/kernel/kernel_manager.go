@@ -79,7 +79,9 @@ func (km *KernelManager) StartKernel(kernelName string) error {
 
 func (km *KernelManager) StopKernel(kernelId string) error {
 	km.ShuttingDown = true
-	// The kernel is about to let go of its five ports, so they go back on offer. Without this the
+	shutdownProcess(*km)
+
+	// The kernel has let go of its five ports, so they go back on offer. Without this the
 	// tracking list only grows, and a long-lived server starts refusing to allocate.
 	for _, port := range []int{
 		km.ConnectionInfo.ShellPort,
@@ -94,7 +96,7 @@ func (km *KernelManager) StopKernel(kernelId string) error {
 	// The file carries this kernel's signing key and is of no use once the kernel is gone.
 	removeConnectionFile(km.ConnectionFile)
 
-	return km.Provisioner.ShutdownKernel()
+	return nil
 }
 
 func (km *KernelManager) asyncPrestartKernel(kernelName string) ([]string, map[string]interface{}, error) {

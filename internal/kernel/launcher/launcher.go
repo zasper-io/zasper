@@ -10,7 +10,53 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) (*os.Process, error) {
+/*
+Process is a launched kernel. A goroutine of its own reaps it the moment it exits, so a kernel that has
+stopped never lingers as a zombie, and Done says when that has happened.
+*/
+type Process struct {
+	Pid int
+
+	process *os.Process
+	done    chan struct{}
+	// Written once, before done is closed.
+	state *os.ProcessState
+}
+
+// Done is closed once the process has exited and been reaped.
+func (p *Process) Done() <-chan struct{} {
+	return p.done
+}
+
+// Exited reports whether the process has exited.
+func (p *Process) Exited() bool {
+	select {
+	case <-p.done:
+		return true
+	default:
+		return false
+	}
+}
+
+// ExitCode is the exit status of a process that has exited, and -1 for one still running or ended by a
+// signal.
+func (p *Process) ExitCode() int {
+	if !p.Exited() || p.state == nil {
+		return -1
+	}
+	return p.state.ExitCode()
+}
+
+// validPid guards every signal: a pid of 0 or below names a whole process group on Unix, the server's
+// own among them, and a manager that never launched has a pid of 0.
+func (p *Process) validPid() error {
+	if p.Pid <= 0 {
+		return fmt.Errorf("refusing to signal invalid pid %d", p.Pid)
+	}
+	return nil
+}
+
+func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string) (*Process, error) {
 	for i, arg := range kernelCmd {
 		if arg == "{connection_file}" {
 			kernelCmd[i] = connFile
@@ -28,6 +74,8 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 	if dir, ok := kw["cwd"].(string); ok && dir != "" {
 		cmd.Dir = dir
 	}
+	// A process group of its own, so that interrupting or stopping the kernel reaches what it started.
+	setProcessGroup(cmd)
 
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()
@@ -51,20 +99,27 @@ func LaunchKernel(kernelCmd []string, kw map[string]interface{}, connFile string
 		return nil, err
 	}
 
-	pid := cmd.Process.Pid
+	process := &Process{Pid: cmd.Process.Pid, process: cmd.Process, done: make(chan struct{})}
+	go func() {
+		state, err := cmd.Process.Wait()
+		if err != nil {
+			log.Debug().Err(err).Int("pid", process.Pid).Msg("could not wait for the kernel process")
+		}
+		process.state = state
+		close(process.done)
+	}()
 
 	// The kernel is spoken to over ZMQ, not stdin. This used to write the literal bytes "input data"
 	// into every kernel it started, which was debug scaffolding that outlived its purpose; closing
 	// the pipe is all that is actually wanted.
 	stdin.Close()
 
-	go pipeToLog(stdout, "stdout", pid)
-	go pipeToLog(stderr, "stderr", pid)
+	go pipeToLog(stdout, "stdout", process.Pid)
+	go pipeToLog(stderr, "stderr", process.Pid)
 
 	log.Debug().Msg("Process started successfully")
 
-	return cmd.Process, nil
-
+	return process, nil
 }
 
 /*
@@ -81,27 +136,4 @@ func pipeToLog(stream io.Reader, name string, pid int) {
 		log.Debug().Int("pid", pid).Str("stream", name).Msg(scanner.Text())
 	}
 	// A read error here means the kernel is gone, which the caller finds out about by other means.
-}
-
-func ShutdownKernel(pid int) error {
-	// A pid of 0 means "every process in this process group" on Unix, which would
-	// take the server down with it.
-	if pid <= 0 {
-		return fmt.Errorf("refusing to shut down invalid pid %d", pid)
-	}
-
-	// Find the process
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return fmt.Errorf("error finding process %d: %w", pid, err)
-	}
-
-	// Kill the process
-	if err := process.Kill(); err != nil {
-		return fmt.Errorf("error killing process %d: %w", pid, err)
-	}
-	// Debug: the provisioner already announced this shutdown at info, and one kernel going away does
-	// not need two lines.
-	log.Debug().Msgf("process %d killed successfully", pid)
-	return nil
 }

@@ -5,9 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"hash"
 	"os"
+	"slices"
 
 	"github.com/rs/zerolog/log"
 
@@ -60,14 +60,16 @@ func (ks *KernelSession) SendStreamMsg(stream zmq4.Socket, msg Message) Message 
 	if ks.CheckPid && os.Getpid() != ks.Pid {
 		log.Info().Msgf("WARNING: attempted to send message from fork %+v", msg)
 	}
-	toSend := ks.serialize(msg)
-	// var tracker error
-	err := stream.SendMulti(zmq4.NewMsgFrom(toSend...))
-	if err != nil {
+	if err := ks.send(stream, msg); err != nil {
 		log.Error().Err(err).Msg("failed to send message")
 	}
 	msg.Tracker = 0 // Set to default value since we're not tracking
 	return msg
+}
+
+// send signs msg and puts it on stream.
+func (ks *KernelSession) send(stream zmq4.Socket, msg Message) error {
+	return stream.SendMulti(zmq4.NewMsgFrom(ks.serialize(msg)...))
 }
 
 // [
@@ -184,26 +186,17 @@ a browser is sent, which on that path there is nobody to send. jupyter_server's 
 the same place and the same way: the header first, and the content only for a status.
 */
 func (ks *KernelSession) PublishedState(zmsg zmq4.Msg) string {
-	frames := zmsg.Frames
-
-	// The zmq identities come first and there can be any number of them, so the delimiter is where the
-	// message starts. A frame list without one, or with less behind it than a signature and the four
-	// frames it covers, is not a message this can read.
-	i := 0
-	for i < len(frames) && string(frames[i]) != DELIM {
-		i++
-	}
-	if i+5 >= len(frames) {
+	signature, signed, _, ok := splitFrames(zmsg.Frames)
+	if !ok {
 		return ""
 	}
-
-	if len(ks.Key) != 0 && !hmac.Equal(frames[i+1], []byte(ks.sign(frames[i+2:i+6]))) {
+	if !ks.signedBy(signature, signed) {
 		log.Error().Msg("ignoring a published message that is not signed with this kernel's key")
 		return ""
 	}
 
 	var header MessageHeader
-	if err := json.Unmarshal(frames[i+2], &header); err != nil || header.MsgType != "status" {
+	if err := json.Unmarshal(signed[0], &header); err != nil || header.MsgType != "status" {
 		return ""
 	}
 
@@ -212,81 +205,61 @@ func (ks *KernelSession) PublishedState(zmsg zmq4.Msg) string {
 	var content struct {
 		ExecutionState string `json:"execution_state"`
 	}
-	if err := json.Unmarshal(frames[i+5], &content); err != nil {
+	if err := json.Unmarshal(signed[3], &content); err != nil {
 		return ""
 	}
 	return content.ExecutionState
 }
 
-func (ks *KernelSession) Deserialize(zmsg zmq4.Msg, chanel string) []byte {
-
-	msg := zmsg.Bytes()
-	log.Debug().Msgf("Received from IoPub socket: %s\n", msg)
-
-	frames := zmsg.Frames
-
-	kernelResponseMsg := Message{}
-
-	i := 0
-
-	for string(frames[i]) != "<IDS|MSG>" {
-		i++
+/*
+Deserialize turns a kernel's message into the JSON a browser is sent. It answers nil for frames that
+are not a whole message, are not signed with this kernel's key, or do not parse: nothing is forwarded
+that the kernel did not send, and nothing a kernel sends can panic the poller reading it.
+*/
+func (ks *KernelSession) Deserialize(zmsg zmq4.Msg, channel string) []byte {
+	signature, signed, buffers, ok := splitFrames(zmsg.Frames)
+	if !ok {
+		log.Warn().Str("channel", channel).Int("frames", len(zmsg.Frames)).Msg("ignoring frames that are not a kernel message")
+		return nil
+	}
+	if !ks.signedBy(signature, signed) {
+		log.Error().Str("channel", channel).Msg("ignoring a message that is not signed with this kernel's key")
+		return nil
 	}
 
-	// Validate signature.
-	if len(ks.Key) != 0 {
-		mac := hmac.New(sha256.New, []byte(ks.Key))
-		for _, frame := range frames[i+2 : i+6] {
-			mac.Write(frame)
+	message := Message{Channel: channel}
+	for part, into := range []interface{}{&message.Header, &message.ParentHeader, &message.Metadata, &message.Content} {
+		if err := json.Unmarshal(signed[part], into); err != nil {
+			log.Warn().Err(err).Str("channel", channel).Msg("ignoring a kernel message that is not valid JSON")
+			return nil
 		}
-		signature := make([]byte, hex.DecodedLen(len(frames[i+1])))
-		_, err := hex.Decode(signature, frames[i+1])
-		if err != nil {
-			kernelResponseMsg.Error = fmt.Errorf("invalid signature: while decoding message")
-			jsonBytes, _ := json.Marshal(kernelResponseMsg)
-			return jsonBytes
-		}
-		if !hmac.Equal(mac.Sum(nil), signature) {
-			kernelResponseMsg.Error = fmt.Errorf("invalid signature: while comparing message")
-			jsonBytes, _ := json.Marshal(kernelResponseMsg)
-			return jsonBytes
-		}
-	}
-
-	// Unmarshal contents.
-	var err error
-	err = json.Unmarshal(frames[i+2], &kernelResponseMsg.Header)
-	if err != nil {
-		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling Header: %w", err)
-	}
-	err = json.Unmarshal(frames[i+3], &kernelResponseMsg.ParentHeader)
-	if err != nil {
-		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling ParentHeader: %w", err)
-
-	}
-	err = json.Unmarshal(frames[i+4], &kernelResponseMsg.Metadata)
-	if err != nil {
-		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling Metadata: %w", err)
-	}
-	err = json.Unmarshal(frames[i+5], &kernelResponseMsg.Content)
-	if err != nil {
-		kernelResponseMsg.Error = fmt.Errorf("error unmarshalling Content: %w", err)
 	}
 
 	// Anything past the content is a binary buffer, and belongs to whoever asked for the message:
 	// widget state names its buffers by position (`buffer_paths`), so they travel on and are not read
 	// here.
-	if len(frames) > i+6 {
-		kernelResponseMsg.Buffers = frames[i+6:]
+	if len(buffers) > 0 {
+		message.Buffers = buffers
 	}
 
-	kernelResponseMsg.Channel = chanel
-
-	jsonBytes, err := json.Marshal(kernelResponseMsg)
+	jsonBytes, err := json.Marshal(message)
 	if err != nil {
 		log.Error().Msgf("Error marshaling message: %v", err)
 		return nil
 	}
 	return jsonBytes
+}
 
+// splitFrames finds the message in the frames that carry it. Routing identities come first, in any
+// number, so the delimiter is where it starts; ok is false for frames that are not a whole message.
+func splitFrames(frames [][]byte) (signature []byte, signed [][]byte, buffers [][]byte, ok bool) {
+	i := slices.IndexFunc(frames, func(frame []byte) bool { return string(frame) == DELIM })
+	if i < 0 || len(frames) < i+6 {
+		return nil, nil, nil, false
+	}
+	return frames[i+1], frames[i+2 : i+6], frames[i+6:], true
+}
+
+func (ks *KernelSession) signedBy(signature []byte, signed [][]byte) bool {
+	return len(ks.Key) == 0 || hmac.Equal(signature, []byte(ks.sign(signed)))
 }

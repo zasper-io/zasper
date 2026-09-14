@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"sync"
 	"testing"
@@ -142,8 +143,12 @@ func TestASessionRunsAKernelUntilItIsDeleted(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Len(t, decode[[]models.KernelModel](t, body), 1)
 
-	// An interrupt on an idle kernel is a SIGINT it shrugs off; what is under test is that it reaches
-	// the kernel's own pid rather than the process group, which would take this test process with it.
+	// An interrupt on an idle kernel is a SIGINT it shrugs off; what is under test is that it reaches the
+	// kernel's own process group rather than the server's, which would take this test process with it.
+	// Only once the kernel has answered: a SIGINT that lands before Python has installed its handler ends
+	// the kernel, and the server would rightly let it go.
+	conn := kernelSocket(t, srv, created)
+	awaitIdle(t, conn, executeOverSocket(t, conn, created.Id, "1 + 1"), 30*time.Second)
 	status, _ = call(t, srv, http.MethodPost, "/api/kernels/"+created.Kernel.Id+"/interrupt", nil)
 	assert.Equal(t, http.StatusOK, status)
 
@@ -619,5 +624,141 @@ func awaitConnections(t *testing.T, srv *httptest.Server, kernelId string, want 
 			t.Fatalf("kernel %s reports %d connections, want %d", kernelId, got, want)
 		}
 		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// A kernel asked to stop gets to run its own cleanup before anything is signalled.
+func TestAStoppedKernelShutsDownCleanly(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+	marker := filepath.Join(t.TempDir(), "shut-down")
+
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+	conn := kernelSocket(t, srv, created)
+	msgId := executeOverSocket(t, conn, created.Id,
+		"import atexit; atexit.register(lambda: open(r'"+marker+"', 'w').write('bye'))")
+	awaitIdle(t, conn, msgId, 30*time.Second)
+
+	status, body := call(t, srv, http.MethodDelete, "/api/sessions/"+created.Id, nil)
+	require.Equal(t, http.StatusOK, status, "body was %s", body)
+
+	// Stopping waits for the kernel to exit, so its atexit handler has run by the time the delete answers.
+	written, err := os.ReadFile(marker)
+	require.NoError(t, err, "the kernel was stopped before it could run its atexit handler")
+	assert.Equal(t, "bye", string(written))
+}
+
+// A kernel that exits by itself is let go of, rather than listed and joined as if it were running.
+func TestAKernelThatExitsOnItsOwnIsLetGo(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+	conn := kernelSocket(t, srv, created)
+	awaitIdle(t, conn, executeOverSocket(t, conn, created.Id, "1 + 1"), 30*time.Second)
+
+	executeOverSocket(t, conn, created.Id, "import os; os._exit(1)")
+	awaitClosed(t, conn, 15*time.Second)
+
+	status, _ := call(t, srv, http.MethodGet, "/api/kernels/"+created.Kernel.Id, nil)
+	assert.Equal(t, http.StatusNotFound, status)
+
+	status, body := call(t, srv, http.MethodGet, "/api/sessions", nil)
+	require.Equal(t, http.StatusOK, status)
+	assert.Empty(t, decode[map[string]models.SessionModel](t, body))
+}
+
+// A running cell stops when its kernel is interrupted: by SIGINT, or by message when the kernelspec asks.
+func TestInterruptStopsARunningCell(t *testing.T) {
+	for _, mode := range []string{"signal", "message"} {
+		t.Run(mode, func(t *testing.T) {
+			srv, project := testServer(t)
+			kernelName := requireKernel(t)
+			if mode == "message" {
+				kernelName = messageInterruptKernelspec(t, kernelName)
+			}
+
+			created := startSession(t, srv, project, kernelName, "notes.ipynb")
+			conn := kernelSocket(t, srv, created)
+			msgId := executeOverSocket(t, conn, created.Id, "import time; time.sleep(60)")
+			awaitMessage(t, conn, msgId, "execute_input", 30*time.Second)
+
+			status, body := call(t, srv, http.MethodPost, "/api/kernels/"+created.Kernel.Id+"/interrupt", nil)
+			require.Equal(t, http.StatusOK, status, "body was %s", body)
+
+			content := awaitMessage(t, conn, msgId, "error", 15*time.Second)
+			assert.Equal(t, "KeyboardInterrupt", content["ename"])
+		})
+	}
+}
+
+// messageInterruptKernelspec installs a copy of name's kernelspec that asks to be interrupted by message,
+// and answers with the copy's name.
+func messageInterruptKernelspec(t *testing.T, name string) string {
+	t.Helper()
+
+	spec := kernelspec.GetAllSpecs()[name].Spec
+	require.NotEmpty(t, spec.Argv, "kernelspec %s has no argv", name)
+
+	// The copy lives outside any Python's share/jupyter, so its interpreter is fixed here.
+	argv := slices.Clone(spec.Argv)
+	if interpreter := kernelspec.Interpreter(spec.ResourceDir); interpreter != "" && !filepath.IsAbs(argv[0]) {
+		argv[0] = interpreter
+	}
+
+	root := t.TempDir()
+	dir := filepath.Join(root, "kernels", "message-interrupt")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	kernelJson, err := json.Marshal(map[string]any{
+		"argv": argv, "display_name": "message interrupt", "language": spec.Language,
+		"env": spec.Env, "interrupt_mode": "message",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.json"), kernelJson, 0o644))
+
+	restore := core.Zasper.JupyterPath
+	core.Zasper.JupyterPath = append([]string{root}, restore...)
+	t.Cleanup(func() { core.Zasper.JupyterPath = restore })
+
+	return "message-interrupt"
+}
+
+// awaitMessage reads until a message of msgType answering msgId arrives, and answers with its content.
+func awaitMessage(t *testing.T, conn *websocket.Conn, msgId, msgType string, within time.Duration) map[string]any {
+	t.Helper()
+
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(within)))
+	for {
+		_, raw, err := conn.ReadMessage()
+		require.NoError(t, err, "no %s arrived", msgType)
+
+		var message struct {
+			Header struct {
+				MsgType string `json:"msg_type"`
+			} `json:"header"`
+			ParentHeader struct {
+				MsgId string `json:"msg_id"`
+			} `json:"parent_header"`
+			Content map[string]any `json:"content"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &message))
+
+		if message.Header.MsgType == msgType && message.ParentHeader.MsgId == msgId {
+			return message.Content
+		}
+	}
+}
+
+// awaitClosed reads until the server closes conn, and fails if it is still open after within.
+func awaitClosed(t *testing.T, conn *websocket.Conn, within time.Duration) {
+	t.Helper()
+
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(within)))
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			var expired net.Error
+			require.False(t, errors.As(err, &expired) && expired.Timeout(), "the socket stayed open")
+			return
+		}
 	}
 }
