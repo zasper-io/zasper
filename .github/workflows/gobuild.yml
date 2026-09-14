@@ -14,12 +14,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version: '1.26'
+
+    # GoReleaser used to run `go mod tidy` before building, so a release could be built from a go.mod that
+    # was not the one reviewed. The check is here instead.
+    - name: go.mod is tidy
+      run: go mod tidy -diff
 
     - name: Build
       run: go build -tags apiserver -v ./...
@@ -38,31 +43,38 @@ jobs:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version: '1.26'
 
     - name: Vet
       run: go vet -tags apiserver ./...
 
-    # Windows is built and vetted but not yet tested: its terminal and kernel interrupt are not
-    # supported, and the tests that open them would fail for that reason alone.
     - name: Test
       if: runner.os != 'Windows'
       run: go test -race -tags apiserver ./...
+
+    # Not gating yet: nothing had run the Go tests on Windows before, which has no terminal (ConPTY) and
+    # interrupts a kernel differently. The tests that need either skip themselves; make this gate once
+    # it has been green. No -race, which needs cgo, and no internal/server, whose journeys use sh.
+    - name: Test (Windows, not gating yet)
+      if: runner.os == 'Windows'
+      continue-on-error: true
+      shell: bash
+      run: go test -tags apiserver $(go list -tags apiserver ./... | grep -v /internal/server)
 
   govulncheck:
     name: Known vulnerabilities
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     # govulncheck v1.8.0 has to be built with a newer Go than the 1.26 Zasper builds with.
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version: stable
 

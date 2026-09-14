@@ -42,7 +42,7 @@ jobs:
     name: Test before releasing
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # The tag is pushed by hand after the release PR merges, so nothing else ties it to the version
       # that was reviewed. A v1.0.1 tag on a commit whose version.txt says 1.0.0 would ship binaries
@@ -58,12 +58,12 @@ jobs:
           fi
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: '1.26'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22.12'
 
@@ -100,7 +100,7 @@ jobs:
         run: go test -race -tags apiserver ./...
 
       - name: Validate the release config
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           version: '~> v2'
           args: check
@@ -124,21 +124,21 @@ jobs:
       POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # GoReleaser reads the tag history to work out the version and the previous tag; the
           # default shallow clone leaves it guessing.
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           # Matches the toolchain in go.mod. It was 1.24 while go.mod asked for 1.25, which only
           # worked because GOTOOLCHAIN=auto silently downloaded the difference.
           go-version: '1.26'
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22.12'
 
@@ -150,7 +150,7 @@ jobs:
           test -s "$RUNNER_TEMP/release-notes.md"
 
       - name: Build and Release Go Binary with GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           version: '~> v2'
           args: release --clean --release-notes=${{ runner.temp }}/release-notes.md

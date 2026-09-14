@@ -16,8 +16,8 @@ jobs:
     name: safedep vet
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: safedep/vet-action@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: safedep/vet-action@e2a78850eb517b8305b1085bca947bef29213a22 # v1
         with:
           policy: .github/vet/policy.yml
           enable-comments-proxy: true

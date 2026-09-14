@@ -1,7 +1,7 @@
 # A bare `make` lists the targets rather than running whichever happens to come first.
 .DEFAULT_GOAL := help
 
-# Verion Variables
+# Version variables
 VERSION_FILE = version.txt
 TAG_PREFIX = v
 DEFAULT_VERSION = 0.0.1
@@ -10,7 +10,6 @@ MINOR_BUMP = minor
 PATCH_BUMP = patch
 ALPHA_SUFFIX = -alpha
 BETA_SUFFIX = -beta
-TAG_REGEX = '^[0-9]\+\.[0-9]\+\.[0-9]\+$$'  # Regex to match semantic version format (X.Y.Z)
 
 # Get the current version from version.txt or set to default if file does not exist
 CURRENT_VERSION = $(shell if [ -f $(VERSION_FILE) ]; then cat $(VERSION_FILE); else echo $(DEFAULT_VERSION); fi)
@@ -134,9 +133,14 @@ build: $(UI_BUILD)
 
 # -tags apiserver serves ui/build from disk rather than embedding it, which a fresh clone does not have
 # yet; in development Vite serves the frontend anyway.
+#
+# Vite runs in the background, where a non-interactive shell ignores Ctrl-C, so it is stopped by pid when
+# the backend exits. Run directly rather than through `npm start`, so that pid is Vite itself.
 dev: $(UI_DEPS) | check-tools
 	@echo "Starting the frontend and backend in development..."
-	(cd ui && npm start) & go run -tags apiserver . --no-browser
+	@(cd ui && exec ./node_modules/.bin/vite) & ui=$$!; \
+	trap 'kill $$ui 2>/dev/null' EXIT INT TERM; \
+	go run -tags apiserver . --no-browser
 
 install: $(UI_BUILD)
 	@echo "Installing zasper..."
@@ -173,4 +177,4 @@ e2e-api:
 # build tests a stale app.
 e2e-browser: $(UI_BUILD)
 	@echo "Running the browser journeys"
-	cd e2e && npm install && npx playwright test
+	cd e2e && npm ci && npx playwright test

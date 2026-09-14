@@ -26,56 +26,54 @@ parts:
     build-packages:
       - make
       - gcc
-      - golang-go
       - curl
-      - gnupg
+      - xz-utils
     override-build: |
-      # Install Node.js 20.x
-      curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-      apt-get update
-      apt-get install -y nodejs curl gnupg make gcc
+      set -eu
 
-      # Remove old golang-go
-      apt-get remove -y golang-go || true
-
-      ARCH=$(dpkg --print-architecture)
-      case "$ARCH" in
+      # Both toolchains are downloaded by version and checked against their published SHA-256, rather than
+      # piping NodeSource's setup script into bash and trusting an unchecked Go tarball. snap.yml builds
+      # natively on amd64 and arm64, so those are the architectures listed.
+      GO_VERSION=1.26.8
+      NODE_VERSION=22.23.2
+      case "$(dpkg --print-architecture)" in
         amd64)
-          GO_TAR=go1.26.8.linux-amd64.tar.gz
+          GO_ARCH=amd64
+          GO_SHA256=d0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b
+          NODE_ARCH=x64
+          NODE_SHA256=d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307
           ;;
         arm64)
-          GO_TAR=go1.26.8.linux-arm64.tar.gz
-          ;;
-        ppc64el)
-          GO_TAR=go1.26.8.linux-ppc64le.tar.gz
-          ;;
-        s390x)
-          GO_TAR=go1.26.8.linux-s390x.tar.gz
-          ;;
-        riscv64)
-          GO_TAR=go1.26.8.linux-riscv64.tar.gz
-          ;;
-        armhf)
-          GO_TAR=go1.26.8.linux-armv6l.tar.gz  # closest for armhf
+          GO_ARCH=arm64
+          GO_SHA256=211ffced9dcb9633a55eac6364816ec0ddd951389a740e88fa8b3337971bdda0
+          NODE_ARCH=arm64
+          NODE_SHA256=fff4078c5def658577f92c88db7db3bc0072924bfb93fe52c1e744a54e94abb8
           ;;
         *)
-          echo "Unsupported architecture $ARCH"
+          echo "Unsupported architecture $(dpkg --print-architecture)"
           exit 1
           ;;
       esac
 
-      curl -L -O https://go.dev/dl/$GO_TAR
+      GO_TAR="go$GO_VERSION.linux-$GO_ARCH.tar.gz"
+      curl -fsSL -o "$GO_TAR" "https://go.dev/dl/$GO_TAR"
+      echo "$GO_SHA256  $GO_TAR" | sha256sum -c -
       rm -rf /usr/local/go
-      tar -C /usr/local -xzf $GO_TAR
-      export PATH=/usr/local/go/bin:$PATH
-      go version
+      tar -C /usr/local -xzf "$GO_TAR"
 
-      # Build steps
+      NODE_TAR="node-v$NODE_VERSION-linux-$NODE_ARCH.tar.xz"
+      curl -fsSL -o "$NODE_TAR" "https://nodejs.org/dist/v$NODE_VERSION/$NODE_TAR"
+      echo "$NODE_SHA256  $NODE_TAR" | sha256sum -c -
+      rm -rf /usr/local/node
+      mkdir -p /usr/local/node
+      tar -C /usr/local/node --strip-components=1 -xJf "$NODE_TAR"
+
+      export PATH="/usr/local/go/bin:/usr/local/node/bin:$PATH"
+      go version
+      node --version
+
       make init
       make build
-      ls -l
 
-      # Install binary
-      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
-      cp zasper $SNAPCRAFT_PART_INSTALL/bin/
-      ls -l $SNAPCRAFT_PART_INSTALL/bin
+      mkdir -p "$SNAPCRAFT_PART_INSTALL/bin"
+      cp zasper "$SNAPCRAFT_PART_INSTALL/bin/"

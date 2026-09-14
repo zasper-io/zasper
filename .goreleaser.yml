@@ -4,10 +4,10 @@ version: 2
 
 before:
   hooks:
-    - go mod tidy
+    # No `go mod tidy`: a release is built from the go.mod that was reviewed, and CI checks it is tidy.
     # ui/build is not in git and spa.go embeds it, so the frontend has to exist before the Go build.
     - npm --prefix ./ui ci
-    - env CI=false npm --prefix ./ui run build
+    - npm --prefix ./ui run build
 
 builds:
   - id: zasper
