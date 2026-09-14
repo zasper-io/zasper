@@ -65,6 +65,11 @@ export interface ITabActions {
    * plugs back into that session, with everything still in memory.
    */
   closeTab: (path: string) => void;
+  /**
+   * Closes several tabs at once, kernels left running as `closeTab` leaves them. If the tab in front
+   * goes, `focus` comes to the front when it is still open, and the Launcher otherwise.
+   */
+  closeTabs: (paths: string[], focus?: string) => void;
   /** After a delete on disk: closes the tab, and every tab inside it if it was a folder. */
   closeDeleted: (path: string) => void;
   /** After a rename on disk: moves the affected tabs, so a save goes to the file that now exists. */
@@ -135,7 +140,7 @@ export function useTabActions(): ITabActions {
     });
   };
 
-  const removeTabs = (paths: string[]) => {
+  const removeTabs = (paths: string[], focus?: string) => {
     if (paths.length === 0) {
       return;
     }
@@ -147,10 +152,16 @@ export function useTabActions(): ITabActions {
           next[key] = { ...tab, load_required: false };
         }
       });
-      // Something has to be in front once a tab goes, and the Launcher is the one tab always there.
-      // Only when the tab that went was the one in front, or closing a background tab shows two.
-      const anyActive = Object.values(next).some((tab) => tab.active);
-      if (!anyActive && next.Launcher) {
+      // Something has to be in front once a tab goes: the tab a close was measured from if it stayed,
+      // or the Launcher, the one tab always there. Only when the tab that went was the one in front,
+      // or closing a background tab shows two.
+      if (Object.values(next).some((tab) => tab.active)) {
+        return next;
+      }
+      if (focus !== undefined && next[focus] !== undefined) {
+        return withActive(next, focus);
+      }
+      if (next.Launcher) {
         next.Launcher = { ...next.Launcher, active: true };
       }
       return next;
@@ -205,6 +216,8 @@ export function useTabActions(): ITabActions {
     },
 
     closeTab: (path: string) => removeTabs([path]),
+
+    closeTabs: (paths: string[], focus?: string) => removeTabs(paths, focus),
 
     closeDeleted: (path: string) => {
       // The one close that does take the kernel with it: the file is gone, so there is no reopening the

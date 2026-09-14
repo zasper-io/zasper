@@ -67,16 +67,17 @@ save function, which each editor registers while it has unsaved work.
 
 Every change to the set of tabs goes through `useTabActions()`:
 
-| Action                | What it is for                                                                                                                                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `openTab(tab)`        | Open a path, or bring it to the front if it is already open.                                                                                                                    |
-| `activateTab(path)`   | Bring an open tab to the front. A no-op for a path that is not open.                                                                                                            |
-| `openDiff(target)`    | Open one comparison of one file.                                                                                                                                                |
-| `openHelp(section?)`  | Open the Help tab; `'about'` also scrolls it to About.                                                                                                                          |
-| `openTerminal(cwd?)`  | Open a numbered terminal.                                                                                                                                                       |
-| `closeTab(path)`      | Close a tab. **The kernel keeps running**, as in JupyterLab.                                                                                                                    |
-| `closeDeleted(path)`  | After a delete on disk: close the tab, and everything inside it if it was a folder. **This one does kill the kernels**, since there is no reopening the notebook to reach them. |
-| `renameTab(old, new)` | After a rename: move the affected tabs, so a save goes to the file that now exists.                                                                                             |
+| Action                     | What it is for                                                                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openTab(tab)`             | Open a path, or bring it to the front if it is already open.                                                                                                                    |
+| `activateTab(path)`        | Bring an open tab to the front. A no-op for a path that is not open.                                                                                                            |
+| `openDiff(target)`         | Open one comparison of one file.                                                                                                                                                |
+| `openHelp(section?)`       | Open the Help tab; `'about'` also scrolls it to About.                                                                                                                          |
+| `openTerminal(cwd?)`       | Open a numbered terminal.                                                                                                                                                       |
+| `closeTab(path)`           | Close a tab. **The kernel keeps running**, as in JupyterLab.                                                                                                                    |
+| `closeTabs(paths, focus?)` | Close several tabs, for the tab menu's closes. If the tab in front goes, `focus` comes forward when it is still open, and the Launcher otherwise.                               |
+| `closeDeleted(path)`       | After a delete on disk: close the tab, and everything inside it if it was a folder. **This one does kill the kernels**, since there is no reopening the notebook to reach them. |
+| `renameTab(old, new)`      | After a rename: move the affected tabs, so a save goes to the file that now exists.                                                                                             |
 
 It is shared because the file browser, the command palette, the Git panel, the Jupyter panel and the
 Launcher all open tabs, and a tab left pointing at a path that no longer exists recreates the old file
@@ -165,6 +166,15 @@ last changed its strip.
 
 The × asks first when a tab is unsaved: `unsavedTabsAtom` is what the strip reads to draw the dot and
 to know whether to raise the dialog, and "Save" runs the editor's own save function before closing.
+
+Right-clicking a tab opens its menu: Close, Close Others, Close to the Right, Close to the Left, Close
+Saved and Close All, then Copy Path and Reveal in File Explorer on a tab that is a file. They are the
+`tab:*` commands in [tabCommands.ts](tabCommands.ts), so the palette and the keyboard reach them too,
+acting on the tab in front: Alt-W closes it and the other closes are Alt-Shift-O, R, L, S and W. Alt
+because ⌘W and Ctrl-W close the browser's tab before the page hears of them. No close ever takes the
+Launcher. Tabs with nothing unsaved close at once, and the unsaved ones are asked about in one dialog —
+"Save All" saves each and closes them, and a failed save closes what did save and keeps asking about
+the rest.
 
 A restored tab can name a file that has since been deleted, which used to be a quiet hazard: the read
 rejected unhandled, the editor stood there looking like an empty file, and saving it wrote the deleted

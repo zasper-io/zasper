@@ -42,6 +42,12 @@ interface MenuItem {
    * is a menu that should be shorter, and this way it cannot have two.
    */
   danger?: boolean;
+  /**
+   * Starts the part of the menu below the separator, for a menu whose second kind of row is not a
+   * destructive one — a tab's closes, then its path. Still one separator: it goes before whichever
+   * row asks first.
+   */
+  separated?: boolean;
 }
 
 interface ContextMenuProps {
@@ -86,8 +92,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
     onClose();
   };
 
-  // Where the red rows start, which is where the one separator goes.
-  const firstDanger = items.findIndex((item) => item.danger === true);
+  // Where the red rows or a `separated` row start, which is where the one separator goes.
+  const firstApart = items.findIndex((item) => item.danger === true || item.separated === true);
 
   const rowClassName = (item: MenuItem) => {
     const classes = ['panel-row'];
@@ -108,7 +114,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
       <ul className="z-overlay-list" role="menu">
         {items.map((item, index) => (
           <React.Fragment key={index}>
-            {index === firstDanger && index > 0 && (
+            {index === firstApart && index > 0 && (
               <li className="z-overlay-separator" role="separator" />
             )}
             {/* A heading only where the group changes, so a run of rows sits under one. */}

@@ -83,7 +83,12 @@ export function chordMatches(binding: string, event: KeyboardEvent, mac: boolean
   if (shiftIsSignificant(chord.key) && chord.shift !== event.shiftKey) {
     return false;
   }
-  return chord.key.toLowerCase() === event.key.toLowerCase();
+  if (chord.key.toLowerCase() === event.key.toLowerCase()) {
+    return true;
+  }
+  // With Option held a mac layout types a character instead — ⌥W arrives as `∑` — so an Alt chord on a
+  // letter is also matched on the physical key.
+  return chord.alt && /^[a-z]$/i.test(chord.key) && event.code === `Key${chord.key.toUpperCase()}`;
 }
 
 function shiftIsSignificant(key: string): boolean {

@@ -192,7 +192,7 @@ function IDE() {
           <PanelResizeHandle className="panelResizeHandle" />
           <Panel defaultSize={80} minSize={50}>
             <div className="main-content">
-              <TabIndex />
+              <TabIndex onShowFileBrowser={() => showPanel('fileBrowser')} />
               <ContentPanel />
             </div>
           </Panel>

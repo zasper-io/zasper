@@ -70,6 +70,15 @@ describe('chordMatches', () => {
     expect(chordMatches('Ctrl-a', keydown('a', { ctrlKey: true }), MAC)).toBe(true);
     expect(chordMatches('Ctrl-a', keydown('a', { metaKey: true }), MAC)).toBe(false);
   });
+
+  it('matches an Alt letter chord on the physical key, since Option types a character on mac', () => {
+    expect(chordMatches('Alt-w', keydown('∑', { altKey: true, code: 'KeyW' }), MAC)).toBe(true);
+    expect(
+      chordMatches('Alt-Shift-w', keydown('„', { altKey: true, shiftKey: true, code: 'KeyW' }), MAC)
+    ).toBe(true);
+    expect(chordMatches('Alt-w', keydown('œ', { altKey: true, code: 'KeyQ' }), MAC)).toBe(false);
+    expect(chordMatches('Mod-w', keydown('∑', { metaKey: true, code: 'KeyW' }), MAC)).toBe(false);
+  });
 });
 
 describe('formatChord', () => {

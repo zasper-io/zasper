@@ -40,7 +40,8 @@ function restored(path: string, type = 'file'): IfileTab {
 
 /** The open tabs, the name each shows, and which notebooks still hold a kernel. */
 function Harness() {
-  const { activateTab, closeTab, closeDeleted, renameTab, openDiff, openTab } = useTabActions();
+  const { activateTab, closeTab, closeTabs, closeDeleted, renameTab, openDiff, openTab } =
+    useTabActions();
   const openTabs = useAtomValue(fileTabsAtom);
   const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
 
@@ -101,6 +102,12 @@ function Harness() {
       </button>
       <button type="button" onClick={() => closeTab('notes.txt')}>
         close notes
+      </button>
+      <button
+        type="button"
+        onClick={() => closeTabs(['notes.txt', 'src/demo.ipynb'], 'src/main.py')}
+      >
+        close all but main
       </button>
       <button type="button" onClick={() => closeDeleted('src')}>
         delete src
@@ -165,6 +172,16 @@ describe('useTabActions', () => {
     expect(text('tabs')).toBe('Launcher,notes.txt,src/main.py');
     expect(deleteKernel).not.toHaveBeenCalled();
     expect(text('kernels')).toBe('src/demo.ipynb');
+  });
+
+  it('closes several tabs, bringing the named tab forward when the one in front went', () => {
+    renderHarness({ ...tabs, 'notes.txt': { ...tabs['notes.txt'], active: true } });
+
+    fireEvent.click(screen.getByText('close all but main'));
+
+    expect(text('tabs')).toBe('Launcher,src/main.py');
+    expect(text('active')).toBe('src/main.py');
+    expect(deleteKernel).not.toHaveBeenCalled();
   });
 
   // A kernel outlives its tab, so the delete cannot look at the tabs to find it.

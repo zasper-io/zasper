@@ -1,13 +1,28 @@
 import { useAtomValue } from 'jotai';
 import React from 'react';
-import { fileTabsAtom, IfileTab } from '@/store/TabState';
+import { toast } from 'react-toastify';
+import { activeTabPathAtom, fileTabsAtom, IfileTab } from '@/store/TabState';
 import { useTabActions } from '@/store/TabActions';
 import { unsavedTabsAtom } from '@/store/UnsavedState';
 import './TabIndex.scss';
 import { apiErrorMessage } from '@/api';
+import { copyToClipboard } from '@/browser';
+import { formatChord } from '@/commands/keys';
+import { useRegisterCommands } from '@/commands/registry';
+import { ICommand } from '@/commands/types';
 import { FileMark, Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
+import ContextMenu from '@/ide/sidebar/ContextMenu/ContextMenu';
+import { useRevealInTree } from '@/ide/sidebar/FileBrowser/useRevealInTree';
 import Tooltip from '@/ide/Tooltip';
+import {
+  CLOSE_COMMANDS,
+  CloseScope,
+  keepsTarget,
+  TAB_COMMANDS,
+  tabFilePath,
+  tabsToClose,
+} from './tabCommands';
 import UnsavedChangesDialog from './UnsavedChangesDialog';
 
 /**
@@ -31,55 +46,157 @@ function TabMark({ tab }: { tab: IfileTab }) {
   return <FileMark name={tab.diff?.path ?? tab.name} className="tabIcon" />;
 }
 
-export default function TabIndex() {
+interface TabIndexProps {
+  /** Brings the file explorer into view, for Reveal in File Explorer. */
+  onShowFileBrowser: () => void;
+}
+
+interface IPendingClose {
+  /** The unsaved tabs the prompt is asking about, in strip order. */
+  keys: string[];
+  /** The tab to bring to the front if the front tab goes; see `keepsTarget`. */
+  focus?: string;
+}
+
+export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   const fileTabsState = useAtomValue(fileTabsAtom);
-  const { activateTab, closeTab } = useTabActions();
+  const activePath = useAtomValue(activeTabPathAtom);
+  const { activateTab, closeTabs } = useTabActions();
   const unsavedTabs = useAtomValue(unsavedTabsAtom);
-  /** The tab waiting on an answer to the save prompt, if one is open. */
-  const [pendingClose, setPendingClose] = React.useState<string | null>(null);
+  const revealInTree = useRevealInTree();
+  const [pendingClose, setPendingClose] = React.useState<IPendingClose | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
+  const [menu, setMenu] = React.useState<{ key: string; xPos: number; yPos: number } | null>(null);
 
-  const handleTabClose = (e: React.MouseEvent, key: string) => {
-    e.stopPropagation();
-
-    // An unsaved tab is asked about rather than closed: discarding the work has to be an answer,
-    // not a side effect of the click.
-    if (unsavedTabs[key]) {
-      setPendingClose(key);
+  // Tabs with nothing unsaved close at once. The unsaved ones are asked about in one prompt, however
+  // many there are: discarding the work has to be an answer, not a side effect of the click.
+  const requestClose = (keys: string[], focus?: string) => {
+    const unsaved = keys.filter((key) => unsavedTabs[key] !== undefined);
+    closeTabs(
+      keys.filter((key) => unsavedTabs[key] === undefined),
+      focus
+    );
+    if (unsaved.length > 0) {
+      setPendingClose({ keys: unsaved, focus });
       setSaveError('');
-      return;
     }
-    closeTab(key);
   };
+
+  const closeScope = (scope: CloseScope, target: string) =>
+    requestClose(
+      tabsToClose(fileTabsState, target, scope, unsavedTabs),
+      keepsTarget(scope) ? target : undefined
+    );
 
   const saveAndClose = async () => {
     if (!pendingClose) {
       return;
     }
-    const key = pendingClose;
+    const { keys, focus } = pendingClose;
     setSaving(true);
     setSaveError('');
+    const saved: string[] = [];
     try {
-      await unsavedTabs[key]();
+      for (const key of keys) {
+        await unsavedTabs[key]();
+        saved.push(key);
+      }
     } catch (error: unknown) {
-      // Left open on the reason the server gave: the editor is holding the only copy of the work.
+      // Left open on the reason the server gave, over the files still unsaved: their editors hold
+      // the only copy of the work. What did save closes, as asked.
+      closeTabs(saved, focus);
+      setPendingClose({ keys: keys.filter((key) => !saved.includes(key)), focus });
       setSaveError(apiErrorMessage(error));
       setSaving(false);
       return;
     }
     setSaving(false);
     setPendingClose(null);
-    closeTab(key);
+    closeTabs(keys, focus);
   };
 
   const discardAndClose = () => {
     if (!pendingClose) {
       return;
     }
-    const key = pendingClose;
     setPendingClose(null);
-    closeTab(key);
+    closeTabs(pendingClose.keys, pendingClose.focus);
+  };
+
+  const copyPath = async (path: string) => {
+    if (!(await copyToClipboard(path))) {
+      // The Clipboard API is only there over HTTPS or on localhost.
+      toast.error('The browser would not allow writing to the clipboard.');
+    }
+  };
+
+  const reveal = (path: string) => {
+    onShowFileBrowser();
+    void revealInTree(path);
+  };
+
+  const pathOf = (key: string): string | null => {
+    const tab = fileTabsState[key];
+    return tab === undefined ? null : tabFilePath(tab);
+  };
+
+  // A close while the prompt is up would replace the question being answered.
+  const commands: ICommand[] = [
+    ...CLOSE_COMMANDS.map(({ id, scope }) => ({
+      ...TAB_COMMANDS[id],
+      isEnabled: () =>
+        pendingClose === null &&
+        tabsToClose(fileTabsState, activePath, scope, unsavedTabs).length > 0,
+      execute: () => closeScope(scope, activePath),
+    })),
+    {
+      ...TAB_COMMANDS['tab:copy-path'],
+      isEnabled: () => pathOf(activePath) !== null,
+      execute: () => {
+        const path = pathOf(activePath);
+        if (path !== null) {
+          void copyPath(path);
+        }
+      },
+    },
+    {
+      ...TAB_COMMANDS['tab:reveal'],
+      isEnabled: () => pathOf(activePath) !== null,
+      execute: () => {
+        const path = pathOf(activePath);
+        if (path !== null) {
+          reveal(path);
+        }
+      },
+    },
+  ];
+  useRegisterCommands(commands);
+
+  const menuItems = (key: string) => {
+    const closes = CLOSE_COMMANDS.map(({ id, scope }) => {
+      const { label, keys } = TAB_COMMANDS[id];
+      return {
+        label,
+        keys: keys === undefined ? undefined : formatChord(keys[0]),
+        disabled: tabsToClose(fileTabsState, key, scope, unsavedTabs).length === 0,
+        action: () => closeScope(scope, key),
+      };
+    });
+    const path = pathOf(key);
+    // Left out rather than greyed on a tab with no file: nothing about a terminal could enable them.
+    if (path === null) {
+      return closes;
+    }
+    return [
+      ...closes,
+      {
+        label: TAB_COMMANDS['tab:copy-path'].label,
+        separated: true,
+        action: () => void copyPath(path),
+      },
+      { label: TAB_COMMANDS['tab:reveal'].label, action: () => reveal(path) },
+    ];
   };
 
   return (
@@ -93,13 +210,25 @@ export default function TabIndex() {
             tab={fileTabsState[key]}
             isDirty={unsavedTabs[key] !== undefined}
             onActivate={() => activateTab(key)}
-            onClose={async (event) => await handleTabClose(event, key)}
+            onClose={(event) => {
+              event.stopPropagation();
+              requestClose([key]);
+            }}
+            onMenu={(xPos, yPos) => setMenu({ key, xPos, yPos })}
           />
         ))}
       </ul>
+      {menu && fileTabsState[menu.key] !== undefined && (
+        <ContextMenu
+          xPos={menu.xPos}
+          yPos={menu.yPos}
+          items={menuItems(menu.key)}
+          onClose={() => setMenu(null)}
+        />
+      )}
       {pendingClose && (
         <UnsavedChangesDialog
-          name={fileTabsState[pendingClose]?.name ?? pendingClose}
+          names={pendingClose.keys.map((key) => fileTabsState[key]?.name ?? key)}
           saving={saving}
           error={saveError}
           onSave={saveAndClose}
@@ -115,7 +244,9 @@ interface TabProps {
   tab: IfileTab;
   isDirty: boolean;
   onActivate: () => void;
-  onClose: (event: React.MouseEvent) => Promise<void>;
+  onClose: (event: React.MouseEvent) => void;
+  /** Opens the tab menu at a point in client coordinates. */
+  onMenu: (xPos: number, yPos: number) => void;
 }
 
 /**
@@ -126,7 +257,7 @@ interface TabProps {
  * tells two `main.py` apart. Whether it is unsaved goes on a second line rather than on the dot: the
  * dot is inside the tab, so a tooltip of its own would open on top of this one.
  */
-function Tab({ tab, isDirty, onActivate, onClose }: TabProps) {
+function Tab({ tab, isDirty, onActivate, onClose, onMenu }: TabProps) {
   const tip = useTooltip();
   // A path names a file; the Launcher's and Help's keys are not paths.
   const label = [tab.type === 'launcher' || tab.type === 'help' ? tab.name : tab.path];
@@ -134,12 +265,25 @@ function Tab({ tab, isDirty, onActivate, onClose }: TabProps) {
     label.push('Unsaved changes');
   }
 
+  const handleContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    // Shift-F10 and the menu key raise this with no pointer to open at, so the menu goes under the tab.
+    if (event.clientX === 0 && event.clientY === 0) {
+      const box = event.currentTarget.getBoundingClientRect();
+      onMenu(box.left, box.bottom + 2);
+    } else {
+      onMenu(event.clientX, event.clientY);
+    }
+  };
+
   return (
     <li className="tab-item" role="presentation">
       <button
         type="button"
         className={tab.active ? 'tab is-active' : 'tab'}
         onClick={onActivate}
+        onContextMenu={handleContextMenu}
+        aria-haspopup="menu"
         {...tip.anchorProps}
       >
         <TabMark tab={tab} />

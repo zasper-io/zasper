@@ -6,7 +6,7 @@ branches are worth a test: the one that keeps the tab, the one that throws the e
 that writes it. What the file holds afterwards is read from disk — "Save" that closed the tab without
 writing would pass every assertion made on screen.
 */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 import { Locator, Page, expect, test } from '@playwright/test';
 
@@ -92,6 +92,60 @@ test('Save writes the file and then closes the tab', async ({ page }) => {
       message: 'the save did not reach the file',
     })
     .toBe(EDITED);
+});
+
+test.describe('closing several tabs', () => {
+  const SECOND = 'second.txt';
+
+  test.beforeEach(() => {
+    writeFileSync(inProject(SECOND), 'A second file.\n');
+  });
+
+  test.afterEach(() => {
+    rmSync(inProject(SECOND), { force: true });
+  });
+
+  /** Opens a file from the tree and replaces what it holds, without saving. */
+  async function editFile(page: Page, name: string, loaded: string, text: string): Promise<void> {
+    await treeRow(page, name).click();
+    const editor = page.locator('.cm-content:visible');
+    await expect(editor).toContainText(loaded);
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type(text);
+    await expect(editor).toHaveText(text);
+  }
+
+  test('Close All asks once about every unsaved file, and Save All writes each', async ({
+    page,
+  }) => {
+    await openApp(page);
+    await editFile(page, FILE, 'A plain file', EDITED);
+    await editFile(page, SECOND, 'A second file', 'second, edited');
+
+    await tab(page, SECOND).locator('.tab').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /^Close All/ }).click();
+
+    const prompt = page.getByRole('dialog');
+    await expect(prompt).toContainText('these 2 files');
+    await expect(prompt.getByRole('listitem')).toHaveText([/notes\.txt/, /second\.txt/]);
+    await prompt.getByRole('button', { name: 'Save All' }).click();
+
+    await expect(page.locator('.tab-item')).toHaveCount(1);
+    await expect.poll(() => readFileSync(inProject(FILE), 'utf8')).toBe(EDITED);
+    await expect.poll(() => readFileSync(inProject(SECOND), 'utf8')).toBe('second, edited');
+  });
+
+  test('Alt+Shift+W closes every tab but the Launcher', async ({ page }) => {
+    await openApp(page);
+    await treeRow(page, FILE).click();
+    await treeRow(page, SECOND).click();
+    await expect(page.locator('.tab-item')).toHaveCount(3);
+
+    await page.keyboard.press('Alt+Shift+W');
+
+    await expect(page.locator('.tab-item')).toHaveCount(1);
+  });
 });
 
 test('a tab with nothing unsaved closes without asking', async ({ page }) => {

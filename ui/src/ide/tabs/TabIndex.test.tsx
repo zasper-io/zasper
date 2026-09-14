@@ -1,9 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import TabIndex from './TabIndex';
+import { useCommandKeymap } from '@/commands/useCommandKeymap';
 import { ApiError } from '@/api/client';
 import { INotebookKernelMap, notebookKernelMapAtom } from '@/store/AppState';
 import { fileTabsAtom, IfileTab, IfileTabDict } from '@/store/TabState';
@@ -59,9 +60,59 @@ function renderTabs(save?: SaveTab) {
         [unsavedTabsAtom, save ? { 'notes.txt': save } : {}],
       ]}
     >
-      <TabIndex />
+      <TabIndex onShowFileBrowser={() => {}} />
     </Provider>
   );
+}
+
+const scriptTab: IfileTab = { ...fileTab, path: 'prepare.py', name: 'prepare.py', active: false };
+
+const terminalTab: IfileTab = {
+  ...fileTab,
+  type: 'terminal',
+  path: 'Terminal 1',
+  name: 'Terminal 1',
+  active: false,
+};
+
+function Keys() {
+  useCommandKeymap();
+  return null;
+}
+
+/** Launcher, `notes.txt` in front, `prepare.py` and a terminal, with the keyboard dispatcher mounted. */
+function renderStrip(unsaved: Record<string, SaveTab> = {}) {
+  return render(
+    <Provider
+      initialValues={[
+        [
+          fileTabsAtom,
+          {
+            Launcher: launcher,
+            'notes.txt': fileTab,
+            'prepare.py': scriptTab,
+            'Terminal 1': terminalTab,
+          },
+        ],
+        [unsavedTabsAtom, unsaved],
+      ]}
+    >
+      <TabIndex onShowFileBrowser={() => {}} />
+      <Keys />
+    </Provider>
+  );
+}
+
+function openMenu(tabName: RegExp) {
+  fireEvent.contextMenu(screen.getByRole('button', { name: tabName }));
+}
+
+function menuRow(label: string): HTMLElement {
+  return screen.getByRole('menuitem', { name: new RegExp(`^${label}`) });
+}
+
+function tabNames(): string[] {
+  return Array.from(document.querySelectorAll('.tabName')).map((name) => name.textContent ?? '');
 }
 
 /** The `notes.txt` tab, or null once it is closed. By role: the prompt names the file too. */
@@ -81,6 +132,112 @@ describe('TabIndex', () => {
   beforeEach(() => {
     deleteKernel.mockReset();
     deleteKernel.mockResolvedValue(undefined);
+  });
+
+  describe('the tab menu', () => {
+    it('lists every close, then the path rows for a file', () => {
+      renderStrip();
+      openMenu(/prepare\.py/);
+
+      const labels = screen
+        .getAllByRole('menuitem')
+        .map((row) => row.querySelector('.panel-row-label')?.textContent);
+      expect(labels).toEqual([
+        'Close',
+        'Close Others',
+        'Close to the Right',
+        'Close to the Left',
+        'Close Saved',
+        'Close All',
+        'Copy Path',
+        'Reveal in File Explorer',
+      ]);
+      expect(menuRow('Close All').querySelector('.panel-row-keys')).not.toBeNull();
+      expect(screen.getAllByRole('separator')).toHaveLength(1);
+    });
+
+    it('leaves the path rows off a terminal, and greys what there is nothing to close for', () => {
+      renderStrip();
+      openMenu(/Terminal 1/);
+
+      expect(screen.queryByRole('menuitem', { name: /Copy Path/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('separator')).not.toBeInTheDocument();
+      expect(menuRow('Close to the Right')).toBeDisabled();
+      expect(menuRow('Close to the Left')).toBeEnabled();
+    });
+
+    it('closes the others, bringing the tab forward when the one in front went', () => {
+      renderStrip();
+      openMenu(/prepare\.py/);
+
+      fireEvent.click(menuRow('Close Others'));
+
+      expect(tabNames()).toEqual(['Launcher', 'prepare.py']);
+      expect(screen.getByRole('button', { name: /prepare\.py/ })).toHaveClass('is-active');
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('asks once about every unsaved tab, and closes the saved ones straight away', () => {
+      const save = vi.fn<SaveTab>(() => Promise.resolve());
+      renderStrip({ 'notes.txt': save, 'prepare.py': save });
+      openMenu(/notes\.txt/);
+
+      fireEvent.click(menuRow('Close All'));
+
+      expect(tabNames()).toEqual(['Launcher', 'notes.txt', 'prepare.py']);
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveTextContent('these 2 files');
+      expect(within(dialog).getAllByRole('listitem')).toHaveLength(2);
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it('saves every unsaved tab and closes them all on Save All', async () => {
+      const saveNotes = vi.fn<SaveTab>(() => Promise.resolve());
+      const saveScript = vi.fn<SaveTab>(() => Promise.resolve());
+      renderStrip({ 'notes.txt': saveNotes, 'prepare.py': saveScript });
+      openMenu(/notes\.txt/);
+      fireEvent.click(menuRow('Close All'));
+
+      fireEvent.click(screen.getByText('Save All'));
+
+      await waitFor(() => expect(tabNames()).toEqual(['Launcher']));
+      expect(saveNotes).toHaveBeenCalledOnce();
+      expect(saveScript).toHaveBeenCalledOnce();
+    });
+
+    it('closes what saved and keeps asking about the rest when a save fails', async () => {
+      renderStrip({
+        'notes.txt': () => Promise.resolve(),
+        'prepare.py': () =>
+          Promise.reject(new ApiError('PUT', '/api/contents', 403, 'read-only file system')),
+      });
+      openMenu(/notes\.txt/);
+      fireEvent.click(menuRow('Close All'));
+
+      fireEvent.click(screen.getByText('Save All'));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('read-only file system');
+      expect(tabNames()).toEqual(['Launcher', 'prepare.py']);
+      expect(screen.getByRole('dialog')).toHaveTextContent('prepare.py');
+    });
+  });
+
+  describe('the close chords', () => {
+    it('closes the tab in front on Alt-W', () => {
+      renderStrip();
+
+      fireEvent.keyDown(window, { key: 'w', code: 'KeyW', altKey: true });
+
+      expect(tabNames()).toEqual(['Launcher', 'prepare.py', 'Terminal 1']);
+    });
+
+    it('closes every tab but the Launcher on Alt-Shift-W', () => {
+      renderStrip();
+
+      fireEvent.keyDown(window, { key: 'W', code: 'KeyW', altKey: true, shiftKey: true });
+
+      expect(tabNames()).toEqual(['Launcher']);
+    });
   });
 
   it('closes a tab whose contents match the file, with nothing to ask about', () => {
@@ -195,7 +352,7 @@ describe('TabIndex', () => {
             [unsavedTabsAtom, {}],
           ]}
         >
-          <TabIndex />
+          <TabIndex onShowFileBrowser={() => {}} />
           <Observer />
         </Provider>
       );
