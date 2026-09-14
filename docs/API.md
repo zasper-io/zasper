@@ -58,7 +58,7 @@ pins that token, in which case sessions survive the restart.
 |---|---|---|
 | `GET` | `/api/health` | Readiness probe. Unauthenticated even in protected mode. |
 | `GET` | `/api/config` | Version and whether protected mode is on. Unauthenticated. |
-| `GET` | `/api/info` | Project name and directory, user, OS, version, theme, protected flag. |
+| `GET` | `/api/info` | Project name and directory, user, OS, architecture, version, theme, protected flag. |
 | `POST` | `/api/config/modify` | Update a stored setting. |
 
 ## Contents
@@ -99,8 +99,11 @@ should treat any message as "something changed".
 | `POST` | `/api/kernels/{kernelId}/stop` | Stop. |
 | `DELETE` | `/api/kernels/{kernelId}` | Stop. Equivalent to `/stop`. |
 | `GET` | `/api/kernelspecs` | Installed kernelspecs. |
-| `GET` | `/api/kernelspecs/{kernelName}` | One kernelspec. |
-| `GET` | `/static/kernelspecs/{kernel}/{resource}` | A kernelspec resource, such as its logo. |
+| `GET` | `/api/kernelspecs/{kernelName}` | One kernelspec. `404` if it is not installed. |
+| `GET` | `/kernelspecs/{kernel}/{resource}` | A kernelspec resource, such as its logo. |
+| `GET` | `/static/kernelspecs/{kernel}/{resource}` | The same resource at Zasper's older address. |
+| `GET` | `/api/environment/setup` | State of the project `.venv` setup: `idle`, `running`, `succeeded` or `failed`, with its log. |
+| `POST` | `/api/environment/setup` | Start setting up a `.venv` with `ipykernel` in the project. `202`, or `409` if one is already running. |
 | `GET` | `/ws/kernels/{kernelId}/channels` | **WebSocket.** Jupyter wire protocol. |
 
 `/ws/kernels/{kernelId}/channels` takes `?session_id=<id>` and speaks Jupyter's

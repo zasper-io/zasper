@@ -4,6 +4,79 @@ All notable changes to Zasper are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Zasper follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-09-14
+
+### Upgrading from 1.0.0
+
+- **Every server now requires the access token.** Protected mode is always on.
+  `--protected` is still accepted, so scripts that pass it keep starting, but
+  `--protected=false` is ignored with a warning. A client that called the API
+  without credentials has to exchange the access token at `/auth/login` first, as
+  [docs/API.md](docs/API.md#authentication) describes.
+- **`ZASPER_JWT_SECRET` has been removed.** Sessions are signed with a key derived
+  from the access token. If you set `ZASPER_JWT_SECRET` to keep sessions valid
+  across restarts, set `ZASPER_ACCESS_TOKEN` to a fixed token instead. Changing
+  that token signs everyone out.
+- **Zasper opens your browser on startup**, already signed in. It does this only
+  when it is running in a terminal: never for JSON output, and on Linux only when
+  `DISPLAY` or `WAYLAND_DISPLAY` is set, so an SSH session is left alone. Pass
+  `--no-browser` to turn it off.
+
+### Added
+
+- **`ZASPER_ACCESS_TOKEN`**, to fix the access token instead of generating a
+  random one on every start.
+- **A sign-in link.** The startup banner prints `/?token=…`, which signs a browser
+  in and removes the token from the address bar, as Jupyter's link does. The
+  login page now says why a sign-in failed and can show the token as you type it.
+- **Setting up a Python kernel from the Launcher.** When no kernel is installed,
+  the Launcher can create a `.venv` in the project, install `ipykernel` into it
+  (with uv when uv is available) and offer it as a kernel. It never installs
+  anything into a system or Homebrew Python.
+- **Kernels from the Microsoft Store's Python on Windows**, which were listed by
+  `jupyter kernelspec list` but not found by Zasper.
+- **More notebook outputs:** `text/latex` (SymPy, and IPython's `Latex` and
+  `Math`), SVG and JPEG.
+- **A PDF viewer**, with a download button.
+- **Markdown files** open with Edit, Preview and Side by side views.
+- **A Help tab** that lists every command and its shortcut, with a filter and an
+  About section. It replaces the Help dialog.
+- **A context menu on tabs**, with Close, Close Others, Copy Path and Reveal in
+  File Explorer. Closing several tabs asks about their unsaved changes in one
+  dialog.
+- **Open tabs are remembered for each project** and come back on reload. Each tab
+  loads when you switch to it.
+- **Toggle Sidebar**, in the topbar and on the keyboard. While a terminal has
+  focus, app shortcuts on chords the shell uses, such as Ctrl-B and Ctrl-K, go to
+  the shell instead.
+- Tooltips on icon buttons.
+- `/api/info` reports the project's `directory` and the server's `arch`.
+
+### Changed
+
+- **Kernelspecs are answered in Jupyter Server's model**, with `env`, `metadata`
+  and `interrupt_mode` always present. Resource URLs point at Jupyter's
+  `/kernelspecs/{kernel}/{resource}`; the old `/static/kernelspecs/…` address
+  still works.
+- `GET /api/kernelspecs/{kernelName}` and `POST /api/sessions` return `404` for a
+  kernel that is not installed, instead of an empty spec or a `500`.
+- Zasper's license is now stated precisely as `AGPL-3.0-only` in the Homebrew
+  cask, the snap and the README. The README describes the commercial license
+  option. Contributions now need the [Contributor License Agreement](CLA.md),
+  which a bot asks for on your first pull request.
+- Building from source reads the required Node.js version from `.nvmrc`, and
+  `make` stops with a clear message when your Node.js is too old.
+
+### Fixed
+
+- Opening any file made the whole window scrollable, so the IDE slid out of
+  view.
+- A terminal did not resize to its pane after you switched back to its tab.
+- Closing a tab behind the active one changed the active tab.
+- Undo right after a file loaded could empty the editor.
+- Closing a notebook while its kernel was still connecting left that connection
+  open until the page was closed.
+
 ## [1.0.0] — 2026-09-10
 
 The first stable release. Zasper's HTTP and WebSocket API, its configuration
@@ -120,6 +193,7 @@ Pre-release.
 
 First public pre-release.
 
+[1.1.0]: https://github.com/zasper-io/zasper/releases/tag/v1.1.0
 [1.0.0]: https://github.com/zasper-io/zasper/releases/tag/v1.0.0
 [0.3.0-beta]: https://github.com/zasper-io/zasper/releases/tag/v0.3.0-beta
 [0.2.0-beta]: https://github.com/zasper-io/zasper/releases/tag/v0.2.0-beta
