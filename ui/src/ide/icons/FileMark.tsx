@@ -120,7 +120,9 @@ interface FileMarkProps {
 export default function FileMark({ name, className }: FileMarkProps) {
   const mark = markFor(name);
   if (typeof mark === 'string') {
-    return <Icon name={mark} className={className} />;
+    // Classed so a row can give the icon the same slot as a mark: see `.file-mark-icon` in _panel.scss.
+    const iconClass = className === undefined ? 'file-mark-icon' : `file-mark-icon ${className}`;
+    return <Icon name={mark} className={iconClass} />;
   }
 
   const classNames = ['file-mark', `file-mark-${mark.kind}`];

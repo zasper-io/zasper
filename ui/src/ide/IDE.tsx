@@ -22,11 +22,14 @@ import Topbar from './topBar/Topbar';
 import GitPanel from './sidebar/gitPanel/GitPanel';
 import JupyterInfoPanel from './sidebar/jupyterInfoPanel/JupyterInfoPanel';
 import SearchPanel from './sidebar/searchPanel/SearchPanel';
+import ProblemsPanel from './editor/ProblemsPanel';
+import LanguageServerBridge from '../lsp/LanguageServerBridge';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
 import { searchFocusRequestAtom } from '@/store/projectSearch';
+import { problemsOpenAtom } from '@/store/languageServers';
 import {
   platformAtom,
   projectDirAtom,
@@ -93,6 +96,7 @@ function IDE() {
 
   const { openSettings } = useTabActions();
   const [, setSearchFocus] = useAtom(searchFocusRequestAtom);
+  const [problemsOpen, setProblemsOpen] = useAtom(problemsOpenAtom);
 
   const windowCommands = useMemo<Command[]>(
     () => [
@@ -111,8 +115,13 @@ function IDE() {
           setSearchFocus((count) => count + 1);
         },
       },
+      {
+        ...APP_COMMANDS['view:problems'],
+        isEnabled: () => isMac || !terminalHasFocus(),
+        execute: () => setProblemsOpen((open) => !open),
+      },
     ],
-    [toggleSidebar, openSettings, showPanel, setSearchFocus]
+    [toggleSidebar, openSettings, showPanel, setSearchFocus, setProblemsOpen]
   );
 
   // The application's only keyboard dispatcher, and the window-level commands that used to be a
@@ -199,6 +208,7 @@ function IDE() {
     <div className="editor">
       <Topbar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
       <SessionEndedNotice />
+      <LanguageServerBridge />
       <div className="editor-container">
         {/* Outside the resizable group, so hiding the sidebar leaves the rail — and the way back —
             on screen. The activity bar reads the same state it writes, so its highlight and the
@@ -228,10 +238,23 @@ function IDE() {
           </Panel>
           <PanelResizeHandle className="panelResizeHandle" />
           <Panel defaultSize={80} minSize={50}>
-            <div className="main-content">
-              <TabIndex onShowFileBrowser={() => showPanel('fileBrowser')} />
-              <ContentPanel />
-            </div>
+            {/* The Problems panel under the editor (story 19), closed to nothing until it is asked for. */}
+            <PanelGroup direction="vertical">
+              <Panel id="editor-area" order={1} minSize={30}>
+                <div className="main-content">
+                  <TabIndex onShowFileBrowser={() => showPanel('fileBrowser')} />
+                  <ContentPanel />
+                </div>
+              </Panel>
+              {problemsOpen && (
+                <>
+                  <PanelResizeHandle className="panelResizeHandle is-between-rows" />
+                  <Panel id="problems" order={2} defaultSize={25} minSize={10}>
+                    <ProblemsPanel />
+                  </Panel>
+                </>
+              )}
+            </PanelGroup>
           </Panel>
         </PanelGroup>
       </div>

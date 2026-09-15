@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
+import { selectAtom } from 'jotai/utils';
 
 import { ContentEntry } from '@/api';
 import { FileMark, Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 import { baseName } from '@/paths';
+import { problemsAtom } from '@/store/languageServers';
 import { activeTabPathAtom } from '@/store/tabState';
 import ContextMenu from '../contextMenu/ContextMenu';
 import ConfirmDeleteDialog from './ConfirmDeleteDialog';
@@ -38,6 +40,18 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
   const clipboard = useClipboard();
   const dragSource = useDragSource(path);
   const focusRow = useRowFocus(path, isFirstRow);
+  // Selected per path, so a server publishing for one file does not render every row in the tree.
+  const errorsAtom = useMemo(
+    () =>
+      selectAtom(problemsAtom, (all) =>
+        (all[path] ?? []).reduce(
+          (count, problem) => count + (problem.severity === 'error' ? 1 : 0),
+          0
+        )
+      ),
+    [path]
+  );
+  const errors = useAtomValue(errorsAtom);
   // What the row has no width for — the path, the size, when it changed, whether it is writable.
   const tip = useTooltip();
   const { copyTo, copyPath, download } = useContentActions();
@@ -102,6 +116,15 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
           // unlike <Icon> itself it needs a name of its own.
           <span className="rowFlag" role="img" aria-label="Read-only">
             <Icon name="lock" size={12} />
+          </span>
+        )}
+        {errors > 0 && (
+          <span
+            className="rowFlag problemFlag"
+            role="img"
+            aria-label={`${errors} ${errors === 1 ? 'error' : 'errors'}`}
+          >
+            {errors}
           </span>
         )}
       </a>

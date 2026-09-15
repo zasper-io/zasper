@@ -90,6 +90,7 @@ const NOT_FILES = new Set([
   'settings',
   'disk-diff',
   'search-preview',
+  'lsp-log',
 ]);
 
 /** A tab the user just opened, as against one they switched back to. */

@@ -8,6 +8,7 @@ import (
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/kernelws"
+	"github.com/zasper-io/zasper/internal/lsp"
 	"github.com/zasper-io/zasper/internal/search"
 	"github.com/zasper-io/zasper/internal/session"
 	"github.com/zasper-io/zasper/internal/terminal"
@@ -25,6 +26,7 @@ type Server struct {
 	sessions      *session.Sessions
 	kernelSockets *kernelws.Handler
 	terminals     *terminal.Terminals
+	languages     *lsp.Manager
 }
 
 // New builds the server for app, and connects the parts that cannot import each other.
@@ -45,6 +47,7 @@ func New(app core.Application) *Server {
 		sessions:      sessions,
 		kernelSockets: kernelws.NewHandler(kernels, sessions),
 		terminals:     terminal.New(project),
+		languages:     lsp.New(project.Root()),
 	}
 
 	// A stopped kernel takes its sessions and its notebooks' sockets with it. Sessions go first, so that a
@@ -60,5 +63,6 @@ func New(app core.Application) *Server {
 // Shutdown stops every shell and kernel the server started.
 func (s *Server) Shutdown() {
 	s.terminals.StopAll()
+	s.languages.StopAll()
 	s.kernels.StopAll()
 }

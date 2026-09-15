@@ -179,3 +179,165 @@
 .cm-editor .cm-searchMatch-selected {
   background-color: var(--z-bg-find-current);
 }
+
+// What a language server fills (story 19): the hover card, a diagnostic's card, signature help and a
+// completion's documentation. The same surface as the completion list above, for the same reason — the
+// base theme draws each as a white box with a grey border in every theme.
+#cm-tooltip-host
+  .cm-tooltip:is(
+    .cm-tooltip-hover,
+    .cm-tooltip-lint,
+    .cm-completionInfo,
+    .cm-lsp-signature-tooltip
+  ) {
+  max-width: 480px;
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  background: var(--z-bg-overlay);
+  box-shadow: var(--z-shadow-medium);
+  color: var(--z-fg-default);
+  font-family: var(--z-ui-font-family);
+  font-size: var(--z-ui-font-size);
+  overflow: hidden;
+}
+
+#cm-tooltip-host .cm-tooltip-hover .cm-tooltip-section + .cm-tooltip-section {
+  border-top: 1px solid var(--z-border);
+}
+
+// Prose in the UI face and code in the mono face, which is how the documentation reads in the drawing.
+#cm-tooltip-host .cm-lsp-documentation {
+  padding: 6px 10px;
+  color: var(--z-fg-muted);
+
+  p {
+    margin: 4px 0 0;
+  }
+
+  pre,
+  code {
+    margin: 0;
+    padding: 0;
+    background: none;
+    color: var(--z-fg-default);
+    font-family: var(--z-mono-font-family);
+  }
+
+  pre {
+    white-space: pre-wrap;
+  }
+}
+
+#cm-tooltip-host .cm-completionInfo.cm-completionInfo-right,
+#cm-tooltip-host .cm-completionInfo.cm-completionInfo-left {
+  padding: 0;
+}
+
+#cm-tooltip-host .cm-lsp-signature {
+  padding: 4px 10px;
+  font-family: var(--z-mono-font-family);
+}
+
+#cm-tooltip-host .cm-lsp-active-parameter {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+// A diagnostic's card: its message, and under it where it came from. The base theme marks severity with
+// a 5px coloured bar on the left; here the icon beside the message says it, as the gutter does.
+#cm-tooltip-host .cm-tooltip-lint {
+  padding: 2px 0;
+}
+
+#cm-tooltip-host .cm-diagnostic {
+  position: relative;
+  padding: 4px 10px 4px 28px;
+  margin: 0;
+  border-left: none;
+}
+
+#cm-tooltip-host .cm-diagnosticSource {
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+  opacity: 1;
+}
+
+// The severity's shape, drawn in the severity's colour: an SVG used as a mask, so its stroke is only
+// where the colour goes and not a colour itself.
+@mixin severity-mark($shape) {
+  background-color: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E#{$shape}%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+$shape-error: "%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m15 9-6 6M9 9l6 6'/%3E";
+$shape-warning: "%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4M12 17h.01'/%3E";
+$shape-info: "%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4M12 8h.01'/%3E";
+
+#cm-tooltip-host .cm-diagnostic::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 10px;
+  width: 12px;
+  height: 12px;
+}
+
+#cm-tooltip-host .cm-diagnostic-error::before {
+  color: var(--z-status-error);
+  @include severity-mark($shape-error);
+}
+
+#cm-tooltip-host .cm-diagnostic-warning::before {
+  color: var(--z-status-warning);
+  @include severity-mark($shape-warning);
+}
+
+#cm-tooltip-host :is(.cm-diagnostic-info, .cm-diagnostic-hint)::before {
+  color: var(--z-status-info);
+  @include severity-mark($shape-info);
+}
+
+// The squiggle, in the severity's colour. The base theme's is an SVG with its colour written into it.
+.cm-editor .cm-lintRange {
+  padding-bottom: 0;
+  background-image: none;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+
+.cm-editor .cm-lintRange-error {
+  text-decoration-color: var(--z-status-error);
+}
+
+.cm-editor .cm-lintRange-warning {
+  text-decoration-color: var(--z-status-warning);
+}
+
+.cm-editor :is(.cm-lintRange-info, .cm-lintRange-hint) {
+  text-decoration-color: var(--z-status-info);
+}
+
+.cm-editor .cm-lint-marker {
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  content: none;
+}
+
+.cm-editor .cm-lint-marker-error {
+  color: var(--z-status-error);
+  @include severity-mark($shape-error);
+}
+
+.cm-editor .cm-lint-marker-warning {
+  color: var(--z-status-warning);
+  @include severity-mark($shape-warning);
+}
+
+.cm-editor .cm-lint-marker-info {
+  color: var(--z-status-info);
+  @include severity-mark($shape-info);
+}

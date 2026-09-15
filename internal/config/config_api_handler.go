@@ -58,6 +58,17 @@ func ConfigModifyHandler(w http.ResponseWriter, req *http.Request) {
 			httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the editor settings: %v", err))
 			return
 		}
+	case "language_servers":
+		var settings LanguageServerSettings
+		if err := json.Unmarshal([]byte(body.Value), &settings); err != nil {
+			httpx.SendErrorResponse(w, http.StatusBadRequest, "language server settings are a JSON object")
+			return
+		}
+		if err := setLanguageServerSettings(settings); err != nil {
+			log.Warn().Err(err).Msg("could not save the language server settings")
+			httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the language server settings: %v", err))
+			return
+		}
 	default:
 		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("there is no setting called %q", body.Key))
 		return

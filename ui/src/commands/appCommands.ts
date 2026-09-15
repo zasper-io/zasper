@@ -25,6 +25,7 @@ export const APP_COMMANDS = defineCommands({
   // No chord: ⌘, is the browser's own on mac, and this is a tab rather than a mode to flip.
   'view:settings': { ...view, label: 'Settings' },
   'view:search': { ...view, label: 'Search in Files', keys: ['Mod-Shift-f'] },
+  'view:problems': { ...view, label: 'Problems', keys: ['Mod-Shift-m'] },
 });
 
 /**

@@ -215,6 +215,12 @@
   background: var(--z-bg-content);
 }
 
+// Between the editor and the Problems panel under it: the same seam, turned on its side.
+.panelResizeHandle.is-between-rows {
+  width: auto;
+  height: 4px;
+}
+
 // `hover` and `drag` are the library's own two states, off `data-resize-handle-state`; the third is
 // `inactive`. Focus is ours, and takes the same fill: a 4px strip cannot wear a ring that is not
 // simply the strip.

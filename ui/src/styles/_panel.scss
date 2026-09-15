@@ -457,6 +457,19 @@
   overflow: hidden;
 }
 
+// What FileMark puts in front of a name, in one 18px slot whether it drew a mark or an icon, so the
+// names in a list start on one edge — `.file-list`'s rule, for the rows that are not the tree. A mark
+// sits on the name's baseline, which this box aligns on. An icon has no baseline: it would stand on
+// the name's and push the row taller, so it is centred instead, where `.z-icon`'s -3px puts it in the tree.
+.panel-row-name > .file-mark,
+.panel-row-name > .file-mark-icon {
+  flex: 0 0 18px;
+}
+
+.panel-row-name > .file-mark-icon {
+  align-self: center;
+}
+
 // The dot's place in a row, held whether or not there is a dot to draw. A kernel this window knows
 // nothing about gets no dot, and without the slot its name would start 14px left of the one above.
 .panel-row-dot {
@@ -557,4 +570,16 @@
 
 .panel-row.is-disabled:hover {
   background: transparent;
+}
+
+// How many errors a language server reported in a file (story 19), in the error colour — and in the row's
+// own ink on the open file's accent fill, where the colour is unreadable as a file mark's is.
+.fileItem .rowFlag.problemFlag {
+  color: var(--z-status-error);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fileItem > a.active .rowFlag.problemFlag {
+  color: currentColor;
 }

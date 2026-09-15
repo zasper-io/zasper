@@ -10,6 +10,10 @@ import {
   ChevronUp,
   ChevronsUp,
   CircleAlert,
+  CircleX,
+  Info,
+  RotateCcw,
+  TriangleAlert,
   CircleHelp,
   ClipboardPaste,
   CloudDownload,
@@ -163,6 +167,11 @@ export const ICONS = {
   'zoom-in': ZoomIn, // The status bar's zoom control, whatever level it is showing
   // The one glyph in a `.z-notice-error`, which is where the app now says something failed.
   'circle-alert': CircleAlert,
+  // A language server's severities, and restarting one (story 19).
+  'circle-x': CircleX,
+  'triangle-alert': TriangleAlert,
+  info: Info,
+  'rotate-ccw': RotateCcw,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

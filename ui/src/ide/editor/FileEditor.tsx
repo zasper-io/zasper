@@ -32,7 +32,10 @@ import { useRegisterCommands } from '@/commands/registry';
 import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
+import { languageServerExtension } from '@/lsp/servers';
+import { registerEditorView } from '@/lsp/views';
 import { editorPulseAtom, goToLineAtom } from '@/store/editorRequests';
+import { revealPositionAtom } from '@/store/languageServers';
 import { OpenDocument, useOpenDocument } from '@/store/openDocuments';
 import { revealMatchAtom } from '@/store/projectSearch';
 import {
@@ -42,6 +45,7 @@ import {
   LineEnding,
   linePositionAtom,
 } from '@/store/editorStatus';
+import { projectDirAtom } from '@/store/serverInfo';
 import { editorSettingsAtom } from '@/store/settings';
 import { FileTab } from '@/store/tabState';
 import { useUnsavedChanges } from '@/store/unsavedState';
@@ -338,6 +342,15 @@ export default function FileEditor(props: FileEditorProps) {
   // own highlighter draws nothing while its panel is closed, and ours never opens.
   const searchExtension = useMemo(() => [search(), findHighlighter], []);
 
+  // The file's language server, when Zasper knows one for its language (story 19).
+  const projectDir = useAtomValue(projectDirAtom);
+  const serverExtension = useMemo(
+    () => languageServerExtension(projectDir, path, name),
+    [projectDir, path, name]
+  );
+  // So a jump from another file to a definition in this one can wait for this editor to exist.
+  useEffect(() => () => registerEditorView(path, null), [path]);
+
   /** The file's line endings as they are on disk now, for a version of it the editor has taken. */
   const adoptLineEnding = useCallback(
     (text: string) => {
@@ -539,6 +552,29 @@ export default function FileEditor(props: FileEditorProps) {
     editor.focus();
   }, [goToLine, props.data.active, setGoToLine]);
 
+  // A problem pressed in the Problems panel: the cursor where the server put it.
+  const revealPosition = useAtomValue(revealPositionAtom);
+  const setRevealPosition = useSetAtom(revealPositionAtom);
+  useEffect(() => {
+    const editor = viewRef.current;
+    if (
+      revealPosition === null ||
+      revealPosition.path !== path ||
+      editor === null ||
+      readCount === 0
+    ) {
+      return;
+    }
+    setRevealPosition(null);
+    const doc = editor.state.doc;
+    const line = doc.line(Math.min(revealPosition.line + 1, doc.lines));
+    editor.dispatch({
+      selection: { anchor: Math.min(line.from + revealPosition.character, line.to) },
+      scrollIntoView: true,
+    });
+    editor.focus();
+  }, [revealPosition, path, readCount, viewCount, setRevealPosition]);
+
   // A match pressed in the search panel: the cursor on it, and the find card searching for what the panel
   // searched for, so ⌘G carries on from there. Taken once the file has been read.
   const reveal = useAtomValue(revealMatchAtom);
@@ -652,8 +688,10 @@ export default function FileEditor(props: FileEditorProps) {
       searchExtension,
       findKeymap,
       saveKeymap,
+      serverExtension,
     ],
     [
+      serverExtension,
       language,
       keymapExtension,
       settingsExtension,
@@ -790,6 +828,7 @@ export default function FileEditor(props: FileEditorProps) {
           extensions={extensions}
           onCreateEditor={(editor) => {
             viewRef.current = editor;
+            registerEditorView(path, editor);
             setViewCount((count) => count + 1);
           }}
           onUpdate={onUpdate}

@@ -222,10 +222,13 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
               onClick={() => activate({ kind: 'recent', file })}
             >
               {/* A mark here and not on a file match: these rows are a list to read down rather than
-                  the answer to something that was typed. */}
-              <FileMark name={file.name} />
-              <span className="panel-row-label">{file.name}</span>
-              <span className="panel-row-meta">{folderOf(file)}</span>
+                  the answer to something that was typed. Inside the name, as on the Launcher, because
+                  the row centres its children and a 9px mark centred beside 13px text sits 2px high. */}
+              <span className="panel-row-name">
+                <FileMark name={file.name} />
+                <span className="panel-row-label">{file.name}</span>
+                <span className="panel-row-meta">{folderOf(file)}</span>
+              </span>
             </li>
           ))}
         </Section>

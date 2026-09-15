@@ -100,3 +100,56 @@
   margin: 0;
   padding: 6px 8px;
 }
+
+// A language server's state (story 19): the dot says it before the words do, in the kernel's three status
+// colours. A server that is not running at all is a ring in the bar's own ink.
+.serverDot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--z-status-disconnected);
+
+  &.is-ready {
+    background: var(--z-status-idle);
+  }
+
+  &.is-failed {
+    background: var(--z-status-error);
+  }
+
+  &.is-missing,
+  &.is-off {
+    background: none;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+  }
+}
+
+// The counts in the bar's own ink: a severity's colour on the chrome is unreadable.
+.problemCounts .z-icon + .z-icon,
+.problemCounts .z-icon:not(:first-child) {
+  margin-left: 6px;
+}
+
+// A sentence in a status menu, which is otherwise rows: what a missing server needs, or why one failed.
+.serverMenuNote {
+  max-width: 260px;
+  padding: 2px 10px 4px;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+  white-space: normal;
+
+  code {
+    font-family: var(--z-mono-font-family);
+    color: var(--z-fg-default);
+  }
+}
+
+// A menu's title is whatever a server calls itself, which is not always short.
+.statusMenu .z-overlay-group {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

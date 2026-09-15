@@ -1,0 +1,13 @@
+// A language server's log: its standard error as it wrote it, in the editor's face and surface.
+.serverLog {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 16px;
+  overflow: auto;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-editor);
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-font-size-code);
+  white-space: pre-wrap;
+}

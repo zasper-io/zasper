@@ -40,3 +40,19 @@
 .settings-tab-row .z-form-help {
   margin: 2px 0 0;
 }
+
+// A language server's command: typed as a command line, in the face commands are read in.
+.settings-tab-command {
+  width: 320px;
+  max-width: 100%;
+  font-family: var(--z-mono-font-family);
+}
+
+// A server that is not installed, and the command that installs it.
+.settings-tab-missing {
+  color: var(--z-status-warning);
+
+  code {
+    font-family: var(--z-mono-font-family);
+  }
+}

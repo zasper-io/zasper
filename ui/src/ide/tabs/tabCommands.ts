@@ -81,7 +81,8 @@ export function tabFilePath(tab: FileTab): string | null {
     tab.type === 'launcher' ||
     tab.type === 'terminal' ||
     tab.type === 'help' ||
-    tab.type === 'settings'
+    tab.type === 'settings' ||
+    tab.type === 'lsp-log'
   ) {
     return null;
   }

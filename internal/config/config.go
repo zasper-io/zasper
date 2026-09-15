@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/rs/zerolog/log"
@@ -21,6 +22,8 @@ type Config struct {
 	TelemetryEnabled *bool           `json:"telemetry_enabled,omitempty"`
 	WidgetCDNEnabled *bool           `json:"widget_cdn_enabled,omitempty"`
 	Editor           *EditorSettings `json:"editor,omitempty"`
+	// Settings → Language servers.
+	LanguageServers *LanguageServerSettings `json:"language_servers,omitempty"`
 }
 
 // DefaultTheme names a theme in ui/src/themes, which is the only place that knows what one means: the
@@ -241,6 +244,43 @@ func setEditorSettings(settings EditorSettings) error {
 	normalised := settings.normalised()
 	_, err := UpdateConfig(func(config *Config) bool {
 		config.Editor = &normalised
+		return true
+	})
+	return err
+}
+
+// LanguageServerSettings are Settings → Language servers: whether servers are started at all, and the
+// command to start for a language when discovery finds the wrong one or none.
+type LanguageServerSettings struct {
+	Disabled bool `json:"disabled"`
+	// By language id ("go", "python"); a command line, split the way a shell would split it.
+	Commands map[string]string `json:"commands"`
+}
+
+func (s LanguageServerSettings) normalised() LanguageServerSettings {
+	commands := map[string]string{}
+	for language, command := range s.Commands {
+		if trimmed := strings.TrimSpace(command); trimmed != "" && language != "" {
+			commands[language] = trimmed
+		}
+	}
+	s.Commands = commands
+	return s
+}
+
+// GetLanguageServerSettings answers the chosen settings, or servers on with nothing overridden.
+func GetLanguageServerSettings() LanguageServerSettings {
+	config, err := ReadConfig()
+	if err != nil || config.LanguageServers == nil {
+		return LanguageServerSettings{Commands: map[string]string{}}
+	}
+	return config.LanguageServers.normalised()
+}
+
+func setLanguageServerSettings(settings LanguageServerSettings) error {
+	normalised := settings.normalised()
+	_, err := UpdateConfig(func(config *Config) bool {
+		config.LanguageServers = &normalised
 		return true
 	})
 	return err

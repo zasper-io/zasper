@@ -1,5 +1,6 @@
 import { toggleComment } from '@codemirror/commands';
 import { foldAll, unfoldAll } from '@codemirror/language';
+import { formatDocument, jumpToDefinition } from '@codemirror/lsp-client';
 import { EditorView } from '@codemirror/view';
 
 import { defineCommands } from '@/commands/define';
@@ -19,6 +20,9 @@ export const EDITOR_COMMANDS = defineCommands({
   'editor:toggle-comment': { ...editor, label: 'Toggle Comment' },
   'editor:fold-all': { ...editor, label: 'Fold All' },
   'editor:unfold-all': { ...editor, label: 'Unfold All' },
+  // F12 and Shift-Alt-F, bound by the language server client in the editor itself.
+  'editor:go-to-definition': { ...editor, label: 'Go to Definition' },
+  'editor:format-document': { ...editor, label: 'Format Document' },
 });
 
 /** Not memoized, like the notebook's: `useRegisterCommands` re-registers only when the ids change. */
@@ -37,5 +41,7 @@ export function useEditorCommands(view: () => EditorView | null): Command[] {
     { ...EDITOR_COMMANDS['editor:toggle-comment'], execute: on(toggleComment) },
     { ...EDITOR_COMMANDS['editor:fold-all'], execute: on(foldAll) },
     { ...EDITOR_COMMANDS['editor:unfold-all'], execute: on(unfoldAll) },
+    { ...EDITOR_COMMANDS['editor:go-to-definition'], execute: on(jumpToDefinition) },
+    { ...EDITOR_COMMANDS['editor:format-document'], execute: on(formatDocument) },
   ];
 }

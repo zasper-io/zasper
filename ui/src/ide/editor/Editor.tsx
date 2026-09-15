@@ -8,6 +8,7 @@ import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
 import ImageEditor from './ImageEditor';
 import PdfViewer from './PdfViewer';
+import LanguageServerLogTab from './LanguageServerLogTab';
 import SearchPreviewTab from './SearchPreviewTab';
 import SettingsTab from './SettingsTab';
 import { FileTab } from '@/store/tabState';
@@ -45,6 +46,9 @@ export default function Editor(props: EditorProps) {
   }
   if (props.data.type === 'disk-diff') {
     return <DiskCompareTab data={props.data} />;
+  }
+  if (props.data.type === 'lsp-log') {
+    return <LanguageServerLogTab data={props.data} />;
   }
   if (props.data.type === 'search-preview') {
     return <SearchPreviewTab data={props.data} />;

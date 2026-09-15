@@ -2,7 +2,15 @@ import React, { ReactNode, useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 import { toast } from 'react-toastify';
 
-import { EditorSettings, logApiError, modifyConfig } from '@/api';
+import {
+  EditorSettings,
+  getLanguageServers,
+  LanguageServerSettings,
+  logApiError,
+  modifyConfig,
+} from '@/api';
+import { restartLanguageServer } from '@/lsp/servers';
+import { languageServerListAtom } from '@/store/languageServers';
 import { setTelemetrySettings } from '@/api/telemetry';
 import { useEditorSettings } from '@/store/editorSettingsActions';
 import { telemetryAtom, themeAtom, widgetCdnAtom } from '@/store/settings';
@@ -86,6 +94,35 @@ function useSettings(): Setting[] {
   const [telemetry, setTelemetry] = useAtom(telemetryAtom);
   const [widgetCdn, setWidgetCdn] = useAtom(widgetCdnAtom);
   const [editor, changeEditor] = useEditorSettings();
+  const [servers, setServers] = useAtom(languageServerListAtom);
+
+  // Written whole, from what the server list says is configured, and every server changed is started again
+  // so the new command or the switch takes effect without reopening a file.
+  const changeServers = (change: { enabled?: boolean; commands?: Record<string, string> }) => {
+    if (servers === null) {
+      return;
+    }
+    const configured = Object.fromEntries(
+      servers.servers
+        .filter((server) => server.configured)
+        .map((server) => [server.language, server.command])
+    );
+    const settings: LanguageServerSettings = {
+      disabled: !(change.enabled ?? servers.enabled),
+      commands: { ...configured, ...change.commands },
+    };
+    modifyConfig('language_servers', JSON.stringify(settings))
+      .then(() => getLanguageServers())
+      .then((list) => {
+        setServers(list);
+        const restarted =
+          change.enabled === undefined
+            ? Object.keys(change.commands ?? {})
+            : list.servers.map((server) => server.language);
+        restarted.forEach(restartLanguageServer);
+      })
+      .catch(logApiError('Error saving the language server settings:'));
+  };
 
   const changeTheme = (id: string) => {
     setTheme(id);
@@ -332,6 +369,56 @@ function useSettings(): Setting[] {
         />
       ),
     },
+    ...(servers === null
+      ? []
+      : [
+          {
+            id: 'settings-language-servers',
+            group: 'Language servers',
+            name: 'Use language servers',
+            help: 'Errors, completion, hover and go to definition in the file editor. Off: no server is ever started.',
+            words: 'lsp errors completion definition diagnostics',
+            control: (
+              <Checkbox
+                id="settings-language-servers"
+                checked={servers.enabled}
+                onChange={(enabled) => changeServers({ enabled })}
+              />
+            ),
+          },
+          ...servers.servers.map((server) => ({
+            id: `settings-language-server-${server.language}`,
+            group: 'Language servers',
+            name: server.name,
+            help: !server.found ? (
+              <span className="settings-tab-missing">
+                Not found. <code>{server.install}</code>
+              </span>
+            ) : server.configured ? (
+              <>Starts {server.command}.</>
+            ) : server.needs !== undefined ? (
+              <>
+                Found {server.program} in {folderOf(server.path)}. Needs {server.needs}:{' '}
+                <code>{server.install}</code>
+              </>
+            ) : (
+              <>
+                Found {server.server} in {folderOf(server.path)}.
+              </>
+            ),
+            words: `${server.server} ${server.command} lsp language server command`,
+            control: (
+              <CommittedField
+                id={`settings-language-server-${server.language}`}
+                shown={server.configured ? server.command : ''}
+                placeholder={server.command}
+                className="settings-tab-command"
+                parse={(text) => text.trim()}
+                onCommit={(command) => changeServers({ commands: { [server.language]: command } })}
+              />
+            ),
+          })),
+        ]),
     {
       id: 'settings-telemetry',
       group: 'Privacy',
@@ -398,13 +485,22 @@ function Checkbox(props: { id: string; checked: boolean; onChange: (checked: boo
 interface CommittedFieldProps<T> {
   id: string;
   shown: string;
+  placeholder?: string;
+  className?: string;
   /** The value typed, or null when it is not one; the field then goes back to what is set. */
   parse: (text: string) => T | null;
   onCommit: (value: T) => void;
 }
 
 /** Saved on Enter or on leaving the field, not per keystroke: `1` on the way to `14` is not a size. */
-function CommittedField<T>({ id, shown, parse, onCommit }: CommittedFieldProps<T>) {
+function CommittedField<T>({
+  id,
+  shown,
+  placeholder,
+  className,
+  parse,
+  onCommit,
+}: CommittedFieldProps<T>) {
   const [draft, setDraft] = useState<string | null>(null);
 
   const commit = () => {
@@ -421,8 +517,9 @@ function CommittedField<T>({ id, shown, parse, onCommit }: CommittedFieldProps<T
   return (
     <input
       id={id}
-      className="z-field"
+      className={className === undefined ? 'z-field' : `z-field ${className}`}
       type="text"
+      placeholder={placeholder}
       value={draft ?? shown}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={commit}
@@ -452,4 +549,10 @@ export function parseRulers(text: string): number[] | null {
     return null;
   }
   return [...new Set(columns)].sort((a, b) => a - b).slice(0, 4);
+}
+
+/** The folder a program is in, which is what says where a server was found. */
+function folderOf(path: string): string {
+  const slash = path.lastIndexOf('/');
+  return slash <= 0 ? path : path.slice(0, slash);
 }

@@ -47,6 +47,9 @@ function TabMark({ tab }: { tab: FileTab }) {
   if (tab.type === 'settings') {
     return <Icon name="settings" className="tabIcon" />;
   }
+  if (tab.type === 'lsp-log') {
+    return <Icon name="terminal" className="tabIcon" />;
+  }
   // The file's own name for a diff: its tab is named `notes.txt (diff)`, whose extension is
   // `txt (diff)` and which would therefore get the mark for an unknown type.
   const file =
@@ -279,7 +282,10 @@ function Tab({ tab, isDirty, onActivate, onClose, onMenu }: TabProps) {
   const tip = useTooltip();
   // A path names a file; the Launcher's, Help's and Settings' keys are not paths.
   const label = [
-    tab.type === 'launcher' || tab.type === 'help' || tab.type === 'settings'
+    tab.type === 'launcher' ||
+    tab.type === 'help' ||
+    tab.type === 'settings' ||
+    tab.type === 'lsp-log'
       ? tab.name
       : tab.type === 'disk-diff'
         ? diskComparePath(tab.path)

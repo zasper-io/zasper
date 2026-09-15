@@ -12,7 +12,9 @@ import Tooltip from '@/ide/Tooltip';
 import { fileTabsAtom, FileTab } from '@/store/tabState';
 import EolStatus from './EolStatus';
 import IndentStatus from './IndentStatus';
+import LanguageServerStatus from './LanguageServerStatus';
 import LanguageStatus from './LanguageStatus';
+import ProblemCounts from './ProblemCounts';
 import ZoomStatus from './ZoomStatus';
 
 /** What the status bar calls the thing in the active tab. */
@@ -86,6 +88,7 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
             <Tooltip tip={branchTip} label={`On branch ${branchName} — open source control`} />
           </>
         )}
+        <ProblemCounts />
       </div>
       <div className="rightStatus">
         {isTextEditor && (
@@ -106,7 +109,10 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
         {/* A text file says what it is read as, and can be told otherwise. Every other kind of tab says
             what it is, which is not a thing anyone can change. */}
         {formatPath !== null && activeTab !== undefined ? (
-          <LanguageStatus path={formatPath} fileName={activeTab.name} />
+          <>
+            <LanguageStatus path={formatPath} fileName={activeTab.name} />
+            <LanguageServerStatus fileName={activeTab.name} />
+          </>
         ) : (
           <span className="statusItem">{describeTab(activeTab)}</span>
         )}

@@ -340,3 +340,16 @@ func TestEditorSettingsThatAreNotJsonAreRefused(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	assert.Equal(t, DefaultEditorSettings(), GetEditorSettings())
 }
+
+func TestLanguageServersAreOnWithNothingOverriddenUntilChosen(t *testing.T) {
+	aHome(t)
+
+	assert.Equal(t, LanguageServerSettings{Commands: map[string]string{}}, GetLanguageServerSettings())
+
+	require.NoError(t, setLanguageServerSettings(LanguageServerSettings{
+		Disabled: true,
+		Commands: map[string]string{"python": "  pylsp  ", "go": "   "},
+	}))
+
+	assert.Equal(t, LanguageServerSettings{Disabled: true, Commands: map[string]string{"python": "pylsp"}}, GetLanguageServerSettings())
+}

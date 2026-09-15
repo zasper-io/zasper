@@ -120,6 +120,76 @@ test('the topbar name sits on the same line as its buttons', async ({ page }) =>
 });
 
 /*
+A recent file's mark sits on its name's baseline, and a file with no mark gets an icon in the same 18px
+slot, centred on the row. The palette's marks sat 2px high, centred beside text rather than on its line,
+and an icon on the Launcher stood on the baseline and pushed its row taller — every box still the size
+it should be, which is why this reads baselines and left edges.
+*/
+test('a recent file’s mark or icon lines up with its name', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(async () => {
+    const info = (await (await fetch('/api/info')).json()) as { directory: string };
+    const files = [
+      { path: 'analysis.ipynb', name: 'analysis.ipynb', type: 'notebook' },
+      { path: 'data/table.csv', name: 'table.csv', type: 'file' },
+      { path: 'notes.txt', name: 'notes.txt', type: 'file' },
+    ];
+    localStorage.setItem(
+      'zasper.recent',
+      JSON.stringify({ version: 1, directory: info.directory, files })
+    );
+  });
+  await page.reload();
+
+  const rowsLineUp = async (rows: Locator) => {
+    await expect(rows).toHaveCount(3);
+    const measured = await rows.evaluateAll((elements) =>
+      elements.map((row) => {
+        const rowBox = row.getBoundingClientRect();
+        // A zero-size inline-block's top is the baseline of the line it is placed on.
+        const baseline = (el: Element) => {
+          const probe = document.createElement('span');
+          probe.style.cssText = 'display:inline-block;width:0;height:0';
+          el.appendChild(probe);
+          const y = probe.getBoundingClientRect().top;
+          probe.remove();
+          return y;
+        };
+        const label = row.querySelector('.panel-row-label')!;
+        const mark = row.querySelector('.file-mark');
+        const icon = row.querySelector('.file-mark-icon');
+        const iconBox = icon?.getBoundingClientRect();
+        return {
+          name: label.textContent,
+          rowHeight: rowBox.height,
+          labelLeft: label.getBoundingClientRect().left,
+          markDrop: mark ? baseline(mark) - baseline(label) : 0,
+          iconDrop: iconBox
+            ? iconBox.top + iconBox.height / 2 - (rowBox.top + rowBox.height / 2)
+            : 0,
+        };
+      })
+    );
+    for (const row of measured) {
+      expect(row.rowHeight, `${row.name}: row height`).toBe(22);
+      expect(
+        Math.abs(row.labelLeft - measured[0].labelLeft),
+        `${row.name}: left edge`
+      ).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(row.markDrop), `${row.name}: mark off the baseline`).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(row.iconDrop), `${row.name}: icon off centre`).toBeLessThanOrEqual(0.5);
+    }
+  };
+
+  await rowsLineUp(page.locator('.recent-list .panel-row'));
+
+  await page.locator('.openCommandPaletteButton').click();
+  await rowsLineUp(
+    page.locator('.palette .panel-row').filter({ has: page.locator('.panel-row-name') })
+  );
+});
+
+/*
 Hiding the sidebar leaves the rail, which is the way back: a rail click opens the sidebar on the panel it
 names. The chord does the same as the button, so both are driven here.
 */

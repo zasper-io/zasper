@@ -89,6 +89,8 @@ export interface TabActions {
   openDiskCompare: (path: string) => void;
   /** Opens a file on disk against the file after the search panel's replace. */
   openSearchPreview: (path: string) => void;
+  /** Opens what a language's server has written to its log. */
+  openLanguageServerLog: (server: string, name: string) => void;
   /** Opens the last tab a close took, newest first. */
   reopenClosedTab: () => void;
   /**
@@ -274,6 +276,10 @@ export function useTabActions(): TabActions {
         type: 'search-preview',
         extension: getFileExtension(baseName(path)),
       });
+    },
+
+    openLanguageServerLog: (server: string, name: string) => {
+      openTab({ name: `${name} log`, path: `lsp-log:${server}`, type: 'lsp-log', extension: null });
     },
 
     reopenClosedTab: () => {

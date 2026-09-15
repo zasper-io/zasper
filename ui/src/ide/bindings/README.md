@@ -7,6 +7,7 @@ shortcut beside it. Both are generated from the registry, so they cannot fall ou
 hand-written table does.
 
 This file used to be a copy of VS Code's shortcuts, and most of what it listed — go to definition, find
-references, rename, debugging — does not exist in Zasper yet. Those are planned as part of the file
-editor's language intelligence; a shortcut is added to a command when the command is. Search and replace
-across the project is Search in Files (Ctrl+Shift+F, or Cmd+Shift+F on macOS).
+references, rename, debugging — does not exist in Zasper yet; a shortcut is added to a command when the
+command is. Search and replace across the project is Search in Files (Ctrl+Shift+F, or Cmd+Shift+F on
+macOS). With a language server running, Go to Definition is F12 and Format Document is Shift+Alt+F, both
+bound in the file editor itself.

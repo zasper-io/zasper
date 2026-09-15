@@ -1,11 +1,11 @@
 import React, { ReactNode, useRef, useState } from 'react';
 
-import { Icon } from '@/ide/icons';
+import { Icon, IconName } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 
 interface StatusPickerProps {
   /** What the bar shows, which is the current value. */
-  label: string;
+  label: ReactNode;
   /** Read aloud: the value with what it is a value of. */
   spokenLabel: string;
   children: (close: () => void) => ReactNode;
@@ -81,11 +81,13 @@ export function MenuChoice({ label, checked, onSelect }: MenuChoiceProps) {
 
 interface MenuActionProps {
   label: string;
+  /** Drawn in the tick's place, which a menu of actions has no other use for. */
+  icon?: IconName;
   disabled?: boolean;
   onSelect: () => void;
 }
 
-export function MenuAction({ label, disabled, onSelect }: MenuActionProps) {
+export function MenuAction({ label, icon, disabled, onSelect }: MenuActionProps) {
   return (
     <li className="panel-row" role="none">
       <button
@@ -95,7 +97,7 @@ export function MenuAction({ label, disabled, onSelect }: MenuActionProps) {
         disabled={disabled}
         onClick={onSelect}
       >
-        <span className="menuTick" />
+        <span className="menuTick">{icon !== undefined && <Icon name={icon} size={12} />}</span>
         <span className="panel-row-label">{label}</span>
       </button>
     </li>

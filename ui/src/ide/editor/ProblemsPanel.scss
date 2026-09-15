@@ -1,0 +1,68 @@
+// The Problems panel under the editor (story 19): the width of the editor, so a long message fits on its
+// row and the source and position can say more.
+.problemsPanel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--z-border);
+  background: var(--z-bg-panel);
+}
+
+.problemsPanel-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 16px;
+  color: var(--z-fg-muted);
+}
+
+.problemsPanel-close {
+  margin-left: auto;
+}
+
+.problemsPanel-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 6px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.problemRow {
+  padding-left: 16px;
+
+  .panel-row-name {
+    align-items: center;
+  }
+
+  // Where the problem is identifies the row as much as the message does, so the message clips first.
+  .panel-row-meta {
+    flex-shrink: 0;
+  }
+}
+
+.problemIcon {
+  flex: 0 0 auto;
+  display: inline-flex;
+
+  &.is-error {
+    color: var(--z-status-error);
+  }
+
+  &.is-warning {
+    color: var(--z-status-warning);
+  }
+
+  &.is-info,
+  &.is-hint {
+    color: var(--z-status-info);
+  }
+}
+
+.problemsPanel-empty {
+  margin: 0;
+  padding: 4px 16px;
+}

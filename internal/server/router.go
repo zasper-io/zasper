@@ -139,6 +139,10 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/search/preview", s.search.Preview).Methods("POST")
 	apiRouter.HandleFunc("/search/replace", s.search.Replace).Methods("POST")
 
+	// language servers
+	apiRouter.HandleFunc("/lsp/servers", s.languages.Servers).Methods("GET")
+	apiRouter.HandleFunc("/lsp/log", s.languages.Log).Methods("GET")
+
 	// git
 	apiRouter.HandleFunc("/git/status", s.git.Status).Methods("GET")
 	apiRouter.HandleFunc("/git/log", s.git.Log).Methods("GET")
@@ -190,6 +194,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	//web sockets
 	wsRouter.HandleFunc("/kernels/{kernelId}/channels", s.kernelSockets.HandleWebSocket)
 	wsRouter.HandleFunc("/terminals/{terminalId}", s.terminals.HandleWebSocket)
+	wsRouter.HandleFunc("/lsp/{language}", s.languages.HandleWebSocket)
 
 	if spa != nil {
 		router.PathPrefix("/").Handler(spa)
