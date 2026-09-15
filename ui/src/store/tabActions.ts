@@ -9,7 +9,14 @@ import { helpAboutRequestAtom } from '@/store/helpTab';
 import { notebookKernelMapAtom } from '@/store/kernels';
 import { recentFilesAtom, withRecent } from '@/store/recentFiles';
 import { terminalsAtom, terminalsCountAtom } from '@/store/terminals';
-import { fileTabsAtom, FileTab, FileTabDict, withActive } from './tabState';
+import {
+  fileTabsAtom,
+  FileTab,
+  FileTabDict,
+  tabGroupsAtom,
+  withActive,
+  withoutTabs,
+} from './tabState';
 
 /** What a caller has to say to open a tab; the rest of FileTab follows from it. */
 export interface OpenTab {
@@ -114,6 +121,7 @@ export function useTabActions(): TabActions {
   const closedTabs = useAtomValue(closedTabsAtom);
   const setClosedTabs = useSetAtom(closedTabsAtom);
   const setRecentFiles = useSetAtom(recentFilesAtom);
+  const setTabGroups = useSetAtom(tabGroupsAtom);
 
   const openTab = (tab: OpenTab) => {
     // Outside the updater, which React may run more than once. `fileTabs` is the render's snapshot, so
@@ -192,27 +200,8 @@ export function useTabActions(): TabActions {
       setClosedTabs((previous) => [...previous, ...closed].slice(-CLOSED_TABS_KEPT));
     }
 
-    setFileTabs((previous) => {
-      const next: FileTabDict = {};
-      Object.entries(previous).forEach(([key, tab]) => {
-        if (!paths.includes(key)) {
-          next[key] = { ...tab, load_required: false };
-        }
-      });
-      // Something has to be in front once a tab goes: the tab a close was measured from if it stayed,
-      // or the Launcher, the one tab always there. Only when the tab that went was the one in front,
-      // or closing a background tab shows two.
-      if (Object.values(next).some((tab) => tab.active)) {
-        return next;
-      }
-      if (focus !== undefined && next[focus] !== undefined) {
-        return withActive(next, focus);
-      }
-      if (next.Launcher) {
-        next.Launcher = { ...next.Launcher, active: true };
-      }
-      return next;
-    });
+    // The half being worked in; `withoutTabs` is what leaves something in front of it.
+    setFileTabs((previous) => withoutTabs(previous, paths, focus));
 
     setTerminals((previous) => {
       const next = { ...previous };
@@ -294,7 +283,17 @@ export function useTabActions(): TabActions {
       // server would hand back to a new file of the same name. Walking the kernels rather than the tabs
       // because a kernel now outlives its tab — the notebook may have been closed hours ago.
       releaseKernels(Object.keys(notebookKernelMap).filter((key) => isInside(key, path)));
-      removeTabs(Object.keys(fileTabs).filter((key) => isInside(key, path)));
+      // Out of every half, because a file can be open in more than one — and not remembered as a
+      // closed tab either: reopening something that is gone is an editor saying it cannot be loaded.
+      setTabGroups((groups) =>
+        groups.map((group) => ({
+          ...group,
+          tabs: withoutTabs(
+            group.tabs,
+            Object.keys(group.tabs).filter((key) => isInside(key, path))
+          ),
+        }))
+      );
       setRecentFiles((files) => files.filter((file) => !isInside(file.path, path)));
     },
 
@@ -307,20 +306,24 @@ export function useTabActions(): TabActions {
         })
       );
 
-      setFileTabs((previous) => {
-        const next: FileTabDict = {};
-        // Rebuilt in order rather than reassigned: the key is the path, so a rename is a new key,
-        // and the tab has to stay where it was in the strip.
-        Object.entries(previous).forEach(([key, tab]) => {
-          const moved = rewritePath(key, oldPath, newPath);
-          if (moved === null) {
-            next[key] = tab;
-          } else {
-            next[moved] = { ...tab, path: moved, name: baseName(moved) };
-          }
-        });
-        return next;
-      });
+      // In every half: a renamed file that is open twice is the same file twice, and a tab left on the
+      // old path would recreate it on its next save.
+      setTabGroups((groups) =>
+        groups.map((group) => {
+          const next: FileTabDict = {};
+          // Rebuilt in order rather than reassigned: the key is the path, so a rename is a new key,
+          // and the tab has to stay where it was in the strip.
+          Object.entries(group.tabs).forEach(([key, tab]) => {
+            const moved = rewritePath(key, oldPath, newPath);
+            if (moved === null) {
+              next[key] = tab;
+            } else {
+              next[moved] = { ...tab, path: moved, name: baseName(moved) };
+            }
+          });
+          return { ...group, tabs: next };
+        })
+      );
 
       setNotebookKernelMap((previous) => {
         const next: typeof previous = {};

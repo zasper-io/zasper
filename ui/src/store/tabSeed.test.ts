@@ -20,11 +20,21 @@ const remembered = {
   ],
 };
 
-/** The strip TabState seeds itself with, for whatever is in storage now. */
+/**
+ * The strip TabState seeds itself with, for whatever is in storage now: the first half's tabs, which
+ * with one half is the strip the app has always had.
+ */
 async function seededStrip() {
   vi.resetModules();
   const fresh = await import('./tabState');
-  return fresh.fileTabsAtom.init;
+  return fresh.tabGroupsAtom.init[0].tabs;
+}
+
+/** How many halves were seeded. */
+async function seededHalves() {
+  vi.resetModules();
+  const fresh = await import('./tabState');
+  return fresh.tabGroupsAtom.init.length;
 }
 
 describe('the strip a visit starts with', () => {
@@ -60,6 +70,12 @@ describe('the strip a visit starts with', () => {
     localStorage.setItem(KEY, '{ not json');
 
     expect(Object.keys(await seededStrip())).toEqual(['Launcher']);
+  });
+
+  it('is one half, from a record written before there could be more', async () => {
+    localStorage.setItem(KEY, JSON.stringify(remembered));
+
+    expect(await seededHalves()).toBe(1);
   });
 
   it('does not restore a terminal', async () => {

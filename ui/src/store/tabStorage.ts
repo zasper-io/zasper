@@ -26,18 +26,25 @@ import type { DiffTarget } from '@/api';
 
 // Types only, deliberately: TabState seeds itself from this module, so a value imported back the
 // other way would be a runtime cycle between the two.
-import type { FileTab, FileTabDict } from './tabState';
+import type { FileTab, FileTabDict, TabGroup } from './tabState';
 
 const STORAGE_KEY = 'zasper.tabs';
 
-/** Bumped when the record's shape changes; an older or newer one is ignored rather than guessed at. */
-const VERSION = 1;
+/**
+ * Bumped when the record's shape changes. Version 1 was one strip; a split has several, so a record
+ * from before it is read as one group rather than thrown away — an upgrade should not cost anybody the
+ * tabs they had open. Anything else is ignored rather than guessed at.
+ */
+const VERSION = 2;
 
 /**
  * A bound on what one boot will mount. `ContentPanel` mounts every open tab, restored or not, so a
  * strip remembered from a session someone left open for a month is a real cost at the next boot.
  */
 const MAX_TABS = 25;
+
+/** The same bound on halves, for a hand-edited record: four panes is already more than a window holds. */
+const MAX_GROUPS = 4;
 
 /** The tab kinds worth restoring: a file on disk, a git comparison of one, and Help and Settings, which are only themselves. */
 const RESTORABLE = new Set(['file', 'notebook', 'diff', 'help', 'settings']);
@@ -52,14 +59,20 @@ export interface StoredTab {
   diff?: DiffTarget;
 }
 
+/** One half's remembered tabs, in strip order, and which of them was in front. */
+export interface StoredGroup {
+  /** The key of the tab that was in front in this group. */
+  active: string;
+  /** In strip order. An array, not the keyed dictionary: order is the point of remembering. */
+  tabs: StoredTab[];
+}
+
 export interface StoredTabs {
   version: number;
   /** The absolute project directory, from `/api/info`, so another project's tabs are not adopted. */
   directory: string;
-  /** The key of the tab that was in front. */
-  active: string;
-  /** In strip order. An array, not the keyed dictionary: order is the point of remembering. */
-  tabs: StoredTab[];
+  /** Left to right. One today — nothing makes a second half yet — and the shape is ready for more. */
+  groups: StoredGroup[];
 }
 
 function isStorable(tab: FileTab): boolean {
@@ -86,64 +99,84 @@ export function readStoredTabs(): StoredTabs | null {
     return null;
   }
 
-  const record = parsed as Partial<StoredTabs>;
+  const record = parsed as Partial<StoredTabs> & Partial<StoredGroup>;
   if (
     record === null ||
     typeof record !== 'object' ||
-    record.version !== VERSION ||
     typeof record.directory !== 'string' ||
-    record.directory === '' ||
-    !Array.isArray(record.tabs)
+    record.directory === ''
   ) {
     return null;
   }
 
-  const tabs = record.tabs.filter((tab): tab is StoredTab => {
-    if (tab === null || typeof tab !== 'object') {
-      return false;
-    }
-    const { type, path, name, diff } = tab as StoredTab;
-    if (typeof type !== 'string' || typeof path !== 'string' || typeof name !== 'string') {
-      return false;
-    }
-    if (path === '' || name === '' || !RESTORABLE.has(type) || path === 'Launcher') {
-      return false;
-    }
-    // A diff tab with no target renders as nothing at all — Editor.tsx has no diff to hand the
-    // DiffTab — so it would come back as a tab that can never show anything.
-    if (
-      type === 'diff' &&
-      (diff === null || typeof diff !== 'object' || typeof diff.path !== 'string')
-    ) {
-      return false;
-    }
-    return true;
-  });
+  const groups = storedGroups(record);
+  if (groups === null) {
+    return null;
+  }
 
   return {
     version: VERSION,
     directory: record.directory,
-    active: typeof record.active === 'string' ? record.active : 'Launcher',
-    tabs: tabs.slice(0, MAX_TABS),
+    groups: groups.slice(0, MAX_GROUPS).map((group) => ({
+      active: typeof group.active === 'string' ? group.active : 'Launcher',
+      tabs: (Array.isArray(group.tabs) ? group.tabs : []).filter(isRestorable).slice(0, MAX_TABS),
+    })),
   };
 }
 
-/** Remembers the strip as it now stands, for the project at `directory`. */
-export function rememberTabs(directory: string, tabs: FileTabDict): void {
+/** The groups a record holds, whichever shape it was written in, or null for one to ignore. */
+function storedGroups(record: Partial<StoredTabs> & Partial<StoredGroup>): StoredGroup[] | null {
+  if (record.version === 1 && Array.isArray(record.tabs)) {
+    return [
+      { active: typeof record.active === 'string' ? record.active : 'Launcher', tabs: record.tabs },
+    ];
+  }
+  if (record.version === VERSION && Array.isArray(record.groups) && record.groups.length > 0) {
+    return record.groups.filter((group) => group !== null && typeof group === 'object');
+  }
+  return null;
+}
+
+function isRestorable(tab: StoredTab): tab is StoredTab {
+  if (tab === null || typeof tab !== 'object') {
+    return false;
+  }
+  const { type, path, name, diff } = tab;
+  if (typeof type !== 'string' || typeof path !== 'string' || typeof name !== 'string') {
+    return false;
+  }
+  if (path === '' || name === '' || !RESTORABLE.has(type) || path === 'Launcher') {
+    return false;
+  }
+  // A diff tab with no target renders as nothing at all — Editor.tsx has no diff to hand the
+  // DiffTab — so it would come back as a tab that can never show anything.
+  if (
+    type === 'diff' &&
+    (diff === null || typeof diff !== 'object' || typeof diff.path !== 'string')
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Remembers the halves as they now stand, for the project at `directory`. */
+export function rememberTabs(directory: string, groups: TabGroup[]): void {
   const record: StoredTabs = {
     version: VERSION,
     directory,
-    active: Object.values(tabs).find((tab) => tab.active)?.path ?? 'Launcher',
-    tabs: Object.values(tabs)
-      .filter(isStorable)
-      .slice(0, MAX_TABS)
-      .map((tab) => ({
-        type: tab.type,
-        path: tab.path,
-        name: tab.name,
-        extension: tab.extension,
-        ...(tab.diff === undefined ? {} : { diff: tab.diff }),
-      })),
+    groups: groups.map((group) => ({
+      active: Object.values(group.tabs).find((tab) => tab.active)?.path ?? 'Launcher',
+      tabs: Object.values(group.tabs)
+        .filter(isStorable)
+        .slice(0, MAX_TABS)
+        .map((tab) => ({
+          type: tab.type,
+          path: tab.path,
+          name: tab.name,
+          extension: tab.extension,
+          ...(tab.diff === undefined ? {} : { diff: tab.diff }),
+        })),
+    })),
   };
 
   try {
@@ -173,10 +206,14 @@ export function forgetTabs(): void {
  * The Launcher is passed in rather than imported to keep this a function of its arguments — and to
  * keep the dependency between these two modules pointing one way.
  */
-export function restoreTabs(record: StoredTabs, launcher: FileTab): FileTabDict {
-  const tabs: FileTabDict = { Launcher: { ...launcher, active: false, load_required: false } };
+export function restoreTabs(group: StoredGroup, launcher?: FileTab): FileTabDict {
+  // The Launcher belongs to the first half only: it is the tab that is always open, not one per pane.
+  const tabs: FileTabDict =
+    launcher === undefined
+      ? {}
+      : { Launcher: { ...launcher, active: false, load_required: false } };
 
-  record.tabs.forEach((stored) => {
+  group.tabs.forEach((stored) => {
     tabs[stored.path] = {
       type: stored.type,
       path: stored.path,
@@ -200,6 +237,11 @@ export function restoreTabs(record: StoredTabs, launcher: FileTab): FileTabDict 
  * among them — the remembered tab may have been a terminal, or a shape this version no longer
  * restores. The Launcher is always there, so this always names a tab that exists.
  */
-export function restoredActive(record: StoredTabs, tabs: FileTabDict): string {
-  return tabs[record.active] === undefined ? 'Launcher' : record.active;
+export function restoredActive(group: StoredGroup, tabs: FileTabDict): string {
+  if (tabs[group.active] !== undefined) {
+    return group.active;
+  }
+  // The Launcher is always in the first half, so it is always a tab that exists there; a later half
+  // falls back to whatever it restored first.
+  return tabs.Launcher === undefined ? (Object.keys(tabs)[0] ?? '') : 'Launcher';
 }

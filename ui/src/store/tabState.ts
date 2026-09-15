@@ -40,6 +40,26 @@ export interface FileTabDict {
   [id: string]: FileTab;
 }
 
+/**
+ * One half of a split: its own tabs, and its own tab in front.
+ *
+ * Story 16 settled VS Code's model, where a file can be open in more than one half — so two tabs about
+ * one path cannot share a key, and the one dictionary keyed by path had to become one *per half*.
+ * Inside a half the path is still the key, which is what keeps `withActive`, the close scopes and the
+ * strip's own order exactly as they were.
+ *
+ * There is one half today. Nothing makes a second one yet: the panes, the second strip and the drag are
+ * story 16's own work, and this is only the store underneath them.
+ */
+export interface TabGroup {
+  /** Minted when the half is made, and what a tab's half is named by. */
+  id: string;
+  tabs: FileTabDict;
+}
+
+/** The half every session starts with, and the only one until the panes are built. */
+export const FIRST_GROUP = 'group-1';
+
 export const defaultFileTabState: FileTabDict = {
   Launcher: {
     type: 'launcher',
@@ -82,7 +102,7 @@ export function withActive(tabs: FileTabDict, path: string): FileTabDict {
 }
 
 /**
- * The strip, seeded from the last visit.
+ * Every half, left to right, seeded from the last visit.
  *
  * Read at module load, as `zoomLevelAtom` reads its own stored value: `App.tsx` mounts a bare
  * `<Provider>`, so this initial value is what the first render draws and the tabs are on screen
@@ -100,18 +120,84 @@ const remembered = readStoredTabs();
 /** Which project the seeded strip was remembered for, for `useRememberTabs` to confirm. */
 export const rememberedDirectory: string | null = remembered?.directory ?? null;
 
-function seededTabs(): FileTabDict {
+function seededGroups(): TabGroup[] {
   if (remembered === null) {
-    return defaultFileTabState;
+    return [{ id: FIRST_GROUP, tabs: defaultFileTabState }];
   }
-  const restored = restoreTabs(remembered, defaultFileTabState.Launcher);
-  return withActive(restored, restoredActive(remembered, restored));
+  return remembered.groups.map((group, index) => {
+    // The Launcher goes to the first half, which is the one that always exists.
+    const restored = restoreTabs(group, index === 0 ? defaultFileTabState.Launcher : undefined);
+    return {
+      id: index === 0 ? FIRST_GROUP : `group-${index + 1}`,
+      tabs: withActive(restored, restoredActive(group, restored)),
+    };
+  });
 }
 
-export const fileTabsAtom = atom<FileTabDict>(seededTabs());
+export const tabGroupsAtom = atom<TabGroup[]>(seededGroups());
+
+/**
+ * The half with the cursor in it. Everything outside the panes reads this one: the strip, the status
+ * bar, the breadcrumb, the file browser's marker, the palette, the unsaved prompt.
+ */
+export const focusedGroupAtom = atom<string>(FIRST_GROUP);
+
+/** One half's tabs, or an empty strip for a half that is not there. */
+export function groupTabs(groups: TabGroup[], id: string): FileTabDict {
+  return groups.find((group) => group.id === id)?.tabs ?? {};
+}
+
+/**
+ * The focused half's tabs, read and written as one dictionary.
+ *
+ * This is the seam: to everything above it, "the tabs" means the half being worked in, which is what
+ * every one of those surfaces already meant when there was only one. Writing it writes that half.
+ */
+export const fileTabsAtom = atom(
+  (get) => groupTabs(get(tabGroupsAtom), get(focusedGroupAtom)),
+  (get, set, update: FileTabDict | ((previous: FileTabDict) => FileTabDict)) => {
+    const focused = get(focusedGroupAtom);
+    set(tabGroupsAtom, (groups) =>
+      groups.map((group) =>
+        group.id === focused
+          ? { ...group, tabs: typeof update === 'function' ? update(group.tabs) : update }
+          : group
+      )
+    );
+  }
+);
 
 /** The path of the tab in front, for the surfaces outside the tab strip that mark it — the file browser. */
 export const activeTabPathAtom = atom<string>((get) => {
   const active = Object.values(get(fileTabsAtom)).find((tab) => tab.active);
   return active === undefined ? '' : active.path;
 });
+
+/**
+ * `tabs` without `paths`, and with something still in front.
+ *
+ * Shared by closing tabs in one half and deleting a file out of every half: a half that loses the tab
+ * it was showing has to show something, and which something is the same answer either way.
+ */
+export function withoutTabs(tabs: FileTabDict, paths: string[], focus?: string): FileTabDict {
+  const next: FileTabDict = {};
+  Object.entries(tabs).forEach(([key, tab]) => {
+    if (!paths.includes(key)) {
+      next[key] = { ...tab, load_required: false };
+    }
+  });
+
+  // Something has to be in front once a tab goes: the tab a close was measured from if it stayed, or
+  // the Launcher, the one tab always there. Only when the tab that went was the one in front, or
+  // closing a background tab shows two.
+  if (Object.values(next).some((tab) => tab.active)) {
+    return next;
+  }
+  if (focus !== undefined && next[focus] !== undefined) {
+    return withActive(next, focus);
+  }
+  if (next.Launcher) {
+    next.Launcher = { ...next.Launcher, active: true };
+  }
+  return next;
+}

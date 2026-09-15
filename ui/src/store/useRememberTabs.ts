@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import { projectDirAtom } from '@/store/serverInfo';
-import { defaultFileTabState, fileTabsAtom, rememberedDirectory } from './tabState';
+import { defaultFileTabState, FIRST_GROUP, rememberedDirectory, tabGroupsAtom } from './tabState';
 import { forgetTabs, rememberTabs } from './tabStorage';
 
 /**
@@ -23,9 +23,9 @@ import { forgetTabs, rememberTabs } from './tabStorage';
  * what was remembered untouched rather than replacing it with a strip nobody confirmed.
  */
 export function useRememberTabs(): void {
-  const tabs = useAtomValue(fileTabsAtom);
+  const groups = useAtomValue(tabGroupsAtom);
   const directory = useAtomValue(projectDirAtom);
-  const setTabs = useSetAtom(fileTabsAtom);
+  const setGroups = useSetAtom(tabGroupsAtom);
   const confirmed = useRef(false);
 
   useEffect(() => {
@@ -39,12 +39,12 @@ export function useRememberTabs(): void {
       confirmed.current = true;
       if (rememberedDirectory !== null && rememberedDirectory !== directory) {
         forgetTabs();
-        setTabs(defaultFileTabState);
+        setGroups([{ id: FIRST_GROUP, tabs: defaultFileTabState }]);
         // The write for the reset strip comes on the next run, from the state change above.
         return;
       }
     }
 
-    rememberTabs(directory, tabs);
-  }, [directory, tabs, setTabs]);
+    rememberTabs(directory, groups);
+  }, [directory, groups, setGroups]);
 }

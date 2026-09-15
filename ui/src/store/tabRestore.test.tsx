@@ -44,8 +44,17 @@ function store(record: unknown): void {
   localStorage.setItem(KEY, typeof record === 'string' ? record : JSON.stringify(record));
 }
 
-function stored(): { active?: string; tabs?: { path: string }[] } | null {
+function stored(): {
+  version?: number;
+  groups?: { active: string; tabs: { path: string }[] }[];
+  tabs?: { path: string }[];
+} | null {
   return JSON.parse(localStorage.getItem(KEY) ?? 'null');
+}
+
+/** The tabs remembered for the first half, which is the only one there is. */
+function storedPaths(): string[] | undefined {
+  return stored()?.groups?.[0].tabs.map((tab) => tab.path);
 }
 
 /** The strip on screen, and the hook that remembers it. */
@@ -106,14 +115,14 @@ describe('keeping the record in step', () => {
 
     renderStrip(DIRECTORY);
 
-    expect(stored()?.tabs?.map((tab) => tab.path)).toEqual(['notes.txt']);
-    expect(stored()?.active).toBe('notes.txt');
+    expect(storedPaths()).toEqual(['notes.txt']);
+    expect(stored()?.groups?.[0].active).toBe('notes.txt');
   });
 
   it('remembers a strip when nothing was remembered before', () => {
     renderStrip(DIRECTORY);
 
-    expect(stored()?.tabs?.map((tab) => tab.path)).toEqual(['notes.txt']);
+    expect(storedPaths()).toEqual(['notes.txt']);
   });
 
   /*
@@ -127,6 +136,6 @@ describe('keeping the record in step', () => {
     renderStrip(DIRECTORY);
 
     expect(screen.getByTestId('tabs').textContent).toBe('Launcher');
-    expect(stored()?.tabs).toEqual([]);
+    expect(storedPaths()).toEqual([]);
   });
 });

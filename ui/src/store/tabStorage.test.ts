@@ -8,6 +8,7 @@ import {
   rememberTabs,
   restoredActive,
   restoreTabs,
+  StoredGroup,
   StoredTabs,
 } from './tabStorage';
 import { defaultFileTabState, FileTab, FileTabDict, withActive } from './tabState';
@@ -42,15 +43,23 @@ function written(): StoredTabs {
   return JSON.parse(localStorage.getItem(KEY) ?? 'null');
 }
 
+/** The one half every case here is about, as the writer is handed it. */
+function halves(tabs: FileTabDict = open) {
+  return [{ id: 'group-1', tabs }];
+}
+
+/** The tabs remembered for one half, by path. */
+function writtenPaths(half = 0): string[] {
+  return written().groups[half].tabs.map((stored) => stored.path);
+}
+
 function store(record: unknown): void {
   localStorage.setItem(KEY, JSON.stringify(record));
 }
 
-/** A record of the shape the writer produces, so a test can vary one part of it. */
-function record(over: Partial<StoredTabs> = {}): StoredTabs {
+/** A half of the shape the writer produces, so a test can vary one part of it. */
+function storedGroup(over: Partial<StoredGroup> = {}): StoredGroup {
   return {
-    version: 1,
-    directory: DIRECTORY,
     active: 'notes.txt',
     tabs: [
       { type: 'file', path: 'notes.txt', name: 'notes.txt', extension: 'txt' },
@@ -60,35 +69,54 @@ function record(over: Partial<StoredTabs> = {}): StoredTabs {
   };
 }
 
+/** A record of the shape the writer produces, so a test can vary one part of it. */
+function record(over: Partial<StoredGroup> = {}): StoredTabs {
+  return { version: 2, directory: DIRECTORY, groups: [storedGroup(over)] };
+}
+
 describe('the remembered tab strip', () => {
   beforeEach(() => localStorage.clear());
 
   it('remembers the open tabs in order, and which was in front', () => {
-    rememberTabs(DIRECTORY, open);
+    rememberTabs(DIRECTORY, halves());
 
     expect(written().directory).toBe(DIRECTORY);
-    expect(written().active).toBe('src/demo.ipynb');
-    expect(written().tabs.map((stored) => stored.path)).toEqual(['notes.txt', 'src/demo.ipynb']);
+    expect(written().groups[0].active).toBe('src/demo.ipynb');
+    expect(writtenPaths()).toEqual(['notes.txt', 'src/demo.ipynb']);
+  });
+
+  // Each half keeps its own tabs and its own tab in front, which is the whole of what a split adds.
+  it('remembers every half, and what was in front of each', () => {
+    rememberTabs(DIRECTORY, [
+      { id: 'group-1', tabs: open },
+      { id: 'group-2', tabs: { 'lib/clean.py': tab('lib/clean.py', 'file', { active: true }) } },
+    ]);
+
+    expect(written().groups).toHaveLength(2);
+    expect(written().groups[1].active).toBe('lib/clean.py');
+    expect(writtenPaths(1)).toEqual(['lib/clean.py']);
   });
 
   // A shell cannot be reattached, so a restored terminal would be an empty one wearing an old name.
   it('does not remember terminals, or the Launcher', () => {
-    rememberTabs(DIRECTORY, open);
+    rememberTabs(DIRECTORY, halves());
 
-    const paths = written().tabs.map((stored) => stored.path);
-    expect(paths).not.toContain('Terminal 1');
-    expect(paths).not.toContain('Launcher');
+    expect(writtenPaths()).not.toContain('Terminal 1');
+    expect(writtenPaths()).not.toContain('Launcher');
   });
 
   it('remembers the Launcher being in front, without remembering the tab', () => {
-    rememberTabs(DIRECTORY, {
-      ...open,
-      Launcher: { ...launcher, active: true },
-      'src/demo.ipynb': tab('src/demo.ipynb', 'notebook'),
-    });
+    rememberTabs(
+      DIRECTORY,
+      halves({
+        ...open,
+        Launcher: { ...launcher, active: true },
+        'src/demo.ipynb': tab('src/demo.ipynb', 'notebook'),
+      })
+    );
 
-    expect(written().active).toBe('Launcher');
-    expect(written().tabs.map((stored) => stored.path)).not.toContain('Launcher');
+    expect(written().groups[0].active).toBe('Launcher');
+    expect(writtenPaths()).not.toContain('Launcher');
   });
 
   /*
@@ -96,33 +124,58 @@ describe('the remembered tab strip', () => {
    * is running the path; and a terminal's folder is for a tab kind that is not remembered at all.
    */
   it('remembers nothing about a tab beyond what it takes to open it again', () => {
-    rememberTabs(DIRECTORY, open);
+    rememberTabs(DIRECTORY, halves());
 
-    written().tabs.forEach((stored) => {
+    written().groups[0].tabs.forEach((stored) => {
       expect(Object.keys(stored).sort()).toEqual(['extension', 'name', 'path', 'type']);
     });
   });
 
   it('keeps a diff tab whole, including which comparison it was', () => {
     const target = { path: 'notes.txt', staged: true, ref: 'abc1234', from: 'old.txt' };
-    rememberTabs(DIRECTORY, {
-      Launcher: launcher,
-      'diff:abc1234:notes.txt': tab('diff:abc1234:notes.txt', 'diff', { diff: target }),
-    });
+    rememberTabs(
+      DIRECTORY,
+      halves({
+        Launcher: launcher,
+        'diff:abc1234:notes.txt': tab('diff:abc1234:notes.txt', 'diff', { diff: target }),
+      })
+    );
 
-    expect(written().tabs[0].diff).toEqual(target);
+    expect(written().groups[0].tabs[0].diff).toEqual(target);
   });
 
   it('reads back a record it wrote', () => {
-    rememberTabs(DIRECTORY, open);
+    rememberTabs(DIRECTORY, halves());
 
     const read = readStoredTabs();
     expect(read?.directory).toBe(DIRECTORY);
-    expect(read?.tabs.map((stored) => stored.path)).toEqual(['notes.txt', 'src/demo.ipynb']);
+    expect(read?.groups[0].tabs.map((stored) => stored.path)).toEqual([
+      'notes.txt',
+      'src/demo.ipynb',
+    ]);
+  });
+
+  /*
+   * Version 1 was one strip, before there could be halves. It is read as one half rather than thrown
+   * away: an upgrade should not cost somebody the tabs they had open.
+   */
+  it('reads a record from before the split as one half', () => {
+    store({
+      version: 1,
+      directory: DIRECTORY,
+      active: 'notes.txt',
+      tabs: [{ type: 'file', path: 'notes.txt', name: 'notes.txt', extension: 'txt' }],
+    });
+
+    const read = readStoredTabs();
+
+    expect(read?.groups).toHaveLength(1);
+    expect(read?.groups[0].active).toBe('notes.txt');
+    expect(read?.groups[0].tabs.map((stored) => stored.path)).toEqual(['notes.txt']);
   });
 
   it('forgets on request', () => {
-    rememberTabs(DIRECTORY, open);
+    rememberTabs(DIRECTORY, halves());
     forgetTabs();
 
     expect(readStoredTabs()).toBeNull();
@@ -134,9 +187,13 @@ describe('the remembered tab strip', () => {
 
   it.each([
     ['unparseable', 'not json at all'],
-    ['a version this code does not know', JSON.stringify(record({ version: 2 }))],
-    ['no directory', JSON.stringify({ version: 1, active: 'a', tabs: [] })],
-    ['tabs that are not a list', JSON.stringify({ ...record(), tabs: 'notes.txt' })],
+    [
+      'a version this code does not know',
+      JSON.stringify({ version: 9, directory: DIRECTORY, groups: [storedGroup()] }),
+    ],
+    ['no directory', JSON.stringify({ version: 2, groups: [storedGroup()] })],
+    ['halves that are not a list', JSON.stringify({ ...record(), groups: 'notes.txt' })],
+    ['no halves at all', JSON.stringify({ version: 2, directory: DIRECTORY, groups: [] })],
   ])('restores nothing from a record with %s', (_label, raw) => {
     localStorage.setItem(KEY, raw);
 
@@ -157,7 +214,7 @@ describe('the remembered tab strip', () => {
   ])('drops a stored tab with %s', (_label, entry) => {
     store(record({ tabs: [entry as never] }));
 
-    expect(readStoredTabs()?.tabs).toEqual([]);
+    expect(readStoredTabs()?.groups[0].tabs).toEqual([]);
   });
 
   // A strip left open for a month is a real cost at the next boot: ContentPanel mounts every tab.
@@ -170,7 +227,18 @@ describe('the remembered tab strip', () => {
     }));
     store(record({ tabs: many }));
 
-    expect(readStoredTabs()?.tabs).toHaveLength(25);
+    expect(readStoredTabs()?.groups[0].tabs).toHaveLength(25);
+  });
+
+  // The same bound on halves, for a hand-edited record: four panes is already more than a window holds.
+  it('restores no more than four halves', () => {
+    store({
+      version: 2,
+      directory: DIRECTORY,
+      groups: Array.from({ length: 9 }, () => storedGroup()),
+    });
+
+    expect(readStoredTabs()?.groups).toHaveLength(4);
   });
 
   it('says nothing and breaks nothing when storage is unavailable', () => {
@@ -181,7 +249,7 @@ describe('the remembered tab strip', () => {
       throw new Error('denied');
     });
 
-    expect(() => rememberTabs(DIRECTORY, open)).not.toThrow();
+    expect(() => rememberTabs(DIRECTORY, halves())).not.toThrow();
     expect(readStoredTabs()).toBeNull();
 
     getItem.mockRestore();
@@ -191,8 +259,8 @@ describe('the remembered tab strip', () => {
 
 /** What TabState's seed does: rebuild the strip, then bring the remembered tab to the front. */
 function seeded(from: StoredTabs = record()): FileTabDict {
-  const tabs = restoreTabs(from, launcher);
-  return withActive(tabs, restoredActive(from, tabs));
+  const tabs = restoreTabs(from.groups[0], launcher);
+  return withActive(tabs, restoredActive(from.groups[0], tabs));
 }
 
 describe('restoring a strip from a record', () => {
@@ -228,17 +296,25 @@ describe('restoring a strip from a record', () => {
   it('gives a restored notebook no kernel name, leaving it to the one running the path', () => {
     expect(seeded()['src/demo.ipynb'].kernelspec).toBe('none');
   });
+
+  // The Launcher is the tab that is always open, not one per pane, so only the first half gets it.
+  it('gives a second half no Launcher of its own', () => {
+    const tabs = restoreTabs(storedGroup({ active: 'notes.txt' }));
+
+    expect(Object.keys(tabs)).toEqual(['notes.txt', 'src/demo.ipynb']);
+    expect(restoredActive(storedGroup({ active: 'Terminal 1' }), tabs)).toBe('notes.txt');
+  });
 });
 
 describe('the Help tab', () => {
   it('is remembered with the strip, and restored under the key it had', () => {
     const helpTab = tab('zasper:help', 'help', { name: 'Help', extension: null });
-    rememberTabs(DIRECTORY, { ...open, 'zasper:help': helpTab });
-    expect(written().tabs.map((stored) => stored.path)).toContain('zasper:help');
+    rememberTabs(DIRECTORY, halves({ ...open, 'zasper:help': helpTab }));
+    expect(writtenPaths()).toContain('zasper:help');
 
-    const record = readStoredTabs();
-    expect(record).not.toBeNull();
-    const restored = restoreTabs(record as StoredTabs, launcher);
+    const read = readStoredTabs();
+    expect(read).not.toBeNull();
+    const restored = restoreTabs((read as StoredTabs).groups[0], launcher);
     expect(restored['zasper:help']).toMatchObject({ type: 'help', name: 'Help' });
   });
 });
