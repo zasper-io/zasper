@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"sync"
 
@@ -189,11 +190,16 @@ type EditorSettings struct {
 	InsertFinalNewline     bool `json:"insert_final_newline"`
 	// Save a file a second after the typing stops.
 	AutoSave bool `json:"auto_save"`
+	// Which bindings the file editor takes: "default", "vim" or "emacs".
+	Keymap string `json:"keymap"`
 }
+
+// Keymaps are the values EditorSettings.Keymap can hold; the frontend loads the module each one names.
+var Keymaps = []string{"default", "vim", "emacs"}
 
 // DefaultEditorSettings are what an install that has chosen nothing gets.
 func DefaultEditorSettings() EditorSettings {
-	return EditorSettings{FontSize: 13, TabSize: 4, LineNumbers: true, Rulers: []int{}}
+	return EditorSettings{FontSize: 13, TabSize: 4, LineNumbers: true, Rulers: []int{}, Keymap: "default"}
 }
 
 // normalised keeps settings from a hand-edited file or a made-up request inside what the editor can draw.
@@ -215,6 +221,9 @@ func (s EditorSettings) normalised() EditorSettings {
 	}
 	sort.Ints(rulers)
 	s.Rulers = rulers
+	if !slices.Contains(Keymaps, s.Keymap) {
+		s.Keymap = defaults.Keymap
+	}
 	return s
 }
 

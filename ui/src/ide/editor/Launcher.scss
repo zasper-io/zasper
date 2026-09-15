@@ -162,3 +162,21 @@ $launcher-gutter: 32px;
 .noKernelsFound-manual {
   margin-top: 16px;
 }
+
+// What was open before this session, under the Recent heading. A measure, because a path is read from
+// its start and a row as wide as the window puts the folder a screen away from the name.
+.recent-list {
+  max-width: 420px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  // `.panel-row`'s own padding is a sidebar's; the Launcher's sections are already indented.
+  .panel-row {
+    padding: 0 8px;
+  }
+
+  .panel-row-meta {
+    margin-left: auto;
+  }
+}

@@ -101,6 +101,14 @@ describe('SettingsTab', () => {
     );
   });
 
+  it('saves the keymap the editor should take', () => {
+    renderTab();
+
+    fireEvent.change(screen.getByLabelText('Keymap'), { target: { value: 'vim' } });
+
+    expect(modifyConfig).toHaveBeenCalledWith(...savedEditor({ keymap: 'vim' }));
+  });
+
   it('saves a font size on leaving the field, and puts back one out of range', () => {
     renderTab();
     const field = screen.getByLabelText('Font size');

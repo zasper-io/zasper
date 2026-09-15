@@ -279,6 +279,15 @@
   --z-bg-diff-added: color-mix(in srgb, var(--z-git-added) 14%, transparent);
   --z-bg-diff-deleted: color-mix(in srgb, var(--z-git-deleted) 14%, transparent);
 
+  // A find match, and the one the cursor is at. Named and derived for the same reason as the two
+  // above: a match is neither a selection nor a diff — it is a hit, and the current one has to be
+  // findable among fifty of them — and @codemirror/search answers its own `#ffff0054` yellow with a
+  // `#ff6a0054` orange for the current one, in every theme. The accent carries the hits because they
+  // are the answer to something asked for; the current one takes the amber that means "changed here"
+  // elsewhere, at a weight that reads through code.
+  --z-bg-find-match: color-mix(in srgb, var(--z-accent) 22%, transparent);
+  --z-bg-find-current: color-mix(in srgb, var(--z-git-modified) 34%, transparent);
+
   // --- File-type marks ----------------------------------------------------
   // The mark in front of a file name (src/ide/icons/FileMark.tsx). Each one starts as the
   // language's own colour — GitHub's linguist palette, which is where a `.py` being blue and a

@@ -35,6 +35,7 @@ import {
 } from '@/store/serverInfo';
 import { ApiError, getInfo } from '../api';
 import { useKernelspecActions } from '../store/kernelspecActions';
+import { useRememberRecentFiles } from '../store/useRememberRecentFiles';
 import { useRememberTabs } from '../store/useRememberTabs';
 import { applyTheme, getTheme, rememberTheme } from '../themes';
 import { useApplyZoom } from '../zoom/useApplyZoom';
@@ -180,6 +181,8 @@ function IDE() {
   // Remembers the open tabs, and drops a strip remembered for another project. The strip itself was
   // already seeded when TabState loaded; this is what confirms and maintains it.
   useRememberTabs();
+  // The files this project had open, for the palette's empty query and the Launcher's Recent list.
+  useRememberRecentFiles();
 
   return (
     <div className="editor">

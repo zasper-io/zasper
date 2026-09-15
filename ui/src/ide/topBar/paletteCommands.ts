@@ -15,4 +15,7 @@ export const PALETTE_COMMANDS = defineCommands({
     keys: ['Mod-Shift-p', 'Ctrl-Shift-p'],
   },
   'palette:open-files': { ...view, label: 'Go to File', keys: ['Mod-Shift-o', 'Ctrl-Shift-o'] },
+  // No chord: every one a reader would expect — Mod-g, Mod-Shift-g — is CodeMirror's own find-next and
+  // find-previous, and a window binding for it would fire the editor's as well.
+  'palette:go-to-line': { ...view, label: 'Go to Line' },
 });

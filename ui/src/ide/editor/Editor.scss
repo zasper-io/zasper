@@ -62,6 +62,16 @@
   margin-left: auto;
 }
 
+// What is left of the pane under the breadcrumb, the band and any strip: the editor, and the find card
+// floating over it. `position: relative` is what the card is placed against — the pane would put it over
+// the breadcrumb, and the body scrolls, so neither of those can be the box it hangs off.
+.file-editor-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
 // A markdown file's source and its rendering, one at a time or side by side.
 .markdown-panes {
   flex: 1;

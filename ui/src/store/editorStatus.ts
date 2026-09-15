@@ -32,3 +32,9 @@ export interface FileFormat extends Indentation {
 
 /** Every open text file's format, by path. */
 export const fileFormatsAtom = atom<Record<string, FileFormat>>({});
+
+/**
+ * The language a reader chose for a file, by path, which outranks the one its name implies: a file
+ * called `notes` that holds SQL is only SQL because someone said so. Kept for as long as the tab is.
+ */
+export const chosenLanguagesAtom = atom<Record<string, string>>({});

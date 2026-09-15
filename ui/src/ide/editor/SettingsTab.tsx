@@ -2,7 +2,7 @@ import React, { ReactNode, useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 import { toast } from 'react-toastify';
 
-import { logApiError, modifyConfig } from '@/api';
+import { EditorSettings, logApiError, modifyConfig } from '@/api';
 import { setTelemetrySettings } from '@/api/telemetry';
 import { useEditorSettings } from '@/store/editorSettingsActions';
 import { telemetryAtom, themeAtom, widgetCdnAtom } from '@/store/settings';
@@ -296,6 +296,26 @@ function useSettings(): Setting[] {
           checked={editor.auto_save}
           onChange={(auto_save) => changeEditor({ auto_save })}
         />
+      ),
+    },
+    {
+      id: 'settings-keymap',
+      group: 'Editor',
+      name: 'Keymap',
+      help: 'Vim and Emacs bindings, in the file editor. A notebook’s cells keep their own keys, where Escape and Enter already mean something.',
+      words: 'vim emacs bindings default',
+      control: (
+        <div className="z-select">
+          <select
+            id="settings-keymap"
+            value={editor.keymap}
+            onChange={(e) => changeEditor({ keymap: e.target.value as EditorSettings['keymap'] })}
+          >
+            <option value="default">Default</option>
+            <option value="vim">Vim</option>
+            <option value="emacs">Emacs</option>
+          </select>
+        </div>
       ),
     },
     {

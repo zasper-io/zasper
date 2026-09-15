@@ -5,6 +5,7 @@ import { Provider } from '@/testing/Provider';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { notebookKernelMapAtom } from '@/store/kernels';
+import { recentFilesAtom } from '@/store/recentFiles';
 import { useTabActions } from './tabActions';
 import { fileTabsAtom, FileTab, FileTabDict } from './tabState';
 
@@ -75,6 +76,11 @@ function Harness() {
           .join(',')}
       </span>
       <span data-testid="kernels">{Object.keys(notebookKernelMap).join(',')}</span>
+      <span data-testid="recent">
+        {useAtomValue(recentFilesAtom)
+          .map((file) => file.path)
+          .join(',')}
+      </span>
       <span data-testid="active">
         {Object.keys(openTabs)
           .filter((key) => openTabs[key].active)
@@ -233,6 +239,26 @@ describe('useTabActions', () => {
    * Tabs are keyed by path, so a diff keyed by the file's own path would be that file's editor: the
    * click would bring the editor forward and nothing else would happen.
    */
+  it('records a file it opened, newest first', () => {
+    renderHarness();
+
+    fireEvent.click(screen.getByText('open notes'));
+
+    expect(text('recent')).toBe('notes.txt');
+  });
+
+  // A record pointing at a path that no longer exists opens as "this file could not be loaded".
+  it('moves a renamed file’s record, and forgets a deleted one', () => {
+    renderHarness();
+    fireEvent.click(screen.getByText('open notes'));
+
+    fireEvent.click(screen.getByText('rename notes'));
+    expect(text('recent')).toBe('todo.txt');
+
+    fireEvent.click(screen.getByText('delete src'));
+    expect(text('recent')).toBe('todo.txt');
+  });
+
   it('reopens the last closed tab, newest first, and only once each', () => {
     renderHarness();
     fireEvent.click(screen.getByText('close notes'));

@@ -14,10 +14,15 @@ import {
 import { useAtom, useAtomValue } from 'jotai';
 import { kernelspecsAtom, kernelspecsStatusAtom } from '@/store/kernels';
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
+import { folderOf, recentFilesAtom } from '@/store/recentFiles';
 import { terminalsAvailableAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
+import { fileTabsAtom } from '@/store/tabState';
 import { useKernelspecActions } from '@/store/kernelspecActions';
-import { Icon } from '../icons';
+import { FileMark, Icon } from '../icons';
+
+/** Rows in the Recent section: enough to recognise the work, not a file browser. */
+const RECENT_SHOWN = 6;
 
 interface LauncherProps {
   data: {
@@ -35,6 +40,12 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   const { openTab, openTerminal } = useTabActions();
   const { loadKernelspecs } = useKernelspecActions();
   const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
+  const recentFiles = useAtomValue(recentFilesAtom);
+  const openTabs = useAtomValue(fileTabsAtom);
+  // A file that is still open is a tab away, so the Launcher does not offer it either.
+  const recent = recentFiles
+    .filter((file) => openTabs[file.path] === undefined)
+    .slice(0, RECENT_SHOWN);
 
   // The project's own environment first: it is the one this folder's notebooks are meant to run on.
   const kernelNames = Object.keys(kernelspecs).sort(
@@ -55,6 +66,27 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
           Welcome to <strong>zasper</strong>
         </h2>
       </div>
+      {recent.length > 0 && (
+        <div className="launchSection">
+          <h2 className="z-heading">Recent</h2>
+          {/* Rows rather than tiles: a tile is a picture, and a path is a line of text. */}
+          <ul className="recent-list">
+            {recent.map((file) => (
+              <li key={file.path} className="panel-row">
+                <button
+                  type="button"
+                  className="panel-row-name"
+                  onClick={() => openTab({ name: file.name, path: file.path, type: file.type })}
+                >
+                  <FileMark name={file.name} />
+                  <span className="panel-row-label">{file.name}</span>
+                </button>
+                <span className="panel-row-meta">{folderOf(file)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="launchSection">
         <h2 className="z-heading">Notebook</h2>
         {status === 'loading' ? (

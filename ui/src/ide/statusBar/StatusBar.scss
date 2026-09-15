@@ -82,3 +82,21 @@
     background: var(--z-bg-tab-hover);
   }
 }
+
+// The language picker: the palette's own shape — a field over a list of rows — hung off the bar rather
+// than the topbar. `.palette` is anchored to the search box with `top: 0; left: 0; right: 0`, so both of
+// those come off before this can hang off the other two edges.
+.languagePicker {
+  position: absolute;
+  top: auto;
+  left: auto;
+  right: 0;
+  bottom: calc(100% + 4px);
+  width: 260px;
+}
+
+// `.z-note` has no side padding, and this one is inside an overlay.
+.languagePicker-empty {
+  margin: 0;
+  padding: 6px 8px;
+}

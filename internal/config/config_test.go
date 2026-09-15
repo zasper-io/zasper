@@ -288,6 +288,7 @@ func TestEditorSettingsCanBeChangedOverTheApi(t *testing.T) {
 		ShowWhitespace: true,
 		Rulers:         []int{80, 100},
 		CellTabIndents: true,
+		Keymap:         "default",
 	}, GetEditorSettings())
 	assert.NotNil(t, readRaw(t, path).Editor)
 }
@@ -305,6 +306,17 @@ func TestEditorSettingsKeepWhatASaveDoesAndWhetherItIsAutomatic(t *testing.T) {
 	// The rest of the object was absent, so it is the defaults rather than zeroes the editor cannot draw.
 	assert.Equal(t, 13, settings.FontSize)
 	assert.Equal(t, 4, settings.TabSize)
+}
+
+func TestEditorKeymapIsOneOfTheThreeTheEditorCanLoad(t *testing.T) {
+	aHome(t)
+
+	require.Equal(t, http.StatusNoContent, modify(t, `{"key":"editor","value":"{\"keymap\":\"vim\"}"}`).Code)
+	assert.Equal(t, "vim", GetEditorSettings().Keymap)
+
+	// A keymap nothing can load would leave the editor with no bindings at all.
+	require.Equal(t, http.StatusNoContent, modify(t, `{"key":"editor","value":"{\"keymap\":\"kakoune\"}"}`).Code)
+	assert.Equal(t, "default", GetEditorSettings().Keymap)
 }
 
 // A hand-edited config or a made-up request: the editor gets values it can draw.

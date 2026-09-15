@@ -12,6 +12,7 @@ import Tooltip from '@/ide/Tooltip';
 import { fileTabsAtom, FileTab } from '@/store/tabState';
 import EolStatus from './EolStatus';
 import IndentStatus from './IndentStatus';
+import LanguageStatus from './LanguageStatus';
 import ZoomStatus from './ZoomStatus';
 
 /** What the status bar calls the thing in the active tab. */
@@ -102,7 +103,13 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
             <EolStatus path={formatPath} />
           </>
         )}
-        <span className="statusItem">{describeTab(activeTab)}</span>
+        {/* A text file says what it is read as, and can be told otherwise. Every other kind of tab says
+            what it is, which is not a thing anyone can change. */}
+        {formatPath !== null && activeTab !== undefined ? (
+          <LanguageStatus path={formatPath} fileName={activeTab.name} />
+        ) : (
+          <span className="statusItem">{describeTab(activeTab)}</span>
+        )}
         {/* Last on the bar: it belongs to the window rather than to whatever is in the tab, so it
             stays put as the items to its left come and go with the kind of tab that is open. */}
         <ZoomStatus />

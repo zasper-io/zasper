@@ -165,3 +165,17 @@
 #cm-tooltip-host .cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail {
   color: var(--z-fg-on-accent);
 }
+
+// A find match, and the one the cursor is at.
+//
+// Two classes deep because @codemirror/search's base theme states these under `&light` and `&dark`,
+// which compile to two classes as well — and its yellow-and-orange pair is the same colour in all
+// eight themes. The tokens are in styles/_tokens.scss beside the diff's two tints, which are named
+// for the same reason.
+.cm-editor .cm-searchMatch {
+  background-color: var(--z-bg-find-match);
+}
+
+.cm-editor .cm-searchMatch-selected {
+  background-color: var(--z-bg-find-current);
+}

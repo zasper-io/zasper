@@ -1,14 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
 import './Palette.scss';
 
 import { ContentEntry } from '@/api';
 import { formatChord } from '@/commands/keys';
 import { Command } from '@/commands/types';
+import { FileMark } from '@/ide/icons';
+import { goToLineAtom } from '@/store/editorRequests';
+import { fileFormatsAtom } from '@/store/editorStatus';
+import { folderOf, RecentFile, recentFilesAtom } from '@/store/recentFiles';
 import { useTabActions } from '@/store/tabActions';
+import { activeTabPathAtom, fileTabsAtom } from '@/store/tabState';
 import { useFileMatches } from './useFileMatches';
 
 /** Typed at the start of the query, this drops the files and leaves the commands. */
 export const COMMANDS_ONLY = '>';
+
+/** The same for a line of the file in front: `:42`. Nothing else is a match for a number. */
+export const LINES_ONLY = ':';
 
 /**
  * Rows per section while both are on screen.
@@ -18,8 +27,12 @@ export const COMMANDS_ONLY = '>';
  */
 const SHARED_CAP = 6;
 
-/** One row of the list: the two kinds are what Enter can do. */
-type PaletteRow = { kind: 'command'; command: Command } | { kind: 'file'; file: ContentEntry };
+/** One row of the list: the kinds are what Enter can do. */
+type PaletteRow =
+  | { kind: 'command'; command: Command }
+  | { kind: 'file'; file: ContentEntry }
+  | { kind: 'recent'; file: RecentFile }
+  | { kind: 'line'; line: number };
 
 interface PaletteProps {
   commands: Command[];
@@ -44,18 +57,33 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
   const { openTab } = useTabActions();
 
   const commandsOnly = query.startsWith(COMMANDS_ONLY);
-  const typed = (commandsOnly ? query.slice(COMMANDS_ONLY.length) : query).trim();
+  const linesOnly = query.startsWith(LINES_ONLY);
+  const typed = (commandsOnly || linesOnly ? query.slice(1) : query).trim();
   const needle = typed.toLowerCase();
+
+  const activePath = useAtomValue(activeTabPathAtom);
+  const openTabs = useAtomValue(fileTabsAtom);
+  // Set by the file editor once it has read a text file, so this is also "is there one in front".
+  const formats = useAtomValue(fileFormatsAtom);
+  const recentFiles = useAtomValue(recentFilesAtom);
+  const setGoToLine = useSetAtom(goToLineAtom);
+
+  // A line only where there is an editor to take it, and only for a number: `:` on its own, or `:x`,
+  // is a query nothing answers rather than a row that does nothing.
+  const line =
+    linesOnly && /^[1-9]\d*$/.test(typed) && formats[activePath] !== undefined
+      ? Number(typed)
+      : null;
 
   // As typed, not folded: the search endpoint decides how to match, and folding here would only make
   // the two ends disagree about what was asked.
-  const files = useFileMatches(commandsOnly ? '' : typed);
+  const files = useFileMatches(commandsOnly || linesOnly ? '' : typed);
 
   // Category as well as label, so "notebook" finds the notebook's commands whatever they are called.
   // An empty query lists everything only in commands-only mode: from the search box it means nothing
   // has been asked yet, and answering that with the first six commands in registration order is noise.
   const matches = useMemo(() => {
-    if (needle === '' && !commandsOnly) {
+    if (linesOnly || (needle === '' && !commandsOnly)) {
       return [];
     }
     return commands.filter(
@@ -63,18 +91,37 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
         command.label.toLowerCase().includes(needle) ||
         command.category.toLowerCase().includes(needle)
     );
-  }, [commands, needle, commandsOnly]);
+  }, [commands, needle, commandsOnly, linesOnly]);
+
+  /**
+   * What the empty field answers, which until now was nothing: the files this project had open. One
+   * that is still open is a tab away, so it is not offered here.
+   */
+  const recent = useMemo(
+    () =>
+      query === ''
+        ? recentFiles.filter((file) => openTabs[file.path] === undefined).slice(0, SHARED_CAP)
+        : [],
+    [query, recentFiles, openTabs]
+  );
 
   const shownCommands = commandsOnly ? matches : matches.slice(0, SHARED_CAP);
   const shownFiles = files.slice(0, SHARED_CAP);
 
   const rows = useMemo<PaletteRow[]>(
     () => [
+      ...(line === null ? [] : [{ kind: 'line', line } as PaletteRow]),
       ...shownCommands.map((command): PaletteRow => ({ kind: 'command', command })),
       ...shownFiles.map((file): PaletteRow => ({ kind: 'file', file })),
+      ...recent.map((file): PaletteRow => ({ kind: 'recent', file })),
     ],
-    [shownCommands, shownFiles]
+    [line, shownCommands, shownFiles, recent]
   );
+
+  // Where each section starts in `rows`, which is what the arrow keys count in.
+  const commandsFrom = line === null ? 0 : 1;
+  const filesFrom = commandsFrom + shownCommands.length;
+  const recentFrom = filesFrom + shownFiles.length;
 
   // The list shrinks as the query grows, so a selection made earlier can end up past its end. It
   // lands on -1, i.e. nothing selected, only when the query matches nothing at all.
@@ -83,7 +130,11 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
   }, [rows]);
 
   const activate = (row: PaletteRow) => {
-    if (row.kind === 'file') {
+    if (row.kind === 'line') {
+      setGoToLine(row.line);
+    } else if (row.kind === 'recent') {
+      openTab({ name: row.file.name, path: row.file.path, type: row.file.type });
+    } else if (row.kind === 'file') {
       // The same openTab the file browser calls, so a file that is already open comes forward
       // instead of being loaded a second time.
       openTab({ name: row.file.name, path: row.file.path, type: row.file.type });
@@ -122,11 +173,23 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
       {/* One scrolling box over both sections, so a long command list does not push the files out
           of reach of the wheel. Empty when nothing matches, which .palette-list:not(:empty) reads. */}
       <div className="palette-list">
+        {line !== null && (
+          <Section title="Editor" shown={1} found={1}>
+            <li
+              className={rowClass(selectedIndex === 0, false)}
+              onClick={() => activate({ kind: 'line', line })}
+            >
+              <span className="panel-row-label">Go to line {line}</span>
+              {/* Which file it is a line of: the palette is over the window, not over the editor. */}
+              <span className="panel-row-meta">{openTabs[activePath]?.name ?? ''}</span>
+            </li>
+          </Section>
+        )}
         <Section title="Commands" shown={shownCommands.length} found={matches.length}>
           {shownCommands.map((command, index) => (
             <li
               key={command.id}
-              className={rowClass(selectedIndex === index, isDisabled(command))}
+              className={rowClass(selectedIndex === commandsFrom + index, isDisabled(command))}
               onClick={() => activate({ kind: 'command', command })}
             >
               <span className="panel-row-label">{command.label}</span>
@@ -141,13 +204,28 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
           {shownFiles.map((file, index) => (
             <li
               key={file.path}
-              className={rowClass(selectedIndex === shownCommands.length + index, false)}
+              className={rowClass(selectedIndex === filesFrom + index, false)}
               onClick={() => activate({ kind: 'file', file })}
             >
               <span className="panel-row-label">{file.name}</span>
               {/* Where it is, and nothing when that is nowhere: a file in the project root has a
                   path equal to its name, and printing both spelled every such row out twice. */}
               <span className="panel-row-meta">{file.path === file.name ? '' : file.path}</span>
+            </li>
+          ))}
+        </Section>
+        <Section title="Recent" shown={recent.length} found={recentFiles.length}>
+          {recent.map((file, index) => (
+            <li
+              key={file.path}
+              className={rowClass(selectedIndex === recentFrom + index, false)}
+              onClick={() => activate({ kind: 'recent', file })}
+            >
+              {/* A mark here and not on a file match: these rows are a list to read down rather than
+                  the answer to something that was typed. */}
+              <FileMark name={file.name} />
+              <span className="panel-row-label">{file.name}</span>
+              <span className="panel-row-meta">{folderOf(file)}</span>
             </li>
           ))}
         </Section>

@@ -40,6 +40,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   trim_trailing_whitespace: false,
   insert_final_newline: false,
   auto_save: false,
+  keymap: 'default',
 };
 
 /** The file editor's defaults, from /api/info and changed in the Settings tab or the status bar. */

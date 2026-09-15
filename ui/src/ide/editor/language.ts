@@ -51,6 +51,37 @@ export default function languageFor(extension: string | null): Extension | null 
   return null;
 }
 
+/** What the status bar and the language picker call a file nothing claims. */
+export const PLAIN_TEXT = 'Plain Text';
+
+/** What a file's language is called, by its name, or null when nothing claims it. */
+export function languageNameFor(fileName: string): string | null {
+  return LanguageDescription.matchFilename(languages, fileName)?.name ?? null;
+}
+
+export interface LanguageChoice {
+  name: string;
+  /** The extension it is usually written with, for telling two languages of one family apart. */
+  extension: string;
+}
+
+/**
+ * Every language a file can be read as, for the status bar's picker: the 180-odd
+ * @codemirror/language-data knows, and plain text, which is the absence of all of them.
+ *
+ * Built once at module load from descriptions that are names and dynamic imports — the grammar itself
+ * is not loaded until a language is actually chosen.
+ */
+export const LANGUAGE_CHOICES: LanguageChoice[] = [
+  { name: PLAIN_TEXT, extension: '' },
+  ...languages
+    .map((description) => ({
+      name: description.name,
+      extension: description.extensions[0] === undefined ? '' : `.${description.extensions[0]}`,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name)),
+];
+
 /**
  * The highlighting @codemirror/language-data has for a file the table above does not bundle, matched by
  * its name or extension (`main.rs`, `Dockerfile`) and loaded on demand. Null when nothing claims the

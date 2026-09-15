@@ -1,0 +1,62 @@
+// Find and replace, floating at the top right of the editor. Drawn in the design prototype's
+// story-find.html under these class names.
+//
+// Over the code rather than above it: the alternative was a strip across the pane, which pushes the
+// file down 26px as it opens. What this costs is the three lines it covers, and it covers them where
+// the line ends are — which is why it is as narrow as its controls allow.
+.find-card {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: var(--z-layer-menu);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  // Measured, not guessed: the field is 180, the count 68, seven icon buttons 154, and the replace row
+  // is the same field with three buttons after it. Wide enough that neither row wraps, and no wider —
+  // every pixel of this covers code.
+  width: 500px;
+  box-sizing: border-box;
+  font-size: var(--z-ui-font-size);
+  color: var(--z-fg-muted);
+}
+
+.find-card .find-field {
+  width: 180px;
+}
+
+// How many there are and which one the cursor is at, which changes as the query is typed.
+.find-count {
+  min-width: 68px;
+  color: var(--z-fg-subtle);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.find-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+// A toggle whose label is a letter: Aa, ab, .*. Mono, because `.*` in the UI face is not a pattern.
+.find-toggle {
+  min-width: 22px;
+  font-family: var(--z-mono-font-family);
+  font-size: 11px;
+}
+
+// The replace row, which opens from the chevron and takes the whole width of the card.
+.find-card-row {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .z-button {
+    height: 20px;
+    padding: 0 10px;
+  }
+}

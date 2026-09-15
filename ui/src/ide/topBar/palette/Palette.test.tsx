@@ -1,10 +1,14 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Palette from './Palette';
 import { ContentEntry } from '@/api';
 import { Command } from '@/commands/types';
-import { fileTabsAtom } from '@/store/tabState';
+import { goToLineAtom } from '@/store/editorRequests';
+import { FileFormat, fileFormatsAtom } from '@/store/editorStatus';
+import { recentFilesAtom } from '@/store/recentFiles';
+import { FileTab, fileTabsAtom } from '@/store/tabState';
+import { Provider as SeededProvider } from '@/testing/Provider';
 import { Provider, useAtomValue } from 'jotai';
 
 const searchFiles = vi.fn();
@@ -47,9 +51,64 @@ function renderPalette(props: Partial<React.ComponentProps<typeof Palette>> = {}
   );
 }
 
+/** The palette's own list, so a query cannot match the probes rendered beside it. */
+function list(): HTMLElement {
+  return document.querySelector('.palette-list') as HTMLElement;
+}
+
 /** The field, which is also the widget: everything below is typed into it. */
 function input(): HTMLElement {
   return screen.getByPlaceholderText('Search files, or > for commands');
+}
+
+/** A file open in front of the palette, as the file editor leaves it: a tab, and a format for it. */
+const openTab: FileTab = {
+  type: 'file',
+  path: 'prepare.py',
+  name: 'prepare.py',
+  active: true,
+  extension: 'py',
+  load_required: false,
+  kernelspec: 'none',
+};
+
+const format: FileFormat = {
+  indentWithTabs: false,
+  tabSize: 4,
+  eol: 'LF',
+  detected: null,
+  source: 'settings',
+  trim: null,
+  finalNewline: null,
+};
+
+/** The line the palette asked the editor for. */
+function LineRequest() {
+  return <div data-testid="line">{String(useAtomValue(goToLineAtom))}</div>;
+}
+
+/** The palette over a project with a file open and two files opened earlier. */
+function renderOverEditor(onClose = vi.fn()) {
+  render(
+    <SeededProvider
+      initialValues={[
+        [fileTabsAtom, { 'prepare.py': openTab }],
+        [fileFormatsAtom, { 'prepare.py': format }],
+        [
+          recentFilesAtom,
+          [
+            { path: 'lib/clean.py', name: 'clean.py', type: 'file' },
+            { path: 'prepare.py', name: 'prepare.py', type: 'file' },
+          ],
+        ],
+      ]}
+    >
+      <Palette commands={mockCommands} initialQuery="" onClose={onClose} />
+      <OpenTabs />
+      <LineRequest />
+    </SeededProvider>
+  );
+  return onClose;
 }
 
 let mockCommands: Command[];
@@ -247,5 +306,62 @@ describe('Palette', () => {
     // The commands still answered the query, so the palette is not empty.
     expect(screen.getByText('Open File')).toBeInTheDocument();
     logged.mockRestore();
+  });
+});
+
+describe('Palette, over a file', () => {
+  beforeEach(() => {
+    searchFiles.mockReset();
+    searchFiles.mockResolvedValue([]);
+    mockCommands = [command({ id: 'file:save', label: 'Save File' })];
+  });
+
+  it('asks the editor for a line typed after a colon', () => {
+    const onClose = renderOverEditor();
+
+    fireEvent.change(input(), { target: { value: ':42' } });
+    expect(within(list()).getByText('prepare.py')).toBeInTheDocument();
+    fireEvent.click(within(list()).getByText('Go to line 42'));
+
+    expect(screen.getByTestId('line')).toHaveTextContent('42');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  // A colon is not a file name either, so the list is empty rather than full of near misses.
+  it('offers nothing for a colon with no number after it', () => {
+    renderOverEditor();
+
+    fireEvent.change(input(), { target: { value: ':chapter' } });
+
+    expect(screen.queryByText(/Go to line/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Save File')).not.toBeInTheDocument();
+  });
+
+  it('lists the files this project had open when nothing has been typed', () => {
+    renderOverEditor();
+
+    expect(within(list()).getByText('Recent')).toBeInTheDocument();
+    expect(within(list()).getByText('clean.py')).toBeInTheDocument();
+    expect(within(list()).getByText('lib')).toBeInTheDocument();
+    // prepare.py is still open, and a tab away.
+    expect(within(list()).queryByText('prepare.py')).not.toBeInTheDocument();
+  });
+
+  it('opens a recent file, and closes', () => {
+    const onClose = renderOverEditor();
+
+    fireEvent.click(within(list()).getByText('clean.py'));
+
+    expect(screen.getByTestId('tabs')).toHaveTextContent('lib/clean.py');
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('drops the recent files as soon as something is typed', () => {
+    renderOverEditor();
+
+    fireEvent.change(input(), { target: { value: 'save' } });
+
+    expect(within(list()).queryByText('Recent')).not.toBeInTheDocument();
+    expect(within(list()).getByText('Save File')).toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ import { baseName, isInside, rewritePath } from '@/paths';
 import { diskCompareTabKey } from '@/store/diskChanges';
 import { helpAboutRequestAtom } from '@/store/helpTab';
 import { notebookKernelMapAtom } from '@/store/kernels';
+import { recentFilesAtom, withRecent } from '@/store/recentFiles';
 import { terminalsAtom, terminalsCountAtom } from '@/store/terminals';
 import { fileTabsAtom, FileTab, FileTabDict, withActive } from './tabState';
 
@@ -112,12 +113,20 @@ export function useTabActions(): TabActions {
   const setHelpAboutRequest = useSetAtom(helpAboutRequestAtom);
   const closedTabs = useAtomValue(closedTabsAtom);
   const setClosedTabs = useSetAtom(closedTabsAtom);
+  const setRecentFiles = useSetAtom(recentFilesAtom);
 
   const openTab = (tab: OpenTab) => {
     // Outside the updater, which React may run more than once. `fileTabs` is the render's snapshot, so
     // a tab opened twice in one tick counts twice — better than a side effect inside a state updater.
     if (fileTabs[tab.path] === undefined) {
       trackTabOpened(tab.type, tab.name);
+    }
+
+    // Only the two kinds that are a file on disk, and on every open rather than the first: opening one
+    // again is what makes it the most recent.
+    if (tab.type === 'file' || tab.type === 'notebook') {
+      const opened = { path: tab.path, name: tab.name, type: tab.type };
+      setRecentFiles((files) => withRecent(files, opened));
     }
 
     setFileTabs((previous) => {
@@ -286,9 +295,18 @@ export function useTabActions(): TabActions {
       // because a kernel now outlives its tab — the notebook may have been closed hours ago.
       releaseKernels(Object.keys(notebookKernelMap).filter((key) => isInside(key, path)));
       removeTabs(Object.keys(fileTabs).filter((key) => isInside(key, path)));
+      setRecentFiles((files) => files.filter((file) => !isInside(file.path, path)));
     },
 
     renameTab: (oldPath: string, newPath: string) => {
+      // The record follows the file: a recent path that no longer exists opens as "could not be loaded".
+      setRecentFiles((files) =>
+        files.map((file) => {
+          const moved = rewritePath(file.path, oldPath, newPath);
+          return moved === null ? file : { ...file, path: moved, name: baseName(moved) };
+        })
+      );
+
       setFileTabs((previous) => {
         const next: FileTabDict = {};
         // Rebuilt in order rather than reassigned: the key is the path, so a rename is a new key,

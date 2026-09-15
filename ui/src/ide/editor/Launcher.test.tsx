@@ -11,6 +11,7 @@ import {
   kernelspecsAtom,
   kernelspecsStatusAtom,
 } from '@/store/kernels';
+import { RecentFile, recentFilesAtom } from '@/store/recentFiles';
 import { serverOsAtom } from '@/store/serverInfo';
 import { fileTabsAtom } from '@/store/tabState';
 
@@ -59,7 +60,8 @@ function OpenTabs() {
 function renderLauncher(
   specs: KernelspecsState = kernelspecs,
   status: KernelspecsStatus = 'ready',
-  os = 'darwin'
+  os = 'darwin',
+  recent: RecentFile[] = []
 ) {
   render(
     <Provider
@@ -67,6 +69,7 @@ function renderLauncher(
         [kernelspecsAtom, specs],
         [kernelspecsStatusAtom, status],
         [serverOsAtom, os],
+        [recentFilesAtom, recent],
       ]}
     >
       <Launcher data={{ active: true }} />
@@ -275,5 +278,34 @@ describe('Launcher', () => {
 
     expect(await screen.findByText('Setting up a Python kernel…')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('the Recent section', () => {
+  const recent: RecentFile[] = [
+    { path: 'lib/clean.py', name: 'clean.py', type: 'file' },
+    { path: 'analysis.ipynb', name: 'analysis.ipynb', type: 'notebook' },
+  ];
+
+  it('is not there for a project nothing has been opened in', () => {
+    renderLauncher();
+
+    expect(screen.queryByRole('heading', { name: 'Recent' })).not.toBeInTheDocument();
+  });
+
+  it('lists what was open, with the folder each one is in', () => {
+    renderLauncher(kernelspecs, 'ready', 'darwin', recent);
+
+    expect(screen.getByRole('heading', { name: 'Recent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'clean.py' })).toBeInTheDocument();
+    expect(screen.getByText('lib')).toBeInTheDocument();
+  });
+
+  it('opens one, as the file browser would', () => {
+    renderLauncher(kernelspecs, 'ready', 'darwin', recent);
+
+    fireEvent.click(screen.getByRole('button', { name: 'analysis.ipynb' }));
+
+    expect(screen.getByTestId('tabs')).toHaveTextContent('analysis.ipynb');
   });
 });

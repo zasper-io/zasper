@@ -1,10 +1,11 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Provider, useAtomValue } from 'jotai';
+import { Provider, useAtomValue, useSetAtom } from 'jotai';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FileEditor from './FileEditor';
 import { EditorSettings } from '@/api';
+import { goToLineAtom } from '@/store/editorRequests';
 import { DEFAULT_EDITOR_SETTINGS, editorSettingsAtom } from '@/store/settings';
 import { FileTab } from '@/store/tabState';
 import { unsavedTabsAtom } from '@/store/unsavedState';
@@ -62,7 +63,13 @@ vi.mock('@uiw/react-codemirror', async () => {
           get state() {
             return { doc: documentOf(current.current) };
           },
-          dispatch: ({ changes }: any) => {
+          focus: () => {},
+          dispatch: (spec: any) => {
+            dispatched.last = spec;
+            const { changes } = spec;
+            if (changes === undefined) {
+              return;
+            }
             let text = current.current;
             // Highest position first, so each change is applied at the offset it was measured at.
             const edits = (Array.isArray(changes) ? [...changes] : [changes]).sort(
@@ -86,6 +93,9 @@ vi.mock('@uiw/react-codemirror', async () => {
   };
 });
 
+/** What the editor asked its view to do, for the moves that change no text. */
+const dispatched = vi.hoisted(() => ({ last: null as { selection?: { anchor: number } } | null }));
+
 // The watch socket, as the editor's listener: a test says when the project changed.
 const watchers = vi.hoisted(() => ({ latest: () => {} }));
 vi.mock('@/ide/useContentWatcher', () => ({
@@ -108,6 +118,20 @@ const tab: FileTab = {
   load_required: true,
   kernelspec: 'none',
 };
+
+/** Stands in for the palette: it can ask for a line, and see whether the ask was taken. */
+function GoToLine() {
+  const line = useAtomValue(goToLineAtom);
+  const setLine = useSetAtom(goToLineAtom);
+  return (
+    <>
+      <span data-testid="line">{String(line)}</span>
+      <button type="button" onClick={() => setLine(3)}>
+        go to line 3
+      </button>
+    </>
+  );
+}
 
 /** Stands in for the tab bar: it can see which tabs are unsaved and save one, and nothing else. */
 function TabBar() {
@@ -152,6 +176,7 @@ describe('FileEditor', () => {
       <Provider>
         <FileEditor data={tab} />
         <TabBar />
+        <GoToLine />
       </Provider>
     );
     await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('first line\n'));
@@ -431,6 +456,18 @@ describe('FileEditor', () => {
       expect(saveFile).not.toHaveBeenCalled();
       expect(unsavedPaths()).toBe('notes.txt');
     });
+  });
+
+  it('goes to a line the palette asked for, and clears the request', async () => {
+    await renderEditor();
+    type('one\ntwo\nthree\n');
+
+    fireEvent.click(screen.getByText('go to line 3'));
+
+    // The start of the third line, which is where the cursor lands.
+    expect(dispatched.last?.selection?.anchor).toBe('one\ntwo\n'.length);
+    // Cleared as it is taken, so asking for the same line again is a second move.
+    expect(screen.getByTestId('line')).toHaveTextContent('null');
   });
 
   it('offers no preview for a file that is not markdown', async () => {

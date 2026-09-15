@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './Topbar.scss';
-import Palette, { COMMANDS_ONLY } from './palette/Palette';
-import { useAtom } from 'jotai';
+import Palette, { COMMANDS_ONLY, LINES_ONLY } from './palette/Palette';
+import { useAtom, useAtomValue } from 'jotai';
+import { fileFormatsAtom } from '@/store/editorStatus';
 import { userNameAtom } from '@/store/serverInfo';
+import { activeTabPathAtom } from '@/store/tabState';
 import { useNavigate } from 'react-router-dom';
 
 import { logApiError, logout as signOut } from '@/api';
@@ -43,6 +45,12 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
 
   const openCommands = useCallback(() => togglePalette(COMMANDS_ONLY), [togglePalette]);
   const openFiles = useCallback(() => togglePalette(''), [togglePalette]);
+  const openLine = useCallback(() => togglePalette(LINES_ONLY), [togglePalette]);
+
+  // Go to Line is offered only with a text file in front, which is what has lines to go to.
+  const activePath = useAtomValue(activeTabPathAtom);
+  const formats = useAtomValue(fileFormatsAtom);
+  const hasTextEditor = formats[activePath] !== undefined;
 
   // Both ways into the palette are commands like any other, registered here because this is where
   // its state lives. Their chords used to be a `keydown` listener of their own.
@@ -56,8 +64,13 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
       },
       { ...PALETTE_COMMANDS['palette:open-commands'], execute: openCommands },
       { ...PALETTE_COMMANDS['palette:open-files'], execute: openFiles },
+      {
+        ...PALETTE_COMMANDS['palette:go-to-line'],
+        isEnabled: () => hasTextEditor,
+        execute: openLine,
+      },
     ],
-    [openCommands, openFiles]
+    [openCommands, openFiles, openLine, hasTextEditor]
   );
   useRegisterCommands(paletteCommands);
 

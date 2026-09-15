@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 
 import CodeMirror from '@uiw/react-codemirror';
+import { findNext, findPrevious, search, selectNextOccurrence } from '@codemirror/search';
 import { Extension, Text, Transaction } from '@codemirror/state';
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
 import { useAtomValue, useSetAtom } from 'jotai';
@@ -31,7 +32,9 @@ import { useRegisterCommands } from '@/commands/registry';
 import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
+import { editorPulseAtom, goToLineAtom } from '@/store/editorRequests';
 import {
+  chosenLanguagesAtom,
   columnPositionAtom,
   fileFormatsAtom,
   LineEnding,
@@ -44,10 +47,13 @@ import { useTheme } from '@/themes/useTheme';
 
 import BreadCrumb from './BreadCrumb';
 import DiskChangeBand from './DiskChangeBand';
+import FindCard from './FindCard';
+import { findHighlighter } from './findHighlight';
 import { useEditorCommands } from './editorCommands';
 import { editorExtensions } from './editorExtensions';
+import { lazyKeymap } from './keymaps';
 import { detectLineEnding, formatFor, indentationOf, saveRulesOf, tidyChanges } from './fileFormat';
-import languageFor, { lazyLanguageFor } from './language';
+import languageFor, { lazyLanguageFor, lazyLanguageNamed, PLAIN_TEXT } from './language';
 import { zoomAwareTooltips } from './tooltipParent';
 
 // The notebook's renderer, and its code-splitting boundary: see MarkdownRenderer.tsx.
@@ -124,6 +130,10 @@ export default function FileEditor(props: FileEditorProps) {
    * the editor's unsaved text, and the reader has not yet said which to keep.
    */
   const [conflict, setConflict] = useState<string | null>(null);
+  /** Whether the find card is up, what its field starts with, and which ⌘F asked for the focus. */
+  const [finding, setFinding] = useState(false);
+  const [findSeed, setFindSeed] = useState('');
+  const [findFocus, setFindFocus] = useState(0);
   const theme = useTheme();
   const sourceRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -234,6 +244,67 @@ export default function FileEditor(props: FileEditorProps) {
 
   // See tooltipParent.ts: a popup left to place itself draws at its own coordinate times the zoom.
   const popupPlacement = useMemo(() => zoomAwareTooltips(), []);
+
+  /** ⌘F: the card, with the selection in its field — which is how a reader looks for what they just read. */
+  const openFind = useRef(() => {});
+  openFind.current = () => {
+    const editor = viewRef.current;
+    if (editor === null) {
+      return;
+    }
+    const { from, to } = editor.state.selection.main;
+    const selected = from === to ? '' : editor.state.sliceDoc(from, to);
+    // A selection spanning lines is a block of text rather than something to look for.
+    if (selected !== '' && !selected.includes('\n')) {
+      setFindSeed(selected);
+    }
+    setFinding(true);
+    setFindFocus((count) => count + 1);
+  };
+  const closeFind = useRef(() => {});
+  closeFind.current = () => {
+    setFinding(false);
+    setFindSeed('');
+    viewRef.current?.focus();
+  };
+  const findingRef = useRef(false);
+  findingRef.current = finding;
+
+  /**
+   * The search keys, ours because the basic setup's are left out: its `Mod-f` opens CodeMirror's own
+   * panel, and `Mod-Alt-g` opens its go-to-line panel, which the palette answered in story 14. What is
+   * kept is everything that does not draw anything — stepping between matches, and multiple cursors.
+   */
+  const findKeymap = useMemo(
+    () =>
+      keymap.of([
+        {
+          key: 'Mod-f',
+          run: () => {
+            openFind.current();
+            return true;
+          },
+        },
+        {
+          key: 'Escape',
+          run: () => {
+            if (!findingRef.current) {
+              return false;
+            }
+            closeFind.current();
+            return true;
+          },
+        },
+        { key: 'Mod-g', run: findNext, shift: findPrevious, preventDefault: true },
+        { key: 'F3', run: findNext, shift: findPrevious, preventDefault: true },
+        { key: 'Mod-d', run: selectNextOccurrence, preventDefault: true },
+      ]),
+    []
+  );
+
+  // The search state the commands and the card both act through, and the marks over it: the library's
+  // own highlighter draws nothing while its panel is closed, and ours never opens.
+  const searchExtension = useMemo(() => [search(), findHighlighter], []);
 
   /** The file's line endings as they are on disk now, for a version of it the editor has taken. */
   const adoptLineEnding = useCallback(
@@ -420,34 +491,88 @@ export default function FileEditor(props: FileEditorProps) {
     }
   }, [resolution, path, keepMine, takeTheirs, setResolutions]);
 
-  // Highlighted at once for a language the app bundles; any other that @codemirror/language-data knows
-  // is loaded first, and a file nothing claims is plain text.
-  const bundledLanguage = useMemo(() => languageFor(props.data.extension), [props.data.extension]);
-  const [loadedLanguage, setLoadedLanguage] = useState<{ name: string; language: Extension }>();
+  // A line asked for in the palette, which only the tab in front can carry out. The request is cleared
+  // as it is taken, so asking for the same line twice is two moves.
+  const goToLine = useAtomValue(goToLineAtom);
+  const setGoToLine = useSetAtom(goToLineAtom);
+  useEffect(() => {
+    const editor = viewRef.current;
+    if (goToLine === null || editor === null || !props.data.active) {
+      return;
+    }
+    setGoToLine(null);
+    // Clamped rather than refused: `:900` in a 40-line file means the end of it.
+    const line = editor.state.doc.line(Math.min(goToLine, editor.state.doc.lines));
+    editor.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+    editor.focus();
+  }, [goToLine, props.data.active, setGoToLine]);
+
+  /**
+   * How the file is highlighted: the language a reader chose for it, then the table the app bundles,
+   * then whatever @codemirror/language-data claims the file by name — and plain text when nothing does.
+   * Plain text is a choice of its own, for a file some extension claims wrongly.
+   */
+  const chosen = useAtomValue(chosenLanguagesAtom)[path];
+  const bundledLanguage = useMemo(
+    () => (chosen === undefined ? languageFor(props.data.extension) : null),
+    [chosen, props.data.extension]
+  );
+  const [loadedLanguage, setLoadedLanguage] = useState<{ key: string; language: Extension }>();
   useEffect(() => {
     if (bundledLanguage !== null) {
       return;
     }
-    const loading = lazyLanguageFor(name);
+    const loading =
+      chosen === undefined
+        ? lazyLanguageFor(name)
+        : chosen === PLAIN_TEXT
+          ? null
+          : lazyLanguageNamed(chosen);
     if (loading === null) {
       return;
     }
+    // What was loaded, so a language that arrives after another was chosen is not drawn.
+    const key = chosen ?? name;
     let live = true;
     loading
       .then((language) => {
         if (live) {
-          setLoadedLanguage({ name, language });
+          setLoadedLanguage({ key, language });
         }
       })
       .catch((failure: unknown) =>
-        console.error(`Could not load highlighting for ${name}:`, failure)
+        console.error(`Could not load highlighting for ${key}:`, failure)
       );
     return () => {
       live = false;
     };
-  }, [bundledLanguage, name]);
+  }, [bundledLanguage, chosen, name]);
   const language =
-    bundledLanguage ?? (loadedLanguage?.name === name ? loadedLanguage.language : null);
+    bundledLanguage ?? (loadedLanguage?.key === (chosen ?? name) ? loadedLanguage.language : null);
+
+  // The chosen bindings, which arrive after the editor does; until then it takes CodeMirror's own.
+  const [loadedKeymap, setLoadedKeymap] = useState<{ name: string; extension: Extension }>();
+  useEffect(() => {
+    const loading = lazyKeymap(settings.keymap);
+    if (loading === null) {
+      setLoadedKeymap(undefined);
+      return;
+    }
+    let live = true;
+    loading
+      .then((extension) => {
+        if (live) {
+          setLoadedKeymap({ name: settings.keymap, extension });
+        }
+      })
+      .catch((failure: unknown) =>
+        console.error(`Could not load the ${settings.keymap} keymap:`, failure)
+      );
+    return () => {
+      live = false;
+    };
+  }, [settings.keymap]);
+  const keymapExtension = loadedKeymap?.name === settings.keymap ? loadedKeymap.extension : null;
 
   const { indentWithTabs, tabSize } = indentationOf(format, settings);
   const settingsExtension = useMemo(
@@ -456,18 +581,37 @@ export default function FileEditor(props: FileEditorProps) {
   );
 
   const extensions = useMemo(
-    () => [...(language === null ? [] : [language]), settingsExtension, popupPlacement, saveKeymap],
-    [language, settingsExtension, popupPlacement, saveKeymap]
+    () => [
+      ...(language === null ? [] : [language]),
+      ...(keymapExtension === null ? [] : [keymapExtension]),
+      settingsExtension,
+      popupPlacement,
+      searchExtension,
+      findKeymap,
+      saveKeymap,
+    ],
+    [
+      language,
+      keymapExtension,
+      settingsExtension,
+      popupPlacement,
+      searchExtension,
+      findKeymap,
+      saveKeymap,
+    ]
   );
 
   // Setters only: reading these atoms would render the whole editor again on every cursor move.
   const setLinePosition = useSetAtom(linePositionAtom);
   const setColumnPosition = useSetAtom(columnPositionAtom);
+  const setPulse = useSetAtom(editorPulseAtom);
   const lineNumbers = settings.line_numbers;
   // No tabSize here: the basic setup would turn it into an indent of spaces that outranks the file's.
+  // No searchKeymap either: `Mod-f` there opens CodeMirror's own panel, and ours is above.
   const basicSetup = useMemo(
     () => ({
       lineNumbers,
+      searchKeymap: false,
       bracketMatching: true,
       highlightActiveLineGutter: true,
       autocompletion: true,
@@ -485,6 +629,8 @@ export default function FileEditor(props: FileEditorProps) {
       const line = state.doc.lineAt(position);
       setLinePosition(line.number);
       setColumnPosition(position - line.from);
+      // Said once per update, for the find card's count; nothing here reads it.
+      setPulse((count) => count + 1);
 
       if (update.docChanged) {
         setDirty(isDirty(state.doc));
@@ -503,7 +649,7 @@ export default function FileEditor(props: FileEditorProps) {
         }
       }
     },
-    [setColumnPosition, setLinePosition, isDirty]
+    [setColumnPosition, setLinePosition, setPulse, isDirty]
   );
 
   // Only the tab in front, so a chord or a palette entry cannot reach a file nobody is looking at.
@@ -619,26 +765,37 @@ export default function FileEditor(props: FileEditorProps) {
             </span>
           </div>
         )}
-        {markdown ? (
-          <div className="markdown-panes">
-            {editorBody}
-            {view !== 'edit' && (
-              <div ref={previewRef} className="markdown-preview">
-                <Suspense
-                  fallback={
-                    <p className="z-note">
-                      <span className="z-spinner" /> Loading preview…
-                    </p>
-                  }
-                >
-                  <MarkdownRenderer source={previewSource} />
-                </Suspense>
-              </div>
-            )}
-          </div>
-        ) : (
-          editorBody
-        )}
+        <div className="file-editor-area">
+          {/* Over the code at the top right, so opening it moves nothing in the file. */}
+          {finding && viewRef.current !== null && (
+            <FindCard
+              view={viewRef.current}
+              seed={findSeed}
+              focusRequest={findFocus}
+              onClose={() => closeFind.current()}
+            />
+          )}
+          {markdown ? (
+            <div className="markdown-panes">
+              {editorBody}
+              {view !== 'edit' && (
+                <div ref={previewRef} className="markdown-preview">
+                  <Suspense
+                    fallback={
+                      <p className="z-note">
+                        <span className="z-spinner" /> Loading preview…
+                      </p>
+                    }
+                  >
+                    <MarkdownRenderer source={previewSource} />
+                  </Suspense>
+                </div>
+              )}
+            </div>
+          ) : (
+            editorBody
+          )}
+        </div>
       </div>
     </div>
   );
