@@ -15,6 +15,7 @@ function find(over: Partial<NotebookFind> = {}): NotebookFind {
     broken: false,
     next: () => {},
     previous: () => {},
+    goTo: () => {},
     replaceCurrent: () => {},
     replaceAll: () => {},
     ...over,

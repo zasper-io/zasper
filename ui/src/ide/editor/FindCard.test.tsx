@@ -131,4 +131,27 @@ describe('FindCard', () => {
     expect(field()).toHaveValue('one');
     expect(field()).toHaveFocus();
   });
+
+  // A match pressed in the search panel opens the card searching for what the panel searched for, with
+  // the cursor left in the editor on that match.
+  it('opens with the toggles it is given, and can leave the focus where it is', () => {
+    const view = fakeView('Row row\n');
+    render(
+      <Provider>
+        <FindCard
+          view={view}
+          seed="Row"
+          focusRequest={1}
+          seedOptions={{ caseSensitive: true, wholeWord: false, regexp: false }}
+          takeFocus={false}
+          onClose={onClose}
+        />
+      </Provider>
+    );
+
+    expect(field()).not.toHaveFocus();
+    expect(screen.getByLabelText('Match case')).toHaveAttribute('aria-pressed', 'true');
+    expect(getSearchQuery(view.state).caseSensitive).toBe(true);
+    expect(screen.getByText('1 of 1')).toBeInTheDocument();
+  });
 });

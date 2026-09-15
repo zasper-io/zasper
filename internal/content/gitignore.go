@@ -64,6 +64,16 @@ var alwaysSkipped = map[string]bool{
 	".git": true, "node_modules": true, "__pycache__": true, ".ipynb_checkpoints": true, ".venv": true,
 }
 
+// SkippedFolders names the folders left out of every walk whatever the .gitignore files say, sorted.
+func SkippedFolders() []string {
+	names := make([]string, 0, len(alwaysSkipped))
+	for name := range alwaysSkipped {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
 /*
 ProjectIgnores answers whether a path under a project is left out of what Zasper watches and searches:
 the folders in alwaysSkipped, and whatever the project's .gitignore files ignore. It reads each .gitignore

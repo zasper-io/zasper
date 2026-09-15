@@ -7,6 +7,6 @@ shortcut beside it. Both are generated from the registry, so they cannot fall ou
 hand-written table does.
 
 This file used to be a copy of VS Code's shortcuts, and most of what it listed — go to definition, find
-references, rename, debugging, global search and replace — does not exist in Zasper yet. Those are
-planned as part of the file editor's language intelligence and project search; a shortcut is added to a
-command when the command is.
+references, rename, debugging — does not exist in Zasper yet. Those are planned as part of the file
+editor's language intelligence; a shortcut is added to a command when the command is. Search and replace
+across the project is Search in Files (Ctrl+Shift+F, or Cmd+Shift+F on macOS).

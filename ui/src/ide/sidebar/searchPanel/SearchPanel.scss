@@ -1,0 +1,154 @@
+// Search across the project (story 18). The field, the letter toggles and the marks are the find card's
+// (FindCard.scss); what is here is the card's parts stacked for the sidebar, and the results list.
+
+.search-head-actions {
+  display: flex;
+  gap: 2px;
+}
+
+// The chevron beside the fields rather than above them, so opening replace grows the form downwards and
+// the search field never moves under the cursor.
+.search-form {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 12px 6px 4px;
+}
+
+.search-fields {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-field-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.search-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+// Right-aligned when the filters are folded, which leaves it alone on its row.
+.search-filters-toggle {
+  margin-left: auto;
+}
+
+.search-replace-all {
+  height: 20px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+// What the list below holds, or why it holds nothing.
+.search-summary {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 2px 12px 4px 16px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.search-summary.is-error {
+  color: var(--z-status-error);
+}
+
+.search-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 8px;
+  overflow-y: auto;
+  list-style: none;
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.search-file,
+.search-match {
+  position: relative;
+  cursor: pointer;
+}
+
+.search-file {
+  padding-left: 8px;
+
+  .panel-section-count {
+    margin-left: 4px;
+  }
+}
+
+// A line of code under its file: the editor's face, indented past the file's chevron and mark.
+.search-match {
+  padding-left: 30px;
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-font-size-code);
+
+  // The line keeps its own spaces, which the label would otherwise collapse.
+  .panel-row-label {
+    white-space: pre;
+  }
+
+  mark {
+    padding: 0;
+    color: inherit;
+    background: var(--z-bg-find-match);
+  }
+
+  del {
+    background: var(--z-bg-diff-deleted);
+  }
+
+  ins {
+    text-decoration: none;
+    background: var(--z-bg-diff-added);
+  }
+
+  // Where a notebook match is identifies the row as much as its text does, so it never clips.
+  .panel-row-meta {
+    flex-shrink: 0;
+    font-family: var(--z-ui-font-family);
+  }
+}
+
+.search-match.is-output .panel-row-label {
+  color: var(--z-fg-subtle);
+}
+
+// Over the row's right end on the row under the pointer or the keyboard, drawn on the row's own hover
+// fill: laid out beside the text they would take its width, and every row would reflow as the pointer
+// crossed it.
+.search-row-actions {
+  position: absolute;
+  top: 0;
+  right: 8px;
+  bottom: 0;
+  display: none;
+  padding-left: 4px;
+  background: var(--z-bg-row-selected);
+}
+
+.search-file:hover,
+.search-file:focus-within,
+.search-match:hover,
+.search-match:focus-within {
+  .search-row-actions {
+    display: flex;
+  }
+}
+
+.search-note {
+  padding: 2px 12px 4px 30px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}

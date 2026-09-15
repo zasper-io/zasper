@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { search } from '@codemirror/search';
+import { Text } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { useAtomValue, useSetAtom } from 'jotai';
 import './NotebookEditor.scss';
 
 import { logApiError, NotebookMetadata, saveNotebook } from '@/api';
 import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
+import { LineEdit, OpenDocument, useOpenDocument } from '@/store/openDocuments';
+import { MatchReveal, revealMatchAtom } from '@/store/projectSearch';
 import { useUnsavedChanges } from '@/store/unsavedState';
 import BreadCrumb from '../BreadCrumb';
 import { cellFindHighlighter, currentMatchField } from '../findHighlight';
+import { editedText, lineEditChanges } from '../lineEdits';
 import ConfirmRestartDialog, { RestartIntent } from './ConfirmRestartDialog';
 import { NO_KERNEL } from './kernelChoice';
 import { KernelMessage } from './kernelMessages';
@@ -25,7 +30,7 @@ import { useNotebookCommands } from './notebookCommands';
 import { useKernelSession } from './useKernelSession';
 import { useCellLanguage } from './useCellLanguage';
 import { useNotebookCells } from './useNotebookCells';
-import { useNotebookFind } from './useNotebookFind';
+import { outputText, useNotebookFind } from './useNotebookFind';
 
 interface NotebookEditorProps {
   data: FileTab;
@@ -171,11 +176,13 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
    * when it searches. Cleared by the cell as it unmounts, so a stale view is never dispatched into.
    */
   const cellViews = useRef<Map<string, EditorView>>(new Map());
+  const [viewsVersion, setViewsVersion] = useState(0);
   const registerCellView = useCallback((cellId: string, view: EditorView | null) => {
     if (view === null) {
       cellViews.current.delete(cellId);
     } else {
       cellViews.current.set(cellId, view);
+      setViewsVersion((count) => count + 1);
     }
   }, []);
 
@@ -187,14 +194,17 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   /** The card, and which ⌘F asked for its field. */
   const [finding, setFinding] = useState(false);
   const [findFocus, setFindFocus] = useState(0);
+  const [findTakesFocus, setFindTakesFocus] = useState(true);
   const find = useNotebookFind({
     cells: cells.notebook.cells,
     views: cellViews,
     focusCell: cells.focusCell,
     divRefs: cells.divRefs,
     active: finding,
+    viewsVersion,
   });
   const openFind = useCallback(() => {
+    setFindTakesFocus(true);
     setFinding(true);
     setFindFocus((count) => count + 1);
   }, []);
@@ -209,6 +219,141 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   useEffect(() => {
     markOutputs(notebookBody.current, finding && find.options.outputs ? find.query : null);
   }, [finding, find.options.outputs, find.query, cells.notebook.cells]);
+
+  // A project replace carries out its edits here while the notebook is open: through a cell's editor,
+  // so its undo takes them back, or into the source of a rendered markdown cell, which has none.
+  const notebookRef = useRef(notebook);
+  notebookRef.current = notebook;
+  const { updateCellSource } = cells;
+  const openDoc = useMemo<OpenDocument | null>(
+    () =>
+      cells.loading || cells.error !== ''
+        ? null
+        : {
+            applyEdits: (edits) => {
+              let applied = 0;
+              let stale = 0;
+              const byCell = new Map<number, LineEdit[]>();
+              edits.forEach((edit) => {
+                if (edit.cell === undefined) {
+                  stale += 1;
+                  return;
+                }
+                byCell.set(edit.cell, [...(byCell.get(edit.cell) ?? []), edit]);
+              });
+              byCell.forEach((cellEdits, index) => {
+                const cell = notebookRef.current.cells[index];
+                if (cell === undefined) {
+                  stale += cellEdits.length;
+                  return;
+                }
+                const view = cellViews.current.get(cell.id);
+                if (view !== undefined) {
+                  const outcome = lineEditChanges(view.state.doc, cellEdits);
+                  if (outcome.changes.length > 0) {
+                    view.dispatch({ changes: outcome.changes });
+                  }
+                  applied += outcome.changes.length;
+                  stale += outcome.stale;
+                  return;
+                }
+                const outcome = editedText(cell.source, cellEdits);
+                if (outcome.applied > 0) {
+                  updateCellSource(outcome.text, cell.id);
+                }
+                applied += outcome.applied;
+                stale += outcome.stale;
+              });
+              return { applied, stale };
+            },
+          },
+    [cells.loading, cells.error, updateCellSource]
+  );
+  useOpenDocument(data.path, openDoc);
+
+  /**
+   * A match pressed in the search panel: the notebook's card searching for the same thing, and that match
+   * the current one. In two steps, because the card's matches only exist once its query has been set.
+   */
+  const reveal = useAtomValue(revealMatchAtom);
+  const setReveal = useSetAtom(revealMatchAtom);
+  const pendingReveal = useRef<MatchReveal | null>(null);
+  const setFindOptions = useRef(find.setOptions);
+  setFindOptions.current = find.setOptions;
+  const findOptions = useRef(find.options);
+  findOptions.current = find.options;
+  useEffect(() => {
+    if (reveal === null || reveal.path !== data.path || cells.loading) {
+      return;
+    }
+    setReveal(null);
+    pendingReveal.current = reveal;
+    const asked = findOptions.current;
+    // Set only when different: an unchanged search set again is a new query, whose reset would take away
+    // the current match a moment after the step below has made it.
+    if (
+      asked.search !== reveal.search ||
+      asked.caseSensitive !== reveal.caseSensitive ||
+      asked.wholeWord !== reveal.wholeWord ||
+      asked.regexp !== reveal.regexp ||
+      !asked.outputs
+    ) {
+      setFindOptions.current({
+        search: reveal.search,
+        caseSensitive: reveal.caseSensitive,
+        wholeWord: reveal.wholeWord,
+        regexp: reveal.regexp,
+        outputs: true,
+      });
+    }
+    setFindTakesFocus(false);
+    setFinding(true);
+  }, [reveal, data.path, cells.loading, setReveal]);
+
+  const { focusCell, scrollTo } = cells;
+  useEffect(() => {
+    const wanted = pendingReveal.current;
+    const asked = find.options;
+    // After the card is open, for the same reason: opening it resets the current match too.
+    if (
+      wanted === null ||
+      !finding ||
+      asked.search !== wanted.search ||
+      asked.caseSensitive !== wanted.caseSensitive ||
+      asked.wholeWord !== wanted.wholeWord ||
+      asked.regexp !== wanted.regexp
+    ) {
+      return;
+    }
+    const index = wanted.cell ?? -1;
+    const cell = notebook.cells[index];
+    if (cell === undefined) {
+      pendingReveal.current = null;
+      return;
+    }
+    // A cell's editor arrives a render after the cell does. A markdown cell showing its prose never has
+    // one, and is the only cell not worth waiting for.
+    const rendered = cell.cell_type === 'markdown' && cells.editingCellId !== cell.id;
+    if (!rendered && wanted.output !== true && !cellViews.current.has(cell.id)) {
+      return;
+    }
+    pendingReveal.current = null;
+    const text = wanted.output === true ? outputText(cell) : cell.source;
+    const doc = Text.of(text.split('\n'));
+    const from = doc.line(Math.min(wanted.line, doc.lines)).from + wanted.from;
+    const where = wanted.output === true ? 'output' : 'source';
+    const found = find.matches.findIndex(
+      (match) => match.cellId === cell.id && match.where === where && match.from === from
+    );
+    if (found >= 0) {
+      find.goTo(found);
+      return;
+    }
+    // Not among the card's matches — a rendered markdown cell, which the card does not search — so the
+    // cell itself is where the reader is taken.
+    focusCell(cell.id);
+    scrollTo(index);
+  }, [find, finding, notebook.cells, focusCell, scrollTo, cells.editingCellId, viewsVersion]);
 
   const commands = useNotebookCommands({
     cells,
@@ -284,6 +429,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
             <NotebookFindCard
               find={find}
               focusRequest={findFocus}
+              takeFocus={findTakesFocus}
               onClose={() => setFinding(false)}
             />
           )}

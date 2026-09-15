@@ -19,6 +19,7 @@ const RAIL_ICON_SIZE = 20;
 
 const NAV_ITEMS: { name: PanelName; label: string; icon: IconName }[] = [
   { name: 'fileBrowser', label: 'File explorer', icon: 'files' },
+  { name: 'searchPanel', label: 'Search', icon: 'search' },
   { name: 'gitPanel', label: 'Source control', icon: 'git-branch' },
   { name: 'jupyterInfoPanel', label: 'Jupyter info', icon: 'cpu' },
 ];

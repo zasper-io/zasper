@@ -21,6 +21,7 @@ export interface RequestOptions {
   /** Sent as JSON, except for FormData which is passed through untouched. */
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined>;
+  signal?: AbortSignal;
 }
 
 function buildUrl(path: string, query: RequestOptions['query']): string {
@@ -95,7 +96,7 @@ function noteSession(path: string, status: number): void {
 }
 
 async function request(path: string, options: RequestOptions = {}): Promise<Response> {
-  const { method = 'GET', body, query } = options;
+  const { method = 'GET', body, query, signal } = options;
 
   let payload: BodyInit | undefined;
   if (body instanceof FormData) {
@@ -111,6 +112,7 @@ async function request(path: string, options: RequestOptions = {}): Promise<Resp
     // The session is an HttpOnly cookie. A same-origin request carries it anyway; this is for
     // `make dev`, whose frontend is on another port.
     credentials: 'include',
+    signal,
   });
   noteSession(path, res.status);
 
@@ -130,6 +132,44 @@ export async function requestJson<T>(path: string, options?: RequestOptions): Pr
 export async function requestText(path: string, options?: RequestOptions): Promise<string> {
   const res = await request(path, options);
   return res.text();
+}
+
+/**
+ * A response of one JSON value per line, each handed to `onLine` as it arrives rather than when the
+ * response ends: a project search streams its files, and the first ones are worth showing before the
+ * last is found.
+ */
+export async function requestLines<T>(
+  path: string,
+  options: RequestOptions,
+  onLine: (value: T) => void
+): Promise<void> {
+  const res = await request(path, options);
+  if (res.body === null) {
+    return;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let pending = '';
+  const take = (line: string) => {
+    if (line.trim() !== '') {
+      onLine(JSON.parse(line) as T);
+    }
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    pending += decoder.decode(value, { stream: true });
+    let newline = pending.indexOf('\n');
+    while (newline >= 0) {
+      take(pending.slice(0, newline));
+      pending = pending.slice(newline + 1);
+      newline = pending.indexOf('\n');
+    }
+  }
+  take(pending + decoder.decode());
 }
 
 export async function requestEmpty(path: string, options?: RequestOptions): Promise<void> {

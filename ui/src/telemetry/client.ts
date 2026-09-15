@@ -83,7 +83,14 @@ export function track(
 }
 
 /** Tabs that are not a file being opened: terminals are counted by the server, and the rest are the app's own. */
-const NOT_FILES = new Set(['terminal', 'launcher', 'help', 'settings', 'disk-diff']);
+const NOT_FILES = new Set([
+  'terminal',
+  'launcher',
+  'help',
+  'settings',
+  'disk-diff',
+  'search-preview',
+]);
 
 /** A tab the user just opened, as against one they switched back to. */
 export function trackTabOpened(type: string, name: string): void {

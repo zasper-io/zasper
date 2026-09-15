@@ -1,5 +1,6 @@
 import { defineCommands } from '@/commands/define';
 import { diskComparePath } from '@/store/diskChanges';
+import { searchPreviewPath } from '@/store/projectSearch';
 import type { FileTab, FileTabDict } from '@/store/tabState';
 
 const TAB = { category: 'Tab', scope: 'app' } as const;
@@ -86,6 +87,9 @@ export function tabFilePath(tab: FileTab): string | null {
   }
   if (tab.type === 'disk-diff') {
     return diskComparePath(tab.path);
+  }
+  if (tab.type === 'search-preview') {
+    return searchPreviewPath(tab.path);
   }
   return tab.diff?.path ?? tab.path;
 }

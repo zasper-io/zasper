@@ -6,6 +6,7 @@ import getFileExtension from '@/ide/utils';
 import { baseName, isInside, rewritePath } from '@/paths';
 import { diskCompareTabKey } from '@/store/diskChanges';
 import { helpAboutRequestAtom } from '@/store/helpTab';
+import { searchPreviewTabKey } from '@/store/projectSearch';
 import { notebookKernelMapAtom } from '@/store/kernels';
 import { recentFilesAtom, withRecent } from '@/store/recentFiles';
 import { terminalsAtom, terminalsCountAtom } from '@/store/terminals';
@@ -86,6 +87,8 @@ export interface TabActions {
   openSettings: () => void;
   /** Opens the comparison of a file's unsaved edits with the version of it now on disk. */
   openDiskCompare: (path: string) => void;
+  /** Opens a file on disk against the file after the search panel's replace. */
+  openSearchPreview: (path: string) => void;
   /** Opens the last tab a close took, newest first. */
   reopenClosedTab: () => void;
   /**
@@ -260,6 +263,15 @@ export function useTabActions(): TabActions {
         name: `${baseName(path)} (on disk)`,
         path: diskCompareTabKey(path),
         type: 'disk-diff',
+        extension: getFileExtension(baseName(path)),
+      });
+    },
+
+    openSearchPreview: (path: string) => {
+      openTab({
+        name: `${baseName(path)} (replace)`,
+        path: searchPreviewTabKey(path),
+        type: 'search-preview',
         extension: getFileExtension(baseName(path)),
       });
     },

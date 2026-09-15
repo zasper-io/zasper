@@ -9,6 +9,8 @@ interface NotebookFindCardProps {
   find: NotebookFind;
   /** Bumped by another ⌘F, which takes the field back rather than opening a second card. */
   focusRequest: number;
+  /** False when the card opens for a match pressed in the search panel, which puts the cursor in a cell. */
+  takeFocus?: boolean;
   onClose: () => void;
 }
 
@@ -55,12 +57,21 @@ export function notebookFindNote(find: NotebookFind): string {
  * output, and a rendered markdown cell is left rendered — both settled in the story, and both said
  * out loud here rather than left for the reader to discover.
  */
-export default function NotebookFindCard({ find, focusRequest, onClose }: NotebookFindCardProps) {
+export default function NotebookFindCard({
+  find,
+  focusRequest,
+  takeFocus = true,
+  onClose,
+}: NotebookFindCardProps) {
   const field = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    field.current?.focus();
-    field.current?.select();
+    if (takeFocus) {
+      field.current?.focus();
+      field.current?.select();
+    }
+    // Only on a request: the flag changing on its own is not a reason to move the focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest]);
 
   const onFieldKeyDown = (event: React.KeyboardEvent) => {

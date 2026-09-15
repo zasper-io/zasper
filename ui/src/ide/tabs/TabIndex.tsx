@@ -2,6 +2,7 @@ import { useAtomValue } from 'jotai';
 import React from 'react';
 import { toast } from 'react-toastify';
 import { diskComparePath } from '@/store/diskChanges';
+import { searchPreviewPath } from '@/store/projectSearch';
 import { closedTabsAtom } from '@/store/tabActions';
 import { activeTabPathAtom, fileTabsAtom, FileTab } from '@/store/tabState';
 import { useTabActions } from '@/store/tabActions';
@@ -48,7 +49,12 @@ function TabMark({ tab }: { tab: FileTab }) {
   }
   // The file's own name for a diff: its tab is named `notes.txt (diff)`, whose extension is
   // `txt (diff)` and which would therefore get the mark for an unknown type.
-  const file = tab.type === 'disk-diff' ? diskComparePath(tab.path) : (tab.diff?.path ?? tab.name);
+  const file =
+    tab.type === 'disk-diff'
+      ? diskComparePath(tab.path)
+      : tab.type === 'search-preview'
+        ? searchPreviewPath(tab.path)
+        : (tab.diff?.path ?? tab.name);
   return <FileMark name={file} className="tabIcon" />;
 }
 
@@ -277,7 +283,9 @@ function Tab({ tab, isDirty, onActivate, onClose, onMenu }: TabProps) {
       ? tab.name
       : tab.type === 'disk-diff'
         ? diskComparePath(tab.path)
-        : tab.path,
+        : tab.type === 'search-preview'
+          ? searchPreviewPath(tab.path)
+          : tab.path,
   ];
   if (isDirty) {
     label.push('Unsaved changes');

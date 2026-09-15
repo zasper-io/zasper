@@ -21,10 +21,12 @@ import TabIndex from './tabs/TabIndex';
 import Topbar from './topBar/Topbar';
 import GitPanel from './sidebar/gitPanel/GitPanel';
 import JupyterInfoPanel from './sidebar/jupyterInfoPanel/JupyterInfoPanel';
+import SearchPanel from './sidebar/searchPanel/SearchPanel';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
+import { searchFocusRequestAtom } from '@/store/projectSearch';
 import {
   platformAtom,
   projectDirAtom,
@@ -90,6 +92,7 @@ function IDE() {
   }, []);
 
   const { openSettings } = useTabActions();
+  const [, setSearchFocus] = useAtom(searchFocusRequestAtom);
 
   const windowCommands = useMemo<Command[]>(
     () => [
@@ -100,8 +103,16 @@ function IDE() {
         execute: toggleSidebar,
       },
       { ...APP_COMMANDS['view:settings'], execute: () => openSettings() },
+      {
+        ...APP_COMMANDS['view:search'],
+        isEnabled: () => isMac || !terminalHasFocus(),
+        execute: () => {
+          showPanel('searchPanel');
+          setSearchFocus((count) => count + 1);
+        },
+      },
     ],
-    [toggleSidebar, openSettings]
+    [toggleSidebar, openSettings, showPanel, setSearchFocus]
   );
 
   // The application's only keyboard dispatcher, and the window-level commands that used to be a
@@ -206,6 +217,7 @@ function IDE() {
             <div className="navigation">
               <div className="sideBar">
                 <FileBrowser hidden={activePanel !== 'fileBrowser'} reloadCount={reloadCount} />
+                <SearchPanel hidden={activePanel !== 'searchPanel'} />
                 <JupyterInfoPanel hidden={activePanel !== 'jupyterInfoPanel'} />
                 <GitPanel
                   hidden={activePanel !== 'gitPanel'}

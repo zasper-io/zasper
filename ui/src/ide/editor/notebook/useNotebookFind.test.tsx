@@ -68,6 +68,18 @@ describe('useNotebookFind', () => {
     expect(result.current.inOutputs).toBe(1);
   });
 
+  // What the search panel uses to open a notebook at the match that was pressed.
+  it('makes a match chosen from outside the current one, and shows it', () => {
+    const { result, views, focusCell } = find();
+    act(() => result.current.setOptions({ search: 'frame' }));
+
+    act(() => result.current.goTo(2));
+
+    expect(result.current.current).toBe(3);
+    expect(focusCell).toHaveBeenCalledWith('b');
+    expect(views.current.get('b')?.state.selection.main.from).toBe(8);
+  });
+
   it('leaves outputs out when it is asked to', () => {
     const { result } = find();
 

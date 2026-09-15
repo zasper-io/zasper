@@ -3,6 +3,7 @@ package search
 import (
 	"io/fs"
 	"net/http"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -36,6 +37,8 @@ type projectFile struct {
 type Handler struct {
 	project content.Project
 	ttl     time.Duration
+	// The ripgrep a content search uses, or "" to search without it.
+	ripgrep string
 
 	mu    sync.Mutex
 	files []projectFile
@@ -44,7 +47,8 @@ type Handler struct {
 
 // NewHandler suggests the files of project.
 func NewHandler(project content.Project) *Handler {
-	return &Handler{project: project, ttl: listingTTL}
+	ripgrep, _ := exec.LookPath("rg")
+	return &Handler{project: project, ttl: listingTTL, ripgrep: ripgrep}
 }
 
 // projectFiles answers the project's files, walking it only when the last walk is older than ttl. Requests

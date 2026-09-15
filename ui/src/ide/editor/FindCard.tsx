@@ -23,8 +23,14 @@ interface FindCardProps {
   seed: string;
   /** Bumped by another ⌘F, which takes the field back rather than opening a second card. */
   focusRequest: number;
+  /** The toggles to start with, when the search came from somewhere that had its own: the search panel. */
+  seedOptions?: FindToggles | null;
+  /** False when the card opens for a match pressed elsewhere, where the cursor belongs in the editor. */
+  takeFocus?: boolean;
   onClose: () => void;
 }
+
+export type FindToggles = Record<FindOption, boolean>;
 
 /**
  * Find and replace in the file editor, floating at the top right (story 15).
@@ -35,7 +41,14 @@ interface FindCardProps {
  * searching is reimplemented here, only where the controls are and what they are called. The controls
  * themselves are `FindControls`, shared with the notebook's card.
  */
-export default function FindCard({ view, seed, focusRequest, onClose }: FindCardProps) {
+export default function FindCard({
+  view,
+  seed,
+  focusRequest,
+  seedOptions = null,
+  takeFocus = true,
+  onClose,
+}: FindCardProps) {
   const [search, setSearch] = useState(seed);
   const [replace, setReplace] = useState('');
   const [options, setOptions] = useState({
@@ -67,14 +80,23 @@ export default function FindCard({ view, seed, focusRequest, onClose }: FindCard
   // The field takes the focus when the card opens and on every ⌘F after it, with its text selected so
   // the next thing typed replaces the query rather than extending it.
   useEffect(() => {
-    field.current?.focus();
-    field.current?.select();
+    if (takeFocus) {
+      field.current?.focus();
+      field.current?.select();
+    }
+    // Only on a request: the flag changing on its own is not a reason to move the focus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest]);
 
   useEffect(() => {
     if (seed !== '') {
       setSearch(seed);
     }
+    if (seedOptions !== null) {
+      setOptions(seedOptions);
+    }
+    // The seed is taken when it is asked for, not whenever its object is rebuilt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed, focusRequest]);
 
   const counted = useMemo(() => {

@@ -53,6 +53,8 @@ export interface NotebookFind {
   broken: boolean;
   next: () => void;
   previous: () => void;
+  /** Makes the match at `index` in `matches` the current one, and shows it. */
+  goTo: (index: number) => void;
   replaceCurrent: () => void;
   replaceAll: () => void;
 }
@@ -102,6 +104,8 @@ interface NotebookFindInput {
   divRefs: RefObject<(HTMLDivElement | null)[]>;
   /** Whether the card is up. Nothing is marked while it is not, or matches would stay behind it. */
   active: boolean;
+  /** Bumped when a cell's editor arrives, which is a render after the cell itself mounts. */
+  viewsVersion?: number;
 }
 
 /**
@@ -118,6 +122,7 @@ export function useNotebookFind({
   focusCell,
   divRefs,
   active,
+  viewsVersion = 0,
 }: NotebookFindInput): NotebookFind {
   const [options, setAll] = useState<NotebookFindOptions>(NO_FIND);
   const [at, setAt] = useState(0);
@@ -133,16 +138,18 @@ export function useNotebookFind({
   );
 
   /**
-   * What every cell is told to look for.
-   *
-   * One rule for three things: a query that changed, a card that opened or closed, and a cell that
-   * arrived — a cell mounted after the query was set would otherwise be the one cell with no marks.
+   * What every cell is told to look for: when the query changes, when the card opens or closes, and when
+   * a cell's editor arrives — an editor made after the query was set would otherwise have no marks.
    */
   useEffect(() => {
     mark(active ? query : null);
-    // A new query is a new list, so no match is the current one until the reader steps to it.
+  }, [mark, active, query, cells.length, views, viewsVersion]);
+
+  // A new query is a new list, so no match is the current one until the reader steps to it. Not on an
+  // editor arriving, which would take the current match away from a step made just before it.
+  useEffect(() => {
     views.current?.forEach((view) => view.dispatch({ effects: setCurrentMatch.of(null) }));
-  }, [mark, active, query, cells.length, views]);
+  }, [active, query, views]);
 
   const found = useMemo(() => {
     const matches: NotebookMatch[] = [];
@@ -318,6 +325,13 @@ export function useNotebookFind({
     broken: options.search !== '' && query === null,
     next: () => step(1),
     previous: () => step(-1),
+    goTo: (index: number) => {
+      if (index < 0 || index >= found.matches.length) {
+        return;
+      }
+      setAt(index + 1);
+      reveal(index);
+    },
     replaceCurrent,
     replaceAll,
   };

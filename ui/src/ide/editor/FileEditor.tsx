@@ -33,6 +33,8 @@ import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
 import { editorPulseAtom, goToLineAtom } from '@/store/editorRequests';
+import { OpenDocument, useOpenDocument } from '@/store/openDocuments';
+import { revealMatchAtom } from '@/store/projectSearch';
 import {
   chosenLanguagesAtom,
   columnPositionAtom,
@@ -47,8 +49,9 @@ import { useTheme } from '@/themes/useTheme';
 
 import BreadCrumb from './BreadCrumb';
 import DiskChangeBand from './DiskChangeBand';
-import FindCard from './FindCard';
+import FindCard, { FindToggles } from './FindCard';
 import { findHighlighter } from './findHighlight';
+import { lineEditChanges } from './lineEdits';
 import { useEditorCommands } from './editorCommands';
 import { editorExtensions } from './editorExtensions';
 import { lazyKeymap } from './keymaps';
@@ -134,6 +137,10 @@ export default function FileEditor(props: FileEditorProps) {
   const [finding, setFinding] = useState(false);
   const [findSeed, setFindSeed] = useState('');
   const [findFocus, setFindFocus] = useState(0);
+  const [findSeedOptions, setFindSeedOptions] = useState<FindToggles | null>(null);
+  const [findTakesFocus, setFindTakesFocus] = useState(true);
+  /** Bumped when CodeMirror hands over a view, which is after the read that remounted it has rendered. */
+  const [viewCount, setViewCount] = useState(0);
   const theme = useTheme();
   const sourceRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -222,6 +229,29 @@ export default function FileEditor(props: FileEditorProps) {
   const canSave = hasText && readCount > 0;
   useUnsavedChanges(path, canSave && dirty, saveFileToDisk);
 
+  // A project replace carries out its edits here while the file is open, so the editor's undo takes
+  // them back, rather than writing to disk under it.
+  const openDoc = useMemo<OpenDocument | null>(
+    () =>
+      canSave
+        ? {
+            applyEdits: (edits) => {
+              const editor = viewRef.current;
+              if (editor === null) {
+                return { applied: 0, stale: edits.length };
+              }
+              const { changes, stale } = lineEditChanges(editor.state.doc, edits);
+              if (changes.length > 0) {
+                editor.dispatch({ changes });
+              }
+              return { applied: changes.length, stale };
+            },
+          }
+        : null,
+    [canSave]
+  );
+  useOpenDocument(path, openDoc);
+
   const save = useRef(() => {});
   save.current = () => {
     if (canSave) {
@@ -258,6 +288,8 @@ export default function FileEditor(props: FileEditorProps) {
     if (selected !== '' && !selected.includes('\n')) {
       setFindSeed(selected);
     }
+    setFindSeedOptions(null);
+    setFindTakesFocus(true);
     setFinding(true);
     setFindFocus((count) => count + 1);
   };
@@ -507,6 +539,37 @@ export default function FileEditor(props: FileEditorProps) {
     editor.focus();
   }, [goToLine, props.data.active, setGoToLine]);
 
+  // A match pressed in the search panel: the cursor on it, and the find card searching for what the panel
+  // searched for, so ⌘G carries on from there. Taken once the file has been read.
+  const reveal = useAtomValue(revealMatchAtom);
+  const setReveal = useSetAtom(revealMatchAtom);
+  useEffect(() => {
+    const editor = viewRef.current;
+    if (reveal === null || reveal.path !== path || editor === null || readCount === 0) {
+      return;
+    }
+    setReveal(null);
+    const doc = editor.state.doc;
+    const line = doc.line(Math.min(reveal.line, doc.lines));
+    setFindSeed(reveal.search);
+    setFindSeedOptions({
+      caseSensitive: reveal.caseSensitive,
+      wholeWord: reveal.wholeWord,
+      regexp: reveal.regexp,
+    });
+    setFindTakesFocus(false);
+    setFinding(true);
+    setFindFocus((count) => count + 1);
+    editor.dispatch({
+      selection: {
+        anchor: Math.min(line.from + reveal.from, line.to),
+        head: Math.min(line.from + reveal.to, line.to),
+      },
+      scrollIntoView: true,
+    });
+    editor.focus();
+  }, [reveal, path, readCount, viewCount, setReveal]);
+
   /**
    * How the file is highlighted: the language a reader chose for it, then the table the app bundles,
    * then whatever @codemirror/language-data claims the file by name — and plain text when nothing does.
@@ -727,6 +790,7 @@ export default function FileEditor(props: FileEditorProps) {
           extensions={extensions}
           onCreateEditor={(editor) => {
             viewRef.current = editor;
+            setViewCount((count) => count + 1);
           }}
           onUpdate={onUpdate}
           basicSetup={basicSetup}
@@ -772,6 +836,8 @@ export default function FileEditor(props: FileEditorProps) {
               view={viewRef.current}
               seed={findSeed}
               focusRequest={findFocus}
+              seedOptions={findSeedOptions}
+              takeFocus={findTakesFocus}
               onClose={() => closeFind.current()}
             />
           )}
