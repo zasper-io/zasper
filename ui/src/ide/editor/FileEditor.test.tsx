@@ -1,11 +1,14 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Provider, useAtomValue } from 'jotai';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FileEditor from './FileEditor';
+import { EditorSettings } from '@/api';
+import { DEFAULT_EDITOR_SETTINGS, editorSettingsAtom } from '@/store/settings';
 import { FileTab } from '@/store/tabState';
 import { unsavedTabsAtom } from '@/store/unsavedState';
+import { Provider as SeededProvider } from '@/testing/Provider';
 
 const getFileContent = vi.fn();
 const getEditorConfig = vi.fn();
@@ -60,8 +63,16 @@ vi.mock('@uiw/react-codemirror', async () => {
             return { doc: documentOf(current.current) };
           },
           dispatch: ({ changes }: any) => {
-            const text = current.current;
-            change(text.slice(0, changes.from) + changes.insert + text.slice(changes.to));
+            let text = current.current;
+            // Highest position first, so each change is applied at the offset it was measured at.
+            const edits = (Array.isArray(changes) ? [...changes] : [changes]).sort(
+              (left, right) => right.from - left.from
+            );
+            for (const edit of edits) {
+              text =
+                text.slice(0, edit.from) + (edit.insert ?? '') + text.slice(edit.to ?? edit.from);
+            }
+            change(text);
           },
         });
       }, []);
@@ -130,6 +141,10 @@ describe('FileEditor', () => {
     getEditorConfig.mockReset();
     getEditorConfig.mockResolvedValue({});
     saveFile.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   async function renderEditor() {
@@ -318,6 +333,103 @@ describe('FileEditor', () => {
       await waitFor(() =>
         expect(screen.getByRole('textbox')).toHaveValue('first line\nwhile hidden\n')
       );
+    });
+  });
+
+  /*
+   * What a save does to whitespace, and the save it makes by itself. Both are settings, so these render
+   * with a store that has them on rather than the defaults.
+   */
+  describe('with the whitespace and autosave settings on', () => {
+    const settings: EditorSettings = {
+      ...DEFAULT_EDITOR_SETTINGS,
+      trim_trailing_whitespace: true,
+      insert_final_newline: true,
+      auto_save: true,
+    };
+
+    async function renderWith(chosen: Partial<EditorSettings>) {
+      render(
+        <SeededProvider initialValues={[[editorSettingsAtom, { ...settings, ...chosen }]]}>
+          <FileEditor data={tab} />
+          <TabBar />
+        </SeededProvider>
+      );
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('first line\n'));
+    }
+
+    it('writes the file without the blanks at the ends of its lines', async () => {
+      await renderWith({ auto_save: false });
+      type('first line   \nsecond\t\n');
+      await waitFor(() => expect(unsavedPaths()).toBe('notes.txt'));
+
+      fireEvent.click(screen.getByText('save it'));
+
+      await waitFor(() => expect(unsavedPaths()).toBe(''));
+      expect(saveFile).toHaveBeenCalledWith('notes.txt', 'first line\nsecond\n');
+      // What went to disk is what the editor holds, so the save does not leave the file unsaved.
+      expect(screen.getByRole('textbox')).toHaveValue('first line\nsecond\n');
+    });
+
+    it('gives a file with no newline at its end one', async () => {
+      await renderWith({ auto_save: false, trim_trailing_whitespace: false });
+      type('first line\nno newline at the end');
+      await waitFor(() => expect(unsavedPaths()).toBe('notes.txt'));
+
+      fireEvent.click(screen.getByText('save it'));
+
+      await waitFor(() =>
+        expect(saveFile).toHaveBeenCalledWith('notes.txt', 'first line\nno newline at the end\n')
+      );
+    });
+
+    it('leaves the whitespace alone when neither setting is on', async () => {
+      await renderWith({
+        auto_save: false,
+        trim_trailing_whitespace: false,
+        insert_final_newline: false,
+      });
+      type('first line   \nno newline');
+      await waitFor(() => expect(unsavedPaths()).toBe('notes.txt'));
+
+      fireEvent.click(screen.getByText('save it'));
+
+      await waitFor(() =>
+        expect(saveFile).toHaveBeenCalledWith('notes.txt', 'first line   \nno newline')
+      );
+    });
+
+    it('saves by itself once the typing stops', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      await renderWith({});
+      type('first line\ntyped\n');
+
+      // Still being typed into: the timer restarts on every change.
+      await act(async () => vi.advanceTimersByTime(700));
+      type('first line\ntyped some more\n');
+      await act(async () => vi.advanceTimersByTime(700));
+      expect(saveFile).not.toHaveBeenCalled();
+
+      await act(async () => vi.advanceTimersByTime(400));
+      await waitFor(() => expect(unsavedPaths()).toBe(''));
+      expect(saveFile).toHaveBeenCalledWith('notes.txt', 'first line\ntyped some more\n');
+    });
+
+    // The band is a question, and a save is one of its answers: it is the reader's to give. The window
+    // in which that can happen is the pause an autosave waits out, so the change on disk lands in it.
+    it('does not save by itself while the file has changed on disk under the edits', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      await renderWith({});
+      type('first line\nmine\n');
+      getFileContent.mockResolvedValue(text('first line\ntheirs\n'));
+
+      await changedOnDisk();
+      await screen.findByText('notes.txt changed on disk.');
+      type('first line\nmine again\n');
+      await act(async () => vi.advanceTimersByTime(3000));
+
+      expect(saveFile).not.toHaveBeenCalled();
+      expect(unsavedPaths()).toBe('notes.txt');
     });
   });
 

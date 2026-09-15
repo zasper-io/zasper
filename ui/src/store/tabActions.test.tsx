@@ -41,8 +41,16 @@ function restored(path: string, type = 'file'): FileTab {
 
 /** The open tabs, the name each shows, and which notebooks still hold a kernel. */
 function Harness() {
-  const { activateTab, closeTab, closeTabs, closeDeleted, renameTab, openDiff, openTab } =
-    useTabActions();
+  const {
+    activateTab,
+    closeTab,
+    closeTabs,
+    closeDeleted,
+    renameTab,
+    openDiff,
+    openTab,
+    reopenClosedTab,
+  } = useTabActions();
   const openTabs = useAtomValue(fileTabsAtom);
   const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
 
@@ -121,6 +129,9 @@ function Harness() {
       </button>
       <button type="button" onClick={() => renameTab('notes.txt', 'todo.txt')}>
         rename notes
+      </button>
+      <button type="button" onClick={reopenClosedTab}>
+        reopen
       </button>
       <button type="button" onClick={() => openDiff({ path: 'notes.txt' })}>
         diff notes
@@ -222,6 +233,34 @@ describe('useTabActions', () => {
    * Tabs are keyed by path, so a diff keyed by the file's own path would be that file's editor: the
    * click would bring the editor forward and nothing else would happen.
    */
+  it('reopens the last closed tab, newest first, and only once each', () => {
+    renderHarness();
+    fireEvent.click(screen.getByText('close notes'));
+    fireEvent.click(screen.getByText('close demo'));
+    expect(text('tabs')).toBe('Launcher,src/main.py');
+
+    fireEvent.click(screen.getByText('reopen'));
+    expect(text('tabs')).toBe('Launcher,src/main.py,src/demo.ipynb');
+    expect(text('active')).toBe('src/demo.ipynb');
+
+    fireEvent.click(screen.getByText('reopen'));
+    expect(text('tabs')).toBe('Launcher,src/main.py,src/demo.ipynb,notes.txt');
+
+    // Nothing left to reopen, and nothing happens.
+    fireEvent.click(screen.getByText('reopen'));
+    expect(text('tabs')).toBe('Launcher,src/main.py,src/demo.ipynb,notes.txt');
+  });
+
+  // A reopened notebook reads itself and rejoins whatever kernel is running its path.
+  it('reopens a notebook as a tab that has to load', () => {
+    renderHarness();
+    fireEvent.click(screen.getByText('close demo'));
+
+    fireEvent.click(screen.getByText('reopen'));
+
+    expect(text('loading')).toBe('src/demo.ipynb');
+  });
+
   it('opens a diff without disturbing the editor for the same file', () => {
     renderHarness();
 

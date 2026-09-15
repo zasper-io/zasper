@@ -257,6 +257,48 @@ function useSettings(): Setting[] {
       ),
     },
     {
+      id: 'settings-trim-whitespace',
+      group: 'Editor',
+      name: 'Trim trailing whitespace',
+      help: 'On save, blanks at the end of a line are removed. A project’s .editorconfig wins.',
+      words: 'spaces tabs editorconfig save',
+      control: (
+        <Checkbox
+          id="settings-trim-whitespace"
+          checked={editor.trim_trailing_whitespace}
+          onChange={(trim_trailing_whitespace) => changeEditor({ trim_trailing_whitespace })}
+        />
+      ),
+    },
+    {
+      id: 'settings-final-newline',
+      group: 'Editor',
+      name: 'Insert a final newline',
+      help: 'On save, a file that does not end in a newline is given one. A project’s .editorconfig wins.',
+      words: 'editorconfig save end of file',
+      control: (
+        <Checkbox
+          id="settings-final-newline"
+          checked={editor.insert_final_newline}
+          onChange={(insert_final_newline) => changeEditor({ insert_final_newline })}
+        />
+      ),
+    },
+    {
+      id: 'settings-auto-save',
+      group: 'Editor',
+      name: 'Save automatically',
+      help: 'A second after the typing stops. A file that changed on disk under unsaved edits is never saved this way — that answer is yours to give.',
+      words: 'autosave',
+      control: (
+        <Checkbox
+          id="settings-auto-save"
+          checked={editor.auto_save}
+          onChange={(auto_save) => changeEditor({ auto_save })}
+        />
+      ),
+    },
+    {
       id: 'settings-cell-tab-indents',
       group: 'Notebook',
       name: 'Insert a tab in a cell',

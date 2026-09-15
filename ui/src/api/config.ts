@@ -43,6 +43,11 @@ export interface EditorSettings {
   rulers: number[];
   /** A notebook cell's Tab inserts an indent rather than asking the kernel to complete. */
   cell_tab_indents: boolean;
+  /** What a save does to whitespace, unless the file's .editorconfig says otherwise. */
+  trim_trailing_whitespace: boolean;
+  insert_final_newline: boolean;
+  /** Save a file a second after the typing stops. */
+  auto_save: boolean;
 }
 
 /** Written as one object: a default for one of these alone means nothing. */

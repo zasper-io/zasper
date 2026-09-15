@@ -16,6 +16,7 @@ export const TAB_COMMANDS = defineCommands({
   'tab:close-left': { ...TAB, label: 'Close to the Left', keys: ['Alt-Shift-l'] },
   'tab:close-saved': { ...TAB, label: 'Close Saved', keys: ['Alt-Shift-s'] },
   'tab:close-all': { ...TAB, label: 'Close All', keys: ['Alt-Shift-w'] },
+  'tab:reopen': { ...TAB, label: 'Reopen Closed Tab', keys: ['Alt-Shift-t'] },
   'tab:copy-path': { ...TAB, label: 'Copy Path' },
   'tab:reveal': { ...TAB, label: 'Reveal in File Explorer' },
 });

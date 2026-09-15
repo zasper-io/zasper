@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from 'jotai';
+import { atom, useAtomValue, useSetAtom } from 'jotai';
 
 import { deleteKernel, DiffTarget, logApiError } from '@/api';
 import { trackTabOpened } from '@/telemetry';
@@ -46,6 +46,19 @@ export const HELP_TAB_KEY = 'zasper:help';
 /** The Settings tab's key, for the same reason. */
 export const SETTINGS_TAB_KEY = 'zasper:settings';
 
+/**
+ * The tabs a close took, oldest first, for Reopen Closed Tab. Terminals are not kept: reopening one
+ * would be a new shell wearing an old name, which is why a terminal is not restored across a reload
+ * either. Unsaved edits are not kept — they live in the editor that went — so a reopened file is the
+ * file as it is on disk.
+ */
+export const closedTabsAtom = atom<OpenTab[]>([]);
+
+const REOPENABLE = new Set(['file', 'notebook', 'diff', 'help', 'settings']);
+
+/** How many closes back Reopen can reach. */
+const CLOSED_TABS_KEPT = 10;
+
 export interface TabActions {
   /** Opens a tab, or brings it to the front when that path is already open. */
   openTab: (tab: OpenTab) => void;
@@ -65,6 +78,8 @@ export interface TabActions {
   openSettings: () => void;
   /** Opens the comparison of a file's unsaved edits with the version of it now on disk. */
   openDiskCompare: (path: string) => void;
+  /** Opens the last tab a close took, newest first. */
+  reopenClosedTab: () => void;
   /**
    * Closes a tab. A notebook's kernel keeps running, as it does in JupyterLab: reopening the notebook
    * plugs back into that session, with everything still in memory.
@@ -95,6 +110,8 @@ export function useTabActions(): TabActions {
   const terminalCount = useAtomValue(terminalsCountAtom);
   const setTerminalCount = useSetAtom(terminalsCountAtom);
   const setHelpAboutRequest = useSetAtom(helpAboutRequestAtom);
+  const closedTabs = useAtomValue(closedTabsAtom);
+  const setClosedTabs = useSetAtom(closedTabsAtom);
 
   const openTab = (tab: OpenTab) => {
     // Outside the updater, which React may run more than once. `fileTabs` is the render's snapshot, so
@@ -148,6 +165,22 @@ export function useTabActions(): TabActions {
   const removeTabs = (paths: string[], focus?: string) => {
     if (paths.length === 0) {
       return;
+    }
+
+    // Read from this render's tabs, before they go: what it takes to open each of them again.
+    const closed = paths
+      .map((path) => fileTabs[path])
+      .filter((tab) => tab !== undefined && REOPENABLE.has(tab.type))
+      .map((tab) => ({
+        name: tab.name,
+        path: tab.path,
+        type: tab.type,
+        extension: tab.extension,
+        kernelspec: tab.kernelspec,
+        diff: tab.diff,
+      }));
+    if (closed.length > 0) {
+      setClosedTabs((previous) => [...previous, ...closed].slice(-CLOSED_TABS_KEPT));
     }
 
     setFileTabs((previous) => {
@@ -231,6 +264,15 @@ export function useTabActions(): TabActions {
         type: 'disk-diff',
         extension: getFileExtension(baseName(path)),
       });
+    },
+
+    reopenClosedTab: () => {
+      const last = closedTabs[closedTabs.length - 1];
+      if (last === undefined) {
+        return;
+      }
+      setClosedTabs((previous) => previous.slice(0, -1));
+      openTab(last);
     },
 
     closeTab: (path: string) => removeTabs([path]),

@@ -292,6 +292,21 @@ func TestEditorSettingsCanBeChangedOverTheApi(t *testing.T) {
 	assert.NotNil(t, readRaw(t, path).Editor)
 }
 
+func TestEditorSettingsKeepWhatASaveDoesAndWhetherItIsAutomatic(t *testing.T) {
+	aHome(t)
+
+	recorder := modify(t, `{"key":"editor","value":"{\"trim_trailing_whitespace\":true,\"insert_final_newline\":true,\"auto_save\":true}"}`)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code, "body was %s", recorder.Body)
+	settings := GetEditorSettings()
+	assert.True(t, settings.TrimTrailingWhitespace)
+	assert.True(t, settings.InsertFinalNewline)
+	assert.True(t, settings.AutoSave)
+	// The rest of the object was absent, so it is the defaults rather than zeroes the editor cannot draw.
+	assert.Equal(t, 13, settings.FontSize)
+	assert.Equal(t, 4, settings.TabSize)
+}
+
 // A hand-edited config or a made-up request: the editor gets values it can draw.
 func TestEditorSettingsOutsideWhatTheEditorCanDrawAreBroughtInside(t *testing.T) {
 	aHome(t)

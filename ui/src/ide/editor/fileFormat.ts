@@ -1,3 +1,5 @@
+import type { ChangeSpec, Text } from '@codemirror/state';
+
 import type { EditorConfig, EditorSettings } from '@/api';
 import type { FileFormat, Indentation, LineEnding } from '@/store/editorStatus';
 
@@ -76,6 +78,8 @@ export function formatFor(
 ): FileFormat {
   const tabWidth = editorConfig.tab_width || editorConfig.indent_size || settings.tab_size;
   const detected = detectIndentation(text, tabWidth);
+  const trim = editorConfig.trim_trailing_whitespace ?? null;
+  const finalNewline = editorConfig.insert_final_newline ?? null;
   const eol: LineEnding =
     editorConfig.end_of_line === 'crlf'
       ? 'CRLF'
@@ -93,6 +97,8 @@ export function formatFor(
       eol,
       detected,
       source: 'editorconfig',
+      trim,
+      finalNewline,
     };
   }
   return {
@@ -101,6 +107,8 @@ export function formatFor(
     eol,
     detected,
     source: 'settings',
+    trim,
+    finalNewline,
   };
 }
 
@@ -113,4 +121,47 @@ export function indentationOf(
     return { indentWithTabs: settings.indent_with_tabs, tabSize: settings.tab_size };
   }
   return { indentWithTabs: format.indentWithTabs, tabSize: format.tabSize };
+}
+
+/** What a save does to whitespace: the file's .editorconfig where it has a rule, else the settings. */
+export function saveRulesOf(format: FileFormat | undefined, settings: EditorSettings): SaveRules {
+  return {
+    trim: format?.trim ?? settings.trim_trailing_whitespace,
+    finalNewline: format?.finalNewline ?? settings.insert_final_newline,
+  };
+}
+
+export interface SaveRules {
+  trim: boolean;
+  finalNewline: boolean;
+}
+
+/**
+ * The edits a save makes to the document before writing it: blanks off the end of each line, and one
+ * newline at the end of the file. Edits rather than a rewritten string, so the editor holds what was
+ * written and the cursor is moved only where its own line changed.
+ */
+export function tidyChanges(doc: Text, rules: SaveRules): ChangeSpec[] {
+  const changes: ChangeSpec[] = [];
+  let lastLine = doc.line(doc.lines).text;
+
+  if (rules.trim) {
+    for (let number = 1; number <= doc.lines; number++) {
+      const line = doc.line(number);
+      const kept = line.text.replace(/[ \t]+$/, '');
+      if (kept.length !== line.text.length) {
+        changes.push({ from: line.from + kept.length, to: line.to });
+        if (number === doc.lines) {
+          lastLine = kept;
+        }
+      }
+    }
+  }
+
+  // A document whose last line still has something on it ends without a newline. An empty document is
+  // left alone: a newline would be the whole of its content.
+  if (rules.finalNewline && doc.length > 0 && lastLine !== '') {
+    changes.push({ from: doc.length, insert: '\n' });
+  }
+  return changes;
 }

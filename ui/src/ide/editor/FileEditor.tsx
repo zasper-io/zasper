@@ -27,6 +27,7 @@ import {
 import { saveAs } from '@/browser';
 import { Icon, IconName } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
+import { useRegisterCommands } from '@/commands/registry';
 import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
@@ -43,8 +44,9 @@ import { useTheme } from '@/themes/useTheme';
 
 import BreadCrumb from './BreadCrumb';
 import DiskChangeBand from './DiskChangeBand';
+import { useEditorCommands } from './editorCommands';
 import { editorExtensions } from './editorExtensions';
-import { detectLineEnding, formatFor, indentationOf } from './fileFormat';
+import { detectLineEnding, formatFor, indentationOf, saveRulesOf, tidyChanges } from './fileFormat';
 import languageFor, { lazyLanguageFor } from './language';
 import { zoomAwareTooltips } from './tooltipParent';
 
@@ -58,6 +60,9 @@ const MARKDOWN_VIEWS: { view: MarkdownView; icon: IconName; label: string }[] = 
   { view: 'preview', icon: 'eye', label: 'Preview' },
   { view: 'split', icon: 'columns-2', label: 'Side by side' },
 ];
+
+/** How long after the last keystroke an autosave writes. */
+const AUTO_SAVE_DELAY = 1000;
 
 function isMarkdown(extension: string | null): boolean {
   const lower = extension?.toLowerCase();
@@ -155,6 +160,13 @@ export default function FileEditor(props: FileEditorProps) {
   eolRef.current = eol;
   /** The line endings the file had when it was last read or written. */
   const savedEol = useRef<LineEnding>('LF');
+  /** What a save does to this file's whitespace, read when the save happens rather than when it renders. */
+  const saveRules = useRef(saveRulesOf(format, settings));
+  saveRules.current = saveRulesOf(format, settings);
+  /** Whether a change should start the autosave timer: off while the band is up, which a save would answer. */
+  const autoSaving = useRef(false);
+  autoSaving.current = settings.auto_save && conflict === null;
+  const autoSaveTimer = useRef<number | undefined>(undefined);
 
   const hasText = error === '' && !notText;
   const markdown = isMarkdown(props.data.extension);
@@ -172,6 +184,12 @@ export default function FileEditor(props: FileEditorProps) {
     const editor = viewRef.current;
     if (editor === null) {
       return;
+    }
+    // Applied to the document rather than to the text being written, so what the editor holds is what
+    // went to disk and the file is not left looking unsaved by its own save.
+    const tidy = tidyChanges(editor.state.doc, saveRules.current);
+    if (tidy.length > 0) {
+      editor.dispatch({ changes: tidy });
     }
     // The document that was written, not whatever the editor holds by the time the write returns: a
     // keystroke made in between leaves the file unsaved again.
@@ -274,6 +292,8 @@ export default function FileEditor(props: FileEditorProps) {
       void read();
     }
   }, [props.data, read]);
+
+  useEffect(() => () => window.clearTimeout(autoSaveTimer.current), []);
 
   // The status bar and the comparison tab show this file only while it is open.
   useEffect(
@@ -471,9 +491,25 @@ export default function FileEditor(props: FileEditorProps) {
         if (previewing.current) {
           setPreviewText(state.doc.toString());
         }
+        if (autoSaving.current) {
+          // Restarted on every change, so the write lands in a pause rather than mid-word. Not React
+          // state: the editor deliberately does not render on a keystroke.
+          window.clearTimeout(autoSaveTimer.current);
+          autoSaveTimer.current = window.setTimeout(() => {
+            if (autoSaving.current) {
+              save.current();
+            }
+          }, AUTO_SAVE_DELAY);
+        }
       }
     },
     [setColumnPosition, setLinePosition, isDirty]
+  );
+
+  // Only the tab in front, so a chord or a palette entry cannot reach a file nobody is looking at.
+  useRegisterCommands(
+    useEditorCommands(() => viewRef.current),
+    props.data.active && canSave
   );
 
   const showView = (next: MarkdownView) => {

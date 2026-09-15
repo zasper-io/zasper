@@ -1,8 +1,16 @@
+import { EditorState, Text } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_EDITOR_SETTINGS } from '@/store/settings';
 import type { FileFormat } from '@/store/editorStatus';
-import { detectIndentation, detectLineEnding, formatFor, indentationOf } from './fileFormat';
+import {
+  detectIndentation,
+  detectLineEnding,
+  formatFor,
+  indentationOf,
+  saveRulesOf,
+  tidyChanges,
+} from './fileFormat';
 
 describe('detectLineEnding', () => {
   it('reads the line endings most lines have', () => {
@@ -69,6 +77,8 @@ describe('indentationOf', () => {
     eol: 'LF',
     detected: null,
     source: 'chosen',
+    trim: null,
+    finalNewline: null,
   };
 
   it('keeps a file’s own indentation', () => {
@@ -83,5 +93,67 @@ describe('indentationOf', () => {
       indentWithTabs: false,
       tabSize: 4,
     });
+  });
+});
+
+describe('saveRulesOf', () => {
+  const format: FileFormat = {
+    indentWithTabs: false,
+    tabSize: 4,
+    eol: 'LF',
+    detected: null,
+    source: 'editorconfig',
+    trim: false,
+    finalNewline: true,
+  };
+
+  it('follows the settings for a file whose .editorconfig says nothing', () => {
+    expect(
+      saveRulesOf(
+        { ...format, trim: null, finalNewline: null },
+        {
+          ...DEFAULT_EDITOR_SETTINGS,
+          trim_trailing_whitespace: true,
+          insert_final_newline: true,
+        }
+      )
+    ).toEqual({ trim: true, finalNewline: true });
+  });
+
+  it('lets each rule in a .editorconfig win on its own', () => {
+    expect(
+      saveRulesOf(format, { ...DEFAULT_EDITOR_SETTINGS, trim_trailing_whitespace: true })
+    ).toEqual({ trim: false, finalNewline: true });
+  });
+});
+
+describe('tidyChanges', () => {
+  /** The document a save would write, which is the document with the rules' edits applied. */
+  const applied = (text: string, rules: { trim: boolean; finalNewline: boolean }) => {
+    const doc = Text.of(text.split('\n'));
+    return EditorState.create({ doc })
+      .update({ changes: tidyChanges(doc, rules) })
+      .state.doc.toString();
+  };
+
+  it('takes the blanks off the end of every line', () => {
+    expect(applied('a  \n\tb\t\nc\n', { trim: true, finalNewline: false })).toBe('a\n\tb\nc\n');
+  });
+
+  it('leaves the indentation of a blank line it is not asked about', () => {
+    expect(applied('a  \n', { trim: false, finalNewline: false })).toBe('a  \n');
+  });
+
+  it('gives a file that does not end in a newline one', () => {
+    expect(applied('a\nb', { trim: false, finalNewline: true })).toBe('a\nb\n');
+    expect(applied('a\nb\n', { trim: false, finalNewline: true })).toBe('a\nb\n');
+  });
+
+  it('counts a line the trim emptied as the end of the file', () => {
+    expect(applied('a\n   ', { trim: true, finalNewline: true })).toBe('a\n');
+  });
+
+  it('leaves an empty file empty', () => {
+    expect(applied('', { trim: true, finalNewline: true })).toBe('');
   });
 });

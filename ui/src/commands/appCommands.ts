@@ -22,6 +22,8 @@ export const APP_COMMANDS = defineCommands({
   'view:zoom-out': { ...view, label: 'Zoom Out', keys: ['Mod--'] },
   'view:zoom-reset': { ...view, label: 'Reset Zoom', keys: ['Mod-0'] },
   'view:toggle-sidebar': { ...view, label: 'Toggle Sidebar', keys: ['Mod-b'] },
+  // No chord: ⌘, is the browser's own on mac, and this is a tab rather than a mode to flip.
+  'view:settings': { ...view, label: 'Settings' },
 });
 
 /**

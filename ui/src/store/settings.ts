@@ -37,6 +37,9 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   show_whitespace: false,
   rulers: [],
   cell_tab_indents: false,
+  trim_trailing_whitespace: false,
+  insert_final_newline: false,
+  auto_save: false,
 };
 
 /** The file editor's defaults, from /api/info and changed in the Settings tab or the status bar. */

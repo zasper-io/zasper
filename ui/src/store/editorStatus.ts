@@ -21,6 +21,13 @@ export interface FileFormat extends Indentation {
    * indented by its .editorconfig, or by a choice made in the status bar, keeps its own.
    */
   source: 'editorconfig' | 'settings' | 'chosen';
+  /**
+   * What the file's .editorconfig says a save should do to whitespace, or null where it says nothing and
+   * the settings decide. Kept per file rather than resolved on opening, so changing the setting reaches
+   * every open file that has no rule of its own.
+   */
+  trim: boolean | null;
+  finalNewline: boolean | null;
 }
 
 /** Every open text file's format, by path. */

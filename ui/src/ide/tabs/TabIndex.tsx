@@ -2,6 +2,7 @@ import { useAtomValue } from 'jotai';
 import React from 'react';
 import { toast } from 'react-toastify';
 import { diskComparePath } from '@/store/diskChanges';
+import { closedTabsAtom } from '@/store/tabActions';
 import { activeTabPathAtom, fileTabsAtom, FileTab } from '@/store/tabState';
 import { useTabActions } from '@/store/tabActions';
 import { unsavedTabsAtom } from '@/store/unsavedState';
@@ -66,7 +67,8 @@ interface PendingClose {
 export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   const fileTabsState = useAtomValue(fileTabsAtom);
   const activePath = useAtomValue(activeTabPathAtom);
-  const { activateTab, closeTabs } = useTabActions();
+  const { activateTab, closeTabs, reopenClosedTab } = useTabActions();
+  const closedTabs = useAtomValue(closedTabsAtom);
   const unsavedTabs = useAtomValue(unsavedTabsAtom);
   const revealInTree = useRevealInTree();
   const [pendingClose, setPendingClose] = React.useState<PendingClose | null>(null);
@@ -155,6 +157,11 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
         tabsToClose(fileTabsState, activePath, scope, unsavedTabs).length > 0,
       execute: () => closeScope(scope, activePath),
     })),
+    {
+      ...TAB_COMMANDS['tab:reopen'],
+      isEnabled: () => closedTabs.length > 0,
+      execute: reopenClosedTab,
+    },
     {
       ...TAB_COMMANDS['tab:copy-path'],
       isEnabled: () => pathOf(activePath) !== null,

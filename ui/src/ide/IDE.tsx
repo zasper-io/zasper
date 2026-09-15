@@ -43,6 +43,7 @@ import { APP_COMMANDS, useAppCommands } from '../commands/appCommands';
 import { useHelpCommands } from '../commands/helpCommands';
 import { isMac, terminalHasFocus } from '../commands/keys';
 import { useRegisterCommands } from '../commands/registry';
+import { useTabActions } from '../store/tabActions';
 import { Command } from '../commands/types';
 import { useCommandKeymap } from '../commands/useCommandKeymap';
 import { useTelemetry } from '../telemetry';
@@ -87,7 +88,9 @@ function IDE() {
     sidebarRef.current?.expand();
   }, []);
 
-  const sidebarCommands = useMemo<Command[]>(
+  const { openSettings } = useTabActions();
+
+  const windowCommands = useMemo<Command[]>(
     () => [
       {
         ...APP_COMMANDS['view:toggle-sidebar'],
@@ -95,15 +98,16 @@ function IDE() {
         isEnabled: () => isMac || !terminalHasFocus(),
         execute: toggleSidebar,
       },
+      { ...APP_COMMANDS['view:settings'], execute: () => openSettings() },
     ],
-    [toggleSidebar]
+    [toggleSidebar, openSettings]
   );
 
   // The application's only keyboard dispatcher, and the window-level commands that used to be a
   // `keydown` listener here. Everything else contributes to the same registry from its own tab.
   useCommandKeymap();
   useRegisterCommands(useAppCommands());
-  useRegisterCommands(sidebarCommands);
+  useRegisterCommands(windowCommands);
   useRegisterCommands(useHelpCommands());
   useTelemetry();
 

@@ -184,6 +184,11 @@ type EditorSettings struct {
 	Rulers         []int `json:"rulers"`
 	// A notebook cell's Tab inserts an indent rather than asking the kernel to complete.
 	CellTabIndents bool `json:"cell_tab_indents"`
+	// What a save does to whitespace, unless the file's .editorconfig says otherwise.
+	TrimTrailingWhitespace bool `json:"trim_trailing_whitespace"`
+	InsertFinalNewline     bool `json:"insert_final_newline"`
+	// Save a file a second after the typing stops.
+	AutoSave bool `json:"auto_save"`
 }
 
 // DefaultEditorSettings are what an install that has chosen nothing gets.

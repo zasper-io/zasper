@@ -1,3 +1,4 @@
+import { EDITOR_COMMANDS } from '@/ide/editor/editorCommands';
 import { NOTEBOOK_COMMANDS } from '@/ide/editor/notebook/notebookCommands';
 import { TAB_COMMANDS } from '@/ide/tabs/tabCommands';
 import { PALETTE_COMMANDS } from '@/ide/topBar/paletteCommands';
@@ -9,6 +10,7 @@ const TABLES: Record<string, CommandInfo>[] = [
   APP_COMMANDS,
   PALETTE_COMMANDS,
   NOTEBOOK_COMMANDS,
+  EDITOR_COMMANDS,
   HELP_COMMANDS,
   TAB_COMMANDS,
 ];

@@ -21,6 +21,8 @@ const opened: FileFormat = {
   eol: 'LF',
   detected: { indentWithTabs: true, tabSize: 4 },
   source: 'settings',
+  trim: null,
+  finalNewline: null,
 };
 
 function FormatProbe() {
