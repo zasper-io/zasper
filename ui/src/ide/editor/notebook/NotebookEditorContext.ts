@@ -1,5 +1,6 @@
 import { createContext, RefObject, useContext } from 'react';
 import type { Extension } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 
 import { NotebookCell } from '@/api';
 import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
@@ -21,6 +22,19 @@ export interface NotebookEditorContextValue {
   commandKeymap: Extension;
   /** Highlighting for code cells, in the kernel's language: see useCellLanguage. */
   cellLanguage: Extension;
+  /**
+   * The search state a cell is searched through, and the marks over it: `search()` and the file
+   * editor's own highlighter, one copy per cell. The notebook holds the query and tells every cell
+   * what to look for — a notebook is fifty documents, and the library's search is one view's.
+   */
+  findExtension: Extension;
+  /**
+   * A cell handing the notebook its editor, or null as it goes.
+   *
+   * The notebook needs the views to mark matches, to step into one and to replace through the cell's
+   * own history. Keyed by cell id, not by index: a cell that moves is the same cell.
+   */
+  registerCellView: (cellId: string, view: EditorView | null) => void;
   focusedIndex: number;
   /** By id, not by index: see `focusCell` in useCellFocus. */
   focusCell: (cellId: string) => void;

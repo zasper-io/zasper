@@ -11,6 +11,8 @@ export interface NotebookCommandTargets {
   cells: NotebookCells;
   kernel: KernelSession;
   saveNotebook: () => void;
+  /** Opens the notebook's find card, or takes its field back when it is already up (story 17). */
+  openFind: () => void;
   submitCell: (source: string, cellId: string) => void;
   submitAllCells: () => void;
   restartKernel: () => void;
@@ -97,6 +99,10 @@ export const NOTEBOOK_COMMANDS = defineCommands({
   },
   'notebook:change-to-raw': { ...NOTEBOOK, label: 'Change Cell to Raw' },
 
+  // The notebook's, not a cell's: `searchKeymap` is off in the cells, so this reaches the window
+  // dispatcher from inside an editor as well as from the pane around it.
+  'notebook:find': { ...NOTEBOOK, label: 'Find and Replace', keys: ['Mod-f'] },
+
   'notebook:interrupt-kernel': { ...KERNEL, label: 'Interrupt Kernel' },
   'notebook:restart-kernel': { ...KERNEL, label: 'Restart Kernel' },
   'notebook:restart-and-run-all': { ...KERNEL, label: 'Restart Kernel and Run All Cells' },
@@ -147,6 +153,11 @@ export function useNotebookCommands(targets: NotebookCommandTargets): Command[] 
       // Saving after a failed read would write the empty starting state over the file.
       isEnabled: isLoaded,
       execute: targets.saveNotebook,
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:find'],
+      isEnabled: isLoaded,
+      execute: targets.openFind,
     },
     {
       ...NOTEBOOK_COMMANDS['notebook:run-cell'],

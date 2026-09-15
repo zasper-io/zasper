@@ -12,8 +12,8 @@ import {
 import { EditorView } from '@codemirror/view';
 import { useAtomValue } from 'jotai';
 
-import IconButton from '@/ide/IconButton';
 import { editorPulseAtom } from '@/store/editorRequests';
+import FindControls, { FindOption } from './FindControls';
 import { countLabel, countMatches, findQuery } from './findMatches';
 import './FindCard.scss';
 
@@ -27,30 +27,29 @@ interface FindCardProps {
 }
 
 /**
- * Find and replace, floating at the top right of the editor (story 15).
+ * Find and replace in the file editor, floating at the top right (story 15).
  *
  * Not a CodeMirror panel: one placed there is `position: sticky` inside `.cm-editor`, which is as tall
  * as the document rather than as the pane, so it lands part-way down the file. This is the app's own
  * card in the app's own layout, driven by the search commands the library exports — so nothing about
- * searching is reimplemented here, only where the controls are and what they are called.
+ * searching is reimplemented here, only where the controls are and what they are called. The controls
+ * themselves are `FindControls`, shared with the notebook's card.
  */
 export default function FindCard({ view, seed, focusRequest, onClose }: FindCardProps) {
   const [search, setSearch] = useState(seed);
   const [replace, setReplace] = useState('');
-  const [caseSensitive, setCaseSensitive] = useState(false);
-  const [wholeWord, setWholeWord] = useState(false);
-  const [regexp, setRegexp] = useState(false);
-  const [replacing, setReplacing] = useState(false);
+  const [options, setOptions] = useState({
+    caseSensitive: false,
+    wholeWord: false,
+    regexp: false,
+  });
   const field = useRef<HTMLInputElement>(null);
   // Bumped on every editor update, which is when a count can have changed: an edit adds or removes
   // matches, and a step moves which one the cursor is at.
   const pulse = useAtomValue(editorPulseAtom);
 
-  const options = useMemo(
-    () => ({ search, replace, caseSensitive, wholeWord, regexp }),
-    [search, replace, caseSensitive, wholeWord, regexp]
-  );
-  const query = useMemo(() => findQuery(options), [options]);
+  const asked = useMemo(() => ({ search, replace, ...options }), [search, replace, options]);
+  const query = useMemo(() => findQuery(asked), [asked]);
 
   // What CodeMirror looks for: this is what highlights every match and what the commands act on.
   useEffect(() => {
@@ -91,7 +90,7 @@ export default function FindCard({ view, seed, focusRequest, onClose }: FindCard
     field.current?.focus();
   };
 
-  const onFieldKey = (event: React.KeyboardEvent) => {
+  const onFieldKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
       event.preventDefault();
       (event.shiftKey ? findPrevious : findNext)(view);
@@ -103,83 +102,25 @@ export default function FindCard({ view, seed, focusRequest, onClose }: FindCard
 
   return (
     <div className="z-overlay find-card">
-      <input
-        ref={field}
-        className="z-field find-field"
-        type="text"
-        value={search}
-        placeholder="Find"
-        aria-label="Find"
-        onChange={(event) => setSearch(event.target.value)}
-        onKeyDown={onFieldKey}
+      <FindControls
+        search={search}
+        onSearch={setSearch}
+        replace={replace}
+        onReplace={setReplace}
+        options={options}
+        onToggle={(option: FindOption) =>
+          setOptions((current) => ({ ...current, [option]: !current[option] }))
+        }
+        count={countLabel(asked, counted)}
+        fieldRef={field}
+        onFieldKeyDown={onFieldKeyDown}
+        onPrevious={step(findPrevious)}
+        onNext={step(findNext)}
+        onReplaceOne={step(replaceNext)}
+        onReplaceAll={step(replaceAll)}
+        onSelectAll={step(selectMatches)}
+        onClose={onClose}
       />
-      <span className="find-count">{countLabel(options, counted)}</span>
-      <span className="find-actions">
-        <IconButton icon="chevron-up" label="Previous match" onClick={step(findPrevious)} />
-        <IconButton icon="chevron-down" label="Next match" onClick={step(findNext)} />
-        {/* Letters rather than words, because all three have to fit beside the field: this is the
-            shape the drawing settled. `aria-pressed` is the app's own state for an icon button. */}
-        <button
-          type="button"
-          className="z-icon-button find-toggle"
-          aria-pressed={caseSensitive}
-          aria-label="Match case"
-          onClick={() => setCaseSensitive(!caseSensitive)}
-        >
-          Aa
-        </button>
-        <button
-          type="button"
-          className="z-icon-button find-toggle"
-          aria-pressed={wholeWord}
-          aria-label="Whole word"
-          onClick={() => setWholeWord(!wholeWord)}
-        >
-          ab
-        </button>
-        <button
-          type="button"
-          className="z-icon-button find-toggle"
-          aria-pressed={regexp}
-          aria-label="Regular expression"
-          onClick={() => setRegexp(!regexp)}
-        >
-          .*
-        </button>
-        <IconButton
-          icon="chevron-right"
-          label={replacing ? 'Hide replace' : 'Show replace'}
-          pressed={replacing}
-          onClick={() => setReplacing(!replacing)}
-        />
-        <IconButton icon="x" label="Close find" onClick={onClose} />
-      </span>
-      {replacing && (
-        <span className="find-card-row">
-          <input
-            className="z-field find-field"
-            type="text"
-            value={replace}
-            placeholder="Replace"
-            aria-label="Replace"
-            onChange={(event) => setReplace(event.target.value)}
-            onKeyDown={onFieldKey}
-          />
-          <button type="button" className="z-button z-button-secondary" onClick={step(replaceNext)}>
-            Replace
-          </button>
-          <button type="button" className="z-button z-button-secondary" onClick={step(replaceAll)}>
-            Replace all
-          </button>
-          <button
-            type="button"
-            className="z-button z-button-secondary"
-            onClick={step(selectMatches)}
-          >
-            Select all
-          </button>
-        </span>
-      )}
     </div>
   );
 }

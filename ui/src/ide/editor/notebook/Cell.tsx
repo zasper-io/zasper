@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { autocompletion } from '@codemirror/autocomplete';
 import { indentLess, indentMore } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { getIndentUnit, indentString } from '@codemirror/language';
-import { KeyBinding, keymap, ViewUpdate } from '@codemirror/view';
+import { EditorView, KeyBinding, keymap, ViewUpdate } from '@codemirror/view';
 import { languages } from '@codemirror/language-data';
 import { useAtomValue } from 'jotai';
 
@@ -69,6 +69,14 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
   const { updateCellSource, requestCompletions } = editor;
   const theme = useTheme();
   const cellTabIndents = useAtomValue(editorSettingsAtom).cell_tab_indents;
+  const { registerCellView } = editor;
+  // Handed over as the editor is made, and taken back as the cell goes: the notebook's find dispatches
+  // into these, and a view that has been destroyed is not one to dispatch into.
+  const keepView = useCallback(
+    (view: EditorView) => registerCellView(cell.id, view),
+    [registerCellView, cell.id]
+  );
+  useEffect(() => () => registerCellView(cell.id, null), [registerCellView, cell.id]);
   const [cellContents, setCellContents] = useState(cell.source);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [totalLines, setTotalLines] = useState(0);
@@ -197,9 +205,11 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
                   extensions={[
                     markdown({ base: markdownLanguage, codeLanguages: languages }),
                     popupPlacement,
+                    editor.findExtension,
                     editor.commandKeymap,
                   ]}
                   autoFocus
+                  onCreateEditor={keepView}
                   onChange={onChange}
                   onUpdate={onUpdate}
                   onKeyDown={handleMarkdownKeyDownCM}
@@ -212,6 +222,10 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
                     foldGutter: true,
                     completionKeymap: true,
                     tabSize: 4,
+                    // The notebook's find is the notebook's: the library's `⌘F` would open its own
+                    // panel inside this one cell and search that cell alone, which is the defect
+                    // story 17 is about.
+                    searchKeymap: false,
                   }}
                 />
               </div>
@@ -300,9 +314,11 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
               kernelAutocompletion,
               popupPlacement,
               [Prec.highest(keymap.of(cellTabIndents ? tabIndentKeymap : tabCompletionKeymap))],
+              editor.findExtension,
               editor.commandKeymap,
             ]}
             autoFocus={props.index === editor.focusedIndex ? true : false}
+            onCreateEditor={keepView}
             onChange={onChange}
             onUpdate={onUpdate}
             onKeyDown={handleKeyDownCM}
@@ -315,6 +331,8 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
               foldGutter: true,
               completionKeymap: true,
               tabSize: 4,
+              // See the markdown editor above: `⌘F` belongs to the notebook, not to one cell.
+              searchKeymap: false,
             }}
           />
         </div>

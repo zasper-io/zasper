@@ -124,6 +124,17 @@
   width: 110px;
 }
 
+// What is left of the pane under the breadcrumb and the toolbar: the scroller, and the find card
+// floating over it. `position: relative` is what the card is placed against — the body scrolls, so it
+// cannot be the box the card hangs off, and the pane would put it over the toolbar.
+.notebook-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .notebook-body {
   flex: 1;
   min-height: 0;

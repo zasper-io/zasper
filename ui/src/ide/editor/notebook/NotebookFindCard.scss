@@ -1,0 +1,35 @@
+// The notebook's find card. Drawn in the design prototype's story-notebook-find.html.
+//
+// Under the toolbar and over the first cell, which is where the file editor's card is — the notebook's
+// own top right is the kernel pill, and that is the one thing here that should never be covered. It
+// hangs off `.notebook-area`, the box the cells scroll inside, so it stays put however tall the
+// toolbar gets and whatever the cells do.
+.notebook-find {
+  top: 8px;
+  right: 16px;
+}
+
+// What a notebook has to ask that a file does not: where to look. One filter, on by default.
+.find-filters {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 4px;
+  border-top: 1px solid var(--z-border-subtle);
+}
+
+// Said by the card rather than found out by pressing Replace: some of what it found is in an output,
+// and some of the notebook was not searched at all.
+.find-note {
+  flex: 1 0 100%;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+// A match inside an output, painted through the CSS Custom Highlight API: an output is HTML, not an
+// editor, so there are no decorations to give it. Same token as a match in a cell, because it is the
+// same thing — see outputMarks.ts for why it is painted this way at all.
+::highlight(zasper-find) {
+  background-color: var(--z-bg-find-match);
+}

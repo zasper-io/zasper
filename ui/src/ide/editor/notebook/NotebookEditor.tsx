@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { search } from '@codemirror/search';
+import { EditorView } from '@codemirror/view';
 import './NotebookEditor.scss';
 
 import { logApiError, NotebookMetadata, saveNotebook } from '@/api';
@@ -6,12 +8,15 @@ import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
 import { useUnsavedChanges } from '@/store/unsavedState';
 import BreadCrumb from '../BreadCrumb';
+import { cellFindHighlighter, currentMatchField } from '../findHighlight';
 import ConfirmRestartDialog, { RestartIntent } from './ConfirmRestartDialog';
 import { NO_KERNEL } from './kernelChoice';
 import { KernelMessage } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
 import NotebookCells from './NotebookCells';
+import NotebookFindCard from './NotebookFindCard';
+import { markOutputs } from './outputMarks';
 import { NotebookEditorContext, NotebookEditorContextValue } from './NotebookEditorContext';
 
 import { useRegisterCommands, useRunCommand } from '@/commands/registry';
@@ -20,6 +25,7 @@ import { useNotebookCommands } from './notebookCommands';
 import { useKernelSession } from './useKernelSession';
 import { useCellLanguage } from './useCellLanguage';
 import { useNotebookCells } from './useNotebookCells';
+import { useNotebookFind } from './useNotebookFind';
 
 interface NotebookEditorProps {
   data: FileTab;
@@ -158,6 +164,52 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // palette lists and what the keyboard resolves. It replaced a `keydown` handler here, another in
   // useNotebookCells, and a keymap in Cell, which between them disagreed about Shift-Enter and made
   // a capital M untypable.
+  /**
+   * Every cell's editor, by cell id, for the notebook's own find (story 17).
+   *
+   * A ref rather than state: a view arriving is not a render, and the find card asks for them only
+   * when it searches. Cleared by the cell as it unmounts, so a stale view is never dispatched into.
+   */
+  const cellViews = useRef<Map<string, EditorView>>(new Map());
+  const registerCellView = useCallback((cellId: string, view: EditorView | null) => {
+    if (view === null) {
+      cellViews.current.delete(cellId);
+    } else {
+      cellViews.current.set(cellId, view);
+    }
+  }, []);
+
+  // One copy per cell: the library's search state, our highlighter over it — theirs draws nothing
+  // unless its own panel is open — and the field through which the notebook says which single match,
+  // out of fifty cells, the reader is actually on.
+  const findExtension = useMemo(() => [search(), cellFindHighlighter, currentMatchField], []);
+
+  /** The card, and which ⌘F asked for its field. */
+  const [finding, setFinding] = useState(false);
+  const [findFocus, setFindFocus] = useState(0);
+  const find = useNotebookFind({
+    cells: cells.notebook.cells,
+    views: cellViews,
+    focusCell: cells.focusCell,
+    divRefs: cells.divRefs,
+    active: finding,
+  });
+  const openFind = useCallback(() => {
+    setFinding(true);
+    setFindFocus((count) => count + 1);
+  }, []);
+
+  /**
+   * The matches inside the outputs, which are HTML rather than editors.
+   *
+   * Runs again when the cells change as well as when the query does: a cell that has just run has new
+   * output, and the marks are ranges over text that no longer exists.
+   */
+  const notebookBody = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    markOutputs(notebookBody.current, finding && find.options.outputs ? find.query : null);
+  }, [finding, find.options.outputs, find.query, cells.notebook.cells]);
+
   const commands = useNotebookCommands({
     cells,
     kernel,
@@ -166,6 +218,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     saveNotebook: () => {
       saveNotebookToDisk().catch(logApiError('Error saving notebook:'));
     },
+    openFind,
     submitCell,
     submitAllCells: submitAllCellsForExecution,
     restartKernel: () => setRestartIntent('restart'),
@@ -185,6 +238,8 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     run: runCommand,
     commandKeymap,
     cellLanguage,
+    findExtension,
+    registerCellView,
     focusedIndex: cells.focusedIndex,
     focusCell: cells.focusCell,
     focusNextCell: cells.focusNextCell,
@@ -222,47 +277,58 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           kernelStatus={kernel.kernelStatus}
         />
 
-        <div className="notebook-body">
-          {restartIntent !== null && (
-            <ConfirmRestartDialog
-              intent={restartIntent}
-              onConfirm={confirmRestart}
-              onCancel={() => setRestartIntent(null)}
+        {/* The box the find card hangs off: the cells scroll inside it, and it does not, so the card
+            stays under the toolbar wherever the notebook has been scrolled to. */}
+        <div className="notebook-area">
+          {finding && (
+            <NotebookFindCard
+              find={find}
+              focusRequest={findFocus}
+              onClose={() => setFinding(false)}
             />
           )}
-
-          {kernel.showKernelSwitcher && (
-            <KernelSwitcher
-              kernelName={kernel.kernelName}
-              error={kernel.kernelError}
-              toggleKernelSwitcher={kernel.toggleKernelSwitcher}
-              changeKernel={kernel.changeKernel}
-            />
-          )}
-
-          {/* The cells are not offered for editing once a read failed: they would be the empty
-              starting state rather than the file. */}
-          {cells.error !== '' ? (
-            // The band, at the top of the pane, rather than the bordered box in the middle of it this
-            // used to be. No `.z-notice-action`: the answer to an unreadable notebook is to open it as
-            // text, and nothing in the app can do that yet — a band with a button that does nothing is
-            // worse than a band without one.
-            <div className="z-notice z-notice-error" role="alert">
-              <Icon name="circle-alert" size={14} />
-              <p>
-                <strong>This notebook could not be loaded.</strong> {cells.error}
-              </p>
-            </div>
-          ) : (
-            <NotebookEditorContext.Provider value={cellContext}>
-              <NotebookCells
-                notebook={notebook}
-                runningCellIds={kernel.runningCellIds}
-                expandedOutputs={cells.expandedOutputs}
-                editingCellId={cells.editingCellId}
+          <div className="notebook-body" ref={notebookBody}>
+            {restartIntent !== null && (
+              <ConfirmRestartDialog
+                intent={restartIntent}
+                onConfirm={confirmRestart}
+                onCancel={() => setRestartIntent(null)}
               />
-            </NotebookEditorContext.Provider>
-          )}
+            )}
+
+            {kernel.showKernelSwitcher && (
+              <KernelSwitcher
+                kernelName={kernel.kernelName}
+                error={kernel.kernelError}
+                toggleKernelSwitcher={kernel.toggleKernelSwitcher}
+                changeKernel={kernel.changeKernel}
+              />
+            )}
+
+            {/* The cells are not offered for editing once a read failed: they would be the empty
+              starting state rather than the file. */}
+            {cells.error !== '' ? (
+              // The band, at the top of the pane, rather than the bordered box in the middle of it this
+              // used to be. No `.z-notice-action`: the answer to an unreadable notebook is to open it as
+              // text, and nothing in the app can do that yet — a band with a button that does nothing is
+              // worse than a band without one.
+              <div className="z-notice z-notice-error" role="alert">
+                <Icon name="circle-alert" size={14} />
+                <p>
+                  <strong>This notebook could not be loaded.</strong> {cells.error}
+                </p>
+              </div>
+            ) : (
+              <NotebookEditorContext.Provider value={cellContext}>
+                <NotebookCells
+                  notebook={notebook}
+                  runningCellIds={kernel.runningCellIds}
+                  expandedOutputs={cells.expandedOutputs}
+                  editingCellId={cells.editingCellId}
+                />
+              </NotebookEditorContext.Provider>
+            )}
+          </div>
         </div>
       </div>
     </div>
