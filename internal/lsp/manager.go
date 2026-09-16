@@ -75,7 +75,13 @@ type Manager struct {
 func New(root string) *Manager {
 	home, _ := os.UserHomeDir()
 	return &Manager{
-		finder:   finder{root: root, home: home, lookPath: exec.LookPath},
+		finder: finder{
+			root:     root,
+			home:     home,
+			lookPath: exec.LookPath,
+			gopath:   os.Getenv("GOPATH"),
+			system:   systemFolders,
+		},
 		settings: config.GetLanguageServerSettings,
 		running:  map[*exec.Cmd]struct{}{},
 		logs:     map[string]*logBuffer{},

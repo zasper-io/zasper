@@ -74,37 +74,8 @@
   }
 }
 
-.search-file,
+// What only a replace draws: the line as it will read once it is written.
 .search-match {
-  position: relative;
-  cursor: pointer;
-}
-
-.search-file {
-  padding-left: 8px;
-
-  .panel-section-count {
-    margin-left: 4px;
-  }
-}
-
-// A line of code under its file: the editor's face, indented past the file's chevron and mark.
-.search-match {
-  padding-left: 30px;
-  font-family: var(--z-mono-font-family);
-  font-size: var(--z-font-size-code);
-
-  // The line keeps its own spaces, which the label would otherwise collapse.
-  .panel-row-label {
-    white-space: pre;
-  }
-
-  mark {
-    padding: 0;
-    color: inherit;
-    background: var(--z-bg-find-match);
-  }
-
   del {
     background: var(--z-bg-diff-deleted);
   }
@@ -112,12 +83,6 @@
   ins {
     text-decoration: none;
     background: var(--z-bg-diff-added);
-  }
-
-  // Where a notebook match is identifies the row as much as its text does, so it never clips.
-  .panel-row-meta {
-    flex-shrink: 0;
-    font-family: var(--z-ui-font-family);
   }
 }
 

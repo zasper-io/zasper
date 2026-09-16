@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useAtomValue } from 'jotai';
 import { describe, expect, it, vi } from 'vitest';
 
-import { problemsAtom, problemsOpenAtom, revealPositionAtom } from '@/store/languageServers';
+import { problemsAtom, revealPositionAtom } from '@/store/languageServers';
 import { fileTabsAtom } from '@/store/tabState';
 import { Provider } from '@/testing/Provider';
 
@@ -10,14 +10,13 @@ import ProblemsPanel from './ProblemsPanel';
 
 vi.mock('@/api', () => ({ deleteKernel: vi.fn(), logApiError: () => () => {} }));
 
-let seen: { active?: string; reveal: unknown; open: boolean };
+let seen: { active?: string; reveal: unknown };
 
 function Probe() {
   const tabs = useAtomValue(fileTabsAtom);
   seen = {
     active: Object.values(tabs).find((tab) => tab.active)?.path,
     reveal: useAtomValue(revealPositionAtom),
-    open: useAtomValue(problemsOpenAtom),
   };
   return null;
 }
@@ -51,7 +50,6 @@ function renderPanel() {
             ],
           },
         ],
-        [problemsOpenAtom, true],
       ]}
     >
       <ProblemsPanel />
@@ -72,7 +70,6 @@ describe('ProblemsPanel', () => {
       'undefined: nmecompiler UndeclaredName · main.go 11:23',
       'unnecessary use of fmt.Sprintfsimplifyrange · main.go 10:13',
     ]);
-    expect(screen.getByText('3')).toBeInTheDocument();
   });
 
   it('opens a problem’s file at the problem', () => {
@@ -82,13 +79,5 @@ describe('ProblemsPanel', () => {
 
     expect(seen.active).toBe('main.go');
     expect(seen.reveal).toEqual({ path: 'main.go', line: 10, character: 22 });
-  });
-
-  it('closes', () => {
-    renderPanel();
-
-    fireEvent.click(screen.getByLabelText('Close problems'));
-
-    expect(seen.open).toBe(false);
   });
 });

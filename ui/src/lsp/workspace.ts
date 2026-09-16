@@ -18,7 +18,7 @@ class OpenFile implements WorkspaceFile {
 
 export interface WorkspaceHooks {
   /** A file of this server's language was opened, which is when the server is wanted. */
-  opened: () => void;
+  opened: (uri: string) => void;
   /** The last one was closed. */
   emptied: () => void;
   /** Puts a file in front of the reader, for a jump into another file. */
@@ -78,7 +78,7 @@ export class ZasperWorkspace extends Workspace {
     const file = new OpenFile(uri, languageId, this.nextVersion(uri), view.state.doc, view);
     this.files.push(file);
     this.client.didOpen(file);
-    this.hooks.opened();
+    this.hooks.opened(uri);
   }
 
   closeFile(uri: string, view: EditorView): void {

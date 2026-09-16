@@ -7,6 +7,14 @@ export const CLOSE_EXITED = 4003;
 
 export interface SocketTransport extends Transport {
   close: () => void;
+  /**
+   * Takes a message before the client sees it, and keeps it if it returns true.
+   *
+   * There is one thing this is for: a request *from* the server, which the client answers with "method
+   * not implemented" — so `workspace/applyEdit` has to be caught and answered here, before it gets that
+   * far, or the server would hear a refusal and a reply to the same id.
+   */
+  intercept: (handler: (message: string) => boolean) => void;
 }
 
 /**
@@ -20,10 +28,14 @@ export function openSocketTransport(
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(url);
     let handlers: ((message: string) => void)[] = [];
+    const interceptors: ((message: string) => boolean)[] = [];
     let opened = false;
 
     socket.onmessage = (event) => {
       const message = String(event.data);
+      if (interceptors.some((interceptor) => interceptor(message))) {
+        return;
+      }
       handlers.forEach((handler) => handler(message));
     };
     socket.onopen = () => {
@@ -40,6 +52,9 @@ export function openSocketTransport(
         },
         unsubscribe: (handler) => {
           handlers = handlers.filter((each) => each !== handler);
+        },
+        intercept: (handler) => {
+          interceptors.push(handler);
         },
         close: () => socket.close(),
       });

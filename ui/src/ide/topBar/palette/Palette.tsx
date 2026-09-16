@@ -6,18 +6,28 @@ import { ContentEntry } from '@/api';
 import { formatChord } from '@/commands/keys';
 import { Command } from '@/commands/types';
 import { FileMark } from '@/ide/icons';
+import { baseName } from '@/paths';
+import { kindGlyph } from '@/lsp/symbols';
 import { goToLineAtom } from '@/store/editorRequests';
+import { revealPositionAtom } from '@/store/languageServers';
 import { fileFormatsAtom } from '@/store/editorStatus';
 import { folderOf, RecentFile, recentFilesAtom } from '@/store/recentFiles';
 import { useTabActions } from '@/store/tabActions';
 import { activeTabPathAtom, fileTabsAtom } from '@/store/tabState';
 import { useFileMatches } from './useFileMatches';
+import { SymbolMatch, useSymbolMatches } from './useSymbolMatches';
 
 /** Typed at the start of the query, this drops the files and leaves the commands. */
 export const COMMANDS_ONLY = '>';
 
 /** The same for a line of the file in front: `:42`. Nothing else is a match for a number. */
 export const LINES_ONLY = ':';
+
+/** A symbol of the file in front (story 20), from its language server. */
+export const SYMBOLS_IN_FILE = '@';
+
+/** A symbol anywhere in the project, which every running server is asked for. */
+export const SYMBOLS_IN_PROJECT = '#';
 
 /**
  * Rows per section while both are on screen.
@@ -32,7 +42,8 @@ type PaletteRow =
   | { kind: 'command'; command: Command }
   | { kind: 'file'; file: ContentEntry }
   | { kind: 'recent'; file: RecentFile }
-  | { kind: 'line'; line: number };
+  | { kind: 'line'; line: number }
+  | { kind: 'symbol'; symbol: SymbolMatch };
 
 interface PaletteProps {
   commands: Command[];
@@ -58,7 +69,14 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
 
   const commandsOnly = query.startsWith(COMMANDS_ONLY);
   const linesOnly = query.startsWith(LINES_ONLY);
-  const typed = (commandsOnly || linesOnly ? query.slice(1) : query).trim();
+  // One field, one prefix per question, which is the rule `:42` set in story 14.
+  const symbolsMode = query.startsWith(SYMBOLS_IN_FILE)
+    ? 'file'
+    : query.startsWith(SYMBOLS_IN_PROJECT)
+      ? 'project'
+      : null;
+  const prefixed = commandsOnly || linesOnly || symbolsMode !== null;
+  const typed = (prefixed ? query.slice(1) : query).trim();
   const needle = typed.toLowerCase();
 
   const activePath = useAtomValue(activeTabPathAtom);
@@ -67,6 +85,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
   const formats = useAtomValue(fileFormatsAtom);
   const recentFiles = useAtomValue(recentFilesAtom);
   const setGoToLine = useSetAtom(goToLineAtom);
+  const setReveal = useSetAtom(revealPositionAtom);
 
   // A line only where there is an editor to take it, and only for a number: `:` on its own, or `:x`,
   // is a query nothing answers rather than a row that does nothing.
@@ -77,13 +96,14 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
 
   // As typed, not folded: the search endpoint decides how to match, and folding here would only make
   // the two ends disagree about what was asked.
-  const files = useFileMatches(commandsOnly || linesOnly ? '' : typed);
+  const files = useFileMatches(prefixed ? '' : typed);
+  const symbols = useSymbolMatches(symbolsMode, typed, activePath);
 
   // Category as well as label, so "notebook" finds the notebook's commands whatever they are called.
   // An empty query lists everything only in commands-only mode: from the search box it means nothing
   // has been asked yet, and answering that with the first six commands in registration order is noise.
   const matches = useMemo(() => {
-    if (linesOnly || (needle === '' && !commandsOnly)) {
+    if (linesOnly || symbolsMode !== null || (needle === '' && !commandsOnly)) {
       return [];
     }
     return commands.filter(
@@ -91,7 +111,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
         command.label.toLowerCase().includes(needle) ||
         command.category.toLowerCase().includes(needle)
     );
-  }, [commands, needle, commandsOnly, linesOnly]);
+  }, [commands, needle, commandsOnly, linesOnly, symbolsMode]);
 
   /**
    * What the empty field answers, which until now was nothing: the files this project had open. One
@@ -107,20 +127,24 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
 
   const shownCommands = commandsOnly ? matches : matches.slice(0, SHARED_CAP);
   const shownFiles = files.slice(0, SHARED_CAP);
+  // Uncapped, as commands-only is: with nothing else in the list, the whole answer is the answer.
+  const shownSymbols = symbols.slice(0, 40);
 
   const rows = useMemo<PaletteRow[]>(
     () => [
       ...(line === null ? [] : [{ kind: 'line', line } as PaletteRow]),
       ...shownCommands.map((command): PaletteRow => ({ kind: 'command', command })),
+      ...shownSymbols.map((symbol): PaletteRow => ({ kind: 'symbol', symbol })),
       ...shownFiles.map((file): PaletteRow => ({ kind: 'file', file })),
       ...recent.map((file): PaletteRow => ({ kind: 'recent', file })),
     ],
-    [line, shownCommands, shownFiles, recent]
+    [line, shownCommands, shownSymbols, shownFiles, recent]
   );
 
   // Where each section starts in `rows`, which is what the arrow keys count in.
   const commandsFrom = line === null ? 0 : 1;
-  const filesFrom = commandsFrom + shownCommands.length;
+  const symbolsFrom = commandsFrom + shownCommands.length;
+  const filesFrom = symbolsFrom + shownSymbols.length;
   const recentFrom = filesFrom + shownFiles.length;
 
   // The list shrinks as the query grows, so a selection made earlier can end up past its end. It
@@ -132,6 +156,13 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
   const activate = (row: PaletteRow) => {
     if (row.kind === 'line') {
       setGoToLine(row.line);
+    } else if (row.kind === 'symbol') {
+      openTab({ name: baseName(row.symbol.path), path: row.symbol.path, type: 'file' });
+      setReveal({
+        path: row.symbol.path,
+        line: row.symbol.line,
+        character: row.symbol.character,
+      });
     } else if (row.kind === 'recent') {
       openTab({ name: row.file.name, path: row.file.path, type: row.file.type });
     } else if (row.kind === 'file') {
@@ -168,7 +199,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
         // The palette covers the button that opened it, so without this the user would be looking at
         // an input that needs a second click before it takes a keystroke.
         autoFocus
-        placeholder="Search files, or > for commands"
+        placeholder="Search files, > for commands, @ for symbols"
       />
       {/* One scrolling box over both sections, so a long command list does not push the files out
           of reach of the wheel. Empty when nothing matches, which .palette-list:not(:empty) reads. */}
@@ -197,6 +228,25 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
               {/* Rendered from the same binding strings the keyboard dispatches, so the two cannot
                   disagree. Deduped: off mac, `Mod-` and `Ctrl-` spellings collapse to one chord. */}
               <span className="panel-row-keys">{formatKeys(command.keys)}</span>
+            </li>
+          ))}
+        </Section>
+        <Section
+          title={symbolsMode === 'project' ? 'Symbols in the project' : 'Symbols in this file'}
+          shown={shownSymbols.length}
+          found={symbols.length}
+        >
+          {shownSymbols.map((symbol, index) => (
+            <li
+              key={`${symbol.path}:${symbol.line}:${symbol.character}:${symbol.name}`}
+              className={rowClass(selectedIndex === symbolsFrom + index, false)}
+              onClick={() => activate({ kind: 'symbol', symbol })}
+            >
+              <span className="panel-row-name">
+                <span className="palette-kind">{kindGlyph(symbol.kind)}</span>
+                <span className="panel-row-label">{symbol.name}</span>
+                <span className="panel-row-meta">{symbol.detail ?? ''}</span>
+              </span>
             </li>
           ))}
         </Section>

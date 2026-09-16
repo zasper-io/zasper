@@ -41,6 +41,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   insert_final_newline: false,
   auto_save: false,
   format_on_save: false,
+  inlay_hints: false,
   keymap: 'default',
 };
 

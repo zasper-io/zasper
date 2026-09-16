@@ -583,3 +583,47 @@
 .fileItem > a.active .rowFlag.problemFlag {
   color: currentColor;
 }
+
+// --- A file, and the lines found in it -------------------------------------
+//
+// The shape of a result: a file row with the lines under it, used by the project search in the sidebar
+// (story 18) and by the references list in the panel under the editor (story 20). One shape, because a
+// place a name is used and a place a word was found are read the same way — and drawn in the prototype
+// as one row family, `css/story-search.css` and `css/story-symbols.css`.
+.search-file,
+.search-match {
+  position: relative;
+  cursor: pointer;
+}
+
+.search-file {
+  padding-left: 8px;
+
+  .panel-section-count {
+    margin-left: 4px;
+  }
+}
+
+// A line of code under its file: the editor's face, indented past the file's chevron and mark.
+.search-match {
+  padding-left: 30px;
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-font-size-code);
+
+  // The line keeps its own spaces, which the label would otherwise collapse.
+  .panel-row-label {
+    white-space: pre;
+  }
+
+  mark {
+    padding: 0;
+    color: inherit;
+    background: var(--z-bg-find-match);
+  }
+
+  // Where the line is identifies the row as much as its text does, so it never clips.
+  .panel-row-meta {
+    flex-shrink: 0;
+    font-family: var(--z-ui-font-family);
+  }
+}

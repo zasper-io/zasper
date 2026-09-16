@@ -338,3 +338,18 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	httpx.SendJSON(w, http.StatusCreated, data)
 }
+
+/*
+Edits applies a language server's edits to files no editor holds, which is the half of a rename or a quick
+fix that reaches beyond the open tabs. Each file answers for itself: what was applied, or why not.
+*/
+func (h *Handler) Edits(w http.ResponseWriter, req *http.Request) {
+	var body struct {
+		Files []FileEdits `json:"files"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+	httpx.SendJSON(w, http.StatusOK, map[string]any{"files": h.project.ApplyEdits(body.Files)})
+}

@@ -195,3 +195,39 @@ export interface EditorConfig {
 export function getEditorConfig(path: string): Promise<EditorConfig> {
   return requestJson<EditorConfig>('/api/contents/editorconfig', { query: { path } });
 }
+
+/** One replacement in a file, in the Language Server Protocol's own counting: lines and UTF-16 columns. */
+export interface FilePosition {
+  line: number;
+  character: number;
+}
+
+export interface FileEdit {
+  start: FilePosition;
+  end: FilePosition;
+  new_text: string;
+}
+
+export interface FileEdits {
+  path: string;
+  edits: FileEdit[];
+}
+
+/** What became of one file's edits: how many were applied, or why none were. */
+export interface FileEditResult {
+  path: string;
+  applied?: number;
+  error?: string;
+}
+
+/**
+ * Applies a language server's edits to files no editor holds — the other half of a rename or a quick fix.
+ * A file with an editor is edited there instead, where the change is undoable.
+ */
+export async function applyFileEdits(files: FileEdits[]): Promise<FileEditResult[]> {
+  const answer = await requestJson<{ files: FileEditResult[] }>('/api/contents/edits', {
+    method: 'POST',
+    body: { files },
+  });
+  return answer.files;
+}

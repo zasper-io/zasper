@@ -350,6 +350,20 @@ function useSettings(): Setting[] {
       ),
     },
     {
+      id: 'settings-inlay-hints',
+      group: 'Editor',
+      name: 'Inlay hints',
+      help: 'Parameter names and inferred types from the language server, drawn in the line and absent from the file. Off by default: they move the text of every line they appear on.',
+      words: 'lsp types parameter names ghost text',
+      control: (
+        <Checkbox
+          id="settings-inlay-hints"
+          checked={editor.inlay_hints}
+          onChange={(inlay_hints) => changeEditor({ inlay_hints })}
+        />
+      ),
+    },
+    {
       id: 'settings-keymap',
       group: 'Editor',
       name: 'Keymap',

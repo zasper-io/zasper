@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
 import {
   ImperativePanelHandle,
   Panel,
@@ -22,14 +22,14 @@ import Topbar from './topBar/Topbar';
 import GitPanel from './sidebar/gitPanel/GitPanel';
 import JupyterInfoPanel from './sidebar/jupyterInfoPanel/JupyterInfoPanel';
 import SearchPanel from './sidebar/searchPanel/SearchPanel';
-import ProblemsPanel from './editor/ProblemsPanel';
+import EditorDock from './editor/EditorDock';
 import LanguageServerBridge from '../lsp/LanguageServerBridge';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
 import { searchFocusRequestAtom } from '@/store/projectSearch';
-import { problemsOpenAtom } from '@/store/languageServers';
+import { dockOpenAtom, dockTabAtom } from '@/store/languageServers';
 import {
   platformAtom,
   projectDirAtom,
@@ -96,7 +96,8 @@ function IDE() {
 
   const { openSettings } = useTabActions();
   const [, setSearchFocus] = useAtom(searchFocusRequestAtom);
-  const [problemsOpen, setProblemsOpen] = useAtom(problemsOpenAtom);
+  const [dockOpen, setDockOpen] = useAtom(dockOpenAtom);
+  const setDockTab = useSetAtom(dockTabAtom);
 
   const windowCommands = useMemo<Command[]>(
     () => [
@@ -118,10 +119,13 @@ function IDE() {
       {
         ...APP_COMMANDS['view:problems'],
         isEnabled: () => isMac || !terminalHasFocus(),
-        execute: () => setProblemsOpen((open) => !open),
+        execute: () => {
+          setDockTab('problems');
+          setDockOpen((open) => !open);
+        },
       },
     ],
-    [toggleSidebar, openSettings, showPanel, setSearchFocus, setProblemsOpen]
+    [toggleSidebar, openSettings, showPanel, setSearchFocus, setDockOpen, setDockTab]
   );
 
   // The application's only keyboard dispatcher, and the window-level commands that used to be a
@@ -238,7 +242,7 @@ function IDE() {
           </Panel>
           <PanelResizeHandle className="panelResizeHandle" />
           <Panel defaultSize={80} minSize={50}>
-            {/* The Problems panel under the editor (story 19), closed to nothing until it is asked for. */}
+            {/* The panel under the editor (stories 19 and 20), closed to nothing until it is asked for. */}
             <PanelGroup direction="vertical">
               <Panel id="editor-area" order={1} minSize={30}>
                 <div className="main-content">
@@ -246,11 +250,11 @@ function IDE() {
                   <ContentPanel />
                 </div>
               </Panel>
-              {problemsOpen && (
+              {dockOpen && (
                 <>
                   <PanelResizeHandle className="panelResizeHandle is-between-rows" />
-                  <Panel id="problems" order={2} defaultSize={25} minSize={10}>
-                    <ProblemsPanel />
+                  <Panel id="editor-dock" order={2} defaultSize={25} minSize={10}>
+                    <EditorDock />
                   </Panel>
                 </>
               )}

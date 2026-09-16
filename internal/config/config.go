@@ -195,6 +195,8 @@ type EditorSettings struct {
 	AutoSave bool `json:"auto_save"`
 	// Ask the language server to format a file before it is written.
 	FormatOnSave bool `json:"format_on_save"`
+	// Draw the parameter names and inferred types a language server offers, in the line.
+	InlayHints bool `json:"inlay_hints"`
 	// Which bindings the file editor takes: "default", "vim" or "emacs".
 	Keymap string `json:"keymap"`
 }

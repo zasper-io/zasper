@@ -1,34 +1,23 @@
-// The Problems panel under the editor (story 19): the width of the editor, so a long message fits on its
-// row and the source and position can say more.
-.problemsPanel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--z-border);
-  background: var(--z-bg-panel);
-}
-
-.problemsPanel-head {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 8px 0 16px;
-  color: var(--z-fg-muted);
-}
-
-.problemsPanel-close {
-  margin-left: auto;
-}
-
-.problemsPanel-list {
+// The lists inside the panel under the editor (stories 19 and 20): the width of the editor, so a long
+// message, or a line of code and where it is, fits on one row. The panel around them is EditorDock.scss.
+.dockList {
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
   padding: 0 0 6px;
   overflow-y: auto;
   list-style: none;
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.dockList-empty {
+  margin: 0;
+  padding: 4px 16px;
 }
 
 .problemRow {
@@ -60,9 +49,4 @@
   &.is-hint {
     color: var(--z-status-info);
   }
-}
-
-.problemsPanel-empty {
-  margin: 0;
-  padding: 4px 16px;
 }

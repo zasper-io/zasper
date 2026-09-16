@@ -30,8 +30,13 @@ export interface Problem {
 /** Every file's problems as its server last published them, by project-relative path. */
 export const problemsAtom = atom<Record<string, Problem[]>>({});
 
-/** Whether the Problems panel under the editor is open. */
-export const problemsOpenAtom = atom(false);
+/** Whether the panel under the editor is open, which is where problems and references are read. */
+export const dockOpenAtom = atom(false);
+
+/** Which of the panel's lists is in front. */
+export type DockTab = 'problems' | 'references';
+
+export const dockTabAtom = atom<DockTab>('problems');
 
 /** A position asked for from the Problems panel, for the file editor holding the file to go to. */
 export const revealPositionAtom = atom<{ path: string; line: number; character: number } | null>(

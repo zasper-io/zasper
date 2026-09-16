@@ -1,0 +1,18 @@
+// Every place a name is used (story 20). The rows are the shared result shape in styles/_panel.scss; what
+// is here is the question itself, which the tab's count alone does not name.
+.referencesList-question {
+  padding: 4px 16px;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size-sm);
+
+  strong {
+    color: var(--z-fg-default);
+    font-family: var(--z-mono-font-family);
+    font-weight: 400;
+  }
+}
+
+// The dock is the width of the editor, so a row has room for the line and for where it is.
+.referencesList .search-match {
+  padding-left: 24px;
+}

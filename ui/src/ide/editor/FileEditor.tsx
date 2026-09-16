@@ -33,6 +33,8 @@ import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
 import { formatDocumentNow } from '@/lsp/formatting';
+import { inlayHints } from '@/lsp/inlayHints';
+import { serverLanguageFor } from '@/lsp/languages';
 import { languageServerExtension } from '@/lsp/servers';
 import { registerEditorView } from '@/lsp/views';
 import { editorPulseAtom, goToLineAtom } from '@/store/editorRequests';
@@ -57,7 +59,9 @@ import DiskChangeBand from './DiskChangeBand';
 import FindCard, { FindToggles } from './FindCard';
 import { findHighlighter } from './findHighlight';
 import { lineEditChanges } from './lineEdits';
+import { useDocumentSymbols } from './useDocumentSymbols';
 import { useEditorCommands } from './editorCommands';
+import { useSymbolActions } from './useSymbolActions';
 import { editorExtensions } from './editorExtensions';
 import { lazyKeymap } from './keymaps';
 import { detectLineEnding, formatFor, indentationOf, saveRulesOf, tidyChanges } from './fileFormat';
@@ -359,6 +363,25 @@ export default function FileEditor(props: FileEditorProps) {
   );
   // So a jump from another file to a definition in this one can wait for this editor to exist.
   useEffect(() => () => registerEditorView(path, null), [path]);
+
+  // Stable, because an extension built from it is part of the editor's configuration: a new function
+  // every render is a new extension every render, and reconfiguring an editor throws away state that was
+  // added to it since — the diagnostics among it.
+  const currentView = useCallback(() => viewRef.current, []);
+
+  // Rename, quick fixes and the gutter they share with the problems (story 20). The gutter is added only
+  // for a file some server serves, so a plain text file keeps its own left edge.
+  const symbols = useSymbolActions({ path, name, view: currentView });
+  const served = useMemo(() => serverLanguageFor(name) !== null, [name]);
+
+  // What the file declares, for the last crumbs of the bar above it (story 20).
+  const outline = useDocumentSymbols({
+    name,
+    view: currentView,
+    served,
+    readCount,
+    viewCount,
+  });
 
   /** The file's line endings as they are on disk now, for a version of it the editor has taken. */
   const adoptLineEnding = useCallback(
@@ -698,9 +721,15 @@ export default function FileEditor(props: FileEditorProps) {
       findKeymap,
       saveKeymap,
       serverExtension,
+      ...(served ? [symbols.extension] : []),
+      // Off by default, and asked for only where there is a server to ask (story 20).
+      ...(served && settings.inlay_hints ? [inlayHints()] : []),
     ],
     [
       serverExtension,
+      served,
+      settings.inlay_hints,
+      symbols.extension,
       language,
       keymapExtension,
       settingsExtension,
@@ -742,6 +771,13 @@ export default function FileEditor(props: FileEditorProps) {
       // Said once per update, for the find card's count; nothing here reads it.
       setPulse((count) => count + 1);
 
+      // Whether the line the cursor is on has a fix to offer, which the gutter's lamp says, and which
+      // symbol the cursor is in, which the breadcrumb bar says.
+      if (served && (update.docChanged || update.selectionSet)) {
+        symbols.askAboutLine();
+        outline.onCursor(line.number, update.docChanged);
+      }
+
       if (update.docChanged) {
         setDirty(isDirty(state.doc));
         if (previewing.current) {
@@ -759,12 +795,17 @@ export default function FileEditor(props: FileEditorProps) {
         }
       }
     },
-    [setColumnPosition, setLinePosition, setPulse, isDirty]
+    [setColumnPosition, setLinePosition, setPulse, isDirty, served, symbols, outline]
   );
 
   // Only the tab in front, so a chord or a palette entry cannot reach a file nobody is looking at.
   useRegisterCommands(
-    useEditorCommands(() => viewRef.current),
+    useEditorCommands(currentView, {
+      path,
+      name,
+      startRename: symbols.startRename,
+      showQuickFix: symbols.showQuickFix,
+    }),
     props.data.active && canSave
   );
 
@@ -851,7 +892,23 @@ export default function FileEditor(props: FileEditorProps) {
     <div className="tab-surface">
       <div className={props.data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         {/* Outside .file-editor-body, so it stays put while the file scrolls. */}
-        <BreadCrumb path={path} />
+        <BreadCrumb
+          path={path}
+          trail={outline.trail}
+          symbols={outline.symbols}
+          onGoTo={(line, character) => {
+            const editor = viewRef.current;
+            if (editor === null) {
+              return;
+            }
+            const at = editor.state.doc.line(Math.min(line + 1, editor.state.doc.lines));
+            editor.dispatch({
+              selection: { anchor: Math.min(at.from + character, at.to) },
+              scrollIntoView: true,
+            });
+            editor.focus();
+          }}
+        />
         {conflict !== null && (
           <DiskChangeBand
             path={path}
@@ -877,7 +934,9 @@ export default function FileEditor(props: FileEditorProps) {
             </span>
           </div>
         )}
-        <div className="file-editor-area">
+        <div className="file-editor-area" ref={symbols.area}>
+          {/* Over the name being renamed, and at the cursor for a fix (story 20). */}
+          {symbols.overlays}
           {/* Over the code at the top right, so opening it moves nothing in the file. */}
           {finding && viewRef.current !== null && (
             <FindCard

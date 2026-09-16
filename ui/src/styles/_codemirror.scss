@@ -275,6 +275,8 @@
 $shape-error: "%3Ccircle cx='12' cy='12' r='9'/%3E%3Cline x1='8.8' y1='8.8' x2='15.2' y2='15.2'/%3E%3Cline x1='15.2' y1='8.8' x2='8.8' y2='15.2'/%3E";
 $shape-warning: "%3Cpolygon points='12,3 22,20 2,20'/%3E%3Cline x1='12' y1='9' x2='12' y2='14'/%3E%3Ccircle cx='12' cy='17' r='0.6'/%3E";
 $shape-info: "%3Ccircle cx='12' cy='12' r='9'/%3E%3Cline x1='12' y1='11' x2='12' y2='16.5'/%3E%3Ccircle cx='12' cy='7.8' r='0.6'/%3E";
+// A bulb over its base, for a fix on offer (story 20): the same construction as the three above.
+$shape-fix: "%3Cpath d='M8.5 13.5a5 5 0 1 1 7 0c-0.8 0.9-1.2 1.6-1.4 2.5h-4.2c-0.2-0.9-0.6-1.6-1.4-2.5z'/%3E%3Cline x1='10' y1='19' x2='14' y2='19'/%3E";
 
 #cm-tooltip-host .cm-diagnostic::before {
   content: '';
@@ -322,24 +324,50 @@ $shape-info: "%3Ccircle cx='12' cy='12' r='9'/%3E%3Cline x1='12' y1='11' x2='12'
   text-decoration-color: var(--z-status-info);
 }
 
-.cm-editor .cm-lint-marker {
+// The gutter column the editor draws itself (lsp/markGutter.ts) rather than `lintGutter`'s: since story 20
+// it carries the lamp a fix is offered from as well as the severity of a line's worst problem, and two
+// columns competing for the same 16px was the thing that decision settled.
+.cm-editor .cm-markGutter {
+  width: 16px;
+}
+
+.cm-editor .cm-markGutter-mark {
+  display: block;
   width: 12px;
   height: 12px;
-  margin-top: 3px;
-  content: none;
+  margin: 3px 2px 0;
+
+  &.is-error {
+    color: var(--z-status-error);
+    @include severity-mark($shape-error);
+  }
+
+  &.is-warning {
+    color: var(--z-status-warning);
+    @include severity-mark($shape-warning);
+  }
+
+  &.is-info,
+  &.is-hint {
+    color: var(--z-status-info);
+    @include severity-mark($shape-info);
+  }
+
+  // The lamp, on the line the cursor is on when the server has something to offer there. Drawn from the
+  // same kind of shape as the severities: a bulb and its base.
+  &.is-fix {
+    color: var(--z-status-warning);
+    cursor: pointer;
+    @include severity-mark($shape-fix);
+  }
 }
 
-.cm-editor .cm-lint-marker-error {
-  color: var(--z-status-error);
-  @include severity-mark($shape-error);
-}
-
-.cm-editor .cm-lint-marker-warning {
-  color: var(--z-status-warning);
-  @include severity-mark($shape-warning);
-}
-
-.cm-editor .cm-lint-marker-info {
-  color: var(--z-status-info);
-  @include severity-mark($shape-info);
+// A hint in the line, which is chrome rather than code: the subtle ink on a quiet ground, and no part of
+// what a save writes.
+.cm-editor .cm-inlayHint {
+  padding: 0 2px;
+  border-radius: 2px;
+  background: var(--z-bg-code);
+  color: var(--z-fg-subtle);
+  font-style: normal;
 }

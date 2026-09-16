@@ -88,7 +88,18 @@ type finder struct {
 	root     string
 	home     string
 	lookPath func(string) (string, error)
+	// Go's own install folder, from `GOPATH`. A field rather than a lookup inside `folders` for the
+	// same reason as `system`.
+	gopath string
+	// Where a package manager installs a server, outside the project and the home directory. A field
+	// rather than a constant so that a test can look nowhere but the folders it made itself: this
+	// machine has basedpyright in /opt/homebrew/bin and gopls in ~/go/bin, and a test given a fake
+	// home found both of them anyway.
+	system []string
 }
+
+// systemFolders are the ones a real finder searches.
+var systemFolders = []string{"/opt/homebrew/bin", "/usr/local/bin", "/usr/local/go/bin"}
 
 func (f finder) folders() []string {
 	folders := []string{
@@ -96,8 +107,8 @@ func (f finder) folders() []string {
 		filepath.Join(f.root, "venv", "bin"),
 		filepath.Join(f.root, "node_modules", ".bin"),
 	}
-	if gopath := os.Getenv("GOPATH"); gopath != "" {
-		folders = append(folders, filepath.Join(gopath, "bin"))
+	if f.gopath != "" {
+		folders = append(folders, filepath.Join(f.gopath, "bin"))
 	}
 	if f.home != "" {
 		folders = append(folders,
@@ -107,7 +118,7 @@ func (f finder) folders() []string {
 			filepath.Join(f.home, ".juliaup", "bin"),
 		)
 	}
-	return append(folders, "/opt/homebrew/bin", "/usr/local/bin", "/usr/local/go/bin")
+	return append(folders, f.system...)
 }
 
 // look answers where name is, or "" when it is nowhere Zasper looks.

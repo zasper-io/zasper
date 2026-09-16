@@ -50,6 +50,8 @@ export interface EditorSettings {
   auto_save: boolean;
   /** Ask the file's language server to format it before it is written. */
   format_on_save: boolean;
+  /** Draw the parameter names and inferred types the server offers, in the line. */
+  inlay_hints: boolean;
   /** Which bindings the file editor takes. */
   keymap: 'default' | 'vim' | 'emacs';
 }

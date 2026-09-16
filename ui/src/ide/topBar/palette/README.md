@@ -3,7 +3,7 @@
 One search box for the whole app: commands and files, in two sections of one list.
 
 ```
-┌ Search files, or > for commands ─────────────────┐
+┌ Search files, > for commands, @ for symbols ─────┐
 │ COMMANDS                                6 of 31  │  capped while it shares the list
 │   Increase Font Size   View        ⌘=  ⌘+        │  label · description · chord
 │   Stage All Changes    Stage every change…       │
@@ -37,6 +37,12 @@ the files below the fold — which is the merge not working. `>` is uncapped, be
 registry is what that mode is for. `.palette-list`'s height in [Palette.scss](Palette.scss) is set to
 fit both sections at full stretch, so nothing that got past the cap needs scrolling to.
 
+**A prefix picks the question.** `>` is the commands, `:42` a line of the file in front (story 14), and
+since story 20 `@` is the symbols of the file in front and `#` a symbol anywhere in the project. Each of
+them leaves the other halves out — a prefixed query is one question, not a narrower version of all of
+them. `@` is filtered in the browser, because the file's server answers with every symbol at once; `#` is
+the server's own search, which is what finds a name in a file that has never been opened.
+
 **An empty query lists nothing**, unless it is `>` alone. From the search box an empty field is a
 question not yet asked, and answering it with the first six commands in registration order is noise.
 
@@ -50,11 +56,12 @@ dispatches, so the two cannot disagree.
 
 ## The files
 
-| File                                   | What is in it                                                    |
-| -------------------------------------- | ---------------------------------------------------------------- |
-| [Palette.tsx](Palette.tsx)             | The field, the two sections, the caps, and what Enter does.      |
-| [useFileMatches.ts](useFileMatches.ts) | The file half: debounced, cached, and deaf to abandoned answers. |
-| [Palette.scss](Palette.scss)           | The floating panel, the rows, and the section headings.          |
+| File                                       | What is in it                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| [Palette.tsx](Palette.tsx)                 | The field, the two sections, the caps, and what Enter does.              |
+| [useFileMatches.ts](useFileMatches.ts)     | The file half: debounced, cached, and deaf to abandoned answers.         |
+| [useSymbolMatches.ts](useSymbolMatches.ts) | The symbol halves: `@` from the file's own server, `#` from all of them. |
+| [Palette.scss](Palette.scss)               | The floating panel, the rows, and the section headings.                  |
 
 Outside this directory: [Topbar.tsx](../Topbar.tsx) owns whether it is open and with what — one
 `string | null`, because the two chords are one palette — and registers _Show All Commands_ and _Go to

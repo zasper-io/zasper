@@ -1,0 +1,32 @@
+// Rename and quick fix, over the code they are about (story 20). Both are placed from the editor's own
+// coordinates, so they carry only a size and the surface's own chrome here.
+.rename-box {
+  position: absolute;
+  z-index: var(--z-layer-menu);
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+}
+
+// The name being changed is code, and reads in the editor's face.
+.rename-field {
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-font-size-code);
+}
+
+.rename-count {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.quick-fix-menu {
+  position: absolute;
+  z-index: var(--z-layer-menu);
+  width: 280px;
+}

@@ -38,3 +38,8 @@ export function waitForEditorView(path: string, timeout = 5000): Promise<EditorV
     waiting.set(path, [...(waiting.get(path) ?? []), done]);
   });
 }
+
+/** The view holding a file now, or null when no editor has it. */
+export function editorViewFor(path: string): EditorView | null {
+  return views.get(path) ?? null;
+}

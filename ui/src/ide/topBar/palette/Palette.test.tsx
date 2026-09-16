@@ -12,6 +12,8 @@ import { Provider as SeededProvider } from '@/testing/Provider';
 import { Provider, useAtomValue } from 'jotai';
 
 const searchFiles = vi.fn();
+const documentSymbols = vi.fn();
+const workspaceSymbols = vi.fn();
 
 // useTabActions reaches for the first two; nothing here makes it kill a kernel, but a name the mock
 // does not define is an error the moment anything touches it.
@@ -20,6 +22,14 @@ vi.mock('@/api', () => ({
   deleteKernel: vi.fn(),
   logApiError: () => () => {},
 }));
+
+// The symbol halves of the query (story 20) ask a language server, which no test here runs.
+vi.mock('@/lsp/symbols', () => ({
+  documentSymbols: (...args: unknown[]) => documentSymbols(...args),
+  workspaceSymbols: (query: string) => workspaceSymbols(query),
+  kindGlyph: () => 'ƒ',
+}));
+vi.mock('@/lsp/views', () => ({ editorViewFor: () => ({}) }));
 
 function command(overrides: Partial<Command>): Command {
   return {
@@ -58,7 +68,7 @@ function list(): HTMLElement {
 
 /** The field, which is also the widget: everything below is typed into it. */
 function input(): HTMLElement {
-  return screen.getByPlaceholderText('Search files, or > for commands');
+  return screen.getByPlaceholderText('Search files, > for commands, @ for symbols');
 }
 
 /** A file open in front of the palette, as the file editor leaves it: a tab, and a format for it. */
@@ -363,5 +373,47 @@ describe('Palette, over a file', () => {
 
     expect(within(list()).queryByText('Recent')).not.toBeInTheDocument();
     expect(within(list()).getByText('Save File')).toBeInTheDocument();
+  });
+
+  it('lists the symbols of the file in front after an @, and nothing else', async () => {
+    documentSymbols.mockResolvedValue([
+      {
+        name: 'load',
+        kind: 12,
+        detail: '(path) -> Frame',
+        line: 4,
+        character: 4,
+        endLine: 9,
+        children: [],
+      },
+      { name: 'tidy', kind: 12, detail: '', line: 12, character: 4, endLine: 20, children: [] },
+    ]);
+    renderOverEditor();
+
+    fireEvent.change(input(), { target: { value: '@lo' } });
+
+    await waitFor(() => expect(within(list()).getByText('load')).toBeInTheDocument());
+    expect(within(list()).getByText('(path) -> Frame')).toBeInTheDocument();
+    // Filtered in the browser: the server answered with every symbol at once.
+    expect(within(list()).queryByText('tidy')).not.toBeInTheDocument();
+    // A prefix picks one question: the commands and the files stay out of it.
+    expect(within(list()).queryByText('Commands')).not.toBeInTheDocument();
+    expect(searchFiles).not.toHaveBeenCalled();
+  });
+
+  it('asks every server for a symbol after a #, and opens the file it is in', async () => {
+    workspaceSymbols.mockResolvedValue([
+      { path: 'batch/run.go', name: 'GreetAll', kind: 12, line: 21, character: 5 },
+    ]);
+    renderOverEditor();
+
+    fireEvent.change(input(), { target: { value: '#Greet' } });
+
+    await waitFor(() => expect(within(list()).getByText('GreetAll')).toBeInTheDocument());
+    expect(workspaceSymbols).toHaveBeenCalledWith('Greet');
+
+    fireEvent.click(within(list()).getByText('GreetAll'));
+
+    expect(screen.getByTestId('tabs')).toHaveTextContent('batch/run.go');
   });
 });

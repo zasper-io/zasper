@@ -28,7 +28,8 @@ describe('ZasperWorkspace', () => {
 
     expect(client.didOpen).toHaveBeenCalledTimes(1);
     expect(files.files[0].version).toBe(0);
-    expect(hooks.opened).toHaveBeenCalled();
+    // With the file's URI, which is how the server's already-published problems reach the new editor.
+    expect(hooks.opened).toHaveBeenCalledWith('file:///p/main.go');
   });
 
   // The file editor makes a new editor every time it reads the file.

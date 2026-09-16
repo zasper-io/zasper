@@ -1,0 +1,49 @@
+// The panel under the editor: the shell its lists sit in, and the tabs that say which one is in front.
+.editorDock {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--z-border);
+  background: var(--z-bg-panel);
+}
+
+.editorDock-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 12px;
+  color: var(--z-fg-muted);
+}
+
+.editorDock-tabs {
+  display: flex;
+  gap: 2px;
+  margin-right: auto;
+}
+
+// Quieter than the editor's own tabs: these name a list, not a document, so the one in front is told by
+// ink and a fill rather than by a tab's border.
+.editorDock-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--z-fg-muted);
+  font-family: inherit;
+  font-size: var(--z-ui-font-size);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--z-bg-row-selected);
+  }
+
+  &.is-current {
+    background: var(--z-bg-row-selected);
+    color: var(--z-fg-default);
+  }
+}

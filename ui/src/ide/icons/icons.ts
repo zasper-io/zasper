@@ -12,6 +12,10 @@ import {
   CircleAlert,
   CircleX,
   Info,
+  Lightbulb,
+  ListChecks,
+  ListTree,
+  TextQuote,
   RotateCcw,
   TriangleAlert,
   CircleHelp,
@@ -172,6 +176,11 @@ export const ICONS = {
   'triangle-alert': TriangleAlert,
   info: Info,
   'rotate-ccw': RotateCcw,
+  // The panel under the editor, and what a server answers about a name (story 20).
+  'list-checks': ListChecks,
+  'text-quote': TextQuote,
+  lightbulb: Lightbulb,
+  'list-tree': ListTree,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

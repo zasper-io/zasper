@@ -1,6 +1,7 @@
 .breadcrumbArea {
   // A navigable path, not a caption: the same kind of text as the tab label above it and the
   // toolbar below it.
+  position: relative;
   flex: 0 0 auto;
   height: 26px;
   display: flex;
@@ -35,9 +36,25 @@
     color: var(--z-fg-subtle);
   }
 
-  // The file itself, at the end of the trail: the one segment that is not a folder.
+  // The end of the trail — the file, or the symbol the cursor is in when a server named one.
   li:last-child {
     color: var(--z-fg-default);
+  }
+
+  // Every level is a menu (story 20), so a crumb is a control rather than a caption. It wears none of a
+  // button's own chrome: the trail has to read as one line of text.
+  .crumb-button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--z-fg-default);
+      text-decoration: underline;
+    }
   }
 }
 
@@ -113,4 +130,27 @@
   .z-notice-action {
     margin-left: 0;
   }
+}
+
+// A crumb's menu: what sits beside the level pressed — a folder's contents, or a symbol's siblings.
+.crumb-menu {
+  position: absolute;
+  top: 24px;
+  z-index: var(--z-layer-menu);
+  width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.crumb-menu-empty {
+  margin: 0;
+  padding: 4px 12px;
+}
+
+// The glyph for a symbol's kind, in the place a file mark takes in the same row.
+.crumb-kind {
+  flex: 0 0 14px;
+  text-align: center;
+  color: var(--z-fg-subtle);
+  font-family: var(--z-mono-font-family);
 }

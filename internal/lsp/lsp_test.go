@@ -136,7 +136,12 @@ func TestAConfiguredCommandWins(t *testing.T) {
 func testManager(t *testing.T, settings config.LanguageServerSettings) (*Manager, *httptest.Server) {
 	t.Helper()
 	m := New(t.TempDir())
+	// Nowhere but the folders this test made: the machine running it has servers installed in the
+	// places discovery searches, and "no server for Python" has to mean that here.
 	m.finder.lookPath = noPath
+	m.finder.home = t.TempDir()
+	m.finder.gopath = ""
+	m.finder.system = nil
 	m.settings = func() config.LanguageServerSettings { return settings }
 
 	router := mux.NewRouter()
