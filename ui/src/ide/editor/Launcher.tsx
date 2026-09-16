@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './Launcher.scss';
 import {
   ApiError,
@@ -6,19 +6,23 @@ import {
   EnvironmentSetup,
   PROJECT_KERNEL_NAME,
   createContent,
+  deleteKernel,
+  deleteTerminal,
   getEnvironmentSetup,
   getKernelspecResource,
   logApiError,
   startEnvironmentSetup,
 } from '@/api';
 import { useAtom, useAtomValue } from 'jotai';
-import { kernelspecsAtom, kernelspecsStatusAtom } from '@/store/kernels';
+import { Kernelspec, kernelspecsAtom, kernelspecsStatusAtom } from '@/store/kernels';
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
 import { folderOf, recentFilesAtom } from '@/store/recentFiles';
-import { terminalsAvailableAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import { fileTabsAtom } from '@/store/tabState';
 import { useKernelspecActions } from '@/store/kernelspecActions';
+import ConfirmShutdownDialog from '@/ide/sidebar/jupyterInfoPanel/ConfirmShutdownDialog';
+import { RunningKernel, useJupyterInfo } from '@/ide/sidebar/jupyterInfoPanel/useJupyterInfo';
+import IconButton from '@/ide/IconButton';
 import { FileMark, Icon } from '../icons';
 
 /** Rows in the Recent section: enough to recognise the work, not a file browser. */
@@ -30,6 +34,55 @@ interface LauncherProps {
   };
 }
 
+/**
+ * Two letters of a kernel's language, for a kernelspec that ships no logo.
+ *
+ * The fallback used to be the kernel glyph, which at five rows is the same picture five times and says
+ * only "this is a kernel" — which the heading above it already said. The language is what the reader is
+ * choosing between.
+ */
+const MARKS: Record<string, string> = {
+  python: 'py',
+  r: 'r',
+  julia: 'jl',
+  go: 'go',
+  rust: 'rs',
+  typescript: 'ts',
+  javascript: 'js',
+  ruby: 'rb',
+  scala: 'sc',
+  haskell: 'hs',
+  sql: 'sql',
+  bash: 'sh',
+  c: 'c',
+  cpp: 'c++',
+};
+
+function markFor(spec: Kernelspec): string {
+  const language = spec.spec.language?.toLowerCase() ?? '';
+  return MARKS[language] ?? (language || spec.name).slice(0, 2);
+}
+
+/** The groups the kernels are drawn in, in this order; a group with nothing in it is not drawn. */
+interface KernelGroup {
+  label: string;
+  names: string[];
+}
+
+function groupKernels(kernelspecs: Record<string, Kernelspec>): KernelGroup[] {
+  const names = Object.keys(kernelspecs);
+  const project = names.filter((name) => name === PROJECT_KERNEL_NAME);
+  const isPython = (name: string) =>
+    name !== PROJECT_KERNEL_NAME && kernelspecs[name].spec.language?.toLowerCase() === 'python';
+  const python = names.filter(isPython).sort();
+  const others = names.filter((name) => name !== PROJECT_KERNEL_NAME && !isPython(name)).sort();
+  return [
+    { label: 'This project', names: project },
+    { label: 'Python', names: python },
+    { label: 'Other languages', names: others },
+  ].filter((group) => group.names.length > 0);
+}
+
 const Launcher: React.FC<LauncherProps> = ({ data }) => {
   // Read on boot by IDE.tsx, not here: the Jupyter info panel wants the same list, and a list fetched
   // by whichever tab is open is one that is missing when that tab is not. The status is what an empty
@@ -37,9 +90,8 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   const kernelspecs = useAtomValue(kernelspecsAtom);
   const status = useAtomValue(kernelspecsStatusAtom);
   const [reloadCount, setReloadCount] = useAtom(fileBrowserReloadCountAtom);
-  const { openTab, openTerminal } = useTabActions();
+  const { openTab } = useTabActions();
   const { loadKernelspecs } = useKernelspecActions();
-  const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
   const recentFiles = useAtomValue(recentFilesAtom);
   const openTabs = useAtomValue(fileTabsAtom);
   // A file that is still open is a tab away, so the Launcher does not offer it either.
@@ -47,10 +99,9 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
     .filter((file) => openTabs[file.path] === undefined)
     .slice(0, RECENT_SHOWN);
 
-  // The project's own environment first: it is the one this folder's notebooks are meant to run on.
-  const kernelNames = Object.keys(kernelspecs).sort(
-    (a, b) => Number(b === PROJECT_KERNEL_NAME) - Number(a === PROJECT_KERNEL_NAME)
-  );
+  // The project's own environment first, then the Pythons, then a group for everything else: ten
+  // kernelspecs is an ordinary laptop, and one to a line they run past the foot of the pane.
+  const groups = useMemo(() => groupKernels(kernelspecs), [kernelspecs]);
 
   const createNewNotebook = async (path: string, contentType: ContentType, kernelspec: string) => {
     const created = await createContent(path, contentType);
@@ -60,99 +111,191 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
 
   return (
     <div className="LauncherArea">
-      {/* The type scale comes from styles/_typography.scss. */}
-      <div className="launcher-title">
-        <h2 className="z-title">
-          Welcome to <strong>zasper</strong>
-        </h2>
-      </div>
-      {recent.length > 0 && (
-        <div className="launchSection">
-          <h2 className="z-heading">Recent</h2>
-          {/* Rows rather than tiles: a tile is a picture, and a path is a line of text. */}
-          <ul className="recent-list">
-            {recent.map((file) => (
-              <li key={file.path} className="panel-row">
-                <button
-                  type="button"
-                  className="panel-row-name"
-                  onClick={() => openTab({ name: file.name, path: file.path, type: file.type })}
-                >
-                  <FileMark name={file.name} />
-                  <span className="panel-row-label">{file.name}</span>
-                </button>
-                <span className="panel-row-meta">{folderOf(file)}</span>
-              </li>
-            ))}
-          </ul>
+      <div className="launcher-split">
+        <div className="launcher-start">
+          <div className="launchSection">
+            <h2 className="z-heading">Notebook</h2>
+            {status === 'loading' ? (
+              <p className="z-note">
+                <span className="z-spinner" />
+                Looking for installed kernels…
+              </p>
+            ) : status === 'failed' ? (
+              <KernelspecsUnavailable onRetry={loadKernelspecs} />
+            ) : groups.length > 0 ? (
+              groups.map((group) => (
+                <React.Fragment key={group.label}>
+                  <div className="z-label launcher-group">{group.label}</div>
+                  <div className="launcher-rows">
+                    {group.names.map((name) => (
+                      <button
+                        type="button"
+                        className={
+                          name === PROJECT_KERNEL_NAME ? 'launcher-row is-project' : 'launcher-row'
+                        }
+                        key={name}
+                        onClick={() => createNewNotebook('', 'notebook', kernelspecs[name].name)}
+                      >
+                        <KernelArt spec={kernelspecs[name]} />
+                        <span className="launcher-row-label">
+                          {kernelspecs[name].spec.display_name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </React.Fragment>
+              ))
+            ) : (
+              <NoKernelsFound onRetry={loadKernelspecs} />
+            )}
+          </div>
         </div>
-      )}
-      <div className="launchSection">
-        <h2 className="z-heading">Notebook</h2>
-        {status === 'loading' ? (
-          <p className="z-note">
-            <span className="z-spinner" />
-            Looking for installed kernels…
-          </p>
-        ) : status === 'failed' ? (
-          <KernelspecsUnavailable onRetry={loadKernelspecs} />
-        ) : kernelNames.length > 0 ? (
-          <div className="launchSection-grid">
-            {kernelNames.map((key) => (
-              <button
-                type="button"
-                className="launcher-icon"
-                key={key}
-                onClick={() => createNewNotebook('', 'notebook', kernelspecs[key].name)}
-              >
-                <div className="kernelSpecIconArea">
-                  <KernelLogo resources={kernelspecs[key].resources} />
-                </div>
-                <div className="launcher-icon-label">{kernelspecs[key].spec.display_name}</div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <NoKernelsFound onRetry={loadKernelspecs} />
-        )}
-      </div>
 
-      <div className="launchSection">
-        <h2 className="z-heading">Terminal</h2>
-        {terminalsAvailable ? (
-          <div className="launchSection-grid">
-            <button type="button" className="launcher-icon" onClick={() => openTerminal()}>
-              {/* Sized to 44px in CSS, beside the kernel logos: a tile is one row of one grid. */}
-              <Icon name="terminal" />
-              <div className="launcher-icon-label">Terminal</div>
-            </button>
-          </div>
-        ) : (
-          <p className="z-note">
-            Terminals are not available on Windows yet. Run Zasper under WSL to use one.
-          </p>
-        )}
+        <div className="launchSection launcher-recent">
+          {recent.length > 0 && (
+            <>
+              <h2 className="z-heading">Recent</h2>
+              {/* Rows rather than tiles: a tile is a picture, and a path is a line of text. */}
+              <ul className="launcher-list">
+                {recent.map((file) => (
+                  <li key={file.path} className="panel-row">
+                    <button
+                      type="button"
+                      className="panel-row-name"
+                      onClick={() => openTab({ name: file.name, path: file.path, type: file.type })}
+                    >
+                      <FileMark name={file.name} />
+                      <span className="panel-row-label">{file.name}</span>
+                    </button>
+                    <span className="panel-row-meta">{folderOf(file)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <Running hidden={!data.active} />
+        </div>
       </div>
     </div>
   );
 };
 
 /**
- * A kernel's logo, and the kernel glyph when there is none to show.
+ * What the server says is running, which this window otherwise never mentions: a kernel's own state, a
+ * kernel whose notebook nobody has open, and the shells that outlived the tab they were drawn in.
  *
- * The one picture on screen from outside the icon set, and it stays: a kernel's logo is its
- * identity. `alt=""` because the name is under it.
- *
- * Jupyter promises no logo, though. A kernelspec directory without one leaves `resources` empty —
- * and the file a spec does name can be missing, which is the same broken tile by a different route.
- * Both drew an image with `src` set to the string "undefined", since that is what a template literal
- * makes of one.
- *
- * Fetched rather than linked: an `<img>` request cannot carry the session, so a linked logo is a 401.
+ * Every row here is a fact only the server has — /api/sessions is the one thing that knows which file a
+ * kernel belongs to, and `connections: 0` is a kernel still running with its notebook closed, which is
+ * why a laptop is warm and nothing on screen said so.
  */
-const KernelLogo: React.FC<{ resources: Record<string, string> }> = ({ resources }) => {
+const Running: React.FC<{ hidden: boolean }> = ({ hidden }) => {
+  const { kernels, terminals, run } = useJupyterInfo(hidden);
+  const kernelspecs = useAtomValue(kernelspecsAtom);
+  const { openTab } = useTabActions();
+  // The kernel a shutdown has been asked for and not yet confirmed: everything in it goes with it.
+  const [pending, setPending] = useState<RunningKernel | null>(null);
+  const [shuttingDown, setShuttingDown] = useState(false);
+
+  if (kernels.length === 0 && terminals.length === 0) {
+    return null;
+  }
+
+  const confirmShutdown = async () => {
+    const kernel = pending;
+    if (kernel === null) {
+      return;
+    }
+    setShuttingDown(true);
+    await run(() => deleteKernel(kernel.id), 'Kernel shut down.');
+    setShuttingDown(false);
+    setPending(null);
+  };
+
+  return (
+    <>
+      <h2 className="z-heading launcher-subheading">Running</h2>
+      <ul className="launcher-list">
+        {kernels.map((kernel) => {
+          const path = kernel.session?.path;
+          const label =
+            kernel.session?.name ?? kernelspecs[kernel.name]?.spec.display_name ?? kernel.name;
+          return (
+            <li key={kernel.id} className="panel-row">
+              <button
+                type="button"
+                className="panel-row-name"
+                // A kernel with no session has no file to open, and starting one from here would
+                // attach this kernel to whatever was guessed.
+                disabled={path === undefined}
+                onClick={() =>
+                  kernel.session !== undefined &&
+                  openTab({
+                    name: kernel.session.name,
+                    path: kernel.session.path,
+                    type: kernel.session.type,
+                    kernelspec: kernel.name,
+                  })
+                }
+              >
+                {/* The slot is there either way, so the names line up down both lists. */}
+                <span className="panel-row-dot">
+                  <span className={`kernelStatus kernelStatus-sm ks-${kernel.execution_state}`} />
+                </span>
+                <span className="panel-row-label">{label}</span>
+              </button>
+              {/* The count is the fact with no other way in: nothing is listening to this kernel. */}
+              {kernel.connections === 0 && <span className="panel-row-meta">no tab</span>}
+              <span className="panel-row-actions">
+                <IconButton
+                  icon="power"
+                  label={`Shut down ${label}`}
+                  onClick={() => setPending(kernel)}
+                />
+              </span>
+            </li>
+          );
+        })}
+        {terminals.map((terminal) => (
+          <li key={terminal.id} className="panel-row">
+            <span className="panel-row-name">
+              <Icon name="terminal" />
+              <span className="panel-row-label">{terminal.name}</span>
+            </span>
+            {terminal.dir !== '' && <span className="panel-row-meta">{terminal.dir}</span>}
+            <span className="panel-row-actions">
+              <IconButton
+                icon="power"
+                label={`Shut down ${terminal.name}`}
+                onClick={() => run(() => deleteTerminal(terminal.id), 'Terminal shut down.')}
+              />
+            </span>
+          </li>
+        ))}
+      </ul>
+      {pending !== null && (
+        <ConfirmShutdownDialog
+          name={kernelspecs[pending.name]?.spec.display_name ?? pending.name}
+          path={pending.session?.path}
+          shuttingDown={shuttingDown}
+          onConfirm={confirmShutdown}
+          onCancel={() => setPending(null)}
+        />
+      )}
+    </>
+  );
+};
+
+/**
+ * A kernel's logo, and the language's letters when it ships none.
+ *
+ * The logo is the one picture on screen from outside the icon set, and it stays: a kernel's logo is its
+ * identity. What replaced the fallback is the language in two letters — the kernel glyph drew the same
+ * picture for every spec without one, which said only "this is a kernel".
+ */
+const KernelArt: React.FC<{ spec: Kernelspec }> = ({ spec }) => {
   const [src, setSrc] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const resources = spec.resources;
   const logoPath =
     resources?.['logo-svg'] || resources?.['logo-64x64'] || resources?.['logo-32x32'];
 
@@ -183,9 +326,21 @@ const KernelLogo: React.FC<{ resources: Record<string, string> }> = ({ resources
   }, [logoPath]);
 
   if (!logoPath || unavailable || src === null) {
-    return <Icon name="cpu" />;
+    // aria-hidden, because the kernel's name is beside it and a button named "py Python 3" reads the
+    // language twice to anyone listening.
+    return (
+      <span className="launcher-mark" aria-hidden="true">
+        {markFor(spec)}
+      </span>
+    );
   }
-  return <img src={src} alt="" onError={() => setUnavailable(true)} />;
+  return (
+    <div className="kernelSpecIconArea">
+      {/* Fetched rather than linked: an <img> request cannot carry the session, so a linked logo is a
+          401. `alt=""` because the name is beside it. */}
+      <img src={src} alt="" onError={() => setUnavailable(true)} />
+    </div>
+  );
 };
 
 interface NoticeProps {
@@ -280,7 +435,7 @@ const NoKernelsFound: React.FC<NoticeProps> = ({ onRetry }) => {
         </pre>
       )}
       <div className="noKernelsFound-manual">
-        <p>Or install one yourself:</p>
+        <div className="z-label">Or install one yourself</div>
         <code>pip install ipykernel</code>
         <p>
           Then check again, or read{' '}

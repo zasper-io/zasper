@@ -38,9 +38,6 @@ function TabMark({ tab }: { tab: FileTab }) {
   if (tab.type === 'launcher') {
     return <img className="tabIcon" src="./images/logo-icon.svg" alt="" />;
   }
-  if (tab.type === 'terminal') {
-    return <Icon name="terminal" className="tabIcon" />;
-  }
   if (tab.type === 'help') {
     return <Icon name="circle-help" className="tabIcon" />;
   }

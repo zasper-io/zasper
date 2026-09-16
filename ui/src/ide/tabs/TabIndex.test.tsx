@@ -68,11 +68,11 @@ function renderTabs(save?: SaveTab) {
 
 const scriptTab: FileTab = { ...fileTab, path: 'prepare.py', name: 'prepare.py', active: false };
 
-const terminalTab: FileTab = {
+const settingsTab: FileTab = {
   ...fileTab,
-  type: 'terminal',
-  path: 'Terminal 1',
-  name: 'Terminal 1',
+  type: 'settings',
+  path: 'Settings',
+  name: 'Settings',
   active: false,
 };
 
@@ -92,7 +92,7 @@ function renderStrip(unsaved: Record<string, SaveTab> = {}) {
             Launcher: launcher,
             'notes.txt': fileTab,
             'prepare.py': scriptTab,
-            'Terminal 1': terminalTab,
+            Settings: settingsTab,
           },
         ],
         [unsavedTabsAtom, unsaved],
@@ -157,9 +157,9 @@ describe('TabIndex', () => {
       expect(screen.getAllByRole('separator')).toHaveLength(1);
     });
 
-    it('leaves the path rows off a terminal, and greys what there is nothing to close for', () => {
+    it('leaves the path rows off a tab with no file, and greys what there is nothing to close for', () => {
       renderStrip();
-      openMenu(/Terminal 1/);
+      openMenu(/Settings/);
 
       expect(screen.queryByRole('menuitem', { name: /Copy Path/ })).not.toBeInTheDocument();
       expect(screen.queryByRole('separator')).not.toBeInTheDocument();
@@ -229,7 +229,7 @@ describe('TabIndex', () => {
 
       fireEvent.keyDown(window, { key: 'w', code: 'KeyW', altKey: true });
 
-      expect(tabNames()).toEqual(['Launcher', 'prepare.py', 'Terminal 1']);
+      expect(tabNames()).toEqual(['Launcher', 'prepare.py', 'Settings']);
     });
 
     it('closes every tab but the Launcher on Alt-Shift-W', () => {

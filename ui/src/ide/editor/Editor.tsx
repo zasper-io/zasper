@@ -13,10 +13,6 @@ import SearchPreviewTab from './SearchPreviewTab';
 import SettingsTab from './SettingsTab';
 import { FileTab } from '@/store/tabState';
 
-// The xterm.js core plus its five addons are only needed once a terminal tab is
-// opened, which many sessions never do, so they load on demand.
-const TerminalTab = lazy(() => import('../terminal/Terminal'));
-
 interface EditorProps {
   data: FileTab;
 }
@@ -58,13 +54,6 @@ export default function Editor(props: EditorProps) {
   }
   if (props.data.type === 'settings') {
     return <SettingsTab data={props.data} />;
-  }
-  if (props.data.type === 'terminal') {
-    return (
-      <Suspense fallback={<div className="terminalContainer" />}>
-        <TerminalTab data={props.data} />
-      </Suspense>
-    );
   }
   return <></>;
 }

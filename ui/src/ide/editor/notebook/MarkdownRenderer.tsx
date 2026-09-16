@@ -43,7 +43,20 @@ const schema: SanitizeSchema = {
   },
 };
 
-const MarkdownRenderer = ({ source }: { source: string }) => {
+export interface MarkdownRendererProps {
+  source: string;
+  /**
+   * What KaTeX emits. The default is its own: a visual HTML copy plus a MathML one for screen readers,
+   * which is what the stylesheet above is imported for.
+   *
+   * `mathml` drops the HTML copy, and with it the need for KaTeX's stylesheet and its five web fonts.
+   * The export uses it (export/toHtml.tsx): a file that has to open with the network off cannot link to
+   * a font, and every current browser draws MathML natively.
+   */
+  katexOutput?: 'htmlAndMathml' | 'mathml';
+}
+
+const MarkdownRenderer = ({ source, katexOutput }: MarkdownRendererProps) => {
   // `remark-math` reads `$x$` and nothing else; Jupyter's own notebooks are full of `\\(x\\)`.
   // See mathDelimiters.ts.
   const text = useMemo(() => normalizeMathDelimiters(source), [source]);
@@ -54,7 +67,11 @@ const MarkdownRenderer = ({ source }: { source: string }) => {
     <div className="zasper-markdown">
       <Markdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, schema], rehypeKatex]}
+        rehypePlugins={[
+          rehypeRaw,
+          [rehypeSanitize, schema],
+          [rehypeKatex, { output: katexOutput ?? 'htmlAndMathml' }],
+        ]}
       >
         {text}
       </Markdown>

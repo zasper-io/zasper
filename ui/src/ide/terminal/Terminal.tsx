@@ -9,11 +9,13 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
 import { websocketUrl } from '@/api';
-import { FileTab } from '@/store/tabState';
 import { terminalTheme } from './theme';
 
-interface TerminalTabProps {
-  data: FileTab;
+interface TerminalViewProps {
+  /** The shell's name, which is what the server knows it by. */
+  id: string;
+  /** Where it was started, for a shell opened from a folder in the tree. */
+  cwd?: string;
 }
 
 // The size the canvas is drawn at, read off the element like the family and the sixteen colours are.
@@ -24,7 +26,7 @@ const cellFontSize = (element: HTMLElement): number | undefined => {
   return Number.isNaN(size) ? undefined : size;
 };
 
-export default function TerminalTab({ data }: TerminalTabProps) {
+export default function TerminalView({ id, cwd }: TerminalViewProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const xtermRef = useRef<XTerm | null>(null);
@@ -45,10 +47,10 @@ export default function TerminalTab({ data }: TerminalTabProps) {
     }
   };
 
-  const terminalId = data.name;
+  const terminalId = id;
   // A terminal opened from a folder in the file browser starts there; the server falls back to the
   // project root for anything it cannot use.
-  const cwd = data.cwd ?? '';
+  const startIn = cwd ?? '';
 
   // Nothing is opened until the fonts have settled. xterm measures one character when it opens and
   // never again on its own, and JetBrains Mono arrives from Google Fonts with `display=swap`: measure
@@ -115,7 +117,7 @@ export default function TerminalTab({ data }: TerminalTabProps) {
 
     socketRef.current = new WebSocket(
       websocketUrl(`/ws/terminals/${encodeURIComponent(terminalId)}`, {
-        cwd: cwd === '' ? undefined : cwd,
+        cwd: startIn === '' ? undefined : startIn,
       })
     );
 
@@ -144,13 +146,23 @@ export default function TerminalTab({ data }: TerminalTabProps) {
 
       observer.disconnect();
     };
-  }, [terminalId, cwd, fontsReady, refit, fitAddon, serializeAddon, unicode11Addon, webLinksAddon]);
+  }, [
+    terminalId,
+    startIn,
+    fontsReady,
+    refit,
+    fitAddon,
+    serializeAddon,
+    unicode11Addon,
+    webLinksAddon,
+  ]);
 
+  // `.tab-surface` was around this, which is the card a tab draws: in the panel under the editor it
+  // was a block box between the pane and the terminal, so the height chain ended there and xterm kept
+  // its default 24 rows inside a pane half that tall. The host provides the box; this is the pane.
   return (
-    <div className="tab-surface">
-      <div className="terminalContainer">
-        <div ref={terminalRef} className="terminalArea" />
-      </div>
+    <div className="terminalContainer">
+      <div ref={terminalRef} className="terminalArea" />
     </div>
   );
 }

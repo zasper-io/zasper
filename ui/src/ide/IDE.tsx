@@ -253,7 +253,9 @@ function IDE() {
               {dockOpen && (
                 <>
                   <PanelResizeHandle className="panelResizeHandle is-between-rows" />
-                  <Panel id="editor-dock" order={2} defaultSize={25} minSize={10}>
+                  {/* A third, not a quarter: the panel holds a shell since story 4, and eight rows of
+                      terminal is a pane you scroll rather than read. */}
+                  <Panel id="editor-dock" order={2} defaultSize={33} minSize={10}>
                     <EditorDock />
                   </Panel>
                 </>

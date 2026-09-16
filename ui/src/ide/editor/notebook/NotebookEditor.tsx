@@ -3,9 +3,17 @@ import { search } from '@codemirror/search';
 import { Text } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { useAtomValue, useSetAtom } from 'jotai';
+import { toast } from 'react-toastify';
 import './NotebookEditor.scss';
 
-import { logApiError, NotebookMetadata, saveNotebook } from '@/api';
+import {
+  apiErrorMessage,
+  downloadContent,
+  logApiError,
+  NotebookMetadata,
+  saveNotebook,
+} from '@/api';
+import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
 import { LineEdit, OpenDocument, useOpenDocument } from '@/store/openDocuments';
@@ -29,6 +37,9 @@ import { useEditorCommandKeymap } from '@/commands/useEditorCommandKeymap';
 import { useNotebookCommands } from './notebookCommands';
 import { useKernelSession } from './useKernelSession';
 import { useCellLanguage } from './useCellLanguage';
+import { useNotebookExport } from './export/useNotebookExport';
+import ExportDialog from './export/ExportDialog';
+import { exportFilename } from './export/exportFormats';
 import { useNotebookCells } from './useNotebookCells';
 import { outputText, useNotebookFind } from './useNotebookFind';
 
@@ -355,6 +366,32 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     scrollTo(index);
   }, [find, finding, notebook.cells, focusCell, scrollTo, cells.editingCellId, viewsVersion]);
 
+  // The notebook as it is on screen, not as it is on disk: an export carries unsaved edits and the
+  // output the kernel produced a moment ago, which is the whole reason the conversion is in the
+  // browser rather than in the server.
+  const exportNotebook = useNotebookExport({
+    notebook,
+    name: data.name,
+    kernelLanguage: kernel.kernelLanguage,
+    kernelDisplayName: kernel.kernelDisplayName,
+  });
+
+  /**
+   * The `.ipynb` itself, from the server — the file browser's Download row, moved to where someone
+   * exporting would now look for it. Deliberately the file *on disk* rather than the three exports
+   * above it, which take the notebook on screen: this row's name promises the file, and the tab's
+   * dirty dot is what says the two differ.
+   */
+  const downloadNotebook = () => {
+    downloadContent(data.path)
+      .then((blob) => saveAs(blob, data.name))
+      .catch((error: unknown) => toast.error(apiErrorMessage(error)));
+  };
+
+  // Only HTML asks anything before it writes: story 21 settled on a dialog (option D) for the two
+  // things a page can leave out, and Markdown and the script have no equivalent question.
+  const [askingExport, setAskingExport] = useState(false);
+
   const commands = useNotebookCommands({
     cells,
     kernel,
@@ -368,6 +405,14 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     submitAllCells: submitAllCellsForExecution,
     restartKernel: () => setRestartIntent('restart'),
     restartAndExecuteAllCells: () => setRestartIntent('restart-and-run-all'),
+    // The hook reports its own outcome as a toast, so there is nothing for a caller to await.
+    exportNotebook: (format) => {
+      if (format === 'html') {
+        setAskingExport(true);
+        return;
+      }
+      void exportNotebook(format);
+    },
   });
 
   // Only while this is the visible tab: every open notebook stays mounted, so registering
@@ -416,6 +461,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         <BreadCrumb path={data.path} />
         <NbButtons
           run={runCommand}
+          downloadNotebook={downloadNotebook}
           cellType={notebook.cells[cells.focusedIndex]?.cell_type ?? ''}
           kernelName={kernel.kernelName}
           kernelDisplayName={kernel.kernelDisplayName}
@@ -439,6 +485,17 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
                 intent={restartIntent}
                 onConfirm={confirmRestart}
                 onCancel={() => setRestartIntent(null)}
+              />
+            )}
+
+            {askingExport && (
+              <ExportDialog
+                filename={exportFilename(data.name, 'html')}
+                onCancel={() => setAskingExport(false)}
+                onExport={(options) => {
+                  setAskingExport(false);
+                  void exportNotebook('html', options);
+                }}
               />
             )}
 

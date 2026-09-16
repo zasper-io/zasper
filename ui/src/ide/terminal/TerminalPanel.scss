@@ -1,0 +1,46 @@
+// The shells in the panel under the editor: the pane, and the list of the others beside it.
+.terminalPanel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+
+  // `display: flex` outranks the browser's own `[hidden] { display: none }`, and a shell left laid out
+  // behind the Problems list would go on being fitted to a pane nobody is looking at.
+  &[hidden] {
+    display: none;
+  }
+}
+
+// One pane per shell, all but one hidden. `flex: 1` on the shown one only, or a hidden pane would take
+// its share of the row and xterm would fit the shell to a box nobody can see.
+.terminalPanel-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+
+  &[hidden] {
+    display: none;
+  }
+
+  // The pane the tab used to be, at the panel's height.
+  .terminalContainer {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+// 180px: the width of a name, and what the tab strip used to spend on all of them at once.
+.terminalPanel-list {
+  flex: 0 0 180px;
+  margin: 0;
+  padding: 4px 0;
+  border-left: 1px solid var(--z-border);
+  background: var(--z-bg-panel);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.terminalPanel-list .panel-row-name[aria-current='true'] {
+  color: var(--z-fg-default);
+  font-weight: 500;
+}

@@ -23,6 +23,13 @@ const getKernelspecResource = vi.fn();
 
 vi.mock('@/api', async () => ({
   createContent: (parentDir: string, type: string) => createContent(parentDir, type),
+  // The Running list reads the server rather than this window's atoms; an empty answer draws no list.
+  listKernels: () => Promise.resolve([]),
+  listSessions: () => Promise.resolve({}),
+  listTerminals: () => Promise.resolve([]),
+  deleteKernel: () => Promise.resolve(),
+  deleteTerminal: () => Promise.resolve(),
+  apiErrorMessage: (failure: unknown) => String(failure),
   getKernelspecResource: (path: string) => getKernelspecResource(path),
   listKernelspecs: () => listKernelspecs(),
   startEnvironmentSetup: () => startEnvironmentSetup(),
@@ -78,9 +85,14 @@ function renderLauncher(
   );
 }
 
-/** A tile, found the way a keyboard finds it — which it could not do at all before. */
-function tile(name: string): HTMLElement {
+/** A kernel's row, found the way a keyboard finds it — which it could not do at all before. */
+function row(name: string): HTMLElement {
   return screen.getByRole('button', { name });
+}
+
+/** The letters a kernelspec with no logo is drawn with, which used to be the kernel glyph. */
+function mark(): string | undefined {
+  return document.querySelector('.launcher-mark')?.textContent ?? undefined;
 }
 
 beforeEach(() => {
@@ -98,46 +110,55 @@ function logo(): HTMLImageElement | null {
 }
 
 describe('Launcher', () => {
-  it('offers one tile per kernelspec, named by its display name', () => {
+  it('offers one row per kernelspec, named by its display name', () => {
     renderLauncher();
 
-    expect(tile('Python 3 (ipykernel)')).toBeInTheDocument();
-    expect(tile('R')).toBeInTheDocument();
+    expect(row('Python 3 (ipykernel)')).toBeInTheDocument();
+    expect(row('R')).toBeInTheDocument();
   });
 
-  it('opens a notebook on the kernel whose tile was clicked', async () => {
+  // Ten kernelspecs is an ordinary laptop, and a flat list of them says nothing about which is which.
+  it("groups the kernels: the project's own, then Python, then everything else", () => {
+    renderLauncher({
+      'project-venv': {
+        name: 'project-venv',
+        spec: { display_name: 'Python 3.12 (.venv)', language: 'python' },
+        resources: {},
+      },
+      python3: {
+        name: 'python3',
+        spec: { display_name: 'Python 3 (ipykernel)', language: 'python' },
+        resources: {},
+      },
+      ir: { name: 'ir', spec: { display_name: 'R', language: 'r' }, resources: {} },
+    });
+
+    const labels = [...document.querySelectorAll('.launcher-group')].map((el) => el.textContent);
+    expect(labels).toEqual(['This project', 'Python', 'Other languages']);
+    // The project's environment is the only row on its line, because it is the usual answer.
+    expect(row('Python 3.12 (.venv)').className).toContain('is-project');
+  });
+
+  it('opens a notebook on the kernel whose row was clicked', async () => {
     renderLauncher();
 
-    fireEvent.click(tile('R'));
+    fireEvent.click(row('R'));
 
     await waitFor(() => expect(createContent).toHaveBeenCalledWith('', 'notebook'));
     await waitFor(() => expect(screen.getByTestId('tabs')).toHaveTextContent('Untitled.ipynb'));
   });
 
-  it('opens a terminal from its own tile', () => {
-    renderLauncher();
+  // Both routes to a row with no picture, which drew src="undefined" and a broken image: a
+  // kernelspec that names no logo, and one whose logo does not load. The fallback is the language's
+  // letters, because the kernel glyph drew the same picture for every one of them.
+  it("draws the language's letters for a kernelspec that ships no logo", () => {
+    renderLauncher({
+      deno: { name: 'deno', spec: { display_name: 'Deno', language: 'typescript' }, resources: {} },
+    });
 
-    fireEvent.click(tile('Terminal'));
-
-    expect(screen.getByTestId('tabs')).toHaveTextContent('Terminal 1');
-  });
-
-  // The server cannot start one there, so a tile would open a tab that only ever says so.
-  it('offers no terminal on a Windows server, and says why', () => {
-    renderLauncher(kernelspecs, 'ready', 'windows');
-
-    expect(screen.queryByRole('button', { name: 'Terminal' })).not.toBeInTheDocument();
-    expect(screen.getByText(/Terminals are not available on Windows yet/)).toBeInTheDocument();
-  });
-
-  // Both routes to a tile with no picture, which drew src="undefined" and a broken image: a
-  // kernelspec that names no logo, and one whose logo does not load.
-  it('draws the kernel glyph for a kernelspec that ships no logo', () => {
-    renderLauncher({ deno: { name: 'deno', spec: { display_name: 'Deno' }, resources: {} } });
-
-    expect(tile('Deno')).toBeInTheDocument();
+    expect(row('Deno')).toBeInTheDocument();
     expect(logo()).not.toBeInTheDocument();
-    expect(document.querySelector('.kernelSpecIconArea > .z-icon')).toBeInTheDocument();
+    expect(mark()).toBe('ts');
     expect(getKernelspecResource).not.toHaveBeenCalled();
   });
 
@@ -157,7 +178,7 @@ describe('Launcher', () => {
     await act(async () => {});
 
     expect(logo()).not.toBeInTheDocument();
-    expect(document.querySelector('.kernelSpecIconArea > .z-icon')).toBeInTheDocument();
+    expect(mark()).toBe('py');
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
@@ -168,7 +189,7 @@ describe('Launcher', () => {
     fireEvent.error(logo()!);
 
     expect(logo()).not.toBeInTheDocument();
-    expect(document.querySelector('.kernelSpecIconArea > .z-icon')).toBeInTheDocument();
+    expect(mark()).toBe('py');
   });
 
   // The tile grid's empty state, and the assertion the emoji does not come back: a notice says what
@@ -204,7 +225,7 @@ describe('Launcher', () => {
   it('reads the list again from either notice, rather than naming an action it does not have', async () => {
     renderLauncher({}, 'failed');
 
-    fireEvent.click(tile('Check again'));
+    fireEvent.click(row('Check again'));
 
     await waitFor(() => expect(listKernelspecs).toHaveBeenCalled());
     expect(await screen.findByRole('button', { name: 'Python 3 (ipykernel)' })).toBeInTheDocument();
@@ -220,7 +241,7 @@ describe('Launcher', () => {
       },
     });
 
-    const labels = [...document.querySelectorAll('.launcher-icon-label')].map((l) => l.textContent);
+    const labels = [...document.querySelectorAll('.launcher-row-label')].map((l) => l.textContent);
     expect(labels[0]).toBe('Python 3.12 (.venv)');
   });
 
@@ -240,11 +261,11 @@ describe('Launcher', () => {
     });
     renderLauncher({});
 
-    fireEvent.click(tile('Set up a Python kernel'));
+    fireEvent.click(row('Set up a Python kernel'));
 
     expect(await screen.findByText('Setting up a Python kernel…')).toBeInTheDocument();
     expect(screen.getByLabelText('Setup log')).toHaveTextContent('$ uv venv .venv');
-    expect(tile('Check again')).toBeDisabled();
+    expect(row('Check again')).toBeDisabled();
     expect(
       await screen.findByRole('button', { name: 'Python 3.12 (.venv)' }, { timeout: 3000 })
     ).toBeInTheDocument();
@@ -259,10 +280,10 @@ describe('Launcher', () => {
     });
     renderLauncher({});
 
-    fireEvent.click(tile('Set up a Python kernel'));
+    fireEvent.click(row('Set up a Python kernel'));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('no Python was found');
-    expect(tile('Try again')).toBeInTheDocument();
+    expect(row('Try again')).toBeInTheDocument();
     expect(screen.getByLabelText('Setup log')).toHaveTextContent('$ uv venv .venv');
   });
 
@@ -274,7 +295,7 @@ describe('Launcher', () => {
     getEnvironmentSetup.mockReturnValue(new Promise(() => {}));
     renderLauncher({});
 
-    fireEvent.click(tile('Set up a Python kernel'));
+    fireEvent.click(row('Set up a Python kernel'));
 
     expect(await screen.findByText('Setting up a Python kernel…')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

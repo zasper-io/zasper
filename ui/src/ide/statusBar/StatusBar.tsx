@@ -10,6 +10,8 @@ import { Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 import { fileTabsAtom, FileTab } from '@/store/tabState';
+import { terminalsAvailableAtom } from '@/store/serverInfo';
+import { useTabActions } from '@/store/tabActions';
 import EolStatus from './EolStatus';
 import IndentStatus from './IndentStatus';
 import LanguageServerStatus from './LanguageServerStatus';
@@ -25,8 +27,6 @@ function describeTab(tab: FileTab | undefined): string {
   switch (tab.type) {
     case 'launcher':
       return 'Launcher';
-    case 'terminal':
-      return 'Terminal';
     case 'help':
       return 'Help';
     case 'settings':
@@ -45,6 +45,9 @@ interface StatusBarProps {
 
 export default function StatusBar({ onBranchClick }: StatusBarProps) {
   const branchTip = useTooltip();
+  const terminalTip = useTooltip();
+  const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
+  const { openTerminal } = useTabActions();
   const [linePosition] = useAtom(linePositionAtom);
   const [columnPosition] = useAtom(columnPositionAtom);
   const [branchName, setBranchName] = useAtom(branchNameAtom);
@@ -89,6 +92,21 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
           </>
         )}
         <ProblemCounts />
+        {/* The Launcher had the only way to open a shell, which meant going back to that tab to find
+            it (story 2). It belongs to the window rather than to anything in it, so it lives here. */}
+        {terminalsAvailable && (
+          <>
+            <button
+              type="button"
+              className="statusItem statusButton"
+              onClick={() => openTerminal()}
+              {...terminalTip.anchorProps}
+            >
+              <Icon name="terminal" /> Terminal
+            </button>
+            <Tooltip tip={terminalTip} label="New terminal" />
+          </>
+        )}
       </div>
       <div className="rightStatus">
         {isTextEditor && (

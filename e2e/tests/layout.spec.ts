@@ -181,7 +181,7 @@ test('a recent file’s mark or icon lines up with its name', async ({ page }) =
     }
   };
 
-  await rowsLineUp(page.locator('.recent-list .panel-row'));
+  await rowsLineUp(page.locator('.launcher-recent .launcher-list .panel-row'));
 
   await page.locator('.openCommandPaletteButton').click();
   await rowsLineUp(

@@ -31,7 +31,7 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
   const kernelStatus = useAtomValue(kernelStatusAtom);
   const localTerminals = useAtomValue(terminalsAtom);
   const setNotebookKernelMap = useSetAtom(notebookKernelMapAtom);
-  const { openTab, closeTab } = useTabActions();
+  const { openTab, closeTab, showTerminal } = useTabActions();
   // The kernel a shutdown has been asked for and not yet confirmed.
   const [pending, setPending] = useState<RunningKernel | null>(null);
 
@@ -134,9 +134,7 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
               disabled={busy}
               // Terminal tabs are keyed by their name, so this brings that tab forward rather than
               // starting a second shell. TerminalList only offers it for a shell this window owns.
-              onOpen={(terminal) =>
-                openTab({ name: terminal.name, path: terminal.name, type: 'terminal' })
-              }
+              onOpen={(terminal) => showTerminal(terminal.name)}
               onShutdown={(terminal) => void shutdownTerminal(terminal)}
             />
           ) : (

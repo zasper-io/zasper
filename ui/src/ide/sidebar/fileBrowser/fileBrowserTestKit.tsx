@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 
 import FileBrowser from './FileBrowser';
 import { fileTabsAtom } from '@/store/tabState';
+import { terminalsAtom } from '@/store/terminals';
 import {
   copyContent,
   copyToClipboard,
@@ -46,15 +47,19 @@ export const srcListing = {
   content: [{ name: 'main.py', path: 'src/main.py', type: 'file', content: [] }],
 };
 
-/** The tabs the panel has opened, Launcher aside. */
+/** The tabs the panel has opened, Launcher aside, and the shells it has started. */
 export function OpenTabs() {
   const tabs = useAtomValue(fileTabsAtom);
+  const terminals = useAtomValue(terminalsAtom);
   return (
-    <span data-testid="tabs">
-      {Object.keys(tabs)
-        .filter((key) => key !== 'Launcher')
-        .join(',')}
-    </span>
+    <>
+      <span data-testid="tabs">
+        {Object.keys(tabs)
+          .filter((key) => key !== 'Launcher')
+          .join(',')}
+      </span>
+      <span data-testid="terminals">{Object.keys(terminals).join(',')}</span>
+    </>
   );
 }
 
@@ -101,6 +106,11 @@ export function openMenu(name: string, item: string) {
 
 export function openTabs(): string {
   return screen.getByTestId('tabs').textContent ?? '';
+}
+
+/** The shells this window has open, which since story 4 is where a terminal goes instead of a tab. */
+export function runningTerminals(): string {
+  return screen.getByTestId('terminals').textContent ?? '';
 }
 
 /** Expands `src` and waits for what it holds. */

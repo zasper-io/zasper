@@ -24,8 +24,16 @@
 
 // The answer that is not being suggested — "Don't Save" beside a "Save". Built out of the neutral
 // tokens rather than a pair of its own, so it follows every theme.
+// The edge has to be visible, because on a secondary button it is the only thing there is: the fill is
+// the surface behind it. It was `--z-border`, which measures 1.06:1 against the notice this button sits
+// on in the light themes and 1.68:1 in the dark ones — a box nobody can see, on the one control in that
+// box a reader is meant to press. No fill token can rescue it (the best is 1.27:1), so the border takes
+// an ink token: `--z-fg-subtle` is 3.78:1 there in light and 4.66:1 in dark, which clears the 3:1 a
+// control's boundary needs. Same treatment wherever this button is drawn — a dialog's Cancel, the git
+// panel, the history — since it had the same invisible edge on every one of them.
 .z-button-secondary {
   background: transparent;
+  border-color: var(--z-fg-subtle);
   color: var(--z-fg-default);
 }
 

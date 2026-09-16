@@ -19,7 +19,7 @@ const strip: FileTabDict = {
   Launcher: tab('Launcher', 'launcher'),
   'a.txt': tab('a.txt'),
   'b.py': tab('b.py'),
-  'Terminal 1': tab('Terminal 1', 'terminal'),
+  Settings: tab('Settings', 'settings'),
 };
 
 describe('tabsToClose', () => {
@@ -29,19 +29,19 @@ describe('tabsToClose', () => {
 
   it('never takes the Launcher', () => {
     expect(tabsToClose(strip, 'Launcher', 'this', {})).toEqual([]);
-    expect(tabsToClose(strip, 'b.py', 'all', {})).toEqual(['a.txt', 'b.py', 'Terminal 1']);
+    expect(tabsToClose(strip, 'b.py', 'all', {})).toEqual(['a.txt', 'b.py', 'Settings']);
     expect(tabsToClose(strip, 'a.txt', 'left', {})).toEqual([]);
   });
 
   it('measures the others, the left and the right from the tab, in strip order', () => {
-    expect(tabsToClose(strip, 'b.py', 'others', {})).toEqual(['a.txt', 'Terminal 1']);
+    expect(tabsToClose(strip, 'b.py', 'others', {})).toEqual(['a.txt', 'Settings']);
     expect(tabsToClose(strip, 'b.py', 'left', {})).toEqual(['a.txt']);
-    expect(tabsToClose(strip, 'b.py', 'right', {})).toEqual(['Terminal 1']);
+    expect(tabsToClose(strip, 'b.py', 'right', {})).toEqual(['Settings']);
   });
 
-  it('leaves unsaved files out of Close Saved, and counts a terminal as saved', () => {
+  it('leaves unsaved files out of Close Saved, and counts a tab with no file as saved', () => {
     const unsaved = { 'a.txt': () => Promise.resolve() };
-    expect(tabsToClose(strip, 'b.py', 'saved', unsaved)).toEqual(['b.py', 'Terminal 1']);
+    expect(tabsToClose(strip, 'b.py', 'saved', unsaved)).toEqual(['b.py', 'Settings']);
   });
 
   it('takes nothing for a tab that is not open', () => {
@@ -59,7 +59,6 @@ describe('tabFilePath', () => {
 
   it('is null for the tabs that are not a file', () => {
     expect(tabFilePath(tab('Launcher', 'launcher'))).toBeNull();
-    expect(tabFilePath(tab('Terminal 1', 'terminal'))).toBeNull();
     expect(tabFilePath(tab('zasper:help', 'help'))).toBeNull();
   });
 });

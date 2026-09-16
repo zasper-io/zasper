@@ -1,9 +1,20 @@
-import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
+import {
+  ComponentType,
+  createContext,
+  lazy,
+  Suspense,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { AnsiUp } from 'ansi_up';
 import DOMPurify from 'dompurify';
 
 import { NotebookCell, NotebookOutput } from '@/api';
 import WidgetRenderer, { type WidgetSource } from '@/ide/widgets/WidgetRenderer';
+
+import type { MarkdownRendererProps } from './MarkdownRenderer';
 
 import { hasMathDelimiters } from './mathDelimiters';
 import { isProducedHere } from './outputTrust';
@@ -12,6 +23,14 @@ import PlotlyOutput from './PlotlyOutput';
 // The boundary Cell.tsx keeps for markdown cells, for the same reason: katex and the markdown
 // pipeline are the heaviest thing in the notebook, and an output only needs them when it is LaTeX.
 const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
+
+/**
+ * Which markdown renderer a LaTeX output is drawn with. The lazy one on screen, where suspending costs
+ * nothing; the eagerly imported one for the HTML export (export/toHtml.tsx), which renders to a string
+ * in a single pass and so cannot wait for a chunk to arrive. Nothing else has any business replacing it.
+ */
+export const MarkdownRendererContext =
+  createContext<ComponentType<MarkdownRendererProps>>(MarkdownRenderer);
 
 /**
  * An HTML output bundle. dangerouslySetInnerHTML does not run scripts, and libraries such as Bokeh ship
@@ -66,11 +85,14 @@ const ImageOutput = ({ mime, data }: { mime: string; data: string }) => (
  * a bare `\begin{align}`, is wrapped, because remark-math reads nothing else and would otherwise
  * print the source.
  */
-const LatexOutput = ({ latex }: { latex: string }) => (
-  <Suspense fallback={null}>
-    <MarkdownRenderer source={hasMathDelimiters(latex) ? latex : `$$${latex}$$`} />
-  </Suspense>
-);
+const LatexOutput = ({ latex }: { latex: string }) => {
+  const Renderer = useContext(MarkdownRendererContext);
+  return (
+    <Suspense fallback={null}>
+      <Renderer source={hasMathDelimiters(latex) ? latex : `$$${latex}$$`} />
+    </Suspense>
+  );
+};
 
 interface OutputBundlesProps {
   outputs: NotebookOutput[];

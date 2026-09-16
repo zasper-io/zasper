@@ -803,3 +803,17 @@ table.dataframe tbody tr:hover {
 .error-head {
   background-color: var(--z-bg-danger) !important;
 }
+
+// The sentence under the export dialog's two checkboxes — the one thing that has to be said about an
+// exported page, and the half of story 21's option D that a menu row had nowhere to put.
+.export-dialog-note {
+  margin: 0;
+  padding: 0 16px 4px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+  line-height: 18px;
+}
+
+.export-dialog-note code {
+  color: var(--z-fg-default);
+}

@@ -16,6 +16,8 @@ import {
 } from '@/store/kernels';
 import { terminalsAtom } from '@/store/terminals';
 import { fileTabsAtom } from '@/store/tabState';
+import { currentTerminalAtom } from '@/store/terminals';
+import { dockOpenAtom, dockTabAtom } from '@/store/languageServers';
 
 const listKernels = vi.fn();
 const listSessions = vi.fn();
@@ -117,8 +119,12 @@ interface HarnessOptions {
 const Observer = () => {
   const tabs = useAtomValue(fileTabsAtom);
   const bound = useAtomValue(notebookKernelMapAtom);
+  const current = useAtomValue(currentTerminalAtom);
+  const dockTab = useAtomValue(dockTabAtom);
+  const dockOpen = useAtomValue(dockOpenAtom);
   return (
     <>
+      <span data-testid="dock">{dockOpen ? `${dockTab}:${current}` : 'closed'}</span>
       <span data-testid="tabs">{Object.keys(tabs).join(',')}</span>
       <span data-testid="bound">{Object.keys(bound).join(',')}</span>
     </>
@@ -381,12 +387,14 @@ describe('JupyterInfoPanel', () => {
     expect(screen.getByText('No kernels are installed.')).toBeInTheDocument();
   });
 
-  it('opens the tab a terminal row is for', async () => {
+  // A shell is not a tab since story 4: the row brings it to the front of the panel under the editor.
+  it('brings the shell a terminal row is for to the front of the panel', async () => {
     listTerminals.mockResolvedValue([terminalModel('Terminal 2', 'Terminal 2-1-x')]);
     renderPanel({ terminals: { 'Terminal 2': { id: 'Terminal 2', name: 'Terminal 2' } } });
     fireEvent.click(await screen.findByText('Terminal 2'));
 
-    expect(screen.getByTestId('tabs')).toHaveTextContent('Terminal 2');
+    expect(screen.getByTestId('dock')).toHaveTextContent('terminal:Terminal 2');
+    expect(screen.getByTestId('tabs')).not.toHaveTextContent('Terminal 2');
   });
 
   /*

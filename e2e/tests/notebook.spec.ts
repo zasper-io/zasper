@@ -53,7 +53,7 @@ test('a cell is run, and its output survives a save and a reload', async ({ page
   await page
     .locator('.launchSection')
     .filter({ hasText: 'Notebook' })
-    .locator('.launcher-icon')
+    .locator('.launcher-row')
     .first()
     .click();
 

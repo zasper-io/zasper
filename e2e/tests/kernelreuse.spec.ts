@@ -78,7 +78,7 @@ test('a closed notebook keeps its kernel, and reopening it joins the same sessio
   await page
     .locator('.launchSection')
     .filter({ hasText: 'Notebook' })
-    .locator('.launcher-icon')
+    .locator('.launcher-row')
     .first()
     .click();
   await expect(toolbarButton(page, 'Run Cell')).toBeVisible();

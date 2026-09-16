@@ -9,7 +9,8 @@ import { helpAboutRequestAtom } from '@/store/helpTab';
 import { searchPreviewTabKey } from '@/store/projectSearch';
 import { notebookKernelMapAtom } from '@/store/kernels';
 import { recentFilesAtom, withRecent } from '@/store/recentFiles';
-import { terminalsAtom, terminalsCountAtom } from '@/store/terminals';
+import { currentTerminalAtom, terminalsAtom, terminalsCountAtom } from '@/store/terminals';
+import { dockOpenAtom, dockTabAtom } from '@/store/languageServers';
 import {
   fileTabsAtom,
   FileTab,
@@ -81,6 +82,8 @@ export interface TabActions {
   openDiff: (target: DiffTarget) => void;
   /** Opens a new terminal, in `cwd` if one is given. */
   openTerminal: (cwd?: string) => void;
+  /** Brings a shell already open in this window to the front of the panel under the editor. */
+  showTerminal: (name: string) => void;
   /** Opens the Help tab or brings it to the front; `about` also scrolls it to About. */
   openHelp: (section?: 'about') => void;
   /** Opens the Settings tab or brings it to the front. */
@@ -120,6 +123,9 @@ export function useTabActions(): TabActions {
   const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
   const setNotebookKernelMap = useSetAtom(notebookKernelMapAtom);
   const setTerminals = useSetAtom(terminalsAtom);
+  const setCurrentTerminal = useSetAtom(currentTerminalAtom);
+  const setDockOpen = useSetAtom(dockOpenAtom);
+  const setDockTab = useSetAtom(dockTabAtom);
   const terminalCount = useAtomValue(terminalsCountAtom);
   const setTerminalCount = useSetAtom(terminalsCountAtom);
   const setHelpAboutRequest = useSetAtom(helpAboutRequestAtom);
@@ -127,6 +133,18 @@ export function useTabActions(): TabActions {
   const setClosedTabs = useSetAtom(closedTabsAtom);
   const setRecentFiles = useSetAtom(recentFilesAtom);
   const setTabGroups = useSetAtom(tabGroupsAtom);
+
+  /**
+   * Brings a shell to the front of the panel under the editor, opening the panel if it is closed.
+   *
+   * Story 4: a terminal was a tab, and exactly one tab is in front, so opening a shell put away the
+   * code it was opened to run something against.
+   */
+  const showTerminal = (name: string) => {
+    setCurrentTerminal(name);
+    setDockTab('terminal');
+    setDockOpen(true);
+  };
 
   const openTab = (tab: OpenTab) => {
     // Outside the updater, which React may run more than once. `fileTabs` is the render's snapshot, so
@@ -241,13 +259,15 @@ export function useTabActions(): TabActions {
     },
 
     openTerminal: (cwd?: string) => {
-      // Numbered rather than named after the folder: the tab is keyed by this name, and two
-      // terminals in the same folder are two terminals.
+      // Numbered rather than named after the folder: two terminals in the same folder are two
+      // terminals, and the name is what the server reports them by.
       const name = `Terminal ${terminalCount + 1}`;
       setTerminalCount(terminalCount + 1);
-      setTerminals((previous) => ({ ...previous, [name]: { id: name, name } }));
-      openTab({ name, path: name, type: 'terminal', cwd });
+      setTerminals((previous) => ({ ...previous, [name]: { id: name, name, cwd } }));
+      showTerminal(name);
     },
+
+    showTerminal,
 
     openHelp: (section?: 'about') => {
       openTab({ name: 'Help', path: HELP_TAB_KEY, type: 'help', extension: null });

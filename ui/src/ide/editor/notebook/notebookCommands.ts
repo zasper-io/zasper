@@ -1,5 +1,7 @@
 import { defineCommands } from '@/commands/define';
 import { Command } from '@/commands/types';
+
+import type { ExportFormatId } from './export/exportFormats';
 import { KernelSession } from './useKernelSession';
 import { NotebookCells } from './useNotebookCells';
 
@@ -15,6 +17,8 @@ export interface NotebookCommandTargets {
   openFind: () => void;
   submitCell: (source: string, cellId: string) => void;
   submitAllCells: () => void;
+  /** Writes the notebook, as it is on screen, to the reader's downloads. See export/. */
+  exportNotebook: (format: ExportFormatId) => void;
   restartKernel: () => void;
   restartAndExecuteAllCells: () => void;
 }
@@ -103,6 +107,14 @@ export const NOTEBOOK_COMMANDS = defineCommands({
   // dispatcher from inside an editor as well as from the pane around it.
   'notebook:find': { ...NOTEBOOK, label: 'Find and Replace', keys: ['Mod-f'] },
 
+  // Three formats, three commands, no chords: an export is something you go looking for, not
+  // something you reach for mid-edit, and every chord spent here is one a cell cannot have. The
+  // labels say what comes out rather than what happens, because that is the choice being made —
+  // `catalog.ts` flattens these, so the palette and the Help tab list them with no further wiring.
+  'notebook:export-html': { ...NOTEBOOK, label: 'Export as an HTML Page' },
+  'notebook:export-markdown': { ...NOTEBOOK, label: 'Export as Markdown' },
+  'notebook:export-script': { ...NOTEBOOK, label: 'Export as a Script' },
+
   'notebook:interrupt-kernel': { ...KERNEL, label: 'Interrupt Kernel' },
   'notebook:restart-kernel': { ...KERNEL, label: 'Restart Kernel' },
   'notebook:restart-and-run-all': { ...KERNEL, label: 'Restart Kernel and Run All Cells' },
@@ -158,6 +170,23 @@ export function useNotebookCommands(targets: NotebookCommandTargets): Command[] 
       ...NOTEBOOK_COMMANDS['notebook:find'],
       isEnabled: isLoaded,
       execute: targets.openFind,
+    },
+    // Guarded the way save is: after a failed read what is on screen is the error, and exporting it
+    // would hand someone a page of the empty starting state.
+    {
+      ...NOTEBOOK_COMMANDS['notebook:export-html'],
+      isEnabled: isLoaded,
+      execute: () => targets.exportNotebook('html'),
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:export-markdown'],
+      isEnabled: isLoaded,
+      execute: () => targets.exportNotebook('markdown'),
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:export-script'],
+      isEnabled: isLoaded,
+      execute: () => targets.exportNotebook('script'),
     },
     {
       ...NOTEBOOK_COMMANDS['notebook:run-cell'],

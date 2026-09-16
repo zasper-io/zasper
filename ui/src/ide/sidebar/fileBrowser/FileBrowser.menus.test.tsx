@@ -15,6 +15,7 @@ import {
   expandSrc,
   openMenu,
   openTabs,
+  runningTerminals,
   renderBrowser,
   rootListing,
   row,
@@ -278,12 +279,14 @@ describe('FileBrowser', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent('clipboard');
     });
 
-    it('opens a terminal from a folder', async () => {
+    it('starts a terminal in the panel under the editor from a folder', async () => {
       await renderBrowser();
 
       openMenu('src', 'Open Terminal Here');
 
-      expect(openTabs()).toContain('Terminal 1');
+      // Story 4: a shell is not a tab, so what this opens is the dock rather than the strip.
+      expect(runningTerminals()).toContain('Terminal 1');
+      expect(openTabs()).not.toContain('Terminal 1');
     });
   });
 });

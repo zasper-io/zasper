@@ -10,7 +10,7 @@ exactly the failure a mock cannot see.
 */
 import { APIRequestContext, Locator, Page, expect } from '@playwright/test';
 
-import { installedKernels, openApp, test, toolbarButton } from './helpers';
+import { installedKernels, openApp, test, toolbarButton, openTerminal } from './helpers';
 
 const NOTEBOOK = 'Untitled.ipynb';
 
@@ -74,7 +74,7 @@ test('a running kernel is named with its notebook, and shut down from the panel'
   await page
     .locator('.launchSection')
     .filter({ hasText: 'Notebook' })
-    .locator('.launcher-icon')
+    .locator('.launcher-row')
     .first()
     .click();
   await expect(toolbarButton(page, 'Run Cell')).toBeVisible();
@@ -181,13 +181,7 @@ test('a running shell is listed after a reload, and shut down from the panel', a
 }) => {
   await openApp(page);
 
-  await page
-    .locator('.launchSection')
-    .filter({ hasText: 'Terminal' })
-    .locator('.launcher-icon')
-    .first()
-    .click();
-  await expect(page.locator('.tab-item').filter({ hasText: 'Terminal 1' })).toBeVisible();
+  await openTerminal(page);
   await expect.poll(async () => (await runningTerminals(request)).length).toBe(1);
 
   /*
@@ -201,12 +195,7 @@ test('a running shell is listed after a reload, and shut down from the panel', a
   await page.reload();
   await expect.poll(async () => (await runningTerminals(request)).length).toBe(0);
 
-  await page
-    .locator('.launchSection')
-    .filter({ hasText: 'Terminal' })
-    .locator('.launcher-icon')
-    .first()
-    .click();
+  await openTerminal(page);
   await expect.poll(async () => (await runningTerminals(request)).length).toBe(1);
 
   await page.getByLabel('Jupyter info').click();

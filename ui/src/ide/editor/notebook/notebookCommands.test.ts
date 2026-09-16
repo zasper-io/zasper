@@ -65,6 +65,7 @@ function fakeTargets(options: FakeOptions = {}) {
     submitAllCells: vi.fn(),
     restartKernel: vi.fn(),
     restartAndExecuteAllCells: vi.fn(),
+    exportNotebook: vi.fn(),
   };
 
   const targets: NotebookCommandTargets = {
@@ -104,6 +105,7 @@ function fakeTargets(options: FakeOptions = {}) {
     submitAllCells: spies.submitAllCells,
     restartKernel: spies.restartKernel,
     restartAndExecuteAllCells: spies.restartAndExecuteAllCells,
+    exportNotebook: spies.exportNotebook,
   };
 
   return { targets, spies };
@@ -225,6 +227,36 @@ describe('useNotebookCommands', () => {
 
     expect(byId(commands, 'notebook:save').isEnabled?.()).toBe(false);
     expect(byId(commands, 'notebook:change-kernel').isEnabled?.()).toBe(false);
+  });
+
+  it.each([
+    ['notebook:export-html', 'html'],
+    ['notebook:export-markdown', 'markdown'],
+    ['notebook:export-script', 'script'],
+  ])('%s asks for the %s format', (id, format) => {
+    const { commands, spies } = build();
+
+    byId(commands, id).execute();
+
+    expect(spies.exportNotebook).toHaveBeenCalledWith(format);
+  });
+
+  // The same guard save has, for the same reason: after a failed read what is on screen is the
+  // error, and exporting it would hand someone a page of the empty starting state.
+  it('refuses to export a notebook that could not be loaded', () => {
+    const { commands } = build({ error: 'not a valid notebook: unexpected end of JSON input' });
+
+    expect(byId(commands, 'notebook:export-html').isEnabled?.()).toBe(false);
+    expect(byId(commands, 'notebook:export-markdown').isEnabled?.()).toBe(false);
+    expect(byId(commands, 'notebook:export-script').isEnabled?.()).toBe(false);
+  });
+
+  // An export reads what is in the browser and needs nothing from the server or the kernel, so a
+  // notebook nobody has run is still worth exporting.
+  it('exports a notebook with no kernel attached', () => {
+    const { commands } = build({ session: undefined });
+
+    expect(byId(commands, 'notebook:export-html').isEnabled?.()).toBe(true);
   });
 
   it('disables the cell commands when the notebook is empty', () => {

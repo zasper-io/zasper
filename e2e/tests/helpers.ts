@@ -69,6 +69,16 @@ export function toolbarButton(page: Page, name: string): Locator {
   return page.locator('.text-editor-tool').getByLabel(name, { exact: true });
 }
 
+/**
+ * Starts a shell the way the app now offers one: the status bar's Terminal control, which opens the
+ * panel under the editor (story 4). It was a tile on the Launcher, reachable only while that tab was
+ * in front.
+ */
+export async function openTerminal(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Terminal', exact: true }).first().click();
+  await expect(page.locator('.terminalArea').last()).toBeVisible();
+}
+
 /** A path inside the throwaway project, for the assertions that only disk can answer. */
 export function inProject(...parts: string[]): string {
   return join(projectDir, ...parts);

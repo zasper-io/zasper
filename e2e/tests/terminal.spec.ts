@@ -9,20 +9,18 @@ a shell started in the wrong directory is a defect that looks like nothing until
 import { expect, test } from '@playwright/test';
 
 import { projectDir } from '../paths';
-import { openApp } from './helpers';
+import { openApp, openTerminal } from './helpers';
 
 test('a terminal opens a shell in the project directory', async ({ page }) => {
   await openApp(page);
 
-  await page
-    .locator('.launchSection')
-    .filter({ hasText: 'Terminal' })
-    .locator('.launcher-icon')
-    .click();
+  await openTerminal(page);
 
   const screen = page.locator('.terminalArea');
   await expect(screen).toBeVisible();
-  await expect(page.locator('.tab-item').filter({ hasText: 'Terminal 1' })).toBeVisible();
+  // In the panel under the editor, and named in the list beside it rather than in the tab strip.
+  await expect(page.locator('.editorDock-tab[aria-selected="true"]')).toContainText('Terminal');
+  await expect(page.locator('.tab-item').filter({ hasText: 'Terminal 1' })).toHaveCount(0);
 
   /*
    * Asked again until it is answered, for the same reason the first notebook run is: what is typed
@@ -101,11 +99,7 @@ test('the terminal fits its pane, including after a resize it was not on screen 
   page,
 }) => {
   await openApp(page);
-  await page
-    .locator('.launchSection')
-    .filter({ hasText: 'Terminal' })
-    .locator('.launcher-icon')
-    .click();
+  await openTerminal(page);
 
   const area = page.locator('.terminalArea');
   await expect(area).toBeVisible();
@@ -146,9 +140,12 @@ test('the terminal fits its pane, including after a resize it was not on screen 
 
   const opened = await fitsThePane();
 
-  await page.locator('.tab').filter({ hasText: 'Launcher' }).click();
-  await page.setViewportSize({ width: 1100, height: 620 });
-  await page.locator('.tab').filter({ hasText: 'Terminal 1' }).click();
+  // Away to another of the panel's lists, resized while it is not on screen, and back. The pane stays
+  // mounted behind Problems — a socket torn down and remade is a new shell — so this is the same
+  // terminal, fitted to a pane whose size changed while it had no layout box.
+  await page.getByRole('tab', { name: /Problems/ }).click();
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.getByRole('tab', { name: /Terminal/ }).click();
   await expect(area).toBeVisible();
 
   // Retried: the refit is a ResizeObserver callback, so it lands a frame after the tab does.
@@ -184,11 +181,7 @@ character and handing the pty fewer rows.
 */
 test('the terminal owns its scrollbar', async ({ page }) => {
   await openApp(page);
-  await page
-    .locator('.launchSection')
-    .filter({ hasText: 'Terminal' })
-    .locator('.launcher-icon')
-    .click();
+  await openTerminal(page);
 
   const area = page.locator('.terminalArea');
   await expect(area.locator('.xterm-screen')).toBeVisible();

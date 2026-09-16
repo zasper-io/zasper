@@ -11,7 +11,7 @@ import { rmSync, writeFileSync } from 'node:fs';
 
 import { Page, expect, test } from '@playwright/test';
 
-import { inProject, openApp } from './helpers';
+import { inProject, openApp, openTerminal } from './helpers';
 
 const palette = '.palette-input';
 
@@ -67,10 +67,7 @@ test('⌘K opens the search box, and a terminal keeps Ctrl+K', async ({ page }) 
   await page.keyboard.press('Escape');
   await expect(page.locator(palette)).toHaveCount(0);
 
-  await page
-    .locator('.LauncherArea')
-    .getByRole('button', { name: 'Terminal', exact: true })
-    .click();
+  await openTerminal(page);
   const shell = page.locator('.xterm-helper-textarea');
   await expect(shell).toBeFocused();
 

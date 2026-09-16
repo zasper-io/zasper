@@ -8,7 +8,7 @@ terminal is not among what comes back, a shell being unreattachable.
 */
 import { Locator, Page, expect } from '@playwright/test';
 
-import { openApp, test, treeRow, watchForFailures } from './helpers';
+import { openApp, test, treeRow, watchForFailures, openTerminal } from './helpers';
 
 const FILE = 'notes.txt';
 const NOTEBOOK = 'analysis.ipynb';
@@ -41,14 +41,9 @@ async function dismissKernelPicker(page: Page): Promise<void> {
 async function openASession(page: Page): Promise<void> {
   await openApp(page);
 
-  // The terminal first, while the Launcher is still the tab in front: its buttons live inside that
-  // tab's own content, so there is nothing to click once a file is open over it.
-  await page
-    .locator('.launchSection')
-    .filter({ hasText: 'Terminal' })
-    .locator('.launcher-icon')
-    .click();
-  await expect(tab(page, 'Terminal 1')).toBeVisible();
+  // The shell first. It is not a tab any more (story 4) — it opens in the panel under the editor, and
+  // the status bar's control reaches it whatever is in front.
+  await openTerminal(page);
 
   await treeRow(page, FILE).click();
   await expect(page.locator('.cm-content').first()).toContainText('A plain file');
@@ -94,16 +89,18 @@ test('a restored tab reads itself the first time it is looked at', async ({ page
 
 /*
 A shell cannot be reattached: every connection to /ws/terminals spawns a new one, and its scrollback
-is not kept. A restored terminal tab would be an empty shell wearing the old one's name — and that
-name is what the Jupyter panel decides by, so the duplicate would confuse it too.
+is not kept. Since story 4 a terminal is not a tab at all — it is a pane in the panel under the editor
+— so what this pins down is that the panel comes back empty rather than with an empty shell in it.
 */
-test('a terminal is not among the tabs that come back', async ({ page }) => {
+test('a shell does not come back, and was never a tab', async ({ page }) => {
   await openASession(page);
+  await expect(page.locator('.terminalArea')).toBeVisible();
+  await expect(tab(page, 'Terminal 1')).toHaveCount(0);
 
   await page.reload();
   await expect(tabNames(page)).toHaveText(['Launcher', FILE, NOTEBOOK]);
 
-  await expect(tab(page, 'Terminal 1')).toHaveCount(0);
+  await expect(page.locator('.terminalArea')).toHaveCount(0);
 });
 
 test('coming back is quiet: nothing failed and nothing was logged', async ({ page }) => {

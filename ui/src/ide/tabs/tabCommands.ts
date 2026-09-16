@@ -79,7 +79,6 @@ export function keepsTarget(scope: CloseScope): boolean {
 export function tabFilePath(tab: FileTab): string | null {
   if (
     tab.type === 'launcher' ||
-    tab.type === 'terminal' ||
     tab.type === 'help' ||
     tab.type === 'settings' ||
     tab.type === 'lsp-log'
