@@ -15,6 +15,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { websocketUrl } from '@/api/client';
 import { Problem, ServerStatus, Severity } from '@/store/languageServers';
 import { fileUri, pathOfUri, serverLanguageFor } from './languages';
+import { offsetAt } from './positions';
 import { sanitizeHtml } from './sanitize';
 import { versionOf } from './serverInfo';
 import {
@@ -135,27 +136,22 @@ function publishDiagnostics(
   if (!view || !plugin) {
     return true;
   }
+  // The server's positions are in the document it was last sent; anything typed since is carried across so
+  // a squiggle stays under the word it is about.
+  const sent = plugin.syncedDoc;
+  const since = plugin.unsyncedChanges;
   const named = connection.status.name;
-  const drawn: Diagnostic[] = [];
-  for (const item of params.diagnostics) {
-    try {
-      const from = plugin.unsyncedChanges.mapPos(
-        plugin.fromPosition(item.range.start, plugin.syncedDoc)
-      );
-      const to = plugin.unsyncedChanges.mapPos(
-        plugin.fromPosition(item.range.end, plugin.syncedDoc)
-      );
-      drawn.push({
-        from,
-        to: Math.max(from, to),
-        severity: SEVERITIES[(item.severity ?? 1) - 1] ?? 'error',
-        message: item.message,
-        source: [item.source, named].filter(Boolean).join(' · ') || undefined,
-      });
-    } catch {
-      // A range past the end of a document the server has not caught up with.
-    }
-  }
+  const drawn: Diagnostic[] = params.diagnostics.map((item) => {
+    const start = since.mapPos(offsetAt(sent, item.range.start), 1);
+    const end = since.mapPos(offsetAt(sent, item.range.end), -1);
+    return {
+      from: start,
+      to: Math.max(start, end),
+      severity: SEVERITIES[(item.severity ?? 1) - 1] ?? 'error',
+      message: item.message,
+      source: [item.source, named].filter(Boolean).join(' · ') || undefined,
+    };
+  });
   view.dispatch(setDiagnostics(view.state, drawn));
   return true;
 }

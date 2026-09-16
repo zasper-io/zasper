@@ -48,19 +48,23 @@ export class ZasperWorkspace extends Workspace {
     return this.versions[uri];
   }
 
+  /**
+   * What each editor has changed since its file was last sent. A file with edits waiting moves on to a new
+   * version holding the editor's document, and the edits are handed over once, to be sent as that version.
+   */
   syncFiles(): { file: WorkspaceFile; prevDoc: Text; changes: ChangeSet }[] {
-    const updates: { file: WorkspaceFile; prevDoc: Text; changes: ChangeSet }[] = [];
-    for (const file of this.files) {
+    return this.files.flatMap((file) => {
       const plugin = LSPPlugin.get(file.view);
-      if (plugin === null || plugin.unsyncedChanges.empty) {
-        continue;
+      const waiting = plugin?.unsyncedChanges;
+      if (!plugin || !waiting || waiting.empty) {
+        return [];
       }
-      updates.push({ file, prevDoc: file.doc, changes: plugin.unsyncedChanges });
-      file.doc = file.view.state.doc;
-      file.version = this.nextVersion(file.uri);
+      const sent = { file, prevDoc: file.doc, changes: waiting };
       plugin.clear();
-    }
-    return updates;
+      file.version = this.nextVersion(file.uri);
+      file.doc = file.view.state.doc;
+      return [sent];
+    });
   }
 
   openFile(uri: string, languageId: string, view: EditorView): void {
