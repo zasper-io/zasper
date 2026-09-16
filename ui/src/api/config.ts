@@ -48,6 +48,8 @@ export interface EditorSettings {
   insert_final_newline: boolean;
   /** Save a file a second after the typing stops. */
   auto_save: boolean;
+  /** Ask the file's language server to format it before it is written. */
+  format_on_save: boolean;
   /** Which bindings the file editor takes. */
   keymap: 'default' | 'vim' | 'emacs';
 }

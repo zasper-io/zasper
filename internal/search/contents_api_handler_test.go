@@ -348,3 +348,35 @@ func TestGlobs(t *testing.T) {
 		assert.Equal(t, c.want, anyGlob(globList(c.glob), c.path), "%s against %s", c.glob, c.path)
 	}
 }
+
+// A file open in an editor may hold text that is not on disk yet, and the panel asks about that text here.
+func TestTheTextAnEditorHoldsIsSearchedThroughTheSameEngine(t *testing.T) {
+	h := NewHandler(content.NewProject(t.TempDir()))
+	replace := "table"
+
+	recorder := post(t, h.Buffer, bufferRequest{
+		Query: Query{Pattern: "frame", Replace: &replace},
+		Path:  "src/prepare.py",
+		Text:  "frame = load()\nnothing\n",
+	})
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	var answer FileMatches
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &answer))
+	assert.Equal(t, "file", answer.Kind)
+	require.Len(t, answer.Lines, 1)
+	assert.Equal(t, "frame = load()", answer.Lines[0].Text)
+	assert.Equal(t, "table", *answer.Lines[0].Ranges[0].Replacement)
+
+	empty := post(t, h.Buffer, bufferRequest{Query: Query{Pattern: "frame"}, Path: "a.txt", Text: "nothing here"})
+	require.NoError(t, json.Unmarshal(empty.Body.Bytes(), &answer))
+	assert.Empty(t, answer.Lines)
+
+	// A notebook's unsaved text is still its cells, not the JSON.
+	notebook := post(t, h.Buffer, bufferRequest{Query: Query{Pattern: "frame"}, Path: "analysis.ipynb", Text: notebookOnDisk})
+	require.NoError(t, json.Unmarshal(notebook.Body.Bytes(), &answer))
+	assert.Equal(t, "notebook", answer.Kind)
+	assert.NotEmpty(t, answer.Lines)
+
+	assert.Equal(t, http.StatusBadRequest, post(t, h.Buffer, bufferRequest{Query: Query{Pattern: "x"}}).Code)
+}

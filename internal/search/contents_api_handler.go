@@ -97,6 +97,43 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type bufferRequest struct {
+	Query Query  `json:"query"`
+	Path  string `json:"path"`
+	Text  string `json:"text"`
+}
+
+/*
+Buffer answers the matches in text the client sends for one file.
+
+A search reads the disk, and a file open in an editor may hold unsaved text the reader is looking at; the
+panel asks again for those files, so that both answers come from this one engine rather than from a second
+one written in the browser.
+*/
+func (h *Handler) Buffer(w http.ResponseWriter, r *http.Request) {
+	var request bufferRequest
+	if !decode(w, r, &request) {
+		return
+	}
+	if request.Path == "" {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "A path is required.")
+		return
+	}
+	run, ok := h.runFor(w, request.Query)
+	if !ok {
+		return
+	}
+	kind := "file"
+	if isNotebook(request.Path) {
+		kind = "notebook"
+	}
+	answer := FileMatches{Path: request.Path, Kind: kind, Lines: []LineMatch{}}
+	if found := run.fileMatches(request.Path, []byte(request.Text)); found != nil {
+		answer = found.truncated(maxMatches)
+	}
+	httpx.SendJSON(w, http.StatusOK, answer)
+}
+
 type previewRequest struct {
 	Query Query      `json:"query"`
 	Path  string     `json:"path"`

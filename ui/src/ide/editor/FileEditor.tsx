@@ -32,6 +32,7 @@ import { useRegisterCommands } from '@/commands/registry';
 import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
+import { formatDocumentNow } from '@/lsp/formatting';
 import { languageServerExtension } from '@/lsp/servers';
 import { registerEditorView } from '@/lsp/views';
 import { editorPulseAtom, goToLineAtom } from '@/store/editorRequests';
@@ -206,6 +207,13 @@ export default function FileEditor(props: FileEditorProps) {
     if (editor === null) {
       return;
     }
+    if (settingsRef.current.format_on_save) {
+      // A server that cannot format, or does not answer, is not a reason to refuse a save.
+      await formatDocumentNow(editor, {
+        tabSize: settingsRef.current.tab_size,
+        insertSpaces: !settingsRef.current.indent_with_tabs,
+      }).catch(() => {});
+    }
     // Applied to the document rather than to the text being written, so what the editor holds is what
     // went to disk and the file is not left looking unsaved by its own save.
     const tidy = tidyChanges(editor.state.doc, saveRules.current);
@@ -239,6 +247,7 @@ export default function FileEditor(props: FileEditorProps) {
     () =>
       canSave
         ? {
+            text: () => viewRef.current?.state.doc.toString() ?? '',
             applyEdits: (edits) => {
               const editor = viewRef.current;
               if (editor === null) {

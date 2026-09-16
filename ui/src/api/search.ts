@@ -89,6 +89,17 @@ export async function searchContents(
   return summary;
 }
 
+/**
+ * The matches in the text an editor holds for one file. The same engine as `searchContents`, so an unsaved
+ * file's rows mean what the rest of the list means.
+ */
+export function searchBuffer(query: ContentQuery, path: string, text: string): Promise<SearchFile> {
+  return requestJson<SearchFile>('/api/search/buffer', {
+    method: 'POST',
+    body: { query, path, text },
+  });
+}
+
 export interface ReplacePreview {
   original: string;
   replaced: string;

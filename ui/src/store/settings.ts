@@ -40,6 +40,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   trim_trailing_whitespace: false,
   insert_final_newline: false,
   auto_save: false,
+  format_on_save: false,
   keymap: 'default',
 };
 

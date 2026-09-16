@@ -193,6 +193,8 @@ type EditorSettings struct {
 	InsertFinalNewline     bool `json:"insert_final_newline"`
 	// Save a file a second after the typing stops.
 	AutoSave bool `json:"auto_save"`
+	// Ask the language server to format a file before it is written.
+	FormatOnSave bool `json:"format_on_save"`
 	// Which bindings the file editor takes: "default", "vim" or "emacs".
 	Keymap string `json:"keymap"`
 }

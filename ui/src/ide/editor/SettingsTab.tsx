@@ -336,6 +336,20 @@ function useSettings(): Setting[] {
       ),
     },
     {
+      id: 'settings-format-on-save',
+      group: 'Editor',
+      name: 'Format on save',
+      help: 'The file’s language server formats it before it is written. Nothing happens for a file with no server.',
+      words: 'lsp formatting gofmt prettier black',
+      control: (
+        <Checkbox
+          id="settings-format-on-save"
+          checked={editor.format_on_save}
+          onChange={(format_on_save) => changeEditor({ format_on_save })}
+        />
+      ),
+    },
+    {
       id: 'settings-keymap',
       group: 'Editor',
       name: 'Keymap',

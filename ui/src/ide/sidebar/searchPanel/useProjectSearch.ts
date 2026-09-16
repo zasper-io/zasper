@@ -1,7 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
-import { apiErrorMessage, SearchFile, searchContents } from '@/api';
+import { apiErrorMessage, ContentQuery, SearchFile, searchBuffer, searchContents } from '@/api';
+import { openDocument } from '@/store/openDocuments';
+import { unsavedTabsAtom } from '@/store/unsavedState';
 import {
   contentQuery,
   leftOutAtom,
@@ -18,6 +20,23 @@ export const SEARCH_DELAY = 250;
 const DRAW_EVERY = 60;
 
 /**
+ * The results for the files an editor holds unsaved, from the text it holds. Asked of the server so that
+ * every row in the panel — disk or editor — was found by the same engine; a file whose editor cannot say
+ * what it holds, such as a notebook, keeps its answer from disk.
+ */
+async function heldFiles(query: ContentQuery, paths: string): Promise<SearchFile[]> {
+  const asking = paths
+    .split('\n')
+    .filter((path) => path !== '')
+    .map((path) => {
+      const text = openDocument(path)?.text?.();
+      return text === undefined ? null : searchBuffer(query, path, text).catch(() => null);
+    })
+    .filter((answer): answer is Promise<SearchFile | null> => answer !== null);
+  return (await Promise.all(asking)).filter((file): file is SearchFile => file !== null);
+}
+
+/**
  * Runs the panel's query against the server whenever it changes, cancelling the search in flight.
  *
  * The previous results stay on screen until the new search has something to say, so typing a word does
@@ -25,12 +44,16 @@ const DRAW_EVERY = 60;
  */
 export function useProjectSearch(): void {
   const options = useAtomValue(searchOptionsAtom);
+  const unsaved = useAtomValue(unsavedTabsAtom);
   const rerun = useAtomValue(searchRerunAtom);
   const setResults = useSetAtom(searchResultsAtom);
   const setLeftOut = useSetAtom(leftOutAtom);
 
   const query = useMemo(() => contentQuery(options), [options]);
   const asked = JSON.stringify(query);
+  // A file with unsaved edits is searched again as its editor holds it, so the rows are what the reader
+  // sees rather than what is on disk. The paths, not the save functions: those change on every keystroke.
+  const unsavedPaths = Object.keys(unsaved).sort().join('\n');
   // What was left out belongs to a list of matches, and a different query is a different list. The
   // replacement text is not part of that: changing it leaves the same matches.
   const searched = JSON.stringify({ ...query, replace: undefined });
@@ -66,9 +89,21 @@ export function useProjectSearch(): void {
         },
         controller.signal
       )
-        .then((summary) => {
+        .then(async (summary) => {
           window.clearTimeout(drawTimer);
           setResults({ files: sorted(), summary, searching: false, error: '' });
+          const held = await heldFiles(wanted, unsavedPaths);
+          if (held.length > 0 && !controller.signal.aborted) {
+            const byPath = new Map(held.map((file) => [file.path, file]));
+            const kept = files.filter((file) => !byPath.has(file.path));
+            const merged = [...kept, ...held.filter((file) => file.lines.length > 0)];
+            setResults({
+              files: merged.sort((left, right) => left.path.localeCompare(right.path)),
+              summary,
+              searching: false,
+              error: '',
+            });
+          }
         })
         .catch((error: unknown) => {
           window.clearTimeout(drawTimer);
@@ -83,5 +118,5 @@ export function useProjectSearch(): void {
       window.clearTimeout(drawTimer);
       controller.abort();
     };
-  }, [asked, rerun, setResults]);
+  }, [asked, rerun, unsavedPaths, setResults]);
 }

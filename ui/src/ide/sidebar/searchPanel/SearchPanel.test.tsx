@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SearchFile } from '@/api';
 import { ApiError } from '@/api/client';
 import { OpenDocument, useOpenDocument } from '@/store/openDocuments';
+import { useUnsavedChanges } from '@/store/unsavedState';
 import { MatchReveal, revealMatchAtom } from '@/store/projectSearch';
 import { fileTabsAtom } from '@/store/tabState';
 import { Provider } from '@/testing/Provider';
@@ -12,11 +13,13 @@ import { Provider } from '@/testing/Provider';
 import SearchPanel from './SearchPanel';
 
 const searchContents = vi.fn();
+const searchBuffer = vi.fn();
 const replaceInFiles = vi.fn();
 const previewReplace = vi.fn();
 
 vi.mock('@/api', async () => ({
   searchContents: (...args: unknown[]) => searchContents(...args),
+  searchBuffer: (...args: unknown[]) => searchBuffer(...args),
   replaceInFiles: (...args: unknown[]) => replaceInFiles(...args),
   previewReplace: (...args: unknown[]) => previewReplace(...args),
   deleteKernel: vi.fn(),
@@ -86,6 +89,13 @@ function Probe() {
 
 function OpenEditor({ path, document }: { path: string; document: OpenDocument }) {
   useOpenDocument(path, document);
+  return null;
+}
+
+/** An editor with unsaved edits: registered as open, and declared unsaved the way an editor declares it. */
+function UnsavedEditor({ path, text }: { path: string; text: string }) {
+  useOpenDocument(path, { applyEdits: () => ({ applied: 0, stale: 0 }), text: () => text });
+  useUnsavedChanges(path, true, () => Promise.resolve());
   return null;
 }
 
@@ -212,6 +222,26 @@ describe('SearchPanel', () => {
     fireEvent.click(row('head()'));
     expect(seen.active).toBe('analysis.ipynb');
     expect(seen.reveal).toMatchObject({ path: 'analysis.ipynb', cell: 1 });
+  });
+
+  // The search reads the disk; what an editor holds unsaved is what its reader sees.
+  it('asks again for a file an editor holds unsaved, and shows that answer instead', async () => {
+    searchBuffer.mockResolvedValue({
+      path: 'src/prepare.py',
+      kind: 'file',
+      lines: [
+        { line: 1, text: 'frame typed but not saved', offset: 0, ranges: [{ from: 0, to: 5 }] },
+      ],
+    });
+    renderPanel(<UnsavedEditor path="src/prepare.py" text="frame typed but not saved" />);
+
+    await search('frame');
+
+    await waitFor(() => expect(searchBuffer).toHaveBeenCalledTimes(1));
+    expect(searchBuffer.mock.calls[0][1]).toBe('src/prepare.py');
+    expect(searchBuffer.mock.calls[0][2]).toBe('frame typed but not saved');
+    await screen.findByText('typed but not saved', { exact: false });
+    expect(screen.queryByText('= load()', { exact: false })).toBeNull();
   });
 
   it('writes a replace in an open editor there, and the rest on disk without what was left out', async () => {

@@ -23,6 +23,8 @@ export interface EditOutcome {
 
 export interface OpenDocument {
   applyEdits: (edits: LineEdit[]) => EditOutcome;
+  /** What the editor holds now, which is what its reader sees whether or not it has been saved. */
+  text?: () => string;
 }
 
 const documents = new Map<string, OpenDocument>();

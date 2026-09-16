@@ -138,6 +138,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/search", s.search.Search).Methods("POST")
 	apiRouter.HandleFunc("/search/preview", s.search.Preview).Methods("POST")
 	apiRouter.HandleFunc("/search/replace", s.search.Replace).Methods("POST")
+	apiRouter.HandleFunc("/search/buffer", s.search.Buffer).Methods("POST")
 
 	// language servers
 	apiRouter.HandleFunc("/lsp/servers", s.languages.Servers).Methods("GET")
