@@ -67,10 +67,11 @@ $launcher-gutter: 32px;
   // holds two lines of 18 with the row's own padding.
   min-height: 52px;
   padding: 8px 12px;
-  // `--z-border` is the hairline that separates two things; on a control it measures 1.28:1 against
-  // the pane and the fill 1.11:1, so the row had no boundary a reader could see and did not read as
-  // something to press. `--z-border-strong` is the strongest neutral edge in the set, at 2.96:1.
-  border: 1px solid var(--z-border-strong);
+  // `--z-border` is the hairline that separates two things, and on a control it measured 1.28:1
+  // against the pane — no boundary a reader could see. `--z-border-strong` fixed that and broke
+  // something else: it is the one border token that is a literal grey, so a teal window drew grey
+  // outlines around teal chips. This one is the accent's own, one step deeper than the fill.
+  border: 1px solid var(--z-border-launcher-tile);
   border-radius: 6px;
   background-color: var(--z-bg-launcher-tile);
   color: var(--z-fg-default);
@@ -127,7 +128,10 @@ $launcher-gutter: 32px;
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  background: var(--z-bg-code);
+  // The pane's own colour rather than the code grey: on a chip that is already the theme's hue, a
+  // neutral square reads as a patch stuck to it. Cut out of the row, it reads as the slot a logo
+  // would sit in — which is what it stands in for.
+  background: var(--z-bg-editor);
   color: var(--z-fg-muted);
   font-family: var(--z-mono-font-family);
   font-size: 11px;

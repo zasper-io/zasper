@@ -206,6 +206,9 @@
 
   // --- Borders ------------------------------------------------------------
   --z-border: #e0dceb;
+  // The launcher row's edge. Accent-derived in every theme (_accents.scss); this is the fallback
+  // that shows only before a theme has been applied.
+  --z-border-launcher-tile: #cfcbdd;
   --z-border-strong: #969696;
   --z-border-subtle: #f3f2f6;
   --z-border-divider: #cccccc;

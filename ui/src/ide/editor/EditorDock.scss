@@ -23,6 +23,17 @@
   margin-right: auto;
 }
 
+// How many are in the list, on the tab that names it. A bare figure after a word read as part of the
+// name — `Terminal 3` was a terminal numbered three rather than three of them — so it takes a surface
+// of its own, the quiet grey a count sits on elsewhere in the app.
+.editorDock-tab .panel-section-count {
+  margin-left: 2px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--z-bg-code);
+  color: var(--z-fg-muted);
+}
+
 // Quieter than the editor's own tabs: these name a list, not a document, so the one in front is told by
 // ink and a fill rather than by a tab's border.
 .editorDock-tab {

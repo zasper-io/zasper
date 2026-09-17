@@ -1,8 +1,9 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FileBrowser from './FileBrowser';
 import { ApiError } from '@/api/client';
+import { TOOLTIP_DELAY_MS } from '@/ide/overlays';
 import { createContent, getDirectory } from './fileBrowserFakes';
 import {
   expandSrc,
@@ -230,6 +231,40 @@ describe('FileBrowser', () => {
 
       expect(rowTooltip('build.log')).toContain('2 kB');
       expect(rowTooltip('build.log')).toContain('build.log');
+    });
+
+    it('labels only the row under the pointer, not every folder it sits in', async () => {
+      // A folder's `li` holds its children, so a pointer resting on a file inside it used to arrive on
+      // every ancestor as well and stack up a tooltip per level.
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await renderBrowser();
+        await expandSrc();
+
+        fireEvent.pointerEnter(row('main.py'));
+        await act(async () => {
+          vi.advanceTimersByTime(TOOLTIP_DELAY_MS);
+        });
+
+        expect(screen.getAllByRole('tooltip')).toHaveLength(1);
+        expect(screen.getByRole('tooltip').textContent).toContain('src/main.py');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("puts an expanded folder's tooltip under its row rather than under its children", async () => {
+      await renderBrowser();
+      await expandSrc();
+      const link = row('src');
+      const item = link.closest('li') as HTMLElement;
+      link.getBoundingClientRect = () => new DOMRect(5, 10, 100, 20);
+      item.getBoundingClientRect = () => new DOMRect(5, 10, 100, 400);
+
+      fireEvent.focus(item);
+
+      // The row's bottom edge plus the 4px gap, not the subtree's.
+      expect(screen.getByRole('tooltip')).toHaveStyle({ top: '34px' });
     });
 
     it('says that an empty folder is empty rather than showing nothing', async () => {

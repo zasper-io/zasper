@@ -157,8 +157,13 @@ $dark-panel: #272727;
   // at --a-100 on purpose: the outline becomes the fill, so the tile reads as filling in rather than as
   // darkening inside a line that stays put. Focus is unaffected — `.launcher-icon:focus-visible` takes
   // the border to the accent.
-  --z-bg-launcher-tile: var(--a-50);
-  --z-bg-launcher-tile-hover: var(--a-100);
+  --z-bg-launcher-tile: var(--a-100);
+  --z-bg-launcher-tile-hover: var(--a-200);
+  // The row's edge, and it belongs to the hue like everything else here. It was --z-border-strong,
+  // the one border token that is a literal grey: a teal window drew grey outlines around teal chips,
+  // and an orange one drew the same grey. One step deeper than the fill, so the edge is the same
+  // colour thinking rather than a second one.
+  --z-border-launcher-tile: var(--a-200);
 
   // Chrome, and it is four coloured surfaces on purpose — the alternative was mocked as a switch that
   // greyed all four and kept the hue for the accent alone, and it was turned down: the chrome is where
@@ -243,5 +248,11 @@ $dark-panel: #272727;
     --z-bg-banner: #{tint(map.get($ramp, '700'), 34%)};
     --z-bg-modal-header: #{tint(map.get($ramp, '700'), 34%)};
     --z-bg-row-selected: #{tint(map.get($ramp, '600'), 30%)};
+    // A kernel's row, which the dark mapping had left on the neutral panel grey — so the one screen
+    // that is nothing but controls had no hue in it at all, and its edge was a grey line. A chip of
+    // the theme, and an edge one step up from it.
+    --z-bg-launcher-tile: #{tint(map.get($ramp, '700'), 22%)};
+    --z-bg-launcher-tile-hover: #{tint(map.get($ramp, '600'), 30%)};
+    --z-border-launcher-tile: #{tint(map.get($ramp, '500'), 34%)};
   }
 }

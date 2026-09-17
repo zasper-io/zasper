@@ -45,7 +45,7 @@ export default function EditorDock() {
     },
     {
       id: 'terminal',
-      label: 'Terminal',
+      label: 'Terminals',
       icon: 'terminal',
       count: Object.keys(terminals).length || undefined,
     },

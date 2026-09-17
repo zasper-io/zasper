@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import { ContentEntry } from '@/api';
@@ -56,8 +56,11 @@ const DirectoryItem = ({
   const dragSource = useDragSource(path);
   const { isOver, ...dropTarget } = useDropTarget(path);
   const focusRow = useRowFocus(path, isFirstRow);
-  // What the row has no width for — the path, the size, when it changed, whether it is writable.
-  const tip = useTooltip();
+  // What the row has no width for — the path, the size, when it changed, whether it is writable. The
+  // row and not the `li`: this `li` is the whole expanded folder, so labelling it would put the box
+  // under the last of the children and describe the folder while the pointer is on one of them.
+  const rowRef = useRef<HTMLAnchorElement>(null);
+  const tip = useTooltip(true, rowRef);
   const scope = selection.scopeFor(path);
   const rename = useRowRename(parentDir, name, path);
   const remove = useRowDelete(path, scope);
@@ -138,17 +141,19 @@ const DirectoryItem = ({
       aria-expanded={isExpanded(path)}
       aria-selected={selection.isSelected(path)}
       tabIndex={focusRow.tabIndex}
-      {...tip.anchorProps}
-      // The row is what takes the focus, so the tooltip's own focus handler runs beside the one that
+      {...tip.focusProps}
+      // The `li` is what takes the focus, so the tooltip's own focus handler runs beside the one that
       // remembers where the keyboard is, rather than instead of it.
       onFocus={(event) => {
         focusRow.onFocus(event);
-        tip.anchorProps.onFocus(event);
+        tip.focusProps.onFocus(event);
       }}
     >
       <a
+        ref={rowRef}
         {...dragSource}
         {...dropTarget}
+        {...tip.hoverProps}
         className={rowClass}
         onContextMenu={handleRightClick}
         onClick={(event) => {

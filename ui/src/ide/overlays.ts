@@ -81,7 +81,7 @@ export function useDismissOnPressOutside(
  * short enough to feel like an answer and long enough that dragging the pointer down a list of kernels
  * does not flash a box at every row on the way past.
  */
-const TOOLTIP_DELAY_MS = 400;
+export const TOOLTIP_DELAY_MS = 400;
 
 /**
  * Whether the keyboard put the focus here. Every browser the app runs in answers `:focus-visible`; one
@@ -96,18 +96,31 @@ function isKeyboardFocus(element: HTMLElement): boolean {
   }
 }
 
-/** What `useTooltip` gives the anchor: the four handlers, and the description while there is one. */
-interface TooltipAnchorProps {
+/** The pointer half: the box the pointer has to rest on. */
+interface TooltipHoverProps {
   onPointerEnter: PointerEventHandler<HTMLElement>;
   onPointerLeave: PointerEventHandler<HTMLElement>;
+}
+
+/** The keyboard half, and the description: the box that takes the focus. */
+interface TooltipFocusProps {
   onFocus: FocusEventHandler<HTMLElement>;
   onBlur: FocusEventHandler<HTMLElement>;
   'aria-describedby'?: string;
 }
 
+/** What `useTooltip` gives the anchor: the four handlers, and the description while there is one. */
+interface TooltipAnchorProps extends TooltipHoverProps, TooltipFocusProps {}
+
 export interface TooltipState {
-  /** Spread onto whatever the tooltip labels. */
+  /** Spread onto whatever the tooltip labels, when one element both takes the focus and is labelled. */
   anchorProps: TooltipAnchorProps;
+  /**
+   * The same handlers in two halves, for a box that is not the one that takes the focus: a tree row is
+   * a link inside the `li` that is focusable, and that `li` also holds the folder's children.
+   */
+  hoverProps: TooltipHoverProps;
+  focusProps: TooltipFocusProps;
   /** The tooltip's own id, which `aria-describedby` above points at while it is showing. */
   id: string;
   /**
@@ -135,8 +148,12 @@ export interface TooltipState {
  * Anything that moves the anchor takes the tooltip away rather than chasing it — a scroll, a resize, and
  * Escape, which is the family's rule and reaches this through the same hook every other overlay uses.
  * The scroll listener captures, because what scrolls is a panel and not the window.
+ *
+ * `labelled` is for the case where the element the handler fired on is bigger than the thing being
+ * described: a folder's `li` is the whole expanded subtree, so it is the row inside it that gets
+ * measured. Left out, the box is whatever the event arrived on.
  */
-export function useTooltip(active = true): TooltipState {
+export function useTooltip(active = true, labelled?: RefObject<HTMLElement | null>): TooltipState {
   const id = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const timer = useRef<number | undefined>(undefined);
@@ -152,16 +169,17 @@ export function useTooltip(active = true): TooltipState {
       if (!active) {
         return;
       }
+      const measure = () => setAnchor((labelled?.current ?? element).getBoundingClientRect());
       // Measured when it opens rather than when the pointer arrived, so a row that moved during the
       // delay is not labelled where it used to be. Focus asks for no delay at all and gets none —
       // not a zero timer, which would still cost a frame with the control already focused.
       if (delay === 0) {
-        setAnchor(element.getBoundingClientRect());
+        measure();
         return;
       }
-      timer.current = window.setTimeout(() => setAnchor(element.getBoundingClientRect()), delay);
+      timer.current = window.setTimeout(measure, delay);
     },
-    [active]
+    [active, labelled]
   );
 
   // A control that is disabled or unmounted mid-delay leaves a timer behind, and a tooltip that opens
@@ -187,19 +205,19 @@ export function useTooltip(active = true): TooltipState {
     };
   }, [anchor, hide]);
 
-  return {
-    id,
-    anchor,
-    anchorProps: {
-      onPointerEnter: (event) => show(event.currentTarget, TOOLTIP_DELAY_MS),
-      onPointerLeave: hide,
-      onFocus: (event) => {
-        if (isKeyboardFocus(event.currentTarget)) {
-          show(event.currentTarget, 0);
-        }
-      },
-      onBlur: hide,
-      'aria-describedby': anchor === null ? undefined : id,
-    },
+  const hoverProps: TooltipHoverProps = {
+    onPointerEnter: (event) => show(event.currentTarget, TOOLTIP_DELAY_MS),
+    onPointerLeave: hide,
   };
+  const focusProps: TooltipFocusProps = {
+    onFocus: (event) => {
+      if (isKeyboardFocus(event.currentTarget)) {
+        show(event.currentTarget, 0);
+      }
+    },
+    onBlur: hide,
+    'aria-describedby': anchor === null ? undefined : id,
+  };
+
+  return { id, anchor, hoverProps, focusProps, anchorProps: { ...hoverProps, ...focusProps } };
 }

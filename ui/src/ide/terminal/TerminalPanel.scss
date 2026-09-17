@@ -29,7 +29,8 @@
   }
 }
 
-// 180px: the width of a name, and what the tab strip used to spend on all of them at once.
+// 180px: the width of a name, and what the tab strip used to spend on all of them at once. Drawn for
+// one shell as well as for several, because the row is where a shell is closed.
 .terminalPanel-list {
   flex: 0 0 180px;
   margin: 0;
@@ -40,7 +41,19 @@
   overflow-y: auto;
 }
 
-.terminalPanel-list .panel-row-name[aria-current='true'] {
+// The shell in the pane. `.panel-row.is-selected` carries no fill of its own outside an overlay, so the
+// list said which one was showing in ink weight alone — which is to say it did not say it. The token is
+// the one every selected row in the app takes.
+.terminalPanel-list .panel-row.is-selected {
+  background: var(--z-bg-row-selected);
+}
+
+.terminalPanel-list .panel-row.is-selected .panel-row-label {
   color: var(--z-fg-default);
-  font-weight: 500;
+}
+
+// The row's own close, dimmed until it is wanted like every other row action in the app. The row is a
+// flex line already — `.panel-row` — so the name takes the width and this sits at the end of it.
+.terminalPanel-list .panel-row-actions {
+  padding-right: 4px;
 }

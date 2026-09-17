@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 
@@ -52,8 +52,10 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
     [path]
   );
   const errors = useAtomValue(errorsAtom);
-  // What the row has no width for — the path, the size, when it changed, whether it is writable.
-  const tip = useTooltip();
+  // What the row has no width for — the path, the size, when it changed, whether it is writable. The
+  // row and not the `li`, which also holds this row's menu and its delete question.
+  const rowRef = useRef<HTMLAnchorElement>(null);
+  const tip = useTooltip(true, rowRef);
   const { copyTo, copyPath, download } = useContentActions();
 
   const menuItems = [
@@ -90,16 +92,18 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
       role="treeitem"
       aria-selected={selection.isSelected(path)}
       tabIndex={focusRow.tabIndex}
-      {...tip.anchorProps}
-      // The row is what takes the focus, so the tooltip's own focus handler runs beside the one that
+      {...tip.focusProps}
+      // The `li` is what takes the focus, so the tooltip's own focus handler runs beside the one that
       // remembers where the keyboard is, rather than instead of it.
       onFocus={(event) => {
         focusRow.onFocus(event);
-        tip.anchorProps.onFocus(event);
+        tip.focusProps.onFocus(event);
       }}
     >
       <a
+        ref={rowRef}
         {...dragSource}
+        {...tip.hoverProps}
         className={rowClassName(content, activePath === path, selection.isSelected(path))}
         onClick={(event) => {
           // A cmd- or shift-click is building a selection and nothing more; a plain click opens.

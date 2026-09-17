@@ -1,7 +1,8 @@
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import { Icon } from '@/ide/icons';
-import { currentTerminalAtom, terminalsAtom } from '@/store/terminals';
+import IconButton from '@/ide/IconButton';
+import { closeTerminalAtom, currentTerminalAtom, terminalsAtom } from '@/store/terminals';
 import TerminalView from './Terminal';
 import './TerminalPanel.scss';
 
@@ -10,12 +11,17 @@ import './TerminalPanel.scss';
  *
  * Every one of them stays mounted and all but one are hidden, which is what the tab strip did for them
  * before: a socket torn down and remade is a new shell wearing an old name. The list beside the pane is
- * what the strip gave away for nothing — with one shell it says little, and with three it is the only
- * way to reach the other two.
+ * what the strip gave away for nothing — with one shell it says where that shell was started, and with
+ * three it is the only way to reach the other two.
+ *
+ * It is drawn for one shell as well as for three, which it was not until the rows carried a close: the
+ * strip's own close went with the tabs, and without a row for it a single shell was one nothing in this
+ * window could shut down.
  */
 export default function TerminalPanel({ hidden = false }: { hidden?: boolean }) {
   const terminals = useAtomValue(terminalsAtom);
   const [current, setCurrent] = useAtom(currentTerminalAtom);
+  const closeTerminal = useSetAtom(closeTerminalAtom);
   const names = Object.keys(terminals);
 
   if (names.length === 0) {
@@ -39,23 +45,32 @@ export default function TerminalPanel({ hidden = false }: { hidden?: boolean }) 
           <TerminalView id={name} cwd={terminals[name].cwd} />
         </div>
       ))}
-      {names.length > 1 && (
-        <ul className="terminalPanel-list">
-          {names.map((name) => (
-            <li key={name} className="panel-row">
-              <button
-                type="button"
-                className="panel-row-name"
-                aria-current={name === shown}
-                onClick={() => setCurrent(name)}
-              >
-                <Icon name="terminal" />
-                <span className="panel-row-label">{name}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="terminalPanel-list">
+        {names.map((name) => (
+          <li key={name} className={name === shown ? 'panel-row is-selected' : 'panel-row'}>
+            <button
+              type="button"
+              className="panel-row-name"
+              aria-current={name === shown}
+              onClick={() => setCurrent(name)}
+            >
+              <Icon name="terminal" />
+              <span className="panel-row-label">{name}</span>
+            </button>
+            {/* Closing the row is closing the shell: the pane unmounts, its socket goes, and the
+                server ends the session that socket was. Named, because three rows of `Close` are
+                three buttons a screen reader cannot tell apart. */}
+            <span className="panel-row-actions">
+              <IconButton
+                icon="x"
+                className="panel-row-action"
+                label={`Close ${name}`}
+                onClick={() => closeTerminal(name)}
+              />
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
