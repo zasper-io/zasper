@@ -21,6 +21,9 @@ function fakeView(doc: string) {
       state = state.update(spec).state;
     },
     focus: () => {},
+    // Stepping to a match looks for the library's own search panel to put the cursor back in. There
+    // is none here, as there is none in the app: the card is the app's own.
+    plugin: () => null,
   } as unknown as EditorView;
 }
 

@@ -98,7 +98,17 @@ test('a running kernel is named with its notebook, and shut down from the panel'
   await page.reload();
 
   /*
-   * The client the kernel had is gone with the page that held it, and the kernel is not: `connections`
+   * The tab comes back with the page and rejoins the kernel it was on, so the reload alone leaves a
+   * client attached. Closing the tab is what detaches it, and the kernel outlives that — which is the
+   * state the rest of this journey is about: a kernel running with nothing in this window on it.
+   */
+  await expect(toolbarButton(page, 'Run Cell')).toBeVisible();
+  const notebookTab = page.locator('.tabHeader .tab', { hasText: NOTEBOOK });
+  await notebookTab.locator('.tab-close').click();
+  await expect(notebookTab).toHaveCount(0);
+
+  /*
+   * The client the kernel had is gone with the tab that held it, and the kernel is not: `connections`
    * back to 0 is the server noticing, which nothing used to do — a closed tab left its connection in the
    * store forever, polling a kernel with nobody to forward to.
    */
