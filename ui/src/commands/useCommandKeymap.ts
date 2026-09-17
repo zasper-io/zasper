@@ -7,10 +7,14 @@ import { useCommands } from './registry';
  * The application's one keyboard dispatcher. Mounted once, in `IDE.tsx`; it replaced four separate
  * `window` listeners that each knew only their own chords.
  *
- * `cell-editor` commands are skipped here — CodeMirror would consume those chords before they
- * reached the window, so `Cell.tsx` contributes them to the editor's own keymap instead. `app` and
- * `notebook` need no distinction at this level: a notebook only registers its commands while it is
- * the active tab, so an unavailable command simply is not in the registry.
+ * `cell-editor` commands belong to CodeMirror *while the caret is in one* — it binds `Shift-Enter`
+ * and `Ctrl-Enter` itself and would consume them before they reached the window, so `Cell.tsx`
+ * contributes them to the editor's own keymap. In Jupyter's command mode the focus is on the cell's
+ * box rather than in an editor, and then there is no keymap but this one: a `cell-editor` chord
+ * arriving from outside a text surface is dispatched here. The test is the target rather than the
+ * scope, so exactly one of the two paths ever runs. `app` and `notebook` need no distinction at this
+ * level: a notebook only registers its commands while it is the active tab, so an unavailable
+ * command simply is not in the registry.
  */
 export function useCommandKeymap(): void {
   const commands = useCommands();
@@ -37,7 +41,7 @@ export function useCommandKeymap(): void {
       }
 
       for (const command of latest.current) {
-        if (command.scope === 'cell-editor' || !command.keys) {
+        if (!command.keys || (command.scope === 'cell-editor' && isTypingTarget(event.target))) {
           continue;
         }
         if (!command.keys.some((binding) => chordMatches(binding, event))) {

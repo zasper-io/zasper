@@ -182,6 +182,14 @@
     scroll-margin-top: 28px;
   }
 
+  // Command mode puts the keyboard on the cell's box, and Chromium rings a focused box in its own
+  // blue. The cell already says which one it is — the accent left edge below — so the ring is a
+  // second marker in a colour the app does not use, drawn around the whole cell.
+  .single-line:focus,
+  .single-line:focus-visible {
+    outline: none;
+  }
+
   .single-line .inner-content {
     display: flex;
   }
@@ -514,6 +522,27 @@
 // passed: which cell is focused is state React holds, so `.activeCell` was on the right element in
 // every unit test while nothing on screen said so.
 .activeCell .cm-editor {
+  border-left-color: var(--z-accent);
+}
+
+// A markdown cell that is rendered has no editor, so until now it was the one cell that could hold
+// the keyboard and say nothing about it — which command mode made obvious, since Shift-Enter lands on
+// those cells as often as on any other.
+//
+// The code box's own numbers, so the two kinds of cell carry one edge rather than two that nearly
+// match: 2px wide, the 4px radius `.cellEditor .cm-editor` has — with no other border to close it,
+// that radius is what curves the ends of the bar — and text 12px from the box, which is the 2px edge
+// plus the 10px `.cm-line` insets code by. The width is held whatever the state, so nothing moves
+// when a cell becomes the focused one, and the 4px above and below is what leaves the curve room to
+// be seen. Prose is not a box: it keeps the notebook's ground rather than `--z-bg-cell`, and the
+// other three borders stay off.
+.cellEditor.is-rendered {
+  border-left: 2px solid transparent;
+  border-radius: 4px 0 0 4px;
+  padding: 4px 0 4px 10px;
+}
+
+.activeCell .cellEditor.is-rendered {
   border-left-color: var(--z-accent);
 }
 

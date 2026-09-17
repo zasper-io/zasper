@@ -61,13 +61,26 @@ describe('useCommandKeymap', () => {
     expect(press('q', { ctrlKey: true }).defaultPrevented).toBe(false);
   });
 
-  it('ignores cell-editor commands, which CodeMirror dispatches instead', () => {
+  // Which of the two dispatchers owns a cell-editor chord is decided by where the key came from,
+  // so that exactly one of them ever runs it.
+  it('leaves a cell-editor command to CodeMirror while the caret is in an editor', () => {
+    const execute = vi.fn();
+    const view = mount([command({ keys: ['Shift-Enter'], scope: 'cell-editor', execute })]);
+
+    press('Enter', { shiftKey: true }, view.getByTestId('cm'));
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  // Jupyter's command mode: the focus is on the cell's box, there is no editor keymap to own the
+  // chord, and this dispatcher is the only one left.
+  it('runs a cell-editor command when the key came from outside a text surface', () => {
     const execute = vi.fn();
     mount([command({ keys: ['Shift-Enter'], scope: 'cell-editor', execute })]);
 
     press('Enter', { shiftKey: true });
 
-    expect(execute).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledOnce();
   });
 
   it('lets a disabled command fall through rather than eating the key', () => {

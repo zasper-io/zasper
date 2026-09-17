@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
 import { autocompletion } from '@codemirror/autocomplete';
 import { indentLess, indentMore } from '@codemirror/commands';
@@ -72,8 +72,14 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
   const { registerCellView } = editor;
   // Handed over as the editor is made, and taken back as the cell goes: the notebook's find dispatches
   // into these, and a view that has been destroyed is not one to dispatch into.
+  // As well as the registry's copy: Enter in command mode gives this cell's editor the keyboard back,
+  // and that is this component's business rather than the notebook's.
+  const view = useRef<EditorView | null>(null);
   const keepView = useCallback(
-    (view: EditorView) => registerCellView(cell.id, view),
+    (created: EditorView) => {
+      view.current = created;
+      registerCellView(cell.id, created);
+    },
     [registerCellView, cell.id]
   );
   useEffect(() => () => registerCellView(cell.id, null), [registerCellView, cell.id]);
@@ -108,6 +114,13 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
    * document, which is the editor's business and not an action anyone would invoke by name.
    */
   const handleKeyDownCM = (event: React.KeyboardEvent) => {
+    // Escape is Jupyter's way out of edit mode, and the cell's box is where command mode lives.
+    // The markdown cell's own handler below renders the cell first and then comes here.
+    if (event.key === 'Escape' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      editor.focusCellBox(props.index);
+      event.preventDefault();
+      return;
+    }
     // A modified arrow is somebody else's chord — `Ctrl-Shift-ArrowUp` moves the cell, and Shift
     // extends the selection — so only the bare key leaves the cell. Without this test the modified
     // presses did both: `Ctrl-Shift-ArrowUp` on the first line of a cell moved the selection up as
@@ -128,8 +141,6 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
   const handleMarkdownKeyDownCM = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
       editor.endEditing();
-      event.preventDefault();
-      return;
     }
     handleKeyDownCM(event);
   };
@@ -240,7 +251,9 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
             <CellButtons run={editor.run} cellType={cell.cell_type} />
             <div className="inner-content" onDoubleClick={() => editor.beginEditing(cell.id)}>
               <div className="cell-gutter" aria-hidden="true" />
-              <div className="cellEditor">
+              {/* `is-rendered`: prose rather than an editor, and the box that carries the focused
+                  cell's left edge in its own right. */}
+              <div className="cellEditor is-rendered">
                 <Suspense fallback={<pre>{cellContents}</pre>}>
                   <MarkdownRenderer source={cellContents} />
                 </Suspense>
@@ -258,6 +271,15 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
       className={props.index === editor.focusedIndex ? 'single-line activeCell' : 'single-line'}
       ref={divRef}
       onFocus={() => editor.focusCell(cell.id)}
+      // The other half of Jupyter's two modes: Enter on the cell's box is edit mode, which for a code
+      // cell means giving its editor the keyboard — a markdown cell opens its source instead, above.
+      // Guarded on the target so it cannot fire for an Enter typed inside the editor.
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && event.target === event.currentTarget) {
+          view.current?.focus();
+          event.preventDefault();
+        }
+      }}
     >
       <CellButtons run={editor.run} cellType={cell.cell_type} />
 

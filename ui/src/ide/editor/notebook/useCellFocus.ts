@@ -65,13 +65,28 @@ export function useCellFocus(notebook: NotebookModel) {
     divRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block });
   }, []);
 
+  /**
+   * Jupyter's command mode: the cell's own box takes the keyboard, not its editor. Everything that
+   * moves from one cell to another goes through here, so that what is marked as the focused cell and
+   * what a keystroke would reach are the same cell — they used to disagree, and typing after
+   * Shift-Enter went into the cell that had just run.
+   *
+   * Deferred by a frame because the cell may not be in the DOM yet: `focusNextCell` appends one when
+   * it runs the last cell in the notebook. `preventScroll`, because `scrollTo` has already said where
+   * the notebook should be and the two disagree about how far — a focus scrolls the box flush.
+   */
+  const focusCellBox = useCallback((index: number) => {
+    requestAnimationFrame(() => divRefs.current[index]?.focus({ preventScroll: true }));
+  }, []);
+
   const focusPreviousCell = useCallback(() => {
     setFocusedIndex((prev) => {
       const newIndex = Math.max(prev - 1, 0);
       scrollTo(newIndex);
+      focusCellBox(newIndex);
       return newIndex;
     });
-  }, [scrollTo]);
+  }, [scrollTo, focusCellBox]);
 
   const goToPreviousCell = useCallback(() => {
     setFocusedIndex((prev) => Math.max(prev - 1, 0));
@@ -85,6 +100,7 @@ export function useCellFocus(notebook: NotebookModel) {
     focusedIndex,
     setFocusedIndex,
     focusCell,
+    focusCellBox,
     divRefs,
     scrollTo,
     editingCellId,

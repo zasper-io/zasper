@@ -447,6 +447,75 @@ test('the focused cell is marked, and marking it does not move it', async ({ pag
 });
 
 /*
+ * A rendered markdown cell is marked and inset like the code beside it.
+ *
+ * A markdown cell that has been rendered has no `.cm-editor`, so it carried none of the marking the
+ * test above asserts: it was the one cell that could hold the keyboard and say nothing about it, which
+ * only showed once Shift-Enter began landing on such cells in command mode. The same left edge is on
+ * its prose box now, and with it the 12px that edge holds code away from its own border — so this
+ * reads both, and the second half is what catches the edge being added without the room for it.
+ */
+test('a rendered markdown cell carries the same left edge, and the same inset, as code', async ({
+  page,
+}) => {
+  await openApp(page);
+  await openNotebook(page);
+
+  const prose = page.locator('.single-line').first().locator('.cellEditor');
+  const code = page.locator('.single-line').nth(1).locator('.cellEditor');
+
+  // Focus the code cell first, so the markdown cell above is rendered rather than open for editing.
+  await code.locator('.cm-content').click();
+  await expect(prose.locator('.cm-editor')).toHaveCount(0);
+
+  const accent = await page.locator('.notebook-body').evaluate((el) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--z-accent)';
+    el.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  });
+
+  const idle = await prose.evaluate((el) => getComputedStyle(el).borderLeftColor);
+  expect(idle, 'an unfocused markdown cell is marked as though it were focused').not.toBe(accent);
+
+  // Clicking the prose selects the cell without opening it — a double-click is what opens it.
+  await prose.click();
+  await expect(page.locator('.single-line').first()).toHaveClass(/activeCell/);
+  const active = await prose.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      left: style.borderLeftColor,
+      width: style.borderLeftWidth,
+      // The style rather than the colour: a border that is not drawn still reports a colour — the
+      // element's own `color`, which is what this assertion read at first and what it is not about.
+      top: style.borderTopStyle,
+      radius: style.borderTopLeftRadius,
+    };
+  });
+
+  expect(active.left, 'a focused markdown cell is not marked in the accent').toBe(accent);
+  expect(active.width, "the edge is not the code box's own 2px").toBe('2px');
+  expect(active.top, 'the accent is drawn around the prose rather than down its left edge').toBe(
+    'none'
+  );
+  expect(active.radius, "the edge does not carry the code box's own radius").toBe('4px');
+
+  // One left edge for the notebook: prose and code start at the same x, measured from the box each
+  // sits in rather than from the pane, so the gutter's width is not part of the assertion.
+  const textLeft = (box: typeof prose, inner: string) =>
+    box.evaluate((el, selector) => {
+      const text = el.querySelector(selector)!.getBoundingClientRect();
+      return Math.round(text.left - el.getBoundingClientRect().left);
+    }, inner);
+
+  expect(await textLeft(prose, 'h1, h2, h3, p'), 'prose and code do not share a left edge').toBe(
+    await textLeft(code, '.cm-content')
+  );
+});
+
+/*
  * A tab fills its strip, top and bottom.
  *
  * The vertical counterpart of the test above, and it is here because this went wrong unnoticed:

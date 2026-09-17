@@ -21,7 +21,11 @@ export function useCellEdits(
     setFocusedIndex,
     setEditingCellId,
     scrollTo,
-  }: Pick<CellFocus, 'focusedIndex' | 'setFocusedIndex' | 'setEditingCellId' | 'scrollTo'>,
+    focusCellBox,
+  }: Pick<
+    CellFocus,
+    'focusedIndex' | 'setFocusedIndex' | 'setEditingCellId' | 'scrollTo' | 'focusCellBox'
+  >,
   clearCellOutputs: (cellId: string) => void
 ) {
   const [copiedCell, setCopiedCell] = useState<NotebookCell | null>(null);
@@ -255,10 +259,13 @@ export function useCellEdits(
       setFocusedIndex((prev) => {
         const newIndex = Math.min(prev + 1, cellCount - 1);
         scrollTo(newIndex);
+        // Command mode on the cell arrived at, as in Jupyter: the box takes the keyboard, so the
+        // next Shift-Enter runs *this* cell and a stray keystroke cannot reach the one just run.
+        focusCellBox(newIndex);
         return newIndex;
       });
     },
-    [notebook, focusedIndex, addCellDown, setFocusedIndex, scrollTo]
+    [notebook, focusedIndex, addCellDown, setFocusedIndex, scrollTo, focusCellBox]
   );
 
   return {

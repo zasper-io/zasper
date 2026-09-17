@@ -38,6 +38,8 @@ export interface NotebookEditorContextValue {
   focusedIndex: number;
   /** By id, not by index: see `focusCell` in useCellFocus. */
   focusCell: (cellId: string) => void;
+  /** Puts the keyboard on the cell's own box — Jupyter's command mode. By index, as the DOM refs are. */
+  focusCellBox: (index: number) => void;
   focusNextCell: (addCellIfLast: boolean) => void;
   focusPreviousCell: () => void;
   divRefs: RefObject<(HTMLDivElement | null)[]>;

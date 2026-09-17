@@ -453,6 +453,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     registerCellView,
     focusedIndex: cells.focusedIndex,
     focusCell: cells.focusCell,
+    focusCellBox: cells.focusCellBox,
     focusNextCell: cells.focusNextCell,
     focusPreviousCell: cells.focusPreviousCell,
     divRefs: cells.divRefs,
