@@ -24,6 +24,16 @@
   color: var(--z-fg-icon);
 }
 
+// A pressed button in this strip needs a ground, not only the accent ink `.z-icon-button[aria-pressed]`
+// takes in styles/_controls.scss. Measured on the prototype's story-toc.html: in teal-light the strip's
+// own icons are #084541 and the pressed one #0c6862, two dark teals a hand apart, and in teal-dark it
+// goes #e2e2e2 → #a3d5d1, which is *dimmer* than its neighbours and so reads as disabled rather than as
+// on. A fill and not a border, because at 22px a border is most of the button. Scoped here: against a
+// panel row the same ink reads correctly, which is why nothing had noticed.
+.text-editor-tool .z-icon-button[aria-pressed='true'] {
+  background: var(--z-bg-row-selected);
+}
+
 // What separates the groups: save · edit a cell · run it · what the cell is and what it runs on.
 .text-editor-tool .sep {
   flex: 0 0 auto;
@@ -166,6 +176,10 @@
     // and reads as jammed against both. 22 + 3 either side is 28, and the output stays 8px under
     // the code that produced it, so a cell still reads as one thing with space around it.
     margin: 0 0 28px;
+    // What a jump from the table of contents leaves above the cell it lands on: the insert rail is
+    // pulled up into the gap above each cell, and a cell scrolled flush to the top of the scroller
+    // would have that rail clipped against the toolbar. Same 28px, for the same reason the gap is.
+    scroll-margin-top: 28px;
   }
 
   .single-line .inner-content {

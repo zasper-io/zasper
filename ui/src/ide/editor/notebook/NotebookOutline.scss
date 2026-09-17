@@ -1,0 +1,90 @@
+// The notebook's table of contents: a column beside its cells. Drawn in the design prototype's
+// story-toc.html, placement B.
+//
+// 200px rather than the sidebar's 248: this holds one document's headings, not a project's paths, and
+// it is taking its width from the cells rather than from chrome. It sits on the panel ground so that it
+// reads as part of the window rather than as a wide right margin of the notebook. In the dark themes
+// --z-bg-panel and the editor's ground are the same value, so there the border is what separates the
+// two, not the fill — it is structure, not decoration.
+.notebook-outline {
+  flex: 0 0 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  // Its own scroller, and not the cells': a table of contents that scrolls out of the window with the
+  // cell it points at is one nobody can reach.
+  overflow-y: auto;
+  padding-bottom: 8px;
+  background-color: var(--z-bg-panel);
+  border-left: 1px solid var(--z-border);
+}
+
+// The cells and the column, side by side inside `.notebook-area` — so the find card, which hangs off
+// that box, still lands over the cells wherever they have been scrolled to.
+.notebook-split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.notebook-split > .notebook-body {
+  flex: 1;
+  min-width: 0;
+}
+
+// The same 32px strip a sidebar panel is titled with, restated rather than shared: `.content-head` is
+// deliberately nested inside `.navigation` in styles/_panel.scss — that file says to keep new rules
+// nested so nothing outside the sidebar picks them up — and this column is in the editor pane.
+.outline-head {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 12px;
+  background-color: var(--z-bg-panel);
+  border-bottom: 1px solid var(--z-border);
+  color: var(--z-fg-muted);
+}
+
+.outline-list {
+  margin: 0;
+  padding: 4px 0 0;
+  list-style: none;
+}
+
+// A heading, as a row. The whole row is the target, the way a palette row is, so it is a button and
+// has the browser's own button appearance to undo.
+.outline-row {
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+// Depth is indent and nothing else. The alternative is a glyph — `#`, `##`, markdown's own notation —
+// and beside an indent that already says it, it is characters taken from the heading's own words in a
+// 200px column. 12px a level, three levels; a notebook nested deeper than that has stopped using its
+// headings as navigation.
+.outline-row.is-level-1 {
+  padding-left: 16px;
+}
+
+.outline-row.is-level-2 {
+  padding-left: 28px;
+}
+
+.outline-row.is-level-3 {
+  padding-left: 40px;
+}
+
+// The section the focused cell is in. Selected, not active: what is *open* is the notebook, and the
+// accent fill an active row takes would claim this row is the thing on screen.
+.outline-row.is-selected {
+  background: var(--z-bg-row-selected);
+}

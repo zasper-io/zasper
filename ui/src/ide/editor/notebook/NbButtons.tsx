@@ -14,6 +14,8 @@ interface NbButtonsProps {
   downloadNotebook: () => void;
   /** The focused cell's type, for the picker. Empty when there is no focused cell. */
   cellType: string;
+  /** Whether the table of contents is beside the cells, which the switch shows as pressed. */
+  contentsShown: boolean;
   kernelName: string;
   /** The kernelspec's own name for itself, when the specs have been read. */
   kernelDisplayName?: string;
@@ -138,6 +140,14 @@ function NbButtons(props: NbButtonsProps) {
           ))}
         </select>
       </div>
+      {/* Right of the picker and left of the kernel pill: everything to the left of here does
+          something, and the two on the right say how the notebook *is*. Story 22. */}
+      <IconButton
+        icon="list-tree"
+        label="Table of Contents"
+        pressed={props.contentsShown}
+        onClick={() => props.run('notebook:toggle-contents')}
+      />
       {/* The kernelspec's display name, not its id: `python3` is what the directory is called and
           `Python 3 (ipykernel)` is what the kernel calls itself, which is the name every other
           Jupyter front end shows. It falls back to the id, because the specs are a separate request

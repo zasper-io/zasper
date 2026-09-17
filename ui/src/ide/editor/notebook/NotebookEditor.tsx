@@ -19,6 +19,7 @@ import { FileTab } from '@/store/tabState';
 import { LineEdit, OpenDocument, useOpenDocument } from '@/store/openDocuments';
 import { MatchReveal, revealMatchAtom } from '@/store/projectSearch';
 import { useUnsavedChanges } from '@/store/unsavedState';
+import { useEditorSettings } from '@/store/editorSettingsActions';
 import BreadCrumb from '../BreadCrumb';
 import { cellFindHighlighter, currentMatchField } from '../findHighlight';
 import { editedText, lineEditChanges } from '../lineEdits';
@@ -29,6 +30,8 @@ import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
 import NotebookCells from './NotebookCells';
 import NotebookFindCard from './NotebookFindCard';
+import NotebookOutline from './NotebookOutline';
+import { notebookHeadings } from './notebookHeadings';
 import { markOutputs } from './outputMarks';
 import { NotebookEditorContext, NotebookEditorContextValue } from './NotebookEditorContext';
 
@@ -221,6 +224,23 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   }, []);
 
   /**
+   * The table of contents beside the cells — story 22.
+   *
+   * It lives as long as the tab does, and opens as Settings says: what should remember it *per
+   * notebook* is the one thing that story left open, so nothing here writes it anywhere.
+   */
+  const [editorSettings] = useEditorSettings();
+  const [showContents, setShowContents] = useState(editorSettings.notebook_contents);
+  const headings = useMemo(() => notebookHeadings(cells.notebook), [cells.notebook]);
+  const runningIndexes = useMemo(
+    () =>
+      cells.notebook.cells.flatMap((cell, index) =>
+        kernel.runningCellIds.has(cell.id) ? [index] : []
+      ),
+    [cells.notebook, kernel.runningCellIds]
+  );
+
+  /**
    * The matches inside the outputs, which are HTML rather than editors.
    *
    * Runs again when the cells change as well as when the query does: a cell that has just run has new
@@ -401,6 +421,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       saveNotebookToDisk().catch(logApiError('Error saving notebook:'));
     },
     openFind,
+    toggleContents: () => setShowContents((shown) => !shown),
     submitCell,
     submitAllCells: submitAllCellsForExecution,
     restartKernel: () => setRestartIntent('restart'),
@@ -463,6 +484,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           run={runCommand}
           downloadNotebook={downloadNotebook}
           cellType={notebook.cells[cells.focusedIndex]?.cell_type ?? ''}
+          contentsShown={showContents}
           kernelName={kernel.kernelName}
           kernelDisplayName={kernel.kernelDisplayName}
           kernelStatus={kernel.kernelStatus}
@@ -479,57 +501,79 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               onClose={() => setFinding(false)}
             />
           )}
-          <div className="notebook-body" ref={notebookBody}>
-            {restartIntent !== null && (
-              <ConfirmRestartDialog
-                intent={restartIntent}
-                onConfirm={confirmRestart}
-                onCancel={() => setRestartIntent(null)}
-              />
-            )}
-
-            {askingExport && (
-              <ExportDialog
-                filename={exportFilename(data.name, 'html')}
-                onCancel={() => setAskingExport(false)}
-                onExport={(options) => {
-                  setAskingExport(false);
-                  void exportNotebook('html', options);
-                }}
-              />
-            )}
-
-            {kernel.showKernelSwitcher && (
-              <KernelSwitcher
-                kernelName={kernel.kernelName}
-                error={kernel.kernelError}
-                toggleKernelSwitcher={kernel.toggleKernelSwitcher}
-                changeKernel={kernel.changeKernel}
-              />
-            )}
-
-            {/* The cells are not offered for editing once a read failed: they would be the empty
-              starting state rather than the file. */}
-            {cells.error !== '' ? (
-              // The band, at the top of the pane, rather than the bordered box in the middle of it this
-              // used to be. No `.z-notice-action`: the answer to an unreadable notebook is to open it as
-              // text, and nothing in the app can do that yet — a band with a button that does nothing is
-              // worse than a band without one.
-              <div className="z-notice z-notice-error" role="alert">
-                <Icon name="circle-alert" size={14} />
-                <p>
-                  <strong>This notebook could not be loaded.</strong> {cells.error}
-                </p>
-              </div>
-            ) : (
-              <NotebookEditorContext.Provider value={cellContext}>
-                <NotebookCells
-                  notebook={notebook}
-                  runningCellIds={kernel.runningCellIds}
-                  expandedOutputs={cells.expandedOutputs}
-                  editingCellId={cells.editingCellId}
+          <div className="notebook-split">
+            <div className="notebook-body" ref={notebookBody}>
+              {restartIntent !== null && (
+                <ConfirmRestartDialog
+                  intent={restartIntent}
+                  onConfirm={confirmRestart}
+                  onCancel={() => setRestartIntent(null)}
                 />
-              </NotebookEditorContext.Provider>
+              )}
+
+              {askingExport && (
+                <ExportDialog
+                  filename={exportFilename(data.name, 'html')}
+                  onCancel={() => setAskingExport(false)}
+                  onExport={(options) => {
+                    setAskingExport(false);
+                    void exportNotebook('html', options);
+                  }}
+                />
+              )}
+
+              {kernel.showKernelSwitcher && (
+                <KernelSwitcher
+                  kernelName={kernel.kernelName}
+                  error={kernel.kernelError}
+                  toggleKernelSwitcher={kernel.toggleKernelSwitcher}
+                  changeKernel={kernel.changeKernel}
+                />
+              )}
+
+              {/* The cells are not offered for editing once a read failed: they would be the empty
+              starting state rather than the file. */}
+              {cells.error !== '' ? (
+                // The band, at the top of the pane, rather than the bordered box in the middle of it this
+                // used to be. No `.z-notice-action`: the answer to an unreadable notebook is to open it as
+                // text, and nothing in the app can do that yet — a band with a button that does nothing is
+                // worse than a band without one.
+                <div className="z-notice z-notice-error" role="alert">
+                  <Icon name="circle-alert" size={14} />
+                  <p>
+                    <strong>This notebook could not be loaded.</strong> {cells.error}
+                  </p>
+                </div>
+              ) : (
+                <NotebookEditorContext.Provider value={cellContext}>
+                  <NotebookCells
+                    notebook={notebook}
+                    runningCellIds={kernel.runningCellIds}
+                    expandedOutputs={cells.expandedOutputs}
+                    editingCellId={cells.editingCellId}
+                  />
+                </NotebookEditorContext.Provider>
+              )}
+            </div>
+            {showContents && (
+              <NotebookOutline
+                headings={headings}
+                focusedIndex={cells.focusedIndex}
+                runningIndexes={runningIndexes}
+                // The row both scrolls to its cell and focuses it, which is what every other way into
+                // a cell does — and it means the table can be walked with the keyboard. It moves what
+                // Enter would run next, which is the price.
+                //
+                // `start`, not the stepping callers' `nearest`: a heading jumped to from the table
+                // belongs at the top of the pane with its section under it. `nearest` scrolls the
+                // least it can, which for a heading below the fold parks it on the bottom edge with
+                // the section it names off screen.
+                onGoTo={(index) => {
+                  cells.setFocusedIndex(index);
+                  cells.scrollTo(index, 'start');
+                }}
+                onClose={() => setShowContents(false)}
+              />
             )}
           </div>
         </div>

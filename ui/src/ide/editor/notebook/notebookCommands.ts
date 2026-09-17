@@ -15,6 +15,8 @@ export interface NotebookCommandTargets {
   saveNotebook: () => void;
   /** Opens the notebook's find card, or takes its field back when it is already up (story 17). */
   openFind: () => void;
+  /** Shows or hides the table of contents beside the cells (story 22). */
+  toggleContents: () => void;
   submitCell: (source: string, cellId: string) => void;
   submitAllCells: () => void;
   /** Writes the notebook, as it is on screen, to the reader's downloads. See export/. */
@@ -106,6 +108,9 @@ export const NOTEBOOK_COMMANDS = defineCommands({
   // The notebook's, not a cell's: `searchKeymap` is off in the cells, so this reaches the window
   // dispatcher from inside an editor as well as from the pane around it.
   'notebook:find': { ...NOTEBOOK, label: 'Find and Replace', keys: ['Mod-f'] },
+  // No chord: the app's chords are the things done in the middle of typing, and a column is opened
+  // once and left. Same reason the exports and Clear All Outputs have none.
+  'notebook:toggle-contents': { ...NOTEBOOK, label: 'Table of Contents' },
 
   // Three formats, three commands, no chords: an export is something you go looking for, not
   // something you reach for mid-edit, and every chord spent here is one a cell cannot have. The
@@ -170,6 +175,12 @@ export function useNotebookCommands(targets: NotebookCommandTargets): Command[] 
       ...NOTEBOOK_COMMANDS['notebook:find'],
       isEnabled: isLoaded,
       execute: targets.openFind,
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:toggle-contents'],
+      // Nothing to list once a read failed: what is on screen is the error, not the file.
+      isEnabled: isLoaded,
+      execute: targets.toggleContents,
     },
     // Guarded the way save is: after a failed read what is on screen is the error, and exporting it
     // would hand someone a page of the empty starting state.

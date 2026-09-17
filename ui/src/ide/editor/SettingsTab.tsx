@@ -384,6 +384,20 @@ function useSettings(): Setting[] {
       ),
     },
     {
+      id: 'settings-notebook-contents',
+      group: 'Notebook',
+      name: 'Show the table of contents',
+      help: "A notebook's headings, in a column beside its cells. The toolbar's button turns it on for one notebook.",
+      words: 'outline headings toc navigation',
+      control: (
+        <Checkbox
+          id="settings-notebook-contents"
+          checked={editor.notebook_contents}
+          onChange={(notebook_contents) => changeEditor({ notebook_contents })}
+        />
+      ),
+    },
+    {
       id: 'settings-cell-tab-indents',
       group: 'Notebook',
       name: 'Insert a tab in a cell',

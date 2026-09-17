@@ -54,8 +54,15 @@ export function useCellFocus(notebook: NotebookModel) {
     });
   }, [notebook, focusedIndex]);
 
-  const scrollTo = useCallback((index: number) => {
-    divRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  /**
+   * Brings a cell into view. `nearest` for the callers that step from one cell to the next — moving
+   * the notebook no further than it has to is what makes stepping readable — and `start` for a jump
+   * from somewhere else, where the cell asked for should end up where the eye already is rather than
+   * scraped along the bottom edge. `.single-line`'s `scroll-margin-top` leaves the insert rail its
+   * room in that case.
+   */
+  const scrollTo = useCallback((index: number, block: ScrollLogicalPosition = 'nearest') => {
+    divRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block });
   }, []);
 
   const focusPreviousCell = useCallback(() => {

@@ -43,6 +43,8 @@ export interface EditorSettings {
   rulers: number[];
   /** A notebook cell's Tab inserts an indent rather than asking the kernel to complete. */
   cell_tab_indents: boolean;
+  /** Open a notebook with its headings in a column beside the cells. */
+  notebook_contents: boolean;
   /** What a save does to whitespace, unless the file's .editorconfig says otherwise. */
   trim_trailing_whitespace: boolean;
   insert_final_newline: boolean;

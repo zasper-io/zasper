@@ -37,6 +37,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   show_whitespace: false,
   rulers: [],
   cell_tab_indents: false,
+  notebook_contents: false,
   trim_trailing_whitespace: false,
   insert_final_newline: false,
   auto_save: false,
