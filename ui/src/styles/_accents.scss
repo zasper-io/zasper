@@ -152,13 +152,20 @@ $dark-panel: #272727;
   --z-border-subtle: var(--a-50);
   --z-bg-navbutton-active: var(--a-200);
   // The launcher's tiles, left on that same lavender: #f3f2f6 and #e3e1e9 both belong to the purple in
-  // `:root`, so a teal window opened on a grid of faintly purple tiles inside teal borders. --a-50 is
-  // the step panel-alt and cell-output already take for the same job. The hover meets --z-border above
-  // at --a-100 on purpose: the outline becomes the fill, so the tile reads as filling in rather than as
-  // darkening inside a line that stays put. Focus is unaffected — `.launcher-icon:focus-visible` takes
-  // the border to the accent.
-  --z-bg-launcher-tile: var(--a-100);
-  --z-bg-launcher-tile-hover: var(--a-200);
+  // `:root`, so a teal window opened on a grid of faintly purple tiles inside teal borders. Focus is
+  // unaffected — `.launcher-icon:focus-visible` takes the border to the accent.
+  //
+  // One step paler than they were, --a-100 down to --a-50: ten of these tiles are the first thing the
+  // launcher shows and at --a-100 (#cfe9e7 in teal) the screen read as a grid of coloured chips rather
+  // than as a page with controls on it. --a-50 is the step `--z-bg-panel-alt` and `--z-bg-cell-output`
+  // already take for the same job — a surface tinted enough to belong to the theme and no more.
+  //
+  // The hover moves down with it. It used to land on --a-200, which is exactly
+  // `--z-border-launcher-tile`, so the outline became the fill; that pairing is what this gives up, and
+  // the border stays at --a-200 because --a-100 measures about 1.28:1 against the pane and is the
+  // invisible edge that token was introduced to fix.
+  --z-bg-launcher-tile: var(--a-50);
+  --z-bg-launcher-tile-hover: var(--a-100);
   // The row's edge, and it belongs to the hue like everything else here. It was --z-border-strong,
   // the one border token that is a literal grey: a teal window drew grey outlines around teal chips,
   // and an orange one drew the same grey. One step deeper than the fill, so the edge is the same

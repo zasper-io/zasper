@@ -24,6 +24,19 @@
   color: var(--z-fg-icon);
 }
 
+// 26px boxes, and the glyph inside them left at 16px — story 23, candidate B. The strip had nine
+// controls when story 1 drew it and has twelve now, each a 22px box 2px from its neighbour: 3px of
+// quiet around a glyph, and two neighbours' hover fills 2px apart, which is what reads as a wall. The
+// quiet goes inside the button rather than between buttons, so the run takes 40px more of a strip that
+// has 533px standing empty in the middle of it, and the target grows with it.
+//
+// Scoped to this strip on purpose: `.z-icon-button` is 22px everywhere else in the app and stays that
+// size. 26 is the largest box a 30px strip can hold and still have a margin of its own.
+.text-editor-tool .z-icon-button {
+  width: 26px;
+  height: 26px;
+}
+
 // A pressed button in this strip needs a ground, not only the accent ink `.z-icon-button[aria-pressed]`
 // takes in styles/_controls.scss. Measured on the prototype's story-toc.html: in teal-light the strip's
 // own icons are #084541 and the pressed one #0c6862, two dark teals a hand apart, and in teal-dark it

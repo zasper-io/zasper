@@ -24,11 +24,16 @@ $launcher-gutter: 32px;
   container-type: inline-size;
 }
 
-// Two columns. The right one is a measure rather than a share — a path is read from its start — so the
-// left keeps whatever is left over.
+// Two columns, 60/40. The right one was a measure rather than a share — 260 to 340px, on the grounds
+// that a path is read from its start — which on a wide window left it at 340 against a start column of
+// a thousand, and the screen read as one column with a margin. A share keeps the two in proportion at
+// every width instead, and the extra room goes to the paths, which are the longest thing here.
+//
+// `minmax(0, …)` on both, not bare `3fr 2fr`: a grid track's default floor is its content, so one long
+// path would push the right column past its share and take the difference out of the left.
 .launcher-split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
 }
 
 @container (max-width: 600px) {
@@ -151,7 +156,14 @@ $launcher-gutter: 32px;
 
 // --- The lists in the right column ------------------------------------------
 // One list shape for both: the files opened before, and what is running now.
+//
+// Capped at a measure rather than filling the column, and the measure is the drawing's own: story 2 has
+// carried `max-width: 420px` since it was drawn and this file never took it, because a 260-to-340px
+// column could never reach 420 and nothing would have shown. At 60/40 the column can, so it is ported
+// here rather than restated — without it a row was a filename, 350px of nothing, and a power button
+// against the far edge. What the column has past 420px is margin, not row.
 .launcher-list {
+  max-width: 420px;
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
