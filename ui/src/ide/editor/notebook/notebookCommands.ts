@@ -27,11 +27,14 @@ export interface NotebookCommandTargets {
   formatCells: (scope: 'cell' | 'notebook') => void;
   /** Whether a language server serves the notebook's language at all. */
   hasLanguageServer: boolean;
+  /** Edit mode on the focused cell: its editor takes the keyboard, or a markdown cell opens. */
+  editFocusedCell: () => void;
 }
 
 const NOTEBOOK = { category: 'Notebook', scope: 'notebook' } as const;
 const CELL_EDITOR = { category: 'Notebook', scope: 'cell-editor' } as const;
 const KERNEL = { category: 'Kernel', scope: 'notebook' } as const;
+const COMMAND_MODE = { category: 'Notebook', scope: 'command-mode' } as const;
 
 /**
  * Every action a notebook offers, in one list. Before this the same actions were written out three
@@ -94,8 +97,15 @@ export const NOTEBOOK_COMMANDS = defineCommands({
   'notebook:copy-cell': { ...NOTEBOOK, label: 'Copy Cell' },
   'notebook:paste-cell': { ...NOTEBOOK, label: 'Paste Cell' },
 
-  'notebook:select-next-cell': { ...NOTEBOOK, label: 'Select Next Cell' },
-  'notebook:select-previous-cell': { ...NOTEBOOK, label: 'Select Previous Cell' },
+  // Jupyter's command mode: bare keys, dispatched only while a cell's box holds the keyboard. Inside a
+  // cell's editor the same arrows leave it at its first or last line, which is Cell.tsx's keymap.
+  'notebook:select-next-cell': { ...COMMAND_MODE, label: 'Select Next Cell', keys: ['ArrowDown'] },
+  'notebook:select-previous-cell': {
+    ...COMMAND_MODE,
+    label: 'Select Previous Cell',
+    keys: ['ArrowUp'],
+  },
+  'notebook:edit-cell': { ...COMMAND_MODE, label: 'Edit Cell', keys: ['Enter'] },
 
   // One command per target type rather than one that cycles: a palette entry has to say what it
   // will do, and the toolbar's <select> picks a type outright. Raw gets no chord, as before.
@@ -280,12 +290,17 @@ export function useNotebookCommands(targets: NotebookCommandTargets): Command[] 
     {
       ...NOTEBOOK_COMMANDS['notebook:select-next-cell'],
       isEnabled: hasCell,
-      execute: cells.goToNextCell,
+      execute: () => cells.focusNextCell(false),
     },
     {
       ...NOTEBOOK_COMMANDS['notebook:select-previous-cell'],
       isEnabled: hasCell,
-      execute: cells.goToPreviousCell,
+      execute: cells.focusPreviousCell,
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:edit-cell'],
+      isEnabled: hasCell,
+      execute: targets.editFocusedCell,
     },
 
     {

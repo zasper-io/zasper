@@ -1,4 +1,4 @@
-import { createContext, RefObject, useContext } from 'react';
+import { createContext, useContext } from 'react';
 import type { Extension } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
@@ -9,8 +9,9 @@ import type { NotebookLanguageServer } from '@/lsp/notebookServer';
 import { CompleteReply, InspectReply, KernelMessage } from './kernelMessages';
 
 /**
- * What every cell of one notebook shares: the notebook's actions, its focus, and its kernel's prompt,
- * completions and widgets. What differs from cell to cell is passed to the cell as props.
+ * What every cell of one notebook shares: the notebook's actions, its extensions, and its kernel's
+ * completions and widgets. What differs from cell to cell — focus, the prompt — is passed to the cell as
+ * props, so this value changes only when one of the things in it really does: every cell reads it.
  */
 export interface NotebookEditorContextValue {
   /** Dispatches a notebook command by id, for a cell's own toolbar. */
@@ -36,14 +37,13 @@ export interface NotebookEditorContextValue {
    * own history. Keyed by cell id, not by index: a cell that moves is the same cell.
    */
   registerCellView: (cellId: string, view: EditorView | null) => void;
-  focusedIndex: number;
-  /** By id, not by index: see `focusCell` in useCellFocus. */
+  /** A cell handing the notebook its box, which the notebook scrolls to and focuses. */
+  registerCellBox: (cellId: string, box: HTMLDivElement | null) => void;
   focusCell: (cellId: string) => void;
-  /** Puts the keyboard on the cell's own box — Jupyter's command mode. By index, as the DOM refs are. */
-  focusCellBox: (index: number) => void;
+  /** Puts the keyboard on the cell's own box — Jupyter's command mode. */
+  focusCellBox: (cellId: string) => void;
   focusNextCell: (addCellIfLast: boolean) => void;
   focusPreviousCell: () => void;
-  divRefs: RefObject<(HTMLDivElement | null)[]>;
   updateCellSource: (value: string, cellId: string) => void;
   /** Puts a cell where the pointer is, for the rail between two cells. */
   addCellAt: (index: number, cellType: NotebookCell['cell_type']) => void;
@@ -56,10 +56,6 @@ export interface NotebookEditorContextValue {
   interruptKernel: () => void;
   beginEditing: (cellId: string) => void;
   endEditing: () => void;
-  showPrompt: boolean;
-  promptContent: KernelMessage | undefined;
-  /** Which cell the kernel is asking input for, so only that cell shows the prompt. */
-  promptCellId: string | undefined;
   submitPrompt: (parentHeader: KernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
   requestCompletions: (source: string, cursorPos: number) => Promise<CompleteReply | null>;

@@ -18,13 +18,19 @@ export function useCellEdits(
   { notebook, setNotebook }: Pick<NotebookDocument, 'notebook' | 'setNotebook'>,
   {
     focusedIndex,
-    setFocusedIndex,
+    focusedCellId,
+    focusCell,
+    cellAround,
     setEditingCellId,
-    scrollTo,
     focusCellBox,
   }: Pick<
     CellFocus,
-    'focusedIndex' | 'setFocusedIndex' | 'setEditingCellId' | 'scrollTo' | 'focusCellBox'
+    | 'focusedIndex'
+    | 'focusedCellId'
+    | 'focusCell'
+    | 'cellAround'
+    | 'setEditingCellId'
+    | 'focusCellBox'
   >,
   clearCellOutputs: (cellId: string) => void
 ) {
@@ -32,18 +38,18 @@ export function useCellEdits(
   const [cutCellIndex, setCutCellIndex] = useState<number | null>(null);
   /**
    * Snapshots taken before each structural change, newest last. Whole documents rather than diffs: a
-   * snapshot is a shallow copy that shares the output bundles, and the focused index rides along so
-   * that undoing a delete puts the caret back where it was.
+   * snapshot is a shallow copy that shares the output bundles, and the focused cell rides along so
+   * that undoing a delete puts the focus back on the cell it was on.
    */
-  const [undoStack, setUndoStack] = useState<{ notebook: NotebookModel; focusedIndex: number }[]>(
-    []
-  );
+  const [undoStack, setUndoStack] = useState<
+    { notebook: NotebookModel; focusedCellId: string | null }[]
+  >([]);
 
   // Called before the change rather than inside the updater: React may run an updater more than once,
   // which would push the same snapshot twice.
   const pushUndo = useCallback(() => {
-    setUndoStack((prev) => [...prev, { notebook, focusedIndex }].slice(-UNDO_HISTORY_LIMIT));
-  }, [notebook, focusedIndex]);
+    setUndoStack((prev) => [...prev, { notebook, focusedCellId }].slice(-UNDO_HISTORY_LIMIT));
+  }, [notebook, focusedCellId]);
 
   /** Restores the document to before the last structural change. A no-op with nothing to undo. */
   const undoCellChange = useCallback(() => {
@@ -53,14 +59,14 @@ export function useCellEdits(
         return prev;
       }
       setNotebook(previous.notebook);
-      setFocusedIndex(previous.focusedIndex);
+      focusCell(previous.focusedCellId);
       return prev.slice(0, -1);
     });
-  }, [setNotebook, setFocusedIndex]);
+  }, [setNotebook, focusCell]);
 
   /**
-   * Moves the focused cell one place towards `direction`, taking the focus with it so the same cell
-   * stays selected and the move can be repeated. A no-op at whichever end it is already at.
+   * Moves the focused cell one place towards `direction`. The focus is on the cell rather than the
+   * place, so it goes with it and the move can be repeated. A no-op at whichever end it is already at.
    */
   const moveCell = useCallback(
     (direction: -1 | 1) => {
@@ -69,33 +75,39 @@ export function useCellEdits(
         return;
       }
       pushUndo();
+      // Pinned, for the first cell, whose focus is otherwise only the fallback to whatever is first.
+      focusCell(notebook.cells[focusedIndex].id);
       setNotebook((prevNotebook) => {
         const cells = [...prevNotebook.cells];
         [cells[focusedIndex], cells[target]] = [cells[target], cells[focusedIndex]];
         return { ...prevNotebook, cells };
       });
-      setFocusedIndex(target);
     },
-    [notebook, focusedIndex, pushUndo, setNotebook, setFocusedIndex]
+    [notebook, focusedIndex, pushUndo, setNotebook, focusCell]
   );
 
   const moveCellUp = useCallback(() => moveCell(-1), [moveCell]);
   const moveCellDown = useCallback(() => moveCell(1), [moveCell]);
 
+  /** A new cell above the focused one, which takes the focus. */
   const addCellUp = useCallback(() => {
     pushUndo();
+    const added = newCell();
     setNotebook((prevNotebook) => ({
       ...prevNotebook,
       cells: [
         ...prevNotebook.cells.slice(0, focusedIndex),
-        newCell(),
+        added,
         ...prevNotebook.cells.slice(focusedIndex),
       ],
     }));
-  }, [focusedIndex, pushUndo, setNotebook]);
+    focusCell(added.id);
+  }, [focusedIndex, pushUndo, setNotebook, focusCell]);
 
-  const addCellDown = useCallback(() => {
+  /** A new cell below the focused one, whose id is returned; the focus stays where it is. */
+  const addCellDown = useCallback((): string => {
     pushUndo();
+    const added = newCell();
     setNotebook((prevNotebook) => {
       const index =
         focusedIndex >= 0 && focusedIndex < prevNotebook.cells.length
@@ -104,13 +116,10 @@ export function useCellEdits(
 
       return {
         ...prevNotebook,
-        cells: [
-          ...prevNotebook.cells.slice(0, index),
-          newCell(),
-          ...prevNotebook.cells.slice(index),
-        ],
+        cells: [...prevNotebook.cells.slice(0, index), added, ...prevNotebook.cells.slice(index)],
       };
     });
+    return added.id;
   }, [focusedIndex, pushUndo, setNotebook]);
 
   /**
@@ -121,24 +130,35 @@ export function useCellEdits(
   const addCellAt = useCallback(
     (index: number, cellType: NotebookCell['cell_type'] = 'code') => {
       pushUndo();
+      const added = newCell(cellType);
       setNotebook((prevNotebook) => {
         const at = Math.max(0, Math.min(index, prevNotebook.cells.length));
         return {
           ...prevNotebook,
-          cells: [
-            ...prevNotebook.cells.slice(0, at),
-            newCell(cellType),
-            ...prevNotebook.cells.slice(at),
-          ],
+          cells: [...prevNotebook.cells.slice(0, at), added, ...prevNotebook.cells.slice(at)],
         };
       });
-      setFocusedIndex(Math.max(0, index));
+      focusCell(added.id);
     },
-    [pushUndo, setNotebook, setFocusedIndex]
+    [pushUndo, setNotebook, focusCell]
   );
+
+  /**
+   * Command mode on the cell that takes over when the focused one goes — the one after it, or else the
+   * one before — as after Jupyter's `dd`.
+   */
+  const moveToNeighbour = useCallback(() => {
+    const neighbour = notebook.cells[focusedIndex + 1] ?? notebook.cells[focusedIndex - 1];
+    if (neighbour === undefined) {
+      focusCell(null);
+    } else {
+      focusCellBox(neighbour.id);
+    }
+  }, [notebook, focusedIndex, focusCell, focusCellBox]);
 
   const deleteCell = useCallback(() => {
     pushUndo();
+    moveToNeighbour();
     setNotebook((prevNotebook) => {
       if (focusedIndex < 0 || focusedIndex >= prevNotebook.cells.length) {
         return prevNotebook;
@@ -152,7 +172,7 @@ export function useCellEdits(
         ],
       };
     });
-  }, [focusedIndex, pushUndo, setNotebook]);
+  }, [focusedIndex, pushUndo, setNotebook, moveToNeighbour]);
 
   const copyCell = useCallback(() => {
     setCopiedCell(notebook.cells[focusedIndex]);
@@ -163,6 +183,7 @@ export function useCellEdits(
     pushUndo();
     setCopiedCell(notebook.cells[focusedIndex]);
     setCutCellIndex(focusedIndex);
+    moveToNeighbour();
     setNotebook((prevNotebook) => ({
       ...prevNotebook,
       cells: [
@@ -170,7 +191,7 @@ export function useCellEdits(
         ...prevNotebook.cells.slice(focusedIndex + 1),
       ],
     }));
-  }, [notebook, focusedIndex, pushUndo, setNotebook]);
+  }, [notebook, focusedIndex, pushUndo, setNotebook, moveToNeighbour]);
 
   const pasteCell = useCallback(() => {
     if (!copiedCell) return;
@@ -248,24 +269,23 @@ export function useCellEdits(
     }));
   }, [pushUndo, setNotebook]);
 
-  /** Moves focus down, optionally appending a cell when already on the last one. */
+  /**
+   * Moves the focus down in command mode, as in Jupyter: the box takes the keyboard, so the next
+   * Shift-Enter runs *this* cell and a stray keystroke cannot reach the one just run. On the last cell,
+   * `addCellIfLast` appends one to move to.
+   */
   const focusNextCell = useCallback(
     (addCellIfLast: boolean) => {
-      let cellCount = notebook.cells.length;
-      if (cellCount === focusedIndex + 1 && addCellIfLast) {
-        addCellDown();
-        cellCount += 1;
+      if (addCellIfLast && focusedIndex === notebook.cells.length - 1) {
+        focusCellBox(addCellDown());
+        return;
       }
-      setFocusedIndex((prev) => {
-        const newIndex = Math.min(prev + 1, cellCount - 1);
-        scrollTo(newIndex);
-        // Command mode on the cell arrived at, as in Jupyter: the box takes the keyboard, so the
-        // next Shift-Enter runs *this* cell and a stray keystroke cannot reach the one just run.
-        focusCellBox(newIndex);
-        return newIndex;
-      });
+      const next = cellAround(1);
+      if (next !== undefined) {
+        focusCellBox(next);
+      }
     },
-    [notebook, focusedIndex, addCellDown, setFocusedIndex, scrollTo, focusCellBox]
+    [notebook, focusedIndex, addCellDown, cellAround, focusCellBox]
   );
 
   return {

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { search } from '@codemirror/search';
-import { Text } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'react-toastify';
 import './NotebookEditor.scss';
 
@@ -16,14 +14,10 @@ import {
 import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
-import { LineEdit, OpenDocument, useOpenDocument } from '@/store/openDocuments';
-import { revealPositionAtom, serverStatusAtom } from '@/store/languageServers';
-import { MatchReveal, revealMatchAtom } from '@/store/projectSearch';
 import { useUnsavedChanges } from '@/store/unsavedState';
 import { useEditorSettings } from '@/store/editorSettingsActions';
 import BreadCrumb from '../BreadCrumb';
 import { cellFindHighlighter, currentMatchField } from '../findHighlight';
-import { editedText, lineEditChanges } from '../lineEdits';
 import ConfirmRestartDialog, { RestartIntent } from './ConfirmRestartDialog';
 import { NO_KERNEL } from './kernelChoice';
 import { KernelMessage } from './kernelMessages';
@@ -46,15 +40,17 @@ import ExportDialog from './export/ExportDialog';
 import { exportFilename } from './export/exportFormats';
 import { useNotebookCells } from './useNotebookCells';
 import { useNotebookLanguageServer } from './useNotebookLanguageServer';
-import { outputText, useNotebookFind } from './useNotebookFind';
+import { useNotebookFormatting } from './useNotebookFormatting';
+import { useNotebookReplace } from './useNotebookReplace';
+import { useNotebookReveal } from './useNotebookReveal';
+import { useStableCallback } from './useStableCallback';
+import { useNotebookFind } from './useNotebookFind';
 
 interface NotebookEditorProps {
   data: FileTab;
 }
 
 export default function NotebookEditor({ data }: NotebookEditorProps) {
-  const [executeAllCellsFlag, setExecuteAllCellsFlag] = useState<boolean>(false);
-
   const cells = useNotebookCells();
   const [editorSettings] = useEditorSettings();
   const kernel = useKernelSession(data, cells.applyMessage);
@@ -135,21 +131,23 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
   const submitAllCellsForExecution = useCallback(() => {
     if (kernel.session) {
-      setExecuteAllCellsFlag(true);
       notebook.cells.forEach((cell) => {
         if (cell.cell_type === 'code') {
           submitCell(cell.source, cell.id);
         }
       });
-      setExecuteAllCellsFlag(false); // Reset after executing all cells
     }
   }, [kernel.session, notebook, submitCell]);
 
+  // Run all after a restart waits for the render that carries the new kernel's session: the callbacks
+  // from before the restart still hold the old one.
+  const [runAllAfterRestart, setRunAllAfterRestart] = useState(false);
   useEffect(() => {
-    if (executeAllCellsFlag) {
+    if (runAllAfterRestart && kernel.session) {
+      setRunAllAfterRestart(false);
       submitAllCellsForExecution();
     }
-  }, [executeAllCellsFlag, submitAllCellsForExecution]);
+  }, [runAllAfterRestart, kernel.session, submitAllCellsForExecution]);
 
   const doRestartKernel = () => {
     kernel.restartKernel().catch((error) => console.error('Error restarting kernel:', error));
@@ -161,7 +159,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     try {
       // The new kernel has to be connected before any cell is submitted.
       await kernel.restartKernel();
-      setExecuteAllCellsFlag(true);
+      setRunAllAfterRestart(true);
     } catch (error) {
       console.error('Error restarting kernel:', error);
     }
@@ -221,37 +219,13 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   kernelStatusRef.current = kernel.kernelStatus;
   const kernelIdle = useCallback(() => kernelStatusRef.current === 'idle', []);
 
-  const serverStatuses = useAtomValue(serverStatusAtom);
-  const formatCells = async (scope: 'cell' | 'notebook') => {
-    const server = languageServer;
-    if (server === null) {
-      return;
-    }
-    const focused = notebook.cells[cells.focusedIndex];
-    const targets =
-      scope === 'cell'
-        ? focused?.cell_type === 'code'
-          ? [focused]
-          : []
-        : notebook.cells.filter((cell) => cell.cell_type === 'code');
-    const options = {
-      tabSize: editorSettings.tab_size,
-      insertSpaces: !editorSettings.indent_with_tabs,
-    };
-    for (const cell of targets) {
-      const view = cellViews.current.get(cell.id);
-      if (view === undefined) {
-        continue;
-      }
-      if (!(await server.formatCell(cell.id, view, options))) {
-        const name = serverStatuses[server.server]?.name || 'The language server';
-        toast.warning(
-          `${name} does not format code. A server that does, such as ruff server, can be set in Settings → Language servers.`
-        );
-        return;
-      }
-    }
-  };
+  const formatCells = useNotebookFormatting({
+    languageServer,
+    notebook,
+    focusedIndex: cells.focusedIndex,
+    cellViews,
+    settings: editorSettings,
+  });
 
   // One copy per cell: the library's search state, our highlighter over it — theirs draws nothing
   // unless its own panel is open — and the field through which the notebook says which single match,
@@ -266,7 +240,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     cells: cells.notebook.cells,
     views: cellViews,
     focusCell: cells.focusCell,
-    divRefs: cells.divRefs,
+    scrollTo: cells.scrollTo,
     active: finding,
     viewsVersion,
   });
@@ -274,6 +248,10 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     setFindTakesFocus(true);
     setFinding(true);
     setFindFocus((count) => count + 1);
+  }, []);
+  const openFindForReveal = useCallback(() => {
+    setFindTakesFocus(false);
+    setFinding(true);
   }, []);
 
   /**
@@ -303,172 +281,27 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     markOutputs(notebookBody.current, finding && find.options.outputs ? find.query : null);
   }, [finding, find.options.outputs, find.query, cells.notebook.cells]);
 
-  // A project replace carries out its edits here while the notebook is open: through a cell's editor,
-  // so its undo takes them back, or into the source of a rendered markdown cell, which has none.
-  const notebookRef = useRef(notebook);
-  notebookRef.current = notebook;
-  const { updateCellSource } = cells;
-  const openDoc = useMemo<OpenDocument | null>(
-    () =>
-      cells.loading || cells.error !== ''
-        ? null
-        : {
-            applyEdits: (edits) => {
-              let applied = 0;
-              let stale = 0;
-              const byCell = new Map<number, LineEdit[]>();
-              edits.forEach((edit) => {
-                if (edit.cell === undefined) {
-                  stale += 1;
-                  return;
-                }
-                byCell.set(edit.cell, [...(byCell.get(edit.cell) ?? []), edit]);
-              });
-              byCell.forEach((cellEdits, index) => {
-                const cell = notebookRef.current.cells[index];
-                if (cell === undefined) {
-                  stale += cellEdits.length;
-                  return;
-                }
-                const view = cellViews.current.get(cell.id);
-                if (view !== undefined) {
-                  const outcome = lineEditChanges(view.state.doc, cellEdits);
-                  if (outcome.changes.length > 0) {
-                    view.dispatch({ changes: outcome.changes });
-                  }
-                  applied += outcome.changes.length;
-                  stale += outcome.stale;
-                  return;
-                }
-                const outcome = editedText(cell.source, cellEdits);
-                if (outcome.applied > 0) {
-                  updateCellSource(outcome.text, cell.id);
-                }
-                applied += outcome.applied;
-                stale += outcome.stale;
-              });
-              return { applied, stale };
-            },
-          },
-    [cells.loading, cells.error, updateCellSource]
-  );
-  useOpenDocument(data.path, openDoc);
+  useNotebookReplace({
+    path: data.path,
+    notebook,
+    ready: !cells.loading && cells.error === '',
+    cellViews,
+    updateCellSource: cells.updateCellSource,
+  });
 
-  /**
-   * A match pressed in the search panel: the notebook's card searching for the same thing, and that match
-   * the current one. In two steps, because the card's matches only exist once its query has been set.
-   */
-  const reveal = useAtomValue(revealMatchAtom);
-  const setReveal = useSetAtom(revealMatchAtom);
-  const pendingReveal = useRef<MatchReveal | null>(null);
-  const setFindOptions = useRef(find.setOptions);
-  setFindOptions.current = find.setOptions;
-  const findOptions = useRef(find.options);
-  findOptions.current = find.options;
-  useEffect(() => {
-    if (reveal === null || reveal.path !== data.path || cells.loading) {
-      return;
-    }
-    setReveal(null);
-    pendingReveal.current = reveal;
-    const asked = findOptions.current;
-    // Set only when different: an unchanged search set again is a new query, whose reset would take away
-    // the current match a moment after the step below has made it.
-    if (
-      asked.search !== reveal.search ||
-      asked.caseSensitive !== reveal.caseSensitive ||
-      asked.wholeWord !== reveal.wholeWord ||
-      asked.regexp !== reveal.regexp ||
-      !asked.outputs
-    ) {
-      setFindOptions.current({
-        search: reveal.search,
-        caseSensitive: reveal.caseSensitive,
-        wholeWord: reveal.wholeWord,
-        regexp: reveal.regexp,
-        outputs: true,
-      });
-    }
-    setFindTakesFocus(false);
-    setFinding(true);
-  }, [reveal, data.path, cells.loading, setReveal]);
-
-  const { focusCell, scrollTo } = cells;
-  useEffect(() => {
-    const wanted = pendingReveal.current;
-    const asked = find.options;
-    // After the card is open, for the same reason: opening it resets the current match too.
-    if (
-      wanted === null ||
-      !finding ||
-      asked.search !== wanted.search ||
-      asked.caseSensitive !== wanted.caseSensitive ||
-      asked.wholeWord !== wanted.wholeWord ||
-      asked.regexp !== wanted.regexp
-    ) {
-      return;
-    }
-    const index = wanted.cell ?? -1;
-    const cell = notebook.cells[index];
-    if (cell === undefined) {
-      pendingReveal.current = null;
-      return;
-    }
-    // A cell's editor arrives a render after the cell does. A markdown cell showing its prose never has
-    // one, and is the only cell not worth waiting for.
-    const rendered = cell.cell_type === 'markdown' && cells.editingCellId !== cell.id;
-    if (!rendered && wanted.output !== true && !cellViews.current.has(cell.id)) {
-      return;
-    }
-    pendingReveal.current = null;
-    const text = wanted.output === true ? outputText(cell) : cell.source;
-    const doc = Text.of(text.split('\n'));
-    const from = doc.line(Math.min(wanted.line, doc.lines)).from + wanted.from;
-    const where = wanted.output === true ? 'output' : 'source';
-    const found = find.matches.findIndex(
-      (match) => match.cellId === cell.id && match.where === where && match.from === from
-    );
-    if (found >= 0) {
-      find.goTo(found);
-      return;
-    }
-    // Not among the card's matches — a rendered markdown cell, which the card does not search — so the
-    // cell itself is where the reader is taken.
-    focusCell(cell.id);
-    scrollTo(index);
-  }, [find, finding, notebook.cells, focusCell, scrollTo, cells.editingCellId, viewsVersion]);
-
-  // A problem pressed in the panel under the editor: its cell focused, with the cursor where it is.
-  const revealPosition = useAtomValue(revealPositionAtom);
-  const setRevealPosition = useSetAtom(revealPositionAtom);
-  useEffect(() => {
-    if (revealPosition === null || revealPosition.path !== data.path || cells.loading) {
-      return;
-    }
-    const cell = notebook.cells[revealPosition.cell ?? -1];
-    const view = cell && cellViews.current.get(cell.id);
-    if (view === undefined) {
-      return;
-    }
-    setRevealPosition(null);
-    focusCell(cell.id);
-    scrollTo(revealPosition.cell ?? 0);
-    const doc = view.state.doc;
-    const line = doc.line(Math.min(revealPosition.line + 1, doc.lines));
-    view.dispatch({
-      selection: { anchor: Math.min(line.from + revealPosition.character, line.to) },
-    });
-    view.focus();
-  }, [
-    revealPosition,
-    data.path,
-    cells.loading,
-    notebook.cells,
-    focusCell,
-    scrollTo,
-    setRevealPosition,
+  useNotebookReveal({
+    path: data.path,
+    notebook,
+    loading: cells.loading,
+    editingCellId: cells.editingCellId,
+    focusCell: cells.focusCell,
+    scrollTo: cells.scrollTo,
+    find,
+    finding,
+    openFindForReveal,
+    cellViews,
     viewsVersion,
-  ]);
+  });
 
   // The notebook as it is on screen, not as it is on disk: an export carries unsaved edits and the
   // output the kernel produced a moment ago, which is the whole reason the conversion is in the
@@ -496,6 +329,15 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // things a page can leave out, and Markdown and the script have no equivalent question.
   const [askingExport, setAskingExport] = useState(false);
 
+  const editFocusedCell = () => {
+    const cell = notebook.cells[cells.focusedIndex];
+    if (cell?.cell_type === 'markdown') {
+      cells.beginEditing(cell.id);
+    } else if (cell !== undefined) {
+      cellViews.current.get(cell.id)?.focus();
+    }
+  };
+
   const commands = useNotebookCommands({
     cells,
     kernel,
@@ -514,6 +356,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       );
     },
     hasLanguageServer: languageServer !== null,
+    editFocusedCell,
     restartKernel: () => setRestartIntent('restart'),
     restartAndExecuteAllCells: () => setRestartIntent('restart-and-run-all'),
     // The hook reports its own outcome as a toast, so there is nothing for a caller to await.
@@ -535,35 +378,58 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // through the registry, so a cell can only run its own notebook's commands.
   const commandKeymap = useEditorCommandKeymap(commands);
 
-  const cellContext: NotebookEditorContextValue = {
-    run: runCommand,
-    commandKeymap,
-    cellLanguage,
-    findExtension,
-    registerCellView,
-    focusedIndex: cells.focusedIndex,
-    focusCell: cells.focusCell,
-    focusCellBox: cells.focusCellBox,
-    focusNextCell: cells.focusNextCell,
-    focusPreviousCell: cells.focusPreviousCell,
-    divRefs: cells.divRefs,
-    updateCellSource: cells.updateCellSource,
-    addCellAt: cells.addCellAt,
-    submitCell,
-    interruptKernel: kernel.interruptKernel,
-    beginEditing: cells.beginEditing,
-    endEditing: cells.endEditing,
-    showPrompt: kernel.showPrompt,
-    promptContent: kernel.promptContent,
-    promptCellId: kernel.promptCellId,
-    submitPrompt,
-    toggleShowPrompt: kernel.toggleShowPrompt,
-    requestCompletions: kernel.requestCompletions,
-    requestInspection: kernel.requestInspection,
-    kernelIdle,
-    languageServer,
-    widgets: kernel.widgets,
+  // Stable, so the context below changes only when an extension, the kernel's connection or the
+  // language server does — never on a keystroke. Every cell reads it.
+  const stable = {
+    run: useStableCallback(runCommand),
+    focusNextCell: useStableCallback(cells.focusNextCell),
+    addCellAt: useStableCallback(cells.addCellAt),
+    submitCell: useStableCallback(submitCell),
+    interruptKernel: useStableCallback(kernel.interruptKernel),
+    submitPrompt: useStableCallback(submitPrompt),
+    toggleShowPrompt: useStableCallback(kernel.toggleShowPrompt),
   };
+  const cellContext = useMemo<NotebookEditorContextValue>(
+    () => ({
+      ...stable,
+      commandKeymap,
+      cellLanguage,
+      findExtension,
+      registerCellView,
+      registerCellBox: cells.registerCellBox,
+      focusCell: cells.focusCell,
+      focusCellBox: cells.focusCellBox,
+      focusPreviousCell: cells.focusPreviousCell,
+      updateCellSource: cells.updateCellSource,
+      beginEditing: cells.beginEditing,
+      endEditing: cells.endEditing,
+      requestCompletions: kernel.requestCompletions,
+      requestInspection: kernel.requestInspection,
+      kernelIdle,
+      languageServer,
+      widgets: kernel.widgets,
+    }),
+    // `stable`'s members never change identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      commandKeymap,
+      cellLanguage,
+      findExtension,
+      registerCellView,
+      cells.registerCellBox,
+      cells.focusCell,
+      cells.focusCellBox,
+      cells.focusPreviousCell,
+      cells.updateCellSource,
+      cells.beginEditing,
+      cells.endEditing,
+      kernel.requestCompletions,
+      kernel.requestInspection,
+      kernelIdle,
+      languageServer,
+      kernel.widgets,
+    ]
+  );
 
   return (
     <div className="tab-surface">
@@ -645,6 +511,12 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
                     runningCellIds={kernel.runningCellIds}
                     expandedOutputs={cells.expandedOutputs}
                     editingCellId={cells.editingCellId}
+                    focusedCellId={cells.focusedCellId}
+                    prompt={
+                      kernel.showPrompt && kernel.promptCellId && kernel.promptContent
+                        ? { cellId: kernel.promptCellId, content: kernel.promptContent }
+                        : undefined
+                    }
                   />
                 </NotebookEditorContext.Provider>
               )}
@@ -663,8 +535,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
                 // least it can, which for a heading below the fold parks it on the bottom edge with
                 // the section it names off screen.
                 onGoTo={(index) => {
-                  cells.setFocusedIndex(index);
-                  cells.scrollTo(index, 'start');
+                  const cell = notebook.cells[index];
+                  if (cell !== undefined) {
+                    cells.focusCell(cell.id);
+                    cells.scrollTo(cell.id, 'start');
+                  }
                 }}
                 onClose={() => setShowContents(false)}
               />

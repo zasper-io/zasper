@@ -41,7 +41,11 @@ export function useCommandKeymap(): void {
       }
 
       for (const command of latest.current) {
-        if (!command.keys || (command.scope === 'cell-editor' && isTypingTarget(event.target))) {
+        if (
+          !command.keys ||
+          (command.scope === 'cell-editor' && isTypingTarget(event.target)) ||
+          (command.scope === 'command-mode' && !isCommandModeTarget(event.target))
+        ) {
           continue;
         }
         if (!command.keys.some((binding) => chordMatches(binding, event))) {
@@ -69,6 +73,11 @@ export function useCommandKeymap(): void {
 
 function isFunctionKey(key: string): boolean {
   return /^F([1-9]|1[0-9]|2[0-4])$/.test(key);
+}
+
+/** A notebook cell's box with the keyboard itself, rather than anything inside it. */
+function isCommandModeTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.hasAttribute('data-command-mode');
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {

@@ -49,9 +49,9 @@ function find(cells: NotebookCell[] = notebook, withoutViews: string[] = []) {
     }
   });
   const focusCell = vi.fn();
-  const divRefs = { current: [] as (HTMLDivElement | null)[] };
+  const scrollTo = vi.fn();
   const rendered = renderHook(() =>
-    useNotebookFind({ cells, views, focusCell, divRefs, active: true })
+    useNotebookFind({ cells, views, focusCell, scrollTo, active: true })
   );
   return { ...rendered, views, focusCell };
 }

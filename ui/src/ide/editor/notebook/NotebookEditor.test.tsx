@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { Provider } from '@/testing/Provider';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useCommandKeymap } from '@/commands/useCommandKeymap';
+
 import NotebookEditor from './NotebookEditor';
 import { ApiError } from '@/api/client';
 import { kernelspecsAtom } from '@/store/kernels';
@@ -233,7 +235,17 @@ describe('NotebookEditor', () => {
     });
     // jsdom lays nothing out, so it has no scrollIntoView to call.
     Element.prototype.scrollIntoView = vi.fn();
-    const { container } = render(<NotebookEditor data={tab} />);
+    // The arrows are command-mode commands, which the app's one key dispatcher runs.
+    const Keys = () => {
+      useCommandKeymap();
+      return null;
+    };
+    const { container } = render(
+      <Provider>
+        <Keys />
+        <NotebookEditor data={{ ...tab, active: true }} />
+      </Provider>
+    );
     await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(3));
     const boxes = () => [...container.querySelectorAll<HTMLElement>('.single-line')];
     const active = () => boxes().findIndex((box) => box.classList.contains('activeCell'));

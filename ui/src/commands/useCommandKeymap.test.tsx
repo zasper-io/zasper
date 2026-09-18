@@ -16,6 +16,7 @@ function mount(commands: Command[]) {
       <>
         <input data-testid="field" />
         <div data-testid="cm" contentEditable suppressContentEditableWarning />
+        <div data-testid="box" data-command-mode="" tabIndex={-1} />
       </>
     );
   };
@@ -132,5 +133,20 @@ describe('useCommandKeymap', () => {
     press('Shift', { shiftKey: true });
 
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('runs a command-mode key only when a cell box has the keyboard', () => {
+    const execute = vi.fn();
+    const { getByTestId } = mount([
+      command({ keys: ['ArrowDown'], scope: 'command-mode', execute }),
+    ]);
+
+    press('ArrowDown');
+    press('ArrowDown', {}, getByTestId('field'));
+    expect(execute).not.toHaveBeenCalled();
+
+    const event = press('ArrowDown', {}, getByTestId('box'));
+    expect(execute).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
   });
 });

@@ -31,5 +31,8 @@ export interface Command {
  *   stop propagation of chords it has no binding for, so these still fire while typing.
  * - `cell-editor`: contributed into the cell's CodeMirror keymap at `Prec.highest`, for chords
  *   CodeMirror would otherwise swallow — `Shift-Enter` inserts a newline by default.
+ * - `command-mode`: the window dispatcher, and only while a notebook cell's own box holds the
+ *   keyboard — Jupyter's command mode, where a bare key like `ArrowDown` is a command rather than
+ *   typing. The box says so with `data-command-mode`.
  */
-export type CommandScope = 'app' | 'notebook' | 'cell-editor';
+export type CommandScope = 'app' | 'notebook' | 'cell-editor' | 'command-mode';

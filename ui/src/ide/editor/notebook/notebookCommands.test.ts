@@ -54,8 +54,7 @@ function fakeTargets(options: FakeOptions = {}) {
     clearFocusedCellOutputs: vi.fn(),
     clearAllOutputs: vi.fn(),
     focusNextCell: vi.fn(),
-    goToNextCell: vi.fn(),
-    goToPreviousCell: vi.fn(),
+    focusPreviousCell: vi.fn(),
     interruptKernel: vi.fn(),
     reconnectKernel: vi.fn(),
     toggleKernelSwitcher: vi.fn(),
@@ -91,8 +90,7 @@ function fakeTargets(options: FakeOptions = {}) {
       clearFocusedCellOutputs: spies.clearFocusedCellOutputs,
       clearAllOutputs: spies.clearAllOutputs,
       focusNextCell: spies.focusNextCell,
-      goToNextCell: spies.goToNextCell,
-      goToPreviousCell: spies.goToPreviousCell,
+      focusPreviousCell: spies.focusPreviousCell,
     } as unknown as NotebookCells,
     kernel: {
       session: 'session' in options ? options.session : { id: 'session-1' },
@@ -109,6 +107,7 @@ function fakeTargets(options: FakeOptions = {}) {
     restartAndExecuteAllCells: spies.restartAndExecuteAllCells,
     formatCells: vi.fn(),
     hasLanguageServer: false,
+    editFocusedCell: vi.fn(),
     exportNotebook: spies.exportNotebook,
   };
 
@@ -321,9 +320,18 @@ describe('useNotebookCommands', () => {
 
     expect(byId(commands, 'notebook:run-cell').scope).toBe('cell-editor');
     expect(byId(commands, 'notebook:run-cell-and-advance').scope).toBe('cell-editor');
+    // Command mode's bare keys are the window's too, but only while a cell's box holds the keyboard.
+    const commandMode = [
+      'notebook:select-next-cell',
+      'notebook:select-previous-cell',
+      'notebook:edit-cell',
+    ];
+    for (const id of commandMode) {
+      expect(byId(commands, id).scope, id).toBe('command-mode');
+    }
     // Everything else is dispatched from the window, and only while the tab is active.
     for (const command of commands) {
-      if (!command.id.startsWith('notebook:run-cell')) {
+      if (!command.id.startsWith('notebook:run-cell') && !commandMode.includes(command.id)) {
         expect(command.scope, command.id).toBe('notebook');
       }
     }

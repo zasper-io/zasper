@@ -4,6 +4,7 @@ import { NotebookModel } from '@/api';
 
 import Cell from './Cell';
 import CellInsert from './CellInsert';
+import { KernelMessage } from './kernelMessages';
 
 interface NotebookCellsProps {
   notebook: NotebookModel;
@@ -13,6 +14,9 @@ interface NotebookCellsProps {
   expandedOutputs: ReadonlySet<string>;
   /** The markdown cell whose source is open, if any. */
   editingCellId: string | null;
+  focusedCellId: string | null;
+  /** The kernel's `input()` prompt and the cell it is waiting on, when it is waiting. */
+  prompt?: { cellId: string; content: KernelMessage };
 }
 
 /**
@@ -24,6 +28,8 @@ export default function NotebookCells({
   runningCellIds,
   expandedOutputs,
   editingCellId,
+  focusedCellId,
+  prompt,
 }: NotebookCellsProps) {
   if (!notebook.cells) {
     return null;
@@ -41,7 +47,9 @@ export default function NotebookCells({
             cell={cell}
             isRunning={runningCellIds.has(cell.id)}
             isOutputExpanded={expandedOutputs.has(cell.id)}
+            isFocused={focusedCellId === cell.id}
             isEditing={editingCellId === cell.id}
+            prompt={prompt?.cellId === cell.id ? prompt.content : undefined}
           />
         </React.Fragment>
       ))}

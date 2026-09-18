@@ -101,7 +101,8 @@ interface NotebookFindInput {
   /** Every mounted cell editor, by cell id: a rendered markdown cell has none. */
   views: RefObject<Map<string, EditorView>>;
   focusCell: (cellId: string) => void;
-  divRefs: RefObject<(HTMLDivElement | null)[]>;
+  /** Brings a cell's box into view, for a match in its output. */
+  scrollTo: (cellId: string) => void;
   /** Whether the card is up. Nothing is marked while it is not, or matches would stay behind it. */
   active: boolean;
   /** Bumped when a cell's editor arrives, which is a render after the cell itself mounts. */
@@ -120,7 +121,7 @@ export function useNotebookFind({
   cells,
   views,
   focusCell,
-  divRefs,
+  scrollTo,
   active,
   viewsVersion = 0,
 }: NotebookFindInput): NotebookFind {
@@ -233,9 +234,9 @@ export function useNotebookFind({
         return;
       }
       // An output cannot hold a selection, so the cell it belongs to is scrolled to instead.
-      divRefs.current?.[match.index]?.scrollIntoView({ block: 'nearest' });
+      scrollTo(match.cellId);
     },
-    [found.matches, views, focusCell, divRefs]
+    [found.matches, views, focusCell, scrollTo]
   );
 
   const step = useCallback(

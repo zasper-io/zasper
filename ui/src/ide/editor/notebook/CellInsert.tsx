@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 import { Icon } from '@/ide/icons';
 
@@ -28,7 +28,7 @@ interface CellInsertProps {
  * Labelled rather than a bare `+`, because the choice being made is Code or Markdown and an icon
  * cannot say which.
  */
-export default function CellInsert(props: CellInsertProps) {
+function CellInsert(props: CellInsertProps) {
   const { addCellAt } = useNotebookEditor();
 
   return (
@@ -52,3 +52,5 @@ export default function CellInsert(props: CellInsertProps) {
     </div>
   );
 }
+
+export default memo(CellInsert);
