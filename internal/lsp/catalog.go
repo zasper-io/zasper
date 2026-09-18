@@ -101,10 +101,18 @@ type finder struct {
 // systemFolders are the ones a real finder searches.
 var systemFolders = []string{"/opt/homebrew/bin", "/usr/local/bin", "/usr/local/go/bin"}
 
+// venvPrograms is the folder a virtual environment keeps its programs in.
+func venvPrograms() string {
+	if runtime.GOOS == "windows" {
+		return "Scripts"
+	}
+	return "bin"
+}
+
 func (f finder) folders() []string {
 	folders := []string{
-		filepath.Join(f.root, ".venv", "bin"),
-		filepath.Join(f.root, "venv", "bin"),
+		filepath.Join(f.root, ".venv", venvPrograms()),
+		filepath.Join(f.root, "venv", venvPrograms()),
 		filepath.Join(f.root, "node_modules", ".bin"),
 	}
 	if f.gopath != "" {
@@ -181,7 +189,7 @@ func (f finder) resolve(language Language, settings config.LanguageServerSetting
 		answer.Configured = true
 		answer.Command = command
 		if len(argv) > 0 {
-			answer.Server = filepath.Base(argv[0])
+			answer.Server = programName(argv[0])
 			answer.Path = f.look(argv[0])
 			answer.Found = answer.Path != ""
 			answer.argv = append([]string{answer.Path}, argv[1:]...)
@@ -194,7 +202,7 @@ func (f finder) resolve(language Language, settings config.LanguageServerSetting
 			answer.Server = server.Name
 			answer.Install = server.Install
 			if server.Needs != "" {
-				answer.Program = filepath.Base(found)
+				answer.Program = programName(found)
 				answer.Needs = server.Needs
 			}
 			answer.Command = strings.Join(server.Command, " ")
@@ -206,6 +214,15 @@ func (f finder) resolve(language Language, settings config.LanguageServerSetting
 	}
 	answer.Command = strings.Join(preferred.Command, " ")
 	return answer
+}
+
+// programName is a program's name as it is typed: julia, not julia.exe.
+func programName(path string) string {
+	name := filepath.Base(path)
+	if runtime.GOOS == "windows" {
+		return strings.TrimSuffix(name, filepath.Ext(name))
+	}
+	return name
 }
 
 // splitCommand splits a command line on spaces, keeping what is inside single or double quotes together.

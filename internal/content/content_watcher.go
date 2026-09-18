@@ -114,6 +114,14 @@ func (p *projectWatch) run(watcher *fsnotify.Watcher, root string) {
 					watchTree(watcher, root, event.Name)
 				}
 			}
+			// Windows reports a Write on a folder whenever something inside it changes, which would make
+			// build/ and node_modules/ reload the browser though they are not watched. A watched folder's
+			// changes arrive from its own watch.
+			if event.Op == fsnotify.Write {
+				if info, err := os.Lstat(event.Name); err == nil && info.IsDir() {
+					continue
+				}
+			}
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
 				p.notify()
 			}

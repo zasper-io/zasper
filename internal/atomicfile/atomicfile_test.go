@@ -65,10 +65,12 @@ func TestASuccessfulWriteReplacesAndCleansUp(t *testing.T) {
 	assert.Empty(t, leftoverTempFiles(t, dir))
 
 	// CreateTemp makes 0600, so without the explicit chmod every saved notebook would quietly become
-	// owner-only the first time it was written.
-	info, err := os.Stat(notebook)
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o644), info.Mode().Perm())
+	// owner-only the first time it was written. Windows reports every writable file as 0666.
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(notebook)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o644), info.Mode().Perm())
+	}
 }
 
 func TestAReplacedFileKeepsItsPermissions(t *testing.T) {
