@@ -1,0 +1,2 @@
+# Byte-exact fixtures: a Windows checkout with core.autocrlf would otherwise turn them into CRLF.
+**/testdata/** -text

@@ -31,7 +31,7 @@ func TestTheFallbackJupyterPathIsInJupytersOrder(t *testing.T) {
 		"/first",
 		"/second",
 		filepath.Join(home, ".local", "share", "jupyter"),
-		"/opt/conda/share/jupyter",
+		filepath.Join("/opt/conda", "share", "jupyter"),
 		"/usr/local/share/jupyter",
 		"/usr/share/jupyter",
 	}, paths[:6])

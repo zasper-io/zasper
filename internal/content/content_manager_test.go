@@ -1,7 +1,7 @@
 package content
 
 import (
-	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -151,7 +151,7 @@ func TestGetFileModel(t *testing.T) {
 			relativePath:  ".",
 			fileName:      "nonexistentfile.txt",
 			expectedModel: models.ContentModel{},
-			expectedErr:   errors.New("no such file or directory"),
+			expectedErr:   fs.ErrNotExist,
 		},
 		{
 			name:         "Relative Path",
@@ -183,8 +183,7 @@ func TestGetFileModel(t *testing.T) {
 
 				assert.Equal(t, tt.expectedModel, result)
 			} else {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedErr.Error())
+				assert.ErrorIs(t, err, tt.expectedErr)
 				assert.Equal(t, tt.expectedModel, result)
 			}
 		})

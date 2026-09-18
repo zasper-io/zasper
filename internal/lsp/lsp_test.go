@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -75,8 +76,13 @@ func TestACommandIsSplitTheWayAShellWouldSplitIt(t *testing.T) {
 	assert.Equal(t, []string{}, splitCommand("   "))
 }
 
+// executableIn makes a program exec.LookPath accepts, which on Windows means one with an extension on
+// PATHEXT.
 func executableIn(t *testing.T, folder, name string) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
 	require.NoError(t, os.MkdirAll(folder, 0o755))
 	path := filepath.Join(folder, name)
 	require.NoError(t, os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755))
@@ -109,7 +115,7 @@ func TestAMissingServerSaysWhatToInstall(t *testing.T) {
 
 func TestAProjectsOwnVirtualEnvironmentServesItsPython(t *testing.T) {
 	root := t.TempDir()
-	pylsp := executableIn(t, filepath.Join(root, ".venv", "bin"), "pylsp")
+	pylsp := executableIn(t, filepath.Join(root, ".venv", venvPrograms()), "pylsp")
 	f := finder{root: root, home: t.TempDir(), lookPath: noPath}
 	python, _ := languageByID("python")
 

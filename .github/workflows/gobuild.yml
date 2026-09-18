@@ -57,12 +57,10 @@ jobs:
       if: runner.os != 'Windows'
       run: go test -race -tags apiserver ./...
 
-    # Not gating yet: nothing had run the Go tests on Windows before, which has no terminal (ConPTY) and
-    # interrupts a kernel differently. The tests that need either skip themselves; make this gate once
-    # it has been green. No -race, which needs cgo, and no internal/server, whose journeys use sh.
-    - name: Test (Windows, not gating yet)
+    # Windows has no terminal (ConPTY) and interrupts a kernel differently; the tests that need either
+    # skip themselves. No -race, which needs cgo, and no internal/server, whose journeys use sh.
+    - name: Test (Windows)
       if: runner.os == 'Windows'
-      continue-on-error: true
       shell: bash
       run: go test -tags apiserver $(go list -tags apiserver ./... | grep -v /internal/server)
 
