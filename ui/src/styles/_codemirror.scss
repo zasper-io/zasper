@@ -55,7 +55,7 @@
 // itself.
 //
 // Out of flow, because CodeMirror copies the editor's theme classes onto the container it appends
-// here, and those carry the editor's own box — the file editor's `minHeight="100%"` arrived as a
+// here, and those carry the editor's own box — the file editor's `height="100%"` arrived as a
 // 1315px sibling in #root and gave the app a scrollbar. Absolute takes the whole family out of the
 // flow, and the size stays full: CodeMirror reads the zoom off this element's own box
 // (`rect.height / offsetHeight`) and skips the measurement entirely when either is 0, which is how a
@@ -72,7 +72,7 @@
 // laid out and clickable underneath, and invisible. Only the popups inside it have a surface.
 //
 // Height too, and this is the half that was missing: there is one of these containers per editor,
-// not one per app, so the boxes they arrive with stack. Open a file — `minHeight="100%"` on the file
+// not one per app, so the boxes they arrive with stack. Open a file — `height="100%"` on the file
 // editor's CodeMirror, so its container is the window's full height — and the pile overflows a host
 // that is exactly one window tall, which gives <body> a scroll height of two windows and the whole
 // IDE, chrome and all, a page scrollbar. `.editor` clipping cannot reach it: the host is #root's

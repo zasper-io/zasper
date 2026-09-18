@@ -175,8 +175,12 @@
   // `.nav-tabs` looks like. Nothing in src has rendered the class, and the partial it was arguing
   // with is gone.
 
-  // The file editor's scroller. It was `.editor-body2`, a name whose only content was that
+  // The file editor's box. It was `.editor-body2`, a name whose only content was that
   // `.editor-body` — the notebook's, in NotebookEditor.scss — was taken.
+  //
+  // Not the scroller: CodeMirror's own `.cm-scroller` is, so both its scrollbars sit at the pane's edges.
+  // When this box scrolled instead, the editor grew to the file's full height and its horizontal
+  // scrollbar was at the end of the file.
   .file-editor-body {
     flex: 1;
     min-width: 0;
@@ -184,11 +188,15 @@
     color: var(--z-fg-editor);
     background-color: var(--z-bg-editor);
     width: 100%;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     position: relative;
-    padding-bottom: 500px;
+  }
+
+  .file-editor-codemirror {
+    flex: 1;
+    min-height: 0;
   }
 }
 

@@ -7,7 +7,7 @@ const HOST_ID = 'cm-tooltip-host';
  * The one element every editor's tooltips hang from, made on first use and kept for the app's life.
  *
  * It exists because CodeMirror copies `view.themeClasses` onto the container it appends here, and
- * those classes carry the editor's own box: the file editor asks for `minHeight="100%"`, so its
+ * those classes carry the editor's own box: the file editor asks for `height="100%"`, so its
  * container arrived 1315px tall and `display: flex`, doubling `#root`'s scroll height and giving the
  * whole app a scrollbar. Being out of flow is what fixes that; see _codemirror.scss for why it is a
  * full-size transparent sheet rather than a zero-sized point.

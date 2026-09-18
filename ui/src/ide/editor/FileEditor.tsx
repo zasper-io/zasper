@@ -12,7 +12,7 @@ import React, {
 import CodeMirror from '@uiw/react-codemirror';
 import { findNext, findPrevious, search, selectNextOccurrence } from '@codemirror/search';
 import { Extension, Text, Transaction } from '@codemirror/state';
-import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
+import { EditorView, keymap, scrollPastEnd, ViewUpdate } from '@codemirror/view';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 
@@ -151,7 +151,6 @@ export default function FileEditor(props: FileEditorProps) {
   /** Bumped when CodeMirror hands over a view, which is after the read that remounted it has rendered. */
   const [viewCount, setViewCount] = useState(0);
   const theme = useTheme();
-  const sourceRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   /**
@@ -716,6 +715,8 @@ export default function FileEditor(props: FileEditorProps) {
       ...(language === null ? [] : [language]),
       ...(keymapExtension === null ? [] : [keymapExtension]),
       settingsExtension,
+      // The last line can be scrolled to the top, as the body's 500px of padding once allowed.
+      scrollPastEnd(),
       popupPlacement,
       searchExtension,
       findKeymap,
@@ -822,24 +823,25 @@ export default function FileEditor(props: FileEditorProps) {
       .catch((failure: unknown) => setError(apiErrorMessage(failure)));
   };
 
-  // By proportion: the rendering has no map back to source lines.
-  const followSource = () => {
-    const source = sourceRef.current;
+  // By proportion: the rendering has no map back to source lines. Off CodeMirror's own scroller, which
+  // is the one that moves, and whose scroll event does not bubble to React.
+  useEffect(() => {
+    const source = viewRef.current?.scrollDOM;
     const preview = previewRef.current;
-    if (view !== 'split' || source === null || preview === null) {
+    if (view !== 'split' || source === undefined || preview === null) {
       return;
     }
-    const range = source.scrollHeight - source.clientHeight;
-    preview.scrollTop =
-      range > 0 ? (source.scrollTop / range) * (preview.scrollHeight - preview.clientHeight) : 0;
-  };
+    const follow = () => {
+      const range = source.scrollHeight - source.clientHeight;
+      preview.scrollTop =
+        range > 0 ? (source.scrollTop / range) * (preview.scrollHeight - preview.clientHeight) : 0;
+    };
+    source.addEventListener('scroll', follow, { passive: true });
+    return () => source.removeEventListener('scroll', follow);
+  }, [view, viewCount]);
 
   const editorBody = (
-    <div
-      ref={sourceRef}
-      className={view === 'preview' ? 'file-editor-body is-hidden' : 'file-editor-body'}
-      onScroll={followSource}
-    >
+    <div className={view === 'preview' ? 'file-editor-body is-hidden' : 'file-editor-body'}>
       {/* No editor once a read failed: it would be the empty starting state wearing the name of
           a file that is not there, and saving it would write that file. The band is the notebook
           editor's, which says the same thing for the same reason. */}
@@ -873,7 +875,8 @@ export default function FileEditor(props: FileEditorProps) {
           key={readCount}
           value={initialText}
           theme={theme.codeMirror}
-          minHeight="100%"
+          className="file-editor-codemirror"
+          height="100%"
           width="100%"
           extensions={extensions}
           onCreateEditor={(editor) => {

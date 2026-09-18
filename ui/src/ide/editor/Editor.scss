@@ -90,8 +90,11 @@
 }
 
 // A markdown file's source and its rendering, one at a time or side by side.
+// `min-width: 0` because .file-editor-area is a row: without it the panes grow to their longest
+// unwrapped line, and the preview is pushed off the right edge.
 .markdown-panes {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
 }
