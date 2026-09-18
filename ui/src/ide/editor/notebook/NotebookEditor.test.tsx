@@ -223,6 +223,33 @@ describe('NotebookEditor', () => {
     expect(container.querySelectorAll('.single-line')).toHaveLength(1);
   });
 
+  it('walks the cells with the arrows in command mode, and keeps the page from scrolling', async () => {
+    const code = (id: string) => ({ ...notebookContent.cells[0], id, execution_count: null });
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: { ...structuredClone(notebookContent), cells: [code('a'), code('b'), code('c')] },
+    });
+    // jsdom lays nothing out, so it has no scrollIntoView to call.
+    Element.prototype.scrollIntoView = vi.fn();
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(3));
+    const boxes = () => [...container.querySelectorAll<HTMLElement>('.single-line')];
+    const active = () => boxes().findIndex((box) => box.classList.contains('activeCell'));
+
+    boxes()[0].focus();
+    const down = fireEvent.keyDown(boxes()[0], { key: 'ArrowDown' });
+    await waitFor(() => expect(active()).toBe(1));
+    expect(down).toBe(false);
+
+    fireEvent.keyDown(boxes()[1], { key: 'ArrowDown' });
+    await waitFor(() => expect(active()).toBe(2));
+
+    fireEvent.keyDown(boxes()[2], { key: 'ArrowUp' });
+    await waitFor(() => expect(active()).toBe(1));
+  });
+
   it('sends an execute request for the cell that was run', async () => {
     const { container } = render(<NotebookEditor data={tab} />);
     await waitFor(() => expect(sockets).toHaveLength(1));

@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
+import { completionStatus } from '@codemirror/autocomplete';
 import { indentLess, indentMore } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { getIndentUnit, indentString } from '@codemirror/language';
@@ -156,6 +157,10 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
     if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
       return;
     }
+    // The arrows belong to the completion list while it is open, on a cell's first or last line too.
+    if (view.current !== null && completionStatus(view.current.state) === 'active') {
+      return;
+    }
     if (event.key === 'ArrowDown' && cursorPosition === totalLines) {
       editor.focusNextCell(false);
       event.preventDefault();
@@ -163,6 +168,31 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
       editor.focusPreviousCell();
       event.preventDefault();
     }
+  };
+
+  /**
+   * ↑ and ↓ in command mode, as in Jupyter: from one cell's box to the next. Without them the box took
+   * the first arrow and the browser scrolled the notebook with every one after it.
+   */
+  const handleCommandModeArrows = (event: React.KeyboardEvent): boolean => {
+    if (
+      event.target !== event.currentTarget ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.shiftKey
+    ) {
+      return false;
+    }
+    if (event.key === 'ArrowDown') {
+      editor.focusNextCell(false);
+    } else if (event.key === 'ArrowUp') {
+      editor.focusPreviousCell();
+    } else {
+      return false;
+    }
+    event.preventDefault();
+    return true;
   };
 
   /** Escape renders a markdown cell again, as Jupyter's Escape leaves edit mode. */
@@ -237,6 +267,9 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
         // Enter opens the source of a focused-but-rendered cell, the way Jupyter's command mode
         // does. Guarded on the target so it cannot fire for an Enter typed inside the editor.
         onKeyDown={(event) => {
+          if (handleCommandModeArrows(event)) {
+            return;
+          }
           if (event.key === 'Enter' && !isEditing && event.target === event.currentTarget) {
             editor.beginEditing(cell.id);
             event.preventDefault();
@@ -310,6 +343,9 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
       // cell means giving its editor the keyboard — a markdown cell opens its source instead, above.
       // Guarded on the target so it cannot fire for an Enter typed inside the editor.
       onKeyDown={(event) => {
+        if (handleCommandModeArrows(event)) {
+          return;
+        }
         if (event.key === 'Enter' && event.target === event.currentTarget) {
           view.current?.focus();
           event.preventDefault();

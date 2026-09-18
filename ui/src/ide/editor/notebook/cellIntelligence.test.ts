@@ -1,7 +1,7 @@
 import { CompletionResult } from '@codemirror/autocomplete';
 import { describe, expect, it } from 'vitest';
 
-import { mergeCompletions } from './cellIntelligence';
+import { completionAsks, mergeCompletions } from './cellIntelligence';
 
 const kernel: CompletionResult = {
   from: 3,
@@ -36,5 +36,20 @@ describe('mergeCompletions', () => {
     expect(mergeCompletions(null, server)).toBe(server);
     expect(mergeCompletions(kernel, null)).toBe(kernel);
     expect(mergeCompletions(null, null)).toBeNull();
+  });
+});
+
+describe('completionAsks', () => {
+  it('asks only the server while typing', () => {
+    expect(completionAsks(false, false, true)).toEqual({ kernel: false, server: true });
+  });
+
+  it('asks the kernel as well on Tab or Ctrl-Space, busy or not', () => {
+    expect(completionAsks(true, false, false)).toEqual({ kernel: true, server: true });
+  });
+
+  it('asks the kernel after a dot only while it is idle', () => {
+    expect(completionAsks(false, true, true).kernel).toBe(true);
+    expect(completionAsks(false, true, false).kernel).toBe(false);
   });
 });
