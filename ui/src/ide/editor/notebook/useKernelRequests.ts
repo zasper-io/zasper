@@ -7,15 +7,21 @@ import {
   buildCompleteRequest,
   buildExecuteRequest,
   buildInputReply,
+  buildInspectRequest,
   CompleteReply,
+  InspectReply,
   KernelMessage,
 } from './kernelMessages';
 
 /**
- * How long to wait for a `complete_reply` before giving up on it. A kernel handles shell messages one
- * at a time, so a completion asked for while a cell runs is answered after the editor has moved on.
+ * How long to wait for a `complete_reply` or an `inspect_reply` before giving up on it. A kernel handles
+ * shell messages one at a time, so a question asked while a cell runs is answered after the editor has
+ * moved on.
  */
-const COMPLETION_TIMEOUT_MS = 2000;
+const REPLY_TIMEOUT_MS = 2000;
+
+/** The shell replies a promise here waits for, rather than the notebook's own message loop. */
+const AWAITED_REPLIES = new Set(['complete_reply', 'inspect_reply']);
 
 /**
  * The requests a notebook sends its kernel, and what routes the replies back: which cell each
@@ -27,7 +33,7 @@ export function useKernelRequests(
   userName: string
 ) {
   // Keyed by the request's msg_id, which is what a reply's parent_header carries.
-  const pendingCompletions = useRef(new Map<string, (reply: CompleteReply) => void>());
+  const pendingReplies = useRef(new Map<string, (reply: unknown) => void>());
   /*
    * Which cell each execute_request was sent for, keyed by its msg_id. The cell id cannot be the msg_id:
    * a cell runs many times, and one id for every run makes a previous run's output indistinguishable
@@ -48,12 +54,12 @@ export function useKernelRequests(
     return requestId ? executingCells.current.get(requestId) : undefined;
   }, []);
 
-  /** Settles what a message finishes: the completion it answers, or the run the kernel is idle after. */
+  /** Settles what a message finishes: the question it answers, or the run the kernel is idle after. */
   const settle = useCallback(
     (message: KernelMessage) => {
       const requestId: string | undefined = message.parent_header?.msg_id;
-      if (message.header.msg_type === 'complete_reply' && requestId) {
-        pendingCompletions.current.get(requestId)?.(message.content);
+      if (AWAITED_REPLIES.has(message.header.msg_type) && requestId) {
+        pendingReplies.current.get(requestId)?.(message.content);
       }
       // Idle means the kernel has finished with the request and will send nothing further for it.
       if (
@@ -101,12 +107,12 @@ export function useKernelRequests(
   );
 
   /**
-   * Asks the kernel what completes at `cursorPos` in `source`, resolving null when there is no live
-   * kernel to ask or nothing arrives in time. A promise per request rather than state, because two
-   * keystrokes can have requests in flight at once and only the newer answer is wanted.
+   * Sends one shell request and resolves with its reply's content, or null when there is no live kernel
+   * to ask or nothing arrives in time. A promise per request rather than state, because two keystrokes
+   * can have requests in flight at once and only the newer answer is wanted.
    */
-  const requestCompletions = useCallback(
-    (source: string, cursorPos: number): Promise<CompleteReply | null> => {
+  const askKernel = useCallback(
+    <Reply>(build: (sessionId: string, msgId: string) => string): Promise<Reply | null> => {
       if (!session || !connection || connection.readyState !== WebSocket.OPEN) {
         return Promise.resolve(null);
       }
@@ -115,27 +121,45 @@ export function useKernelRequests(
 
       return new Promise((resolve) => {
         const timer = window.setTimeout(() => {
-          pendingCompletions.current.delete(msgId);
+          pendingReplies.current.delete(msgId);
           resolve(null);
-        }, COMPLETION_TIMEOUT_MS);
+        }, REPLY_TIMEOUT_MS);
 
-        pendingCompletions.current.set(msgId, (reply) => {
+        pendingReplies.current.set(msgId, (reply) => {
           window.clearTimeout(timer);
-          pendingCompletions.current.delete(msgId);
-          resolve(reply);
+          pendingReplies.current.delete(msgId);
+          resolve(reply as Reply);
         });
 
         try {
-          connection.send(buildCompleteRequest(session.id, userName, msgId, source, cursorPos));
+          connection.send(build(session.id, msgId));
         } catch (error) {
-          console.error('Failed to send complete_request message:', error);
+          console.error('Failed to send a request to the kernel:', error);
           window.clearTimeout(timer);
-          pendingCompletions.current.delete(msgId);
+          pendingReplies.current.delete(msgId);
           resolve(null);
         }
       });
     },
-    [session, connection, userName]
+    [session, connection]
+  );
+
+  /** Asks the kernel what completes at `cursorPos` in `source`. */
+  const requestCompletions = useCallback(
+    (source: string, cursorPos: number): Promise<CompleteReply | null> =>
+      askKernel<CompleteReply>((sessionId, msgId) =>
+        buildCompleteRequest(sessionId, userName, msgId, source, cursorPos)
+      ),
+    [askKernel, userName]
+  );
+
+  /** Asks the kernel about the name at `cursorPos` in `source` — Jupyter's Shift+Tab. */
+  const requestInspection = useCallback(
+    (source: string, cursorPos: number, detailLevel: 0 | 1 = 0): Promise<InspectReply | null> =>
+      askKernel<InspectReply>((sessionId, msgId) =>
+        buildInspectRequest(sessionId, userName, msgId, source, cursorPos, detailLevel)
+      ),
+    [askKernel, userName]
   );
 
   return {
@@ -146,5 +170,6 @@ export function useKernelRequests(
     sendExecuteRequest,
     sendInputReply,
     requestCompletions,
+    requestInspection,
   };
 }

@@ -3,7 +3,8 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ZasperWorkspace } from './workspace';
+import { buildVirtualDocument } from './notebookDocument';
+import { NotebookFile, ZasperWorkspace } from './workspace';
 
 function fakeClient() {
   return { didOpen: vi.fn(), didClose: vi.fn() } as unknown as LSPClient & {
@@ -68,5 +69,26 @@ describe('ZasperWorkspace', () => {
     await files.displayFile('file:///p/helper.go');
 
     expect(hooks.display).toHaveBeenCalledWith('file:///p/helper.go');
+  });
+
+  it('sends a notebook the change between what the server has and what is waiting, once', () => {
+    const { workspace: files, client, hooks } = workspace();
+    const first = buildVirtualDocument([{ id: 'a', index: 0, source: 'x = 1' }], true);
+    const notebook = files.openNotebook('file:///p/n.ipynb.py', 'python', first.text, first);
+    expect(client.didOpen).toHaveBeenCalledWith(notebook);
+    expect(hooks.opened).toHaveBeenCalledWith('file:///p/n.ipynb.py');
+
+    const next = buildVirtualDocument([{ id: 'a', index: 0, source: 'x = 12' }], true);
+    notebook.pending = { doc: EditorState.create({ doc: next.text }).doc, layout: next };
+    const [sent] = files.syncFiles();
+
+    expect(sent.file).toBeInstanceOf(NotebookFile);
+    expect(sent.changes.apply(sent.prevDoc).toString()).toBe(next.text);
+    expect(notebook.layout).toBe(next);
+    expect(files.syncFiles()).toEqual([]);
+
+    files.closeNotebook(notebook);
+    expect(client.didClose).toHaveBeenCalledWith('file:///p/n.ipynb.py');
+    expect(hooks.emptied).toHaveBeenCalled();
   });
 });

@@ -107,6 +107,8 @@ function fakeTargets(options: FakeOptions = {}) {
     submitAllCells: spies.submitAllCells,
     restartKernel: spies.restartKernel,
     restartAndExecuteAllCells: spies.restartAndExecuteAllCells,
+    formatCells: vi.fn(),
+    hasLanguageServer: false,
     exportNotebook: spies.exportNotebook,
   };
 

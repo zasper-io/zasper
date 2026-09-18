@@ -18,6 +18,8 @@ const STATE_WORDS: Record<ServerState, string> = {
 
 interface LanguageServerStatusProps {
   fileName: string;
+  /** The server by its key, for a notebook, whose language is its kernel's rather than its name's. */
+  server?: string;
 }
 
 /**
@@ -25,12 +27,12 @@ interface LanguageServerStatusProps {
  * whether it is starting, ready or failed, and whose menu restarts it, shows its log or stops it. A
  * language with no server installed says so here and nowhere else, and the menu says what to install.
  */
-export default function LanguageServerStatus({ fileName }: LanguageServerStatusProps) {
+export default function LanguageServerStatus({ fileName, server }: LanguageServerStatusProps) {
   const statuses = useAtomValue(serverStatusAtom);
   const list = useAtomValue(languageServerListAtom);
   const { openSettings, openLanguageServerLog } = useTabActions();
 
-  const language = serverLanguageFor(fileName);
+  const language = server === undefined ? serverLanguageFor(fileName) : { server };
   if (language === null || list === null || !list.enabled) {
     return null;
   }

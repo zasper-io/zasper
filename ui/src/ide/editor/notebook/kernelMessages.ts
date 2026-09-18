@@ -335,3 +335,42 @@ export function buildCompleteRequest(
     },
   });
 }
+
+/**
+ * The content of an `inspect_reply`: a MIME bundle about the name at the cursor. IPython's `text/plain` is
+ * its `?` output — signature, type, docstring — with ANSI colours on the headings.
+ */
+export interface InspectReply {
+  status: 'ok' | 'error';
+  found: boolean;
+  data?: Record<string, unknown>;
+}
+
+/** Asks the kernel about the name at `cursorPos`: 0 for `obj?`, 1 for `obj??`, which adds the source. */
+export function buildInspectRequest(
+  sessionId: string,
+  userName: string,
+  msgId: string,
+  source: string,
+  cursorPos: number,
+  detailLevel: 0 | 1
+): string {
+  return JSON.stringify({
+    channel: 'shell',
+    header: {
+      date: getTimeStamp(),
+      msg_id: msgId,
+      msg_type: 'inspect_request',
+      session: sessionId,
+      username: userName,
+      version: PROTOCOL_VERSION,
+    },
+    parent_header: {},
+    metadata: {},
+    content: {
+      code: source,
+      cursor_pos: cursorPos,
+      detail_level: detailLevel,
+    },
+  });
+}

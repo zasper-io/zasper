@@ -22,6 +22,8 @@ export interface Problem {
   message: string;
   source?: string;
   code?: string;
+  /** A notebook's problems say which cell, and count lines within it. */
+  cell?: number;
   /** From 0, as the protocol counts. */
   line: number;
   character: number;
@@ -39,9 +41,15 @@ export type DockTab = 'problems' | 'references' | 'terminal';
 export const dockTabAtom = atom<DockTab>('problems');
 
 /** A position asked for from the Problems panel, for the file editor holding the file to go to. */
-export const revealPositionAtom = atom<{ path: string; line: number; character: number } | null>(
-  null
-);
+export const revealPositionAtom = atom<{
+  path: string;
+  cell?: number;
+  line: number;
+  character: number;
+} | null>(null);
+
+/** The server serving each open notebook, by path — the kernel's language decides it, not the name. */
+export const notebookServersAtom = atom<Record<string, string>>({});
 
 /** What discovery answered for every language, loaded at boot and again after Settings change. */
 export const languageServerListAtom = atom<import('@/api').LanguageServerList | null>(null);

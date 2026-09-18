@@ -236,6 +236,7 @@ export function useKernelSession(
     sendExecuteRequest: requests.sendExecuteRequest,
     sendInputReply: requests.sendInputReply,
     requestCompletions: requests.requestCompletions,
+    requestInspection: requests.requestInspection,
   };
 }
 

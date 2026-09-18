@@ -17,6 +17,7 @@ import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
 import { LineEdit, OpenDocument, useOpenDocument } from '@/store/openDocuments';
+import { revealPositionAtom, serverStatusAtom } from '@/store/languageServers';
 import { MatchReveal, revealMatchAtom } from '@/store/projectSearch';
 import { useUnsavedChanges } from '@/store/unsavedState';
 import { useEditorSettings } from '@/store/editorSettingsActions';
@@ -44,6 +45,7 @@ import { useNotebookExport } from './export/useNotebookExport';
 import ExportDialog from './export/ExportDialog';
 import { exportFilename } from './export/exportFormats';
 import { useNotebookCells } from './useNotebookCells';
+import { useNotebookLanguageServer } from './useNotebookLanguageServer';
 import { outputText, useNotebookFind } from './useNotebookFind';
 
 interface NotebookEditorProps {
@@ -54,6 +56,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const [executeAllCellsFlag, setExecuteAllCellsFlag] = useState<boolean>(false);
 
   const cells = useNotebookCells();
+  const [editorSettings] = useEditorSettings();
   const kernel = useKernelSession(data, cells.applyMessage);
 
   const { loadNotebook, notebook } = cells;
@@ -61,11 +64,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
   // The attached kernel's language first, then what the file says it was written in.
   const savedKernelspec = notebook.metadata.kernelspec;
-  const cellLanguage = useCellLanguage(
+  const languageName =
     kernel.kernelLanguage ??
-      notebook.metadata.language_info?.name ??
-      (typeof savedKernelspec === 'object' ? savedKernelspec?.language : undefined)
-  );
+    notebook.metadata.language_info?.name ??
+    (typeof savedKernelspec === 'object' ? savedKernelspec?.language : undefined);
+  const cellLanguage = useCellLanguage(languageName);
 
   useEffect(() => {
     if (data.load_required === true) {
@@ -191,14 +194,64 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
    */
   const cellViews = useRef<Map<string, EditorView>>(new Map());
   const [viewsVersion, setViewsVersion] = useState(0);
+  const viewFor = useCallback((cellId: string) => cellViews.current.get(cellId) ?? null, []);
+
+  const languageServer = useNotebookLanguageServer({
+    path: data.path,
+    kernelLanguage: languageName,
+    cells: notebook.cells,
+    loaded: !cells.loading && cells.error === '',
+    viewFor,
+  });
+  const languageServerRef = useRef(languageServer);
+  languageServerRef.current = languageServer;
+
   const registerCellView = useCallback((cellId: string, view: EditorView | null) => {
     if (view === null) {
       cellViews.current.delete(cellId);
     } else {
       cellViews.current.set(cellId, view);
       setViewsVersion((count) => count + 1);
+      // A cell's problems can arrive before its editor does; drawn a tick later, outside its creation.
+      window.setTimeout(() => languageServerRef.current?.draw(cellId), 0);
     }
   }, []);
+
+  const kernelStatusRef = useRef(kernel.kernelStatus);
+  kernelStatusRef.current = kernel.kernelStatus;
+  const kernelIdle = useCallback(() => kernelStatusRef.current === 'idle', []);
+
+  const serverStatuses = useAtomValue(serverStatusAtom);
+  const formatCells = async (scope: 'cell' | 'notebook') => {
+    const server = languageServer;
+    if (server === null) {
+      return;
+    }
+    const focused = notebook.cells[cells.focusedIndex];
+    const targets =
+      scope === 'cell'
+        ? focused?.cell_type === 'code'
+          ? [focused]
+          : []
+        : notebook.cells.filter((cell) => cell.cell_type === 'code');
+    const options = {
+      tabSize: editorSettings.tab_size,
+      insertSpaces: !editorSettings.indent_with_tabs,
+    };
+    for (const cell of targets) {
+      const view = cellViews.current.get(cell.id);
+      if (view === undefined) {
+        continue;
+      }
+      if (!(await server.formatCell(cell.id, view, options))) {
+        const name = serverStatuses[server.server]?.name || 'The language server';
+        toast.warning(
+          `${name} does not format code. A server that does, such as ruff server, can be set in Settings → Language servers.`
+        );
+        return;
+      }
+    }
+  };
 
   // One copy per cell: the library's search state, our highlighter over it — theirs draws nothing
   // unless its own panel is open — and the field through which the notebook says which single match,
@@ -229,7 +282,6 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
    * It lives as long as the tab does, and opens as Settings says: what should remember it *per
    * notebook* is the one thing that story left open, so nothing here writes it anywhere.
    */
-  const [editorSettings] = useEditorSettings();
   const [showContents, setShowContents] = useState(editorSettings.notebook_contents);
   const headings = useMemo(() => notebookHeadings(cells.notebook), [cells.notebook]);
   const runningIndexes = useMemo(
@@ -386,6 +438,38 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     scrollTo(index);
   }, [find, finding, notebook.cells, focusCell, scrollTo, cells.editingCellId, viewsVersion]);
 
+  // A problem pressed in the panel under the editor: its cell focused, with the cursor where it is.
+  const revealPosition = useAtomValue(revealPositionAtom);
+  const setRevealPosition = useSetAtom(revealPositionAtom);
+  useEffect(() => {
+    if (revealPosition === null || revealPosition.path !== data.path || cells.loading) {
+      return;
+    }
+    const cell = notebook.cells[revealPosition.cell ?? -1];
+    const view = cell && cellViews.current.get(cell.id);
+    if (view === undefined) {
+      return;
+    }
+    setRevealPosition(null);
+    focusCell(cell.id);
+    scrollTo(revealPosition.cell ?? 0);
+    const doc = view.state.doc;
+    const line = doc.line(Math.min(revealPosition.line + 1, doc.lines));
+    view.dispatch({
+      selection: { anchor: Math.min(line.from + revealPosition.character, line.to) },
+    });
+    view.focus();
+  }, [
+    revealPosition,
+    data.path,
+    cells.loading,
+    notebook.cells,
+    focusCell,
+    scrollTo,
+    setRevealPosition,
+    viewsVersion,
+  ]);
+
   // The notebook as it is on screen, not as it is on disk: an export carries unsaved edits and the
   // output the kernel produced a moment ago, which is the whole reason the conversion is in the
   // browser rather than in the server.
@@ -424,6 +508,12 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     toggleContents: () => setShowContents((shown) => !shown),
     submitCell,
     submitAllCells: submitAllCellsForExecution,
+    formatCells: (scope) => {
+      formatCells(scope).catch((error: unknown) =>
+        toast.error(error instanceof Error ? error.message : String(error))
+      );
+    },
+    hasLanguageServer: languageServer !== null,
     restartKernel: () => setRestartIntent('restart'),
     restartAndExecuteAllCells: () => setRestartIntent('restart-and-run-all'),
     // The hook reports its own outcome as a toast, so there is nothing for a caller to await.
@@ -469,6 +559,9 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     submitPrompt,
     toggleShowPrompt: kernel.toggleShowPrompt,
     requestCompletions: kernel.requestCompletions,
+    requestInspection: kernel.requestInspection,
+    kernelIdle,
+    languageServer,
     widgets: kernel.widgets,
   };
 

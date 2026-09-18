@@ -1,4 +1,4 @@
-import { ChangeDesc, ChangeSpec, Text } from '@codemirror/state';
+import { ChangeDesc, ChangeSet, ChangeSpec, Text } from '@codemirror/state';
 import { LSPPlugin } from '@codemirror/lsp-client';
 import { EditorView } from '@codemirror/view';
 
@@ -22,6 +22,13 @@ export function formattingChanges(sent: Text, since: ChangeDesc, edits: TextEdit
     const to = since.mapPos(offsetAt(sent, edit.range.end), -1);
     return { from: Math.min(from, to), to: Math.max(from, to), insert: edit.newText };
   });
+}
+
+/** A document with a server's edits carried out, for text no editor holds. */
+export function applyTextEdits(doc: Text, edits: TextEdit[]): Text {
+  return ChangeSet.of(formattingChanges(doc, ChangeSet.empty(doc.length), edits), doc.length).apply(
+    doc
+  );
 }
 
 export interface FormattingOptions {

@@ -615,7 +615,7 @@
 // is what `ansi_up.use_classes = true` in CellOutput.tsx buys: the same escape code used to arrive as
 // `style="color:rgb(187,0,0)"` in the HTML, which no theme could reach and no contrast rule could touch.
 //
-// Scoped to `.inner-text` on purpose. An `.ansi-red-fg` in the wild is not necessarily ours — a library
+// Scoped to `.inner-text`, and the kernel's documentation card (Shift+Tab), on purpose. An `.ansi-red-fg` in the wild is not necessarily ours — a library
 // that emits its own HTML output can use the same class names, and this file has no business colouring
 // anything outside the box it owns. 24-bit colour still arrives inline, because a kernel that names an
 // exact colour is not asking for a palette slot.
@@ -625,11 +625,11 @@ $ansi-slots:
   'bright-white';
 
 @each $slot in $ansi-slots {
-  .inner-text .ansi-#{$slot}-fg {
+  :is(.inner-text, .cm-kernel-doc) .ansi-#{$slot}-fg {
     color: var(--z-ansi-#{$slot});
   }
 
-  .inner-text .ansi-#{$slot}-bg {
+  :is(.inner-text, .cm-kernel-doc) .ansi-#{$slot}-bg {
     background-color: var(--z-ansi-#{$slot});
   }
 }

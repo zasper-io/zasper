@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import CodeMirror, { Prec } from '@uiw/react-codemirror';
-import { autocompletion } from '@codemirror/autocomplete';
 import { indentLess, indentMore } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { getIndentUnit, indentString } from '@codemirror/language';
@@ -16,7 +15,8 @@ import { useTheme } from '@/themes/useTheme';
 import CellButtons from './CellButtons';
 import CellOutput from './CellOutput';
 import Prompt from './Prompt';
-import { kernelCompletionSource, tabCompletionKeymap } from './kernelCompletion';
+import { cellIntelligence } from './cellIntelligence';
+import { tabCompletionKeymap } from './kernelCompletion';
 import { zoomAwareTooltips } from '../tooltipParent';
 import { useNotebookEditor } from './NotebookEditorContext';
 
@@ -46,6 +46,28 @@ const tabIndentKeymap: KeyBinding[] = [
   },
 ];
 
+/*
+Module constants, like every extension a cell is handed: @uiw/react-codemirror reconfigures an editor
+whenever `basicSetup` or `extensions` changes identity, and every cell re-renders on each keystroke and
+each kernel status message. A fresh literal here rebuilt every editor in the notebook several times per
+key typed — the lag reported against 1.1.0.
+*/
+const CELL_SETUP = {
+  lineNumbers: false,
+  bracketMatching: true,
+  highlightActiveLineGutter: true,
+  lintKeymap: true,
+  foldGutter: true,
+  completionKeymap: true,
+  tabSize: 4,
+  // The notebook's find is the notebook's: the library's `⌘F` would open its own panel inside this one
+  // cell and search that cell alone, which is the defect story 17 is about.
+  searchKeymap: false,
+};
+const MARKDOWN_SETUP = { ...CELL_SETUP, autocompletion: true };
+// Code cells complete through `cellIntelligence`; two autocompletion() instances fight over one facet.
+const CODE_SETUP = { ...CELL_SETUP, autocompletion: false };
+
 interface CellProps {
   cell: NotebookCell;
   index: number;
@@ -66,7 +88,8 @@ export interface CodeMirrorRef {
 const Cell = React.forwardRef((props: CellProps, ref) => {
   const { cell } = props;
   const editor = useNotebookEditor();
-  const { updateCellSource, requestCompletions } = editor;
+  const { updateCellSource, requestCompletions, requestInspection, kernelIdle, languageServer } =
+    editor;
   const theme = useTheme();
   const cellTabIndents = useAtomValue(editorSettingsAtom).cell_tab_indents;
   const { registerCellView } = editor;
@@ -87,12 +110,13 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
   const [cursorPosition, setCursorPosition] = useState(0);
   const [totalLines, setTotalLines] = useState(0);
 
+  const cellId = cell.id;
   const onChange = useCallback(
     (value: string) => {
       setCellContents(value);
-      updateCellSource(value, cell.id);
+      updateCellSource(value, cellId);
     },
-    [cell, updateCellSource]
+    [cellId, updateCellSource]
   );
 
   const onUpdate = useCallback((viewUpdate: ViewUpdate) => {
@@ -116,6 +140,10 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
   const handleKeyDownCM = (event: React.KeyboardEvent) => {
     // Escape is Jupyter's way out of edit mode, and the cell's box is where command mode lives.
     // The markdown cell's own handler below renders the cell first and then comes here.
+    // Unless the editor used it first, to close a popup or a documentation card.
+    if (event.key === 'Escape' && event.defaultPrevented) {
+      return;
+    }
     if (event.key === 'Escape' && !event.ctrlKey && !event.metaKey && !event.altKey) {
       editor.focusCellBox(props.index);
       event.preventDefault();
@@ -145,22 +173,47 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
     handleKeyDownCM(event);
   };
 
-  // Code cells complete against the kernel and nothing else: `override` replaces the language's
-  // own sources rather than adding to them, which is what we want — a running kernel knows what
-  // `df` is and the parser does not. Hence also `autocompletion: false` in basicSetup below;
-  // two autocompletion() instances would fight over one config facet.
-  //
-  // Memoized because @uiw/react-codemirror reconfigures the editor whenever the extensions it is
-  // given change identity, and a cell re-renders on every keystroke — an unmemoized source would
-  // replace the completion config out from under a popup as it is being typed into.
-  const kernelAutocompletion = useMemo(
-    () => autocompletion({ override: [kernelCompletionSource(requestCompletions)] }),
-    [requestCompletions]
+  // Memoized with everything else a cell's editor is given: see CELL_SETUP.
+  const intelligence = useMemo(
+    () =>
+      cellIntelligence(
+        {
+          cellId: cell.id,
+          server: languageServer,
+          requestCompletions,
+          requestInspection,
+          kernelIdle,
+        },
+        !cellTabIndents
+      ),
+    [cell.id, languageServer, requestCompletions, requestInspection, kernelIdle, cellTabIndents]
   );
 
-  // Memoized for the same reason as the line above, and see tooltipParent.ts for why a cell has to
-  // say where its popup hangs at all: without this it draws at its own coordinate times the zoom.
+  // See tooltipParent.ts for why a cell has to say where its popup hangs at all: without this it draws
+  // at its own coordinate times the zoom.
   const popupPlacement = useMemo(() => zoomAwareTooltips(), []);
+
+  const { cellLanguage, findExtension, commandKeymap } = editor;
+  const codeExtensions = useMemo(
+    () => [
+      cellLanguage,
+      intelligence,
+      popupPlacement,
+      Prec.highest(keymap.of(cellTabIndents ? tabIndentKeymap : tabCompletionKeymap)),
+      findExtension,
+      commandKeymap,
+    ],
+    [cellLanguage, intelligence, popupPlacement, cellTabIndents, findExtension, commandKeymap]
+  );
+  const markdownExtensions = useMemo(
+    () => [
+      markdown({ base: markdownLanguage, codeLanguages: languages }),
+      popupPlacement,
+      findExtension,
+      commandKeymap,
+    ],
+    [popupPlacement, findExtension, commandKeymap]
+  );
 
   // Make sure divRefs.current is not null before assigning
   const divRef = (el: HTMLDivElement | null) => {
@@ -213,31 +266,13 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
                   value={cellContents}
                   height="auto"
                   width="100%"
-                  extensions={[
-                    markdown({ base: markdownLanguage, codeLanguages: languages }),
-                    popupPlacement,
-                    editor.findExtension,
-                    editor.commandKeymap,
-                  ]}
+                  extensions={markdownExtensions}
                   autoFocus
                   onCreateEditor={keepView}
                   onChange={onChange}
                   onUpdate={onUpdate}
                   onKeyDown={handleMarkdownKeyDownCM}
-                  basicSetup={{
-                    lineNumbers: false,
-                    bracketMatching: true,
-                    highlightActiveLineGutter: true,
-                    autocompletion: true,
-                    lintKeymap: true,
-                    foldGutter: true,
-                    completionKeymap: true,
-                    tabSize: 4,
-                    // The notebook's find is the notebook's: the library's `⌘F` would open its own
-                    // panel inside this one cell and search that cell alone, which is the defect
-                    // story 17 is about.
-                    searchKeymap: false,
-                  }}
+                  basicSetup={MARKDOWN_SETUP}
                 />
               </div>
             </div>
@@ -331,31 +366,13 @@ const Cell = React.forwardRef((props: CellProps, ref) => {
             value={cellContents}
             height="auto"
             width="100%"
-            extensions={[
-              editor.cellLanguage,
-              kernelAutocompletion,
-              popupPlacement,
-              [Prec.highest(keymap.of(cellTabIndents ? tabIndentKeymap : tabCompletionKeymap))],
-              editor.findExtension,
-              editor.commandKeymap,
-            ]}
+            extensions={codeExtensions}
             autoFocus={props.index === editor.focusedIndex ? true : false}
             onCreateEditor={keepView}
             onChange={onChange}
             onUpdate={onUpdate}
             onKeyDown={handleKeyDownCM}
-            basicSetup={{
-              lineNumbers: false,
-              bracketMatching: true,
-              highlightActiveLineGutter: true,
-              autocompletion: false,
-              lintKeymap: true,
-              foldGutter: true,
-              completionKeymap: true,
-              tabSize: 4,
-              // See the markdown editor above: `⌘F` belongs to the notebook, not to one cell.
-              searchKeymap: false,
-            }}
+            basicSetup={CODE_SETUP}
           />
         </div>
       </div>

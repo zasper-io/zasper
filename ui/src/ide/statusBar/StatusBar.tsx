@@ -9,6 +9,7 @@ import { getCurrentBranch, logApiError } from '@/api';
 import { Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
+import { notebookServersAtom } from '@/store/languageServers';
 import { fileTabsAtom, FileTab } from '@/store/tabState';
 import { terminalsAvailableAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
@@ -53,6 +54,7 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
   const [branchName, setBranchName] = useAtom(branchNameAtom);
   const [fileTabsState] = useAtom(fileTabsAtom);
   const formats = useAtomValue(fileFormatsAtom);
+  const notebookServers = useAtomValue(notebookServersAtom);
 
   const FetchBranchData = useCallback(() => {
     getCurrentBranch().then(setBranchName).catch(logApiError('Error fetching current branch:'));
@@ -132,7 +134,15 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
             <LanguageServerStatus fileName={activeTab.name} />
           </>
         ) : (
-          <span className="statusItem">{describeTab(activeTab)}</span>
+          <>
+            <span className="statusItem">{describeTab(activeTab)}</span>
+            {activeTab !== undefined && notebookServers[activeTab.path] !== undefined && (
+              <LanguageServerStatus
+                fileName={activeTab.name}
+                server={notebookServers[activeTab.path]}
+              />
+            )}
+          </>
         )}
         {/* Last on the bar: it belongs to the window rather than to whatever is in the tab, so it
             stays put as the items to its left come and go with the kind of tab that is open. */}

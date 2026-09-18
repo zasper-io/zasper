@@ -4,8 +4,9 @@ import type { EditorView } from '@codemirror/view';
 
 import { NotebookCell } from '@/api';
 import type { WidgetBridge } from '@/ide/widgets/widgetBridge';
+import type { NotebookLanguageServer } from '@/lsp/notebookServer';
 
-import { CompleteReply, KernelMessage } from './kernelMessages';
+import { CompleteReply, InspectReply, KernelMessage } from './kernelMessages';
 
 /**
  * What every cell of one notebook shares: the notebook's actions, its focus, and its kernel's prompt,
@@ -62,6 +63,15 @@ export interface NotebookEditorContextValue {
   submitPrompt: (parentHeader: KernelMessage, inputValue: string) => void;
   toggleShowPrompt: () => void;
   requestCompletions: (source: string, cursorPos: number) => Promise<CompleteReply | null>;
+  requestInspection: (
+    source: string,
+    cursorPos: number,
+    detailLevel?: 0 | 1
+  ) => Promise<InspectReply | null>;
+  /** Whether the kernel is idle, so a hover can ask it without waiting behind a running cell. */
+  kernelIdle: () => boolean;
+  /** The language server the cells are given to, when one serves the kernel's language. */
+  languageServer: NotebookLanguageServer | null;
   widgets: WidgetBridge | null;
 }
 

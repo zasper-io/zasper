@@ -66,6 +66,7 @@ import { editorExtensions } from './editorExtensions';
 import { lazyKeymap } from './keymaps';
 import { detectLineEnding, formatFor, indentationOf, saveRulesOf, tidyChanges } from './fileFormat';
 import languageFor, { lazyLanguageFor, lazyLanguageNamed, PLAIN_TEXT } from './language';
+import { changeBetween } from './textChange';
 import { zoomAwareTooltips } from './tooltipParent';
 
 // The notebook's renderer, and its code-splitting boundary: see MarkdownRenderer.tsx.
@@ -90,23 +91,6 @@ function isMarkdown(extension: string | null): boolean {
 /** Text split into lines the way CodeMirror splits a document, so the two compare as equal. */
 function documentOf(text: string): Text {
   return Text.of(text.split(/\r\n?|\n/));
-}
-
-/** The one change that turns `before` into `after`: what lies between their common start and end. */
-function changeBetween(before: string, after: string) {
-  const shorter = Math.min(before.length, after.length);
-  let start = 0;
-  while (start < shorter && before.charCodeAt(start) === after.charCodeAt(start)) {
-    start++;
-  }
-  let end = 0;
-  while (
-    end < shorter - start &&
-    before.charCodeAt(before.length - 1 - end) === after.charCodeAt(after.length - 1 - end)
-  ) {
-    end++;
-  }
-  return { from: start, to: before.length - end, insert: after.slice(start, after.length - end) };
 }
 
 function without<T>(record: Record<string, T>, key: string): Record<string, T> {

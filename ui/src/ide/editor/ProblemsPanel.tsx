@@ -33,6 +33,7 @@ export default function ProblemsPanel() {
           (left, right) =>
             left.path.localeCompare(right.path) ||
             RANK[left.severity] - RANK[right.severity] ||
+            (left.cell ?? 0) - (right.cell ?? 0) ||
             left.line - right.line ||
             left.character - right.character
         ),
@@ -47,7 +48,8 @@ export default function ProblemsPanel() {
     <ul className="dockList problemsList" aria-label="Problems">
       {rows.map((row, index) => {
         const source = row.source && (row.code ? `${row.source} ${row.code}` : row.source);
-        const where = `${row.path} ${row.line + 1}:${row.character + 1}`;
+        const cell = row.cell === undefined ? '' : ` cell ${row.cell + 1},`;
+        const where = `${row.path}${cell} ${row.line + 1}:${row.character + 1}`;
         return (
           <li key={`${row.path}:${index}`} className="panel-row problemRow">
             <button
@@ -55,8 +57,17 @@ export default function ProblemsPanel() {
               className="panel-row-name"
               title={row.message}
               onClick={() => {
-                openTab({ name: baseName(row.path), path: row.path, type: 'file' });
-                setReveal({ path: row.path, line: row.line, character: row.character });
+                openTab({
+                  name: baseName(row.path),
+                  path: row.path,
+                  type: row.cell === undefined ? 'file' : 'notebook',
+                });
+                setReveal({
+                  path: row.path,
+                  cell: row.cell,
+                  line: row.line,
+                  character: row.character,
+                });
               }}
             >
               <span className={`problemIcon is-${row.severity}`}>

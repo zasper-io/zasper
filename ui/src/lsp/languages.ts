@@ -56,3 +56,26 @@ export function pathOfUri(root: string, uri: string): string | null {
   }
   return absolute.slice(normalised.length + 1);
 }
+
+/** A kernel's language, as `language_info.name` spells it, to the extension its source files have. */
+const KERNEL_EXTENSIONS: Record<string, string> = {
+  python: 'py',
+  r: 'r',
+  julia: 'jl',
+  go: 'go',
+  rust: 'rs',
+  typescript: 'ts',
+  javascript: 'js',
+  c: 'c',
+  'c++': 'cpp',
+};
+
+/** The server for a notebook's cells, with the extension its virtual document is named with. */
+export function notebookLanguageFor(
+  kernelLanguage: string | undefined
+): { language: ServerLanguage; extension: string } | null {
+  const extension =
+    KERNEL_EXTENSIONS[(kernelLanguage ?? 'python').trim().toLowerCase() || 'python'];
+  const language = extension === undefined ? null : BY_EXTENSION[extension];
+  return language == null ? null : { language, extension };
+}

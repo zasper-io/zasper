@@ -23,6 +23,10 @@ export interface NotebookCommandTargets {
   exportNotebook: (format: ExportFormatId) => void;
   restartKernel: () => void;
   restartAndExecuteAllCells: () => void;
+  /** Formats the focused code cell, or every code cell, through the notebook's language server. */
+  formatCells: (scope: 'cell' | 'notebook') => void;
+  /** Whether a language server serves the notebook's language at all. */
+  hasLanguageServer: boolean;
 }
 
 const NOTEBOOK = { category: 'Notebook', scope: 'notebook' } as const;
@@ -119,6 +123,10 @@ export const NOTEBOOK_COMMANDS = defineCommands({
   'notebook:export-html': { ...NOTEBOOK, label: 'Export as an HTML Page' },
   'notebook:export-markdown': { ...NOTEBOOK, label: 'Export as Markdown' },
   'notebook:export-script': { ...NOTEBOOK, label: 'Export as a Script' },
+
+  // The file editor's Format Document chord, for the focused cell.
+  'notebook:format-cell': { ...NOTEBOOK, label: 'Format Cell', keys: ['Shift-Alt-f'] },
+  'notebook:format-notebook': { ...NOTEBOOK, label: 'Format Notebook' },
 
   'notebook:interrupt-kernel': { ...KERNEL, label: 'Interrupt Kernel' },
   'notebook:restart-kernel': { ...KERNEL, label: 'Restart Kernel' },
@@ -294,6 +302,17 @@ export function useNotebookCommands(targets: NotebookCommandTargets): Command[] 
       ...NOTEBOOK_COMMANDS['notebook:change-to-raw'],
       isEnabled: hasCell,
       execute: () => cells.changeCellType('raw'),
+    },
+
+    {
+      ...NOTEBOOK_COMMANDS['notebook:format-cell'],
+      isEnabled: () => targets.hasLanguageServer && focusedCell()?.cell_type === 'code',
+      execute: () => targets.formatCells('cell'),
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:format-notebook'],
+      isEnabled: () => targets.hasLanguageServer && isLoaded(),
+      execute: () => targets.formatCells('notebook'),
     },
 
     {

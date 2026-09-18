@@ -1,0 +1,40 @@
+import { CompletionResult } from '@codemirror/autocomplete';
+import { describe, expect, it } from 'vitest';
+
+import { mergeCompletions } from './cellIntelligence';
+
+const kernel: CompletionResult = {
+  from: 3,
+  options: [{ label: 'head', type: 'method' }, { label: 'shape' }],
+  validFor: /^[\w.]*$/,
+};
+const server: CompletionResult = {
+  from: 3,
+  options: [
+    { label: 'shape', type: 'property', detail: 'tuple[int, int]' },
+    { label: 'hist', type: 'method' },
+  ],
+};
+
+describe('mergeCompletions', () => {
+  it("lists the kernel's names first, with what the server knows about them, then the server's own", () => {
+    const merged = mergeCompletions(kernel, server);
+
+    expect(merged?.options).toEqual([
+      { label: 'head', type: 'method' },
+      { label: 'shape', type: 'property', detail: 'tuple[int, int]', info: undefined },
+      { label: 'hist', type: 'method' },
+    ]);
+    expect(merged?.validFor).toBe(kernel.validFor);
+  });
+
+  it("takes the kernel's answer alone when the two disagree about what is being completed", () => {
+    expect(mergeCompletions(kernel, { ...server, from: 0 })).toBe(kernel);
+  });
+
+  it('takes whichever answered when only one did', () => {
+    expect(mergeCompletions(null, server)).toBe(server);
+    expect(mergeCompletions(kernel, null)).toBe(kernel);
+    expect(mergeCompletions(null, null)).toBeNull();
+  });
+});

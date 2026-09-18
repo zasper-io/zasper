@@ -14,7 +14,7 @@ import { EditorView, keymap } from '@codemirror/view';
 
 import { websocketUrl } from '@/api/client';
 import { Problem, ServerStatus, Severity } from '@/store/languageServers';
-import { fileUri, pathOfUri, serverLanguageFor } from './languages';
+import { fileUri, pathOfUri, ServerLanguage, serverLanguageFor } from './languages';
 import { offsetAt } from './positions';
 import { sanitizeHtml } from './sanitize';
 import { versionOf } from './serverInfo';
@@ -107,6 +107,16 @@ const problems = new Map<string, Problem[]>();
 const published = new Map<string, PublishedDiagnostic[]>();
 let display: (path: string) => Promise<EditorView | null> = () => Promise.resolve(null);
 
+/** What receives the diagnostics for a notebook's virtual document, by that document's URI. */
+export interface NotebookHost {
+  /** The notebook's own path, which its problems are recorded under. */
+  path: string;
+  /** Draws the diagnostics in the cells, and answers them as the notebook's problems. */
+  diagnostics: (published: PublishedDiagnostic[], server: string) => Problem[];
+}
+
+const notebookHosts = new Map<string, NotebookHost>();
+
 /** Hears every status change and every file's problems, starting with where each stands now. */
 export function subscribeLanguageServers(listener: Listener): () => void {
   listeners.add(listener);
@@ -196,6 +206,15 @@ function publishDiagnostics(
   connection: Connection,
   params: { uri: string; version?: number; diagnostics: PublishedDiagnostic[] }
 ): boolean {
+  const host = notebookHosts.get(params.uri);
+  if (host !== undefined) {
+    setProblems(
+      connection,
+      host.path,
+      host.diagnostics(params.diagnostics, connection.status.name)
+    );
+    return true;
+  }
   const path = pathOfUri(connection.root, params.uri);
   if (path !== null) {
     if (params.diagnostics.length === 0) {
@@ -479,6 +498,36 @@ export function languageServerExtension(root: string, path: string, fileName: st
   return [connection.client.plugin(fileUri(root, path), language.languageId), linter(null)];
 }
 
+/**
+ * Gives a notebook's virtual document to the server for its language, starting it if it is not running.
+ * The document is opened in the workspace by the caller, which is what counts it as a reason to keep the
+ * server; `detach` stops its diagnostics arriving and takes its problems away.
+ */
+export function attachNotebook(
+  root: string,
+  language: ServerLanguage,
+  uri: string,
+  host: NotebookHost
+): { client: LSPClient; workspace: ZasperWorkspace; detach: () => void } {
+  const connection = connectionFor(language.server, root);
+  notebookHosts.set(uri, host);
+  return {
+    client: connection.client,
+    workspace: connection.client.workspace as ZasperWorkspace,
+    detach: () => {
+      if (notebookHosts.get(uri) === host) {
+        notebookHosts.delete(uri);
+        setProblems(connection, host.path, []);
+      }
+    },
+  };
+}
+
+/** Whether a server is ready to be asked anything, by its key. */
+export function isServerReady(server: string): boolean {
+  return connections.get(server)?.status.state === 'ready';
+}
+
 /** A file's diagnostics as its server sent them, for a request that has to quote them back. */
 export function publishedDiagnostics(path: string): PublishedDiagnostic[] {
   return published.get(path) ?? [];
@@ -562,6 +611,7 @@ export function resetLanguageServers(): void {
     connection.transport?.close();
   });
   connections.clear();
+  notebookHosts.clear();
   problems.clear();
   published.clear();
   listeners.clear();

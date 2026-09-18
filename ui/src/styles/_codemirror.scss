@@ -228,6 +228,12 @@
   }
 }
 
+// A kernel's `?` text runs to a whole docstring — pandas' DataFrame is hundreds of lines.
+#cm-tooltip-host .cm-kernel-doc pre {
+  max-height: 320px;
+  overflow: auto;
+}
+
 #cm-tooltip-host .cm-completionInfo.cm-completionInfo-right,
 #cm-tooltip-host .cm-completionInfo.cm-completionInfo-left {
   padding: 0;
