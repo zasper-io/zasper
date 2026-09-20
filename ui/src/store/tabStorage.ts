@@ -1,26 +1,14 @@
 /**
- * The open tabs, remembered between visits.
+ * The open tabs, remembered between visits: everything else survives a reload — a reopened notebook
+ * rejoins its running kernel by path — so the list of what was open was the whole gap.
  *
- * Closing the browser tab used to lose the strip: reopening Zasper left a lone Launcher and the
- * reader opening half a dozen files again by hand. Nothing else is lost by a reload — a reopened
- * notebook rejoins its running kernel by path — so the list of what was open is the whole gap.
+ * In localStorage rather than ~/.zasper/config.json, as themes and zoom are: the strip belongs to the
+ * window looking at the project. Every access is wrapped and an untrustworthy read answers `null`;
+ * two windows both write here and the last one wins, which is felt only at the next boot.
  *
- * In localStorage rather than `~/.zasper/config.json`, following `themes/index.ts` and `zoom/`: the
- * strip belongs to the window looking at the project. Every access is wrapped, and a read that
- * cannot be trusted answers `null`: a remembered tab strip is not worth failing a boot over.
- *
- * Two windows on one server both write here and the last writer wins. That is felt only at the next
- * boot, which restores whichever window last changed its strip; mirroring two live strips would be a
- * feature rather than a fix.
- *
- * What is deliberately not remembered:
- *   - terminals, which cannot be reattached — every connection spawns a new shell, so a restored
- *     terminal is an empty one wearing an old name;
- *   - the Launcher, which is the default state and has to exist whatever is stored;
- *   - `load_required`, a pulse meaning "read yourself now" rather than anything about a tab;
- *   - `kernelspec`, which goes stale, and which the kernel already running that path outranks;
- *   - unsaved edits. Those live in the editors' own state and cannot come back, so a restored tab is
- *     the file as it is on disk.
+ * Not remembered: terminals (a reattached shell is a new one wearing an old name), the Launcher
+ * (always there), `load_required` (a pulse), `kernelspec` (the running kernel outranks it), and
+ * unsaved edits, so a restored tab is the file as it is on disk.
  */
 import type { DiffTarget } from '@/api';
 

@@ -7,9 +7,8 @@ import './ContextMenu.scss';
 interface MenuItem {
   label: string;
   /**
-   * `path` is the file tree's, and is what this menu was written for. A caller with nothing to
-   * address — a cell's menu names commands, not paths — passes a function that takes no argument,
-   * which is assignable here and is why `path` on the menu itself is optional.
+   * `path` is the file tree's. A caller with nothing to address — a cell's menu names commands, not
+   * paths — passes a function taking no argument, which is assignable here; hence `path` is optional.
    */
   action: (path: string) => void;
   icon?: IconName;

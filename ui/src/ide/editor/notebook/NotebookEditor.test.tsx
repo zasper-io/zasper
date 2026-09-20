@@ -113,8 +113,8 @@ describe('NotebookEditor', () => {
    * kernel whose client has gone away — so a notebook opened and closed all afternoon would hold a
    * socket for every time.
    */
-  // Waits for the socket to open, so the order is certain: it used to unmount as soon as the socket
-  // existed, which on a fast machine was before it opened and failed on the bug below.
+  // Waits for the socket to open, so the order is certain: unmounting as soon as one exists is, on a
+  // fast machine, before it has opened.
   it('closes the kernel socket when the notebook goes away, and leaves the session alone', async () => {
     const { unmount } = render(<NotebookEditor data={tab} />);
     await waitFor(() => expect(sockets[0]?.opened).toBe(true));
@@ -376,8 +376,8 @@ describe('NotebookEditor', () => {
     expect(box.textContent).toContain('File "<ipython-input-1>", line 1');
   });
 
-  // A cell that clears its own output — a progress line rewritten in a loop — used to append instead,
-  // leaving every frame of the animation on screen.
+  // A cell that clears its own output — a progress line rewritten in a loop — must replace rather than
+  // append, or every frame of the animation stays on screen.
   it('clears a cell output area on clear_output', async () => {
     const { container } = render(<NotebookEditor data={tab} />);
     await waitFor(() => expect(sockets).toHaveLength(1));
@@ -551,8 +551,8 @@ describe('NotebookEditor', () => {
     expect(screen.queryByText('Current Kernel : none')).not.toBeInTheDocument();
   });
 
-  // Two modals used to open here — an error dialog and the picker — stacked on one backdrop, and
-  // dismissing either left the other.
+  // One dialog, not two: an error dialog and the picker stacked on one backdrop leave the other
+  // behind when either is dismissed.
   it('raises one dialog when the kernel cannot be started, with the reason in it', async () => {
     createSession.mockRejectedValue(
       new ApiError('POST', '/api/sessions', 500, '{"message":"kernel died on startup"}')

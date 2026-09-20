@@ -3,9 +3,8 @@
 //
 // Seven components render this markup — KernelSwitch, FileUpload, UnsavedChangesDialog,
 // ConfirmDiscardDialog, ConfirmDeleteBranchDialog, ConfirmDeleteDialog and ConfirmShutdownDialog — so
-// the rules live here rather than in any one of their stylesheets. They used to sit in KernelSwitch.scss,
-// which meant the others only looked right as long as a notebook happened to be open and that file had
-// been imported.
+// the rules live here rather than in any one of their stylesheets, where the other six would depend on
+// that component's file having been imported.
 //
 // **This file now owns the shell outright, and Bootstrap's `modal` partial is gone from _bootstrap.scss.**
 // The class names are Bootstrap's and stay Bootstrap's, because seven components spell them; what changed
@@ -98,9 +97,8 @@
   border-radius: 6px 6px 0px 0px;
 }
 
-// Place only: it is a `.z-icon-button.on-chrome` at the call sites, so the box, the ink and the
-// hover come from there. 5px centres a 22px button in the 32px header, and puts its glyph exactly
-// where the 16px cross used to sit.
+// Place only: it is a `.z-icon-button.on-chrome` at the call sites, so the box, the ink and the hover
+// come from there. 5px centres a 22px button in the 32px header.
 .modal-btn-close {
   position: absolute;
   right: 5px;
@@ -249,9 +247,8 @@
   gap: 16px;
 }
 
-// The 180px `.editor-select` used to give this select, kept as the dialog's own measure now that the
-// control is `.z-select` and fills whatever it is in. Without a width it would be as wide as the longest
-// kernel name — `python3` in a 600px dialog.
+// The dialog's own measure: `.z-select` fills whatever it is in, and without a width this would be as
+// wide as the longest kernel name — `python3` in a 600px dialog.
 .update-kernel-popup-form .z-form-field {
   width: 180px;
 }

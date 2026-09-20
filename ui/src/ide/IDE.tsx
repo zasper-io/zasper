@@ -128,8 +128,8 @@ function IDE() {
     [toggleSidebar, openSettings, showPanel, setSearchFocus, setDockOpen, setDockTab]
   );
 
-  // The application's only keyboard dispatcher, and the window-level commands that used to be a
-  // `keydown` listener here. Everything else contributes to the same registry from its own tab.
+  // The application's only keyboard dispatcher, and the window-level commands. Everything else
+  // contributes to the same registry from its own tab.
   useCommandKeymap();
   useRegisterCommands(useAppCommands());
   useRegisterCommands(windowCommands);
@@ -181,10 +181,8 @@ function IDE() {
     allowWidgetCdn(widgetCdn);
   }, [widgetCdn]);
 
-  // Read once for the whole session rather than by whoever happens to want them first. The launcher
-  // used to fetch them, so the Jupyter info panel listed no kernels at all until the launcher had
-  // rendered — and none again once its tab was closed. It can ask for the read again, through the
-  // same action, without owning it.
+  // Read once for the whole session rather than by whoever wants them first: a panel must not depend
+  // on the launcher having rendered. Anything can ask for the read again through the same action.
   useEffect(() => {
     loadKernelspecs();
   }, [loadKernelspecs]);

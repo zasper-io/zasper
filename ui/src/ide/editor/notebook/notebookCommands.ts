@@ -69,9 +69,8 @@ export const NOTEBOOK_COMMANDS = defineCommands({
   // everywhere else — so pressing it in a cell inserted a cell instead of selecting the text.
   'notebook:insert-cell-above': { ...NOTEBOOK, label: 'Insert Cell Above', keys: ['Ctrl-Shift-a'] },
   'notebook:insert-cell-below': { ...NOTEBOOK, label: 'Insert Cell Below', keys: ['Ctrl-Shift-b'] },
-  // Notebook-level undo, distinct from the per-cell text history CodeMirror keeps. `Mod-z` inside
-  // a focused editor is CodeMirror's, and it wins there; this is the chord for a structural change
-  // — a deleted cell used to be unrecoverable by any means.
+  // Notebook-level undo, distinct from the per-cell text history CodeMirror keeps. `Mod-z` inside a
+  // focused editor is CodeMirror's and wins there; this is the chord that brings back a deleted cell.
   'notebook:undo-cell-change': {
     ...NOTEBOOK,
     label: 'Undo Cell Operation',

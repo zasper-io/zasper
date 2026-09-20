@@ -369,8 +369,8 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     },
   });
 
-  // Only while this is the visible tab: every open notebook stays mounted, so registering
-  // unconditionally is what used to let Ctrl-B add a cell to all of them at once.
+  // Only while this is the visible tab: every open notebook stays mounted, and registering
+  // unconditionally would let one chord act on all of them at once.
   useRegisterCommands(commands, data.active);
   const runCommand = useRunCommand();
 
@@ -494,10 +494,9 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               {/* The cells are not offered for editing once a read failed: they would be the empty
               starting state rather than the file. */}
               {cells.error !== '' ? (
-                // The band, at the top of the pane, rather than the bordered box in the middle of it this
-                // used to be. No `.z-notice-action`: the answer to an unreadable notebook is to open it as
-                // text, and nothing in the app can do that yet — a band with a button that does nothing is
-                // worse than a band without one.
+                // The band at the top of the pane. No `.z-notice-action`: the answer to an unreadable
+                // notebook is to open it as text, which nothing in the app can do yet, and a band with a
+                // button that does nothing is worse than one without.
                 <div className="z-notice z-notice-error" role="alert">
                   <Icon name="circle-alert" size={14} />
                   <p>

@@ -155,15 +155,11 @@ $dark-panel: #272727;
   // `:root`, so a teal window opened on a grid of faintly purple tiles inside teal borders. Focus is
   // unaffected — `.launcher-icon:focus-visible` takes the border to the accent.
   //
-  // One step paler than they were, --a-100 down to --a-50: ten of these tiles are the first thing the
-  // launcher shows and at --a-100 (#cfe9e7 in teal) the screen read as a grid of coloured chips rather
-  // than as a page with controls on it. --a-50 is the step `--z-bg-panel-alt` and `--z-bg-cell-output`
-  // already take for the same job — a surface tinted enough to belong to the theme and no more.
-  //
-  // The hover moves down with it. It used to land on --a-200, which is exactly
-  // `--z-border-launcher-tile`, so the outline became the fill; that pairing is what this gives up, and
-  // the border stays at --a-200 because --a-100 measures about 1.28:1 against the pane and is the
-  // invisible edge that token was introduced to fix.
+  // --a-50, the step `--z-bg-panel-alt` and `--z-bg-cell-output` take for the same job: ten of these
+  // tiles are the first thing the launcher shows, and a step darker reads as a grid of coloured chips
+  // rather than a page with controls on it. Hover is one step down from the border at --a-200, so the
+  // outline never becomes the fill; the border stays there because --a-100 is about 1.28:1 against the
+  // pane, which is the invisible edge that token exists to fix.
   --z-bg-launcher-tile: var(--a-50);
   --z-bg-launcher-tile-hover: var(--a-100);
   // The row's edge, and it belongs to the hue like everything else here. It was --z-border-strong,
@@ -179,9 +175,8 @@ $dark-panel: #272727;
   // bracket the window at --a-800, the banner and the modal header sit one step in at --a-700, and the
   // search field is a well in the topbar, so it is lighter than the bar it sits in and not darker.
   //
-  // `--z-bg-palette` was the same step as --z-bg-input and `--z-bg-palette-hover` was --a-600, because an
-  // open palette used to be a chrome-coloured panel with its own hover. It is the overlay surface now;
-  // the field over it is the only part still on the ramp, which is what --z-bg-input already said.
+  // The palette is the overlay surface rather than chrome; the field over it is the only part still on
+  // the ramp, which is what --z-bg-input says.
   --z-bg-topbar: var(--a-800);
   --z-bg-statusbar: var(--a-800);
   --z-bg-banner: var(--a-700);
@@ -243,8 +238,7 @@ $dark-panel: #272727;
 
 [data-theme='dark'][data-accent] {
   // The fill is shared with light, above; the ink is what flips. --a-200 is 8.11:1 to 9.28:1 on the
-  // panel, where the fill's --a-600 would be about 1.3:1 — and the app had been living without the
-  // distinction, painting every `color: var(--z-accent)` at 2.16:1 in this theme.
+  // panel, where the fill's --a-600 would be about 1.3:1.
   --z-fg-accent: var(--a-200);
 }
 

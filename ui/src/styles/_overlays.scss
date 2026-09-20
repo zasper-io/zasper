@@ -43,13 +43,10 @@
 // A row in an overlay is usually a <button>: the whole row is the target, so unlike a panel row it has
 // no `.panel-row-name` inside it to be the control — and a keyboard has to reach it. `.panel-row`
 // describes a row rather than a control, so the button's own chrome comes off here instead of in each of
-// the three components that do this. It is also the whole of the keyboard story the context menu used to
-// be missing: its items were `<div>`s, and Escape was the only key that did anything.
-// No `color` here, deliberately, and it is the one thing this rule got wrong first time round: a browser's
-// own `button { color: buttontext }` loses to any author rule, so `.panel-row`'s own colour already
-// applies — but `color: inherit` written here is (0,2,1) and beat `.panel-row.is-danger` at (0,2,0), which
-// drew Delete in the default ink. Caught in a browser and not by any of the four gates, because it is a
-// colour that is present and wrong rather than absent.
+// the three components that do this. A `<button>` is also what makes the row reachable by keyboard.
+// No `color` here, deliberately: a browser's own `button { color: buttontext }` loses to any author rule,
+// so `.panel-row`'s colour already applies — while `color: inherit` here would be (0,2,1) and beat
+// `.panel-row.is-danger` at (0,2,0), drawing Delete in the default ink.
 .z-overlay button.panel-row {
   width: 100%;
   background: none;

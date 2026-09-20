@@ -195,8 +195,8 @@ export function useTooltip(
       }
       const measure = () => setAnchor((labelled?.current ?? element).getBoundingClientRect());
       // Measured when it opens rather than when the pointer arrived, so a row that moved during the
-      // delay is not labelled where it used to be. Focus asks for no delay at all and gets none —
-      // not a zero timer, which would still cost a frame with the control already focused.
+      // delay is labelled where it is now. Focus takes no delay at all — not even a zero timer, which
+      // would still cost a frame with the control already focused.
       if (delay === 0) {
         measure();
         return;

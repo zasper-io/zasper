@@ -22,16 +22,10 @@ export interface FileTab {
    */
   diff?: DiffTarget;
   /**
-   * This tab's content has never been read in this window: set on the tabs restored from a previous
-   * session, and cleared the first time the tab is brought to the front, which is when it loads.
+   * Never read in this window: set on restored tabs, cleared when one is first brought to the front.
    *
-   * Absent means loaded, and that polarity is load-bearing. A flag meaning "has loaded" would be
-   * absent on every tab built anywhere but here — a fixture, a future caller — and `withActive`
-   * would set `load_required` on it, which re-reads the file from disk and would throw away whatever
-   * the reader had typed into a tab they merely switched away from and back to.
-   *
-   * Never persisted: what a tab holds is a fact about this window, not about the session that is
-   * remembered.
+   * Absent means loaded, and that polarity is load-bearing — a "has loaded" flag would be absent on
+   * every tab built elsewhere, and `withActive` would re-read the file over the reader's edits.
    */
   unloaded?: boolean;
 }
@@ -41,15 +35,10 @@ export interface FileTabDict {
 }
 
 /**
- * One half of a split: its own tabs, and its own tab in front.
+ * One half of a split: its own tabs, and its own tab in front. A file may be open in more than one
+ * half, so the dictionary keyed by path is one *per half*; inside a half the path is still the key.
  *
- * Story 16 settled VS Code's model, where a file can be open in more than one half — so two tabs about
- * one path cannot share a key, and the one dictionary keyed by path had to become one *per half*.
- * Inside a half the path is still the key, which is what keeps `withActive`, the close scopes and the
- * strip's own order exactly as they were.
- *
- * There is one half today. Nothing makes a second one yet: the panes, the second strip and the drag are
- * story 16's own work, and this is only the store underneath them.
+ * There is one half today — the panes and the second strip are story 16's own work.
  */
 export interface TabGroup {
   /** Minted when the half is made, and what a tab's half is named by. */
@@ -73,12 +62,8 @@ export const defaultFileTabState: FileTabDict = {
 };
 
 /**
- * Brings one tab to the front, and asks it to load if it never has.
- *
- * A pure function rather than a hook so that `openTab` and `activateTab` cannot drift apart: both
- * end here, which is what makes a restored tab load whether it is reached from the tab strip or from
- * the file browser. An unknown path is a no-op — every caller names a tab it is rendering — rather
- * than an invented tab, which is what the tab strip used to do.
+ * Brings one tab to the front, and asks it to load if it never has. A pure function so `openTab` and
+ * `activateTab` cannot drift apart; an unknown path is a no-op rather than an invented tab.
  */
 export function withActive(tabs: FileTabDict, path: string): FileTabDict {
   const target = tabs[path];
@@ -87,8 +72,7 @@ export function withActive(tabs: FileTabDict, path: string): FileTabDict {
   }
 
   const next: FileTabDict = {};
-  // Only one tab is in front, and `load_required` is a pulse: it is true for the tab about to read
-  // itself and false everywhere else, so it has to be cleared on the way past.
+  // `load_required` is a pulse: true for the tab about to read itself, cleared everywhere else.
   Object.entries(tabs).forEach(([key, tab]) => {
     next[key] = { ...tab, active: false, load_required: false };
   });
@@ -102,18 +86,11 @@ export function withActive(tabs: FileTabDict, path: string): FileTabDict {
 }
 
 /**
- * Every half, left to right, seeded from the last visit.
+ * Every half, left to right, seeded from the last visit at module load — so the strip is on screen
+ * before any request goes out. Seeded optimistically: only `/api/info` can say which project this is,
+ * and `useRememberTabs` drops the strip when the answer names a different directory.
  *
- * Read at module load, as `zoomLevelAtom` reads its own stored value: `App.tsx` mounts a bare
- * `<Provider>`, so this initial value is what the first render draws and the tabs are on screen
- * before any request goes out.
- *
- * It is seeded optimistically — nothing here can tell which project this server is serving, since
- * that takes `/api/info`. `useRememberTabs` does the confirming, and drops the strip when the answer
- * names a different directory than the one the record was written for.
- *
- * A test that wants the default strip has to seed its own store (`Provider` in src/testing), or clear
- * storage and `vi.resetModules()` before importing this: the seed happens on import, once.
+ * A test wanting the default strip seeds its own store, or clears storage and `vi.resetModules()`.
  */
 const remembered = readStoredTabs();
 
@@ -136,10 +113,7 @@ function seededGroups(): TabGroup[] {
 
 export const tabGroupsAtom = atom<TabGroup[]>(seededGroups());
 
-/**
- * The half with the cursor in it. Everything outside the panes reads this one: the strip, the status
- * bar, the breadcrumb, the file browser's marker, the palette, the unsaved prompt.
- */
+/** The half with the cursor in it, which is the one every surface outside the panes reads. */
 export const focusedGroupAtom = atom<string>(FIRST_GROUP);
 
 /** One half's tabs, or an empty strip for a half that is not there. */
@@ -147,12 +121,7 @@ export function groupTabs(groups: TabGroup[], id: string): FileTabDict {
   return groups.find((group) => group.id === id)?.tabs ?? {};
 }
 
-/**
- * The focused half's tabs, read and written as one dictionary.
- *
- * This is the seam: to everything above it, "the tabs" means the half being worked in, which is what
- * every one of those surfaces already meant when there was only one. Writing it writes that half.
- */
+/** The focused half's tabs, read and written as one dictionary: "the tabs" means the half in use. */
 export const fileTabsAtom = atom(
   (get) => groupTabs(get(tabGroupsAtom), get(focusedGroupAtom)),
   (get, set, update: FileTabDict | ((previous: FileTabDict) => FileTabDict)) => {
@@ -174,10 +143,8 @@ export const activeTabPathAtom = atom<string>((get) => {
 });
 
 /**
- * `tabs` without `paths`, and with something still in front.
- *
- * Shared by closing tabs in one half and deleting a file out of every half: a half that loses the tab
- * it was showing has to show something, and which something is the same answer either way.
+ * `tabs` without `paths`, and with something still in front. Shared by closing tabs and by deleting a
+ * file out of every half, which owe the same answer.
  */
 export function withoutTabs(tabs: FileTabDict, paths: string[], focus?: string): FileTabDict {
   const next: FileTabDict = {};
@@ -187,9 +154,7 @@ export function withoutTabs(tabs: FileTabDict, paths: string[], focus?: string):
     }
   });
 
-  // Something has to be in front once a tab goes: the tab a close was measured from if it stayed, or
-  // the Launcher, the one tab always there. Only when the tab that went was the one in front, or
-  // closing a background tab shows two.
+  // Something has to be in front: the tab the close was measured from, or the Launcher.
   if (Object.values(next).some((tab) => tab.active)) {
     return next;
   }

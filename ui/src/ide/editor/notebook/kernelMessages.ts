@@ -100,10 +100,9 @@ export function applyKernelMessage(
           cell,
           {
             output_type: 'stream',
-            // Required by nbformat, and what tells the renderer to tint stderr. Everything the
-            // kernel does not write to stdout arrives on stderr: warnings, the logging module's
-            // default handler, and every tqdm progress bar. This branch used to drop those messages
-            // on the floor, so a cell that only warned looked like a cell that produced nothing.
+            // Required by nbformat, and what tells the renderer to tint stderr. Everything the kernel
+            // does not write to stdout arrives there: warnings, the logging module's default handler,
+            // and every tqdm progress bar.
             name: message.content.name === 'stderr' ? 'stderr' : 'stdout',
             // Kept as the kernel sent it, escapes and all. `removeAnsiCodes` was here, stripping
             // every SGR colour out of stdout before it was stored — which threw away a coloured test

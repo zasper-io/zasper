@@ -102,9 +102,8 @@ describe('NotebookEditor commands', () => {
     expect(request.content.code).toBe('run("notebook.ipynb")');
   });
 
-  // The bug this design exists to kill: every open tab stays mounted, only hidden with CSS, so the
-  // window listener that used to live in useNotebookCells fired in all of them at once — Ctrl-B
-  // added a cell to every open notebook. Commands are registered only by the active tab.
+  // What this design exists to prevent: every open tab stays mounted, only hidden with CSS, so a
+  // window listener in each would fire in all of them at once. Only the active tab registers commands.
   it('reaches the active notebook only, not the hidden ones', async () => {
     const hidden: FileTab = { ...tab, path: 'hidden.ipynb', name: 'hidden.ipynb', active: false };
 
@@ -127,8 +126,8 @@ describe('NotebookEditor commands', () => {
     expect(socketFor('hidden.ipynb').sent).toHaveLength(0);
   });
 
-  // The session the notebook is leaving has to end. It used to be abandoned, which left a kernel
-  // running with nothing attached to it and two sessions on one path for the server to choose between.
+  // The session the notebook is leaving has to end: abandoning it leaves a kernel running with nothing
+  // attached and two sessions on one path for the server to choose between.
   it('ends the old session before switching a notebook to another kernel', async () => {
     render(
       <Provider initialValues={[[kernelspecsAtom, installedKernelspecs('python3', 'ir')]]}>

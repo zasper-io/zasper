@@ -9,32 +9,21 @@ import type { NotebookLanguageServer } from '@/lsp/notebookServer';
 import { CompleteReply, InspectReply, KernelMessage } from './kernelMessages';
 
 /**
- * What every cell of one notebook shares: the notebook's actions, its extensions, and its kernel's
- * completions and widgets. What differs from cell to cell — focus, the prompt — is passed to the cell as
- * props, so this value changes only when one of the things in it really does: every cell reads it.
+ * What every cell of one notebook shares. What differs per cell — focus, the prompt — stays a prop, so
+ * this value changes only when something in it really does; every cell reads it.
  */
 export interface NotebookEditorContextValue {
   /** Dispatches a notebook command by id, for a cell's own toolbar. */
   run: (id: string) => void;
-  /**
-   * The notebook's `cell-editor` commands as a CodeMirror extension — Ctrl-Enter, Shift-Enter. Handed
-   * to the cells rather than read from the command registry, so a cell can only run its own notebook's
-   * commands.
-   */
+  /** The notebook's `cell-editor` commands, handed down so a cell can only run its own notebook's. */
   commandKeymap: Extension;
   /** Highlighting for code cells, in the kernel's language: see useCellLanguage. */
   cellLanguage: Extension;
-  /**
-   * The search state a cell is searched through, and the marks over it: `search()` and the file
-   * editor's own highlighter, one copy per cell. The notebook holds the query and tells every cell
-   * what to look for — a notebook is fifty documents, and the library's search is one view's.
-   */
+  /** Search and its marks, one copy per cell: the library searches one view, a notebook is fifty. */
   findExtension: Extension;
   /**
-   * A cell handing the notebook its editor, or null as it goes.
-   *
-   * The notebook needs the views to mark matches, to step into one and to replace through the cell's
-   * own history. Keyed by cell id, not by index: a cell that moves is the same cell.
+   * A cell handing the notebook its editor, or null as it goes: the notebook marks matches and
+   * replaces through the cell's own history. Keyed by cell id — a cell that moves is the same cell.
    */
   registerCellView: (cellId: string, view: EditorView | null) => void;
   /** A cell handing the notebook its box, which the notebook scrolls to and focuses. */
@@ -47,10 +36,7 @@ export interface NotebookEditorContextValue {
   updateCellSource: (value: string, cellId: string) => void;
   /** Puts a cell where the pointer is, for the rail between two cells. */
   addCellAt: (index: number, cellType: NotebookCell['cell_type']) => void;
-  /**
-   * Runs one named cell, for the button in its gutter. Not `notebook:run-cell`, which acts on the
-   * focused index, and a click's focus change has not been rendered yet when the command runs.
-   */
+  /** Runs one named cell: `notebook:run-cell` acts on the focused index, which a click has not set yet. */
   submitCell: (source: string, cellId: string) => void;
   /** The kernel-wide interrupt: the protocol has no per-cell one. */
   interruptKernel: () => void;

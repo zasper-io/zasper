@@ -51,9 +51,8 @@
   font-size: var(--z-ui-font-size-sm);
 }
 
-// Between the sidebar toggle and the way out, in one flat row with them. It used to be a block holding
-// the name and the log-out button, and inline layout set the name on its baseline: 2.4px below the bar's
-// centre line while the button sat 0.6px above it. As a flex item it centres like the buttons do.
+// Between the sidebar toggle and the way out, in one flat row with them: a flex item centres like the
+// buttons do, where inline layout would set the name on its baseline instead.
 .userName {
   padding: 0 8px;
   white-space: nowrap;

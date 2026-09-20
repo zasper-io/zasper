@@ -272,8 +272,8 @@ func TestCreateContentSaysWhenItCouldNotCreateAnything(t *testing.T) {
 			_, err := project.createContent(ContentPayload{ParentDir: "gone", ContentType: contentType})
 			assert.ErrorIs(t, err, os.ErrNotExist)
 
-			// Outside the project is the other: it used to be written to the server's own working
-			// directory, because the safe path answered "" and a relative path was joined onto it.
+			// Outside the project is the other: a safe path answering "" would join the relative path
+			// onto the server's own working directory.
 			_, err = project.createContent(ContentPayload{ParentDir: "../elsewhere", ContentType: contentType})
 			assert.Error(t, err)
 		})

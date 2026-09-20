@@ -17,11 +17,10 @@
 // its `.disabled`. And the three classes a palette row invented: `.commandName` at a fixed 220px,
 // `.commandDescription`, and `.commandKeys`, which is `.panel-row-keys`.
 //
-// The one thing that changed rather than moved is what the rows sit on. The palette used to be a
-// chrome-coloured panel, so its rows were white ink on the topbar's colour; now the field keeps the chrome
-// it had as a button and the list below it is `--z-bg-overlay`, which makes the panel a header over rows
-// rather than a box that appears somewhere else. It also ends the reason --z-bg-palette-hover existed: a
-// panel hover fill on a chrome row turned it near-white in the light themes while its text stayed white.
+// What the rows sit on is this file's own: the field keeps the chrome it has as a button and the list
+// below it is `--z-bg-overlay`, so the panel reads as a header over rows rather than a box that appears
+// somewhere else. Chrome-coloured rows would also need a hover fill of their own, which turns near-white
+// in the light themes while the text stays white.
 
 // Anchored to .searchArea, which Topbar.scss makes the containing block, rather than centred on the
 // window: the palette is the box .openCommandPaletteButton occupies, and it covers that button instead of

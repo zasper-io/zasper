@@ -197,8 +197,8 @@ func TestARepositoryWithNothingCommittedYetHasABranchAndNoHistory(t *testing.T) 
 	repo := initRepo(t, project)
 	writeFile(t, project, "notes.txt", "hello")
 
-	// There is no commit for HEAD to point at, so the branch has to come from HEAD itself. This is the
-	// state a project is in between `git init` and the first commit, and it used to answer 500.
+	// There is no commit for HEAD to point at, so the branch has to come from HEAD itself: the state a
+	// project is in between `git init` and the first commit.
 	branch := getJSON[gitclient.BranchResponse](t, srv, "/api/current-branch")
 	assert.True(t, branch.IsRepository)
 	head, err := repo.Reference("HEAD", false)

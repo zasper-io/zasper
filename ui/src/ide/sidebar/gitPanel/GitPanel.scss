@@ -95,9 +95,8 @@
   max-width: 320px;
 }
 
-// The field and the error band are inset; the rows below them are not. The 8px used to be padding on the
-// menu, which inset the rows too — and a row whose fill stops short of the surface it is on reads as a
-// card rather than as a row.
+// The field and the error band are inset; the rows below them are not. The 8px is here rather than on
+// the menu, which would inset the rows too — a row whose fill stops short of its surface reads as a card.
 .git-branch-filter {
   width: calc(100% - 16px);
   margin: 8px 8px 4px;
@@ -114,9 +113,9 @@
   overflow-y: auto;
 }
 
-// The branch already checked out is `disabled` and carries a tick instead of a git-branch glyph, which is
-// what says it is the answer rather than an option. It used to be the one row in --z-fg-default among
-// rows in --z-fg-menu-item; now every row is --z-fg-default, and all it needs is the cursor.
+// The branch already checked out is `disabled` and carries a tick instead of a git-branch glyph, which
+// is what says it is the answer rather than an option. Every row is --z-fg-default, so all it needs is
+// the cursor.
 .git-branch-menu .panel-row-name:disabled {
   cursor: default;
 }
@@ -188,12 +187,9 @@
   color: var(--z-fg-subtle);
 }
 
-// Also the "Select Kernel" / "Switch Kernel" button in KernelSwitch. It is a
-// primary action, so it follows --z-accent; it used to be filled with a purple
-// pinned to the wordmark, which did not move with the theme.
-// `.gitpanel-input` was here: the field box, stated for this panel's two fields, which is now
-// `.z-field` in styles/_controls.scss. Both of them keep the one thing that was theirs — the room
-// below them — beside where each is used.
+// Also the "Select Kernel" / "Switch Kernel" button in KernelSwitch. A primary action, so it follows
+// --z-accent and moves with the theme. The field box itself is `.z-field` in styles/_controls.scss;
+// what stays here is the room below each of this panel's two fields.
 
 // `.git-history-note` was here, and `.commit-detail-note` below it at 11px: "Loading…", "No history.",
 // "No files changed." Both are `.z-note` now (styles/_states.scss) — one shape, at the row height, and

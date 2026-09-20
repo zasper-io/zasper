@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// The listing's default used to be python3 whether or not one was installed.
+// The listing's default is a kernel that is installed, not python3 regardless.
 func TestTheDefaultKernelIsOneThatIsInstalled(t *testing.T) {
 	t.Parallel()
 

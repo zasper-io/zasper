@@ -13,7 +13,7 @@ $launcher-gutter: 32px;
   overflow-y: auto;
 
   width: 100%;
-  // The air the welcome title used to carry, now that the first heading is the first thing here.
+  // The air above the first heading, which is the first thing on the page.
   padding: 12px 0 $launcher-gutter;
   background: var(--z-bg-editor);
   color: var(--z-fg-default);

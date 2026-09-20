@@ -65,7 +65,7 @@ describe('shortAgo', () => {
 describe('fullDate', () => {
   it('reads an RFC 3339 timestamp, and nothing else', () => {
     expect(fullDate('2026-06-15T12:00:00Z')).not.toBe('');
-    // Go's own time format, which the endpoint this panel replaced used to send.
+    // Go's own time format, which is not RFC 3339 and must not parse.
     expect(fullDate('2026-06-15 12:00:00 +0000 UTC m=+0.001')).toBe('');
   });
 });

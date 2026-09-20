@@ -89,8 +89,8 @@ describe('GitPanel', () => {
     expect(await screen.findByText('Staged')).toBeInTheDocument();
     expect(screen.getByText('Changes')).toBeInTheDocument();
     expect(screen.getByText('Untracked')).toBeInTheDocument();
-    // The panel used to hide anything staged and not further modified, so this is the bug that had to
-    // stay fixed: one path, two sections, because the two halves of the index disagree.
+    // One path, two sections, because the two halves of the index disagree: a staged file that is not
+    // further modified still belongs in both.
     expect(screen.getByLabelText('Unstage src/notes.txt')).toBeInTheDocument();
     expect(screen.getByLabelText('Stage src/notes.txt')).toBeInTheDocument();
     // The name is the file, the folder is beside it: two sections mentioning src/notes.txt is exactly
@@ -371,8 +371,8 @@ describe('GitPanel', () => {
     );
     render(<ThePanel hidden={false} />);
 
-    // The three things a row used to have no room for. The old history drew `message -- author`, and a
-    // repository with two commits called "wip" was two identical rows.
+    // The three things that tell two commits apart: without them, a repository with two commits called
+    // "wip" is two identical rows.
     expect(await screen.findByText('abc1234')).toBeInTheDocument();
     expect(screen.getByText('2 hours ago')).toBeInTheDocument();
     expect(screen.getAllByText('Test')).toHaveLength(2);

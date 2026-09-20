@@ -8,23 +8,18 @@ import { trackCommand } from '@/telemetry';
 import { Command } from './types';
 
 /**
- * Turns the `cell-editor` commands out of `commands` into a CodeMirror extension.
+ * The `cell-editor` commands as a CodeMirror extension. They cannot go through the window dispatcher
+ * — CodeMirror binds `Shift-Enter` and `Ctrl-Enter` itself — so `Prec.highest` puts them first.
  *
- * These cannot go through the window dispatcher: CodeMirror binds `Shift-Enter` and `Ctrl-Enter`
- * itself and would insert a newline before the event ever reached the window. `Prec.highest` is
- * what puts them ahead of those defaults.
- *
- * The returned extension is stable as long as the ids and their chords are, even though the
- * command bodies are rebuilt on every keystroke: each binding looks its command up again when the
- * key is actually pressed. That matters because `@uiw/react-codemirror` tears down and rebuilds
- * the editor's configuration whenever the extensions it is handed change identity — a fresh
- * extension per render would drop the completion popup mid-word.
+ * The extension is stable while the ids and chords are, and each binding looks its command up when
+ * pressed: `@uiw/react-codemirror` rebuilds the editor whenever its extensions change identity, which
+ * would drop the completion popup mid-word.
  */
 export function useEditorCommandKeymap(commands: Command[]): Extension {
   const latest = useRef(commands);
   latest.current = commands;
 
-  // The ids and chords of the cell-editor commands, one per line: all the keymap is built from.
+  // All the keymap is built from: the ids and chords, one per line.
   const signature = commands
     .filter((command) => command.scope === 'cell-editor' && command.keys)
     .map((command) => `${command.id}\0${command.keys?.join(' ')}`)
@@ -38,16 +33,13 @@ export function useEditorCommandKeymap(commands: Command[]): Extension {
       const run = (view: EditorView) => {
         const current = latest.current.find((candidate) => candidate.id === id);
         if (!current || (current.isEnabled && !current.isEnabled())) {
-          // Returning false hands the chord back to CodeMirror, so a disabled command leaves the
-          // editor's own binding working rather than swallowing the key.
+          // False hands the chord back, so a disabled command leaves CodeMirror's own binding working.
           return false;
         }
-        // A completion list open when the cell is run is answering a question that has been asked
-        // and left: nothing closed it, so it stayed on screen over the *next* cell for as long as
-        // the run took. CodeMirror only dismisses it on Escape or on a change to the document.
+        // CodeMirror dismisses a completion list only on Escape or an edit, so one open when the cell
+        // runs would sit over the next cell for as long as the run takes.
         closeCompletion(view);
-        // As well as in the registry, because this path bypasses it: NotebookEditor hands the raw
-        // commands here, so run-cell and run-cell-and-advance would otherwise never be counted.
+        // This path bypasses the registry's own counting: NotebookEditor hands the raw commands here.
         trackCommand(id);
         current.execute();
         return true;

@@ -1,5 +1,5 @@
-// What a row can say about its entry beyond the name. All of it was already in the listing and
-// thrown away: the server has sent size, dates and writability all along.
+// What a row can say about its entry beyond the name: the size, dates and writability the listing
+// already carries.
 
 import { ContentEntry } from '@/api';
 

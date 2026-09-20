@@ -38,7 +38,7 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
   const closePalette = useCallback(() => setPaletteQuery(null), []);
 
   // Opens the palette with `query` already in the field, or closes it when that is what it is
-  // already showing — so a chord pressed twice dismisses, as both of them used to.
+  // already showing, so a chord pressed twice dismisses.
   const togglePalette = useCallback((query: string) => {
     setPaletteQuery((current) => (current === query ? null : query));
   }, []);
@@ -53,7 +53,7 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
   const hasTextEditor = formats[activePath] !== undefined;
 
   // Both ways into the palette are commands like any other, registered here because this is where
-  // its state lives. Their chords used to be a `keydown` listener of their own.
+  // its state lives.
   const paletteCommands = useMemo<Command[]>(
     () => [
       {

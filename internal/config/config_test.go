@@ -252,7 +252,7 @@ func TestWidgetCodeFromTheCDNCanBeTurnedOffOverTheApi(t *testing.T) {
 	assert.True(t, WidgetCDNEnabled())
 }
 
-// A theme that could not be written used to answer 200, so the UI showed a change that did not survive
+// A theme that cannot be written must not answer 200, or the UI shows a change that does not survive
 // the restart.
 func TestAThemeThatCannotBeSavedSaysSo(t *testing.T) {
 	// HOME is a file, so nothing can be read or written beneath it.

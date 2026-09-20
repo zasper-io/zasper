@@ -273,8 +273,8 @@ describe('JupyterInfoPanel', () => {
   });
 
   it('shows the server\u2019s state for a kernel this window is not attached to', async () => {
-    // The whole point of reading the server: this used to be the row with no dot, because the only
-    // state the panel had came from the notebook this window had open.
+    // The whole point of reading the server: the state does not come from the notebooks this window
+    // has open.
     listKernels.mockResolvedValue([kernelModel('ir', 'kernel-2', 'busy')]);
     const { container } = renderPanel({ statuses: {} });
     await screen.findByText('R');

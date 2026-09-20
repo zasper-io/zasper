@@ -140,7 +140,7 @@ func (h *Handler) Delete(w http.ResponseWriter, req *http.Request) {
 }
 
 // statusFor keeps the difference between "there is nothing there", "something is already there",
-// "you may not" and "that request made no sense", all of which used to answer 400.
+// "you may not" and "that request made no sense", rather than answering 400 for all four.
 func statusFor(err error) int {
 	switch {
 	case errors.Is(err, os.ErrNotExist):

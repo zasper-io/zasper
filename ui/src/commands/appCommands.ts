@@ -10,8 +10,8 @@ const view = { category: 'View', scope: 'app' } as const;
 
 /** The window's own commands. `view:toggle-sidebar` is registered by IDE.tsx, which owns the sidebar. */
 export const APP_COMMANDS = defineCommands({
-  // Cmd +/-/0 zoom the window, as they do in VS Code and in the browser around it. They used to
-  // resize the editor's font instead, which left every other length in the app where it was.
+  // Cmd +/-/0 zoom the window, as they do in VS Code and in the browser around it: every length
+  // scales, not just the editor's font.
   'view:zoom-in': {
     ...view,
     label: 'Zoom In',

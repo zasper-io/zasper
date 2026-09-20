@@ -56,8 +56,8 @@ func TestAResourceRequestCannotReachOutsideTheKernelsOwnFolder(t *testing.T) {
 	kernelDir(t, kernels, "python3", pythonSpec)
 	require.NoError(t, os.WriteFile(filepath.Join(kernels, "secrets.txt"), []byte("shh"), 0o644))
 
-	// A working directory with something worth reading in it, for the case where the kernel is not
-	// installed and the path used to be resolved from here.
+	// A working directory with something worth reading in it: a kernel that is not installed must not
+	// resolve its resource path from here.
 	cwd := t.TempDir()
 	t.Chdir(cwd)
 	require.NoError(t, os.WriteFile(filepath.Join(cwd, "go.mod"), []byte("module secret"), 0o644))
@@ -166,7 +166,7 @@ func TestOneKernelspecIsAskedForByName(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	catalog.GetHandler(recorder, request)
 
-	// Jupyter Server's kernelspec_model, as in the list: it used to answer the bare spec.
+	// Jupyter Server's kernelspec_model, as in the list, rather than the bare spec.
 	require.Equal(t, http.StatusOK, recorder.Code)
 	var model KernelspecModel
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &model), "body was %s", recorder.Body)

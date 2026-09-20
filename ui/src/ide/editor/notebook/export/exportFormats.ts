@@ -48,7 +48,7 @@ export function notebookLanguage(notebook: NotebookModel, attached?: string): st
     return fromInfo;
   }
   const kernelspec = notebook.metadata?.kernelspec;
-  // The bare string is what Zasper itself used to write here, so it is on disk in real notebooks.
+  // The bare string is in real notebooks on disk, Zasper's own among them.
   if (typeof kernelspec === 'object' && kernelspec !== null) {
     return kernelspec.language ?? '';
   }

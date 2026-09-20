@@ -68,9 +68,8 @@ export function requestIdOf(socket: RecordedSocket, index: number): string {
 }
 
 /**
- * The run button of the first cell, which lives in that cell's gutter beside its execution count.
- * It used to be the first of eleven icons in `.cellOptions`; the bar holds move-up, move-down and
- * the menu now, and run is per-cell rather than acting on whatever holds the focus.
+ * The run button of the first cell, which lives in that cell's gutter beside its execution count:
+ * run is per-cell rather than acting on whatever holds the focus.
  */
 export function runButton(container: HTMLElement): HTMLElement {
   return container.querySelector('.cell-run') as HTMLElement;

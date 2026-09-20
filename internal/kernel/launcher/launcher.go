@@ -110,9 +110,7 @@ func Launch(spec Spec) (*Process, error) {
 		close(process.done)
 	}()
 
-	// The kernel is spoken to over ZMQ, not stdin. This used to write the literal bytes "input data"
-	// into every kernel it started, which was debug scaffolding that outlived its purpose; closing
-	// the pipe is all that is actually wanted.
+	// The kernel is spoken to over ZMQ, not stdin, so closing the pipe is all that is wanted here.
 	stdin.Close()
 
 	go pipeToLog(stdout, "stdout", process.Pid)

@@ -45,8 +45,8 @@ const POLL_MS = 5000;
 /**
  * What is running on the server: the kernels, which file each one belongs to, and the shells.
  *
- * The panel used to read jotai atoms that only this browser tab writes, so a reload emptied it while
- * the kernels went on running. Everything here comes from the server instead.
+ * Everything comes from the server rather than from atoms this browser tab writes, which a reload
+ * would empty while the kernels went on running.
  *
  * Reads report their failure into the panel and writes report theirs as a toast, as in useGitStatus:
  * a read happens on a timer, and a server that has gone away would otherwise raise a toast every five

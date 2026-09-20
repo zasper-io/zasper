@@ -48,8 +48,7 @@ func TestFoldersComeFirstAndEverythingElseIsSortedByName(t *testing.T) {
 	}, names(entries))
 }
 
-// The case the comparator used to give up on: two entries that are both files as far as the reader
-// is concerned, but carry different content types.
+// Two entries that are both files as far as the reader is concerned, but carry different content types.
 func TestANotebookAndAFileAreOrderedAgainstEachOther(t *testing.T) {
 	entries := []ContentModel{
 		entry("file", "b.py"),

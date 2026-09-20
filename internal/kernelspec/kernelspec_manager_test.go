@@ -122,7 +122,7 @@ func TestASpecIsReadFromItsKernelJson(t *testing.T) {
 	assert.Equal(t, dir, spec.ResourceDir)
 }
 
-// An empty spec used to come back instead, and the launcher panicked on its Argv[0].
+// An error rather than an empty spec, which the launcher would panic on at Argv[0].
 func TestASpecThatCannotBeLoadedIsAnError(t *testing.T) {
 	catalog, kernels := jupyterPath(t)
 
@@ -175,8 +175,8 @@ func TestAnUnknownKernelIsNotReadFromTheWorkingDirectory(t *testing.T) {
 	assert.Empty(t, spec.Argv)
 }
 
-// The Jupyter path is in priority order. Listing used to let the last directory win while launching
-// took the first, so the launcher showed one kernel and started another.
+// The Jupyter path is in priority order, and listing has to agree with launching: the last directory
+// winning in one and the first in the other shows one kernel and starts another.
 func TestTheFirstDirectoryOnTheJupyterPathWins(t *testing.T) {
 	t.Parallel()
 

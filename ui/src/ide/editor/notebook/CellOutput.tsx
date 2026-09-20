@@ -108,10 +108,10 @@ interface OutputBundlesProps {
  */
 export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
   const ansi_up = new AnsiUp();
-  // Classes rather than `style="color:rgb(187,0,0)"`, which is what this emits by default: an escape
-  // code the kernel sent used to arrive as a literal colour from a 16-colour terminal palette that no
-  // theme could reach. The map from `.ansi-*-fg` to --z-ansi-* is in NotebookEditor.scss. Bold, faint,
-  // italic and underline are still inline, and so is 24-bit colour, which is a colour rather than a slot.
+  // Classes rather than the `style="color:rgb(187,0,0)"` this emits by default, which would bake a
+  // 16-colour terminal palette into the HTML where no theme could reach it. The map from `.ansi-*-fg`
+  // to --z-ansi-* is in NotebookEditor.scss. Bold, faint, italic, underline and 24-bit colour stay
+  // inline: a colour rather than a slot.
   ansi_up.use_classes = true;
 
   return (
@@ -138,9 +138,8 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
 
         if (text) {
           const textHtml = ansi_up.ansi_to_html(text);
-          // stderr is tinted, stdout is not. Both are `stream` outputs and the only thing that tells
-          // them apart is `name`, which the kernel always sends and this app used to throw away along
-          // with the whole stderr message — so warnings and tqdm bars showed as nothing at all.
+          // stderr is tinted, stdout is not. Both are `stream` outputs, and `name` is the only thing
+          // that tells them apart — it carries the warnings, the logging module and every tqdm bar.
           const streamClass = output.name === 'stderr' ? 'output-stderr' : undefined;
           return (
             <pre key={index} className={streamClass}>
@@ -224,9 +223,8 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
           }
         }
 
-        // Nothing here can show it, so say which representations arrived rather than printing one: an
-        // unrendered bundle runs to tens of kilobytes of JSON, and a wall of that in a cell is what a
-        // missing renderer used to look like.
+        // Nothing here can show it, so name the representations that arrived rather than printing one:
+        // an unrendered bundle runs to tens of kilobytes of JSON.
         const arrived = outputData ? Object.keys(outputData).join(', ') : output.output_type;
         return <p key={index}>This output cannot be displayed ({arrived ?? 'unknown type'}).</p>;
       })}

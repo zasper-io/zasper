@@ -337,7 +337,7 @@ func TestASessionCookieCannotChangeAnythingFromAnotherPage(t *testing.T) {
 	}
 }
 
-// Signing out used to clear localStorage and nothing else, leaving the token valid for a day.
+// Signing out has to end the session on the server: clearing localStorage leaves the token valid.
 func TestSigningOutEndsTheSessionEverywhere(t *testing.T) {
 	a := gate(t, "the-token")
 	token := sessionCookieIn(t, signIn(t, a, "the-token", "192.0.2.1")).Value

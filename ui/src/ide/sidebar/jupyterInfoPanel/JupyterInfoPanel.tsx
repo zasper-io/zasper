@@ -21,9 +21,8 @@ import { PanelProps } from '../types';
  * be started.
  *
  * Both running lists come from the server (see useJupyterInfo) rather than from the atoms this window
- * writes when it starts something, which is what the panel read before — so a reload no longer empties
- * a panel whose kernels and shells are all still running, and one started in another window is in it.
- * `terminalsAtom` is still read, but only to say which of the listed shells this window can open.
+ * writes, so a reload keeps them and a kernel started in another window is listed too. `terminalsAtom`
+ * says only which of the listed shells this window can open.
  */
 export default function JupyterInfoPanel({ hidden }: PanelProps) {
   const { kernels, terminals, loading, busy, error, refresh, run } = useJupyterInfo(hidden);

@@ -183,8 +183,7 @@ describe('useNotebookCommands', () => {
     }
   });
 
-  // The capital-M bug, as an invariant: Shift plus a letter is a character someone is trying to
-  // type, so it can never be a binding. `Shift-M` used to change the cell type instead.
+  // Shift plus a letter is a character someone is trying to type, so it can never be a binding.
   it('never binds a chord that is just a shifted character', () => {
     for (const command of build().commands) {
       for (const binding of command.keys ?? []) {

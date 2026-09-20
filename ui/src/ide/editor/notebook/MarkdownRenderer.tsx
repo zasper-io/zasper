@@ -9,30 +9,18 @@ import type { Options as SanitizeSchema } from 'rehype-sanitize';
 
 import { normalizeMathDelimiters } from './mathDelimiters';
 
-// Required, not optional polish: KaTeX emits a visual HTML copy *and* an
-// accessible MathML copy of every formula, and this stylesheet is what hides the
-// second one. Without it both render and each formula appears twice. Importing it
-// here rather than in a global stylesheet keeps it in the lazy chunk alongside
-// the renderer, and lets Vite emit the KaTeX web fonts it references.
+// Required: KaTeX emits a visual HTML copy and a MathML one, and this hides the second — without it
+// every formula renders twice. Imported here so it stays in the lazy chunk with its web fonts.
 import 'katex/dist/katex.min.css';
 
 /**
- * A rendered markdown cell.
+ * A rendered markdown cell, and a code-splitting boundary: react-markdown, the remark/rehype plugins
+ * and katex are the heaviest thing the notebook pulls in. Keep those imports in this file — importing
+ * them in the eager tree puts them back in the main bundle. Cell.tsx loads it with React.lazy.
  *
- * This module exists to be a code-splitting boundary: react-markdown plus the
- * remark/rehype plugins and katex are the largest thing the notebook pulls in,
- * and none of it is needed until a notebook with a markdown cell is opened. Keep
- * the heavy imports above confined to this file — importing them anywhere in the
- * eagerly loaded tree puts them straight back into the main bundle. Cell.tsx
- * loads it with React.lazy.
- *
- * `rehypeRaw` is what allows raw HTML inside a markdown cell, matching Jupyter. That HTML is the
- * notebook author's, so it is sanitised before KaTeX adds markup of its own: an `<iframe srcdoc>` would
- * otherwise run script in this page's origin.
- *
- * `remarkGfm` is not optional either: react-markdown speaks plain CommonMark, which has no tables,
- * strikethrough, task lists or bare-URL links. Jupyter renders all four — JupyterLab runs marked with
- * GFM on — so without it a table in a markdown cell comes out as one paragraph of pipes.
+ * `rehypeRaw` allows the raw HTML Jupyter allows, so it is sanitised before KaTeX adds markup of its
+ * own: an `<iframe srcdoc>` would otherwise run script in this origin. `remarkGfm` is what gives
+ * CommonMark the tables, strikethrough, task lists and bare links Jupyter renders.
  */
 // GitHub's schema, plus the classes remark-math marks formulas with, which rehype-katex looks for.
 const schema: SanitizeSchema = {
@@ -46,24 +34,18 @@ const schema: SanitizeSchema = {
 export interface MarkdownRendererProps {
   source: string;
   /**
-   * What KaTeX emits. The default is its own: a visual HTML copy plus a MathML one for screen readers,
-   * which is what the stylesheet above is imported for.
-   *
-   * `mathml` drops the HTML copy, and with it the need for KaTeX's stylesheet and its five web fonts.
-   * The export uses it (export/toHtml.tsx): a file that has to open with the network off cannot link to
-   * a font, and every current browser draws MathML natively.
+   * What KaTeX emits. `mathml` drops the HTML copy and with it the stylesheet and five web fonts,
+   * which is what the export needs (export/toHtml.tsx): it cannot link to a font.
    */
   katexOutput?: 'htmlAndMathml' | 'mathml';
 }
 
 const MarkdownRenderer = ({ source, katexOutput }: MarkdownRendererProps) => {
-  // `remark-math` reads `$x$` and nothing else; Jupyter's own notebooks are full of `\\(x\\)`.
-  // See mathDelimiters.ts.
+  // `remark-math` reads `$x$` and nothing else; Jupyter's notebooks are full of `\\(x\\)`.
   const text = useMemo(() => normalizeMathDelimiters(source), [source]);
 
   return (
-    // The wrapper is the styling hook: markdown produces plain h1/table/blockquote with no classes of
-    // their own, so this is what NotebookEditor.scss can reach them through.
+    // The styling hook: markdown emits h1/table/blockquote with no classes for NotebookEditor.scss.
     <div className="zasper-markdown">
       <Markdown
         remarkPlugins={[remarkGfm, remarkMath]}

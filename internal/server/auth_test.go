@@ -152,7 +152,7 @@ func TestProtectedModeAcceptsTheLoginToken(t *testing.T) {
 }
 
 // Signing in is read before anyone is authenticated, so its body is capped at a few kilobytes: a
-// valid sign-in padded past that is refused, where it used to be read however large it was.
+// valid sign-in padded past that is refused rather than read however large it is.
 func TestASignInLargerThanASignInIsNotRead(t *testing.T) {
 	t.Parallel()
 

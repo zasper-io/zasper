@@ -234,8 +234,8 @@ describe('FileBrowser', () => {
     });
 
     it('labels only the row under the pointer, not every folder it sits in', async () => {
-      // A folder's `li` holds its children, so a pointer resting on a file inside it used to arrive on
-      // every ancestor as well and stack up a tooltip per level.
+      // A folder's `li` holds its children, so a pointer resting on a file inside it arrives on every
+      // ancestor too — one tooltip per level unless each row measures the row rather than the `li`.
       vi.useFakeTimers({ shouldAdvanceTime: true });
       try {
         await renderBrowser();

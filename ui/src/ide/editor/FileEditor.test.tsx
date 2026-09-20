@@ -571,9 +571,8 @@ describe('FileEditor', () => {
   });
 
   /*
-   * A tab restored from a previous visit can name a file that has since been deleted. What used to
-   * happen: the read rejected unhandled, the editor stood there looking like an empty file, and
-   * saving it wrote the deleted file back to disk.
+   * A tab restored from a previous visit can name a file that has since been deleted. Left unhandled,
+   * the read rejects, the editor looks like an empty file, and saving writes it back to disk.
    */
   describe('when the file cannot be read', () => {
     beforeEach(() => {

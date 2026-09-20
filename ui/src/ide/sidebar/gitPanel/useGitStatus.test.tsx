@@ -138,7 +138,7 @@ describe('useGitStatus', () => {
     });
 
     expect(worked).toBe(false);
-    // The server's own words. The panel used to say "An error occurred while committing changes."
+    // The server's own words rather than a message of the panel's.
     expect(toastError).toHaveBeenCalledWith('Please tell me who you are');
     expect(result.current.busy).toBe(false);
   });

@@ -37,9 +37,8 @@ interface LauncherProps {
 /**
  * Two letters of a kernel's language, for a kernelspec that ships no logo.
  *
- * The fallback used to be the kernel glyph, which at five rows is the same picture five times and says
- * only "this is a kernel" — which the heading above it already said. The language is what the reader is
- * choosing between.
+ * The language rather than a kernel glyph, which at five rows is the same picture five times saying
+ * what the heading already says. The language is what the reader is choosing between.
  */
 const MARKS: Record<string, string> = {
   python: 'py',

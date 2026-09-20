@@ -41,9 +41,9 @@ describe('applyKernelMessage', () => {
     expect(updated.cells[0].execution_count).toBe(7);
   });
 
-  // The escapes are the kernel's, and they are kept: they used to be stripped here, which threw away
-  // the colour of a test run and wrote the stripped text into the .ipynb. CellOutput.tsx turns them
-  // into `.ansi-*` classes that the theme can reach.
+  // The escapes are the kernel's and are kept: stripping them here would throw away the colour of a
+  // test run and write the stripped text into the .ipynb. CellOutput.tsx turns them into `.ansi-*`
+  // classes the theme can reach.
   it('appends stdout streams as the kernel sent them, escapes and all', () => {
     const updated = applyKernelMessage(
       notebookWith('cell-1'),
@@ -55,8 +55,8 @@ describe('applyKernelMessage', () => {
     ]);
   });
 
-  // Warnings, the logging module and every tqdm progress bar come down this channel. They used to be
-  // dropped, so a cell that only warned looked like a cell that produced nothing at all.
+  // Warnings, the logging module and every tqdm progress bar come down this channel: dropped, a cell
+  // that only warned would look like a cell that produced nothing at all.
   it('keeps stderr streams, named so the renderer can tint them', () => {
     const updated = applyKernelMessage(
       notebookWith('cell-1'),

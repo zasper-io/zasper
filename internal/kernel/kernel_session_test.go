@@ -31,7 +31,7 @@ func published(session KernelSession, msg Message) zmq4.Msg {
 }
 
 // Binary buffers are how widget libraries send array data — bqplot puts every mark's x and y in one —
-// and they are the frames after the content, which nothing used to read or write.
+// and they are the frames after the content, which both ends have to read and write.
 func TestBuffersSurviveTheTripToAKernelAndBack(t *testing.T) {
 	session := getSession()
 	msg := session.MessageFromString("comm_msg")
@@ -66,8 +66,8 @@ func TestBuffersAreNotSigned(t *testing.T) {
 	assert.NotNil(t, payload, "a message whose buffers changed was rejected as unsigned")
 }
 
-// A reply is addressed to the request that asked by its parent header, so sending the header as the
-// parent — which serialize used to do — tells the kernel every message is its own parent.
+// A reply is addressed to the request that asked by its parent header: sending the header as the
+// parent instead tells the kernel every message is its own parent.
 func TestTheParentHeaderIsTheParentAndNotACopyOfTheHeader(t *testing.T) {
 	session := getSession()
 	msg := session.MessageFromString("input_reply")

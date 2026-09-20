@@ -12,9 +12,8 @@ interface SyncActionsProps {
 /**
  * Fetch, pull and push, with the counts they are about.
  *
- * The counts used to be text beside the branch name, which said how far behind the branch was and gave no
- * way to do anything about it. They are the labels of the buttons instead: the number on the arrow down is
- * what a pull would bring, and the one on the arrow up is what a push would send.
+ * The counts are the buttons' own labels: the number on the arrow down is what a pull would bring, and
+ * the one on the arrow up is what a push would send.
  *
  * Nothing here is offered without a remote, since all three would be refused.
  */

@@ -91,8 +91,7 @@ func runtimeDir() string {
 	return dir
 }
 
-// removeConnectionFile deletes a kernel's connection file. Nothing used to, so every kernel ever
-// started left its signing key behind on disk.
+// removeConnectionFile deletes a kernel's connection file, which holds its signing key.
 func removeConnectionFile(connectionFile string) {
 	if connectionFile == "" {
 		return

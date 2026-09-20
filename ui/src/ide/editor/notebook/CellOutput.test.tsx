@@ -124,7 +124,7 @@ describe('OutputBundles', () => {
     await waitFor(() => expect(container.querySelector('.katex')).not.toBeNull());
   });
 
-  // The three above used to fall through to here, which is what made them look unsupported.
+  // The three above must not reach this fallback, or they look unsupported.
   it('falls back to text/plain for a bundle it cannot render', () => {
     show({ 'application/octet-stream': 'x', 'text/plain': 'a plain description' });
 

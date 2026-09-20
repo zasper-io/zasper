@@ -111,11 +111,9 @@
 // The tab strip is tabs/TabIndex.scss now, with the component that renders it: `.tabHeader`,
 // `.tab-item` and the rules that were `.nav-link` here.
 
-// No 1px side margins, and no `width: 100%` that used to sit beside them — together they made this 2px
-// wider than the resizable panel holding it and put a horizontal scrollbar under every tab. The margins
-// were the seam between the sidebar and the editor back when `.panelResizeHandle` had no rule and no
-// width; the handle is 4px and filled now, so the left one was drawing a second seam beside a real one
-// and the right one a hairline down the window's own edge.
+// No side margins and no `width: 100%` together: that pair makes this 2px wider than the resizable
+// panel holding it and puts a horizontal scrollbar under every tab. The seam between the sidebar and
+// the editor is `.panelResizeHandle`, 4px and filled, so no margin has to draw one.
 //
 // No `line-height` either: it would be inherited by every tab's contents, and the body's
 // --z-ui-line-height is what the chrome is measured against. No `font-weight` for the same reason and
@@ -129,9 +127,7 @@
   overflow: hidden;
   background-color: var(--z-bg-content);
 
-  // Three boxes deep, and they used to be called `.tabContent`, `.tab-content` and `.editor-pane` —
-  // two of those are the same two words in two spellings, and which one a rule meant could only be
-  // settled by opening the markup. Named for what each one is instead:
+  // Three boxes deep, each named for what it is rather than for where it sits:
   //
   //   .tab-pane      one per open tab, mounted whether or not it is the visible one
   //   .tab-surface     the card that tab draws — the fill, the radius and the shadow

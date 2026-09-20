@@ -1,13 +1,9 @@
 /**
- * Window zoom, the way VS Code does it: a level rather than a font size. Every length in the app
- * scales — chrome, icons, borders, the tree's rows, the editor — because the browser's own `zoom`
- * rescales the CSS pixel itself instead of any one declaration.
+ * Window zoom: a level rather than a font size, so every length scales —
+ * the browser's own `zoom` rescales the CSS pixel itself.
  *
- * There used to be a second setting beside it — a `.zfont-N` ladder on the content alone, stepped by
- * a pair of palette commands — and it is gone: zoom moves every length in the window, including those.
- *
- * ~/.zasper/config.json does not carry it: zoom is a property of the screen being looked at, not of
- * the project, so it lives in the browser doing the looking.
+ * Kept in the browser rather than in ~/.zasper/config.json: zoom belongs to the screen being looked
+ * at, not to the project.
  */
 
 const STORAGE_KEY = 'zasper.zoom';
@@ -31,27 +27,19 @@ export function zoomFactor(level: number): number {
   return RATIO ** clampZoomLevel(level);
 }
 
-/**
- * What the status bar shows: the level itself, signed — `+2`, `0`, `-3`. The factor behind it is
- * 1.2 to that power and reads as 1.44 or 0.83, and the percentage reads as 144 or 83; the level is
- * the one of the three that is a small whole number and says which way it has been moved.
- */
+/** What the status bar shows: the level, signed — `+2`, `0`, `-3`, rather than 1.44 or 144%. */
 export function zoomLevelLabel(level: number): string {
   const clamped = clampZoomLevel(level);
   return clamped > 0 ? `+${clamped}` : String(clamped);
 }
 
 /**
- * On #root rather than on <html>, and this is the one thing about `zoom` worth knowing: a viewport
- * unit is *not* rescaled by it. Zooming <html> left `.editor`'s `height: 100vh` resolving against the
- * unzoomed viewport and then multiplied by the factor — 1.44 put 358px of the app below the fold,
- * with a scrollbar down the window. The chain is percentages instead (`html, body, #root` in
- * styles/_base.scss), which Chrome does resolve across the zoom boundary, so the shell still ends
- * exactly at the bottom of the window at every level.
+ * On #root rather than <html>, because a viewport unit is not rescaled by `zoom`: zooming <html> left
+ * `100vh` resolving against the unzoomed viewport and then multiplied, putting the app below the fold.
+ * The chain is percentages instead (styles/_base.scss).
  *
- * The factor is published as --z-zoom for the few places that must keep a viewport unit: a dialog is
- * capped at 90vh, and that cap has to be 90% of the *window* rather than of the window times the
- * factor.
+ * The factor is published as --z-zoom for the few places that must keep a viewport unit, such as a
+ * dialog capped at 90vh.
  */
 export function applyZoom(level: number): void {
   const root = document.getElementById('root');
@@ -72,9 +60,8 @@ export function applyZoom(level: number): void {
 }
 
 /**
- * The factor in force right now, for the one thing that has to undo it: a coordinate taken from a
- * mouse event is in the window's pixels, and anything positioned with it is laid out in the scaled
- * ones. Everything else in the app is a percentage or a flex box and needs no such correction.
+ * The factor in force, for the one thing that must undo it: a mouse coordinate is in window pixels
+ * while what it positions is laid out in scaled ones.
  */
 export function currentZoomFactor(): number {
   const declared = getComputedStyle(document.documentElement).getPropertyValue('--z-zoom').trim();

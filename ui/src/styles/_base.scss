@@ -172,9 +172,8 @@ select {
   scrollbar-color: var(--z-scrollbar-thumb) var(--z-scrollbar-track);
 }
 
-// The three content surfaces, at one size. Zoom is what scales them now; this used to be a
-// `.zfont-8`..`.zfont-24` ladder that a pair of palette commands stepped through, and the two
-// settings were one too many — zoom moves every length in the window, including these.
+// The three content surfaces, at one size. Zoom is what scales them, and it moves every length in
+// the window including these, so they need no ladder of their own.
 //
 // All three named rather than left to inherit, because `.main-content` also holds the tab strip, the
 // notebook toolbar and the launcher, and those are chrome at --z-ui-font-size. `.inner-text` has to

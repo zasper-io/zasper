@@ -548,7 +548,7 @@ func TestEveryClientOfAKernelIsCountedAndClosed(t *testing.T) {
 	awaitConnections(t, srv, created.Kernel.Id, 2)
 
 	first.Close()
-	// Output the first socket's poller also hears, which is what used to take the second one out.
+	// Output the first socket's poller also hears, which must not take the second one out with it.
 	awaitExecuteResult(t, second, executeOverSocket(t, second, created.Id, "3 + 3"), 30*time.Second)
 	awaitConnections(t, srv, created.Kernel.Id, 1)
 

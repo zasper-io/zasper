@@ -22,15 +22,15 @@
     display: none;
   }
 
-  // The pane the tab used to be, at the panel's height.
+  // The shell's pane, at the panel's height.
   .terminalContainer {
     flex: 1 1 auto;
     min-width: 0;
   }
 }
 
-// 180px: the width of a name, and what the tab strip used to spend on all of them at once. Drawn for
-// one shell as well as for several, because the row is where a shell is closed.
+// 180px: the width of a name. Drawn for one shell as well as for several, because the row is where a
+// shell is closed.
 .terminalPanel-list {
   flex: 0 0 180px;
   margin: 0;

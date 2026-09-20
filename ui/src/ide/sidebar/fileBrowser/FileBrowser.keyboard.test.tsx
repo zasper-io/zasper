@@ -72,8 +72,8 @@ describe('FileBrowser', () => {
 
       press('ArrowLeft');
 
-      // Focus bubbles out of a row into the row holding it, so a focused child used to make its own
-      // folder the focused row — and this key then closed it instead of stepping to it.
+      // Focus bubbles out of a row into the row holding it, so a focused child must not make its own
+      // folder the focused row: this key would then close it instead of stepping to it.
       expect(row('main.py')).toBeInTheDocument();
       expect(row('src')).toHaveClass('is-selected');
     });

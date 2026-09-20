@@ -18,14 +18,11 @@ interface CellButtonsProps {
 }
 
 /**
- * The two actions that are a cell's own. Everything else that used to be here is now either in the
- * notebook toolbar 40px above the first cell — which already holds save, insert, cut, copy, paste,
- * run, interrupt, restart and run-all — in the gutter beside the code, in the rail between two
- * cells, or in the menu below.
+ * The two actions that are a cell's own. Everything else lives in the notebook toolbar above the
+ * first cell, in the gutter beside the code, in the rail between two cells, or in the menu below.
  *
- * Moving a cell is the one thing with no other home, and the only pair left where the arrowheads
- * have to be read: the chevrons that used to sit beside these moved the *selection* and are in the
- * palette, where a name says which is which.
+ * Moving a cell is the one thing with no other home. Moving the *selection* is not here: those are
+ * palette commands, where a name says which is which rather than two more arrowheads to read.
  */
 const CELL_BUTTONS: { id: string; title: string; icon: IconName }[] = [
   { id: 'notebook:move-cell-up', title: 'Move Cell Up', icon: 'arrow-up' },
@@ -78,10 +75,9 @@ const CELL_MENU: {
 ];
 
 /**
- * The bar over a cell. It is rendered for every cell rather than only the focused one and revealed
- * by CSS on hover, on focus, and on `:focus-within` — before this it was mounted only when
- * `index === focusedIndex`, so a pointer had to click a cell before that cell had any options at
- * all, and the "hover toolbar" both this file and the stylesheet described did not exist.
+ * The bar over a cell, rendered for every cell rather than only the focused one and revealed by CSS
+ * on hover, on focus and on `:focus-within` — so a pointer reaches a cell's options without clicking
+ * into it first.
  */
 function CellButtons(props: CellButtonsProps) {
   const commands = useCommands();

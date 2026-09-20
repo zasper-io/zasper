@@ -62,8 +62,7 @@ interface PaletteProps {
  */
 const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) => {
   const [query, setQuery] = useState(initialQuery);
-  // The first match is selected from the start, so typing a query and pressing Enter runs it — the
-  // palette used to open with nothing selected, which made Enter do nothing until you arrowed down.
+  // The first match is selected from the start, so typing a query and pressing Enter runs it.
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const { openTab } = useTabActions();
 

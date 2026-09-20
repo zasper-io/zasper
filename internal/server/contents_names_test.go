@@ -35,7 +35,7 @@ func TestNamesWithDotsInThemAreNotTakenForTraversal(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(project, "v1..2.md"))
 }
 
-// A save of a type the server cannot write used to answer 200 and write nothing.
+// A save of a type the server cannot write is refused, rather than answering 200 and writing nothing.
 func TestASaveOfAnUnknownTypeIsRefused(t *testing.T) {
 	srv, project := testServer(t)
 

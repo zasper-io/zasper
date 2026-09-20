@@ -1,6 +1,4 @@
-// State private to the file browser. These atoms are read and written only by the components in
-// this folder, so they stay here rather than in src/store/, which is for state shared across
-// features.
+// State private to the file browser. Only this folder reads it; src/store/ is for state features share.
 
 import { atom } from 'jotai';
 
@@ -10,27 +8,19 @@ import { PendingUpload } from './uploads';
 export interface UploadDialogRequest {
   /** The folder the files are going into; '' is the project root. */
   parentDir: string;
-  /** Files a drop already chose, which start going as soon as the dialog is up. Empty when the dialog
-   *  was opened from a menu and has yet to ask for anything. */
+  /** Files a drop already chose, which start at once. Empty when the dialog was opened from a menu. */
   pending: PendingUpload[];
 }
 
-/**
- * The upload the dialog is showing, or null when it is closed. One atom rather than a flag and a path,
- * because a drop from the desktop settles the destination and the files together.
- */
+/** The upload the dialog is showing, or null: a drop settles the destination and the files together. */
 export const uploadRequestAtom = atom<UploadDialogRequest | null>(null);
 
-/**
- * Why the last action failed, shown in the panel until something succeeds. An atom because the rows
- * that fail are anywhere in a recursive tree and the message belongs at the top of the panel.
- */
+/** Why the last action failed: the row is anywhere in the tree, the message belongs at the top. */
 export const fileBrowserErrorAtom = atom<string>('');
 
 /**
- * Every directory that has been read, keyed by its path; the project root is ''. One store rather
- * than a listing per row, so re-reading the tree can put back what was open instead of collapsing
- * everything below the root.
+ * Every directory read, keyed by path; '' is the project root. One store rather than a listing per
+ * row, so re-reading the tree puts back what was open instead of collapsing it.
  */
 export const treeChildrenAtom = atom<Record<string, ContentEntry[]>>({});
 
@@ -38,36 +28,25 @@ export const treeChildrenAtom = atom<Record<string, ContentEntry[]>>({});
 export const expandedDirsAtom = atom<string[]>([]);
 
 /**
- * The folder the tree is rooted at; '' is the project root. A view of the project, not a change to it:
- * the server's root is its working directory, fixed when it started, and re-rooting here only narrows
- * what the panel shows. Nothing outside this folder is rendered, but the listings and open folders
- * outside it are kept, so going back up is not a reload.
+ * The folder the tree is rooted at; '' is the project root. A view, not a change: the server's root is
+ * fixed. Listings outside it are kept, so going back up is not a reload.
  */
 export const treeRootAtom = atom<string>('');
 
-/**
- * The directories being read right now, by path. What tells "not read yet" from "read and empty",
- * which the tree used to render identically: as nothing at all.
- */
+/** The directories being read: what tells "not read yet" from "read and empty". */
 export const pendingDirsAtom = atom<string[]>([]);
 
 /** Dotfiles are out of the way by default; `.git` and `.venv` are not what the panel is for. */
 export const showHiddenFilesAtom = atom<boolean>(false);
 
-/**
- * What the filter box holds. A folder survives it when its own name matches or anything already read
- * below it does, so the path to a match stays on screen.
- */
+/** What the filter box holds. A folder survives when its name or anything read below it matches. */
 export const treeFilterAtom = atom<string>('');
 
 const NOTHING: ContentEntry[] = [];
 
 /**
- * Every read directory's children that the hidden-files toggle and the filter box both allow, keyed by
- * path. Derived once for the tree rather than per row: a folder survives the filter when its own name
- * matches or anything already read below it does, which each row would otherwise re-walk for itself.
- *
- * Nothing unread is fetched to search it. A keystroke in the filter box reads what is on screen.
+ * What the hidden-files toggle and the filter both allow, by path. Derived once for the tree rather
+ * than per row, which would re-walk the subtree each time. Nothing unread is fetched to search it.
  */
 export const visibleChildrenAtom = atom<Record<string, ContentEntry[]>>((get) => {
   const children = get(treeChildrenAtom);
@@ -97,11 +76,7 @@ export const visibleChildrenAtom = atom<Record<string, ContentEntry[]>>((get) =>
   return visible;
 });
 
-/**
- * Every row on screen, from the top down: the visible children of whatever the tree is rooted at, with
- * the children of each open folder in place under it. What a shift-click range and the arrow keys are
- * both measured in.
- */
+/** Every row on screen, top down: what a shift-click range and the arrow keys are measured in. */
 export const visibleRowsAtom = atom<ContentEntry[]>((get) => {
   const visible = get(visibleChildrenAtom);
   const expanded = get(expandedDirsAtom);
@@ -119,27 +94,18 @@ export const visibleRowsAtom = atom<ContentEntry[]>((get) => {
   return rows;
 });
 
-/**
- * What Copy or Cut set aside, and which of the two it was. Paste is only offered while this is set,
- * and a cut is only carried out on paste — nothing moves when the cut itself happens, so a cut that
- * is never pasted has cost nothing.
- */
+/** What Copy or Cut set aside. A cut is carried out on paste, so one never pasted costs nothing. */
 export const clipboardAtom = atom<{ paths: string[]; cut: boolean } | null>(null);
 
-/**
- * The rows the next action applies to. A plain click leaves exactly one in here; cmd-click and
- * shift-click are what build a longer one.
- */
+/** The rows the next action applies to: one after a plain click, more after cmd- or shift-click. */
 export const selectedPathsAtom = atom<string[]>([]);
 
 /** The row a shift-click measures its range from: the last one clicked without shift. */
 export const selectionAnchorAtom = atom<string>('');
 
 /**
- * Selects everything between the anchor and the given path, in the order the rows appear on screen.
- * Write-only, and deliberately not a hook: the row order is only wanted when a shift-click happens, and
- * every row uses the selection — one that subscribed to the listings in order to know the row order
- * would re-render whenever any folder anywhere was read.
+ * Selects everything between the anchor and `path`, in screen order. Write-only rather than a hook:
+ * a row subscribing to the listings to learn that order would re-render whenever any folder was read.
  */
 export const extendSelectionAtom = atom(null, (get, set, path: string) => {
   const rows = get(visibleRowsAtom).map((row) => row.path);
@@ -156,28 +122,17 @@ export const extendSelectionAtom = atom(null, (get, set, path: string) => {
 export interface RenameRequest {
   /** The row whose rename box should open. */
   path: string;
-  /**
-   * True when the name on disk is the one the server invented, so the box opens empty: `untitled.txt`
-   * is nobody's answer to what the file is called, and starting with it there means every new file is
-   * named by selecting it and typing over it.
-   */
+  /** The name on disk is the server's invention, so the box opens empty rather than at `untitled.txt`. */
   naming?: boolean;
   /** What was just created, which is what says whether the name needs an extension keeping. */
   contentType?: ContentType;
 }
 
-/**
- * A row that should open its rename box, or null. Set by a create and by F2, neither of which happens
- * in the row itself: the row does not exist yet in the first case, and the keyboard is handled for the
- * tree as a whole in the second.
- */
+/** A row that should open its rename box. Set by a create (no row yet) and by F2 (the tree's keys). */
 export const renameRequestAtom = atom<RenameRequest | null>(null);
 
 /** A path whose row should ask whether to delete, for the same reason: F2's neighbour on the keyboard. */
 export const deleteRequestAtom = atom<string>('');
 
-/**
- * The row the keyboard is on, which is not the selection: arrow keys move it, and it is the one row in
- * the tree that is reachable by Tab.
- */
+/** The row the keyboard is on, which is not the selection: it is the one row Tab reaches. */
 export const focusedPathAtom = atom<string>('');

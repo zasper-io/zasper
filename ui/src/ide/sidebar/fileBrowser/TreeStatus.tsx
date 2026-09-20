@@ -11,8 +11,8 @@ interface TreeStatusProps {
 }
 
 /**
- * Why a folder has no rows. An empty folder, a folder that has not been read yet, a folder that could
- * not be read and a filter that matched nothing all used to render as the same thing: nothing at all.
+ * Why a folder has no rows: empty, not read yet, unreadable, or filtered down to nothing — four
+ * states that otherwise render alike, as nothing at all.
  */
 export default function TreeStatus({ path, visible }: TreeStatusProps) {
   const { childrenOf, hasRead, isLoading } = useFileTree();

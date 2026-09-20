@@ -78,11 +78,9 @@ export function useTreeKeys(): (event: React.KeyboardEvent) => void {
 
   return (event: React.KeyboardEvent) => {
     const target = event.target as HTMLElement;
-    // The rename box is inside a row, and its keys are its own. So are a dialog's and a menu's, for the
-    // same reason and a worse consequence: a row's delete confirmation and its context menu are
-    // rendered inside the row, so a key pressed in one arrives here too — and Escape used to clear the
-    // selection and then stopPropagation() it, which is where the dismissal that was meant to close the
-    // dialog went. It could not be closed by keyboard at all. See ide/overlays.ts.
+    // The rename box is inside a row and its keys are its own; so are a dialog's and a menu's, which
+    // are rendered inside the row, so a key pressed in one arrives here too. Clearing the selection on
+    // Escape and stopping it here would swallow the dismissal that closes them. See ide/overlays.ts.
     if (target.tagName === 'INPUT' || target.closest('[role="dialog"], [role="menu"]') !== null) {
       return;
     }

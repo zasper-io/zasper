@@ -37,9 +37,8 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
   const serializeAddon = useMemo(() => new SerializeAddon(), []);
 
   // The PTY starts at the library's default 80x24, so the size has to go out even when a fit changed
-  // nothing. `rows` is sent as it is: it used to be `rows + 1`, which told the shell it had one line
-  // more than xterm draws — `tput lines` answered 34 in a 33-row terminal — so anything that paints
-  // its bottom line, a pager or a status line, was drawing into a row that does not exist.
+  // nothing. `rows` is sent as it is: one more would tell the shell it has a line xterm does not
+  // draw, and a pager or a status line would paint into a row that does not exist.
   const sendSizeToBackend = (cols: number, rows: number) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const size = JSON.stringify({ cols: cols, rows: rows });
@@ -132,9 +131,8 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
       }
     };
 
-    // A ResizeObserver rather than `window.resize`, which is the only event the component used to
-    // hear: it also catches the sidebar opening, the tab coming back on screen after a resize it
-    // missed, and a browser zoom. Firing once on observe is what fits the terminal in the first place.
+    // A ResizeObserver rather than `window.resize`: it also catches the sidebar opening, the tab
+    // coming back after a resize it missed, and a browser zoom. Firing once on observe is the first fit.
     const observer = new ResizeObserver(refit);
     observer.observe(terminalRef.current);
 

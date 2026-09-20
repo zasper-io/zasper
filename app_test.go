@@ -55,7 +55,7 @@ func runningServer(t *testing.T, handler http.HandlerFunc) (*http.Server, string
 	return httpServer, listener.Addr().String()
 }
 
-// On Ctrl-C a save in flight used to be cut off, and the kernels stopped underneath it.
+// On Ctrl-C a save in flight has to finish before the kernels are stopped underneath it.
 func TestShuttingDownLetsARunningRequestFinishBeforeCleaningUp(t *testing.T) {
 	started, release := make(chan struct{}), make(chan struct{})
 	httpServer, address := runningServer(t, func(w http.ResponseWriter, r *http.Request) {

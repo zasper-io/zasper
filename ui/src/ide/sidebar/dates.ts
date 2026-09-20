@@ -2,8 +2,7 @@
 // in the history and a kernel's last activity both want this, which is why it sits above the two panels
 // rather than in either.
 //
-// Everything here takes RFC 3339, so `new Date` can read it — the history's endpoint used to send Go's
-// own time format, which is why it showed no date at all.
+// Everything here takes RFC 3339, so `new Date` can read it: Go's own time format does not parse.
 
 const MINUTE = 60;
 const HOUR = 60 * MINUTE;

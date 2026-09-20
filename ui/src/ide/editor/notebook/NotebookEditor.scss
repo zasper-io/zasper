@@ -5,10 +5,8 @@
 // notebook's own background with a rule under it, and in a dark theme the band and the cells it sits
 // over were the same colour.
 //
-// The ink is --z-fg-icon, which is what every button in here draws with: `.z-icon-button` is
-// `color: inherit`, so the strip states it once. A second rule used to set the buttons one step
-// darker than the strip on the grounds that a <button> does not inherit `color` — it does here, and
-// two values for one row of controls is what made the toolbar look like two toolbars.
+// The ink is --z-fg-icon, which every button in here draws with: `.z-icon-button` is `color: inherit`,
+// so the strip states it once. Two values for one row of controls reads as two toolbars.
 .text-editor-tool {
   flex: 0 0 auto;
   display: flex;
@@ -250,9 +248,8 @@
   // .inner-text is indented by, so output lines up with the code that produced it. A markdown cell
   // renders the same box with no count in it, or the two cell types sit on different left edges.
   //
-  // `position: relative` because the count and the run button are stacked in it: they share one
-  // 22px box so that the swap between them cannot move a pixel of the notebook, which is the same
-  // constraint that used to keep the old bar out over the cell above.
+  // `position: relative` because the count and the run button are stacked in it: they share one 22px
+  // box so the swap between them cannot move a pixel of the notebook.
   .cell-gutter {
     position: relative;
     flex: 0 0 44px;
@@ -299,9 +296,8 @@
     font-family: var(--z-mono-font-family);
     font-size: var(--z-ui-font-size-sm);
     font-variant-numeric: tabular-nums;
-    // The line box of the code beside it at the 14px default. The 5px that used to sit on this as a
-    // margin is `.cell-gutter`'s padding now, because the box is shared with the run button and one
-    // offset has to hold for both.
+    // The line box of the code beside it at the 14px default. The offset is `.cell-gutter`'s padding
+    // rather than a margin here, because the box is shared with the run button.
     line-height: 21px;
   }
 
@@ -415,9 +411,8 @@
   // that printed it. The size is even, so it is a whole number of pixels per line — which is the
   // reason for the ratio: a fractional line box stacks fractional baselines down a 40-line traceback.
   //
-  // The size itself comes from --z-font-size-body in styles/_base.scss, which the editor above takes
-  // too. This box used to be pinned at --z-ui-font-size instead, so the character cell in a printed
-  // table never lined up with the code that printed it.
+  // The size comes from --z-font-size-body in styles/_base.scss, which the editor above takes too, so
+  // the character cell in a printed table lines up with the code that printed it.
   line-height: 1.5;
 
   // Bootstrap's reboot puts a bottom margin on all three; this box's padding is the spacing.
@@ -506,10 +501,9 @@
 // which cell the keyboard is in; the other three are 1px, so an inactive cell is a box and an active
 // one is the same box with a coloured edge, at the same size.
 //
-// The fill is --z-bg-cell, which is the cell's own surface and the one the card above used to spend.
-// CodeMirror's vscode themes bring a background of their own — #ffffff light, #1e1e1e dark — and both
-// of them are the notebook's own colour, so the box that holds the code was the same fill as the pane
-// around it and only its border said where it started. Ours wins on load order, not specificity:
+// The fill is --z-bg-cell, the cell's own surface. CodeMirror's vscode themes bring a background of
+// their own — #ffffff light, #1e1e1e dark — which are the notebook's own colour, leaving the code box
+// the same fill as the pane around it. Ours wins on load order, not specificity:
 // style-mod inserts CodeMirror's <style> as the first child of <head> for exactly this.
 .cellEditor .cm-editor {
   border: 1px solid var(--z-border);
@@ -588,9 +582,8 @@
 // reports a failure.
 .output-error {
   border-left: 2px solid var(--z-status-error);
-  // A tint as well as the edge. A traceback used to be the same surface as a printed number, so the
-  // one thing worth finding while scrolling a long notebook was the one thing that did not stand out.
-  // Weak enough that IPython's own ANSI colours still read over it — see --z-bg-error-subtle.
+  // A tint as well as the edge, so the one thing worth finding in a long notebook is not the same
+  // surface as a printed number. Weak enough that IPython's own ANSI colours still read over it.
   padding: 4px 8px;
   border-radius: 0 2px 2px 0;
   background: var(--z-bg-error-subtle);
@@ -612,8 +605,8 @@
 }
 
 // The sixteen colours a program can ask for, resolved through --z-ansi-* in styles/_tokens.scss. This
-// is what `ansi_up.use_classes = true` in CellOutput.tsx buys: the same escape code used to arrive as
-// `style="color:rgb(187,0,0)"` in the HTML, which no theme could reach and no contrast rule could touch.
+// is what `ansi_up.use_classes = true` in CellOutput.tsx buys: without it the escape code arrives as
+// `style="color:rgb(187,0,0)"`, which no theme can reach and no contrast rule can touch.
 //
 // Scoped to `.inner-text`, and the kernel's documentation card (Shift+Tab), on purpose. An `.ansi-red-fg` in the wild is not necessarily ours — a library
 // that emits its own HTML output can use the same class names, and this file has no business colouring
@@ -832,8 +825,7 @@ table.dataframe tbody tr:hover {
 
   // A table in prose, on the same rule the printed one above follows: it is the surface it sits on, and
   // --z-border draws it. It steps down to --z-ui-font-size because a markdown cell is body text and a
-  // table in it is data; the header is bold rather than a filled band, which is one fewer surface than
-  // the `--z-df-header-bg` it used to paint.
+  // table in it is data; the header is bold rather than a filled band, which is one surface fewer.
   table {
     border-collapse: collapse;
     margin-bottom: 12px;

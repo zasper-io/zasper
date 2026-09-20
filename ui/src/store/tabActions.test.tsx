@@ -396,7 +396,7 @@ describe('useTabActions', () => {
     expect(text('loading')).toBe('notes.txt');
   });
 
-  // Every caller names a tab it is rendering; a path that is not open used to be invented as a tab.
+  // Every caller names a tab it is rendering, so a path that is not open is a no-op, not a new tab.
   it('ignores a request to activate a tab that is not open', () => {
     renderHarness({ ...tabs, 'notes.txt': { ...tabs['notes.txt'], active: true } });
 

@@ -11,8 +11,7 @@ export interface KernelspecActions {
 
 /**
  * The one writer of `kernelspecsAtom`, with two callers: IDE.tsx at boot, and the launcher's
- * "Check again". A tab that owns the fetch is a list that is missing whenever that tab is not open,
- * which is what the Jupyter info panel used to see.
+ * "Check again". A tab owning the fetch would leave the list missing whenever that tab is closed.
  */
 export function useKernelspecActions(): KernelspecActions {
   const setKernelspecs = useSetAtom(kernelspecsAtom);

@@ -120,7 +120,7 @@ describe('the halves', () => {
     expect(text('active')).toBe('b.py');
   });
 
-  // The rule that used to be "exactly one tab is in front" is now one per half.
+  // "Exactly one tab is in front" is per half, not per window.
   it('keeps a tab in front of each half at once', () => {
     renderHalves();
 

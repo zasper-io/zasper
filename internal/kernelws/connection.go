@@ -123,8 +123,8 @@ func (kwsConn *Connection) pollChannel(socket zmq4.Socket, socketName string) {
 				zmsg, err2 := socket.Recv()
 				if err2 != nil {
 					// A cancelled context is how stopPolling asks this goroutine to finish, so Recv
-					// failing that way is the shutdown working rather than an error. It used to be
-					// logged at error once per socket, which made every kernel shutdown look broken.
+					// failing that way is the shutdown working rather than an error: logged at error,
+					// every kernel shutdown would look broken, once per socket.
 					if errors.Is(err2, context.Canceled) || kwsConn.Context.Err() != nil {
 						return
 					}

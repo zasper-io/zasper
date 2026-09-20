@@ -98,8 +98,7 @@ export function useGitStatus(hidden: boolean): GitPanelStatus {
         }
         return true;
       } catch (failure) {
-        // The server's own words: "Please tell me who you are", or which file is in the way. The panel
-        // used to say "An error occurred while committing changes." and throw the rest away.
+        // The server's own words: "Please tell me who you are", or which file is in the way.
         toast.error(apiErrorMessage(failure));
         return false;
       } finally {

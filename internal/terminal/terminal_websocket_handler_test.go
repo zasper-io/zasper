@@ -294,8 +294,7 @@ func TestATerminalRunsWhatTheClientTypes(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	// An empty binary frame, which is what used to take the handler down: the resize branch read
-	// its first byte without asking whether there was one.
+	// An empty binary frame: the resize branch must ask whether there is a first byte before reading it.
 	require.NoError(t, conn.WriteMessage(websocket.BinaryMessage, []byte{}))
 	// And one of nothing but NULs, which bytes.Trim reduces to the same thing.
 	require.NoError(t, conn.WriteMessage(websocket.BinaryMessage, []byte{0, 0, 0}))
@@ -345,11 +344,11 @@ func TestClosingTheConnectionOnAnIdleShellEndsIt(t *testing.T) {
 	}
 	require.NotNil(t, shell)
 
-	// Nothing is typed, so the pty has nothing more to say — which is the case that used to hang.
+	// Nothing is typed, so the pty has nothing more to say: the case where a read would block forever.
 	require.NoError(t, conn.Close())
 
-	// Comfortably under the keep-alive's own ten-second wait, which the handler used to sit through
-	// before it would unregister anything.
+	// Comfortably under the keep-alive's own ten-second wait, which the handler must not sit through
+	// before unregistering.
 	require.Eventually(t, func() bool { return len(terminals.List()) == 0 }, 5*time.Second, 20*time.Millisecond,
 		"the session outlived the connection")
 

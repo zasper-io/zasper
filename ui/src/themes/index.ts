@@ -1,30 +1,12 @@
-// The theme registry.
+// The theme registry: a theme is data, and nothing in the app branches on its name.
 //
-// A theme is data, not control flow. Nothing in the app branches on the active
-// theme's *name* — the UI chrome resolves through the custom properties in
-// styles/_tokens.scss, and the one thing CSS cannot express (CodeMirror's syntax
-// highlighting, which is a set of editor extensions) is looked up here.
+// One stored name — `teal-dark` — is two attributes on <html>: `data-accent` picks a nine-step hue
+// ramp and `data-theme` decides which step each token takes, so eight themes are four hues × two
+// polarities. `applyTheme` is the only place that knows how a name comes apart.
 //
-// A theme is stored and shown as one name — `teal-dark` — because the config file
-// holds one string (internal/core/config.go). In the stylesheet it is two things:
-// `data-accent` picks a nine-step hue ramp and `data-theme` decides which step each
-// token takes, so eight themes are four hues × two polarities and no CSS is written
-// twice. This file is the seam between the two, and `applyTheme` below is the only
-// place that knows how a name comes apart.
-//
-// To add a hue: nine values in $accents in styles/_accents.scss and one entry in
-// HUES. That is two light-and-dark themes, and the settings panel lists them because
-// it renders this array.
-//
-// A theme that is not a hue — one bringing a whole palette of its own — is still
-// possible: write a `[data-theme='<id>']` block in styles/_tokens.scss overriding
-// only what differs, and append an entry with no `accent`. `accent` is optional for
-// that reason. Two things to check if you do:
-//   - Every foreground token has to clear WCAG AA (4.5:1) against the surfaces it
-//     lands on. _tokens.scss notes the pairs that were already tightened once.
-//   - Icons need nothing: they are drawn in `currentColor` (see .z-icon). The one
-//     asset with its colour baked in is the topbar wordmark, and a theme picks the
-//     file with --z-logo rather than by branching in a component.
+// Adding a hue is nine values in $accents (styles/_accents.scss) and an entry in HUES. A theme with a
+// palette of its own instead sets no `accent` and writes its own `[data-theme='<id>']` block; every
+// foreground token in it has to clear WCAG AA against the surfaces it lands on.
 
 import { vscodeLightInit, vscodeDarkInit } from '@uiw/codemirror-theme-vscode';
 import type { Extension } from '@codemirror/state';
@@ -42,12 +24,8 @@ export interface ZasperTheme {
   codeMirror: Extension;
 }
 
-// A theme here may not name a font. The vscode themes ship a `fontFamily` in their default
-// settings, which createTheme emits as `&.cm-editor .cm-scroller` — three classes, enough to
-// beat styles/_codemirror.scss, so no editor ever painted in --z-mono-font-family. Unsetting it
-// makes createTheme skip that rule altogether (it is guarded on the value being truthy) and
-// leaves the stylesheet as the only place the family is named. Any theme added here has to make
-// the same omission.
+// No theme may name a font: the vscode themes' own `fontFamily` outweighs styles/_codemirror.scss,
+// and unsetting it makes createTheme skip the rule entirely.
 const noFont = { fontFamily: undefined };
 
 /** The hues, in the order the settings panel lists them. Each one makes two themes. */
@@ -58,8 +36,7 @@ const HUES = [
   { accent: 'orange', label: 'Orange' },
 ];
 
-// Built once and shared by the four themes of each polarity: a CodeMirror theme is a value, and
-// the editor's colours are the polarity's rather than the hue's.
+// Shared by the four themes of each polarity: the editor's colours are the polarity's, not the hue's.
 const MODES = [
   { theme: 'light', label: 'Light', codeMirror: vscodeLightInit({ settings: noFont }) },
   { theme: 'dark', label: 'Dark', codeMirror: vscodeDarkInit({ settings: noFont }) },
@@ -79,32 +56,23 @@ export const themes: ZasperTheme[] = [
 
 export const defaultTheme: ZasperTheme = themes[0];
 
-/**
- * What the two themes that used to exist became. A config written by an earlier version says
- * `light` or `dark`, and the purple those named is no longer selectable — it is the fallback in
- * `:root`. Teal because it is the default, so an upgrade lands on the same theme a new install does.
- */
+/** What an older config's `light` and `dark` resolve to, so an upgrade lands where a new install does. */
 const LEGACY: Record<string, string> = {
   light: 'teal-light',
   dark: 'teal-dark',
 };
 
-/**
- * Resolves a persisted theme id. Falls back to the default rather than throwing,
- * so a config file naming a theme that has since been removed still boots.
- */
+/** Falls back rather than throwing: a config naming a theme we no longer ship still boots. */
 export function getTheme(id: string): ZasperTheme {
   const wanted = LEGACY[id] ?? id;
   return themes.find((theme) => theme.id === wanted) ?? defaultTheme;
 }
 
 /**
- * Publishes a theme to <html>, which is the whole of applying one: every colour in the app resolves
- * through custom properties keyed off these two attributes, so this repaints the UI.
+ * Publishes a theme to <html>, which is the whole of applying one.
  *
- * `data-accent` is removed rather than emptied for a theme that has none — `[data-accent]` in
- * styles/_accents.scss matches an empty value, and a theme with its own palette must not be handed
- * a mapping written for a ramp it does not have.
+ * `data-accent` is removed rather than emptied: `[data-accent]` matches an empty value, and a theme
+ * with its own palette must not take a mapping written for a ramp it does not have.
  */
 export function applyTheme(theme: ZasperTheme, root: HTMLElement = document.documentElement): void {
   withoutTransitions(root, () => {
@@ -118,16 +86,11 @@ export function applyTheme(theme: ZasperTheme, root: HTMLElement = document.docu
 }
 
 /**
- * Makes `change` take effect without anything animating its way there.
+ * Makes `change` take effect without anything animating its way there: a theme rewrites every colour
+ * at once, and `a`'s hover transition (styles/_base.scss) faded the file tree's rows for 300ms.
  *
- * Every colour in the app is a custom property, so a theme change rewrites all of them at once — and
- * the one colour transition in the app (`a` in styles/_base.scss, which exists for hover) turned the
- * file tree's rows into a 300ms fade while everything else switched in a frame.
- *
- * Reading `offsetHeight` is the whole trick: it forces the browser to recalculate style and layout
- * while `data-theme-switching` is still set, so the new colours are computed with transitions off and
- * none can start. Taking the attribute off afterwards changes no colour, so nothing animates then
- * either, and the attribute is never observable to a reader.
+ * Reading `offsetHeight` is the trick — it recalculates style while `data-theme-switching` is still
+ * set, so the new colours are computed with transitions off and none can start.
  */
 function withoutTransitions(root: HTMLElement, change: () => void): void {
   root.dataset.themeSwitching = '';
@@ -137,13 +100,8 @@ function withoutTransitions(root: HTMLElement, change: () => void): void {
 }
 
 /**
- * ~/.zasper/config.json stays the record of the chosen theme; this is a copy of it the app can read
- * without waiting for a request.
- *
- * Two screens need that. /login has no config to read at all — it renders before there is a token to
- * read one with — so without this it drew whatever index.html happens to say, which is why the page
- * used to be teal for everybody. And the IDE painted the default for as long as `GET /api/config`
- * took, then repainted, which is a flash of the wrong colours on every boot.
+ * A copy of the chosen theme the app can read without a request. /login has no config to read at
+ * all, and the IDE would otherwise paint the default until `GET /api/config` answered.
  */
 const STORAGE_KEY = 'zasper.theme';
 

@@ -6,13 +6,9 @@
 // The three sizes are `--z-font-size-*` in _tokens.scss rather than literals here, because the
 // rendered markdown cell needs the same numbers on bare <h1>..<h6> that cannot wear a class.
 //
-// This layer exists because the scale used to be applied but never defined:
-// `font-h3`, `font-h5`, `font-h6`, `font-p`, `fontw-300` and `fontw-500` appeared in
-// Launcher.tsx and Login.tsx and matched no rule anywhere, so the launcher's page
-// title and its section headings both fell back to the browser default for <h2> —
-// 32px/500 — and the page had no hierarchy at all. Meanwhile the git panel sized
-// sibling headings with raw <h6> (16px) and <h4> (24px). Names are `z-`prefixed like
-// `.z-button` and `.z-icon`, which is how this codebase marks a class as global.
+// This layer is where the scale is defined, so a class that applies it always matches a rule and a
+// heading never falls back to the browser's own size. Names are `z-`prefixed like `.z-button` and
+// `.z-icon`, which is how this codebase marks a class as global.
 //
 // Colours are not set here. A heading inherits the colour of whatever surface it is
 // on, which is what lets the same class sit on a panel and on the editor.

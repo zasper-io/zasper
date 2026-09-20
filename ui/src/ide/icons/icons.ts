@@ -88,8 +88,6 @@ mapping was worked out.
 */
 export const ICONS = {
   // --- The navigation rail and the launcher ---------------------------------
-  // Seven inline SVG components used to live in this directory: 122 lines of path data at seven
-  // different viewBoxes, from `0 0 16 16` to `0 0 55.437 55.437`.
   files: Files, // FileBrowserIcon
   'git-branch': GitBranch, // GitPanelIcon, and fa-code-branch in the status bar and git panel
   cpu: Cpu, // JupyterInfoPanelIcon
