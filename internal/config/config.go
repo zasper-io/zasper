@@ -261,7 +261,13 @@ type LanguageServerSettings struct {
 	Disabled bool `json:"disabled"`
 	// By language id ("go", "python"); a command line, split the way a shell would split it.
 	Commands map[string]string `json:"commands"`
+	// TypeChecking is how strictly a Python server checks: pyright's own modes, "standard" when unset.
+	// A project's own pyrightconfig.json or [tool.basedpyright] still wins over it.
+	TypeChecking string `json:"type_checking,omitempty"`
 }
+
+// TypeCheckingModes are pyright's, in the order Settings offers them.
+var TypeCheckingModes = []string{"off", "basic", "standard", "strict"}
 
 func (s LanguageServerSettings) normalised() LanguageServerSettings {
 	commands := map[string]string{}
@@ -271,6 +277,9 @@ func (s LanguageServerSettings) normalised() LanguageServerSettings {
 		}
 	}
 	s.Commands = commands
+	if !slices.Contains(TypeCheckingModes, s.TypeChecking) {
+		s.TypeChecking = ""
+	}
 	return s
 }
 

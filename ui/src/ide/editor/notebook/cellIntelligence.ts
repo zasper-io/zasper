@@ -31,6 +31,23 @@ export interface CellIntelligenceOptions {
   kernelIdle: () => boolean;
 }
 
+/** Which of the two offered a name, drawn at the end of its row (story 24). */
+export type CompletionOrigin = 'kernel' | 'source';
+
+export type TaggedCompletion = Completion & { origin?: CompletionOrigin };
+
+function tag(options: readonly Completion[], origin: CompletionOrigin): TaggedCompletion[] {
+  return options.map((option) => ({ ...option, origin }));
+}
+
+/** Every name in a result said to come from one place, for a list with only one answer in it. */
+function tagged(
+  result: CompletionResult | null,
+  origin: CompletionOrigin
+): CompletionResult | null {
+  return result === null ? null : { ...result, options: tag(result.options, origin) };
+}
+
 /**
  * The kernel's list and the server's as one. The kernel's comes first and wins a name both offer — it
  * knows what `df` is at runtime, where the server only knows the source — and the server's adds what the
@@ -41,6 +58,8 @@ export function mergeCompletions(
   kernel: CompletionResult | null,
   server: CompletionResult | null
 ): CompletionResult | null {
+  // Only a list both answered is tagged. With one answer there is nothing to tell apart, and saying
+  // `source` for a name the kernel was never asked about would be a claim about the kernel.
   if (kernel === null || server === null) {
     return kernel ?? server;
   }
@@ -48,16 +67,23 @@ export function mergeCompletions(
     return kernel;
   }
   const fromServer = new Map(server.options.map((option) => [option.label, option]));
-  const options: Completion[] = kernel.options.map((option) => {
+  // A name both offer is the kernel's: it exists now, and that is what the tag says.
+  const options: TaggedCompletion[] = kernel.options.map((option) => {
     const known = fromServer.get(option.label);
     fromServer.delete(option.label);
     return known === undefined
-      ? option
-      : { ...option, type: option.type ?? known.type, detail: known.detail, info: known.info };
+      ? { ...option, origin: 'kernel' }
+      : {
+          ...option,
+          type: option.type ?? known.type,
+          detail: known.detail,
+          info: known.info,
+          origin: 'kernel',
+        };
   });
   return {
     ...kernel,
-    options: [...options, ...fromServer.values()],
+    options: [...options, ...tag([...fromServer.values()], 'source')],
     validFor: kernel.validFor,
   };
 }
@@ -196,9 +222,28 @@ function inspectAtCursor(options: CellIntelligenceOptions) {
  * `languageServerExtension` gives, which applies all the more to a cell, reconfigured on every change of
  * the notebook's server.
  */
+/**
+ * The tag at the end of a row: which of the two offered the name (story 24, option C). A reader cannot
+ * otherwise tell a name that exists in the kernel now from one the source defines in a cell that has not
+ * run. Only a merged list carries it, so an untagged row is one nobody was asked to compare.
+ */
+function originColumn(completion: Completion): Node | null {
+  const { origin } = completion as TaggedCompletion;
+  if (origin === undefined) {
+    return null;
+  }
+  const element = document.createElement('span');
+  element.className = 'cm-completionOrigin';
+  element.textContent = origin;
+  return element;
+}
+
 export function cellIntelligence(options: CellIntelligenceOptions, shiftTab: boolean): Extension {
   return [
-    autocompletion({ override: [notebookCompletionSource(options)] }),
+    autocompletion({
+      override: [notebookCompletionSource(options)],
+      addToOptions: [{ render: originColumn, position: 100 }],
+    }),
     hoverTooltip(hoverSource(options), { hideOn: (transaction) => transaction.docChanged }),
     documentationField,
     // Ahead of the `indentWithTab` that @uiw/react-codemirror adds, which would dedent on Shift+Tab.

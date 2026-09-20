@@ -131,9 +131,38 @@
   color: var(--z-fg-default);
 }
 
+// A row is a flex line so that the notebook's origin tag can sit at its right edge (story 24); in the
+// file editor, where nothing renders that column, the line reads exactly as it did.
 #cm-tooltip-host .cm-tooltip-autocomplete > ul > li {
+  display: flex;
+  align-items: center;
   padding: 2px 8px;
   line-height: 18px;
+}
+
+#cm-tooltip-host .cm-completionLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Which of the two offered the name, in a notebook: `kernel` for a name that exists now, `source` for one
+// the language server read out of a cell that has not run.
+#cm-tooltip-host .cm-completionOrigin {
+  flex: none;
+  width: 44px;
+  margin-left: auto;
+  padding-left: 8px;
+  text-align: right;
+  color: var(--z-fg-subtle);
+  font-family: var(--z-ui-font-family);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+#cm-tooltip-host .cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionOrigin {
+  color: inherit;
+  opacity: 0.8;
 }
 
 #cm-tooltip-host .cm-tooltip-autocomplete > ul > li[aria-selected] {
@@ -157,6 +186,10 @@
 }
 
 #cm-tooltip-host .cm-completionDetail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin-left: 8px;
   color: var(--z-fg-muted);
   font-style: normal;
@@ -328,6 +361,19 @@ $shape-fix: "%3Cpath d='M8.5 13.5a5 5 0 1 1 7 0c-0.8 0.9-1.2 1.6-1.4 2.5h-4.2c-0
 
 .cm-editor :is(.cm-lintRange-info, .cm-lintRange-hint) {
   text-decoration-color: var(--z-status-info);
+}
+
+// What the server tagged rather than faulted: an unused import, an unreachable branch. The text fades, as
+// it does in every other editor, and the squiggle above is taken off — the code is not wrong, it is doing
+// nothing. The message is still in the card and in the Problems panel.
+.cm-editor .cm-lintRange.cm-lintRange-unnecessary {
+  text-decoration-line: none;
+  opacity: 0.55;
+}
+
+.cm-editor .cm-lintRange.cm-lintRange-deprecated {
+  text-decoration-line: line-through;
+  text-decoration-style: solid;
 }
 
 // The gutter column the editor draws itself (lsp/markGutter.ts) rather than `lintGutter`'s: since story 20

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { search } from '@codemirror/search';
 import { EditorView } from '@codemirror/view';
+import { useAtomValue } from 'jotai';
 import { toast } from 'react-toastify';
 import './NotebookEditor.scss';
 
@@ -16,6 +17,8 @@ import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
 import { useUnsavedChanges } from '@/store/unsavedState';
 import { useEditorSettings } from '@/store/editorSettingsActions';
+import { interpreterOfKernel } from '@/lsp/settings';
+import { kernelspecsAtom } from '@/store/kernels';
 import BreadCrumb from '../BreadCrumb';
 import { cellFindHighlighter, currentMatchField } from '../findHighlight';
 import ConfirmRestartDialog, { RestartIntent } from './ConfirmRestartDialog';
@@ -53,6 +56,7 @@ interface NotebookEditorProps {
 export default function NotebookEditor({ data }: NotebookEditorProps) {
   const cells = useNotebookCells();
   const [editorSettings] = useEditorSettings();
+  const kernelspecs = useAtomValue(kernelspecsAtom);
   const kernel = useKernelSession(data, cells.applyMessage);
 
   const { loadNotebook, notebook } = cells;
@@ -197,6 +201,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const languageServer = useNotebookLanguageServer({
     path: data.path,
     kernelLanguage: languageName,
+    interpreter: interpreterOfKernel(kernelspecs[kernel.kernelName ?? '']),
     cells: notebook.cells,
     loaded: !cells.loading && cells.error === '',
     viewFor,

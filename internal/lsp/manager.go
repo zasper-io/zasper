@@ -101,12 +101,18 @@ func (m *Manager) logFor(language string) *logBuffer {
 type ServerList struct {
 	Enabled bool       `json:"enabled"`
 	Servers []Resolved `json:"servers"`
+	// TypeChecking is how strictly a Python server is asked to check; "" is Zasper's own default.
+	TypeChecking string `json:"typeChecking"`
 }
 
 // Servers answers, for every language, which server would be started and whether it is installed.
 func (m *Manager) Servers(w http.ResponseWriter, r *http.Request) {
 	settings := m.settings()
-	list := ServerList{Enabled: !settings.Disabled, Servers: []Resolved{}}
+	list := ServerList{
+		Enabled:      !settings.Disabled,
+		Servers:      []Resolved{},
+		TypeChecking: settings.TypeChecking,
+	}
 	for _, language := range Languages {
 		list.Servers = append(list.Servers, m.finder.resolve(language, settings))
 	}

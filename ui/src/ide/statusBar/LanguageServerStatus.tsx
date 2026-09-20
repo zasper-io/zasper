@@ -4,7 +4,12 @@ import { toast } from 'react-toastify';
 
 import { serverLanguageFor } from '@/lsp/languages';
 import { restartLanguageServer, stopLanguageServer } from '@/lsp/servers';
-import { languageServerListAtom, ServerState, serverStatusAtom } from '@/store/languageServers';
+import {
+  languageServerListAtom,
+  ServerState,
+  serverInterpretersAtom,
+  serverStatusAtom,
+} from '@/store/languageServers';
 import { useTabActions } from '@/store/tabActions';
 import { MenuAction, MenuGroup, StatusPicker } from './StatusMenu';
 
@@ -29,6 +34,7 @@ interface LanguageServerStatusProps {
  */
 export default function LanguageServerStatus({ fileName, server }: LanguageServerStatusProps) {
   const statuses = useAtomValue(serverStatusAtom);
+  const interpreters = useAtomValue(serverInterpretersAtom);
   const list = useAtomValue(languageServerListAtom);
   const { openSettings, openLanguageServerLog } = useTabActions();
 
@@ -87,6 +93,7 @@ export default function LanguageServerStatus({ fileName, server }: LanguageServe
     );
   }
 
+  const interpreter = interpreters[language.server];
   const state = status?.state ?? 'starting';
   const name = status?.name || info.server;
   const shown = state === 'failed' ? `${name} failed` : state === 'off' ? `${name} stopped` : name;
@@ -108,6 +115,13 @@ export default function LanguageServerStatus({ fileName, server }: LanguageServe
           {state === 'failed' && status?.message !== undefined && (
             <li className="serverMenuNote" role="presentation">
               {status.message}
+            </li>
+          )}
+          {/* Which interpreter the server reads imports with — the notebook's kernel, when it names one.
+              Said here because an unresolved import looks like a fault in the code and is not one. */}
+          {interpreter !== undefined && (
+            <li className="serverMenuNote" role="presentation" title={interpreter}>
+              {interpreter === '' ? 'No interpreter: imports read from the PATH' : interpreter}
             </li>
           )}
           <MenuAction

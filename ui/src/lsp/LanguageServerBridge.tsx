@@ -5,9 +5,16 @@ import { toast } from 'react-toastify';
 import { getLanguageServers, logApiError } from '@/api';
 import { baseName } from '@/paths';
 import { languageServerListAtom, problemsAtom, serverStatusAtom } from '@/store/languageServers';
+import { kernelspecsAtom } from '@/store/kernels';
 import { projectDirAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
-import { setDisplayFile, subscribeLanguageServers } from './servers';
+import {
+  configurationChanged,
+  setDisplayFile,
+  setFallbackInterpreter,
+  subscribeLanguageServers,
+} from './servers';
+import { interpreterOfKernel, setTypeChecking } from './settings';
 import { waitForEditorView } from './views';
 
 /**
@@ -16,6 +23,7 @@ import { waitForEditorView } from './views';
  */
 export default function LanguageServerBridge() {
   const root = useAtomValue(projectDirAtom);
+  const kernelspecs = useAtomValue(kernelspecsAtom);
   const setStatus = useSetAtom(serverStatusAtom);
   const setProblems = useSetAtom(problemsAtom);
   const setList = useSetAtom(languageServerListAtom);
@@ -50,9 +58,22 @@ export default function LanguageServerBridge() {
     });
   }, [openTab]);
 
+  // The project's own environment, which Zasper already offers as a kernel: what a file editor's imports
+  // are read with until a notebook names the interpreter of its kernel.
+  useEffect(() => {
+    setFallbackInterpreter('python', interpreterOfKernel(kernelspecs['project-venv']));
+  }, [kernelspecs]);
+
   useEffect(() => {
     if (root !== '') {
-      getLanguageServers().then(setList).catch(logApiError('Error listing language servers:'));
+      getLanguageServers()
+        .then((list) => {
+          setList(list);
+          // Settings → Type checking, for the servers started in this window.
+          setTypeChecking(list.typeChecking);
+          configurationChanged();
+        })
+        .catch(logApiError('Error listing language servers:'));
     }
   }, [root, setList]);
 

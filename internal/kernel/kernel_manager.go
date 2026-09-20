@@ -179,7 +179,7 @@ func (km *KernelManager) argv() []string {
 	if len(cmd) == 0 || !barePython.MatchString(cmd[0]) {
 		return cmd
 	}
-	if interpreter := kernelspec.Interpreter(km.Spec.ResourceDir); interpreter != "" {
+	if interpreter := kernelspec.ResolvedInterpreter(km.Spec); interpreter != "" {
 		cmd[0] = interpreter
 	} else if cmd[0] == "python3" || cmd[0] == "python" {
 		cmd[0] = getPython()

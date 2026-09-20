@@ -19,7 +19,7 @@ import {
 } from './notebookDocument';
 import { offsetAt, ProtocolPosition } from './positions';
 import { sanitizeHtml } from './sanitize';
-import { attachNotebook, isServerReady, PublishedDiagnostic } from './servers';
+import { attachNotebook, isServerReady, markForTags, PublishedDiagnostic } from './servers';
 import { NotebookFile, ZasperWorkspace } from './workspace';
 
 const SEVERITIES: Severity[] = ['error', 'warning', 'info', 'hint'];
@@ -32,6 +32,8 @@ interface CellDiagnostic {
   from: ProtocolPosition;
   to: ProtocolPosition;
   severity: Severity;
+  /** Set for a diagnostic the server tagged: see `markForTags`. */
+  markClass?: string;
   message: string;
   source?: string;
 }
@@ -382,6 +384,7 @@ export class NotebookLanguageServer {
           from: { line: start.line, character: start.character },
           to,
           severity,
+          markClass: markForTags(item.tags),
           message: item.message,
           source: [item.source, server].filter(Boolean).join(' · ') || undefined,
         },
@@ -429,6 +432,7 @@ export class NotebookLanguageServer {
         from,
         to: Math.max(from, to),
         severity: item.severity,
+        markClass: item.markClass,
         message: item.message,
         source: item.source,
       };

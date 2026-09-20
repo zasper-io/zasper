@@ -9,8 +9,9 @@ import {
   logApiError,
   modifyConfig,
 } from '@/api';
-import { restartLanguageServer } from '@/lsp/servers';
+import { configurationChanged, restartLanguageServer } from '@/lsp/servers';
 import { languageServerListAtom } from '@/store/languageServers';
+import { DEFAULT_TYPE_CHECKING, setTypeChecking } from '@/lsp/settings';
 import { setTelemetrySettings } from '@/api/telemetry';
 import { useEditorSettings } from '@/store/editorSettingsActions';
 import { telemetryAtom, themeAtom, widgetCdnAtom } from '@/store/settings';
@@ -37,6 +38,9 @@ interface SettingsTabProps {
 }
 
 /** Every setting, grouped and searchable, each with a sentence saying what it does. */
+/** pyright's own modes, in its own order. */
+const TYPE_CHECKING_MODES = ['off', 'basic', 'standard', 'strict'];
+
 export default function SettingsTab({ data }: SettingsTabProps) {
   const [query, setQuery] = useState('');
   const search = useRef<HTMLInputElement>(null);
@@ -98,7 +102,11 @@ function useSettings(): Setting[] {
 
   // Written whole, from what the server list says is configured, and every server changed is started again
   // so the new command or the switch takes effect without reopening a file.
-  const changeServers = (change: { enabled?: boolean; commands?: Record<string, string> }) => {
+  const changeServers = (change: {
+    enabled?: boolean;
+    commands?: Record<string, string>;
+    typeChecking?: string;
+  }) => {
     if (servers === null) {
       return;
     }
@@ -110,11 +118,15 @@ function useSettings(): Setting[] {
     const settings: LanguageServerSettings = {
       disabled: !(change.enabled ?? servers.enabled),
       commands: { ...configured, ...change.commands },
+      type_checking: change.typeChecking ?? servers.typeChecking,
     };
     modifyConfig('language_servers', JSON.stringify(settings))
       .then(() => getLanguageServers())
       .then((list) => {
         setServers(list);
+        setTypeChecking(list.typeChecking);
+        configurationChanged();
+        // A mode change needs no restart: the servers are told their settings changed above.
         const restarted =
           change.enabled === undefined
             ? Object.keys(change.commands ?? {})
@@ -426,6 +438,28 @@ function useSettings(): Setting[] {
                 checked={servers.enabled}
                 onChange={(enabled) => changeServers({ enabled })}
               />
+            ),
+          },
+          {
+            id: 'settings-type-checking',
+            group: 'Language servers',
+            name: 'Type checking',
+            help: "How strictly Python is checked, in pyright's own words. Off reports nothing at all, not even an undefined name. A project's pyrightconfig.json wins over this.",
+            words: 'pyright basedpyright strict basic standard type checking diagnostics python',
+            control: (
+              <div className="z-select">
+                <select
+                  id="settings-type-checking"
+                  value={servers.typeChecking || DEFAULT_TYPE_CHECKING}
+                  onChange={(event) => changeServers({ typeChecking: event.target.value })}
+                >
+                  {TYPE_CHECKING_MODES.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {mode}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ),
           },
           ...servers.servers.map((server) => ({

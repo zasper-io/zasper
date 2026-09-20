@@ -51,5 +51,11 @@ export const revealPositionAtom = atom<{
 /** The server serving each open notebook, by path — the kernel's language decides it, not the name. */
 export const notebookServersAtom = atom<Record<string, string>>({});
 
+/**
+ * The interpreter each server was told to read imports with, by server key, so the status bar can say it.
+ * Empty for a language whose kernel names none, and for every server that needs no interpreter.
+ */
+export const serverInterpretersAtom = atom<Record<string, string>>({});
+
 /** What discovery answered for every language, loaded at boot and again after Settings change. */
 export const languageServerListAtom = atom<import('@/api').LanguageServerList | null>(null);

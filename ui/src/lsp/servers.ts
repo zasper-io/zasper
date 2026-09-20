@@ -17,6 +17,7 @@ import { Problem, ServerStatus, Severity } from '@/store/languageServers';
 import { fileUri, pathOfUri, ServerLanguage, serverLanguageFor } from './languages';
 import { offsetAt } from './positions';
 import { sanitizeHtml } from './sanitize';
+import { pushedSettings, serverSettings } from './settings';
 import { versionOf } from './serverInfo';
 import {
   CLOSE_EXITED,
@@ -116,6 +117,52 @@ export interface NotebookHost {
 }
 
 const notebookHosts = new Map<string, NotebookHost>();
+/** The Python each server should read imports with, by server key: see `settings.ts`. */
+const interpreters = new Map<string, string>();
+/** The project's own environment, for when no notebook has named one — a file editor has no kernel. */
+const fallbackInterpreters = new Map<string, string>();
+
+function interpreterFor(server: string): string | undefined {
+  return interpreters.get(server) ?? fallbackInterpreters.get(server);
+}
+
+/**
+ * The interpreter to read imports with when nothing else has said: the project's own environment. A `.py`
+ * file has no kernel to ask, and without this its imports are read with whichever Python is on the PATH.
+ */
+export function setFallbackInterpreter(server: string, interpreter: string | undefined): void {
+  if (fallbackInterpreters.get(server) === interpreter) {
+    return;
+  }
+  if (interpreter === undefined) {
+    fallbackInterpreters.delete(server);
+  } else {
+    fallbackInterpreters.set(server, interpreter);
+  }
+  const connection = connections.get(server);
+  if (connection !== undefined && !interpreters.has(server)) {
+    tellSettings(connection);
+  }
+}
+
+/**
+ * Says which interpreter a server's language is running — a notebook's kernel, which is the one thing that
+ * knows where its imports are installed. A server already up is told its settings changed, and reads them
+ * again.
+ */
+export function setServerInterpreter(server: string, interpreter: string | undefined): void {
+  if (interpreters.get(server) === interpreter) {
+    return;
+  }
+  if (interpreter === undefined) {
+    interpreters.delete(server);
+  } else {
+    interpreters.set(server, interpreter);
+  }
+  connections
+    .get(server)
+    ?.client.notification('workspace/didChangeConfiguration', { settings: {} });
+}
 
 /** Hears every status change and every file's problems, starting with where each stands now. */
 export function subscribeLanguageServers(listener: Listener): () => void {
@@ -156,6 +203,25 @@ export interface PublishedDiagnostic {
   message: string;
   source?: string;
   code?: string | number;
+  /** The protocol's DiagnosticTag: 1 unnecessary, 2 deprecated. */
+  tags?: number[];
+}
+
+/**
+ * How a diagnostic the server tagged is drawn, rather than with a squiggle.
+ *
+ * An unused import or an unreachable branch is not a fault in the code: the protocol has a tag for it, and
+ * every editor draws it as text that has faded out. Squiggling it says something is wrong with code that is
+ * merely doing nothing.
+ */
+export function markForTags(tags: number[] | undefined): string | undefined {
+  if (tags === undefined) {
+    return undefined;
+  }
+  if (tags.includes(1)) {
+    return 'cm-lintRange-unnecessary';
+  }
+  return tags.includes(2) ? 'cm-lintRange-deprecated' : undefined;
 }
 
 /**
@@ -190,6 +256,7 @@ function drawDiagnostics(
       from: start,
       to: Math.max(start, end),
       severity: SEVERITIES[(item.severity ?? 1) - 1] ?? 'error',
+      markClass: markForTags(item.tags),
       message: item.message,
       source: [item.source, named].filter(Boolean).join(' · ') || undefined,
     };
@@ -331,6 +398,9 @@ function connectionFor(server: string, root: string): Connection {
             inlayHint: { dynamicRegistration: false },
           },
           workspace: {
+            // So the server asks what interpreter to read imports with, and how strictly to check.
+            configuration: true,
+            didChangeConfiguration: { dynamicRegistration: false },
             applyEdit: true,
             workspaceEdit: { documentChanges: true },
             symbol: { dynamicRegistration: false },
@@ -375,11 +445,30 @@ async function connect(connection: Connection): Promise<void> {
   // The client answers requests it does not know with "method not implemented", so this is answered
   // here, before it reaches the client at all.
   transport.intercept((message) => {
-    let asked: { id?: number | string; method?: string; params?: { edit?: ProtocolWorkspaceEdit } };
+    let asked: {
+      id?: number | string;
+      method?: string;
+      params?: { edit?: ProtocolWorkspaceEdit; items?: { section?: string }[] };
+    };
     try {
       asked = JSON.parse(message);
     } catch {
       return false;
+    }
+    // What the server should be told about itself, which the client has no part in: the interpreter a
+    // notebook's kernel runs, and how strictly to check. Unanswered, a server reads its own defaults.
+    if (asked.method === 'workspace/configuration' && asked.id !== undefined) {
+      const items = asked.params?.items ?? [];
+      transport.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: asked.id,
+          result: items.map((item) =>
+            serverSettings(connection.server, item.section, interpreterFor(connection.server))
+          ),
+        })
+      );
+      return true;
     }
     if (asked.method !== 'workspace/applyEdit' || asked.id === undefined) {
       return false;
@@ -412,6 +501,8 @@ async function connect(connection: Connection): Promise<void> {
   try {
     await connection.client.initializing;
     connection.retries = 0;
+    // pylsp never asks for its settings, so every server is told them once it is up.
+    tellSettings(connection);
     setStatus(connection, { ...connection.status, state: 'ready', message: undefined });
   } catch (error) {
     setStatus(connection, {
@@ -523,6 +614,21 @@ export function attachNotebook(
   };
 }
 
+/**
+ * Tells every running server that its settings changed, so it asks for them again — Settings → Type
+ * checking, which pyright answers by checking every open document afresh.
+ */
+export function configurationChanged(): void {
+  connections.forEach(tellSettings);
+}
+
+/** The settings a server is told it has, for one that never asks and one that reads them again. */
+function tellSettings(connection: Connection): void {
+  connection.client.notification('workspace/didChangeConfiguration', {
+    settings: pushedSettings(connection.server, interpreterFor(connection.server)),
+  });
+}
+
 /** Whether a server is ready to be asked anything, by its key. */
 export function isServerReady(server: string): boolean {
   return connections.get(server)?.status.state === 'ready';
@@ -612,6 +718,8 @@ export function resetLanguageServers(): void {
   });
   connections.clear();
   notebookHosts.clear();
+  interpreters.clear();
+  fallbackInterpreters.clear();
   problems.clear();
   published.clear();
   listeners.clear();

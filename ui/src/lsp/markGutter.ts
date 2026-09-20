@@ -70,11 +70,16 @@ function severityMarker(severity: string): SeverityMarker {
   return made;
 }
 
-/** The worst severity of the diagnostics on a line, or null when it has none. */
+/**
+ * The worst severity of the diagnostics on a line, or null when it has none.
+ *
+ * A hint is not one of them: an unused import is drawn as faded text, and a mark in the gutter beside it
+ * would say a line is at fault when nothing is wrong with it. VS Code leaves its gutter empty there too.
+ */
 function severityOn(view: EditorView, from: number, to: number): Severity | null {
   let worst: string | null = null;
   forEachDiagnostic(view.state, (diagnostic: Diagnostic, start: number, end: number) => {
-    if (end < from || start > to) {
+    if (end < from || start > to || diagnostic.severity === 'hint') {
       return;
     }
     if (worst === null || (RANK[diagnostic.severity] ?? 3) < RANK[worst]) {

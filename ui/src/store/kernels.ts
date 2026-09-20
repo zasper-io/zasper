@@ -2,9 +2,16 @@ import { atom } from 'jotai';
 
 export interface Kernelspec {
   name: string;
+  /**
+   * Zasper's own: the executable this kernel would be launched with, resolved by the server. A spec
+   * written by hand names `python`, which only a PATH can resolve, and the browser has none.
+   */
+  interpreter?: string;
   spec: {
     display_name: string;
     language?: string;
+    /** The command the kernel is started with; its first word is the interpreter. */
+    argv?: string[];
   };
   /** Logos, under keys such as `logo-svg` and `logo-64x64`. */
   resources: Record<string, string>;

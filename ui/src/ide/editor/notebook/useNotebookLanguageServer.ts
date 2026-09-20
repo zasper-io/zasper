@@ -4,9 +4,10 @@ import { useAtomValue, useSetAtom } from 'jotai';
 
 import { NotebookCell } from '@/api';
 import { notebookLanguageFor } from '@/lsp/languages';
+import { setServerInterpreter } from '@/lsp/servers';
 import { SourceCell } from '@/lsp/notebookDocument';
 import { NotebookLanguageServer } from '@/lsp/notebookServer';
-import { notebookServersAtom } from '@/store/languageServers';
+import { notebookServersAtom, serverInterpretersAtom } from '@/store/languageServers';
 import { projectDirAtom } from '@/store/serverInfo';
 
 function codeCells(cells: NotebookCell[]): SourceCell[] {
@@ -22,13 +23,16 @@ function codeCells(cells: NotebookCell[]): SourceCell[] {
 export function useNotebookLanguageServer(options: {
   path: string;
   kernelLanguage: string | undefined;
+  /** The Python the notebook's kernel runs, so the server resolves the imports the cells actually use. */
+  interpreter: string | undefined;
   cells: NotebookCell[];
   loaded: boolean;
   viewFor: (cellId: string) => EditorView | null;
 }): NotebookLanguageServer | null {
-  const { path, kernelLanguage, cells, loaded, viewFor } = options;
+  const { path, kernelLanguage, interpreter, cells, loaded, viewFor } = options;
   const root = useAtomValue(projectDirAtom);
   const setNotebookServers = useSetAtom(notebookServersAtom);
+  const setServerInterpreters = useSetAtom(serverInterpretersAtom);
   const [server, setServer] = useState<NotebookLanguageServer | null>(null);
   const cellsNow = useRef(cells);
   cellsNow.current = cells;
@@ -37,6 +41,15 @@ export function useNotebookLanguageServer(options: {
   const serverKey = target?.language.server;
   const extension = target?.extension;
   const languageId = target?.language.languageId;
+
+  // Before the server is started, where it can be: a server already running is told its settings changed.
+  useEffect(() => {
+    if (serverKey === undefined) {
+      return;
+    }
+    setServerInterpreter(serverKey, interpreter);
+    setServerInterpreters((all) => ({ ...all, [serverKey]: interpreter ?? '' }));
+  }, [serverKey, interpreter, setServerInterpreters]);
 
   useEffect(() => {
     if (serverKey === undefined || extension === undefined || languageId === undefined) {

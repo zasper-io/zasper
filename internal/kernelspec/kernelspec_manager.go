@@ -54,6 +54,43 @@ type KernelspecModel struct {
 	Name      string            `json:"name"`
 	Spec      JupyterSpec       `json:"spec"`
 	Resources map[string]string `json:"resources"`
+	// Interpreter is Zasper's own: the executable this spec would be launched with, resolved against the
+	// server's PATH as launching it resolves it. A spec written by hand names `python`, which tells a
+	// browser nothing; the language server has to be given the interpreter the kernel actually runs, or it
+	// reads the imports of whichever Python it finds itself. Empty when argv names nothing runnable.
+	Interpreter string `json:"interpreter,omitempty"`
+}
+
+// barePython is a command that names an interpreter rather than a path to one.
+var barePython = regexp.MustCompile(`^python(\d+(\.\d+)?)?$`)
+
+/*
+ResolvedInterpreter is the interpreter a spec is launched with: the Python that owns the spec's own
+location when its command is a bare `python`, as jupyter_client uses sys.executable, and otherwise
+whatever the command resolves to on the PATH. "" when nothing resolves.
+
+The launcher runs this and so does the API, because a language server told a different interpreter than
+the kernel runs reports every import in the notebook as unresolved.
+*/
+func ResolvedInterpreter(spec KernelSpecJsonData) string {
+	if len(spec.Argv) == 0 || spec.Argv[0] == "" {
+		return ""
+	}
+	command := spec.Argv[0]
+	if barePython.MatchString(command) {
+		if owner := Interpreter(spec.ResourceDir); owner != "" {
+			return owner
+		}
+	}
+	found, err := exec.LookPath(command)
+	if err != nil {
+		return ""
+	}
+	absolute, err := filepath.Abs(found)
+	if err != nil {
+		return found
+	}
+	return absolute
 }
 
 func kernelspecModel(name string, spec KernelSpecJsonData) KernelspecModel {
@@ -79,7 +116,8 @@ func kernelspecModel(name string, spec KernelSpecJsonData) KernelspecModel {
 			InterruptMode: interruptMode,
 			Metadata:      metadata,
 		},
-		Resources: getResources(name, spec.ResourceDir),
+		Resources:   getResources(name, spec.ResourceDir),
+		Interpreter: ResolvedInterpreter(spec),
 	}
 }
 

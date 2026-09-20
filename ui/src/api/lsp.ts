@@ -23,6 +23,8 @@ export interface LanguageServerInfo {
 export interface LanguageServerList {
   enabled: boolean;
   servers: LanguageServerInfo[];
+  /** How strictly a Python server checks: pyright's own modes, '' for Zasper's default. */
+  typeChecking: string;
 }
 
 export function getLanguageServers(): Promise<LanguageServerList> {
@@ -38,4 +40,6 @@ export function getLanguageServerLog(language: string): Promise<string> {
 export interface LanguageServerSettings {
   disabled: boolean;
   commands: Record<string, string>;
+  /** How strictly a Python server checks: pyright's own modes. '' is Zasper's default, `standard`. */
+  type_checking?: string;
 }

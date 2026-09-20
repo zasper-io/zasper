@@ -17,13 +17,21 @@ const server: CompletionResult = {
 };
 
 describe('mergeCompletions', () => {
+  // The tag is what story 24 settled: a reader cannot otherwise tell a name that exists in the kernel
+  // now from one the source defines in a cell that has not run.
   it("lists the kernel's names first, with what the server knows about them, then the server's own", () => {
     const merged = mergeCompletions(kernel, server);
 
     expect(merged?.options).toEqual([
-      { label: 'head', type: 'method' },
-      { label: 'shape', type: 'property', detail: 'tuple[int, int]', info: undefined },
-      { label: 'hist', type: 'method' },
+      { label: 'head', type: 'method', origin: 'kernel' },
+      {
+        label: 'shape',
+        type: 'property',
+        detail: 'tuple[int, int]',
+        info: undefined,
+        origin: 'kernel',
+      },
+      { label: 'hist', type: 'method', origin: 'source' },
     ]);
     expect(merged?.validFor).toBe(kernel.validFor);
   });
@@ -32,7 +40,9 @@ describe('mergeCompletions', () => {
     expect(mergeCompletions(kernel, { ...server, from: 0 })).toBe(kernel);
   });
 
-  it('takes whichever answered when only one did', () => {
+  // Untagged: with one answer there is nothing to tell apart, and `source` on a name the kernel was
+  // never asked about would be a claim about the kernel.
+  it('takes whichever answered when only one did, and tags nothing', () => {
     expect(mergeCompletions(null, server)).toBe(server);
     expect(mergeCompletions(kernel, null)).toBe(kernel);
     expect(mergeCompletions(null, null)).toBeNull();

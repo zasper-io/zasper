@@ -72,6 +72,7 @@ browser, on your own machine or on a server you share.
 - [Getting started](#getting-started)
 - [Self-hosting](#self-hosting)
 - [Jupyter kernels](#jupyter-kernels)
+- [Language servers](#language-servers)
 - [Notebook compatibility](#notebook-compatibility)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Configuration](#configuration)
@@ -304,6 +305,26 @@ uv run python -m ipykernel install --user --name=my-project
 
 Once registered, the environment appears in the Launcher and in each notebook's kernel picker.
 
+## Language servers
+
+Errors as you type, completion, hover, go to definition and formatting come from a language server
+you already have installed. For Python that is `basedpyright`, `pyright` or `pylsp` — whichever is
+found first, in that order — and for Go `gopls`, with seven languages served in all. Zasper ships
+none of them and starts the one it finds, in `PATH` and in the usual per-project places. The
+status bar item at the right names the server, its state and, for Python, the interpreter it reads
+imports with; its menu restarts it, shows its log, or names the command to install one.
+
+Notebook cells are served too: the cells are given to the server as one document, IPython's magics
+and `!` escapes are hidden from it, and the interpreter it reads imports with is the one the
+notebook's kernel runs.
+
+Python type checking is **off** by default, as it is in VS Code: undefined names and imports that
+cannot be found are still reported, and nothing else is. Raise it under Settings → Language servers
+when you want a type checker's opinion on code you maintain.
+
+See [docs/LANGUAGE-SERVERS.md](docs/LANGUAGE-SERVERS.md) for those modes, what each server is told,
+and what to do when a correct line is squiggled.
+
 ## Notebook compatibility
 
 Zasper reads and writes the `.ipynb` format directly. Two guarantees are worth stating outright:
@@ -494,6 +515,8 @@ covers the development workflow.
 - [CHANGELOG.md](CHANGELOG.md): what changed in each release.
 - [docs/API.md](docs/API.md): the HTTP and WebSocket API, covered by semantic versioning from
   1.0.0 onwards.
+- [docs/LANGUAGE-SERVERS.md](docs/LANGUAGE-SERVERS.md): which language servers Zasper starts, what
+  they are told, and what they give a notebook that a file does not get.
 - [PRIVACY.md](PRIVACY.md): what anonymous usage data is collected, event by event.
 - [PUBLISHING.md](PUBLISHING.md): how releases are cut.
 

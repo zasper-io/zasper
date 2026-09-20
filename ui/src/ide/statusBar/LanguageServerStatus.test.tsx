@@ -19,6 +19,7 @@ vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }
 
 const list: LanguageServerList = {
   enabled: true,
+  typeChecking: '',
   servers: [
     {
       language: 'go',
