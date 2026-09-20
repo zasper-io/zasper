@@ -100,6 +100,23 @@ function isKeyboardFocus(element: HTMLElement): boolean {
 interface TooltipHoverProps {
   onPointerEnter: PointerEventHandler<HTMLElement>;
   onPointerLeave: PointerEventHandler<HTMLElement>;
+  onPointerDown: PointerEventHandler<HTMLElement>;
+  onPointerMove: PointerEventHandler<HTMLElement>;
+}
+
+/** What an anchor can ask for beyond the defaults. The file tree is the only caller that does. */
+export interface TooltipOptions {
+  /** Instead of `TOOLTIP_DELAY_MS`. */
+  delayMs?: number;
+  /**
+   * Count the delay from when the pointer stopped rather than from when it arrived: any movement
+   * inside the anchor starts it again.
+   *
+   * For a row in a list, which is what this exists for, the two are different questions. A pointer
+   * crossing the file tree on its way to a file is not asking about the rows it passes, however
+   * slowly it passes them, and an elapsed-time delay cannot tell that from someone resting on one.
+   */
+  stillness?: boolean;
 }
 
 /** The keyboard half, and the description: the box that takes the focus. */
@@ -153,10 +170,17 @@ export interface TooltipState {
  * described: a folder's `li` is the whole expanded subtree, so it is the row inside it that gets
  * measured. Left out, the box is whatever the event arrived on.
  */
-export function useTooltip(active = true, labelled?: RefObject<HTMLElement | null>): TooltipState {
+export function useTooltip(
+  active = true,
+  labelled?: RefObject<HTMLElement | null>,
+  options: TooltipOptions = {}
+): TooltipState {
+  const { delayMs = TOOLTIP_DELAY_MS, stillness = false } = options;
   const id = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const timer = useRef<number | undefined>(undefined);
+  // Set by a press and cleared when the pointer leaves: see `onPointerDown` below.
+  const pressed = useRef(false);
 
   const hide = useCallback(() => {
     window.clearTimeout(timer.current);
@@ -206,8 +230,33 @@ export function useTooltip(active = true, labelled?: RefObject<HTMLElement | nul
   }, [anchor, hide]);
 
   const hoverProps: TooltipHoverProps = {
-    onPointerEnter: (event) => show(event.currentTarget, TOOLTIP_DELAY_MS),
-    onPointerLeave: hide,
+    onPointerEnter: (event) => {
+      if (!pressed.current) {
+        show(event.currentTarget, delayMs);
+      }
+    },
+    // Only with `stillness`, and only until the box is up: a pointer moving inside the anchor is
+    // still on its way somewhere, so the wait starts again. Once the box is open, movement inside
+    // the anchor leaves it alone — it is answering a question that has already been asked.
+    onPointerMove: (event) => {
+      if (stillness && !pressed.current && anchor === null) {
+        show(event.currentTarget, delayMs);
+      }
+    },
+    onPointerLeave: () => {
+      pressed.current = false;
+      hide();
+    },
+    // A press answers the question the tooltip would have asked, and the pointer is still sitting on
+    // the row afterwards — so without this the box opened over the file that had just been opened, or
+    // over the button that had just been pressed, and stayed until the pointer moved. It is the same
+    // rule `:focus-visible` already applies to the keyboard half; nothing is owed to a pointer that has
+    // acted. The keyboard is unaffected: only the hover path consults this, so tabbing back to a
+    // control still describes it.
+    onPointerDown: () => {
+      pressed.current = true;
+      hide();
+    },
   };
   const focusProps: TooltipFocusProps = {
     onFocus: (event) => {

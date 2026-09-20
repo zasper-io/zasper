@@ -160,6 +160,36 @@ describe('useTooltip', () => {
     expect(anchor()).not.toHaveAttribute('aria-describedby');
   });
 
+  // A press answers the question, and the pointer stays on what it pressed: the file tree's rows put a
+  // box over the file that had just been opened, 400ms after opening it.
+  it('says nothing more to a pointer that has pressed, until it leaves and comes back', () => {
+    render(<Labelled />);
+
+    fireEvent.pointerEnter(anchor());
+    settle(200);
+    fireEvent.pointerDown(anchor());
+    settle(2000);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    // Leaving is what makes it a new question.
+    fireEvent.pointerLeave(anchor());
+    fireEvent.pointerEnter(anchor());
+    settle(400);
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+  });
+
+  // The suppression above is the pointer's alone: a keyboard arriving on a control it just clicked is
+  // still asking, and is the half that has no other way to the label.
+  it('still describes a control the keyboard reaches after a press', () => {
+    render(<Labelled />);
+
+    fireEvent.pointerEnter(anchor());
+    fireEvent.pointerDown(anchor());
+    tabTo(anchor());
+
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+  });
+
   // Nothing is dragged out of a tooltip, so a pointer leaving before the delay is up is a pointer that
   // was on its way somewhere else.
   it('never opens for a pointer that was passing through', () => {

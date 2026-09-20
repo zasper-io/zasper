@@ -14,7 +14,7 @@ import FileItem from './FileItem';
 import RowName from './RowName';
 import TreeStatus from './TreeStatus';
 import { uploadRequestAtom } from './atoms';
-import { describeEntry, rowClassName } from './entryDetails';
+import { describeEntry, ROW_TOOLTIP_DELAY_MS, rowClassName } from './entryDetails';
 import { useClipboard } from './useClipboard';
 import { useContentActions } from './useContentActions';
 import { useDragSource, useDropTarget } from './useDragDrop';
@@ -60,7 +60,10 @@ const DirectoryItem = ({
   // row and not the `li`: this `li` is the whole expanded folder, so labelling it would put the box
   // under the last of the children and describe the folder while the pointer is on one of them.
   const rowRef = useRef<HTMLAnchorElement>(null);
-  const tip = useTooltip(true, rowRef);
+  const tip = useTooltip(true, rowRef, {
+    delayMs: ROW_TOOLTIP_DELAY_MS,
+    stillness: true,
+  });
   const scope = selection.scopeFor(path);
   const rename = useRowRename(parentDir, name, path);
   const remove = useRowDelete(path, scope);
@@ -175,7 +178,7 @@ const DirectoryItem = ({
           </span>
         )}
       </a>
-      <Tooltip tip={tip} label={describeEntry(data)} />
+      <Tooltip tip={tip} label={describeEntry(data)} oneLine />
       {menuPosition && (
         <ContextMenu
           xPos={menuPosition.xPos}

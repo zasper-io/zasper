@@ -12,7 +12,7 @@ import { activeTabPathAtom } from '@/store/tabState';
 import ContextMenu from '../contextMenu/ContextMenu';
 import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 import RowName from './RowName';
-import { describeEntry, rowClassName } from './entryDetails';
+import { describeEntry, ROW_TOOLTIP_DELAY_MS, rowClassName } from './entryDetails';
 import { useClipboard } from './useClipboard';
 import { useContentActions } from './useContentActions';
 import { useDragSource } from './useDragDrop';
@@ -55,7 +55,10 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
   // What the row has no width for — the path, the size, when it changed, whether it is writable. The
   // row and not the `li`, which also holds this row's menu and its delete question.
   const rowRef = useRef<HTMLAnchorElement>(null);
-  const tip = useTooltip(true, rowRef);
+  const tip = useTooltip(true, rowRef, {
+    delayMs: ROW_TOOLTIP_DELAY_MS,
+    stillness: true,
+  });
   const { copyTo, copyPath, download } = useContentActions();
 
   const menuItems = [
@@ -132,7 +135,7 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
           </span>
         )}
       </a>
-      <Tooltip tip={tip} label={describeEntry(content)} />
+      <Tooltip tip={tip} label={describeEntry(content)} oneLine />
       {/* A sibling of the row, not a child of it: inside the link, a click on a menu item counted
           as a click on the file. */}
       {menuPosition && (

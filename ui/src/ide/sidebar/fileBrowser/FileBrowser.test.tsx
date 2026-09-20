@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FileBrowser from './FileBrowser';
 import { ApiError } from '@/api/client';
-import { TOOLTIP_DELAY_MS } from '@/ide/overlays';
+import { ROW_TOOLTIP_DELAY_MS } from './entryDetails';
 import { createContent, getDirectory } from './fileBrowserFakes';
 import {
   expandSrc,
@@ -243,11 +243,59 @@ describe('FileBrowser', () => {
 
         fireEvent.pointerEnter(row('main.py'));
         await act(async () => {
-          vi.advanceTimersByTime(TOOLTIP_DELAY_MS);
+          vi.advanceTimersByTime(ROW_TOOLTIP_DELAY_MS);
         });
 
         expect(screen.getAllByRole('tooltip')).toHaveLength(1);
         expect(screen.getByRole('tooltip').textContent).toContain('src/main.py');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Stillness, not time since arriving: a pointer crossing the tree is not asking about the rows it
+    // crosses, and the box it would open covers the ones below. The moves below are a second apart,
+    // inside a wait of two, so each one starts it again.
+    it('waits for the pointer to stop, and starts again every time it moves', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await renderBrowser();
+        await expandSrc();
+
+        fireEvent.pointerEnter(row('main.py'));
+        // Three seconds of moving inside the row, a second apart: nothing opens, because the wait
+        // is never more than a second old.
+        for (let second = 0; second < 3; second++) {
+          fireEvent.pointerMove(row('main.py'));
+          await act(async () => {
+            vi.advanceTimersByTime(1000);
+          });
+          expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+        }
+
+        await act(async () => {
+          vi.advanceTimersByTime(ROW_TOOLTIP_DELAY_MS);
+        });
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // A path in a 240px box is three lines of broken text; the box is fixed-position on the menu
+    // layer, so one line runs over the editor instead, where nothing is being aimed at.
+    it('says it in one line, whatever the path costs', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await renderBrowser();
+        await expandSrc();
+
+        fireEvent.pointerEnter(row('main.py'));
+        await act(async () => {
+          vi.advanceTimersByTime(ROW_TOOLTIP_DELAY_MS);
+        });
+
+        expect(screen.getByRole('tooltip')).toHaveClass('z-tooltip-oneline');
       } finally {
         vi.useRealTimers();
       }

@@ -170,6 +170,18 @@
 // The kernel row's tooltip is five facts and not one line — the path, the id, the state, the moment and
 // the client count — which is the case that wanted a real tooltip in the first place. A line is a block
 // rather than a `\n` in a string, so 240px wraps a long path instead of the label choosing where to break.
+// The file tree's own box. A row says a name and the box says the path, the size and when it was
+// last written — one sentence, and wrapping it into three lines inside 240px is harder to read than
+// letting it run. It may run: the box is `position: fixed` on the menu layer, so it is not clipped by
+// the sidebar and draws over the editor, which has nothing under it that the reader is aiming at.
+//
+// Only the tree asks for this. Everywhere else a tooltip labels a button, where the text is short and
+// a box wider than what it labels is the thing that looks wrong.
+.z-tooltip-oneline {
+  max-width: none;
+  white-space: nowrap;
+}
+
 .z-tooltip-line {
   display: block;
 }

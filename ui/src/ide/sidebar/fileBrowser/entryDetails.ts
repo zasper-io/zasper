@@ -28,6 +28,16 @@ export function formatWhen(iso: string | undefined): string {
   return Number.isNaN(when.getTime()) ? '' : when.toLocaleString();
 }
 
+/**
+ * How long the pointer has to be still on a row before it is asking about it.
+ *
+ * Five times the app's own delay, and it is the list that earns it: the tree is the one surface a
+ * pointer crosses on the way somewhere, and the box it opens covers the rows it was crossing to. With
+ * `stillness` this is two seconds of not moving, which is nobody passing through — so the box only
+ * arrives for someone who has stopped and stayed, and never while the tree is being scanned.
+ */
+export const ROW_TOOLTIP_DELAY_MS = 2000;
+
 /** The row's tooltip: the full path, and whatever else is known about the entry. */
 export function describeEntry(entry: ContentEntry): string {
   const parts = [entry.path];

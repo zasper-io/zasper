@@ -11,6 +11,11 @@ interface TooltipProps {
    * commit button has a reason only while it is disabled — and draws no box.
    */
   label: string | string[] | undefined;
+  /**
+   * One line however long it is, running over whatever is beside it. For the file tree, whose rows
+   * carry a path; see `.z-tooltip-oneline`.
+   */
+  oneLine?: boolean;
 }
 
 /** Between the anchor's edge and the box, and between the box and the window's. */
@@ -25,7 +30,7 @@ const GAP = 4;
  * because the coordinates are the window's while the layout this renders into is scaled. A tooltip that
  * runs off the bottom of the screen is worse than none, since nothing can be scrolled to reach it.
  */
-export default function Tooltip({ tip, label }: TooltipProps) {
+export default function Tooltip({ tip, label, oneLine = false }: TooltipProps) {
   const box = useRef<HTMLDivElement>(null);
   const { anchor } = tip;
   const [at, setAt] = useState({ top: 0, left: 0 });
@@ -51,7 +56,13 @@ export default function Tooltip({ tip, label }: TooltipProps) {
   }
 
   return (
-    <div ref={box} id={tip.id} role="tooltip" className="z-overlay z-tooltip" style={at}>
+    <div
+      ref={box}
+      id={tip.id}
+      role="tooltip"
+      className={oneLine ? 'z-overlay z-tooltip z-tooltip-oneline' : 'z-overlay z-tooltip'}
+      style={at}
+    >
       {lines.map((line) => (
         <span className="z-tooltip-line" key={line}>
           {line}
