@@ -107,12 +107,33 @@ export function getTheme(id: string): ZasperTheme {
  * a mapping written for a ramp it does not have.
  */
 export function applyTheme(theme: ZasperTheme, root: HTMLElement = document.documentElement): void {
-  root.dataset.theme = theme.theme;
-  if (theme.accent === undefined) {
-    delete root.dataset.accent;
-  } else {
-    root.dataset.accent = theme.accent;
-  }
+  withoutTransitions(root, () => {
+    root.dataset.theme = theme.theme;
+    if (theme.accent === undefined) {
+      delete root.dataset.accent;
+    } else {
+      root.dataset.accent = theme.accent;
+    }
+  });
+}
+
+/**
+ * Makes `change` take effect without anything animating its way there.
+ *
+ * Every colour in the app is a custom property, so a theme change rewrites all of them at once — and
+ * the one colour transition in the app (`a` in styles/_base.scss, which exists for hover) turned the
+ * file tree's rows into a 300ms fade while everything else switched in a frame.
+ *
+ * Reading `offsetHeight` is the whole trick: it forces the browser to recalculate style and layout
+ * while `data-theme-switching` is still set, so the new colours are computed with transitions off and
+ * none can start. Taking the attribute off afterwards changes no colour, so nothing animates then
+ * either, and the attribute is never observable to a reader.
+ */
+function withoutTransitions(root: HTMLElement, change: () => void): void {
+  root.dataset.themeSwitching = '';
+  change();
+  void root.offsetHeight;
+  delete root.dataset.themeSwitching;
 }
 
 /**

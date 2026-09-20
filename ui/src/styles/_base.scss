@@ -91,6 +91,20 @@ a {
     color 0.3s ease-in-out;
 }
 
+// Changing the theme rewrites every colour token at once, and the transition above is the only one in
+// the app that is about colour — so a file-tree row, which is an `<a>`, faded from the old theme's ink
+// to the new one over 300ms while the window around it changed in a single frame. `applyTheme` in
+// src/themes sets this attribute for the duration of the swap and takes it off again in the same task.
+//
+// `all` and `!important` because what must not animate is every property of every element, including
+// a library's own transitions, for that one frame; the specificity is deliberately unbeatable, and the
+// attribute exists for less than a frame.
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
+}
+
 // The drawing's base.css names the family here for the same three elements. In the app the rule also has
 // Bootstrap to undo, which is why it carries the other two declarations: reboot colours `<code>` with
 // `--bs-code-color`, a literal $pink — #d63384 light, a tint of it dark — and sizes it 0.875em. The one

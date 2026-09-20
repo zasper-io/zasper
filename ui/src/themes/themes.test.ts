@@ -66,6 +66,27 @@ describe('applyTheme', () => {
     expect(root.dataset.accent).toBe('slate');
   });
 
+  it('changes the colours with transitions off, and leaves no trace of having done so', () => {
+    // The invariant is the *order*: styles have to be recalculated while `data-theme-switching` is
+    // set, or the fade it exists to prevent starts anyway. Reading `offsetHeight` is what forces that
+    // recalculation, so the test asks what the attribute was at the moment it was read.
+    const root = document.createElement('html');
+    let switchingWhenFlushed: string | undefined;
+    Object.defineProperty(root, 'offsetHeight', {
+      get: () => {
+        switchingWhenFlushed = root.dataset.themeSwitching;
+        return 0;
+      },
+    });
+
+    applyTheme(getTheme('slate-dark'), root);
+
+    expect(switchingWhenFlushed).toBe('');
+    expect(root.dataset.theme).toBe('dark');
+    // Gone again in the same task: nothing renders with it, and it never reaches a snapshot.
+    expect(root.dataset.themeSwitching).toBeUndefined();
+  });
+
   it('leaves no accent behind on a theme that brings its own palette', () => {
     // Every shipped theme is a hue today, so the theme here is built rather than looked up — the
     // branch is still in applyTheme because `accent` is optional, and the bug it guards against is
