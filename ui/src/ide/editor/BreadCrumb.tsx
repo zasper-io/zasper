@@ -10,7 +10,7 @@ import './Editor.scss';
 
 interface BreadCrumbProps {
   path: string;
-  /** The symbols the cursor is inside, outermost first (story 20). */
+  /** The symbols the cursor is inside, outermost first. */
   trail?: DocumentSymbol[];
   /** Everything the file declares, so a crumb can offer what sits beside it. */
   symbols?: DocumentSymbol[];
@@ -25,7 +25,7 @@ type Open =
   | null;
 
 /**
- * The trail above the editor: the project, the folders, the file, and — since story 20 — the symbol the
+ * The trail above the editor: the project, the folders, the file, and the symbol the
  * cursor is in. Every level opens what sits beside it: a folder its contents, a symbol its siblings.
  */
 export default function BreadCrumb(props: BreadCrumbProps) {

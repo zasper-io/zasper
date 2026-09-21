@@ -18,7 +18,7 @@ function isFix(action: CodeAction): boolean {
 }
 
 /**
- * The fixes and refactors a server offers where the cursor is (story 20), opened by the lamp in the
+ * The fixes and refactors a server offers where the cursor is, opened by the lamp in the
  * gutter or by `⌘.`. Grouped, because a fix answers a problem and a refactor answers a wish.
  */
 export default function QuickFixMenu(props: QuickFixMenuProps) {

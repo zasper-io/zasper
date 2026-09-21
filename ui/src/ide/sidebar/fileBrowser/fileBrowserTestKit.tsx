@@ -108,7 +108,7 @@ export function openTabs(): string {
   return screen.getByTestId('tabs').textContent ?? '';
 }
 
-/** The shells this window has open, which since story 4 is where a terminal goes instead of a tab. */
+/** The shells this window has open, which is where a terminal goes instead of a tab. */
 export function runningTerminals(): string {
   return screen.getByTestId('terminals').textContent ?? '';
 }

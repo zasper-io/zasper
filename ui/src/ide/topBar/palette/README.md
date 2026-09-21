@@ -37,8 +37,8 @@ the files below the fold — which is the merge not working. `>` is uncapped, be
 registry is what that mode is for. `.palette-list`'s height in [Palette.scss](Palette.scss) is set to
 fit both sections at full stretch, so nothing that got past the cap needs scrolling to.
 
-**A prefix picks the question.** `>` is the commands, `:42` a line of the file in front (story 14), and
-since story 20 `@` is the symbols of the file in front and `#` a symbol anywhere in the project. Each of
+**A prefix picks the question.** `>` is the commands, `:42` a line of the file in front, and
+`@` is the symbols of the file in front and `#` a symbol anywhere in the project. Each of
 them leaves the other halves out — a prefixed query is one question, not a narrower version of all of
 them. `@` is filtered in the browser, because the file's server answers with every symbol at once; `#` is
 the server's own search, which is what finds a name in a file that has never been opened.

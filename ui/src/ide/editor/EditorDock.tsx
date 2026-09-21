@@ -13,7 +13,7 @@ import TerminalPanel from '@/ide/terminal/TerminalPanel';
 import './EditorDock.scss';
 
 /**
- * The panel under the editor (story 19), which holds more than problems since story 20: the head is tabs,
+ * The panel under the editor, which holds more than problems: the head is tabs,
  * and each answer opens its own. The width of the editor is the point — a message, or a line of code with
  * the place it is in, fits on one row here and does not in the sidebar.
  */

@@ -91,7 +91,7 @@ function severityOn(view: EditorView, from: number, to: number): Severity | null
 
 /**
  * One gutter column for what is known about a line: the worst diagnostic on it, or — when it has none and
- * the cursor is there with something on offer — the lamp that opens the fixes (story 20).
+ * the cursor is there with something on offer — the lamp that opens the fixes.
  *
  * One column rather than two, which is the decision the drawing settled: the alternative was a lamp beside
  * every severity mark, competing for the same 16px on every hint in the file. A line with both a problem

@@ -41,7 +41,7 @@ async function dismissKernelPicker(page: Page): Promise<void> {
 async function openASession(page: Page): Promise<void> {
   await openApp(page);
 
-  // The shell first. It is not a tab any more (story 4) — it opens in the panel under the editor, and
+  // The shell first. It is not a tab — it opens in the panel under the editor, and
   // the status bar's control reaches it whatever is in front.
   await openTerminal(page);
 
@@ -89,7 +89,7 @@ test('a restored tab reads itself the first time it is looked at', async ({ page
 
 /*
 A shell cannot be reattached: every connection to /ws/terminals spawns a new one, and its scrollback
-is not kept. Since story 4 a terminal is not a tab at all — it is a pane in the panel under the editor
+is not kept. A terminal is not a tab at all — it is a pane in the panel under the editor
 — so what this pins down is that the panel comes back empty rather than with an empty shell in it.
 */
 test('a shell does not come back, and was never a tab', async ({ page }) => {

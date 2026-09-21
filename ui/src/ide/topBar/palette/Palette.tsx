@@ -23,7 +23,7 @@ export const COMMANDS_ONLY = '>';
 /** The same for a line of the file in front: `:42`. Nothing else is a match for a number. */
 export const LINES_ONLY = ':';
 
-/** A symbol of the file in front (story 20), from its language server. */
+/** A symbol of the file in front, from its language server. */
 export const SYMBOLS_IN_FILE = '@';
 
 /** A symbol anywhere in the project, which every running server is asked for. */
@@ -68,7 +68,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
 
   const commandsOnly = query.startsWith(COMMANDS_ONLY);
   const linesOnly = query.startsWith(LINES_ONLY);
-  // One field, one prefix per question, which is the rule `:42` set in story 14.
+  // One field, one prefix per question, which is the rule `:42` set.
   const symbolsMode = query.startsWith(SYMBOLS_IN_FILE)
     ? 'file'
     : query.startsWith(SYMBOLS_IN_PROJECT)

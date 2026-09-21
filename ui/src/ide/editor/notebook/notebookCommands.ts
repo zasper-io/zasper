@@ -13,9 +13,9 @@ export interface NotebookCommandTargets {
   cells: NotebookCells;
   kernel: KernelSession;
   saveNotebook: () => void;
-  /** Opens the notebook's find card, or takes its field back when it is already up (story 17). */
+  /** Opens the notebook's find card, or takes its field back when it is already up. */
   openFind: () => void;
-  /** Shows or hides the table of contents beside the cells (story 22). */
+  /** Shows or hides the table of contents beside the cells. */
   toggleContents: () => void;
   submitCell: (source: string, cellId: string) => void;
   submitAllCells: () => void;

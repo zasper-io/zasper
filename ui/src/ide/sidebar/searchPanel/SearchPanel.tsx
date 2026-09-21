@@ -54,7 +54,7 @@ function said(report: ReplaceReport): void {
 }
 
 /**
- * Search across the project (story 18): a panel in the sidebar, whose field, toggles and replace row
+ * Search across the project: a panel in the sidebar, whose field, toggles and replace row
  * are the find card's stacked for its width, with the file filters folded behind `…`.
  */
 export default function SearchPanel({ hidden }: PanelProps) {

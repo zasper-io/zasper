@@ -54,7 +54,7 @@ const TOOLBAR_GROUPS: { id: string; title: string; icon: IconName }[][] = [
 ];
 
 /**
- * The export menu — story 21, option A.
+ * The export menu.
  *
  * A flat run under one heading rather than a flyout: `ContextMenu` has no submenus, and the family's
  * answer to a menu with two kinds of row in it is a group heading. No icons, the way the tab menu's
@@ -141,7 +141,7 @@ function NbButtons(props: NbButtonsProps) {
         </select>
       </div>
       {/* Right of the picker and left of the kernel pill: everything to the left of here does
-          something, and the two on the right say how the notebook *is*. Story 22. */}
+          something, and the two on the right say how the notebook *is*. */}
       <IconButton
         icon="list-tree"
         label="Table of Contents"

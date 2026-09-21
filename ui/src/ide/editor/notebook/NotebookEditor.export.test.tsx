@@ -31,8 +31,8 @@ vi.mock('@/browser', async () => {
 });
 
 /**
- * The export control, as story 21 settled it: a download button at the end of the notebook toolbar
- * (option A), and a dialog in front of the HTML format alone (option D).
+ * The export control: a download button at the end of the notebook toolbar, and a dialog in front of
+ * the HTML format alone.
  *
  * What the conversion produces has its own suites under export/. This is only about the way in.
  */

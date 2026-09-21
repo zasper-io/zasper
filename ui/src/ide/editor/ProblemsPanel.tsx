@@ -17,7 +17,7 @@ const ICONS: Record<Severity, IconName> = {
 const RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2, hint: 3 };
 
 /**
- * Every problem the language servers have reported (story 19), as one of the lists in the panel under the
+ * Every problem the language servers have reported, as one of the lists in the panel under the
  * editor so the message has the editor's width. A row opens its file at the problem.
  */
 export default function ProblemsPanel() {

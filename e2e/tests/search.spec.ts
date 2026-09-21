@@ -1,5 +1,5 @@
 /*
-Search across the project (story 18), through the real server: a word inside a file that is not open is
+Search across the project, through the real server: a word inside a file that is not open is
 found, a pressed match opens the file at it, and a replace writes the file only once it is confirmed.
 
 Unit tests mock the search API and cannot see the half that matters most here — the server walking the

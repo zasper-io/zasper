@@ -36,7 +36,7 @@ function askedRange(view: EditorView, plugin: LSPPlugin): ProtocolRange {
 }
 
 /**
- * The fixes and refactors a server offers where the cursor is (story 20).
+ * The fixes and refactors a server offers where the cursor is.
  *
  * The server is given back its own diagnostics for the range: some fixes exist only as the answer to a
  * particular diagnostic, and a server handed an empty list would not offer them.

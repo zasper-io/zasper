@@ -15,7 +15,7 @@ interface NotebookOutlineProps {
 }
 
 /**
- * A notebook's headings, in a column beside its cells — story 22, placement B.
+ * A notebook's headings, in a column beside its cells.
  *
  * The column belongs to the notebook rather than to the window: it is switched from the notebook's own
  * toolbar, so it is up for the notebook that wants it and absent from the file in the next tab. That is

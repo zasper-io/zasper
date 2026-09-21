@@ -28,7 +28,7 @@ interface LanguageServerStatusProps {
 }
 
 /**
- * The language server for the file in front (story 19): an item of its own, whose dot and words say
+ * The language server for the file in front: an item of its own, whose dot and words say
  * whether it is starting, ready or failed, and whose menu restarts it, shows its log or stops it. A
  * language with no server installed says so here and nowhere else, and the menu says what to install.
  */

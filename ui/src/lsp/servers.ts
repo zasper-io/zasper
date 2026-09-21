@@ -381,7 +381,7 @@ function connectionFor(server: string, root: string): Connection {
       'window/logMessage': () => true,
     },
     extensions: [
-      // What the client says it can do, beyond the library's own list: everything story 20 asks for.
+      // What the client says it can do, beyond the library's own list.
       {
         clientCapabilities: {
           textDocument: {
@@ -577,7 +577,7 @@ function stop(connection: Connection): void {
  * the file editor reconfigures on a settings change — which silently threw every squiggle away. There is
  * no source to run, so the linter never asks anything and never clears what a server published.
  *
- * The gutter the problems are marked in is not here — since story 20 that column also carries the lamp a
+ * The gutter the problems are marked in is not here — that column also carries the lamp a
  * fix is offered from, so it is one gutter, added by the editor beside these (`lsp/markGutter.ts`).
  */
 export function languageServerExtension(root: string, path: string, fileName: string): Extension {

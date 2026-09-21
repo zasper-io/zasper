@@ -3,7 +3,7 @@ import { atom } from 'jotai';
 import { ContentQuery, MatchKey, SearchFile, SearchLine, SearchRange, SearchSummary } from '@/api';
 
 /**
- * What the search panel is asking for (story 18). In the store rather than in the panel, because the
+ * What the search panel is asking for. In the store rather than in the panel, because the
  * replace preview tab reads the same query and the same left-out matches.
  */
 export interface SearchOptions {

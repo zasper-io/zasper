@@ -41,7 +41,7 @@
     color: var(--z-fg-default);
   }
 
-  // Every level is a menu (story 20), so a crumb is a control rather than a caption. It wears none of a
+  // Every level is a menu, so a crumb is a control rather than a caption. It wears none of a
   // button's own chrome: the trail has to read as one line of text.
   .crumb-button {
     padding: 0;

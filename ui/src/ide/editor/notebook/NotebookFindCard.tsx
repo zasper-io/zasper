@@ -50,11 +50,11 @@ export function notebookFindNote(find: NotebookFind): string {
 }
 
 /**
- * Find and replace across a notebook (story 17), floating under the toolbar over the first cell.
+ * Find and replace across a notebook, floating under the toolbar over the first cell.
  *
  * The controls are the file editor's, shared so the two cannot drift apart; what a notebook adds is
  * the filter for outputs and the line that says what the count is hiding. Replace never touches an
- * output, and a rendered markdown cell is left rendered — both settled in the story, and both said
+ * output, and a rendered markdown cell is left rendered — both said
  * out loud here rather than left for the reader to discover.
  */
 export default function NotebookFindCard({

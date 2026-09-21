@@ -224,7 +224,7 @@ const notebookOnDisk = `{
 }
 `
 
-// A notebook is searched as its cells (story 18): the text the notebook shows, not the JSON on disk.
+// A notebook is searched as its cells: the text the notebook shows, not the JSON on disk.
 func TestANotebookIsSearchedAsItsCells(t *testing.T) {
 	eachEngine(t, map[string]string{"analysis.ipynb": notebookOnDisk}, func(t *testing.T, h *Handler, _ string) {
 		files, summary := searched(t, h, Query{Pattern: "frame"})

@@ -1,6 +1,6 @@
 // The first screen: what starts something on the left, what was open and what is running on the right.
 //
-// Ported from story 2. What it replaces is a single column of 132px square tiles under a "Welcome to
+// Ported from the design prototype. What it replaces is a single column of 132px square tiles under a "Welcome to
 // zasper" heading, with a hairline under the heading and under every section.
 
 // One padding value for the whole launcher, so the headings and the rows all start on the same line.
@@ -157,7 +157,7 @@ $launcher-gutter: 32px;
 // --- The lists in the right column ------------------------------------------
 // One list shape for both: the files opened before, and what is running now.
 //
-// Capped at a measure rather than filling the column, and the measure is the drawing's own: story 2 has
+// Capped at a measure rather than filling the column, and the measure is the drawing's own: the prototype has
 // carried `max-width: 420px` since it was drawn and this file never took it, because a 260-to-340px
 // column could never reach 420 and nothing would have shown. At 60/40 the column can, so it is ported
 // here rather than restated — without it a row was a filename, 350px of nothing, and a power button

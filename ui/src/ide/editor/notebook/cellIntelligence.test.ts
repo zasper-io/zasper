@@ -17,7 +17,7 @@ const server: CompletionResult = {
 };
 
 describe('mergeCompletions', () => {
-  // The tag is what story 24 settled: a reader cannot otherwise tell a name that exists in the kernel
+  // The tag is there because a reader cannot otherwise tell a name that exists in the kernel
   // now from one the source defines in a cell that has not run.
   it("lists the kernel's names first, with what the server knows about them, then the server's own", () => {
     const merged = mergeCompletions(kernel, server);

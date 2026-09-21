@@ -5,7 +5,7 @@ import ConfirmDialog from '@/ide/ConfirmDialog';
 import type { ExportOptions } from './useNotebookExport';
 
 /*
-What the HTML export asks before it writes anything — story 21, option D.
+What the HTML export asks before it writes anything.
 
 Only HTML asks. Markdown is the prose *and* the code by definition and a script is the code alone, so
 neither has a question to put; those two rows export on the press. This is `ConfirmDialog`, the modal

@@ -64,7 +64,7 @@ function textOf(label: ServerHint['label']): string {
 }
 
 /**
- * The parameter names and inferred types a server offers for what is on screen (story 20), drawn in the
+ * The parameter names and inferred types a server offers for what is on screen, drawn in the
  * line and absent from the file.
  *
  * Asked for the visible range only, and again a moment after a change or a scroll: a hint is worth one

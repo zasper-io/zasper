@@ -38,7 +38,7 @@ export interface FileTabDict {
  * One half of a split: its own tabs, and its own tab in front. A file may be open in more than one
  * half, so the dictionary keyed by path is one *per half*; inside a half the path is still the key.
  *
- * There is one half today — the panes and the second strip are story 16's own work.
+ * There is one half today — the panes and the second strip are work still to come.
  */
 export interface TabGroup {
   /** Minted when the half is made, and what a tab's half is named by. */

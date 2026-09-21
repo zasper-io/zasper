@@ -31,8 +31,8 @@ export interface FindControlsProps {
  * The controls of the find card, which the file editor and the notebook share.
  *
  * Presentational on purpose: the two drive entirely different searches — one CodeMirror view against
- * fifty of them — and the one thing they must not do is drift apart on screen. Story 15 settled the
- * shape and story 17 kept it, so it is written once.
+ * fifty of them — and the one thing they must not do is drift apart on screen, so the
+ * shape is written once.
  */
 export default function FindControls(props: FindControlsProps) {
   const [replacing, setReplacing] = React.useState(false);

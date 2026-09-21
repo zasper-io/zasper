@@ -8,7 +8,7 @@ import { NotebookCell, NotebookOutput } from '@/api';
 import { setCurrentMatch } from '../findHighlight';
 import { findQuery } from '../findMatches';
 
-/** What the notebook's card is asking for. Story 17 settled that outputs are searched by default. */
+/** What the notebook's card is asking for. Outputs are searched by default. */
 export interface NotebookFindOptions {
   search: string;
   replace: string;
@@ -47,7 +47,7 @@ export interface NotebookFind {
   current: number;
   /** Matches in an output, which the card says cannot be replaced. */
   inOutputs: number;
-  /** Rendered markdown cells, which are not searched — story 17's other half. */
+  /** Rendered markdown cells, which are not searched. */
   skippedRendered: number;
   /** True while the query is a regular expression that does not parse. */
   broken: boolean;
@@ -110,7 +110,7 @@ interface NotebookFindInput {
 }
 
 /**
- * Find and replace across a notebook (story 17).
+ * Find and replace across a notebook.
  *
  * A notebook is not a document: it is fifty of them, some rendered rather than editable and some
  * printed by a kernel and not editable at all. So the query lives here rather than in a view, the
@@ -158,7 +158,7 @@ export function useNotebookFind({
     let skippedRendered = 0;
 
     cells.forEach((cell, index) => {
-      // A markdown cell showing its prose has no editor, and story 17 settled that it is left alone.
+      // A markdown cell showing its prose has no editor, so it is left alone.
       if (cell.cell_type === 'markdown' && views.current?.get(cell.id) === undefined) {
         skippedRendered += 1;
         return;

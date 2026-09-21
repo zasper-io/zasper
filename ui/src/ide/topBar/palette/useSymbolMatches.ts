@@ -39,7 +39,7 @@ function matching(rows: SymbolMatch[], needle: string): SymbolMatch[] {
 }
 
 /**
- * The symbols a palette query is asking for (story 20): `@` the file in front, `#` the whole project.
+ * The symbols a palette query is asking for: `@` the file in front, `#` the whole project.
  *
  * The file's own symbols are filtered here, because the server answered with all of them at once and
  * filtering a list already in hand on every keystroke is free. The project's are the server's own

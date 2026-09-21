@@ -7,7 +7,7 @@ import { tabGroupsAtom } from '@/store/tabState';
  * Every open tab, mounted.
  *
  * Over the halves rather than over one strip, which with one half is the same list it always was. What
- * arranging several of them looks like is the panes' own work (story 16); this only stops the store's
+ * arranging several of them looks like is the panes' own work; this only stops the store's
  * shape from being a reason they cannot be.
  */
 export default function ContentPanel() {

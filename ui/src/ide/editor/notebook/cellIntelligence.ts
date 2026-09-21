@@ -31,7 +31,7 @@ export interface CellIntelligenceOptions {
   kernelIdle: () => boolean;
 }
 
-/** Which of the two offered a name, drawn at the end of its row (story 24). */
+/** Which of the two offered a name, drawn at the end of its row. */
 export type CompletionOrigin = 'kernel' | 'source';
 
 export type TaggedCompletion = Completion & { origin?: CompletionOrigin };
@@ -223,7 +223,7 @@ function inspectAtCursor(options: CellIntelligenceOptions) {
  * the notebook's server.
  */
 /**
- * The tag at the end of a row: which of the two offered the name (story 24, option C). A reader cannot
+ * The tag at the end of a row: which of the two offered the name. A reader cannot
  * otherwise tell a name that exists in the kernel now from one the source defines in a cell that has not
  * run. Only a merged list carries it, so an untagged row is one nobody was asked to compare.
  */

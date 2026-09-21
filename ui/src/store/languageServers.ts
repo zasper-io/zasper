@@ -35,7 +35,7 @@ export const problemsAtom = atom<Record<string, Problem[]>>({});
 /** Whether the panel under the editor is open, which is where problems and references are read. */
 export const dockOpenAtom = atom(false);
 
-/** Which of the panel's three is in front: two lists and, since story 4, the shells. */
+/** Which of the panel's three is in front: two lists and the shells. */
 export type DockTab = 'problems' | 'references' | 'terminal';
 
 export const dockTabAtom = atom<DockTab>('problems');

@@ -44,7 +44,7 @@ function said(outcome: EditOutcome): string {
 }
 
 /**
- * Rename and quick fix for one file editor (story 20): the field over the name, the menu at the cursor,
+ * Rename and quick fix for one file editor: the field over the name, the menu at the cursor,
  * and the gutter that carries the lamp beside the line a fix belongs to.
  *
  * Both overlays are placed from the editor's own coordinates, which is why they live with the editor

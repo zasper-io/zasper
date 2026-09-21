@@ -6,7 +6,7 @@ import { NotebookModel } from '@/api';
  * Read off the *source* of every markdown cell rather than out of what `MarkdownRenderer` drew:
  * react-markdown emits bare `<h1>`–`<h6>` with no `id`, so the rendered document has nothing to point
  * at, and a cell that is open for editing has no rendered form at all. Reading the source instead
- * means a heading has a row from the first `#` typed, which is what story 22 draws.
+ * means a heading has a row from the first `#` typed.
  */
 export interface NotebookHeading {
   /** Where the cell is in `notebook.cells`: what a click scrolls to and focuses. */

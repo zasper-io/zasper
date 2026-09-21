@@ -139,7 +139,7 @@ export function useTabActions(): TabActions {
   /**
    * Brings a shell to the front of the panel under the editor, opening the panel if it is closed.
    *
-   * Story 4: a terminal was a tab, and exactly one tab is in front, so opening a shell put away the
+   * A terminal was once a tab, and exactly one tab is in front, so opening a shell put away the
    * code it was opened to run something against.
    */
   const showTerminal = (name: string) => {

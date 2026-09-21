@@ -189,7 +189,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // useNotebookCells, and a keymap in Cell, which between them disagreed about Shift-Enter and made
   // a capital M untypable.
   /**
-   * Every cell's editor, by cell id, for the notebook's own find (story 17).
+   * Every cell's editor, by cell id, for the notebook's own find.
    *
    * A ref rather than state: a view arriving is not a render, and the find card asks for them only
    * when it searches. Cleared by the cell as it unmounts, so a stale view is never dispatched into.
@@ -260,10 +260,10 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   }, []);
 
   /**
-   * The table of contents beside the cells — story 22.
+   * The table of contents beside the cells.
    *
    * It lives as long as the tab does, and opens as Settings says: what should remember it *per
-   * notebook* is the one thing that story left open, so nothing here writes it anywhere.
+   * notebook* is still an open question, so nothing here writes it anywhere.
    */
   const [showContents, setShowContents] = useState(editorSettings.notebook_contents);
   const headings = useMemo(() => notebookHeadings(cells.notebook), [cells.notebook]);
@@ -330,7 +330,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       .catch((error: unknown) => toast.error(apiErrorMessage(error)));
   };
 
-  // Only HTML asks anything before it writes: story 21 settled on a dialog (option D) for the two
+  // Only HTML asks anything before it writes: a dialog for the two
   // things a page can leave out, and Markdown and the script have no equivalent question.
   const [askingExport, setAskingExport] = useState(false);
 

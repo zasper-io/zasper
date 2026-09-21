@@ -42,7 +42,7 @@ function whereIn(line: SearchLine): string {
 }
 
 /**
- * The results, grouped by file (story 18): a row per file with its count, and under it a row per
+ * The results, grouped by file: a row per file with its count, and under it a row per
  * matching line, cut to start near the match. While replacing, each match shows what it will read.
  */
 export default function SearchResultList(props: SearchResultListProps) {

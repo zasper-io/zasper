@@ -284,7 +284,7 @@ describe('FileBrowser', () => {
 
       openMenu('src', 'Open Terminal Here');
 
-      // Story 4: a shell is not a tab, so what this opens is the dock rather than the strip.
+      // A shell is not a tab, so what this opens is the dock rather than the strip.
       expect(runningTerminals()).toContain('Terminal 1');
       expect(openTabs()).not.toContain('Terminal 1');
     });

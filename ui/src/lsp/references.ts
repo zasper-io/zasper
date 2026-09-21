@@ -85,7 +85,7 @@ async function linesOf(path: string, wanted: Set<number>): Promise<Map<number, s
 }
 
 /**
- * Every place a name is used, for the panel under the editor (story 20).
+ * Every place a name is used, for the panel under the editor.
  *
  * The definition is asked for separately and marked, rather than being a list of its own: it is one of
  * the places, and the row says which one it is. Null when the file's server cannot answer — no server for

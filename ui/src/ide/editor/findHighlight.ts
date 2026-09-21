@@ -35,7 +35,7 @@ export function matchRanges(
  * Marks every match that is on screen.
  *
  * @codemirror/search has a highlighter of its own and it draws nothing here: it returns
- * `Decoration.none` unless its own panel is open, and story 15 settled that the panel is ours and is
+ * `Decoration.none` unless its own panel is open, and the panel is ours and is
  * not one of CodeMirror's. This is that highlighter again, over the query the library still holds, with
  * the same two class names — so `.cm-searchMatch` in styles/_codemirror.scss paints both.
  *

@@ -7,7 +7,7 @@ import TerminalView from './Terminal';
 import './TerminalPanel.scss';
 
 /**
- * The shells this window has open, in the panel under the editor (story 4).
+ * The shells this window has open, in the panel under the editor.
  *
  * Every one of them stays mounted and all but one are hidden, which is what the tab strip did for them
  * before: a socket torn down and remade is a new shell wearing an old name. The list beside the pane is

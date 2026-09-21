@@ -95,7 +95,7 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
         )}
         <ProblemCounts />
         {/* The Launcher had the only way to open a shell, which meant going back to that tab to find
-            it (story 2). It belongs to the window rather than to anything in it, so it lives here. */}
+            it. It belongs to the window rather than to anything in it, so it lives here. */}
         {terminalsAvailable && (
           <>
             <button

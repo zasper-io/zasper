@@ -8,7 +8,7 @@ import (
 )
 
 /*
-A notebook is searched as its cells, which story 18 settled: on disk it is JSON, and a match in a quoted,
+A notebook is searched as its cells: on disk it is JSON, and a match in a quoted,
 escaped line of it is neither what the reader sees nor something a replace can safely write into. Sources
 are searched and can be replaced; what a cell printed is searched and never replaced, as in the notebook's
 own find.

@@ -33,7 +33,7 @@ interface FindCardProps {
 export type FindToggles = Record<FindOption, boolean>;
 
 /**
- * Find and replace in the file editor, floating at the top right (story 15).
+ * Find and replace in the file editor, floating at the top right.
  *
  * Not a CodeMirror panel: one placed there is `position: sticky` inside `.cm-editor`, which is as tall
  * as the document rather than as the pane, so it lands part-way down the file. This is the app's own

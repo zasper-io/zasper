@@ -256,7 +256,7 @@
   // to read on a light panel and light enough to read on a dark one, which is why the dark theme is the
   // one theme that overrides it.
   --z-status-error: #aa1a1a;
-  // A language server's warnings and hints (story 19). Derived rather than chosen, so they follow every
+  // A language server's warnings and hints. Derived rather than chosen, so they follow every
   // theme the two tokens they come from already follow.
   --z-status-warning: var(--z-git-modified);
   --z-status-info: var(--z-fg-accent);

@@ -280,7 +280,7 @@ function IDE() {
           </Panel>
           <PanelResizeHandle className="panelResizeHandle" />
           <Panel defaultSize={80} minSize={50}>
-            {/* The panel under the editor (stories 19 and 20), closed to nothing until it is asked for. */}
+            {/* The panel under the editor , closed to nothing until it is asked for. */}
             <PanelGroup direction="vertical">
               <Panel id="editor-area" order={1} minSize={30}>
                 <div className="main-content">
@@ -293,7 +293,7 @@ function IDE() {
                 hidden={!dockOpen}
                 disabled={!dockOpen}
               />
-              {/* A third, not a quarter: the panel holds a shell since story 4, and eight rows of
+              {/* A third, not a quarter: the panel holds a shell, and eight rows of
                   terminal is a pane you scroll rather than read. */}
               <Panel
                 ref={dockRef}

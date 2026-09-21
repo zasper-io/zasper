@@ -27,7 +27,7 @@ export const EDITOR_COMMANDS = defineCommands({
   // F12 and Shift-Alt-F, bound by the language server client in the editor itself.
   'editor:go-to-definition': { ...editor, label: 'Go to Definition' },
   'editor:format-document': { ...editor, label: 'Format Document' },
-  // Story 20's three. The chords are VS Code's, which is where anyone reaching for them learnt them.
+  // The chords are VS Code's, which is where anyone reaching for them learnt them.
   'editor:find-references': { ...editor, label: 'Find All References', keys: ['Shift-F12'] },
   'editor:rename-symbol': { ...editor, label: 'Rename Symbol', keys: ['F2'] },
   'editor:quick-fix': { ...editor, label: 'Quick Fix', keys: ['Mod-.'] },

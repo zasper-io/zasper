@@ -1,7 +1,7 @@
 /*
  * The halves, and the seam above them.
  *
- * Story 16 settled VS Code's model, where a file can be open in more than one half — so the open tabs
+ * This is VS Code's model, where a file can be open in more than one half — so the open tabs
  * became one dictionary per half rather than one for the window. Nothing makes a second half yet;
  * these are the rules the panes will be built on, and the proof that one half behaves exactly as the
  * single strip always did.

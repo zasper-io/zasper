@@ -23,7 +23,7 @@ vi.mock('@/api', () => ({
   logApiError: () => () => {},
 }));
 
-// The symbol halves of the query (story 20) ask a language server, which no test here runs.
+// The symbol halves of the query ask a language server, which no test here runs.
 vi.mock('@/lsp/symbols', () => ({
   documentSymbols: (...args: unknown[]) => documentSymbols(...args),
   workspaceSymbols: (query: string) => workspaceSymbols(query),

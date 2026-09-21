@@ -8,7 +8,7 @@ const ASK_DELAY = 700;
 
 /**
  * What the file in front declares, and which of those the cursor is inside — the breadcrumb bar's last
- * crumbs (story 20).
+ * crumbs.
  *
  * The trail is state and the cursor is not: the editor deliberately does not render on a keystroke, so
  * the line is compared against the trail that is already drawn and only a *different* trail renders.

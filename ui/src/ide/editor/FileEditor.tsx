@@ -304,7 +304,7 @@ export default function FileEditor(props: FileEditorProps) {
 
   /**
    * The search keys, ours because the basic setup's are left out: its `Mod-f` opens CodeMirror's own
-   * panel, and `Mod-Alt-g` opens its go-to-line panel, which the palette answered in story 14. What is
+   * panel, and `Mod-Alt-g` opens its go-to-line panel, which the palette answers. What is
    * kept is everything that does not draw anything — stepping between matches, and multiple cursors.
    */
   const findKeymap = useMemo(
@@ -338,7 +338,7 @@ export default function FileEditor(props: FileEditorProps) {
   // own highlighter draws nothing while its panel is closed, and ours never opens.
   const searchExtension = useMemo(() => [search(), findHighlighter], []);
 
-  // The file's language server, when Zasper knows one for its language (story 19).
+  // The file's language server, when Zasper knows one for its language.
   const projectDir = useAtomValue(projectDirAtom);
   const serverExtension = useMemo(
     () => languageServerExtension(projectDir, path, name),
@@ -352,12 +352,12 @@ export default function FileEditor(props: FileEditorProps) {
   // added to it since — the diagnostics among it.
   const currentView = useCallback(() => viewRef.current, []);
 
-  // Rename, quick fixes and the gutter they share with the problems (story 20). The gutter is added only
+  // Rename, quick fixes and the gutter they share with the problems. The gutter is added only
   // for a file some server serves, so a plain text file keeps its own left edge.
   const symbols = useSymbolActions({ path, name, view: currentView });
   const served = useMemo(() => serverLanguageFor(name) !== null, [name]);
 
-  // What the file declares, for the last crumbs of the bar above it (story 20).
+  // What the file declares, for the last crumbs of the bar above it.
   const outline = useDocumentSymbols({
     name,
     view: currentView,
@@ -707,7 +707,7 @@ export default function FileEditor(props: FileEditorProps) {
       saveKeymap,
       serverExtension,
       ...(served ? [symbols.extension] : []),
-      // Off by default, and asked for only where there is a server to ask (story 20).
+      // Off by default, and asked for only where there is a server to ask.
       ...(served && settings.inlay_hints ? [inlayHints()] : []),
     ],
     [
@@ -922,7 +922,7 @@ export default function FileEditor(props: FileEditorProps) {
           </div>
         )}
         <div className="file-editor-area" ref={symbols.area}>
-          {/* Over the name being renamed, and at the cursor for a fix (story 20). */}
+          {/* Over the name being renamed, and at the cursor for a fix. */}
           {symbols.overlays}
           {/* Over the code at the top right, so opening it moves nothing in the file. */}
           {finding && viewRef.current !== null && (

@@ -22,7 +22,7 @@ function pieces(place: ReferencePlace): { lead: string; mark: string; tail: stri
 }
 
 /**
- * Every place a name is used (story 20), in the panel under the editor. The rows are the project search's
+ * Every place a name is used, in the panel under the editor. The rows are the project search's
  * — a file, and the lines found in it — because a place a name is used is read the same way as a place a
  * word was found. The row that defines the name says so.
  */

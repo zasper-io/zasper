@@ -1,5 +1,5 @@
 /*
- * Find and replace across a notebook (story 17).
+ * Find and replace across a notebook.
  *
  * The cases that matter are the ones a single document cannot have: a match in the third cell, a cell
  * whose prose is rendered and so is not searched at all, and a match in something the kernel printed,
@@ -89,7 +89,7 @@ describe('useNotebookFind', () => {
     expect(result.current.inOutputs).toBe(0);
   });
 
-  // Story 17: a rendered markdown cell is not searched, and the count says so.
+  // A rendered markdown cell is not searched, and the count says so.
   it('does not search a rendered markdown cell, and says how many it skipped', () => {
     const cells = [...notebook, cell('d', '# frame notes', { cell_type: 'markdown' })];
     const { result } = find(cells, ['d']);

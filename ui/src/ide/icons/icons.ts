@@ -169,12 +169,12 @@ export const ICONS = {
   'zoom-in': ZoomIn, // The status bar's zoom control, whatever level it is showing
   // The one glyph in a `.z-notice-error`, which is where the app now says something failed.
   'circle-alert': CircleAlert,
-  // A language server's severities, and restarting one (story 19).
+  // A language server's severities, and restarting one.
   'circle-x': CircleX,
   'triangle-alert': TriangleAlert,
   info: Info,
   'rotate-ccw': RotateCcw,
-  // The panel under the editor, and what a server answers about a name (story 20).
+  // The panel under the editor, and what a server answers about a name.
   'list-checks': ListChecks,
   'text-quote': TextQuote,
   lightbulb: Lightbulb,

@@ -79,7 +79,7 @@ describe('LanguageServerStatus', () => {
     expect(screen.getByRole('menuitem', { name: 'Stop' })).toBeDisabled();
   });
 
-  // Story 19: a missing server is said here and nowhere else, and the menu says what to install.
+  // A missing server is said here and nowhere else, and the menu says what to install.
   it('says there is no server, and what to install', () => {
     renderItem('prepare.py');
 

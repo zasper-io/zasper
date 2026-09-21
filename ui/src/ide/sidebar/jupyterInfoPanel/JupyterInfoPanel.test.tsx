@@ -387,7 +387,7 @@ describe('JupyterInfoPanel', () => {
     expect(screen.getByText('No kernels are installed.')).toBeInTheDocument();
   });
 
-  // A shell is not a tab since story 4: the row brings it to the front of the panel under the editor.
+  // A shell is not a tab: the row brings it to the front of the panel under the editor.
   it('brings the shell a terminal row is for to the front of the panel', async () => {
     listTerminals.mockResolvedValue([terminalModel('Terminal 2', 'Terminal 2-1-x')]);
     renderPanel({ terminals: { 'Terminal 2': { id: 'Terminal 2', name: 'Terminal 2' } } });

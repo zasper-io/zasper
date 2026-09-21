@@ -71,7 +71,7 @@ export function toolbarButton(page: Page, name: string): Locator {
 
 /**
  * Starts a shell the way the app now offers one: the status bar's Terminal control, which opens the
- * panel under the editor (story 4). It was a tile on the Launcher, reachable only while that tab was
+ * panel under the editor. It was a tile on the Launcher, reachable only while that tab was
  * in front.
  */
 export async function openTerminal(page: Page): Promise<void> {

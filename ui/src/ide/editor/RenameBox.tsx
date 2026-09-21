@@ -15,7 +15,7 @@ interface RenameBoxProps {
 }
 
 /**
- * The field a rename is asked for in (story 20), over the name being renamed.
+ * The field a rename is asked for in, over the name being renamed.
  *
  * The count under it is the server's own: how many places the name is used, and how many of their files
  * have no editor — those are written on disk, where `⌘Z` cannot reach them.

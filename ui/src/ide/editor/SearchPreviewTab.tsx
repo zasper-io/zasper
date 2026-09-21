@@ -23,7 +23,7 @@ interface SearchPreviewTabProps {
 }
 
 /**
- * A file on disk against the same file after the search panel's replace (story 18), opened by pressing
+ * A file on disk against the same file after the search panel's replace, opened by pressing
  * one of its rows while the replace row is open. The whole file, including the lines around each match
  * that the panel's rows do not show.
  */

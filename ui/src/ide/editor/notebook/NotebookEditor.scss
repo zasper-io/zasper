@@ -22,8 +22,8 @@
   color: var(--z-fg-icon);
 }
 
-// 26px boxes, and the glyph inside them left at 16px — story 23, candidate B. The strip had nine
-// controls when story 1 drew it and has twelve now, each a 22px box 2px from its neighbour: 3px of
+// 26px boxes, and the glyph inside them left at 16px. The strip had nine
+// controls when it was first drawn and has twelve now, each a 22px box 2px from its neighbour: 3px of
 // quiet around a glyph, and two neighbours' hover fills 2px apart, which is what reads as a wall. The
 // quiet goes inside the button rather than between buttons, so the run takes 40px more of a strip that
 // has 533px standing empty in the middle of it, and the target grows with it.
@@ -36,7 +36,7 @@
 }
 
 // A pressed button in this strip needs a ground, not only the accent ink `.z-icon-button[aria-pressed]`
-// takes in styles/_controls.scss. Measured on the prototype's story-toc.html: in teal-light the strip's
+// takes in styles/_controls.scss. Measured in the prototype: in teal-light the strip's
 // own icons are #084541 and the pressed one #0c6862, two dark teals a hand apart, and in teal-dark it
 // goes #e2e2e2 → #a3d5d1, which is *dimmer* than its neighbours and so reads as disabled rather than as
 // on. A fill and not a border, because at 22px a border is most of the button. Scoped here: against a
@@ -853,7 +853,7 @@ table.dataframe tbody tr:hover {
 }
 
 // The sentence under the export dialog's two checkboxes — the one thing that has to be said about an
-// exported page, and the half of story 21's option D that a menu row had nowhere to put.
+// exported page, and what a menu row had nowhere to put.
 .export-dialog-note {
   margin: 0;
   padding: 0 16px 4px;

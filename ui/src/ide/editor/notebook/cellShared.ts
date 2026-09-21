@@ -37,7 +37,7 @@ const CELL_SETUP = {
   completionKeymap: true,
   tabSize: 4,
   // The notebook's find is the notebook's: the library's `⌘F` would open its own panel inside this one
-  // cell and search that cell alone, which is the defect story 17 is about.
+  // cell and search that cell alone, which is not a notebook's find.
   searchKeymap: false,
 };
 export const MARKDOWN_SETUP = { ...CELL_SETUP, autocompletion: true };
