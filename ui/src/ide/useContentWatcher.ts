@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { websocketUrl } from '@/api';
+import { checkServer, serverAnswered, watchServer } from './serverConnection';
 
 /**
  * How long events are collected before a listener is told. The server sends one message per filesystem
@@ -26,6 +27,7 @@ let socket: WebSocket | null = null;
 let retry: ReturnType<typeof setTimeout> | undefined;
 let attempt = 0;
 let opened = 0;
+let stopWatchingServer: (() => void) | undefined;
 
 function collect(listener: Listener): void {
   if (listener.collect === undefined) {
@@ -44,6 +46,7 @@ function connect(): void {
   current.onopen = () => {
     attempt = 0;
     opened += 1;
+    serverAnswered();
     // Anything that happened while the socket was down went unreported, so a reconnect cannot trust
     // what is on screen. The first open comes with each listener's own initial read.
     if (opened > 1) {
@@ -62,13 +65,23 @@ function connect(): void {
     // The server is down or restarting; retrying in a tight loop helps nobody.
     attempt += 1;
     retry = setTimeout(connect, Math.min(RECONNECT_MAX_MS, RECONNECT_MS * 2 ** (attempt - 1)));
+    void checkServer();
   };
+}
+
+// Back as soon as the server is, rather than at the end of a backoff that may have reached 30s.
+function reconnectWhenBack(offline: boolean): void {
+  if (!offline && socket === null && retry !== undefined) {
+    clearTimeout(retry);
+    connect();
+  }
 }
 
 function listen(listener: Listener): () => void {
   listeners.add(listener);
   if (socket === null && retry === undefined) {
     connect();
+    stopWatchingServer = watchServer(reconnectWhenBack);
   }
 
   return () => {
@@ -79,6 +92,8 @@ function listen(listener: Listener): () => void {
     }
     clearTimeout(retry);
     retry = undefined;
+    stopWatchingServer?.();
+    stopWatchingServer = undefined;
     const closing = socket;
     socket = null;
     attempt = 0;

@@ -1,7 +1,15 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { checkServer, serverAnswered } from './serverConnection';
 import { useContentWatcher } from './useContentWatcher';
+
+const serverAnswers = vi.fn();
+
+vi.mock('@/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/api')>()),
+  serverAnswers: () => serverAnswers(),
+}));
 
 /** A stand-in for the socket the panel opens, so nothing here reaches a real backend. */
 class FakeSocket {
@@ -29,6 +37,8 @@ describe('useContentWatcher', () => {
     FakeSocket.instances = [];
     vi.stubGlobal('WebSocket', FakeSocket);
     onChange = vi.fn();
+    serverAnswers.mockReset().mockResolvedValue(true);
+    serverAnswered();
   });
 
   afterEach(() => {
@@ -101,6 +111,28 @@ describe('useContentWatcher', () => {
       expect(FakeSocket.instances).toHaveLength(2); // the second wait is longer
       act(() => vi.advanceTimersByTime(1000));
       expect(FakeSocket.instances).toHaveLength(3);
+    });
+
+    it('asks whether the server is still there', () => {
+      renderHook(() => useContentWatcher(onChange));
+
+      act(() => FakeSocket.latest.onclose?.());
+
+      expect(serverAnswers).toHaveBeenCalledOnce();
+    });
+
+    it('reconnects as soon as the server answers again, without waiting out the backoff', async () => {
+      serverAnswers.mockResolvedValue(false);
+      renderHook(() => useContentWatcher(onChange));
+      await act(async () => FakeSocket.latest.onclose?.());
+      expect(FakeSocket.instances).toHaveLength(1);
+
+      serverAnswers.mockResolvedValue(true);
+      await act(async () => {
+        await checkServer();
+      });
+
+      expect(FakeSocket.instances).toHaveLength(2);
     });
 
     it('reloads once it is back, since nothing was reported while it was down', () => {

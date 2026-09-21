@@ -199,7 +199,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	wsRouter.HandleFunc("/lsp/{language}", s.languages.HandleWebSocket)
 
 	if spa != nil {
-		router.PathPrefix("/").Handler(spa)
+		router.PathPrefix("/").Handler(s.auth.PageGate(spa))
 	}
 
 	return router

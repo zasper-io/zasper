@@ -1,4 +1,11 @@
-export { ApiError, apiErrorMessage, logApiError, watchSession, websocketUrl } from './client';
+export {
+  ApiError,
+  apiErrorMessage,
+  logApiError,
+  serverAnswers,
+  watchSession,
+  websocketUrl,
+} from './client';
 export * from './auth';
 export * from './config';
 export * from './contents';

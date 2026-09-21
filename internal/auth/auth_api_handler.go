@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -96,6 +97,14 @@ type session struct {
 	expires time.Time
 }
 
+// invalidTokenError keeps the 401's message to "invalid token" while letting a caller ask jwt why.
+type invalidTokenError struct{ cause error }
+
+func (e invalidTokenError) Error() string { return "invalid token" }
+func (e invalidTokenError) Unwrap() error { return e.cause }
+
+var errSignedOut = errors.New("this session has been signed out")
+
 // parseSession validates a JWT this server issued and answers the session it names.
 func (a *Auth) parseSession(tokenStr string) (session, error) {
 	if tokenStr == "" {
@@ -109,7 +118,7 @@ func (a *Auth) parseSession(tokenStr string) (session, error) {
 		return a.key, nil
 	})
 	if err != nil || !token.Valid {
-		return session{}, fmt.Errorf("invalid token")
+		return session{}, invalidTokenError{err}
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -133,7 +142,7 @@ func (a *Auth) parseSession(tokenStr string) (session, error) {
 	}
 
 	if a.revoked.has(id) {
-		return session{}, fmt.Errorf("this session has been signed out")
+		return session{}, errSignedOut
 	}
 	return session{userID: userID, id: id, expires: expires.Time}, nil
 }

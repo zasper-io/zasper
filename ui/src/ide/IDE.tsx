@@ -56,6 +56,7 @@ import { useCommandKeymap } from '../commands/useCommandKeymap';
 import { useTelemetry } from '../telemetry';
 import { markSignedOut } from '../auth/signedIn';
 import SessionEndedNotice from '../auth/SessionEndedNotice';
+import ServerDisconnectedDialog from './ServerDisconnectedDialog';
 import { allowWidgetCdn } from './widgets/cdnLoader';
 
 function IDE() {
@@ -250,6 +251,7 @@ function IDE() {
     <div className="editor">
       <Topbar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
       <SessionEndedNotice />
+      <ServerDisconnectedDialog />
       <LanguageServerBridge />
       <div className="editor-container">
         {/* Outside the resizable group, so hiding the sidebar leaves the rail — and the way back —

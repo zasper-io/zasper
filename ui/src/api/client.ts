@@ -95,6 +95,19 @@ function noteSession(path: string, status: number): void {
   }
 }
 
+/**
+ * Whether the server answers at all. Straight to fetch rather than through request(): /api/health needs
+ * no session, so its 200 says nothing about whether the session still works.
+ */
+export async function serverAnswers(): Promise<boolean> {
+  try {
+    const res = await fetch(buildUrl('/api/health', undefined), { cache: 'no-store' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function request(path: string, options: RequestOptions = {}): Promise<Response> {
   const { method = 'GET', body, query, signal } = options;
 

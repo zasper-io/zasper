@@ -24,6 +24,8 @@ export async function apiModule() {
   return {
     // Not stubbed: the real one only builds a URL, and the socket it is handed to is mocked anyway.
     websocketUrl: client.websocketUrl,
+    // The watcher asks this when its socket closes.
+    serverAnswers: async () => true,
     getGitStatus: () => getGitStatus(),
     getLog: (options: unknown) => getLog(options),
     getCommitDetail: (hash: string) => getCommitDetail(hash),

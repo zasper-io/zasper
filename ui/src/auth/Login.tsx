@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import { ApiError, login } from '@/api';
-import { isSignedIn, markSignedIn } from './signedIn';
+import { isSignedIn, markSignedIn, markSignedOut } from './signedIn';
 import { useAppCommands } from '@/commands/appCommands';
 import { useRegisterCommands } from '@/commands/registry';
 import { useCommandKeymap } from '@/commands/useCommandKeymap';
@@ -23,6 +23,23 @@ function failureMessage(status: number): string {
   }
 }
 
+/** Why the server sent this browser here, from `/login?reason=`; null for a first visit. */
+function endedMessage(reason: string | null, hadSession: boolean): [string, string?] | null {
+  switch (reason) {
+    case 'restarted':
+      return [
+        'Zasper restarted, so your session ended.',
+        'The server printed a new token when it started.',
+      ];
+    case 'expired':
+      return ['Your session expired after 24 hours.'];
+    case 'signed-out':
+      return ['This session was signed out, possibly in another window.'];
+    default:
+      return hadSession ? ['Your session has ended.'] : null;
+  }
+}
+
 function Login() {
   const navigate = useNavigate();
 
@@ -31,11 +48,15 @@ function Login() {
   useRegisterCommands(useAppCommands());
   useApplyZoom();
 
+  const [searchParams] = useSearchParams();
+  // Read before the effect below clears it.
+  const [hadSession] = useState(isSignedIn);
+  const ended = endedMessage(searchParams.get('reason'), hadSession);
+
+  // The server sends a live session away from /login, so a marker still here is stale.
   useEffect(() => {
-    if (isSignedIn()) {
-      navigate('/', { replace: true });
-    }
-  }, [navigate]);
+    markSignedOut();
+  }, []);
 
   const [accessToken, setAccessToken] = useState('');
   const [revealed, setRevealed] = useState(false);
@@ -62,7 +83,7 @@ function Login() {
             <img className="login-hero-logo" src="./images/logo-white.svg" alt="Zasper" />
           </Link>
           <div className="login-hero-body">
-            <p className="login-hero-title">High-performance IDE, for Jupyter Notebooks.</p>
+            <p className="login-hero-title">High-performance IDE for Jupyter Notebooks.</p>
             <TextCarousel />
           </div>
           <p className="login-hero-foot">
@@ -75,6 +96,15 @@ function Login() {
 
         <div className="login-panel">
           <form className="login-form" onSubmit={submitLogin}>
+            {ended !== null && error === null && (
+              <div className="z-notice" role="status">
+                <Icon name="info" />
+                <p>
+                  <strong>{ended[0]}</strong>
+                  {ended[1] && ` ${ended[1]}`}
+                </p>
+              </div>
+            )}
             <h1 className="login-form-title">Sign in</h1>
             <p className="login-form-lede">
               This server is running in protected mode. Enter its access token to open your

@@ -24,9 +24,9 @@ vi.mock('react-router-dom', async () => ({
   useNavigate: () => navigate,
 }));
 
-function renderLogin() {
+function renderLogin(path = '/login') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <Login />
     </MemoryRouter>
   );
@@ -106,11 +106,49 @@ describe('Login', () => {
     expect(localStorage.getItem('zasper.zoom')).toBe('-1');
   });
 
-  it('does not ask a browser that is already signed in', () => {
+  it('says the server restarted when that is why the session ended', () => {
+    localStorage.setItem('zasper.signedIn', '1');
+    renderLogin('/login?reason=restarted');
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Zasper restarted, so your session ended. The server printed a new token when it started.'
+    );
+    // The server only serves /login to a dead session, so the marker is stale and must not send the
+    // IDE route back to the IDE.
+    expect(localStorage.getItem('zasper.signedIn')).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['expired', 'Your session expired after 24 hours.'],
+    ['signed-out', 'This session was signed out, possibly in another window.'],
+  ])('names the reason %s', (reason, message) => {
+    renderLogin(`/login?reason=${reason}`);
+
+    expect(screen.getByRole('status')).toHaveTextContent(message);
+  });
+
+  it('says a session ended when the browser thought it had one', () => {
     localStorage.setItem('zasper.signedIn', '1');
     renderLogin();
 
-    expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    expect(screen.getByRole('status')).toHaveTextContent('Your session has ended.');
+  });
+
+  it('says nothing on a first visit, or for a reason it does not know', () => {
+    renderLogin('/login?reason=constructor');
+
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('shows a rejected token in place of the reason', async () => {
+    login.mockRejectedValue(new ApiError('POST', '/login', 401, 'unauthorized'));
+    renderLogin('/login?reason=restarted');
+
+    submit('the-old-one');
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   // Every sentence is in the DOM and in source order; that the animation is CSS is the point.
