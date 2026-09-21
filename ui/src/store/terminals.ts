@@ -1,5 +1,7 @@
 import { atom } from 'jotai';
 
+import { dockOpenAtom, dockTabAtom } from './languageServers';
+
 export interface TerminalRef {
   name: string;
   id: string;
@@ -43,6 +45,9 @@ export const closeTerminalAtom = atom(null, (get, set, name: string) => {
   const next = { ...terminals };
   delete next[name];
   set(terminalsAtom, next);
+  const pending = { ...get(terminalInputAtom) };
+  delete pending[name];
+  set(terminalInputAtom, pending);
 
   // The one before it, as closing a tab comes back to its neighbour rather than to the top of the
   // strip; the one after it when the first was closed, and nothing when that was the last shell.
@@ -50,4 +55,30 @@ export const closeTerminalAtom = atom(null, (get, set, name: string) => {
     const closed = names.indexOf(name);
     set(currentTerminalAtom, names[closed - 1] ?? names[closed + 1] ?? '');
   }
+});
+
+/** Lines waiting to be typed into a shell, by name. Its pane takes them once its socket is open. */
+export const terminalInputAtom = atom<Record<string, string[]>>({});
+
+/** The shell files are run in, kept apart from the numbered ones so a run never types into those. */
+export const RUN_TERMINAL = 'Run';
+
+/**
+ * Types a line into the Run terminal and brings it forward, opening it first when it is not. Into a
+ * shell rather than as a process of its own, so what the program printed stays, and the line can be
+ * run again with the up arrow.
+ */
+export const runInTerminalAtom = atom(null, (get, set, line: string) => {
+  const terminals = get(terminalsAtom);
+  if (terminals[RUN_TERMINAL] === undefined) {
+    set(terminalsAtom, { ...terminals, [RUN_TERMINAL]: { id: RUN_TERMINAL, name: RUN_TERMINAL } });
+  }
+  const pending = get(terminalInputAtom);
+  set(terminalInputAtom, {
+    ...pending,
+    [RUN_TERMINAL]: [...(pending[RUN_TERMINAL] ?? []), `${line}\r`],
+  });
+  set(currentTerminalAtom, RUN_TERMINAL);
+  set(dockTabAtom, 'terminal');
+  set(dockOpenAtom, true);
 });

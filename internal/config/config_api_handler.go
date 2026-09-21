@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/httpx"
@@ -67,6 +69,20 @@ func ConfigModifyHandler(w http.ResponseWriter, req *http.Request) {
 		if err := setLanguageServerSettings(settings); err != nil {
 			log.Warn().Err(err).Msg("could not save the language server settings")
 			httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the language server settings: %v", err))
+			return
+		}
+	case "python_interpreter":
+		// Empty for automatic; otherwise a program that exists, so a typo is refused rather than saved.
+		if body.Value != "" {
+			info, err := os.Stat(body.Value)
+			if !filepath.IsAbs(body.Value) || err != nil || info.IsDir() {
+				httpx.SendErrorResponse(w, http.StatusBadRequest, "the Python interpreter is the absolute path of a program")
+				return
+			}
+		}
+		if err := setPythonInterpreter(body.Value); err != nil {
+			log.Warn().Err(err).Msg("could not save the Python interpreter")
+			httpx.SendErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("could not save the Python interpreter: %v", err))
 			return
 		}
 	default:

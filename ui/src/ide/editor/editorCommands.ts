@@ -2,13 +2,17 @@ import { toggleComment } from '@codemirror/commands';
 import { foldAll, unfoldAll } from '@codemirror/language';
 import { formatDocument, jumpToDefinition } from '@codemirror/lsp-client';
 import { EditorView } from '@codemirror/view';
-import { useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { toast } from 'react-toastify';
 
+import { apiErrorMessage, getRunCommand } from '@/api';
 import { defineCommands } from '@/commands/define';
 import { Command } from '@/commands/types';
 import { findReferences, symbolAt } from '@/lsp/references';
 import { dockOpenAtom, dockTabAtom } from '@/store/languageServers';
 import { referencesAtom } from '@/store/references';
+import { terminalsAvailableAtom } from '@/store/serverInfo';
+import { runInTerminalAtom } from '@/store/terminals';
 
 const editor = { category: 'Editor', scope: 'app' } as const;
 
@@ -31,6 +35,7 @@ export const EDITOR_COMMANDS = defineCommands({
   'editor:find-references': { ...editor, label: 'Find All References', keys: ['Shift-F12'] },
   'editor:rename-symbol': { ...editor, label: 'Rename Symbol', keys: ['F2'] },
   'editor:quick-fix': { ...editor, label: 'Quick Fix', keys: ['Mod-.'] },
+  'editor:run-python-file': { ...editor, label: 'Run Python File in Terminal' },
 });
 
 /** What the file in front lends its commands: the file itself, and the two that draw over the editor. */
@@ -41,6 +46,8 @@ export interface EditorCommandTarget {
   startRename: () => void;
   /** Opens the quick fix menu at the cursor. */
   showQuickFix: () => void;
+  /** Writes unsaved edits, so a run runs what is on screen. */
+  saveBeforeRun: () => Promise<void>;
 }
 
 /** Not memoized, like the notebook's: `useRegisterCommands` re-registers only when the ids change. */
@@ -51,6 +58,18 @@ export function useEditorCommands(
   const setReferences = useSetAtom(referencesAtom);
   const setDockOpen = useSetAtom(dockOpenAtom);
   const setDockTab = useSetAtom(dockTabAtom);
+  const runInTerminal = useSetAtom(runInTerminalAtom);
+  const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
+
+  const runFile = () => {
+    target
+      .saveBeforeRun()
+      .then(() => getRunCommand(target.path))
+      .then(({ command }) => runInTerminal(command))
+      .catch((error: unknown) =>
+        toast.error(`Could not run ${target.name}: ${apiErrorMessage(error)}`)
+      );
+  };
 
   // Focused first: these act where the cursor is, and running one from the palette has just taken the
   // focus away from it.
@@ -115,5 +134,15 @@ export function useEditorCommands(
     },
     { ...EDITOR_COMMANDS['editor:rename-symbol'], execute: target.startRename },
     { ...EDITOR_COMMANDS['editor:quick-fix'], execute: target.showQuickFix },
+    // Only offered for a Python file, where it is the one language a project's interpreter is found for.
+    ...(target.name.toLowerCase().endsWith('.py')
+      ? [
+          {
+            ...EDITOR_COMMANDS['editor:run-python-file'],
+            isEnabled: () => terminalsAvailable,
+            execute: runFile,
+          },
+        ]
+      : []),
   ];
 }

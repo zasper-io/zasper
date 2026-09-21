@@ -29,3 +29,14 @@ export function listTerminals(): Promise<TerminalModel[]> {
 export function deleteTerminal(terminalId: string): Promise<void> {
   return requestEmpty(`/api/terminals/${encodeURIComponent(terminalId)}`, { method: 'DELETE' });
 }
+
+/** The line that runs a file with the interpreter the project uses, and the interpreter it names. */
+export interface RunCommand {
+  command: string;
+  interpreter: string;
+}
+
+/** How to run a Python file in the project: its .venv's Python, or the shell's `python3`. */
+export function getRunCommand(path: string): Promise<RunCommand> {
+  return requestJson<RunCommand>(`/api/terminals/run-command?path=${encodeURIComponent(path)}`);
+}

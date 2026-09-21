@@ -1,11 +1,12 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Provider, useAtomValue, useSetAtom } from 'jotai';
+import { createStore, Provider, useAtomValue, useSetAtom } from 'jotai';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import FileEditor from './FileEditor';
 import { EditorSettings } from '@/api';
 import { goToLineAtom } from '@/store/editorRequests';
+import { RUN_TERMINAL, terminalInputAtom } from '@/store/terminals';
 import { DEFAULT_EDITOR_SETTINGS, editorSettingsAtom } from '@/store/settings';
 import { FileTab } from '@/store/tabState';
 import { unsavedTabsAtom } from '@/store/unsavedState';
@@ -16,12 +17,14 @@ const getEditorConfig = vi.fn();
 const saveFile = vi.fn();
 const downloadContent = vi.fn();
 const saveAs = vi.fn();
+const getRunCommand = vi.fn();
 
 vi.mock('@/api', () => ({
   getFileContent: (path: string) => getFileContent(path),
   getEditorConfig: (path: string) => getEditorConfig(path),
   saveFile: (path: string, content: string) => saveFile(path, content),
   downloadContent: (path: string) => downloadContent(path),
+  getRunCommand: (path: string) => getRunCommand(path),
   logApiError: () => () => {},
   apiErrorMessage: (error: unknown) => (error as Error).message,
 }));
@@ -604,5 +607,47 @@ describe('FileEditor', () => {
       expect(unsavedPaths()).toBe('');
       expect(saveFile).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('the play button', () => {
+  beforeEach(() => {
+    getFileContent.mockReset();
+    getFileContent.mockResolvedValue(text('print("hi")\n'));
+    getEditorConfig.mockResolvedValue({});
+    saveFile.mockReset();
+    saveFile.mockResolvedValue(undefined);
+    getRunCommand.mockReset();
+    getRunCommand.mockResolvedValue({ command: 'python3 /p/main.py', interpreter: 'python3' });
+  });
+
+  it('is offered for a Python file only', async () => {
+    render(
+      <Provider>
+        <FileEditor data={tab} />
+      </Provider>
+    );
+    await screen.findByRole('textbox');
+    expect(screen.queryByLabelText('Run Python File in Terminal')).toBeNull();
+  });
+
+  it('saves the file, then types the line that runs it into the Run terminal', async () => {
+    const store = createStore();
+    const python = { ...tab, path: 'main.py', name: 'main.py', extension: 'py' };
+    render(
+      <Provider store={store}>
+        <FileEditor data={python} />
+      </Provider>
+    );
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('print("hi")\n'));
+    type('print("hi")\nprint("there")\n');
+
+    fireEvent.click(screen.getByLabelText('Run Python File in Terminal'));
+
+    await waitFor(() =>
+      expect(store.get(terminalInputAtom)).toEqual({ [RUN_TERMINAL]: ['python3 /p/main.py\r'] })
+    );
+    expect(saveFile).toHaveBeenCalledWith('main.py', 'print("hi")\nprint("there")\n');
+    expect(getRunCommand).toHaveBeenCalledWith('main.py');
   });
 });

@@ -15,6 +15,7 @@ import { terminalsAvailableAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import EolStatus from './EolStatus';
 import IndentStatus from './IndentStatus';
+import InterpreterStatus from './InterpreterStatus';
 import LanguageServerStatus from './LanguageServerStatus';
 import LanguageStatus from './LanguageStatus';
 import ProblemCounts from './ProblemCounts';
@@ -131,6 +132,8 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
         {formatPath !== null && activeTab !== undefined ? (
           <>
             <LanguageStatus path={formatPath} fileName={activeTab.name} />
+            {/* A Python file is the one kind that can be run, so it says with what. */}
+            {activeTab.name.toLowerCase().endsWith('.py') && <InterpreterStatus />}
             <LanguageServerStatus fileName={activeTab.name} />
           </>
         ) : (

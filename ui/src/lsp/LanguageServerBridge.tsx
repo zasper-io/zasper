@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'react-toastify';
 
-import { getLanguageServers, logApiError } from '@/api';
+import { getInterpreters, getLanguageServers, logApiError } from '@/api';
 import { baseName } from '@/paths';
 import { languageServerListAtom, problemsAtom, serverStatusAtom } from '@/store/languageServers';
+import { interpreterChoiceAtom } from '@/store/interpreters';
 import { kernelspecsAtom } from '@/store/kernels';
 import { projectDirAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
@@ -24,6 +25,7 @@ import { waitForEditorView } from './views';
 export default function LanguageServerBridge() {
   const root = useAtomValue(projectDirAtom);
   const kernelspecs = useAtomValue(kernelspecsAtom);
+  const [interpreterChoice, setInterpreterChoice] = useAtom(interpreterChoiceAtom);
   const setStatus = useSetAtom(serverStatusAtom);
   const setProblems = useSetAtom(problemsAtom);
   const setList = useSetAtom(languageServerListAtom);
@@ -58,11 +60,23 @@ export default function LanguageServerBridge() {
     });
   }, [openTab]);
 
-  // The project's own environment, which Zasper already offers as a kernel: what a file editor's imports
-  // are read with until a notebook names the interpreter of its kernel.
+  // The Python chosen in Settings, or else the project's own environment, which Zasper already offers as a
+  // kernel: what a file editor's imports are read with until a notebook names the interpreter of its kernel.
   useEffect(() => {
-    setFallbackInterpreter('python', interpreterOfKernel(kernelspecs['project-venv']));
-  }, [kernelspecs]);
+    const chosen = interpreterChoice?.chosen;
+    setFallbackInterpreter(
+      'python',
+      chosen ? chosen : interpreterOfKernel(kernelspecs['project-venv'])
+    );
+  }, [interpreterChoice, kernelspecs]);
+
+  useEffect(() => {
+    if (root !== '') {
+      getInterpreters()
+        .then(setInterpreterChoice)
+        .catch(logApiError('Error listing Python interpreters:'));
+    }
+  }, [root, setInterpreterChoice]);
 
   useEffect(() => {
     if (root !== '') {

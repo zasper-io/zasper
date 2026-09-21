@@ -95,6 +95,11 @@
   width: 260px;
 }
 
+// Wider than the language picker: its rows carry a path.
+.languagePicker.interpreterPicker {
+  width: 360px;
+}
+
 // `.z-note` has no side padding, and this one is inside an overlay.
 .languagePicker-empty {
   margin: 0;

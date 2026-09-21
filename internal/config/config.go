@@ -24,6 +24,9 @@ type Config struct {
 	Editor           *EditorSettings `json:"editor,omitempty"`
 	// Settings → Language servers.
 	LanguageServers *LanguageServerSettings `json:"language_servers,omitempty"`
+	// PythonInterpreter is the Python that runs a file and that a file editor's imports are read with.
+	// "" is automatic: the project's .venv or venv, and otherwise the python3 the shell finds.
+	PythonInterpreter string `json:"python_interpreter,omitempty"`
 }
 
 // DefaultTheme names a theme in ui/src/themes, which is the only place that knows what one means: the
@@ -296,6 +299,23 @@ func setLanguageServerSettings(settings LanguageServerSettings) error {
 	normalised := settings.normalised()
 	_, err := UpdateConfig(func(config *Config) bool {
 		config.LanguageServers = &normalised
+		return true
+	})
+	return err
+}
+
+// GetPythonInterpreter answers the chosen Python, or "" for automatic.
+func GetPythonInterpreter() string {
+	config, err := ReadConfig()
+	if err != nil {
+		return ""
+	}
+	return config.PythonInterpreter
+}
+
+func setPythonInterpreter(path string) error {
+	_, err := UpdateConfig(func(config *Config) bool {
+		config.PythonInterpreter = path
 		return true
 	})
 	return err

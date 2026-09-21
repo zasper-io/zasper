@@ -10,6 +10,7 @@ import {
   modifyConfig,
 } from '@/api';
 import { configurationChanged, restartLanguageServer } from '@/lsp/servers';
+import { usePythonInterpreter } from '@/store/interpreters';
 import { languageServerListAtom } from '@/store/languageServers';
 import { DEFAULT_TYPE_CHECKING, setTypeChecking } from '@/lsp/settings';
 import { setTelemetrySettings } from '@/api/telemetry';
@@ -99,6 +100,7 @@ function useSettings(): Setting[] {
   const [widgetCdn, setWidgetCdn] = useAtom(widgetCdnAtom);
   const [editor, changeEditor] = useEditorSettings();
   const [servers, setServers] = useAtom(languageServerListAtom);
+  const [interpreters, choosePython] = usePythonInterpreter();
 
   // Written whole, from what the server list says is configured, and every server changed is started again
   // so the new command or the switch takes effect without reopening a file.
@@ -423,6 +425,52 @@ function useSettings(): Setting[] {
         />
       ),
     },
+    ...(interpreters === null
+      ? []
+      : [
+          {
+            id: 'settings-python-interpreter',
+            group: 'Python',
+            name: 'Python interpreter',
+            help: (
+              <>
+                The Python a file is run with, and that a file&apos;s imports are read with.
+                Automatic is each project&apos;s own .venv or venv, and otherwise the shell&apos;s
+                python3. A notebook uses its kernel&apos;s Python whatever this says.{' '}
+                {/* The path in full here, because the select is too narrow to hold one. */}
+                <code>{interpreters.chosen || interpreters.automatic || 'python3'}</code>
+              </>
+            ),
+            words: `interpreter venv virtualenv conda pyenv run environment ${interpreters.interpreters
+              .map((python) => `${python.where} ${python.version}`)
+              .join(' ')}`,
+            control: (
+              <div className="z-select">
+                <select
+                  id="settings-python-interpreter"
+                  value={interpreters.chosen}
+                  onChange={(event) => choosePython(event.target.value)}
+                >
+                  <option value="">Automatic</option>
+                  {interpreters.interpreters.map((python) => (
+                    <option
+                      key={python.executable}
+                      value={python.executable}
+                      title={python.executable}
+                    >
+                      {python.where} · {python.version}
+                    </option>
+                  ))}
+                  {/* Chosen and since removed: still shown, so the select does not claim Automatic. */}
+                  {interpreters.chosen !== '' &&
+                    !interpreters.interpreters.some(
+                      (python) => python.executable === interpreters.chosen
+                    ) && <option value={interpreters.chosen}>Not found</option>}
+                </select>
+              </div>
+            ),
+          },
+        ]),
     ...(servers === null
       ? []
       : [

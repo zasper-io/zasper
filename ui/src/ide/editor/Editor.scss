@@ -58,6 +58,13 @@
   }
 }
 
+// A file's own actions, at the right end of the row that names it.
+.breadcrumb-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
 // The strip under the breadcrumb that belongs to one kind of tab: a diff's two sides, a markdown
 // file's view. Measured like .breadcrumbArea, so the two read as one header rather than two bands.
 .editor-strip {

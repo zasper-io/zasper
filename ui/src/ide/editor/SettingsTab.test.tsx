@@ -1,18 +1,22 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { Provider, useAtomValue } from 'jotai';
+import { createStore, Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SettingsTab, { parseRulers } from './SettingsTab';
+import { interpreterChoiceAtom } from '@/store/interpreters';
 import { DEFAULT_EDITOR_SETTINGS, themeAtom } from '@/store/settings';
 import { FileTab } from '@/store/tabState';
 import { themes } from '@/themes';
 
 const modifyConfig = vi.fn();
+const getInterpreters = vi.fn();
 
 vi.mock('@/api', () => ({
   modifyConfig: (key: string, value: string) => modifyConfig(key, value),
   saveEditorSettings: (settings: unknown) => modifyConfig('editor', JSON.stringify(settings)),
   logApiError: () => () => {},
+  getInterpreters: () => getInterpreters(),
+  apiErrorMessage: (error: unknown) => String(error),
 }));
 
 const tab: FileTab = {
@@ -148,5 +152,64 @@ describe('SettingsTab', () => {
     fireEvent.change(screen.getByLabelText('Search settings'), { target: { value: 'kerning' } });
 
     expect(screen.getByText('No setting matches “kerning”.')).toBeInTheDocument();
+  });
+});
+
+describe('the Python interpreter', () => {
+  const choice = {
+    chosen: '',
+    automatic: '/p/.venv/bin/python3',
+    interpreters: [
+      { executable: '/p/.venv/bin/python3', version: '3.12', where: '.venv' },
+      { executable: '/opt/homebrew/bin/python3', version: '3.13', where: 'Homebrew' },
+    ],
+  };
+
+  function renderWith(value: typeof choice) {
+    const store = createStore();
+    store.set(interpreterChoiceAtom, value);
+    render(
+      <Provider store={store}>
+        <SettingsTab data={tab} />
+      </Provider>
+    );
+    return store;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    modifyConfig.mockResolvedValue(undefined);
+  });
+
+  it('offers automatic and every Python found, and names the one in use', () => {
+    renderWith(choice);
+    const options = within(screen.getByLabelText('Python interpreter')).getAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Automatic',
+      '.venv · 3.12',
+      'Homebrew · 3.13',
+    ]);
+    // The select is too narrow for a path, so the one in use is spelled out beside it.
+    expect(screen.getByText('/p/.venv/bin/python3').tagName).toBe('CODE');
+  });
+
+  it('saves the choice, and takes the answer the server gives back', async () => {
+    const chosen = { ...choice, chosen: '/opt/homebrew/bin/python3' };
+    getInterpreters.mockResolvedValue(chosen);
+    const store = renderWith(choice);
+    fireEvent.change(screen.getByLabelText('Python interpreter'), {
+      target: { value: '/opt/homebrew/bin/python3' },
+    });
+
+    expect(modifyConfig).toHaveBeenCalledWith('python_interpreter', '/opt/homebrew/bin/python3');
+    await vi.waitFor(() => expect(store.get(interpreterChoiceAtom)).toEqual(chosen));
+  });
+
+  it('still shows a choice whose Python has since gone, rather than claiming automatic', () => {
+    renderWith({ ...choice, chosen: '/gone/bin/python3' });
+    const select = screen.getByLabelText('Python interpreter') as HTMLSelectElement;
+    expect(select.value).toBe('/gone/bin/python3');
+    expect(select.selectedOptions[0].textContent).toBe('Not found');
+    expect(screen.getByText('/gone/bin/python3').tagName).toBe('CODE');
   });
 });

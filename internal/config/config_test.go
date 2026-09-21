@@ -353,3 +353,21 @@ func TestLanguageServersAreOnWithNothingOverriddenUntilChosen(t *testing.T) {
 
 	assert.Equal(t, LanguageServerSettings{Disabled: true, Commands: map[string]string{"python": "pylsp"}}, GetLanguageServerSettings())
 }
+
+func TestThePythonInterpreterCanBeChosenOverTheApi(t *testing.T) {
+	path := aHome(t)
+	python := filepath.Join(t.TempDir(), "python3")
+	require.NoError(t, os.WriteFile(python, nil, 0o755))
+
+	assert.Equal(t, http.StatusNoContent, modify(t, `{"key":"python_interpreter","value":"`+python+`"}`).Code)
+	assert.Equal(t, python, GetPythonInterpreter())
+
+	// Refused, and the choice already made is kept: a relative path, a program that is not there, a folder.
+	for _, value := range []string{"python3", filepath.Join(t.TempDir(), "missing"), t.TempDir()} {
+		assert.Equal(t, http.StatusBadRequest, modify(t, `{"key":"python_interpreter","value":"`+value+`"}`).Code, value)
+		assert.Equal(t, python, readRaw(t, path).PythonInterpreter, value)
+	}
+
+	assert.Equal(t, http.StatusNoContent, modify(t, `{"key":"python_interpreter","value":""}`).Code)
+	assert.Equal(t, "", GetPythonInterpreter(), "empty is automatic")
+}

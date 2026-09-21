@@ -306,19 +306,9 @@ func nativeKernelName(python *interpreter, taken map[string]bool) string {
 
 // virtualSpec is the spec ipykernel's own get_kernel_dict writes, for this interpreter.
 func virtualSpec(python *interpreter, resources string) KernelSpecJsonData {
-	where := map[string]string{
-		"homebrew":   "Homebrew",
-		"system":     "system",
-		"python.org": "python.org",
-		"pyenv":      "pyenv",
-		"uv":         "uv",
-	}[environmentLabel(python.Prefix)]
-	if where == "" {
-		where = filepath.Base(python.Prefix)
-	}
 	spec := KernelSpecJsonData{
 		Argv:        []string{python.Executable, "-m", "ipykernel_launcher", "-f", "{connection_file}"},
-		DisplayName: fmt.Sprintf("Python %s (%s)", python.Version, where),
+		DisplayName: fmt.Sprintf("Python %s (%s)", python.Version, whereFrom(python.Prefix)),
 		Language:    "python",
 		Metadata:    map[string]interface{}{"debugger": true},
 		ResourceDir: resources,
@@ -335,6 +325,21 @@ func virtualSpec(python *interpreter, resources string) KernelSpecJsonData {
 		}
 	}
 	return spec
+}
+
+// whereFrom names where an install came from, for a person choosing between two of the same version.
+func whereFrom(prefix string) string {
+	where := map[string]string{
+		"homebrew":   "Homebrew",
+		"system":     "system",
+		"python.org": "python.org",
+		"pyenv":      "pyenv",
+		"uv":         "uv",
+	}[environmentLabel(prefix)]
+	if where == "" {
+		where = filepath.Base(prefix)
+	}
+	return where
 }
 
 func isVirtualEnv(prefix string) bool {

@@ -167,6 +167,8 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 
 	// kernelspecs
 	apiRouter.HandleFunc("/kernelspecs", s.specs.ListHandler).Methods("GET")
+	// The Pythons Settings offers as the default interpreter, and which one is chosen.
+	apiRouter.HandleFunc("/interpreters", s.specs.InterpretersHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernelspecs/{kernelName}", s.specs.GetHandler).Methods("GET")
 	// The launcher's "Set up a Python kernel". Not Jupyter's, so not under /api/kernelspecs, where a GET
 	// would be read as a kernel named "setup".
@@ -186,6 +188,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	// terminals. The shells live in the terminal package because the connection is what starts and
 	// ends one; these two are how anything that is not that connection can see them.
 	apiRouter.HandleFunc("/terminals", s.terminals.ListHandler).Methods("GET")
+	apiRouter.HandleFunc("/terminals/run-command", s.terminals.RunCommandHandler).Methods("GET")
 	apiRouter.HandleFunc("/terminals/{terminalId}", s.terminals.KillHandler).Methods("DELETE")
 
 	// sessions

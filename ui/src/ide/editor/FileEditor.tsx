@@ -28,7 +28,7 @@ import {
 import { saveAs } from '@/browser';
 import { Icon, IconName } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
-import { useRegisterCommands } from '@/commands/registry';
+import { useCommandEnabled, useRegisterCommands, useRunCommand } from '@/commands/registry';
 import { useContentWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
@@ -355,6 +355,9 @@ export default function FileEditor(props: FileEditorProps) {
   // Rename, quick fixes and the gutter they share with the problems. The gutter is added only
   // for a file some server serves, so a plain text file keeps its own left edge.
   const symbols = useSymbolActions({ path, name, view: currentView });
+  // The breadcrumb's play button is the palette's Run Python File, so the two cannot disagree.
+  const runCommand = useRunCommand();
+  const commandEnabled = useCommandEnabled();
   const served = useMemo(() => serverLanguageFor(name) !== null, [name]);
 
   // What the file declares, for the last crumbs of the bar above it.
@@ -790,6 +793,7 @@ export default function FileEditor(props: FileEditorProps) {
       name,
       startRename: symbols.startRename,
       showQuickFix: symbols.showQuickFix,
+      saveBeforeRun: () => (canSave && dirty ? saveFileToDisk() : Promise.resolve()),
     }),
     props.data.active && canSave
   );
@@ -881,6 +885,16 @@ export default function FileEditor(props: FileEditorProps) {
         {/* Outside .file-editor-body, so it stays put while the file scrolls. */}
         <BreadCrumb
           path={path}
+          actions={
+            name.toLowerCase().endsWith('.py') ? (
+              <IconButton
+                icon="play"
+                label="Run Python File in Terminal"
+                disabled={!commandEnabled('editor:run-python-file')}
+                onClick={() => runCommand('editor:run-python-file')}
+              />
+            ) : undefined
+          }
           trail={outline.trail}
           symbols={outline.symbols}
           onGoTo={(line, character) => {

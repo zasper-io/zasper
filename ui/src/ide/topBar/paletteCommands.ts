@@ -18,4 +18,10 @@ export const PALETTE_COMMANDS = defineCommands({
   // No chord: every one a reader would expect — Mod-g, Mod-Shift-g — is CodeMirror's own find-next and
   // find-previous, and a window binding for it would fire the editor's as well.
   'palette:go-to-line': { ...view, label: 'Go to Line' },
+  // The list opens where the palette does, which is why the Topbar owns it.
+  'python:select-interpreter': {
+    category: 'Python',
+    scope: 'app',
+    label: 'Select Python Interpreter',
+  },
 });

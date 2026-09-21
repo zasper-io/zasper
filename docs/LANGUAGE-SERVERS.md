@@ -113,9 +113,10 @@ imports resolve against the environment the notebook actually executes in — no
 `python` the server happens to find. This is why a notebook on a conda or uv environment resolves
 its imports without any configuration.
 
-A plain `.py` file has no kernel to ask, so it is read with the project's own environment — the
-`.venv` or `venv` Zasper already offers as a kernel — and with the `python` on the `PATH` when the
-project has neither. Once a notebook is open, its kernel's interpreter is used for the file editor
+A plain `.py` file has no kernel to ask, so it is read with **Settings → Python interpreter**. Left
+on Automatic, that is the project's own environment — the `.venv` or `venv` Zasper already offers as a
+kernel — and the `python` on the `PATH` when the project has neither. The same Python runs the file
+with **Run Python File in Terminal**. Once a notebook is open, its kernel's interpreter is used for the file editor
 too: one server serves both.
 
 ### Completion in a cell

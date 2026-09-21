@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { ReactNode, useEffect, useRef, useState } from 'react';
 
 import { ContentEntry, getDirectory } from '@/api';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
@@ -16,6 +16,8 @@ interface BreadCrumbProps {
   symbols?: DocumentSymbol[];
   /** Puts the cursor on a line of this file, for a symbol chosen from a crumb's menu. */
   onGoTo?: (line: number, character: number) => void;
+  /** The file's own actions, at the right end of the row that names it. */
+  actions?: ReactNode;
 }
 
 /** Which crumb's menu is open, and where that crumb is — a menu hangs from the crumb it belongs to. */
@@ -123,6 +125,7 @@ export default function BreadCrumb(props: BreadCrumbProps) {
           ))}
         </ol>
       </nav>
+      {props.actions !== undefined && <span className="breadcrumb-actions">{props.actions}</span>}
 
       {open?.kind === 'folder' && (
         <div

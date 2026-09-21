@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useMemo, useState } from 'react';
+import { useAtom } from 'jotai';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { AttachAddon } from '@xterm/addon-attach';
@@ -11,6 +12,7 @@ import './xterm.css';
 import { websocketUrl } from '@/api';
 import { APP_COMMANDS } from '@/commands/appCommands';
 import { chordMatches } from '@/commands/keys';
+import { terminalInputAtom } from '@/store/terminals';
 import { terminalTheme } from './theme';
 
 interface TerminalViewProps {
@@ -60,6 +62,11 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
   // resolves either way — a font that fails to load still settles — and by the time anyone opens a
   // terminal it has usually resolved already.
   const [fontsReady, setFontsReady] = useState(false);
+  // Not when the socket opens but when the shell has drawn its prompt and gone quiet: a line that
+  // arrives before that is echoed by the tty and then again by the shell's own line editor.
+  const [promptReady, setPromptReady] = useState(false);
+  const [pendingInput, setPendingInput] = useAtom(terminalInputAtom);
+  const waiting = pendingInput[id];
   useEffect(() => {
     let live = true;
     void (document.fonts?.ready ?? Promise.resolve()).then(() => {
@@ -137,12 +144,24 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
       }
     };
 
+    let quiet: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      clearTimeout(quiet);
+      quiet = setTimeout(() => {
+        setPromptReady(true);
+        socketRef.current?.removeEventListener('message', settle);
+      }, 200);
+    };
+    socketRef.current.addEventListener('message', settle);
+
     // A ResizeObserver rather than `window.resize`: it also catches the sidebar opening, the tab
     // coming back after a resize it missed, and a browser zoom. Firing once on observe is the first fit.
     const observer = new ResizeObserver(refit);
     observer.observe(terminalRef.current);
 
     return () => {
+      clearTimeout(quiet);
+      setPromptReady(false);
       // Clean up on component unmount
       socketRef.current?.close();
       terminal.dispose();
@@ -160,6 +179,18 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
     unicode11Addon,
     webLinksAddon,
   ]);
+
+  // Typed in as the keyboard would, once the shell is waiting for it.
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!promptReady || waiting === undefined || socket?.readyState !== WebSocket.OPEN) return;
+    waiting.forEach((line) => socket.send(line));
+    setPendingInput((pending) => {
+      const next = { ...pending };
+      delete next[id];
+      return next;
+    });
+  }, [promptReady, waiting, id, setPendingInput]);
 
   // `.tab-surface` was around this, which is the card a tab draws: in the panel under the editor it
   // was a block box between the pane and the terminal, so the height chain ended there and xterm kept

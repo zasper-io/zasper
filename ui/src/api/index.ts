@@ -10,6 +10,7 @@ export * from './auth';
 export * from './config';
 export * from './contents';
 export * from './git';
+export * from './interpreters';
 export * from './kernels';
 export * from './lsp';
 export * from './notebook';

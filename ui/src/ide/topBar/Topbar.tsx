@@ -3,6 +3,7 @@ import './Topbar.scss';
 import Palette, { COMMANDS_ONLY, LINES_ONLY } from './palette/Palette';
 import { useAtom, useAtomValue } from 'jotai';
 import { fileFormatsAtom } from '@/store/editorStatus';
+import { interpreterChoiceAtom } from '@/store/interpreters';
 import { userNameAtom } from '@/store/serverInfo';
 import { activeTabPathAtom } from '@/store/tabState';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +14,7 @@ import { formatChord, isMac, terminalHasFocus } from '@/commands/keys';
 import { useCommands, useRegisterCommands } from '@/commands/registry';
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
+import InterpreterPicker from '@/ide/interpreter/InterpreterPicker';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
 import { Command } from '@/commands/types';
 import { PALETTE_COMMANDS, SEARCH_CHORD } from './paletteCommands';
@@ -29,17 +31,23 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
   const [paletteQuery, setPaletteQuery] = useState<string | null>(null);
   const [userName] = useAtom(userNameAtom);
   const searchAreaRef = useRef<HTMLDivElement>(null);
-  const isPaletteOpen = paletteQuery !== null;
+  // The palette's place, holding the list of Pythons instead of the palette.
+  const [pickingPython, setPickingPython] = useState(false);
+  const isPaletteOpen = paletteQuery !== null || pickingPython;
 
   // Everything registered right now, which is what the palette lists. Previously three
   // hardcoded entries whose bodies were alert() calls.
   const commands = useCommands();
 
-  const closePalette = useCallback(() => setPaletteQuery(null), []);
+  const closePalette = useCallback(() => {
+    setPaletteQuery(null);
+    setPickingPython(false);
+  }, []);
 
   // Opens the palette with `query` already in the field, or closes it when that is what it is
   // already showing, so a chord pressed twice dismisses.
   const togglePalette = useCallback((query: string) => {
+    setPickingPython(false);
     setPaletteQuery((current) => (current === query ? null : query));
   }, []);
 
@@ -51,6 +59,7 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
   const activePath = useAtomValue(activeTabPathAtom);
   const formats = useAtomValue(fileFormatsAtom);
   const hasTextEditor = formats[activePath] !== undefined;
+  const pythonsListed = useAtomValue(interpreterChoiceAtom) !== null;
 
   // Both ways into the palette are commands like any other, registered here because this is where
   // its state lives.
@@ -69,8 +78,17 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
         isEnabled: () => hasTextEditor,
         execute: openLine,
       },
+      {
+        ...PALETTE_COMMANDS['python:select-interpreter'],
+        isEnabled: () => pythonsListed,
+        // Run from the palette, which closes itself once this returns; the list replaces it.
+        execute: () => {
+          setPaletteQuery(null);
+          setPickingPython(true);
+        },
+      },
     ],
-    [openCommands, openFiles, openLine, hasTextEditor]
+    [openCommands, openFiles, openLine, hasTextEditor, pythonsListed]
   );
   useRegisterCommands(paletteCommands);
 
@@ -112,6 +130,15 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
             key={paletteQuery}
             commands={commands}
             initialQuery={paletteQuery}
+            // The palette alone: a command it just ran may have put the list of Pythons in its place.
+            onClose={() => setPaletteQuery(null)}
+          />
+        )}
+        {pickingPython && (
+          <InterpreterPicker
+            className="palette"
+            title="Select Python Interpreter"
+            placeholder="Select a Python interpreter"
             onClose={closePalette}
           />
         )}
