@@ -1,4 +1,4 @@
-import { atom, useAtomValue, useSetAtom } from 'jotai';
+import { atom, useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import { deleteKernel, DiffTarget, logApiError } from '@/api';
 import { trackTabOpened } from '@/telemetry';
@@ -84,6 +84,8 @@ export interface TabActions {
   openTerminal: (cwd?: string) => void;
   /** Brings a shell already open in this window to the front of the panel under the editor. */
   showTerminal: (name: string) => void;
+  /** Shows the terminals in the panel under the editor, starting one only when none is running. */
+  showTerminals: () => void;
   /** Opens the Help tab or brings it to the front; `about` also scrolls it to About. */
   openHelp: (section?: 'about') => void;
   /** Opens the Settings tab or brings it to the front. */
@@ -122,7 +124,7 @@ export function useTabActions(): TabActions {
   const setFileTabs = useSetAtom(fileTabsAtom);
   const notebookKernelMap = useAtomValue(notebookKernelMapAtom);
   const setNotebookKernelMap = useSetAtom(notebookKernelMapAtom);
-  const setTerminals = useSetAtom(terminalsAtom);
+  const [terminals, setTerminals] = useAtom(terminalsAtom);
   const setCurrentTerminal = useSetAtom(currentTerminalAtom);
   const setDockOpen = useSetAtom(dockOpenAtom);
   const setDockTab = useSetAtom(dockTabAtom);
@@ -144,6 +146,15 @@ export function useTabActions(): TabActions {
     setCurrentTerminal(name);
     setDockTab('terminal');
     setDockOpen(true);
+  };
+
+  const openTerminal = (cwd?: string) => {
+    // Numbered rather than named after the folder: two terminals in the same folder are two
+    // terminals, and the name is what the server reports them by.
+    const name = `Terminal ${terminalCount + 1}`;
+    setTerminalCount(terminalCount + 1);
+    setTerminals((previous) => ({ ...previous, [name]: { id: name, name, cwd } }));
+    showTerminal(name);
   };
 
   const openTab = (tab: OpenTab) => {
@@ -258,16 +269,18 @@ export function useTabActions(): TabActions {
       });
     },
 
-    openTerminal: (cwd?: string) => {
-      // Numbered rather than named after the folder: two terminals in the same folder are two
-      // terminals, and the name is what the server reports them by.
-      const name = `Terminal ${terminalCount + 1}`;
-      setTerminalCount(terminalCount + 1);
-      setTerminals((previous) => ({ ...previous, [name]: { id: name, name, cwd } }));
-      showTerminal(name);
-    },
+    openTerminal,
 
     showTerminal,
+
+    showTerminals: () => {
+      if (Object.keys(terminals).length === 0) {
+        openTerminal();
+      } else {
+        setDockTab('terminal');
+        setDockOpen(true);
+      }
+    },
 
     openHelp: (section?: 'about') => {
       openTab({ name: 'Help', path: HELP_TAB_KEY, type: 'help', extension: null });

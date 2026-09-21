@@ -17,7 +17,7 @@ import './EditorDock.scss';
  * and each answer opens its own. The width of the editor is the point — a message, or a line of code with
  * the place it is in, fits on one row here and does not in the sidebar.
  */
-export default function EditorDock() {
+export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
   const [tab, setTab] = useAtom(dockTabAtom);
   const [, setOpen] = useAtom(dockOpenAtom);
   const problems = useAtomValue(problemsAtom);
@@ -52,7 +52,7 @@ export default function EditorDock() {
   ];
 
   return (
-    <section className="editorDock" aria-label="Problems, references and terminals">
+    <section className="editorDock" aria-label="Problems, references and terminals" hidden={hidden}>
       <div className="editorDock-head">
         <div className="editorDock-tabs" role="tablist" aria-label="Panel">
           {tabs.map((each) => (

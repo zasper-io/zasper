@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
   ImperativePanelHandle,
   Panel,
@@ -36,6 +36,7 @@ import {
   projectNameAtom,
   serverOsAtom,
   userNameAtom,
+  terminalsAvailableAtom,
   zasperVersionAtom,
 } from '@/store/serverInfo';
 import { ApiError, getInfo } from '../api';
@@ -94,10 +95,28 @@ function IDE() {
     sidebarRef.current?.expand();
   }, []);
 
-  const { openSettings } = useTabActions();
+  const { openSettings, showTerminals } = useTabActions();
   const [, setSearchFocus] = useAtom(searchFocusRequestAtom);
   const [dockOpen, setDockOpen] = useAtom(dockOpenAtom);
-  const setDockTab = useSetAtom(dockTabAtom);
+  const [dockTab, setDockTab] = useAtom(dockTabAtom);
+  const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
+
+  // Collapsed rather than unmounted when it is put away: the panel holds the shells, and a shell's
+  // life is its websocket, so unmounting it was closing every terminal behind the ×. The atom is what
+  // everything else writes; this follows it, and a drag that collapses the panel writes it back.
+  const dockRef = useRef<ImperativePanelHandle>(null);
+  const dockHasBeenOpen = useRef(false);
+  useEffect(() => {
+    const dock = dockRef.current;
+    if (dock === null) return;
+    if (dockOpen && dock.isCollapsed()) {
+      // A first expand() goes to the minimum, a tenth of the column; a third is what it opens at.
+      if (dockHasBeenOpen.current) dock.expand();
+      else dock.resize(33);
+    } else if (!dockOpen && !dock.isCollapsed()) {
+      dock.collapse();
+    }
+  }, [dockOpen]);
 
   const windowCommands = useMemo<Command[]>(
     () => [
@@ -124,8 +143,29 @@ function IDE() {
           setDockOpen((open) => !open);
         },
       },
+      {
+        ...APP_COMMANDS['view:terminal'],
+        isEnabled: () => terminalsAvailable,
+        // Puts the terminals away only when they are what is showing; from Problems it brings them
+        // forward instead.
+        execute: () => {
+          if (dockOpen && dockTab === 'terminal') setDockOpen(false);
+          else showTerminals();
+        },
+      },
     ],
-    [toggleSidebar, openSettings, showPanel, setSearchFocus, setDockOpen, setDockTab]
+    [
+      toggleSidebar,
+      openSettings,
+      showPanel,
+      setSearchFocus,
+      setDockOpen,
+      setDockTab,
+      dockOpen,
+      dockTab,
+      terminalsAvailable,
+      showTerminals,
+    ]
   );
 
   // The application's only keyboard dispatcher, and the window-level commands. Everything else
@@ -248,16 +288,29 @@ function IDE() {
                   <ContentPanel />
                 </div>
               </Panel>
-              {dockOpen && (
-                <>
-                  <PanelResizeHandle className="panelResizeHandle is-between-rows" />
-                  {/* A third, not a quarter: the panel holds a shell since story 4, and eight rows of
-                      terminal is a pane you scroll rather than read. */}
-                  <Panel id="editor-dock" order={2} defaultSize={33} minSize={10}>
-                    <EditorDock />
-                  </Panel>
-                </>
-              )}
+              <PanelResizeHandle
+                className="panelResizeHandle is-between-rows"
+                hidden={!dockOpen}
+                disabled={!dockOpen}
+              />
+              {/* A third, not a quarter: the panel holds a shell since story 4, and eight rows of
+                  terminal is a pane you scroll rather than read. */}
+              <Panel
+                ref={dockRef}
+                id="editor-dock"
+                order={2}
+                defaultSize={dockOpen ? 33 : 0}
+                minSize={10}
+                collapsible
+                collapsedSize={0}
+                onCollapse={() => setDockOpen(false)}
+                onExpand={() => {
+                  dockHasBeenOpen.current = true;
+                  setDockOpen(true);
+                }}
+              >
+                <EditorDock hidden={!dockOpen} />
+              </Panel>
             </PanelGroup>
           </Panel>
         </PanelGroup>

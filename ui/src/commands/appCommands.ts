@@ -26,6 +26,9 @@ export const APP_COMMANDS = defineCommands({
   'view:settings': { ...view, label: 'Settings' },
   'view:search': { ...view, label: 'Search in Files', keys: ['Mod-Shift-f'] },
   'view:problems': { ...view, label: 'Problems', keys: ['Mod-Shift-m'] },
+  // Ctrl on mac too, as in VS Code: ⌘` is the system's own window switch, and a shell has no use for
+  // Ctrl-` that anyone relies on, so this one works with the terminal focused.
+  'view:terminal': { ...view, label: 'Toggle Terminal', keys: ['Ctrl-`'] },
 });
 
 /**

@@ -9,6 +9,8 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import '@xterm/xterm/css/xterm.css';
 import './xterm.css';
 import { websocketUrl } from '@/api';
+import { APP_COMMANDS } from '@/commands/appCommands';
+import { chordMatches } from '@/commands/keys';
 import { terminalTheme } from './theme';
 
 interface TerminalViewProps {
@@ -108,6 +110,10 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
     // Attach terminal to DOM
     terminal.open(terminalRef.current);
     terminal.focus();
+    // The toggle is a chord the window takes even here, so xterm must not also send it to the shell.
+    terminal.attachCustomKeyEventHandler(
+      (event) => !(APP_COMMANDS['view:terminal'].keys ?? []).some((key) => chordMatches(key, event))
+    );
 
     // Handle resize events
     terminal.onResize(({ cols, rows }) => {

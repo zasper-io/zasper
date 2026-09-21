@@ -48,7 +48,7 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
   const branchTip = useTooltip();
   const terminalTip = useTooltip();
   const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
-  const { openTerminal } = useTabActions();
+  const { showTerminals } = useTabActions();
   const [linePosition] = useAtom(linePositionAtom);
   const [columnPosition] = useAtom(columnPositionAtom);
   const [branchName, setBranchName] = useAtom(branchNameAtom);
@@ -101,12 +101,12 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
             <button
               type="button"
               className="statusItem statusButton"
-              onClick={() => openTerminal()}
+              onClick={showTerminals}
               {...terminalTip.anchorProps}
             >
               <Icon name="terminal" /> Terminal
             </button>
-            <Tooltip tip={terminalTip} label="New terminal" />
+            <Tooltip tip={terminalTip} label="Show terminals" />
           </>
         )}
       </div>
