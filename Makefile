@@ -92,12 +92,13 @@ UI_DEPS = ui/node_modules/.package-lock.json
 UI_BUILD = ui/build/index.html
 UI_SOURCES = $(shell find ui/src ui/public) ui/index.html ui/package.json ui/tsconfig.json ui/vite.config.ts
 
-.PHONY: help check-tools init build dev install clean test test-frontend test-go e2e e2e-api e2e-browser bump-version show-version changelog-draft
+.PHONY: help check-tools init build dev desktop install clean test test-frontend test-go e2e e2e-api e2e-browser bump-version show-version changelog-draft
 
 help:
 	@echo "Building from source (needs Go 1.26+ and Node.js $(NODE_VERSION)+):"
 	@echo "  make build           build the zasper binary in this directory"
 	@echo "  make install         build and install zasper into your Go bin directory"
+	@echo "  make desktop         build the macOS desktop app into dist/desktop/Zasper.app"
 	@echo "  make dev             run the frontend on :3000 and the backend on :8048"
 	@echo "  make test            run the frontend and Go test suites"
 	@echo "  make e2e             run the end-to-end suites (see e2e/README.md)"
@@ -141,6 +142,24 @@ dev: $(UI_DEPS) | check-tools
 	@(cd ui && exec ./node_modules/.bin/vite) & ui=$$!; \
 	trap 'kill $$ui 2>/dev/null' EXIT INT TERM; \
 	go run -tags apiserver . --no-browser
+
+DESKTOP_APP = dist/desktop/Zasper.app
+
+# The desktop app: the same server in a Wails window. Wails needs cgo, which the release binaries are
+# built without, so it is its own target. macOS only for now; CFBundleVersion takes digits and dots.
+desktop: $(UI_BUILD)
+	@echo "Building the desktop app..."
+	rm -rf $(DESKTOP_APP) dist/desktop/Zasper.iconset
+	mkdir -p $(DESKTOP_APP)/Contents/MacOS $(DESKTOP_APP)/Contents/Resources dist/desktop/Zasper.iconset
+	go build -tags desktop -ldflags $(VERSION_BUILD_FLAG) -o $(DESKTOP_APP)/Contents/MacOS/Zasper .
+	sed 's/@VERSION@/$(CURRENT_CORE)/' resources/desktop/Info.plist > $(DESKTOP_APP)/Contents/Info.plist
+	for size in 16 32 128 256 512; do \
+		sips -z $$size $$size ui/public/logo512.png --out dist/desktop/Zasper.iconset/icon_$${size}x$${size}.png >/dev/null; \
+		half=$$((size / 2)); [ $$half -ge 16 ] && cp dist/desktop/Zasper.iconset/icon_$${size}x$${size}.png dist/desktop/Zasper.iconset/icon_$${half}x$${half}@2x.png; \
+	done; true
+	iconutil -c icns dist/desktop/Zasper.iconset -o $(DESKTOP_APP)/Contents/Resources/Zasper.icns
+	codesign --force --sign - $(DESKTOP_APP)
+	@echo "Built $(DESKTOP_APP)"
 
 install: $(UI_BUILD)
 	@echo "Installing zasper..."
