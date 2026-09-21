@@ -92,7 +92,7 @@ With tracking off, no client is created and no request is made — the data is n
 discarded, it is never collected. The first two are per-run and outrank the setting, so a session
 started with either of them cannot be switched back on from the UI.
 
-The first time Zasper runs, it says in a notice and in the startup banner that this is happening.
+The first time Zasper runs, it says in a notice that this is happening.
 
 ## Where the data goes
 

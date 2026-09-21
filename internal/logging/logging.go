@@ -19,9 +19,15 @@ import (
 // line — the startup banner — can ask whether a person is reading.
 var console bool
 
+var color bool
+
 // Console answers whether the logger is writing for a human at a terminal rather than JSON for a
 // collector.
 func Console() bool { return console }
+
+// Color answers whether console output may carry ANSI colour: only at a terminal, and never when
+// NO_COLOR is set (no-color.org).
+func Color() bool { return color }
 
 /*
 AccessLog answers whether every served request should get a line, not just the ones that failed.
@@ -67,6 +73,7 @@ func SetUp(debug bool) {
 
 func writer() io.Writer {
 	tty := isTerminal(os.Stdout)
+	color = tty && os.Getenv("NO_COLOR") == ""
 
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("ZASPER_LOG_FORMAT"))) {
 	case "json":
@@ -74,14 +81,14 @@ func writer() io.Writer {
 		return os.Stdout
 	case "console":
 		console = true
-		return consoleWriter(tty)
+		return consoleWriter(color)
 	}
 
 	console = tty
 	if !tty {
 		return os.Stdout
 	}
-	return consoleWriter(tty)
+	return consoleWriter(color)
 }
 
 func consoleWriter(color bool) zerolog.ConsoleWriter {

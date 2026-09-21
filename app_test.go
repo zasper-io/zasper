@@ -12,6 +12,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -153,5 +155,20 @@ func TestBrowsableURL(t *testing.T) {
 		t.Run(address, func(t *testing.T) {
 			assert.Equal(t, want, browsableURL(address))
 		})
+	}
+}
+
+// The colour is only ever added around the logo: take the escapes out and the text is what it was, and
+// a run where colour is off gets no escapes at all.
+func TestPaintBannerOnlyAddsColour(t *testing.T) {
+	escapes := regexp.MustCompile("\x1b\\[[0-9;]*m")
+	all := paintBanner(strings.Join(bannerArt, "\n"), true)
+	assert.Contains(t, all, bannerFill)
+	assert.Contains(t, all, bannerOutline)
+	for _, line := range bannerArt {
+		painted := paintBanner(line, true)
+		assert.True(t, strings.HasSuffix(painted, bannerReset), "a line must not leave the terminal coloured")
+		assert.Equal(t, line, escapes.ReplaceAllString(painted, ""))
+		assert.Equal(t, line, paintBanner(line, false))
 	}
 }

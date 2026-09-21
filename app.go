@@ -155,12 +155,9 @@ func printBanner(address string, accessToken string, version string, tracking bo
 	}
 
 	fmt.Println("==========================================================")
-	fmt.Println("     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ ")
-	fmt.Println("     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗")
-	fmt.Println("       ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝")
-	fmt.Println("      ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗")
-	fmt.Println("     ███████╗██║  ██║███████║██║     ███████╗██║  ██║")
-	fmt.Println("     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝")
+	for _, line := range bannerArt {
+		fmt.Println(paintBanner(line, logging.Color()))
+	}
 	fmt.Println()
 	fmt.Printf("                    Zasper Server\n")
 	fmt.Printf("                Version: %s\n", version)
@@ -172,13 +169,53 @@ func printBanner(address string, accessToken string, version string, tracking bo
 	fmt.Printf(" 🖥️  Webapp available at: %s\n", browsableURL(address))
 	fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
 	fmt.Printf(" 🔗 Sign in with:        %s\n", loginURL(address, accessToken))
-	if tracking {
-		fmt.Println(" 📊 Anonymous usage data: on  (--tracking=false to turn off)")
-		fmt.Println("                          see PRIVACY.md for what is sent")
-	} else {
-		fmt.Println(" 📊 Anonymous usage data: off")
-	}
 	fmt.Println("==========================================================")
+}
+
+var bannerArt = []string{
+	"     ███████╗ █████╗ ███████╗██████╗ ███████╗██████╗ ",
+	"     ╚══███╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗",
+	"       ███╔╝ ███████║███████╗██████╔╝█████╗  ██████╔╝",
+	"      ███╔╝  ██╔══██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗",
+	"     ███████╗██║  ██║███████║██║     ███████╗██║  ██║",
+	"     ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝",
+}
+
+// The app's teal, as the nearest of the 256 xterm colours rather than as 24-bit: Terminal.app before
+// macOS 26 prints 24-bit escapes as noise. The letters are teal 400 (#2c8f88 → 30) and their outline
+// teal 600 (#0c6862 → 23), which both read on a light terminal and a dark one.
+const (
+	bannerFill    = "\x1b[38;5;30m"
+	bannerOutline = "\x1b[38;5;23m"
+	bannerReset   = "\x1b[0m"
+)
+
+// paintBanner colours one line of the logo: the solid blocks in the fill, the box-drawing strokes in
+// the outline. Only where the colour changes, so a line is a handful of escapes rather than one per rune.
+func paintBanner(line string, color bool) string {
+	if !color {
+		return line
+	}
+	var out strings.Builder
+	current := ""
+	for _, r := range line {
+		want := current
+		switch {
+		case r == '█':
+			want = bannerFill
+		case r != ' ':
+			want = bannerOutline
+		}
+		if want != current {
+			out.WriteString(want)
+			current = want
+		}
+		out.WriteRune(r)
+	}
+	if current != "" {
+		out.WriteString(bannerReset)
+	}
+	return out.String()
 }
 
 // resolveVersion answers what this build calls itself: the string linked in at release time, or

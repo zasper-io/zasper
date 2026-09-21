@@ -2,8 +2,8 @@
 That a build without a configured PostHog secret still has a key.
 
 GitHub Actions defines a missing secret as an empty string, so a release that injected straight over
-the key would blank it on any fork — and Zasper would go on printing "Anonymous usage data: on" in
-the banner while sending nothing. The fallback is what stops an absent secret from becoming a silent
+the key would blank it on any fork — and Zasper would go on reporting usage data as on while sending
+nothing. The fallback is what stops an absent secret from becoming a silent
 behaviour change.
 */
 package analytics

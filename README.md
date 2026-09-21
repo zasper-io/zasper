@@ -188,8 +188,6 @@ $ zasper
  🖥️  Webapp available at: http://127.0.0.1:8048
  🔐 Server Access Token: 14be1b674a3b9196a82c01129028d0dd
  🔗 Sign in with:        http://127.0.0.1:8048/?token=14be1b674a3b9196a82c01129028d0dd
- 📊 Anonymous usage data: on  (--tracking=false to turn off)
-                          see PRIVACY.md for what is sent
 ==========================================================
 ```
 
