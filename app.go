@@ -1,142 +1,22 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"os/signal"
-	"runtime"
-	"strings"
-	"syscall"
-	"time"
-
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
-	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/config"
-	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/logging"
-	"github.com/zasper-io/zasper/internal/server"
-
-	"github.com/rs/zerolog/log"
 
 	"github.com/rs/cors"
+	"github.com/rs/zerolog/log"
 )
 
 var version string
-
-func main() {
-
-	debug := flag.Bool("debug", false, "sets log level to debug")
-	cwd := flag.String("cwd", ".", "base directory of project")
-	host := flag.String("host", "127.0.0.1", "interface to bind; 0.0.0.0 puts the server on the network")
-	port := flag.String("port", ":8048", "port to start the server on")
-	protected := flag.Bool("protected", true, "deprecated and ignored: Zasper always runs in protected mode")
-	tracking := flag.Bool("tracking", true, "enable usage tracking")
-	showVersion := flag.Bool("version", false, "print the version and exit")
-	noBrowser := flag.Bool("no-browser", false, "do not open the app in a browser on startup")
-
-	flag.Parse()
-
-	// Before the logger and before anything binds: `zasper --version` should answer and stop, which
-	// is what a package manager's smoke test and half of every bug report start with.
-	if *showVersion {
-		fmt.Println(resolveVersion())
-		return
-	}
-
-	// Before anything else logs, so that every line in the run has the same shape.
-	logging.SetUp(*debug)
-
-	version = resolveVersion()
-	if version == "unknown" {
-		log.Warn().Msg("no version.txt and no linked version; reporting version as unknown")
-	}
-
-	// Still parsed, so that a script passing it keeps starting; it just no longer switches anything off.
-	if !*protected {
-		log.Warn().Msg("--protected=false is ignored: Zasper always runs in protected mode")
-	}
-
-	app := core.NewApplication(version, *cwd)
-	zasper := server.New(app)
-
-	router := zasper.Router(getSpaHandler())
-
-	// Anonymous usage tracking. It is what tells me whether anyone is actually using Zasper, which is
-	// most of what keeps me maintaining it. Nothing that identifies a person or names a file leaves
-	// the machine — internal/analytics/events.go is the list of what does, and PRIVACY.md says the
-	// same thing in prose.
-	trackingOn := resolveTracking(*tracking)
-	if trackingOn {
-		analytics.SetUpPostHogClient(version)
-		analytics.TrackServerStart()
-	} else {
-		analytics.DisableForSession()
-	}
-
-	// Channel for graceful shutdown
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
-	// Bind before announcing. ListenAndServe did both at once inside the goroutine, so a port that was
-	// already taken printed "Server started successfully!" and the real error underneath it.
-	address := listenAddress(*host, *port)
-	listener, err := net.Listen("tcp", address)
-	if err != nil {
-		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
-	}
-
-	printBanner(address, app.AccessToken, version, trackingOn)
-
-	httpServer := &http.Server{
-		Handler: server.WithRequestLogging(log.Logger, logging.AccessLog(), appHandler(router, address)),
-		// Only the headers are timed: a whole-request or write timeout would cut off a long upload, a
-		// large download and every websocket.
-		ReadHeaderTimeout: 10 * time.Second,
-		// A kept-alive connection with nothing on it is closed after this rather than held forever.
-		IdleTimeout: 2 * time.Minute,
-	}
-	serving := make(chan error, 1)
-	go func() { serving <- httpServer.Serve(listener) }()
-
-	// After the bind, so the page never races the server: a request that arrives before Serve is
-	// running waits in the listener's backlog.
-	if shouldOpenBrowser(*noBrowser, logging.Console(), runtime.GOOS, os.Getenv) {
-		launchBrowser(loginURL(address, app.AccessToken))
-	}
-
-	select {
-	case <-stop:
-	case err := <-serving:
-		log.Error().Err(err).Msg("http server stopped")
-	}
-	// A second Ctrl-C ends the process at once, for a kernel that will not stop.
-	signal.Stop(stop)
-	log.Info().Msg("shutting down server")
-
-	shutDown(httpServer, 5*time.Second, func() { cleanup(zasper, trackingOn) })
-	log.Info().Msg("server stopped")
-}
-
-/*
-shutDown stops the server in the order that loses nothing. The listener closes and requests already
-running, such as a save, are given until timeout to finish. Only then do cleanup's shells and kernels
-stop: they live on hijacked connections, which Shutdown neither waits for nor closes.
-*/
-func shutDown(httpServer *http.Server, timeout time.Duration, cleanup func()) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Warn().Err(err).Msg("stopped waiting for requests that were still running")
-	}
-	cleanup()
-}
 
 // printBanner announces the server to whoever is reading. A person at a terminal gets the banner;
 // output that is being collected as JSON gets the same facts as one structured line, because ASCII
@@ -317,13 +197,4 @@ func appHandler(router http.Handler, address string) http.Handler {
 		handler = httpx.LoopbackHostOnly(handler)
 	}
 	return handler
-}
-
-// cleanup stops what outlives the HTTP server: the analytics client, the shells and the kernels.
-func cleanup(zasper *server.Server, tracking bool) {
-	if tracking {
-		analytics.CloseClient()
-	}
-	log.Debug().Msg("performing cleanup")
-	zasper.Shutdown()
 }
