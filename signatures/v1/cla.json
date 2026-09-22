@@ -1,3 +1,12 @@
 {
-   "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "simonepri",
+      "id": 3505087,
+      "comment_id": 5775271582,
+      "created_at": "2026-09-22T10:59:11Z",
+      "repoId": 846263966,
+      "pullRequestNo": 134
+    }
+  ]
 }
