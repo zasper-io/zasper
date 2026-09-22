@@ -30,7 +30,7 @@ const title = 'analysis.ipynb';
 
 /** The document's text, for asserting on source that highlighting has broken into spans. */
 function stripTags(html: string): string {
-  return html.replace(/<[^>]*>/g, '');
+  return new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '';
 }
 
 describe('notebookToHtml', () => {

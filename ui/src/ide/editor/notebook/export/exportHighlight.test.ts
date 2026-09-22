@@ -15,8 +15,9 @@ describe('highlightSource', () => {
     const source = 'def f(x):\n    return x < 1 & 2\n';
     const html = await highlightSource(source, 'python');
 
-    const text = html.replace(/<[^>]*>/g, '');
-    expect(text.replace(/&lt;/g, '<').replace(/&amp;/g, '&')).toBe(source);
+    const text = new DOMParser().parseFromString(`<pre>${html}</pre>`, 'text/html').body
+      .textContent;
+    expect(text).toBe(source);
   });
 
   // The name is matched the way `lazyLanguageNamed` matches it, fuzzily, so the kernel language that
