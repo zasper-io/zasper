@@ -27,18 +27,23 @@ func TestALoopbackServerRefusesARequestNamingAnotherHost(t *testing.T) {
 
 	for _, c := range []struct {
 		bind, host string
+		allowed    []string
 		want       int
 	}{
-		{"127.0.0.1:8048", "localhost:8048", http.StatusNoContent},
-		{"127.0.0.1:8048", "rebound.example.com:8048", http.StatusForbidden},
+		{"127.0.0.1:8048", "localhost:8048", nil, http.StatusNoContent},
+		{"127.0.0.1:8048", "rebound.example.com:8048", nil, http.StatusForbidden},
+		// Behind a reverse proxy on the same machine, which forwards the name the browser used.
+		{"127.0.0.1:8048", "zasper.example.com", nil, http.StatusForbidden},
+		{"127.0.0.1:8048", "zasper.example.com", []string{"zasper.example.com"}, http.StatusNoContent},
+		{"127.0.0.1:8048", "rebound.example.com", []string{"zasper.example.com"}, http.StatusForbidden},
 		// Bound to the network, the server is reached by whatever name the network gives it.
-		{"0.0.0.0:8048", "my-server:8048", http.StatusNoContent},
+		{"0.0.0.0:8048", "my-server:8048", nil, http.StatusNoContent},
 	} {
 		r := httptest.NewRequest(http.MethodGet, "/api/config", nil)
 		r.Host = c.host
 		recorder := httptest.NewRecorder()
 
-		appHandler(answered, c.bind).ServeHTTP(recorder, r)
+		appHandler(answered, c.bind, c.allowed).ServeHTTP(recorder, r)
 
 		assert.Equal(t, c.want, recorder.Code, "%s asked of a server bound to %s", c.host, c.bind)
 	}

@@ -172,9 +172,9 @@ appHandler wraps the route table in what every request meets first.
 CORS is only for `make dev`, where vite serves the frontend on 3000 while this process serves the API.
 A release build serves its own page and has no dev origins, so it gets no CORS handler at all: rs/cors
 reads an empty list of origins as every origin. On a loopback bind, a request also has to name a
-loopback host, which is what stops a DNS-rebound page reaching the server.
+loopback host or one of allowedHosts, which is what stops a DNS-rebound page reaching the server.
 */
-func appHandler(router http.Handler, address string) http.Handler {
+func appHandler(router http.Handler, address string, allowedHosts []string) http.Handler {
 	handler := router
 	if origins := httpx.DevOrigins(); len(origins) > 0 {
 		handler = cors.New(cors.Options{
@@ -194,7 +194,7 @@ func appHandler(router http.Handler, address string) http.Handler {
 		}).Handler(handler)
 	}
 	if httpx.IsLoopbackBind(address) {
-		handler = httpx.LoopbackHostOnly(handler)
+		handler = httpx.LoopbackHostOnly(handler, allowedHosts)
 	}
 	return handler
 }

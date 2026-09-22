@@ -37,14 +37,19 @@ read the first two items below.
   back an interactive plot, such as Bokeh or Plotly, that was saved in the file.
 - **A server bound to `127.0.0.1` or `localhost` answers only to a localhost
   address.** A request that names the server by another hostname gets `403`.
-  This closes DNS rebinding. If you reach a loopback-bound Zasper through a
-  reverse proxy or tunnel that passes on its own hostname, have it send a
-  localhost `Host` header, or start Zasper with `--host`.
+  This closes DNS rebinding. If a reverse proxy on the same machine serves
+  Zasper under a name of its own, name it with `--allow-host` or
+  `ZASPER_ALLOWED_HOSTS`, for example `--allow-host=zasper.example.com`.
+  Rewriting the proxy's `Host` header to `localhost` does not work, because
+  WebSockets and saves check that the browser's `Origin` matches `Host`.
 - **Request bodies are capped**, at 512 MiB for the API (uploads excepted) and
   16 KiB for sign-in.
 
 ### Added
 
+- **`--allow-host` and `ZASPER_ALLOWED_HOSTS`**, the other host names a
+  loopback-bound server answers to, for serving Zasper behind a reverse proxy.
+  Each takes a comma-separated list of names, without a scheme or path.
 - **Language servers.** Diagnostics, completion, hover, go to definition, find
   references, rename, document symbols, inlay hints and format on save, for
   Python, Go, JavaScript and TypeScript, Rust, C and C++, R and Julia. Zasper
