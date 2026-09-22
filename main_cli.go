@@ -13,6 +13,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/logging"
 )
 
@@ -26,6 +27,7 @@ func main() {
 	tracking := flag.Bool("tracking", true, "enable usage tracking")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	noBrowser := flag.Bool("no-browser", false, "do not open the app in a browser on startup")
+	allowHost := flag.String("allow-host", "", "other host names a server on loopback answers to, comma-separated, such as a reverse proxy's")
 
 	flag.Parse()
 
@@ -49,13 +51,18 @@ func main() {
 		log.Warn().Msg("--protected=false is ignored: Zasper always runs in protected mode")
 	}
 
+	allowedHosts, err := httpx.AllowedHosts(*allowHost, os.Getenv("ZASPER_ALLOWED_HOSTS"))
+	if err != nil {
+		log.Fatal().Err(err).Msg("--allow-host and ZASPER_ALLOWED_HOSTS take host names")
+	}
+
 	// Channel for graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	// Bind before announcing, so that a port that is already taken is the only thing printed.
 	address := listenAddress(*host, *port)
-	zasper, err := startServer(*cwd, []string{address}, resolveTracking(*tracking))
+	zasper, err := startServer(*cwd, []string{address}, resolveTracking(*tracking), allowedHosts)
 	if err != nil {
 		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
 	}

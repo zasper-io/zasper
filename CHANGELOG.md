@@ -37,14 +37,19 @@ read the first two items below.
   back an interactive plot, such as Bokeh or Plotly, that was saved in the file.
 - **A server bound to `127.0.0.1` or `localhost` answers only to a localhost
   address.** A request that names the server by another hostname gets `403`.
-  This closes DNS rebinding. If you reach a loopback-bound Zasper through a
-  reverse proxy or tunnel that passes on its own hostname, have it send a
-  localhost `Host` header, or start Zasper with `--host`.
+  This closes DNS rebinding. If a reverse proxy on the same machine serves
+  Zasper under a name of its own, name it with `--allow-host` or
+  `ZASPER_ALLOWED_HOSTS`, for example `--allow-host=zasper.example.com`.
+  Rewriting the proxy's `Host` header to `localhost` does not work, because
+  WebSockets and saves check that the browser's `Origin` matches `Host`.
 - **Request bodies are capped**, at 512 MiB for the API (uploads excepted) and
   16 KiB for sign-in.
 
 ### Added
 
+- **`--allow-host` and `ZASPER_ALLOWED_HOSTS`**, the other host names a
+  loopback-bound server answers to, for serving Zasper behind a reverse proxy.
+  Each takes a comma-separated list of names, without a scheme or path.
 - **Language servers.** Diagnostics, completion, hover, go to definition, find
   references, rename, document symbols, inlay hints and format on save, for
   Python, Go, JavaScript and TypeScript, Rust, C and C++, R and Julia. Zasper
@@ -56,7 +61,6 @@ read the first two items below.
   and the matches in unsaved editors included. It uses ripgrep when it is
   installed and gives the same answers without it.
 - **Find and replace in a notebook**, across cells and outputs.
-- **Split the editor** into two tab groups.
 - **Export a notebook** as an HTML page, Markdown or a script.
 - **A table of contents** beside a notebook's cells, built from its headings.
 - **Command and edit modes in notebooks**, with Jupyter's keys.
@@ -184,7 +188,7 @@ The first stable release. Zasper's HTTP and WebSocket API, its configuration
 file and its command-line flags are covered by semantic versioning from this
 point on: they will not break within 1.x.
 
-### Upgrading from 0.3.0-beta
+### Upgrading from 0.2.0-beta
 
 Three changes need attention if you have Zasper running somewhere:
 
@@ -281,11 +285,6 @@ Three changes need attention if you have Zasper running somewhere:
 - An authentication issue where the JWT secret was not randomized.
 - The startup banner claiming success before the port was actually bound.
 
-## [0.3.0-beta] — 2026-02-15
-
-Pre-release. See the
-[release notes](https://github.com/zasper-io/zasper/releases/tag/v0.3.0-beta).
-
 ## [0.2.0-beta] — 2025-06-10
 
 Pre-release.
@@ -297,6 +296,5 @@ First public pre-release.
 [2.0.0]: https://github.com/zasper-io/zasper/releases/tag/v2.0.0
 [1.1.0]: https://github.com/zasper-io/zasper/releases/tag/v1.1.0
 [1.0.0]: https://github.com/zasper-io/zasper/releases/tag/v1.0.0
-[0.3.0-beta]: https://github.com/zasper-io/zasper/releases/tag/v0.3.0-beta
 [0.2.0-beta]: https://github.com/zasper-io/zasper/releases/tag/v0.2.0-beta
 [0.1.0-alpha]: https://github.com/zasper-io/zasper/releases/tag/v0.1.0-alpha

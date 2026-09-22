@@ -91,7 +91,7 @@ func main() {
 
 		// A fixed port first: the page's origin is what localStorage is kept under, so a new port every
 		// launch forgot the tabs and recent files. Not 8048, which would stop the CLI starting.
-		started, err := startServer(cwd, []string{"127.0.0.1:8049", "127.0.0.1:0"}, resolveTracking(true))
+		started, err := startServer(cwd, []string{"127.0.0.1:8049", "127.0.0.1:0"}, resolveTracking(true), nil)
 		if err != nil {
 			log.Error().Err(err).Str("project", cwd).Msg("could not start the server")
 			app.Dialog.Error().SetTitle("Zasper could not start").SetMessage(err.Error()).AttachToWindow(window).Show()

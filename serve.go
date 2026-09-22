@@ -35,7 +35,7 @@ startServer binds the first of addresses it can and serves the app for the proje
 It returns once the listener is bound, not once the first request is served: a request that arrives
 before Serve is running waits in the listener's backlog, so the caller can open a page straight away.
 */
-func startServer(cwd string, addresses []string, tracking bool) (*zasperServer, error) {
+func startServer(cwd string, addresses []string, tracking bool, allowedHosts []string) (*zasperServer, error) {
 	app := core.NewApplication(version, cwd)
 	zasper := server.New(app)
 	router := zasper.Router(getSpaHandler())
@@ -62,7 +62,7 @@ func startServer(cwd string, addresses []string, tracking bool) (*zasperServer, 
 	bound := listener.Addr().String()
 
 	httpServer := &http.Server{
-		Handler: server.WithRequestLogging(log.Logger, logging.AccessLog(), appHandler(router, bound)),
+		Handler: server.WithRequestLogging(log.Logger, logging.AccessLog(), appHandler(router, bound, allowedHosts)),
 		// Only the headers are timed: a whole-request or write timeout would cut off a long upload, a
 		// large download and every websocket.
 		ReadHeaderTimeout: 10 * time.Second,

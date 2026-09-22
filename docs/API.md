@@ -64,7 +64,8 @@ pins that token, in which case sessions survive the restart.
 - A server bound to a loopback address answers only requests whose `Host` is
   `localhost`, a name under `.localhost` or a loopback IP, and refuses any other
   with `403`. This stops a DNS-rebinding page from reaching it under a name of
-  its own. To reach the server by another name, start it with `--host`.
+  its own. To reach the server by another name, such as a reverse proxy's, name
+  it with `--allow-host` or `ZASPER_ALLOWED_HOSTS`.
 - Request bodies are capped: 16 KiB under `/auth`, and 512 MiB under `/api`
   except `POST /api/contents/upload`, which is not capped.
 

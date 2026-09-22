@@ -209,8 +209,9 @@ zasper --host=0.0.0.0 --no-browser
 
 `--host` makes the server reachable from other machines. Zasper binds `127.0.0.1` by default;
 widen it only when you mean to. Bound to `127.0.0.1`, it answers only to `localhost`, `127.0.0.1` and
-`[::1]`, which stops a web page that points its own domain at your machine from reaching it; a name
-of your own for the loopback address needs `--host` too. The banner then reports the wider binding:
+`[::1]`, which stops a web page that points its own domain at your machine from reaching it. Behind a reverse
+proxy on the same machine, keep the default and name the proxy's host instead:
+`--allow-host=zasper.example.com`. With `--host=0.0.0.0` the banner reports the wider binding:
 
 ```text
  📡 Bound to:            0.0.0.0:8048
@@ -445,6 +446,7 @@ A single click on a rendered markdown cell only selects it; it stays rendered.
 | `--cwd` | `.` | Base directory of the project |
 | `--host` | `127.0.0.1` | Interface to bind; `0.0.0.0` puts the server on the network |
 | `--port` | `:8048` | Port to start the server on |
+| `--allow-host` | | Other host names a server on loopback answers to, comma-separated, such as a reverse proxy's |
 | `--no-browser` | off | Do not open the app in a browser on startup |
 | `--tracking` | `true` | Send anonymous usage data; see [Logging and privacy](#logging-and-privacy) |
 | `--debug` | off | Set the log level to debug |
@@ -457,6 +459,7 @@ A single click on a rendered markdown cell only selects it; it stays rendered.
 | Variable | Description |
 | --- | --- |
 | `ZASPER_ACCESS_TOKEN` | A fixed access token, instead of a new one on every start; open sessions survive a restart when it is set |
+| `ZASPER_ALLOWED_HOSTS` | Host names added to `--allow-host`'s, comma-separated |
 | `ZASPER_TELEMETRY` | `0` or `1` to turn anonymous usage data off or on for this run |
 | `ZASPER_LOG_FORMAT` | `json` or `console`; by default, console on a terminal and JSON otherwise |
 | `ZASPER_ACCESS_LOG` | `1` to log every request, not only the ones that failed |
