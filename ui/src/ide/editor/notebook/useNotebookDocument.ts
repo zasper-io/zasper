@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { apiErrorMessage, getNotebook, NotebookCell, NotebookModel } from '@/api';
@@ -28,6 +28,20 @@ export function newCell(cellType: NotebookCell['cell_type'] = 'code'): NotebookC
  * change replaces the notebook object and a change that changes nothing returns the same one, so
  * identity against the saved document is what "unsaved" means.
  */
+/** Compares notebook cells (types, ids, and source text) to determine if user edits are unsaved. */
+export function isSourceDirty(a: NotebookModel, b: NotebookModel): boolean {
+  if (a === b) return false;
+  if (a.cells.length !== b.cells.length) return true;
+  for (let i = 0; i < a.cells.length; i++) {
+    const ca = a.cells[i];
+    const cb = b.cells[i];
+    if (ca.id !== cb.id || ca.cell_type !== cb.cell_type || ca.source !== cb.source) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function useNotebookDocument() {
   const [notebook, setNotebook] = useState<NotebookModel>(emptyNotebook);
   const [savedNotebook, setSavedNotebook] = useState<NotebookModel>(emptyNotebook);
@@ -74,10 +88,16 @@ export function useNotebookDocument() {
     setSavedNotebook(saved);
   }, []);
 
+  const sourceUnsaved = useMemo(
+    () => isSourceDirty(notebook, savedNotebook),
+    [notebook, savedNotebook]
+  );
+
   return {
     notebook,
     setNotebook,
     unsaved: notebook !== savedNotebook,
+    sourceUnsaved,
     markSaved,
     loading,
     error,

@@ -64,7 +64,9 @@ export class FakeSocket {
   closed = false;
 
   constructor(readonly url: string) {
-    sockets.push(this);
+    if (url.includes('/channels')) {
+      sockets.push(this);
+    }
     if (FakeSocket.autoOpen) {
       setTimeout(() => {
         this.opened = true;
