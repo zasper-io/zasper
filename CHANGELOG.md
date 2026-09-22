@@ -61,7 +61,6 @@ read the first two items below.
   and the matches in unsaved editors included. It uses ripgrep when it is
   installed and gives the same answers without it.
 - **Find and replace in a notebook**, across cells and outputs.
-- **Split the editor** into two tab groups.
 - **Export a notebook** as an HTML page, Markdown or a script.
 - **A table of contents** beside a notebook's cells, built from its headings.
 - **Command and edit modes in notebooks**, with Jupyter's keys.
