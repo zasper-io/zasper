@@ -4,6 +4,107 @@ All notable changes to Zasper are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Zasper follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] — 2026-09-22
+
+2.0.0 is a major release because two parts of the documented API changed
+incompatibly, both as part of moving the browser's session into an `HttpOnly`
+cookie. The main reason is security: a session token in a URL leaks. The app
+itself upgrades without any action. Scripts that talk to Zasper's API should
+read the first two items below.
+
+### Upgrading from 1.1.0
+
+- **WebSocket routes no longer accept `?token=<jwt>`.** A token in a URL ends up
+  in server and reverse-proxy access logs, browser history and error reports,
+  and whoever reads it there holds a live session for up to 24 hours. The server
+  now never reads a session from a URL. A script that opens
+  `/ws/kernels/{id}/channels` or `/ws/terminals/{id}` sends
+  `Authorization: Bearer <jwt>` on the upgrade instead; the browser uses its
+  cookie. [docs/API.md](docs/API.md#removed-in-200) has the details.
+- **`protected` is no longer in `/api/config` or `/api/info`.** It has been
+  `true` on every server since 1.1.0. Treat a missing field as `true`.
+- **You will be asked to sign in once.** The browser's session is now an
+  `HttpOnly` cookie, which no script in the page can read, instead of a token
+  kept in the page's storage.
+- **A notebook's kernel starts in the notebook's folder**, not the folder Zasper
+  was started in, so a relative path in a cell means what it means beside the
+  file, as in Jupyter. `JPY_SESSION_NAME` is set to the notebook's path. Code
+  that opened files relative to the project root from a notebook in a subfolder
+  needs its paths adjusted.
+- **HTML outputs saved in a notebook no longer run their scripts when it is
+  opened.** They are sanitised, because the scripts would run as you. Outputs
+  from cells you run in this session still run theirs. Re-run a cell to bring
+  back an interactive plot, such as Bokeh or Plotly, that was saved in the file.
+- **A server bound to `127.0.0.1` or `localhost` answers only to a localhost
+  address.** A request that names the server by another hostname gets `403`.
+  This closes DNS rebinding. If you reach a loopback-bound Zasper through a
+  reverse proxy or tunnel that passes on its own hostname, have it send a
+  localhost `Host` header, or start Zasper with `--host`.
+- **Request bodies are capped**, at 512 MiB for the API (uploads excepted) and
+  16 KiB for sign-in.
+
+### Added
+
+- **Language servers.** Diagnostics, completion, hover, go to definition, find
+  references, rename, document symbols, inlay hints and format on save, for
+  Python, Go, JavaScript and TypeScript, Rust, C and C++, R and Julia. Zasper
+  starts a server already installed on your machine, and Settings says which one
+  it found or how to install one. Notebooks get them too, with IPython magics
+  masked out and imports resolved against the kernel's interpreter. See
+  [docs/LANGUAGE-SERVERS.md](docs/LANGUAGE-SERVERS.md).
+- **Search across the project**, with replace, a preview of each file's changes
+  and the matches in unsaved editors included. It uses ripgrep when it is
+  installed and gives the same answers without it.
+- **Find and replace in a notebook**, across cells and outputs.
+- **Split the editor** into two tab groups.
+- **Export a notebook** as an HTML page, Markdown or a script.
+- **A table of contents** beside a notebook's cells, built from its headings.
+- **Command and edit modes in notebooks**, with Jupyter's keys.
+- **Choose a Python interpreter** in the top bar, the status bar or Settings,
+  and **run a Python file** in the terminal with it.
+- **A terminal panel** below the editor, with a toggle command.
+- **Editor settings:** autosave, format on save, tab size and tabs or spaces,
+  whitespace, rulers, word wrap, line numbers, font size, trimming trailing
+  whitespace, a final newline, and Vim or Emacs keys. `.editorconfig` files are
+  honoured.
+- **The status bar** shows and changes a file's language, indentation and line
+  endings.
+- **Go to line** and **recent files** in the command palette. Recent files and
+  open tabs are remembered per project.
+- **A file changed on disk updates its editor**, and your unsaved edits are kept.
+  You can compare the edits with the version on disk.
+- **A Settings switch for loading widget libraries from the CDN.** Libraries
+  that Zasper does not bundle are loaded from jsDelivr; turn this off to keep a
+  notebook's widgets from reaching the network.
+- A notice when your session ends or the server stops, saying which it was.
+- The startup banner is in colour.
+
+### Changed
+
+- **Stopping a kernel asks it to shut down** instead of killing it, so its
+  `atexit` handlers run. One that has not exited after five seconds is sent
+  SIGTERM, then killed. On macOS and Linux the signals go to the kernel's whole
+  process group, so processes it started stop with it.
+- A kernel accepts more than one connection at a time, so reloading the page
+  while a notebook is open no longer loses track of how many are attached.
+- Switching themes no longer animates every colour on the page.
+- Terminals are no longer offered on Windows, where they have never worked. Run
+  Zasper under WSL to use one.
+
+### Fixed
+
+- A kernel that failed to start left its connection file, including the kernel's
+  signing key, in Jupyter's runtime folder.
+- Saving a file reset its permissions: a `0600` file became readable by others,
+  and a script lost its execute bit.
+- Saving a file that is a link replaced the link with a plain file.
+- A delete request naming the project folder itself, as an empty path, `.` or
+  `/`, emptied the project. It is now refused.
+- On Windows, language servers installed in a project's `.venv` were not found,
+  and changes inside ignored folders such as `node_modules` reloaded the page.
+- Notebooks with Plotly, Vega or other `application/*+json` outputs were
+  reported as not matching nbformat's schema.
+
 ## [1.1.0] — 2026-09-14
 
 ### Upgrading from 1.0.0
@@ -193,6 +294,7 @@ Pre-release.
 
 First public pre-release.
 
+[2.0.0]: https://github.com/zasper-io/zasper/releases/tag/v2.0.0
 [1.1.0]: https://github.com/zasper-io/zasper/releases/tag/v1.1.0
 [1.0.0]: https://github.com/zasper-io/zasper/releases/tag/v1.0.0
 [0.3.0-beta]: https://github.com/zasper-io/zasper/releases/tag/v0.3.0-beta

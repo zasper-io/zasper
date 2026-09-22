@@ -101,7 +101,7 @@ The methodology and full results are in the
 
 ## Installation
 
-Current release version: `v1.1.0`
+Current release version: `v2.0.0`
 
 | Platform | Support |
 | --- | --- |

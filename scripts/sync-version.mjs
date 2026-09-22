@@ -42,6 +42,14 @@ packageJson.version = version;
 writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
 console.log('  ui/package.json');
 
+// The lockfile states the root package's version twice; 1.1.0 had to fix both by hand.
+const lockPath = at('ui/package-lock.json');
+const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+lock.version = version;
+lock.packages[''].version = version;
+writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
+console.log('  ui/package-lock.json');
+
 // Quoted, because an unquoted 1.0.0 is a YAML float and 1.0.0-beta is not — the pair would parse
 // as two different types.
 substitute('snap/snapcraft.yaml', /^version: '.*'$/m, `version: '${version}'`);
