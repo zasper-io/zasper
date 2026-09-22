@@ -97,6 +97,19 @@ export function useKernelRequests(
     [session, connection, userName, syncRunningCells]
   );
 
+  /**
+   * Tracks an in-flight execution request for a cell (e.g. initiated by an external runner).
+   * Keyed by the request's msg_id so replies and stream outputs route to the cell and
+   * the spinner runs until execution is settled.
+   */
+  const trackExecution = useCallback(
+    (msgId: string, cellId: string) => {
+      executingCells.current.set(msgId, cellId);
+      syncRunningCells();
+    },
+    [syncRunningCells]
+  );
+
   const sendInputReply = useCallback(
     (parentHeader: KernelMessage, inputValue: string) => {
       if (session) {
@@ -168,6 +181,7 @@ export function useKernelRequests(
     settle,
     forgetRunningCells,
     sendExecuteRequest,
+    trackExecution,
     sendInputReply,
     requestCompletions,
     requestInspection,

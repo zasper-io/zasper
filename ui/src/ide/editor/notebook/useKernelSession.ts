@@ -30,7 +30,8 @@ import { useKernelStatus } from './useKernelStatus';
  */
 export function useKernelSession(
   tab: FileTab,
-  applyMessage: (message: KernelMessage, cellId: string | undefined) => void
+  applyMessage: (message: KernelMessage, cellId: string | undefined) => void,
+  onExternalExecute?: (code: string, cellId?: string) => string | undefined
 ) {
   const [session, setSession] = useState<Session | null>();
   const [kernelName, setKernelName] = useState<string>(tab.kernelspec);
@@ -61,7 +62,23 @@ export function useKernelSession(
   const requests = useKernelRequests(session, socket.connection, userName);
 
   function handleMessage(message: KernelMessage) {
-    const cellId = requests.cellFor(message);
+    let cellId = requests.cellFor(message);
+
+    if (
+      !cellId &&
+      message.header.msg_type === 'execute_input' &&
+      message.parent_header?.msg_id &&
+      onExternalExecute
+    ) {
+      const code = typeof message.content?.code === 'string' ? message.content.code : '';
+      const targetCellId =
+        typeof message.metadata?.cellId === 'string' ? message.metadata.cellId : undefined;
+      const matchedCellId = onExternalExecute(code, targetCellId);
+      if (matchedCellId) {
+        requests.trackExecution(message.parent_header.msg_id, matchedCellId);
+        cellId = matchedCellId;
+      }
+    }
 
     if (message.header.msg_type === 'input_request') {
       prompt.askForInput(message, cellId);
