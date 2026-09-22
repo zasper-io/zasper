@@ -54,14 +54,14 @@ Four kinds carry something extra:
 
 ## The pieces
 
-| File                                                             | What it does                                                                           |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [TabIndex.tsx](TabIndex.tsx)                                     | The strip: a button per tab, its mark, its unsaved dot, its ×. Activation is one call. |
-| [UnsavedChangesDialog.tsx](UnsavedChangesDialog.tsx)             | Save / Don't Save / Cancel, for closing a tab with unsaved work.                       |
-| [../../store/TabState.tsx](../../store/TabState.tsx)             | `fileTabsAtom`, the default strip, `withActive`, and the seed from the last visit.     |
-| [../../store/TabActions.ts](../../store/TabActions.ts)           | `useTabActions()` — the only way to change the set of tabs.                            |
-| [../../store/TabStorage.ts](../../store/TabStorage.ts)           | The remembered strip: what is written to localStorage, and what a record restores to.  |
-| [../../store/useRememberTabs.ts](../../store/useRememberTabs.ts) | Keeps the record in step, and drops one belonging to another project.                  |
+| File                                                             | What it does                                                                            |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [TabIndex.tsx](TabIndex.tsx)                                     | The strip: a button per tab, its mark, its unsaved dot, its ×. Activation is one call.  |
+| [UnsavedChangesDialog.tsx](UnsavedChangesDialog.tsx)             | Save / Don't Save / Cancel, for closing a tab with unsaved work.                        |
+| [../../store/TabState.tsx](../../store/TabState.tsx)             | `fileTabsAtom`, the default strip, `withActive`, and what a record restores to.         |
+| [../../store/TabActions.ts](../../store/TabActions.ts)           | `useTabActions()` — the only way to change the set of tabs.                             |
+| [../../store/TabStorage.ts](../../store/TabStorage.ts)           | The remembered strip: what is written to localStorage, and what a record restores to.   |
+| [../../store/useRememberTabs.ts](../../store/useRememberTabs.ts) | Restores this project's strip once `/api/info` names it, then keeps the record in step. |
 
 Two things outside this path matter as much: [../editor/ContentPanel.tsx](../editor/ContentPanel.tsx)
 renders **every** tab and hides the inactive ones, so all editors stay mounted; and
@@ -131,7 +131,6 @@ keyed by its absolute directory, and the 20 most recently written are kept:
 ```jsonc
 {
   "version": 3,
-  "last": "/Users/x/work/demo", // the project the next boot seeds from
   "projects": {
     "/Users/x/work/demo": {
       // absolute, from GET /api/info
@@ -154,16 +153,17 @@ Versions 1 (one strip) and 2 (one project's halves) are still read, as that proj
 An **array**, because order is the whole point of remembering, and object key order is not a contract
 — a file named `123` would be hoisted to the front of the strip on every restore.
 
-**Restoring happens at module load.** `fileTabsAtom`'s initial value _is_ the restored strip, the way
-`zoomLevelAtom` reads its stored level, and `App.tsx` mounts a bare `<Provider>`, so the strip is
-painted in the first render before any request goes out.
+**Restoring waits for the project.** The strip starts as the Launcher alone, and `useRememberTabs`
+restores this project's own strip on its first run with a directory from `/api/info` in hand, as
+`useRememberRecentFiles` does for recent files. Two projects served on the same port are the same
+origin, so the same storage, and the absolute path is what tells them apart; `project` from
+`/api/info` is only the last segment, so `/a/work/demo` and `/b/other/demo` are both `DEMO`.
 
-That means the seed is **optimistic**: nothing at import time knows which project this server serves,
-since that takes `/api/info`. `useRememberTabs` confirms it afterwards — on its first run with a
-directory in hand it compares that against the project the strip was seeded from, and swaps in this
-project's own strip if they differ. Two projects served on the same port are the same origin, so the same storage,
-and the absolute path is what tells them apart; `project` from `/api/info` is only the last segment,
-so `/a/work/demo` and `/b/other/demo` are both `DEMO`.
+It used to be seeded from the last visit at module load, to paint the strip before any request went
+out, and swapped afterwards if `/api/info` named another project. But the seeded front tab mounted
+straight away, so starting Zasper in a new folder opened the previous project's notebook here and
+started a kernel for its path, which the swap then stopped mid-connect. A tab someone opens before the
+directory arrives is kept rather than replaced by the restore.
 
 Nothing is written while the directory is unknown, so a boot whose `/api/info` never answers leaves a
 good record untouched rather than replacing it with a strip nobody confirmed.

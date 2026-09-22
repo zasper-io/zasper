@@ -14,8 +14,8 @@ import type { DiffTarget } from '@/api';
 
 import { projectEntry, readJSON, withProject, writeJSON } from './projectStorage';
 
-// Types only, deliberately: TabState seeds itself from this module, so a value imported back the
-// other way would be a runtime cycle between the two.
+// Types only, deliberately: TabState imports its restore helpers from this module, so a value imported
+// back the other way would be a runtime cycle between the two.
 import type { FileTab, FileTabDict, TabGroup } from './tabState';
 
 const STORAGE_KEY = 'zasper.tabs';
@@ -66,10 +66,9 @@ export interface StoredTabs {
   groups: StoredGroup[];
 }
 
-/** What is written: every project's halves, and which project was written last, to seed a boot with. */
+/** What is written: every project's halves. */
 interface StoredProjects {
   version: number;
-  last: string;
   projects: Record<string, { groups: StoredGroup[]; used: number }>;
 }
 
@@ -86,7 +85,9 @@ function readProjects(): StoredProjects | null {
 
   const record = parsed as Partial<StoredProjects> & Partial<StoredTabs> & Partial<StoredGroup>;
   if (record.version === VERSION) {
-    return typeof record.last === 'string' ? (record as StoredProjects) : null;
+    return record.projects !== null && typeof record.projects === 'object'
+      ? (record as StoredProjects)
+      : null;
   }
 
   if (typeof record.directory !== 'string' || record.directory === '') {
@@ -98,7 +99,6 @@ function readProjects(): StoredProjects | null {
   }
   return {
     version: VERSION,
-    last: record.directory,
     projects: { [record.directory]: { groups, used: 0 } },
   };
 }
@@ -116,19 +116,14 @@ function legacyGroups(record: Partial<StoredTabs> & Partial<StoredGroup>): Store
   return null;
 }
 
-/**
- * Reads back the strip remembered for `directory`, or for the project written last when none is
- * named — the seed, before anything knows which project this is. `null` when there is nothing
- * trustworthy to restore.
- */
-export function readStoredTabs(directory?: string): StoredTabs | null {
+/** Reads back the strip remembered for `directory`, or `null` when there is nothing trustworthy to restore. */
+export function readStoredTabs(directory: string): StoredTabs | null {
   const stored = readProjects();
   if (stored === null) {
     return null;
   }
 
-  const project = directory ?? stored.last;
-  const entry = projectEntry(stored.projects, project) as { groups?: unknown } | undefined;
+  const entry = projectEntry(stored.projects, directory) as { groups?: unknown } | undefined;
   if (entry === null || typeof entry !== 'object' || !Array.isArray(entry.groups)) {
     return null;
   }
@@ -141,7 +136,7 @@ export function readStoredTabs(directory?: string): StoredTabs | null {
 
   return {
     version: VERSION,
-    directory: project,
+    directory,
     groups: groups.slice(0, MAX_GROUPS).map((group) => ({
       active: typeof group.active === 'string' ? group.active : 'Launcher',
       tabs: (Array.isArray(group.tabs) ? group.tabs : []).filter(isRestorable).slice(0, MAX_TABS),
@@ -189,7 +184,6 @@ export function rememberTabs(directory: string, groups: TabGroup[]): void {
 
   const record: StoredProjects = {
     version: VERSION,
-    last: directory,
     projects: withProject(readProjects()?.projects, directory, {
       groups: stored,
       used: Date.now(),
