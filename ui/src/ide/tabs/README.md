@@ -125,16 +125,31 @@ not having already read that same comparison. Without the gate a restored sessio
 ## Coming back after the browser tab is closed
 
 The strip is remembered in `localStorage` under `zasper.tabs`, following the theme and zoom precedent:
-it belongs to the window looking at the project, not to the project.
+it belongs to the window looking at the project, not to the project. There is one entry per project,
+keyed by its absolute directory, and the 20 most recently written are kept:
 
 ```jsonc
 {
-  "version": 1,
-  "directory": "/Users/x/work/demo", // absolute, from GET /api/info
-  "active": "notes.txt", // a tab key, or "Launcher"
-  "tabs": [{ "type": "file", "path": "notes.txt", "name": "notes.txt", "extension": "txt" }],
+  "version": 3,
+  "last": "/Users/x/work/demo", // the project the next boot seeds from
+  "projects": {
+    "/Users/x/work/demo": {
+      // absolute, from GET /api/info
+      "used": 1758560000000, // when it was written, for dropping the oldest
+      "groups": [
+        {
+          "active": "notes.txt", // a tab key, or "Launcher"
+          "tabs": [
+            { "type": "file", "path": "notes.txt", "name": "notes.txt", "extension": "txt" },
+          ],
+        },
+      ],
+    },
+  },
 }
 ```
+
+Versions 1 (one strip) and 2 (one project's halves) are still read, as that project's entry.
 
 An **array**, because order is the whole point of remembering, and object key order is not a contract
 — a file named `123` would be hoisted to the front of the strip on every restore.
@@ -145,8 +160,8 @@ painted in the first render before any request goes out.
 
 That means the seed is **optimistic**: nothing at import time knows which project this server serves,
 since that takes `/api/info`. `useRememberTabs` confirms it afterwards — on its first run with a
-directory in hand it compares that against the directory the record was written for, and drops the
-strip if they differ. Two projects served on the same port are the same origin, so the same storage,
+directory in hand it compares that against the project the strip was seeded from, and swaps in this
+project's own strip if they differ. Two projects served on the same port are the same origin, so the same storage,
 and the absolute path is what tells them apart; `project` from `/api/info` is only the last segment,
 so `/a/work/demo` and `/b/other/demo` are both `DEMO`.
 
@@ -163,8 +178,8 @@ good record untouched rather than replacing it with a strip nobody confirmed.
 | `kernelspec`    | It goes stale, and the kernel already running that path outranks it anyway.                                                                                                                                                                     |
 | Unsaved edits   | They live in the editors' own state. A restored tab is the file as it is on disk.                                                                                                                                                               |
 
-A strip is capped at 25 tabs, since every one of them is mounted. Two windows on one server both write
-the key and the last writer wins; that is felt only at the next boot, which restores whichever window
+A strip is capped at 25 tabs, since every one of them is mounted. Two windows on one project both write
+its entry and the last writer wins; that is felt only at the next boot, which restores whichever window
 last changed its strip.
 
 ## Closing, unsaved work, and stale paths

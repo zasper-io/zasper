@@ -51,6 +51,25 @@ describe('remembering them', () => {
     expect(readRecentFiles('/work/other')).toEqual([]);
   });
 
+  // Opening a second project must not cost the first its list.
+  it('keeps each project its own list', () => {
+    rememberRecentFiles('/work/rig', [file('a.py')]);
+    rememberRecentFiles('/work/other', [file('b.py')]);
+
+    expect(readRecentFiles('/work/rig').map((entry) => entry.path)).toEqual(['a.py']);
+    expect(readRecentFiles('/work/other').map((entry) => entry.path)).toEqual(['b.py']);
+  });
+
+  it('reads a record from before projects were kept apart', () => {
+    localStorage.setItem(
+      'zasper.recent',
+      JSON.stringify({ version: 1, directory: '/work/rig', files: [file('a.py')] })
+    );
+    rememberRecentFiles('/work/other', [file('b.py')]);
+
+    expect(readRecentFiles('/work/rig').map((entry) => entry.path)).toEqual(['a.py']);
+  });
+
   it('ignores a record it cannot trust', () => {
     localStorage.setItem('zasper.recent', '{"version":1,"directory":"/work/rig","files":"a.py"}');
 

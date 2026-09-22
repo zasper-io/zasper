@@ -6,6 +6,8 @@
  */
 import { atom } from 'jotai';
 
+import { projectEntry, readJSON, withProject, writeJSON } from './projectStorage';
+
 /** A file the reader had open: what it takes to open it again, and what a row shows. */
 export interface RecentFile {
   path: string;
@@ -16,8 +18,8 @@ export interface RecentFile {
 
 const STORAGE_KEY = 'zasper.recent';
 
-/** Bumped when the record's shape changes; an older or newer one is ignored rather than guessed at. */
-const VERSION = 1;
+/** Bumped when the record's shape changes; one this code does not know is ignored rather than guessed at. */
+const VERSION = 2;
 
 /** How many are kept. Six are shown at a time; the rest are what is left when those are closed. */
 const KEPT = 20;
@@ -40,44 +42,33 @@ export function folderOf(file: RecentFile): string {
   return file.path === file.name ? '' : file.path.slice(0, -(file.name.length + 1));
 }
 
-interface StoredRecentFiles {
-  version: number;
-  /** The project these paths are in, so another project's files are not offered. */
-  directory: string;
-  files: RecentFile[];
+/** Version 1 held one project's files; it is read as that project's entry. */
+function storedProjects(): unknown {
+  const record = readJSON(STORAGE_KEY) as {
+    version?: unknown;
+    projects?: unknown;
+    directory?: unknown;
+    files?: unknown;
+  } | null;
+  if (record === null || typeof record !== 'object') {
+    return {};
+  }
+  if (record.version === VERSION) {
+    return record.projects;
+  }
+  if (record.version === 1 && typeof record.directory === 'string') {
+    return { [record.directory]: { files: record.files, used: 0 } };
+  }
+  return {};
 }
 
 export function readRecentFiles(directory: string): RecentFile[] {
-  let raw: string | null;
-  try {
-    raw = localStorage.getItem(STORAGE_KEY);
-  } catch {
-    // Private browsing, or storage turned off.
-    return [];
-  }
-  if (raw === null) {
+  const entry = projectEntry(storedProjects(), directory) as { files?: unknown } | undefined;
+  if (entry === null || typeof entry !== 'object' || !Array.isArray(entry.files)) {
     return [];
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-
-  const record = parsed as Partial<StoredRecentFiles>;
-  if (
-    record === null ||
-    typeof record !== 'object' ||
-    record.version !== VERSION ||
-    record.directory !== directory ||
-    !Array.isArray(record.files)
-  ) {
-    return [];
-  }
-
-  return record.files
+  return (entry.files as RecentFile[])
     .filter(
       (file): file is RecentFile =>
         file !== null &&
@@ -91,10 +82,11 @@ export function readRecentFiles(directory: string): RecentFile[] {
 }
 
 export function rememberRecentFiles(directory: string, files: RecentFile[]): void {
-  const record: StoredRecentFiles = { version: VERSION, directory, files: files.slice(0, KEPT) };
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
-  } catch {
-    // A full or blocked store is not worth failing anything over.
-  }
+  writeJSON(STORAGE_KEY, {
+    version: VERSION,
+    projects: withProject(storedProjects(), directory, {
+      files: files.slice(0, KEPT),
+      used: Date.now(),
+    }),
+  });
 }

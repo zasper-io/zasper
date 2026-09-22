@@ -4,13 +4,15 @@
  *
  * In localStorage rather than ~/.zasper/config.json, as themes and zoom are: the strip belongs to the
  * window looking at the project. Every access is wrapped and an untrustworthy read answers `null`;
- * two windows both write here and the last one wins, which is felt only at the next boot.
+ * two windows on one project both write its entry and the last one wins, felt only at the next boot.
  *
  * Not remembered: terminals (a reattached shell is a new one wearing an old name), the Launcher
  * (always there), `load_required` (a pulse), `kernelspec` (the running kernel outranks it), and
  * unsaved edits, so a restored tab is the file as it is on disk.
  */
 import type { DiffTarget } from '@/api';
+
+import { projectEntry, readJSON, withProject, writeJSON } from './projectStorage';
 
 // Types only, deliberately: TabState seeds itself from this module, so a value imported back the
 // other way would be a runtime cycle between the two.
@@ -19,11 +21,11 @@ import type { FileTab, FileTabDict, TabGroup } from './tabState';
 const STORAGE_KEY = 'zasper.tabs';
 
 /**
- * Bumped when the record's shape changes. Version 1 was one strip; a split has several, so a record
- * from before it is read as one group rather than thrown away — an upgrade should not cost anybody the
- * tabs they had open. Anything else is ignored rather than guessed at.
+ * Bumped when the record's shape changes, and older ones are read rather than thrown away: an upgrade
+ * should not cost anybody the tabs they had open. Version 1 was one strip, 2 one project's halves, and
+ * 3 holds an entry per project. Anything else is ignored rather than guessed at.
  */
-const VERSION = 2;
+const VERSION = 3;
 
 /**
  * A bound on what one boot will mount. `ContentPanel` mounts every open tab, restored or not, so a
@@ -55,6 +57,7 @@ export interface StoredGroup {
   tabs: StoredTab[];
 }
 
+/** One project's strip, as it is read back. */
 export interface StoredTabs {
   version: number;
   /** The absolute project directory, from `/api/info`, so another project's tabs are not adopted. */
@@ -63,66 +66,87 @@ export interface StoredTabs {
   groups: StoredGroup[];
 }
 
+/** What is written: every project's halves, and which project was written last, to seed a boot with. */
+interface StoredProjects {
+  version: number;
+  last: string;
+  projects: Record<string, { groups: StoredGroup[]; used: number }>;
+}
+
 function isStorable(tab: FileTab): boolean {
   return RESTORABLE.has(tab.type) && tab.path !== 'Launcher';
 }
 
-/** Reads back what was remembered, or `null` when there is nothing trustworthy to restore. */
-export function readStoredTabs(): StoredTabs | null {
-  let raw: string | null;
-  try {
-    raw = localStorage.getItem(STORAGE_KEY);
-  } catch {
-    // Private browsing, or storage turned off.
-    return null;
-  }
-  if (raw === null) {
+/** Every project's record, as version 3 whatever it was written as, or `null` when there is none. */
+function readProjects(): StoredProjects | null {
+  const parsed = readJSON(STORAGE_KEY);
+  if (parsed === null || typeof parsed !== 'object') {
     return null;
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
+  const record = parsed as Partial<StoredProjects> & Partial<StoredTabs> & Partial<StoredGroup>;
+  if (record.version === VERSION) {
+    return typeof record.last === 'string' ? (record as StoredProjects) : null;
   }
 
-  const record = parsed as Partial<StoredTabs> & Partial<StoredGroup>;
-  if (
-    record === null ||
-    typeof record !== 'object' ||
-    typeof record.directory !== 'string' ||
-    record.directory === ''
-  ) {
+  if (typeof record.directory !== 'string' || record.directory === '') {
     return null;
   }
-
-  const groups = storedGroups(record);
+  const groups = legacyGroups(record);
   if (groups === null) {
     return null;
   }
-
   return {
     version: VERSION,
-    directory: record.directory,
-    groups: groups.slice(0, MAX_GROUPS).map((group) => ({
-      active: typeof group.active === 'string' ? group.active : 'Launcher',
-      tabs: (Array.isArray(group.tabs) ? group.tabs : []).filter(isRestorable).slice(0, MAX_TABS),
-    })),
+    last: record.directory,
+    projects: { [record.directory]: { groups, used: 0 } },
   };
 }
 
-/** The groups a record holds, whichever shape it was written in, or null for one to ignore. */
-function storedGroups(record: Partial<StoredTabs> & Partial<StoredGroup>): StoredGroup[] | null {
+/** The groups a version 1 or 2 record holds, or null for one to ignore. */
+function legacyGroups(record: Partial<StoredTabs> & Partial<StoredGroup>): StoredGroup[] | null {
   if (record.version === 1 && Array.isArray(record.tabs)) {
     return [
       { active: typeof record.active === 'string' ? record.active : 'Launcher', tabs: record.tabs },
     ];
   }
-  if (record.version === VERSION && Array.isArray(record.groups) && record.groups.length > 0) {
-    return record.groups.filter((group) => group !== null && typeof group === 'object');
+  if (record.version === 2 && Array.isArray(record.groups)) {
+    return record.groups;
   }
   return null;
+}
+
+/**
+ * Reads back the strip remembered for `directory`, or for the project written last when none is
+ * named — the seed, before anything knows which project this is. `null` when there is nothing
+ * trustworthy to restore.
+ */
+export function readStoredTabs(directory?: string): StoredTabs | null {
+  const stored = readProjects();
+  if (stored === null) {
+    return null;
+  }
+
+  const project = directory ?? stored.last;
+  const entry = projectEntry(stored.projects, project) as { groups?: unknown } | undefined;
+  if (entry === null || typeof entry !== 'object' || !Array.isArray(entry.groups)) {
+    return null;
+  }
+  const groups = (entry.groups as StoredGroup[]).filter(
+    (group) => group !== null && typeof group === 'object'
+  );
+  if (groups.length === 0) {
+    return null;
+  }
+
+  return {
+    version: VERSION,
+    directory: project,
+    groups: groups.slice(0, MAX_GROUPS).map((group) => ({
+      active: typeof group.active === 'string' ? group.active : 'Launcher',
+      tabs: (Array.isArray(group.tabs) ? group.tabs : []).filter(isRestorable).slice(0, MAX_TABS),
+    })),
+  };
 }
 
 function isRestorable(tab: StoredTab): tab is StoredTab {
@@ -147,40 +171,31 @@ function isRestorable(tab: StoredTab): tab is StoredTab {
   return true;
 }
 
-/** Remembers the halves as they now stand, for the project at `directory`. */
+/** Remembers the halves as they now stand, for the project at `directory`, beside every other project's. */
 export function rememberTabs(directory: string, groups: TabGroup[]): void {
-  const record: StoredTabs = {
+  const stored: StoredGroup[] = groups.map((group) => ({
+    active: Object.values(group.tabs).find((tab) => tab.active)?.path ?? 'Launcher',
+    tabs: Object.values(group.tabs)
+      .filter(isStorable)
+      .slice(0, MAX_TABS)
+      .map((tab) => ({
+        type: tab.type,
+        path: tab.path,
+        name: tab.name,
+        extension: tab.extension,
+        ...(tab.diff === undefined ? {} : { diff: tab.diff }),
+      })),
+  }));
+
+  const record: StoredProjects = {
     version: VERSION,
-    directory,
-    groups: groups.map((group) => ({
-      active: Object.values(group.tabs).find((tab) => tab.active)?.path ?? 'Launcher',
-      tabs: Object.values(group.tabs)
-        .filter(isStorable)
-        .slice(0, MAX_TABS)
-        .map((tab) => ({
-          type: tab.type,
-          path: tab.path,
-          name: tab.name,
-          extension: tab.extension,
-          ...(tab.diff === undefined ? {} : { diff: tab.diff }),
-        })),
-    })),
+    last: directory,
+    projects: withProject(readProjects()?.projects, directory, {
+      groups: stored,
+      used: Date.now(),
+    }),
   };
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
-  } catch {
-    // A full quota, or storage turned off. The strip is still on screen; only the memory of it is lost.
-  }
-}
-
-/** Forgets the strip, for when what was remembered belongs to another project. */
-export function forgetTabs(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Nothing to do about it, and nothing depends on it having worked.
-  }
+  writeJSON(STORAGE_KEY, record);
 }
 
 /**

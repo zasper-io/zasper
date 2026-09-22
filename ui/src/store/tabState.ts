@@ -2,7 +2,7 @@ import { atom } from 'jotai';
 
 import { DiffTarget } from '@/api';
 
-import { readStoredTabs, restoreTabs, restoredActive } from './tabStorage';
+import { readStoredTabs, restoreTabs, restoredActive, type StoredTabs } from './tabStorage';
 
 export interface FileTab {
   type: string;
@@ -88,7 +88,7 @@ export function withActive(tabs: FileTabDict, path: string): FileTabDict {
 /**
  * Every half, left to right, seeded from the last visit at module load — so the strip is on screen
  * before any request goes out. Seeded optimistically: only `/api/info` can say which project this is,
- * and `useRememberTabs` drops the strip when the answer names a different directory.
+ * and `useRememberTabs` swaps in that project's own strip when the answer names a different one.
  *
  * A test wanting the default strip seeds its own store, or clears storage and `vi.resetModules()`.
  */
@@ -97,11 +97,12 @@ const remembered = readStoredTabs();
 /** Which project the seeded strip was remembered for, for `useRememberTabs` to confirm. */
 export const rememberedDirectory: string | null = remembered?.directory ?? null;
 
-function seededGroups(): TabGroup[] {
-  if (remembered === null) {
+/** The halves a remembered strip describes, or the Launcher alone when there is none. */
+export function rememberedGroups(record: StoredTabs | null): TabGroup[] {
+  if (record === null) {
     return [{ id: FIRST_GROUP, tabs: defaultFileTabState }];
   }
-  return remembered.groups.map((group, index) => {
+  return record.groups.map((group, index) => {
     // The Launcher goes to the first half, which is the one that always exists.
     const restored = restoreTabs(group, index === 0 ? defaultFileTabState.Launcher : undefined);
     return {
@@ -111,7 +112,7 @@ function seededGroups(): TabGroup[] {
   });
 }
 
-export const tabGroupsAtom = atom<TabGroup[]>(seededGroups());
+export const tabGroupsAtom = atom<TabGroup[]>(rememberedGroups(remembered));
 
 /** The half with the cursor in it, which is the one every surface outside the panes reads. */
 export const focusedGroupAtom = atom<string>(FIRST_GROUP);

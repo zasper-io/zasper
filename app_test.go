@@ -172,3 +172,25 @@ func TestPaintBannerOnlyAddsColour(t *testing.T) {
 		assert.Equal(t, line, paintBanner(line, false))
 	}
 }
+
+// The desktop app asks for its fixed port first; a taken one falls through to the next address.
+func TestListenFirstSkipsATakenAddress(t *testing.T) {
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer taken.Close()
+
+	listener, err := listenFirst([]string{taken.Addr().String(), "127.0.0.1:0"})
+	if err != nil {
+		t.Fatalf("expected the second address to bind, got %v", err)
+	}
+	defer listener.Close()
+	if listener.Addr().String() == taken.Addr().String() {
+		t.Errorf("bound the taken address %s", taken.Addr())
+	}
+
+	if _, err := listenFirst([]string{taken.Addr().String()}); err == nil {
+		t.Error("expected an error when every address is taken")
+	}
+}

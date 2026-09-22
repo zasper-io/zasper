@@ -3,7 +3,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  forgetTabs,
   readStoredTabs,
   rememberTabs,
   restoredActive,
@@ -39,8 +38,10 @@ const open: FileTabDict = {
   'Terminal 1': tab('Terminal 1', 'terminal', { cwd: 'src' }),
 };
 
+/** The strip written for the project written last. */
 function written(): StoredTabs {
-  return JSON.parse(localStorage.getItem(KEY) ?? 'null');
+  const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+  return { version: raw.version, directory: raw.last, groups: raw.projects[raw.last].groups };
 }
 
 /** The one half every case here is about, as the writer is handed it. */
@@ -174,11 +175,44 @@ describe('the remembered tab strip', () => {
     expect(read?.groups[0].tabs.map((stored) => stored.path)).toEqual(['notes.txt']);
   });
 
-  it('forgets on request', () => {
+  // Two projects served on one port share a store; opening the second must not cost the first its tabs.
+  it('keeps each project its own strip', () => {
     rememberTabs(DIRECTORY, halves());
-    forgetTabs();
+    rememberTabs('/Users/x/work/other', halves({ Launcher: launcher, 'b.py': tab('b.py') }));
 
-    expect(readStoredTabs()).toBeNull();
+    expect(readStoredTabs()?.directory).toBe('/Users/x/work/other');
+    expect(readStoredTabs(DIRECTORY)?.groups[0].tabs.map((stored) => stored.path)).toEqual([
+      'notes.txt',
+      'src/demo.ipynb',
+    ]);
+    expect(
+      readStoredTabs('/Users/x/work/other')?.groups[0].tabs.map((stored) => stored.path)
+    ).toEqual(['b.py']);
+  });
+
+  it('carries a record from before projects were kept apart into the new shape', () => {
+    store(record());
+    rememberTabs('/Users/x/work/other', halves());
+
+    expect(readStoredTabs(DIRECTORY)?.groups[0].active).toBe('notes.txt');
+  });
+
+  it('remembers no more than twenty projects, dropping the least recently used', () => {
+    for (let index = 0; index < 25; index++) {
+      vi.spyOn(Date, 'now').mockReturnValue(index);
+      rememberTabs(`/work/project-${index}`, halves());
+    }
+    vi.restoreAllMocks();
+
+    expect(readStoredTabs('/work/project-4')).toBeNull();
+    expect(readStoredTabs('/work/project-5')).not.toBeNull();
+    expect(readStoredTabs('/work/project-24')).not.toBeNull();
+  });
+
+  it('restores nothing for a project it has no strip for', () => {
+    rememberTabs(DIRECTORY, halves());
+
+    expect(readStoredTabs('/Users/x/work/other')).toBeNull();
   });
 
   it('restores nothing when there is nothing to restore', () => {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"time"
@@ -29,12 +30,12 @@ type zasperServer struct {
 }
 
 /*
-startServer binds address and serves the app for the project in cwd.
+startServer binds the first of addresses it can and serves the app for the project in cwd.
 
 It returns once the listener is bound, not once the first request is served: a request that arrives
 before Serve is running waits in the listener's backlog, so the caller can open a page straight away.
 */
-func startServer(cwd, address string, tracking bool) (*zasperServer, error) {
+func startServer(cwd string, addresses []string, tracking bool) (*zasperServer, error) {
 	app := core.NewApplication(version, cwd)
 	zasper := server.New(app)
 	router := zasper.Router(getSpaHandler())
@@ -50,7 +51,7 @@ func startServer(cwd, address string, tracking bool) (*zasperServer, error) {
 		analytics.DisableForSession()
 	}
 
-	listener, err := net.Listen("tcp", address)
+	listener, err := listenFirst(addresses)
 	if err != nil {
 		if tracking {
 			analytics.CloseClient()
@@ -108,4 +109,16 @@ func cleanup(zasper *server.Server, tracking bool) {
 	}
 	log.Debug().Msg("performing cleanup")
 	zasper.Shutdown()
+}
+
+// listenFirst binds the first address that is free, and answers the last one's error when none is.
+func listenFirst(addresses []string) (net.Listener, error) {
+	err := errors.New("no address to listen on")
+	for _, address := range addresses {
+		var listener net.Listener
+		if listener, err = net.Listen("tcp", address); err == nil {
+			return listener, nil
+		}
+	}
+	return nil, err
 }

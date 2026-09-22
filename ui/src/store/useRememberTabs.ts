@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import { projectDirAtom } from '@/store/serverInfo';
-import { defaultFileTabState, FIRST_GROUP, rememberedDirectory, tabGroupsAtom } from './tabState';
-import { forgetTabs, rememberTabs } from './tabStorage';
+import { rememberedDirectory, rememberedGroups, tabGroupsAtom } from './tabState';
+import { readStoredTabs, rememberTabs } from './tabStorage';
 
 /**
  * Keeps the remembered strip in step with the open one, and confirms it belongs to this project.
@@ -16,8 +16,8 @@ import { forgetTabs, rememberTabs } from './tabStorage';
  *
  * The strip was seeded at module load, before anything knew which project this server serves. This
  * is where that is settled: the first run with a directory in hand compares it against the one the
- * record was written for, and a strip belonging to another project is dropped rather than adopted —
- * two projects served on the same port are the same origin, so the same storage.
+ * record was written for, and a strip belonging to another project is swapped for this project's own
+ * rather than adopted — two projects served on the same port are the same origin, so the same storage.
  *
  * Nothing is written until that directory arrives, so a boot whose `/api/info` never answers leaves
  * what was remembered untouched rather than replacing it with a strip nobody confirmed.
@@ -38,9 +38,8 @@ export function useRememberTabs(): void {
     if (!confirmed.current) {
       confirmed.current = true;
       if (rememberedDirectory !== null && rememberedDirectory !== directory) {
-        forgetTabs();
-        setGroups([{ id: FIRST_GROUP, tabs: defaultFileTabState }]);
-        // The write for the reset strip comes on the next run, from the state change above.
+        setGroups(rememberedGroups(readStoredTabs(directory)));
+        // The write for this project's strip comes on the next run, from the state change above.
         return;
       }
     }

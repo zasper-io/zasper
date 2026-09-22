@@ -55,7 +55,7 @@ func main() {
 
 	// Bind before announcing, so that a port that is already taken is the only thing printed.
 	address := listenAddress(*host, *port)
-	zasper, err := startServer(*cwd, address, resolveTracking(*tracking))
+	zasper, err := startServer(*cwd, []string{address}, resolveTracking(*tracking))
 	if err != nil {
 		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
 	}

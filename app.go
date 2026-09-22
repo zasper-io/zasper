@@ -40,7 +40,7 @@ func printBanner(address string, accessToken string, version string, tracking bo
 	}
 	fmt.Println()
 	fmt.Printf("                    Zasper Server\n")
-	fmt.Printf("                Version: %s\n", version)
+	fmt.Printf("                   Version: %s\n", version)
 	fmt.Println("----------------------------------------------------------")
 	fmt.Println(" ✅ Server started successfully!")
 	// Both lines, because they differ the moment --host is widened: the bind says who can reach the
