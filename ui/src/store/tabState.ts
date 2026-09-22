@@ -2,7 +2,7 @@ import { atom } from 'jotai';
 
 import { DiffTarget } from '@/api';
 
-import { readStoredTabs, restoreTabs, restoredActive, type StoredTabs } from './tabStorage';
+import { restoreTabs, restoredActive, type StoredTabs } from './tabStorage';
 
 export interface FileTab {
   type: string;
@@ -85,18 +85,6 @@ export function withActive(tabs: FileTabDict, path: string): FileTabDict {
   return next;
 }
 
-/**
- * Every half, left to right, seeded from the last visit at module load — so the strip is on screen
- * before any request goes out. Seeded optimistically: only `/api/info` can say which project this is,
- * and `useRememberTabs` swaps in that project's own strip when the answer names a different one.
- *
- * A test wanting the default strip seeds its own store, or clears storage and `vi.resetModules()`.
- */
-const remembered = readStoredTabs();
-
-/** Which project the seeded strip was remembered for, for `useRememberTabs` to confirm. */
-export const rememberedDirectory: string | null = remembered?.directory ?? null;
-
 /** The halves a remembered strip describes, or the Launcher alone when there is none. */
 export function rememberedGroups(record: StoredTabs | null): TabGroup[] {
   if (record === null) {
@@ -112,7 +100,12 @@ export function rememberedGroups(record: StoredTabs | null): TabGroup[] {
   });
 }
 
-export const tabGroupsAtom = atom<TabGroup[]>(rememberedGroups(remembered));
+/**
+ * Every half, left to right. It starts as the Launcher alone: only `/api/info` can say which project
+ * this is, and `useRememberTabs` restores that project's strip once it has. A strip seeded from the
+ * last visit mounted the other project's notebook, which started a kernel for its path here.
+ */
+export const tabGroupsAtom = atom<TabGroup[]>(rememberedGroups(null));
 
 /** The half with the cursor in it, which is the one every surface outside the panes reads. */
 export const focusedGroupAtom = atom<string>(FIRST_GROUP);

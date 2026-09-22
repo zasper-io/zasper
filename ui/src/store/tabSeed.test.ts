@@ -1,49 +1,65 @@
 /*
- * The strip a visit starts with.
+ * The strip a visit starts with, and the strip a remembered record turns into.
  *
- * TabState reads the remembered strip when it is imported, once, so each case arranges storage and
- * then imports the module fresh and reads the atom's own initial value. No React and no mocks here:
- * `vi.resetModules()` has to actually re-evaluate the module, which a mocked one would not, and
- * rendering under a re-imported jotai would put a second copy of React beneath the renderer.
+ * TabState builds its atom when it is imported, once, so the first cases arrange storage and then
+ * import the module fresh and read the atom's own initial value. No React and no mocks here:
+ * `vi.resetModules()` has to actually re-evaluate the module, which a mocked one would not.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { rememberedGroups } from './tabState';
+import { readStoredTabs } from './tabStorage';
+
 const KEY = 'zasper.tabs';
+const DIRECTORY = '/Users/x/work/demo';
 
 const remembered = {
   version: 1,
-  directory: '/Users/x/work/demo',
-  active: 'notes.txt',
+  directory: DIRECTORY,
+  active: 'src/demo.ipynb',
   tabs: [
     { type: 'file', path: 'notes.txt', name: 'notes.txt', extension: 'txt' },
     { type: 'notebook', path: 'src/demo.ipynb', name: 'demo.ipynb', extension: 'ipynb' },
   ],
 };
 
-/**
- * The strip TabState seeds itself with, for whatever is in storage now: the first half's tabs, which
- * with one half is the strip the app has always had.
- */
+/** The first half's tabs as TabState seeds them, for whatever is in storage now. */
 async function seededStrip() {
   vi.resetModules();
   const fresh = await import('./tabState');
   return fresh.tabGroupsAtom.init[0].tabs;
 }
 
-/** How many halves were seeded. */
-async function seededHalves() {
-  vi.resetModules();
-  const fresh = await import('./tabState');
-  return fresh.tabGroupsAtom.init.length;
+/** The first half's tabs, as a record remembered for `DIRECTORY` restores them. */
+function restoredStrip() {
+  return rememberedGroups(readStoredTabs(DIRECTORY))[0].tabs;
 }
 
 describe('the strip a visit starts with', () => {
   beforeEach(() => localStorage.clear());
 
-  it('comes back in order, with the tab that was in front in front', async () => {
+  /*
+   * Only /api/info can say which project this is. Seeding from the last visit mounted that project's
+   * notebook here, which started a kernel for its path in whatever folder this server was given.
+   */
+  it('is the Launcher alone even when a strip was remembered', async () => {
     localStorage.setItem(KEY, JSON.stringify(remembered));
 
-    const strip = await seededStrip();
+    expect(Object.keys(await seededStrip())).toEqual(['Launcher']);
+  });
+
+  it('is the Launcher alone when nothing was remembered', async () => {
+    expect(Object.keys(await seededStrip())).toEqual(['Launcher']);
+  });
+});
+
+describe('a remembered strip, restored', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('comes back in order, with the tab that was in front in front', () => {
+    localStorage.setItem(KEY, JSON.stringify({ ...remembered, active: 'notes.txt' }));
+
+    const strip = restoredStrip();
 
     expect(Object.keys(strip)).toEqual(['Launcher', 'notes.txt', 'src/demo.ipynb']);
     expect(strip['notes.txt'].active).toBe(true);
@@ -53,32 +69,19 @@ describe('the strip a visit starts with', () => {
     expect(strip['src/demo.ipynb'].unloaded).toBe(true);
   });
 
-  it('remembers which project it came from, for the boot to confirm', async () => {
+  it('is one half, from a record written before there could be more', () => {
     localStorage.setItem(KEY, JSON.stringify(remembered));
 
-    vi.resetModules();
-    const fresh = await import('./tabState');
-
-    expect(fresh.rememberedDirectory).toBe('/Users/x/work/demo');
+    expect(rememberedGroups(readStoredTabs(DIRECTORY))).toHaveLength(1);
   });
 
-  it('is the Launcher alone when nothing was remembered', async () => {
-    expect(Object.keys(await seededStrip())).toEqual(['Launcher']);
-  });
-
-  it('is the Launcher alone when what was remembered cannot be read', async () => {
+  it('is the Launcher alone when what was remembered cannot be read', () => {
     localStorage.setItem(KEY, '{ not json');
 
-    expect(Object.keys(await seededStrip())).toEqual(['Launcher']);
+    expect(Object.keys(restoredStrip())).toEqual(['Launcher']);
   });
 
-  it('is one half, from a record written before there could be more', async () => {
-    localStorage.setItem(KEY, JSON.stringify(remembered));
-
-    expect(await seededHalves()).toBe(1);
-  });
-
-  it('does not restore a terminal', async () => {
+  it('does not restore a terminal', () => {
     localStorage.setItem(
       KEY,
       JSON.stringify({
@@ -88,7 +91,7 @@ describe('the strip a visit starts with', () => {
       })
     );
 
-    const strip = await seededStrip();
+    const strip = restoredStrip();
 
     expect(Object.keys(strip)).toEqual(['Launcher']);
     expect(strip.Launcher.active).toBe(true);

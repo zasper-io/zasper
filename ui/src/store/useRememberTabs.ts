@@ -2,11 +2,12 @@ import { useEffect, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import { projectDirAtom } from '@/store/serverInfo';
-import { rememberedDirectory, rememberedGroups, tabGroupsAtom } from './tabState';
+import { rememberedGroups, tabGroupsAtom, type TabGroup } from './tabState';
 import { readStoredTabs, rememberTabs } from './tabStorage';
 
 /**
- * Keeps the remembered strip in step with the open one, and confirms it belongs to this project.
+ * Restores this project's strip once `/api/info` has said which project it is, then keeps the
+ * remembered strip in step with the open one.
  *
  * Mounted once, from IDE.tsx, the way `useApplyZoom` is. No debounce: `fileTabsAtom` changes only
  * when a tab is opened, closed, renamed or brought to the front, so this writes once per deliberate
@@ -14,36 +15,39 @@ import { readStoredTabs, rememberTabs } from './tabStorage';
  * lives in `unsavedTabsAtom`. A per-keystroke field on a tab, a cursor or a scroll position, would
  * change that and would need a debounce.
  *
- * The strip was seeded at module load, before anything knew which project this server serves. This
- * is where that is settled: the first run with a directory in hand compares it against the one the
- * record was written for, and a strip belonging to another project is swapped for this project's own
- * rather than adopted — two projects served on the same port are the same origin, so the same storage.
- *
- * Nothing is written until that directory arrives, so a boot whose `/api/info` never answers leaves
- * what was remembered untouched rather than replacing it with a strip nobody confirmed.
+ * Nothing is read or written until the directory arrives, as with recent files: two projects served
+ * on the same port are the same origin, so the same storage, and a tab mounted from the wrong
+ * project's strip is a notebook whose kernel starts for a path that means something else here. So a
+ * boot whose `/api/info` never answers also leaves what was remembered untouched.
  */
 export function useRememberTabs(): void {
   const groups = useAtomValue(tabGroupsAtom);
   const directory = useAtomValue(projectDirAtom);
   const setGroups = useSetAtom(tabGroupsAtom);
-  const confirmed = useRef(false);
+  const restored = useRef(false);
 
   useEffect(() => {
     if (directory === '') {
       return;
     }
 
-    // Both in one effect, in this order: a separate effect for the check could write the wrong
-    // project's strip back under this project's directory before running.
-    if (!confirmed.current) {
-      confirmed.current = true;
-      if (rememberedDirectory !== null && rememberedDirectory !== directory) {
-        setGroups(rememberedGroups(readStoredTabs(directory)));
-        // The write for this project's strip comes on the next run, from the state change above.
+    // Both in one effect, in this order: a separate effect for the write could store the Launcher
+    // alone over this project's strip before the restore had run. A tab opened before the directory
+    // arrived is kept rather than replaced, and is what gets remembered.
+    if (!restored.current) {
+      restored.current = true;
+      const stored = readStoredTabs(directory);
+      if (stored !== null && launcherOnly(groups)) {
+        setGroups(rememberedGroups(stored));
+        // The write for the restored strip comes on the next run, from the state change above.
         return;
       }
     }
 
     rememberTabs(directory, groups);
   }, [directory, groups, setGroups]);
+}
+
+function launcherOnly(groups: TabGroup[]): boolean {
+  return groups.length === 1 && Object.keys(groups[0].tabs).join() === 'Launcher';
 }
