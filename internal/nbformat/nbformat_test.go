@@ -463,6 +463,31 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestValidateJSONMimeData(t *testing.T) {
+	doc := Document{
+		"nbformat": 4, "nbformat_minor": 5, "metadata": map[string]interface{}{},
+		"cells": []interface{}{
+			map[string]interface{}{
+				"cell_type": "code", "source": "", "metadata": map[string]interface{}{}, "id": "plot",
+				"execution_count": 1,
+				"outputs": []interface{}{
+					map[string]interface{}{
+						"output_type": "display_data", "metadata": map[string]interface{}{},
+						"data": map[string]interface{}{
+							"application/json":               map[string]interface{}{"key": "value"},
+							"application/vnd.plotly.v1+json": map[string]interface{}{"data": []interface{}{}},
+							"text/html":                      "<div></div>",
+						},
+					},
+				},
+			},
+		},
+	}
+	if problems := Validate(doc); len(problems) != 0 {
+		t.Errorf("expected JSON mime types to hold any JSON, got %v", problems)
+	}
+}
+
 func TestValidateDuplicateCellIDs(t *testing.T) {
 	doc := Document{
 		"nbformat": 4, "nbformat_minor": 5, "metadata": map[string]interface{}{},

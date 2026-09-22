@@ -227,7 +227,7 @@ func validateOutput(output map[string]interface{}, path string) []Problem {
 		}
 	case "execute_result", "display_data":
 		if data, present := output["data"]; present {
-			problems = append(problems, validateBundle(data, path+".data", true)...)
+			problems = append(problems, validateBundle(data, path+".data")...)
 		}
 		if metadata, present := output["metadata"]; present {
 			if _, ok := mapValue(metadata); !ok {
@@ -262,21 +262,21 @@ func validateAttachments(attachments interface{}, path string) []Problem {
 	}
 	problems := []Problem{}
 	for name, bundle := range bundles {
-		problems = append(problems, validateBundle(bundle, fmt.Sprintf("%s[%q]", path, name), false)...)
+		problems = append(problems, validateBundle(bundle, fmt.Sprintf("%s[%q]", path, name))...)
 	}
 	return problems
 }
 
-// validateBundle checks a mime bundle: mime type to content. `skipJSON` leaves application/json
-// alone, whose value is arbitrary JSON rather than text.
-func validateBundle(bundle interface{}, path string, skipJSON bool) []Problem {
+// validateBundle checks a mime bundle: mime type to content. JSON mime types, application/json and
+// any application/*+json such as Plotly's or Vega's, hold arbitrary JSON rather than text.
+func validateBundle(bundle interface{}, path string) []Problem {
 	fields, ok := mapValue(bundle)
 	if !ok {
 		return []Problem{{Path: path, Message: "not an object"}}
 	}
 	problems := []Problem{}
 	for mime, value := range fields {
-		if skipJSON && mime == jsonMime {
+		if isJSONMime(mime) {
 			continue
 		}
 		if !isMultiline(value) {
