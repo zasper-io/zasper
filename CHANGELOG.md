@@ -188,7 +188,7 @@ The first stable release. Zasper's HTTP and WebSocket API, its configuration
 file and its command-line flags are covered by semantic versioning from this
 point on: they will not break within 1.x.
 
-### Upgrading from 0.3.0-beta
+### Upgrading from 0.2.0-beta
 
 Three changes need attention if you have Zasper running somewhere:
 
@@ -285,11 +285,6 @@ Three changes need attention if you have Zasper running somewhere:
 - An authentication issue where the JWT secret was not randomized.
 - The startup banner claiming success before the port was actually bound.
 
-## [0.3.0-beta] — 2026-02-15
-
-Pre-release. See the
-[release notes](https://github.com/zasper-io/zasper/releases/tag/v0.3.0-beta).
-
 ## [0.2.0-beta] — 2025-06-10
 
 Pre-release.
@@ -301,6 +296,5 @@ First public pre-release.
 [2.0.0]: https://github.com/zasper-io/zasper/releases/tag/v2.0.0
 [1.1.0]: https://github.com/zasper-io/zasper/releases/tag/v1.1.0
 [1.0.0]: https://github.com/zasper-io/zasper/releases/tag/v1.0.0
-[0.3.0-beta]: https://github.com/zasper-io/zasper/releases/tag/v0.3.0-beta
 [0.2.0-beta]: https://github.com/zasper-io/zasper/releases/tag/v0.2.0-beta
 [0.1.0-alpha]: https://github.com/zasper-io/zasper/releases/tag/v0.1.0-alpha
