@@ -639,6 +639,35 @@ describe('NotebookEditor', () => {
     });
   });
 
+  it('syncs execution from external runner by matching cell code and streams output', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    // External runner broadcasts execute_input with matching cell code
+    sockets[0].receive({
+      header: { msg_type: 'execute_input' },
+      parent_header: { msg_id: 'runner-req-1' },
+      content: { code: 'print("hi")', execution_count: 5 },
+    });
+
+    // Spinner is active for running cell
+    await waitFor(() => expect(container.querySelector('.z-spinner')).toBeInTheDocument());
+
+    // Runner streams output
+    sockets[0].receive(
+      kernelMessage('stream', 'runner-req-1', { name: 'stdout', text: 'hi from runner\n' })
+    );
+    expect(await screen.findByText(/hi from runner/)).toBeInTheDocument();
+
+    // Settle execution
+    sockets[0].receive(kernelMessage('status', 'runner-req-1', { execution_state: 'idle' }));
+
+    // Spinner stops, execution count updated
+    await waitFor(() => expect(container.querySelector('.z-spinner')).not.toBeInTheDocument());
+    expect(screen.getByText('[5]:')).toBeInTheDocument();
+  });
+
   // `input()` in a cell: the prompt belongs under the cell whose request the input_request answers,
   // and the reply is addressed back to that request.
   it('prompts under the cell the kernel is waiting on, and answers its request', async () => {

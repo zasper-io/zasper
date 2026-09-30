@@ -68,11 +68,34 @@ function without<T>(record: Record<string, T>, key: string): Record<string, T> {
 
 export default function NotebookEditor({ data }: NotebookEditorProps) {
   const cells = useNotebookCells();
+  const { loadNotebook, markCellRunning, notebook } = cells;
   const [editorSettings] = useEditorSettings();
   const kernelspecs = useAtomValue(kernelspecsAtom);
-  const kernel = useKernelSession(data, cells.applyMessage);
 
-  const { loadNotebook, notebook } = cells;
+  const handleExternalExecute = useCallback(
+    (code: string, cellId?: string): string | undefined => {
+      if (cellId) {
+        const found = notebook.cells.find((c) => c.id === cellId);
+        if (found) {
+          markCellRunning(found.id);
+          return found.id;
+        }
+      }
+      const trimmed = code.trim();
+      if (!trimmed) return undefined;
+      const matched = notebook.cells.find(
+        (c) => c.cell_type === 'code' && c.source.trim() === trimmed
+      );
+      if (matched) {
+        markCellRunning(matched.id);
+        return matched.id;
+      }
+      return undefined;
+    },
+    [notebook.cells, markCellRunning]
+  );
+
+  const kernel = useKernelSession(data, cells.applyMessage, handleExternalExecute);
   const { startSessionForNotebook } = kernel;
 
   // The attached kernel's language first, then what the file says it was written in.
@@ -230,7 +253,6 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // Registered whether or not this is the active tab: any open tab can be closed.
   useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
 
-  const { markCellRunning } = cells;
   const { sendExecuteRequest } = kernel;
   const submitCell = useCallback(
     (source: string, cellId: string) => {
