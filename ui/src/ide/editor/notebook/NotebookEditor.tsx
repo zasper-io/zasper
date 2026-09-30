@@ -1,17 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { search } from '@codemirror/search';
 import { EditorView } from '@codemirror/view';
-import { useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { selectAtom } from 'jotai/utils';
 import { toast } from 'react-toastify';
 import './NotebookEditor.scss';
 
 import {
   apiErrorMessage,
   downloadContent,
+  getNotebook,
   logApiError,
   NotebookMetadata,
   saveNotebook,
 } from '@/api';
+import DiskChangeBand from '../DiskChangeBand';
+import { useContentWatcher } from '@/ide/useContentWatcher';
+import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
 import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
@@ -53,6 +58,12 @@ interface NotebookEditorProps {
   data: FileTab;
 }
 
+function without<T>(record: Record<string, T>, key: string): Record<string, T> {
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
 export default function NotebookEditor({ data }: NotebookEditorProps) {
   const cells = useNotebookCells();
   const [editorSettings] = useEditorSettings();
@@ -75,13 +86,25 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       // Sequenced, not side by side: the kernel to start is the one the file names, so it takes
       // reading the file to know it — and a notebook that could not be read gets no session, and
       // so no kernel picker raised over the error.
+      // Error handled by NotebookCell list falling back to a plain view of raw cells if possible
+      // so no kernel picker raised over the error.
       loadNotebook(data.path).then((loaded) => {
         if (loaded) {
+          diskContent.current = JSON.stringify(loaded, null, 2) + '\n';
           startSessionForNotebook(loaded.metadata);
         }
       });
     }
   }, [data, loadNotebook, startSessionForNotebook]);
+
+  const diskContent = useRef<string | null>(null);
+  const changedWhileHidden = useRef(false);
+  const [conflict, setConflict] = useState<string | null>(null);
+  const setCompares = useSetAtom(diskComparesAtom);
+  const [resolution] = useAtom(
+    useMemo(() => selectAtom(diskResolutionsAtom, (all) => all[data.path]), [data.path])
+  );
+  const setResolutions = useSetAtom(diskResolutionsAtom);
 
   const saveNotebookToDisk = async () => {
     // Merged, not replaced: the server round-trips metadata it does not understand, so replacing
@@ -107,9 +130,93 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
     const written = notebook;
     await saveNotebook(data.path, written);
+    diskContent.current = JSON.stringify(written, null, 2) + '\n';
+    setConflict(null);
     // Only once the write succeeded: a notebook the server refused still holds unsaved work.
     cells.markSaved(written);
   };
+
+  const takeChangeFromDisk = useCallback(async () => {
+    let resJson;
+    try {
+      resJson = await getNotebook(data.path);
+    } catch {
+      return;
+    }
+    const onDisk = JSON.stringify(resJson.content, null, 2) + '\n';
+    if (onDisk === diskContent.current) {
+      return;
+    }
+    diskContent.current = onDisk;
+
+    if (!cells.sourceUnsaved) {
+      setConflict(null);
+      await loadNotebook(data.path);
+      return;
+    }
+
+    const currentDoc = JSON.stringify(cells.notebook, null, 2) + '\n';
+    // Someone wrote what the editor already holds: nothing is left to choose between.
+    if (currentDoc === onDisk) {
+      setConflict(null);
+      cells.markSaved(resJson.content);
+      return;
+    }
+
+    setConflict(onDisk);
+  }, [data.path, cells, loadNotebook]);
+
+  useContentWatcher(() => {
+    if (!data.active) {
+      changedWhileHidden.current = true;
+      return;
+    }
+    void takeChangeFromDisk();
+  });
+
+  useEffect(() => {
+    if (data.active && changedWhileHidden.current) {
+      changedWhileHidden.current = false;
+      void takeChangeFromDisk();
+    }
+  }, [data.active, takeChangeFromDisk]);
+
+  const keepMine = useCallback(() => setConflict(null), []);
+
+  const takeTheirs = useCallback(async () => {
+    if (conflict === null) {
+      return;
+    }
+    diskContent.current = conflict;
+    setConflict(null);
+    await loadNotebook(data.path);
+  }, [conflict, data.path, loadNotebook]);
+
+  const compareWithDisk = useCallback(() => {
+    if (conflict !== null) {
+      const mine = JSON.stringify(cells.notebook, null, 2) + '\n';
+      setCompares((compares) => ({ ...compares, [data.path]: { onDisk: conflict, mine } }));
+    }
+  }, [conflict, cells.notebook, data.path, setCompares]);
+
+  useEffect(() => {
+    if (conflict === null) {
+      setCompares((compares) => without(compares, data.path));
+    }
+  }, [conflict, data.path, setCompares]);
+
+  // An answer given in the comparison tab.
+  useEffect(() => {
+    if (resolution === undefined) {
+      return;
+    }
+    setResolutions((resolutions) => without(resolutions, data.path));
+    if (resolution === 'mine') {
+      keepMine();
+    } else {
+      void takeTheirs();
+    }
+  }, [resolution, data.path, setResolutions, keepMine, takeTheirs]);
 
   // Registered whether or not this is the active tab: any open tab can be closed.
   useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
@@ -445,6 +552,15 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         aria-labelledby="profile-tab"
       >
         <BreadCrumb path={data.path} />
+        {conflict !== null && (
+          <DiskChangeBand
+            path={data.path}
+            name={data.name}
+            onCompare={compareWithDisk}
+            onKeepMine={keepMine}
+            onTakeTheirs={takeTheirs}
+          />
+        )}
         <NbButtons
           run={runCommand}
           downloadNotebook={downloadNotebook}

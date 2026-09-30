@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Provider } from '@/testing/Provider';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -36,11 +36,19 @@ vi.mock('@uiw/react-codemirror', async () =>
   (await import('./notebookEditorFakes')).codeMirrorModule()
 );
 
+const watchers = vi.hoisted(() => ({ latest: () => {} }));
+vi.mock('@/ide/useContentWatcher', () => ({
+  useContentWatcher: (changed: () => void) => {
+    watchers.latest = changed;
+  },
+}));
+
 vi.stubGlobal('WebSocket', FakeSocket);
 
 describe('NotebookEditor', () => {
   beforeEach(() => {
     sockets.length = 0;
+    watchers.latest = () => {};
     resetIds();
     getNotebook.mockReset();
     sessionForPath.mockReset();
@@ -427,6 +435,83 @@ describe('NotebookEditor', () => {
     sockets[0].receive(kernelMessage('execute_input', 'server-cell-id', { execution_count: 9 }));
     await waitFor(() => expect(screen.queryByText('[9]:')).not.toBeInTheDocument());
     expect(screen.getByText('[0]:')).toBeInTheDocument();
+  });
+
+  it('automatically reloads from disk when file changes and user has no unsaved source changes', async () => {
+    const onDiskUpdated = {
+      ...structuredClone(notebookContent),
+      cells: [
+        {
+          ...notebookContent.cells[0],
+          source: 'print("updated on disk")',
+        },
+      ],
+    };
+
+    render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: onDiskUpdated,
+    });
+
+    // Trigger watcher
+    await act(async () => {
+      watchers.latest();
+    });
+
+    expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument();
+    expect(await screen.findByText('print("updated on disk")')).toBeInTheDocument();
+  });
+
+  it('presents DiskChangeBand when file changes on disk and user has unsaved source changes', async () => {
+    const { container } = render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:insert-cell-below" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    // User makes a source change (insert cell below)
+    fireEvent.click(screen.getByText('dispatch'));
+    await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(2));
+
+    // Disk changes
+    const onDiskUpdated = {
+      ...structuredClone(notebookContent),
+      cells: [
+        {
+          ...notebookContent.cells[0],
+          source: 'print("conflict from disk")',
+        },
+      ],
+    };
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: onDiskUpdated,
+    });
+
+    await act(async () => {
+      watchers.latest();
+    });
+
+    // Conflict banner appears
+    expect(await screen.findByText(/changed on disk/)).toBeInTheDocument();
+    expect(screen.getByText('Keep mine')).toBeInTheDocument();
+    expect(screen.getByText('Take theirs')).toBeInTheDocument();
+
+    // Clicking "Take theirs" loads the version from disk
+    fireEvent.click(screen.getByText('Take theirs'));
+    await waitFor(() => expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument());
+    expect(await screen.findByText('print("conflict from disk")')).toBeInTheDocument();
   });
 
   // `input()` in a cell: the prompt belongs under the cell whose request the input_request answers,
