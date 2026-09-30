@@ -38,6 +38,32 @@ export function isSourceDirty(a: NotebookModel, b: NotebookModel): boolean {
 }
 
 /**
+ * Returns a canonical JSON string of the notebook, stripping out client-only fields like
+ * `reload` and sorting object keys to ensure identical objects produce identical strings
+ * regardless of key insertion order.
+ */
+export function stringifyNotebook(notebook: NotebookModel | NotebookCell): string {
+  return (
+    JSON.stringify(
+      notebook,
+      (key, value) => {
+        if (key === 'reload') return undefined; // client only field
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+          return Object.keys(value)
+            .sort()
+            .reduce((acc: Record<string, unknown>, k: string) => {
+              acc[k] = value[k as keyof typeof value];
+              return acc;
+            }, {});
+        }
+        return value;
+      },
+      2
+    ) + '\n'
+  );
+}
+
+/**
  * The notebook document, as one immutable value, and the document as it last reached disk. Every
  * change replaces the notebook object and a change that changes nothing returns the same one, so
  * identity against the saved document is what "unsaved" means.
@@ -53,32 +79,42 @@ export function useNotebookDocument() {
    * the reason is left in `error` for the editor to show. The document is handed back because the
    * caller needs it to start the kernel it names, before this state has been committed.
    */
-  const loadNotebook = useCallback(async (path: string): Promise<NotebookModel | null> => {
-    try {
-      const resJson = await getNotebook(path);
-
-      // A new notebook is `"cells": []` on disk, as Jupyter writes it, and would have nothing to type
-      // into. The cell comes from here rather than the file, which gains one on the first save.
-      if (!resJson.content.cells || resJson.content.cells.length === 0) {
-        resJson.content.cells = [newCell()];
+  const applyNotebook = useCallback(
+    (content: NotebookModel) => {
+      if (!content.cells || content.cells.length === 0) {
+        content.cells = [newCell()];
       }
-      resJson.content.cells.forEach((cell) => {
-        // The document's own id is kept, so that saving gives the file back the ids it came with. A
-        // notebook older than nbformat 4.5 has none, and gets one to key on for this session.
+      content.cells.forEach((cell) => {
         cell.id = cell.id || uuidv4();
         cell.reload = false;
       });
-      setNotebook(resJson.content);
-      setSavedNotebook(resJson.content);
+      setNotebook(content);
+      setSavedNotebook(content);
       setLoading(false);
-      return resJson.content;
-    } catch (err: unknown) {
-      // The server's own reason, not the status line: that sentence is what the editor shows.
-      setError(apiErrorMessage(err));
-      setLoading(false);
-      return null;
-    }
-  }, []);
+    },
+    [setNotebook, setSavedNotebook]
+  );
+
+  /**
+   * Reads the document, resolving to it, or to null when it could not be read; it never rejects, and
+   * the reason is left in `error` for the editor to show. The document is handed back because the
+   * caller needs it to start the kernel it names, before this state has been committed.
+   */
+  const loadNotebook = useCallback(
+    async (path: string): Promise<NotebookModel | null> => {
+      try {
+        const resJson = await getNotebook(path);
+        applyNotebook(resJson.content);
+        return resJson.content;
+      } catch (err: unknown) {
+        // The server's own reason, not the status line: that sentence is what the editor shows.
+        setError(apiErrorMessage(err));
+        setLoading(false);
+        return null;
+      }
+    },
+    [applyNotebook]
+  );
 
   /**
    * Records that `saved` is now what the file holds. It takes the document that was written rather
@@ -88,14 +124,23 @@ export function useNotebookDocument() {
     setSavedNotebook(saved);
   }, []);
 
+  // We deliberately ignore outputs here because external executions generate output continuously;
+  // treating outputs as unsaved would incorrectly trigger conflict bands on every kernel message.
+  const sourceUnsaved = useMemo(
+    () => isSourceDirty(notebook, savedNotebook),
+    [notebook, savedNotebook]
+  );
+
   return {
     notebook,
     setNotebook,
     unsaved: notebook !== savedNotebook,
+    sourceUnsaved,
     markSaved,
     loading,
     error,
     loadNotebook,
+    applyNotebook,
   };
 }
 
