@@ -47,6 +47,8 @@ import { useNotebookExport } from './export/useNotebookExport';
 import ExportDialog from './export/ExportDialog';
 import { exportFilename } from './export/exportFormats';
 import { useNotebookCells } from './useNotebookCells';
+import { stringifyNotebook } from './useNotebookDocument';
+
 import { useNotebookLanguageServer } from './useNotebookLanguageServer';
 import { useNotebookFormatting } from './useNotebookFormatting';
 import { useNotebookReplace } from './useNotebookReplace';
@@ -90,7 +92,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       // so no kernel picker raised over the error.
       loadNotebook(data.path).then((loaded) => {
         if (loaded) {
-          diskContent.current = JSON.stringify(loaded, null, 2) + '\n';
+          diskContent.current = stringifyNotebook(loaded);
           startSessionForNotebook(loaded.metadata);
         }
       });
@@ -105,6 +107,14 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     useMemo(() => selectAtom(diskResolutionsAtom, (all) => all[data.path]), [data.path])
   );
   const setResolutions = useSetAtom(diskResolutionsAtom);
+  useEffect(() => {
+    return () => {
+      setCompares((compares) => without(compares, data.path));
+      setResolutions((resolutions) => without(resolutions, data.path));
+    };
+  }, [data.path, setCompares, setResolutions]);
+
+
 
   const saveNotebookToDisk = async () => {
     // Merged, not replaced: the server round-trips metadata it does not understand, so replacing
@@ -130,11 +140,14 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
     const written = notebook;
     await saveNotebook(data.path, written);
-    diskContent.current = JSON.stringify(written, null, 2) + '\n';
+    diskContent.current = stringifyNotebook(written);
     setConflict(null);
     // Only once the write succeeded: a notebook the server refused still holds unsaved work.
     cells.markSaved(written);
   };
+
+  const cellsRef = useRef(cells);
+  cellsRef.current = cells;
 
   const takeChangeFromDisk = useCallback(async () => {
     let resJson;
@@ -143,28 +156,30 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     } catch {
       return;
     }
-    const onDisk = JSON.stringify(resJson.content, null, 2) + '\n';
+    const onDisk = stringifyNotebook(resJson.content);
     if (onDisk === diskContent.current) {
       return;
     }
     diskContent.current = onDisk;
 
-    if (!cells.sourceUnsaved) {
+    const currentCells = cellsRef.current;
+
+    if (!currentCells.sourceUnsaved) {
       setConflict(null);
-      await loadNotebook(data.path);
+      currentCells.applyNotebook(resJson.content);
       return;
     }
 
-    const currentDoc = JSON.stringify(cells.notebook, null, 2) + '\n';
+    const currentDoc = stringifyNotebook(currentCells.notebook);
     // Someone wrote what the editor already holds: nothing is left to choose between.
     if (currentDoc === onDisk) {
       setConflict(null);
-      cells.markSaved(resJson.content);
+      currentCells.markSaved(currentCells.notebook);
       return;
     }
 
     setConflict(onDisk);
-  }, [data.path, cells, loadNotebook]);
+  }, [data.path]);
 
   useContentWatcher(() => {
     if (!data.active) {
@@ -194,7 +209,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
   const compareWithDisk = useCallback(() => {
     if (conflict !== null) {
-      const mine = JSON.stringify(cells.notebook, null, 2) + '\n';
+      const mine = stringifyNotebook(cells.notebook);
       setCompares((compares) => ({ ...compares, [data.path]: { onDisk: conflict, mine } }));
     }
   }, [conflict, cells.notebook, data.path, setCompares]);
