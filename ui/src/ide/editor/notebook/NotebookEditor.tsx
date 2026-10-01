@@ -1,17 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { search } from '@codemirror/search';
 import { EditorView } from '@codemirror/view';
-import { useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { selectAtom } from 'jotai/utils';
 import { toast } from 'react-toastify';
 import './NotebookEditor.scss';
 
 import {
   apiErrorMessage,
   downloadContent,
+  getNotebook,
   logApiError,
   NotebookMetadata,
   saveNotebook,
 } from '@/api';
+import DiskChangeBand from '../DiskChangeBand';
+import { useContentWatcher } from '@/ide/useContentWatcher';
+import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
 import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
@@ -42,6 +47,8 @@ import { useNotebookExport } from './export/useNotebookExport';
 import ExportDialog from './export/ExportDialog';
 import { exportFilename } from './export/exportFormats';
 import { useNotebookCells } from './useNotebookCells';
+import { stringifyNotebook } from './useNotebookDocument';
+
 import { useNotebookLanguageServer } from './useNotebookLanguageServer';
 import { useNotebookFormatting } from './useNotebookFormatting';
 import { useNotebookReplace } from './useNotebookReplace';
@@ -51,6 +58,12 @@ import { useNotebookFind } from './useNotebookFind';
 
 interface NotebookEditorProps {
   data: FileTab;
+}
+
+function without<T>(record: Record<string, T>, key: string): Record<string, T> {
+  const next = { ...record };
+  delete next[key];
+  return next;
 }
 
 export default function NotebookEditor({ data }: NotebookEditorProps) {
@@ -83,6 +96,20 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
   }, [data, loadNotebook, startSessionForNotebook]);
 
+  const changedWhileHidden = useRef(false);
+  const [conflict, setConflict] = useState<string | null>(null);
+  const setCompares = useSetAtom(diskComparesAtom);
+  const [resolution] = useAtom(
+    useMemo(() => selectAtom(diskResolutionsAtom, (all) => all[data.path]), [data.path])
+  );
+  const setResolutions = useSetAtom(diskResolutionsAtom);
+  useEffect(() => {
+    return () => {
+      setCompares((compares) => without(compares, data.path));
+      setResolutions((resolutions) => without(resolutions, data.path));
+    };
+  }, [data.path, setCompares, setResolutions]);
+
   const saveNotebookToDisk = async () => {
     // Merged, not replaced: the server round-trips metadata it does not understand, so replacing
     // the object here would drop language_info and whatever else the file arrived with.
@@ -107,9 +134,98 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
     const written = notebook;
     await saveNotebook(data.path, written);
+    setConflict(null);
     // Only once the write succeeded: a notebook the server refused still holds unsaved work.
     cells.markSaved(written);
   };
+
+  const cellsRef = useRef(cells);
+  cellsRef.current = cells;
+
+  const takeChangeFromDisk = useCallback(async () => {
+    let resJson;
+    try {
+      resJson = await getNotebook(data.path);
+    } catch {
+      return;
+    }
+    const currentCells = cellsRef.current;
+    const onDisk = stringifyNotebook(resJson.content);
+    if (onDisk === currentCells.diskForm.current) {
+      return;
+    }
+
+    if (!currentCells.sourceUnsaved) {
+      setConflict(null);
+      currentCells.applyNotebook(resJson.content);
+      return;
+    }
+
+    // What the file says is now known either way, so a reader who keeps their own version is not
+    // asked about this same change again — only about the next one.
+    currentCells.diskForm.current = onDisk;
+
+    const currentDoc = stringifyNotebook(currentCells.notebook);
+    // Someone wrote what the editor already holds: nothing is left to choose between.
+    if (currentDoc === onDisk) {
+      setConflict(null);
+      currentCells.markSaved(currentCells.notebook);
+      return;
+    }
+
+    setConflict(onDisk);
+  }, [data.path]);
+
+  useContentWatcher(() => {
+    if (!data.active) {
+      changedWhileHidden.current = true;
+      return;
+    }
+    void takeChangeFromDisk();
+  });
+
+  useEffect(() => {
+    if (data.active && changedWhileHidden.current) {
+      changedWhileHidden.current = false;
+      void takeChangeFromDisk();
+    }
+  }, [data.active, takeChangeFromDisk]);
+
+  const keepMine = useCallback(() => setConflict(null), []);
+
+  const takeTheirs = useCallback(async () => {
+    if (conflict === null) {
+      return;
+    }
+    setConflict(null);
+    await loadNotebook(data.path);
+  }, [conflict, data.path, loadNotebook]);
+
+  const compareWithDisk = useCallback(() => {
+    if (conflict !== null) {
+      const mine = stringifyNotebook(cells.notebook);
+      setCompares((compares) => ({ ...compares, [data.path]: { onDisk: conflict, mine } }));
+    }
+  }, [conflict, cells.notebook, data.path, setCompares]);
+
+  useEffect(() => {
+    if (conflict === null) {
+      setCompares((compares) => without(compares, data.path));
+    }
+  }, [conflict, data.path, setCompares]);
+
+  // An answer given in the comparison tab.
+  useEffect(() => {
+    if (resolution === undefined) {
+      return;
+    }
+    setResolutions((resolutions) => without(resolutions, data.path));
+    if (resolution === 'mine') {
+      keepMine();
+    } else {
+      void takeTheirs();
+    }
+  }, [resolution, data.path, setResolutions, keepMine, takeTheirs]);
 
   // Registered whether or not this is the active tab: any open tab can be closed.
   useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
@@ -445,6 +561,15 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         aria-labelledby="profile-tab"
       >
         <BreadCrumb path={data.path} />
+        {conflict !== null && (
+          <DiskChangeBand
+            path={data.path}
+            name={data.name}
+            onCompare={compareWithDisk}
+            onKeepMine={keepMine}
+            onTakeTheirs={takeTheirs}
+          />
+        )}
         <NbButtons
           run={runCommand}
           downloadNotebook={downloadNotebook}

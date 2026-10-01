@@ -4,6 +4,21 @@
  */
 import { vi } from 'vitest';
 
+/**
+ * The content watcher, as a handle a test fires by hand. Every notebook test mocks it: the real one
+ * opens a websocket of its own, which would arrive in `sockets` beside the kernel's and go on
+ * reconnecting after the test that opened it had finished.
+ */
+export const watcher = { fire: () => {} };
+
+export function contentWatcherModule() {
+  return {
+    useContentWatcher: (onChange: () => void) => {
+      watcher.fire = onChange;
+    },
+  };
+}
+
 export const getNotebook = vi.fn();
 export const sessionForPath = vi.fn();
 export const createSession = vi.fn();
