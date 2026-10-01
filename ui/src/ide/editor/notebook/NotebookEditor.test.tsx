@@ -638,6 +638,106 @@ describe('NotebookEditor', () => {
     });
   });
 
+  it('finds the cell a run started elsewhere was for, and streams its output into it', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    sockets[0].receive({
+      header: { msg_type: 'execute_input' },
+      parent_header: { msg_id: 'runner-req-1' },
+      content: { code: 'print("hi")', execution_count: 5 },
+    });
+
+    await waitFor(() => expect(container.querySelector('.z-spinner')).toBeInTheDocument());
+
+    sockets[0].receive(
+      kernelMessage('stream', 'runner-req-1', { name: 'stdout', text: 'hi from runner\n' })
+    );
+    expect(await screen.findByText(/hi from runner/)).toBeInTheDocument();
+
+    sockets[0].receive(kernelMessage('status', 'runner-req-1', { execution_state: 'idle' }));
+
+    await waitFor(() => expect(container.querySelector('.z-spinner')).not.toBeInTheDocument());
+    expect(screen.getByText('[5]:')).toBeInTheDocument();
+  });
+
+  /*
+   * Only a client that came through Zasper can name the cell it ran; one that spoke to the kernel
+   * directly leaves nothing but the code to go on. Matching that code is a guess, and these say what
+   * the guess may and may not do.
+   */
+  describe('a run started somewhere else', () => {
+    const twoCells = (first: string, second: string) => ({
+      ...structuredClone(notebookContent),
+      cells: [
+        { ...structuredClone(notebookContent.cells[0]), id: 'cell-one', source: first },
+        { ...structuredClone(notebookContent.cells[0]), id: 'cell-two', source: second },
+      ],
+    });
+
+    const openWith = async (content: unknown) => {
+      getNotebook.mockResolvedValue({
+        name: tab.name,
+        type: tab.type,
+        path: tab.path,
+        content,
+      });
+      const rendered = render(<NotebookEditor data={tab} />);
+      await waitFor(() => expect(sockets).toHaveLength(1));
+      await waitFor(() =>
+        expect(rendered.container.querySelectorAll('.cell-gutter').length).toBe(2)
+      );
+      return rendered;
+    };
+
+    // Awaited, and then asserted against: a `waitFor` that nothing is running passes on its first
+    // look, before anything could have started, and would hold however wrong the matching was.
+    const executeInput = async (code: string, metadata?: Record<string, unknown>) => {
+      await act(async () => {
+        sockets[0].receive({
+          header: { msg_type: 'execute_input' },
+          parent_header: { msg_id: 'elsewhere-1' },
+          metadata,
+          content: { code, execution_count: 7 },
+        });
+      });
+    };
+
+    const spinning = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll('.cell-gutter')).map(
+        (gutter) => gutter.querySelector('.z-spinner') !== null
+      );
+
+    it('lights up no cell when two of them hold the code that ran', async () => {
+      const { container } = await openWith(twoCells('print("hi")', 'print("hi")'));
+
+      await executeInput('print("hi")');
+
+      // Nothing is told to the reader rather than something that may be wrong: a spinner on the
+      // wrong cell also writes this run's output into it.
+      expect(spinning(container)).toEqual([false, false]);
+    });
+
+    it('lights up no cell when the code that ran is in none of them', async () => {
+      const { container } = await openWith(twoCells('print("hi")', 'print("bye")'));
+
+      await executeInput('import numpy');
+
+      expect(spinning(container)).toEqual([false, false]);
+    });
+
+    it('takes the cell the runner named over the one holding the same code', async () => {
+      const { container } = await openWith(twoCells('print("hi")', 'print("bye")'));
+
+      // What Zasper's own relay will stamp on the way out: the code is the first cell's, the name
+      // is the second's, and the name is the one that knows.
+      await executeInput('print("hi")', { cellId: 'cell-two' });
+
+      expect(spinning(container)).toEqual([false, true]);
+    });
+  });
+
   // `input()` in a cell: the prompt belongs under the cell whose request the input_request answers,
   // and the reply is addressed back to that request.
   it('prompts under the cell the kernel is waiting on, and answers its request', async () => {

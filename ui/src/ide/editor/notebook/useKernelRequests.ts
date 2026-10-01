@@ -97,6 +97,15 @@ export function useKernelRequests(
     [session, connection, userName, syncRunningCells]
   );
 
+  /** Takes on a run started somewhere else, so that its output and its spinner find the cell. */
+  const trackExecution = useCallback(
+    (msgId: string, cellId: string) => {
+      executingCells.current.set(msgId, cellId);
+      syncRunningCells();
+    },
+    [syncRunningCells]
+  );
+
   const sendInputReply = useCallback(
     (parentHeader: KernelMessage, inputValue: string) => {
       if (session) {
@@ -168,6 +177,7 @@ export function useKernelRequests(
     settle,
     forgetRunningCells,
     sendExecuteRequest,
+    trackExecution,
     sendInputReply,
     requestCompletions,
     requestInspection,

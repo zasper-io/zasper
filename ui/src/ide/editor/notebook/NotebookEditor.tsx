@@ -68,11 +68,45 @@ function without<T>(record: Record<string, T>, key: string): Record<string, T> {
 
 export default function NotebookEditor({ data }: NotebookEditorProps) {
   const cells = useNotebookCells();
+  const { loadNotebook, markCellRunning, notebook } = cells;
   const [editorSettings] = useEditorSettings();
   const kernelspecs = useAtomValue(kernelspecsAtom);
-  const kernel = useKernelSession(data, cells.applyMessage);
 
-  const { loadNotebook, notebook } = cells;
+  /**
+   * Which cell a run started somewhere else belongs to, or undefined when that cannot be told.
+   *
+   * A client that came through Zasper names the cell, and that is the answer. One that spoke to the
+   * kernel directly cannot be asked, and all iopub carries is the code, so the code is matched
+   * against the open document — but only when exactly one cell holds it. Two cells with the same
+   * line in them, which is ordinary in a notebook, say nothing about which of them ran, and lighting
+   * up the wrong one is worse than lighting up none: the reader is told a cell is running that is
+   * not, and its output is written over by someone else's.
+   */
+  const handleExternalExecute = useCallback(
+    (code: string, cellId?: string): string | undefined => {
+      const named = cellId ? notebook.cells.find((cell) => cell.id === cellId) : undefined;
+      if (named) {
+        markCellRunning(named.id);
+        return named.id;
+      }
+
+      const ran = code.trim();
+      if (!ran) {
+        return undefined;
+      }
+      const holding = notebook.cells.filter(
+        (cell) => cell.cell_type === 'code' && cell.source.trim() === ran
+      );
+      if (holding.length !== 1) {
+        return undefined;
+      }
+      markCellRunning(holding[0].id);
+      return holding[0].id;
+    },
+    [notebook.cells, markCellRunning]
+  );
+
+  const kernel = useKernelSession(data, cells.applyMessage, handleExternalExecute);
   const { startSessionForNotebook } = kernel;
 
   // The attached kernel's language first, then what the file says it was written in.
@@ -230,7 +264,6 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // Registered whether or not this is the active tab: any open tab can be closed.
   useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
 
-  const { markCellRunning } = cells;
   const { sendExecuteRequest } = kernel;
   const submitCell = useCallback(
     (source: string, cellId: string) => {
