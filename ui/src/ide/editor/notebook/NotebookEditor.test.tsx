@@ -55,6 +55,8 @@ describe('NotebookEditor', () => {
     createSession.mockReset();
     deleteSession.mockReset();
     deleteSession.mockResolvedValue(undefined);
+    saveNotebook.mockReset();
+    saveNotebook.mockResolvedValue(undefined);
     getNotebook.mockResolvedValue({
       name: tab.name,
       type: tab.type,
@@ -166,9 +168,6 @@ describe('NotebookEditor', () => {
         })),
       },
     });
-    saveNotebook.mockReset();
-    saveNotebook.mockResolvedValue(undefined);
-
     render(
       <Provider>
         <NotebookEditor data={tab} />
@@ -601,10 +600,9 @@ describe('NotebookEditor', () => {
       };
       answerWith(served());
 
-      const older = { ...tab, name: 'older.ipynb', path: 'older.ipynb' };
       const { container } = render(
         <Provider>
-          <NotebookEditor data={older} />
+          <NotebookEditor data={tab} />
           <Dispatcher id="notebook:insert-cell-below" />
           <Dispatcher id="notebook:save" />
         </Provider>
@@ -616,11 +614,12 @@ describe('NotebookEditor', () => {
       fireEvent.click(insert);
       await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(2));
       fireEvent.click(save);
-      await waitFor(() => expect(saveNotebook).toHaveBeenCalledWith(older.path, expect.anything()));
+      await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
 
       // What the server would answer with next: what it was given, less what it does not store.
-      const wrote = saveNotebook.mock.calls.filter((call: string[]) => call[0] === older.path);
-      const written = structuredClone(wrote[0][1]) as { cells: Record<string, unknown>[] };
+      const written = structuredClone(saveNotebook.mock.calls[0][1]) as {
+        cells: Record<string, unknown>[];
+      };
       written.cells.forEach((cell) => {
         delete cell.id;
         delete cell.reload;
