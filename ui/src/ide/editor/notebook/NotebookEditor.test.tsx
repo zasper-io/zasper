@@ -435,7 +435,7 @@ describe('NotebookEditor', () => {
     expect(screen.getByText('[0]:')).toBeInTheDocument();
   });
 
-  it('automatically reloads from disk when file changes and user has no unsaved source changes', async () => {
+  it("takes a change made on disk when nothing of the reader's own is unsaved", async () => {
     const onDiskUpdated = {
       ...structuredClone(notebookContent),
       cells: [
@@ -457,7 +457,6 @@ describe('NotebookEditor', () => {
       content: onDiskUpdated,
     });
 
-    // Trigger watcher
     await act(async () => {
       watcher.fire();
     });
@@ -466,7 +465,7 @@ describe('NotebookEditor', () => {
     expect(await screen.findByText('print("updated on disk")')).toBeInTheDocument();
   });
 
-  it('presents DiskChangeBand when file changes on disk and user has unsaved source changes', async () => {
+  it('asks which version to keep when the file changed under unsaved edits, and takes theirs', async () => {
     const { container } = render(
       <Provider>
         <NotebookEditor data={tab} />
@@ -476,11 +475,9 @@ describe('NotebookEditor', () => {
     await waitFor(() => expect(sockets).toHaveLength(1));
     await screen.findByText('[0]:');
 
-    // User makes a source change (insert cell below)
     fireEvent.click(screen.getByText('dispatch'));
     await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(2));
 
-    // Disk changes
     const onDiskUpdated = {
       ...structuredClone(notebookContent),
       cells: [
@@ -501,15 +498,145 @@ describe('NotebookEditor', () => {
       watcher.fire();
     });
 
-    // Conflict banner appears
     expect(await screen.findByText(/changed on disk/)).toBeInTheDocument();
     expect(screen.getByText('Keep mine')).toBeInTheDocument();
     expect(screen.getByText('Take theirs')).toBeInTheDocument();
 
-    // Clicking "Take theirs" loads the version from disk
     fireEvent.click(screen.getByText('Take theirs'));
     await waitFor(() => expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument());
     expect(await screen.findByText('print("conflict from disk")')).toBeInTheDocument();
+  });
+
+  /*
+   * The watch socket says only that something in the project changed, never what, so every one of
+   * these fires on any write anywhere. A notebook whose own file is untouched has to sit still: the
+   * check is whether what the server sent reads as what it sent last time, and anything this session
+   * adds to a document on the way in — a `reload` flag, an id for a cell that has none, a first cell
+   * for an empty file — is not a change the reader made and must not count as one.
+   */
+  describe('a watcher event for a file that did not change', () => {
+    const answerWith = (content: unknown) =>
+      getNotebook.mockResolvedValue({
+        name: tab.name,
+        type: tab.type,
+        path: tab.path,
+        content,
+      });
+
+    // Unsaved edits, so that a change wrongly noticed shows up as the band rather than passing silently.
+    const openWithAnUnsavedEdit = async (cellCount: number) => {
+      const { container } = render(
+        <Provider>
+          <NotebookEditor data={tab} />
+          <Dispatcher id="notebook:insert-cell-below" />
+        </Provider>
+      );
+      await waitFor(() => expect(sockets).toHaveLength(1));
+      await waitFor(() =>
+        expect(container.querySelectorAll('.single-line')).toHaveLength(cellCount)
+      );
+      fireEvent.click(screen.getByText('dispatch'));
+      await waitFor(() =>
+        expect(container.querySelectorAll('.single-line')).toHaveLength(cellCount + 1)
+      );
+    };
+
+    it('sits still for a notebook the file says exactly what it said before', async () => {
+      const served = () => structuredClone(notebookContent);
+      answerWith(served());
+      await openWithAnUnsavedEdit(1);
+
+      answerWith(served());
+      await act(async () => {
+        watcher.fire();
+      });
+
+      expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument();
+    });
+
+    it('sits still for a notebook older than 4.5, whose ids this session made up', async () => {
+      // Cell ids arrived in nbformat 4.5. The server strips them from an older file on the way out,
+      // so the ones the editor is holding were never on disk.
+      const served = () => {
+        const content = structuredClone(notebookContent);
+        content.nbformat_minor = 4;
+        content.cells.forEach((cell: Record<string, unknown>) => delete cell.id);
+        return content;
+      };
+      answerWith(served());
+      await openWithAnUnsavedEdit(1);
+
+      answerWith(served());
+      await act(async () => {
+        watcher.fire();
+      });
+
+      expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument();
+    });
+
+    it('sits still for a new notebook, whose first cell came from the editor', async () => {
+      // `"cells": []` is what Jupyter writes for a new notebook, and the cell to type into comes
+      // from the editor until the first save puts one in the file.
+      const served = () => ({ ...structuredClone(notebookContent), cells: [] });
+      answerWith(served());
+      await openWithAnUnsavedEdit(1);
+
+      answerWith(served());
+      await act(async () => {
+        watcher.fire();
+      });
+
+      expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument();
+    });
+
+    it('sits still after saving a notebook older than 4.5, which comes back without its ids', async () => {
+      // The baseline after a save is predicted from what was written rather than read back, so the
+      // prediction has to drop exactly what the server drops — here, ids the file's version has no
+      // room for.
+      const served = () => {
+        const content = structuredClone(notebookContent);
+        content.nbformat_minor = 4;
+        content.cells.forEach((cell: Record<string, unknown>) => delete cell.id);
+        return content;
+      };
+      answerWith(served());
+
+      const older = { ...tab, name: 'older.ipynb', path: 'older.ipynb' };
+      const { container } = render(
+        <Provider>
+          <NotebookEditor data={older} />
+          <Dispatcher id="notebook:insert-cell-below" />
+          <Dispatcher id="notebook:save" />
+        </Provider>
+      );
+      await waitFor(() => expect(sockets).toHaveLength(1));
+      await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(1));
+      const [insert, save] = screen.getAllByText('dispatch');
+
+      fireEvent.click(insert);
+      await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(2));
+      fireEvent.click(save);
+      await waitFor(() => expect(saveNotebook).toHaveBeenCalledWith(older.path, expect.anything()));
+
+      // What the server would answer with next: what it was given, less what it does not store.
+      const wrote = saveNotebook.mock.calls.filter((call: string[]) => call[0] === older.path);
+      const written = structuredClone(wrote[0][1]) as { cells: Record<string, unknown>[] };
+      written.cells.forEach((cell) => {
+        delete cell.id;
+        delete cell.reload;
+      });
+
+      // Unsaved again, so a change wrongly noticed raises the band rather than passing silently.
+      fireEvent.click(insert);
+      await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(3));
+
+      answerWith(written);
+      await act(async () => {
+        watcher.fire();
+      });
+
+      expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument();
+    });
   });
 
   // `input()` in a cell: the prompt belongs under the cell whose request the input_request answers,

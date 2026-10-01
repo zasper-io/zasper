@@ -14,6 +14,9 @@ export function installedKernelspecs(...names: string[]): KernelspecsState {
   );
 }
 
+// What the server answers with, so no key the server never sends — `reload`, which the editor adds
+// on the way in — is in here. A fixture carrying one hid a bug where every read of an unchanged
+// notebook looked like somebody else's edit.
 export const notebookContent = {
   cells: [
     {
@@ -23,7 +26,6 @@ export const notebookContent = {
       source: 'print("hi")',
       outputs: [],
       metadata: {},
-      reload: false,
     },
   ],
   nbformat: 4,
