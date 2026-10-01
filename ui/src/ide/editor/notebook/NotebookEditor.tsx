@@ -72,25 +72,36 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const [editorSettings] = useEditorSettings();
   const kernelspecs = useAtomValue(kernelspecsAtom);
 
+  /**
+   * Which cell a run started somewhere else belongs to, or undefined when that cannot be told.
+   *
+   * A client that came through Zasper names the cell, and that is the answer. One that spoke to the
+   * kernel directly cannot be asked, and all iopub carries is the code, so the code is matched
+   * against the open document — but only when exactly one cell holds it. Two cells with the same
+   * line in them, which is ordinary in a notebook, say nothing about which of them ran, and lighting
+   * up the wrong one is worse than lighting up none: the reader is told a cell is running that is
+   * not, and its output is written over by someone else's.
+   */
   const handleExternalExecute = useCallback(
     (code: string, cellId?: string): string | undefined => {
-      if (cellId) {
-        const found = notebook.cells.find((c) => c.id === cellId);
-        if (found) {
-          markCellRunning(found.id);
-          return found.id;
-        }
+      const named = cellId ? notebook.cells.find((cell) => cell.id === cellId) : undefined;
+      if (named) {
+        markCellRunning(named.id);
+        return named.id;
       }
-      const trimmed = code.trim();
-      if (!trimmed) return undefined;
-      const matched = notebook.cells.find(
-        (c) => c.cell_type === 'code' && c.source.trim() === trimmed
+
+      const ran = code.trim();
+      if (!ran) {
+        return undefined;
+      }
+      const holding = notebook.cells.filter(
+        (cell) => cell.cell_type === 'code' && cell.source.trim() === ran
       );
-      if (matched) {
-        markCellRunning(matched.id);
-        return matched.id;
+      if (holding.length !== 1) {
+        return undefined;
       }
-      return undefined;
+      markCellRunning(holding[0].id);
+      return holding[0].id;
     },
     [notebook.cells, markCellRunning]
   );
