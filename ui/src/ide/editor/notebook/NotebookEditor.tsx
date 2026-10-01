@@ -88,18 +88,14 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       // Sequenced, not side by side: the kernel to start is the one the file names, so it takes
       // reading the file to know it — and a notebook that could not be read gets no session, and
       // so no kernel picker raised over the error.
-      // Error handled by NotebookCell list falling back to a plain view of raw cells if possible
-      // so no kernel picker raised over the error.
       loadNotebook(data.path).then((loaded) => {
         if (loaded) {
-          diskContent.current = stringifyNotebook(loaded);
           startSessionForNotebook(loaded.metadata);
         }
       });
     }
   }, [data, loadNotebook, startSessionForNotebook]);
 
-  const diskContent = useRef<string | null>(null);
   const changedWhileHidden = useRef(false);
   const [conflict, setConflict] = useState<string | null>(null);
   const setCompares = useSetAtom(diskComparesAtom);
@@ -113,8 +109,6 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       setResolutions((resolutions) => without(resolutions, data.path));
     };
   }, [data.path, setCompares, setResolutions]);
-
-
 
   const saveNotebookToDisk = async () => {
     // Merged, not replaced: the server round-trips metadata it does not understand, so replacing
@@ -140,7 +134,6 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
     const written = notebook;
     await saveNotebook(data.path, written);
-    diskContent.current = stringifyNotebook(written);
     setConflict(null);
     // Only once the write succeeded: a notebook the server refused still holds unsaved work.
     cells.markSaved(written);
@@ -156,19 +149,21 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     } catch {
       return;
     }
+    const currentCells = cellsRef.current;
     const onDisk = stringifyNotebook(resJson.content);
-    if (onDisk === diskContent.current) {
+    if (onDisk === currentCells.diskForm.current) {
       return;
     }
-    diskContent.current = onDisk;
-
-    const currentCells = cellsRef.current;
 
     if (!currentCells.sourceUnsaved) {
       setConflict(null);
       currentCells.applyNotebook(resJson.content);
       return;
     }
+
+    // What the file says is now known either way, so a reader who keeps their own version is not
+    // asked about this same change again — only about the next one.
+    currentCells.diskForm.current = onDisk;
 
     const currentDoc = stringifyNotebook(currentCells.notebook);
     // Someone wrote what the editor already holds: nothing is left to choose between.
@@ -202,7 +197,6 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     if (conflict === null) {
       return;
     }
-    diskContent.current = conflict;
     setConflict(null);
     await loadNotebook(data.path);
   }, [conflict, data.path, loadNotebook]);
