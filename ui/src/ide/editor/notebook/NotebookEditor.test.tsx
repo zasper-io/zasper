@@ -16,6 +16,7 @@ import {
   saveNotebook,
   sessionForPath,
   sockets,
+  watcher,
 } from './notebookEditorFakes';
 import {
   dispatch,
@@ -36,19 +37,16 @@ vi.mock('@uiw/react-codemirror', async () =>
   (await import('./notebookEditorFakes')).codeMirrorModule()
 );
 
-const watchers = vi.hoisted(() => ({ latest: () => {} }));
-vi.mock('@/ide/useContentWatcher', () => ({
-  useContentWatcher: (changed: () => void) => {
-    watchers.latest = changed;
-  },
-}));
+vi.mock('@/ide/useContentWatcher', async () =>
+  (await import('./notebookEditorFakes')).contentWatcherModule()
+);
 
 vi.stubGlobal('WebSocket', FakeSocket);
 
 describe('NotebookEditor', () => {
   beforeEach(() => {
     sockets.length = 0;
-    watchers.latest = () => {};
+    watcher.fire = () => {};
     resetIds();
     getNotebook.mockReset();
     sessionForPath.mockReset();
@@ -461,7 +459,7 @@ describe('NotebookEditor', () => {
 
     // Trigger watcher
     await act(async () => {
-      watchers.latest();
+      watcher.fire();
     });
 
     expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument();
@@ -500,7 +498,7 @@ describe('NotebookEditor', () => {
     });
 
     await act(async () => {
-      watchers.latest();
+      watcher.fire();
     });
 
     // Conflict banner appears

@@ -23,6 +23,9 @@ vi.mock('uuid', async () => ({ v4: (await import('./notebookEditorFakes')).nextI
 vi.mock('@uiw/react-codemirror', async () =>
   (await import('./notebookEditorFakes')).codeMirrorModule()
 );
+vi.mock('@/ide/useContentWatcher', async () =>
+  (await import('./notebookEditorFakes')).contentWatcherModule()
+);
 
 vi.stubGlobal('WebSocket', FakeSocket);
 
