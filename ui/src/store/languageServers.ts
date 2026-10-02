@@ -36,7 +36,7 @@ export const problemsAtom = atom<Record<string, Problem[]>>({});
 export const dockOpenAtom = atom(false);
 
 /** Which of the panel's three is in front: two lists and the shells. */
-export type DockTab = 'problems' | 'references' | 'terminal';
+export type DockTab = 'problems' | 'references' | 'terminal' | 'variables';
 
 export const dockTabAtom = atom<DockTab>('problems');
 

@@ -189,6 +189,8 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/kernels", s.kernels.ListHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernels/{kernelId}", s.kernels.GetHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernels/{kernelId}/interrupt", s.kernels.InterruptHandler).Methods("POST")
+	apiRouter.HandleFunc("/kernels/{kernelId}/variables", s.kernels.VariablesHandler).Methods("GET")
+	apiRouter.HandleFunc("/kernels/{kernelId}/variables/{name}", s.kernels.PreviewHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernels/{kernelId}/stop", s.kernels.KillHandler).Methods("POST")
 	apiRouter.HandleFunc("/kernels/{kernelId}", s.kernels.KillHandler).Methods("DELETE")
 

@@ -1,0 +1,41 @@
+// A variable opened as a table. The table is the notebook's own `table.dataframe`; this is the scroller
+// it sits in, and the header that stays put while the rows scroll under it.
+.dataViewer {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 16px 16px;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-editor);
+
+  // `table.dataframe` clips its corners with `overflow: hidden`, which would make the table the sticky
+  // header's scroller, and the table does not scroll.
+  table.dataframe {
+    overflow: visible;
+  }
+
+  thead th {
+    position: sticky;
+    top: -8px;
+    background: var(--z-bg-editor);
+    vertical-align: bottom;
+  }
+
+  td.is-missing {
+    color: var(--z-fg-subtle);
+  }
+}
+
+.dataViewer-dtype {
+  display: block;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+  font-weight: normal;
+}
+
+.dataViewer-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+}

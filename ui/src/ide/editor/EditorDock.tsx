@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
@@ -10,6 +10,8 @@ import { useTabActions } from '@/store/tabActions';
 import ProblemsPanel from './ProblemsPanel';
 import ReferencesList from './ReferencesList';
 import TerminalPanel from '@/ide/terminal/TerminalPanel';
+import VariablesPanel from '@/ide/variables/VariablesPanel';
+import { variablesReloadAtom } from '@/store/variables';
 import './EditorDock.scss';
 
 /**
@@ -24,6 +26,7 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
   const references = useAtomValue(referencesAtom);
   const terminals = useAtomValue(terminalsAtom);
   const { openTerminal } = useTabActions();
+  const reloadVariables = useSetAtom(variablesReloadAtom);
 
   const problemCount = useMemo(
     () => Object.values(problems).reduce((count, list) => count + list.length, 0),
@@ -33,7 +36,7 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
   const tabs: {
     id: DockTab;
     label: string;
-    icon: 'list-checks' | 'text-quote' | 'terminal';
+    icon: 'list-checks' | 'text-quote' | 'terminal' | 'variable';
     count?: number;
   }[] = [
     { id: 'problems', label: 'Problems', icon: 'list-checks', count: problemCount },
@@ -43,6 +46,7 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
       icon: 'text-quote',
       count: references?.state === 'answered' ? references.total : undefined,
     },
+    { id: 'variables', label: 'Variables', icon: 'variable' },
     {
       id: 'terminal',
       label: 'Terminals',
@@ -52,7 +56,11 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
   ];
 
   return (
-    <section className="editorDock" aria-label="Problems, references and terminals" hidden={hidden}>
+    <section
+      className="editorDock"
+      aria-label="Problems, references, variables and terminals"
+      hidden={hidden}
+    >
       <div className="editorDock-head">
         <div className="editorDock-tabs" role="tablist" aria-label="Panel">
           {tabs.map((each) => (
@@ -76,10 +84,18 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
         {tab === 'terminal' && (
           <IconButton icon="plus" label="New terminal" onClick={() => openTerminal()} />
         )}
+        {tab === 'variables' && (
+          <IconButton
+            icon="refresh-cw"
+            label="Refresh variables"
+            onClick={() => reloadVariables((count) => count + 1)}
+          />
+        )}
         <IconButton icon="x" label="Close panel" onClick={() => setOpen(false)} />
       </div>
       {tab === 'problems' && <ProblemsPanel />}
       {tab === 'references' && <ReferencesList />}
+      {tab === 'variables' && <VariablesPanel />}
       {/* Mounted whatever the panel is showing, and hidden rather than unmounted: a shell's life is its
           websocket, so switching to Problems and back would have handed you a new shell wearing the old
           one's name. `hidden`, not `display: none` on the pane, because xterm measures the element it is

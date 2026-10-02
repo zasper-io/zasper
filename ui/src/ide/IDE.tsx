@@ -146,6 +146,13 @@ function IDE() {
         },
       },
       {
+        ...APP_COMMANDS['view:variables'],
+        execute: () => {
+          setDockTab('variables');
+          setDockOpen(true);
+        },
+      },
+      {
         ...APP_COMMANDS['view:terminal'],
         isEnabled: () => terminalsAvailable,
         // Puts the terminals away only when they are what is showing; from Problems it brings them

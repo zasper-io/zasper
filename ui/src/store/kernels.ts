@@ -46,3 +46,9 @@ export const notebookKernelMapAtom = atom<NotebookKernelMap>({});
  * from each notebook's own IOPub `status` messages. A kernel missing here is unknown, not idle.
  */
 export const kernelStatusAtom = atom<Record<string, string>>({});
+
+/**
+ * How many cell runs have finished on each kernel, for what has to look again after one: the variables
+ * panel. Not the status above, which the panel's own silent request also turns busy and idle.
+ */
+export const finishedRunsAtom = atom<Record<string, number>>({});

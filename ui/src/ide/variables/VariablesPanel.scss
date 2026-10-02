@@ -1,0 +1,8 @@
+// The panel's rows are `.panel-row`s in a `.dockList`; this only places the icon, which has no baseline
+// for `.panel-row-name` to align it on.
+.variableIcon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-self: center;
+  color: var(--z-fg-muted);
+}

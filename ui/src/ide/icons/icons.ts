@@ -14,6 +14,8 @@ import {
   Info,
   Lightbulb,
   ListChecks,
+  Table,
+  Variable,
   ListTree,
   TextQuote,
   RotateCcw,
@@ -179,6 +181,9 @@ export const ICONS = {
   'text-quote': TextQuote,
   lightbulb: Lightbulb,
   'list-tree': ListTree,
+  // A kernel's variables, and one of them opened as a table.
+  variable: Variable,
+  table: Table,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

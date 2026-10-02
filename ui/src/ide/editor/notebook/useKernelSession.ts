@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
 
 import {
   apiErrorMessage,
@@ -10,7 +10,7 @@ import {
   Session,
   sessionForPath,
 } from '@/api';
-import { kernelspecsAtom, notebookKernelMapAtom } from '@/store/kernels';
+import { finishedRunsAtom, kernelspecsAtom, notebookKernelMapAtom } from '@/store/kernels';
 import { userNameAtom } from '@/store/serverInfo';
 import { FileTab } from '@/store/tabState';
 import { WidgetBridge } from '@/ide/widgets/widgetBridge';
@@ -47,6 +47,7 @@ export function useKernelSession(
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
   const [userName] = useAtom(userNameAtom);
   const [kernelspecs] = useAtom(kernelspecsAtom);
+  const setFinishedRuns = useSetAtom(finishedRunsAtom);
   // In a ref because `startSessionForNotebook` reads it: as a dependency it would rebuild that callback
   // when the kernelspecs arrive, and the effect that opens a notebook would run twice.
   const installedKernels = useRef(kernelspecs);
@@ -118,6 +119,16 @@ export function useKernelSession(
     }
     if (message.header.msg_type === 'status') {
       setKernelStatus(message.content.execution_state);
+    }
+    if (
+      cellId &&
+      message.header.msg_type === 'status' &&
+      message.content.execution_state === 'idle'
+    ) {
+      const kernelId = session?.kernel.id;
+      if (kernelId) {
+        setFinishedRuns((runs) => ({ ...runs, [kernelId]: (runs[kernelId] ?? 0) + 1 }));
+      }
     }
     requests.settle(message);
     // An Output widget entered while the cell was running holds its output, and a cell whose output a

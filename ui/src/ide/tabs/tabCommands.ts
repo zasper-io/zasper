@@ -82,7 +82,8 @@ export function tabFilePath(tab: FileTab): string | null {
     tab.type === 'help' ||
     tab.type === 'settings' ||
     tab.type === 'whats-new' ||
-    tab.type === 'lsp-log'
+    tab.type === 'lsp-log' ||
+    tab.type === 'data-viewer'
   ) {
     return null;
   }

@@ -8,6 +8,7 @@ import Launcher from './Launcher';
 import NotebookEditor from './notebook/NotebookEditor';
 import ImageEditor from './ImageEditor';
 import PdfViewer from './PdfViewer';
+import DataViewerTab from '@/ide/variables/DataViewerTab';
 import LanguageServerLogTab from './LanguageServerLogTab';
 import SearchPreviewTab from './SearchPreviewTab';
 import SettingsTab from './SettingsTab';
@@ -46,6 +47,9 @@ export default function Editor(props: EditorProps) {
   }
   if (props.data.type === 'lsp-log') {
     return <LanguageServerLogTab data={props.data} />;
+  }
+  if (props.data.type === 'data-viewer') {
+    return <DataViewerTab data={props.data} />;
   }
   if (props.data.type === 'search-preview') {
     return <SearchPreviewTab data={props.data} />;

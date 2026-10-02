@@ -115,6 +115,8 @@ should treat any message as "something changed".
 | `GET` | `/api/kernels` | List running kernels. |
 | `GET` | `/api/kernels/{kernelId}` | Read one kernel. |
 | `POST` | `/api/kernels/{kernelId}/interrupt` | Interrupt. |
+| `GET` | `/api/kernels/{kernelId}/variables` | The names in a Python kernel's namespace: type, kind, shape or length, a short summary, and whether it can be shown as a table. `422` for a kernel that is not Python, `504` if a running cell kept the kernel busy for 10 seconds. |
+| `GET` | `/api/kernels/{kernelId}/variables/{name}` | A page of a DataFrame, Series or 1–2-D array: `?offset=` (default 0) and `?limit=` (default 100, at most 1000). Columns with their dtypes, the index, and the rows; a missing value is `{"missing": "NaN"}` with the text pandas prints. `400` for a name that is not an identifier, `422` for one that is not defined or not a table. |
 | `POST` | `/api/kernels/{kernelId}/stop` | Stop. |
 | `DELETE` | `/api/kernels/{kernelId}` | Stop. Equivalent to `/stop`. |
 | `GET` | `/api/kernelspecs` | Installed kernelspecs. |

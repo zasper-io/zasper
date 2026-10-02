@@ -59,6 +59,45 @@ export function listKernels(): Promise<KernelModel[]> {
   return requestJson<KernelModel[]>('/api/kernels');
 }
 
+/** A name in a Python kernel's namespace, described without its value. */
+export interface KernelVariable {
+  name: string;
+  type: string;
+  module: string;
+  kind: 'dataframe' | 'series' | 'array' | 'other';
+  shape: number[] | null;
+  size: number | null;
+  summary: string;
+  /** Whether it can be opened as a table. */
+  viewable: boolean;
+}
+
+export interface VariablePreview {
+  columns: { name: string; dtype: string }[];
+  total_columns: number;
+  index: string[];
+  /** A missing value is `{ missing }`, with the text pandas prints for it: NaN, None, NaT or <NA>. */
+  rows: (string | number | boolean | { missing: string })[][];
+  total_rows: number;
+  offset: number;
+}
+
+/** The kernel's variables. Waits behind a running cell, and answers 504 if that takes too long. */
+export function listVariables(kernelId: string): Promise<KernelVariable[]> {
+  return requestJson<KernelVariable[]>(`/api/kernels/${kernelId}/variables`);
+}
+
+export function previewVariable(
+  kernelId: string,
+  name: string,
+  offset: number,
+  limit: number
+): Promise<VariablePreview> {
+  return requestJson<VariablePreview>(`/api/kernels/${kernelId}/variables/${name}`, {
+    query: { offset, limit },
+  });
+}
+
 /** One running kernel; a kernel that has stopped answers 404. */
 export function getKernel(kernelId: string): Promise<KernelModel> {
   return requestJson<KernelModel>(`/api/kernels/${kernelId}`);
