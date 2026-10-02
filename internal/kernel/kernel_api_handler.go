@@ -172,7 +172,7 @@ func (k *Kernels) CSVHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	query.Offset, query.Limit = 0, maxExportRows
-	if problem := checkQuery(Query{Limit: 1, Sort: query.Sort, Filters: query.Filters}); problem != "" {
+	if problem := checkQuery(Query{Limit: 1, Sort: query.Sort, Filters: query.Filters, Columns: query.Columns}); problem != "" {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, problem)
 		return
 	}
@@ -229,6 +229,11 @@ func checkQuery(query Query) string {
 	}
 	if len(query.Filters) > maxFilters {
 		return fmt.Sprintf("at most %d filters", maxFilters)
+	}
+	for _, column := range query.Columns {
+		if column < 0 {
+			return "no such column"
+		}
 	}
 	for _, filter := range query.Filters {
 		if !FilterOps[filter.Op] {

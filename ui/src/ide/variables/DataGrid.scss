@@ -38,10 +38,42 @@
     color: var(--z-fg-subtle);
   }
 
+  // Only clips once a column has been dragged narrower than its text; until then nothing limits it.
+  td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // The cell Mod-C copies: the accent as a ring inside the cell's own border, so selecting one moves
+  // nothing in the row.
+  td.is-selected {
+    outline: 1px solid var(--z-accent);
+    outline-offset: -1px;
+  }
+
   &.is-tab {
     flex: 1 1 auto;
     min-height: 0;
     background: var(--z-bg-editor);
+
+    // One height for every row, which is what lets a tab draw only the rows in view and stand the rest
+    // in for with two spacers. ROW_HEIGHT in DataGrid.tsx is this number before a row is measured.
+    tbody tr {
+      height: 28px;
+    }
+
+    tbody tr.dataGrid-spacer {
+      height: auto;
+
+      td {
+        padding: 0;
+        border: 0;
+      }
+    }
+
+    tbody tr.dataGrid-pending {
+      color: var(--z-fg-subtle);
+    }
 
     thead th,
     tbody th {
@@ -98,6 +130,8 @@
 .dataGrid-scroll {
   min-width: 0;
   overflow-x: auto;
+  // Focused only to take the keys a selected cell answers; the ring on the cell says where they go.
+  outline: none;
 
   .is-tab > & {
     flex: 1 1 auto;
@@ -119,6 +153,27 @@
   &.is-sorted .dataGrid-columnName {
     color: var(--z-fg-accent);
   }
+}
+
+// The header's right edge, which drags the column wider or narrower. Wider than the border it sits on,
+// so it can be found without aiming at a single pixel.
+.dataGrid-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  z-index: 1;
+  cursor: col-resize;
+
+  &:hover {
+    background: var(--z-accent);
+    opacity: 0.4;
+  }
+}
+
+.dataGrid-unhide {
+  margin-left: 4px;
 }
 
 .dataGrid-columnButton {

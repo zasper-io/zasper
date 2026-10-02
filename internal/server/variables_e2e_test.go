@@ -188,6 +188,12 @@ func TestACellsDataFrameOutputCanBePagedByItsOwnId(t *testing.T) {
 	require.Equal(t, http.StatusOK, status, "body was %s", body)
 	assert.Equal(t, ",x,y\n0,0,a\n1,1,b\n", string(body))
 
+	status, body = call(t, srv, http.MethodPost, base+"/csv", kernel.Query{
+		Sort: &kernel.Sort{Column: 0}, Filters: []kernel.Filter{{Column: 0, Op: "lt", Value: "2"}}, Columns: []int{1, 0},
+	})
+	require.Equal(t, http.StatusOK, status, "body was %s", body)
+	assert.Equal(t, ",y,x\n0,a,0\n1,b,1\n", string(body), "the columns as the grid arranged them")
+
 	status, _ = call(t, srv, http.MethodPost, "/api/kernels/"+created.Kernel.Id+"/variables/@"+strings.Repeat("0", 32)+"/rows", kernel.Query{Limit: 3})
 	assert.Equal(t, http.StatusGone, status, "a table the kernel does not hold")
 }

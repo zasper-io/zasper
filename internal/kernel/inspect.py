@@ -435,7 +435,13 @@ def csv(name, request):
         positions = _positions(name, value, frame, query)
     except ValueError as reason:
         return _encode({"error": str(reason)})
-    return _encode({"csv": frame.iloc[positions[: query["limit"]]].to_csv()})
+    rows = frame.iloc[positions[: query["limit"]]]
+    columns = query.get("columns")
+    if columns:
+        if max(columns) >= frame.shape[1]:
+            return _encode({"error": "no such column"})
+        rows = rows.iloc[:, columns]
+    return _encode({"csv": rows.to_csv()})
 
 
 # The tables a cell's output showed, so the output can page, sort and filter the very frame it printed —

@@ -38,6 +38,8 @@ function describeTab(tab: FileTab | undefined): string {
       return "What's New";
     case 'notebook':
       return 'Notebook';
+    case 'data-viewer':
+      return 'Table';
     default:
       return tab.extension ?? 'Plain Text';
   }

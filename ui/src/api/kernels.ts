@@ -107,6 +107,8 @@ export interface RowQuery {
   limit: number;
   sort?: RowSort;
   filters?: RowFilter[];
+  /** CSV export only: which columns, by position, in this order. All of them when left out. */
+  columns?: number[];
 }
 
 export interface RowsPage {

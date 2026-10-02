@@ -69,6 +69,8 @@ type Query struct {
 	Limit   int      `json:"limit"`
 	Sort    *Sort    `json:"sort,omitempty"`
 	Filters []Filter `json:"filters,omitempty"`
+	// CSV only: which columns, by position, in this order. All of them when empty.
+	Columns []int `json:"columns,omitempty"`
 }
 
 type Sort struct {

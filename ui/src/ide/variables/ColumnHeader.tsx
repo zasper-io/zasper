@@ -19,7 +19,19 @@ interface ColumnHeaderProps {
   queryable: boolean;
   onSort: (sort: RowSort | null) => void;
   onFilter: (column: number) => void;
+  /** The column's width once the reader has dragged it, in CSS pixels. */
+  width: number | undefined;
+  onResize: (width: number) => void;
+  onHide: () => void;
+  /** Moves the column one place along: -1 left, 1 right. Undefined where it cannot go. */
+  onMoveLeft: (() => void) | undefined;
+  onMoveRight: (() => void) | undefined;
+  /** Dragging one header onto another moves it there. */
+  onDropColumn: (from: number) => void;
 }
+
+const MIN_WIDTH = 48;
+const DRAGGED = 'application/x-zasper-column';
 
 function MenuAction({
   icon,
@@ -79,7 +91,8 @@ function stats(profile: ColumnProfile): { label: string; value: string }[] {
 
 /** A column's name, type and shape, and the menu that sorts, filters and describes it. */
 export default function ColumnHeader(props: ColumnHeaderProps) {
-  const { index, name, dtype, kind, profile, sort, queryable, onSort, onFilter } = props;
+  const { index, name, dtype, kind, profile, sort, queryable, onSort, onFilter, width } = props;
+  const [dropping, setDropping] = useState(false);
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState({ top: 0, left: 0 });
   const header = useRef<HTMLTableCellElement>(null);
@@ -123,8 +136,49 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
     then();
   };
 
+  // Drags the right edge. The pointer moves in window pixels and the layout is zoomed, as the menu's
+  // placement above is.
+  const startResize = (event: React.PointerEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = header.current?.getBoundingClientRect().width ?? 0;
+    const factor = currentZoomFactor();
+    const move = (moved: PointerEvent) =>
+      props.onResize(Math.max(MIN_WIDTH, (startWidth + moved.clientX - startX) / factor));
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop);
+  };
+
+  const sized = width === undefined ? undefined : { width, minWidth: width, maxWidth: width };
+
   return (
-    <th ref={header} className={sorted ? 'dataGrid-column is-sorted' : 'dataGrid-column'}>
+    <th
+      ref={header}
+      className={['dataGrid-column', sorted ? 'is-sorted' : '', dropping ? 'is-drop-target' : '']
+        .filter(Boolean)
+        .join(' ')}
+      style={sized}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes(DRAGGED)) {
+          event.preventDefault();
+          setDropping(true);
+        }
+      }}
+      onDragLeave={() => setDropping(false)}
+      onDrop={(event) => {
+        setDropping(false);
+        const from = Number(event.dataTransfer.getData(DRAGGED));
+        if (!Number.isNaN(from) && from !== index) {
+          event.preventDefault();
+          props.onDropColumn(from);
+        }
+      }}
+    >
       <button
         type="button"
         className="dataGrid-columnButton"
@@ -132,6 +186,11 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
         aria-expanded={open}
         title={`${name} (${dtype})`}
         onClick={toggle}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData(DRAGGED, String(index));
+          event.dataTransfer.effectAllowed = 'move';
+        }}
       >
         <span className="dataGrid-columnName">
           {name}
@@ -141,6 +200,13 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
       </button>
       <Distribution profile={profile} />
       <span className="dataGrid-missing">{missing > 0 ? `${missing}% missing` : ''}</span>
+      <span
+        className="dataGrid-resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={`Resize ${name}`}
+        onPointerDown={startResize}
+      />
       {open && (
         <div className="z-overlay z-menu dataGrid-menu" style={at}>
           <ul className="z-overlay-list" role="menu" aria-label={`Column ${name}`}>
@@ -165,6 +231,13 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
                   onSelect={act(() => onFilter(index))}
                 />
               </>
+            )}
+            <MenuAction icon="eye-off" label="Hide column" onSelect={act(props.onHide)} />
+            {props.onMoveLeft && (
+              <MenuAction icon="arrow-left" label="Move left" onSelect={act(props.onMoveLeft)} />
+            )}
+            {props.onMoveRight && (
+              <MenuAction icon="arrow-right" label="Move right" onSelect={act(props.onMoveRight)} />
             )}
             {profile !== undefined && (
               <>

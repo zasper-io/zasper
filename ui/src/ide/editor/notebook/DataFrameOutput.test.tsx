@@ -103,6 +103,26 @@ describe('a DataFrame in a cell', () => {
     await waitFor(() => expect(lastQuery()).toMatchObject({ offset: 0, limit: 25 }));
   });
 
+  it('asks the kernel nothing more when the notebook around it re-renders', async () => {
+    const { rerender } = renderOutput('kernel-1');
+    await screen.findByText('row 9');
+    const asked = queryRows.mock.calls.length;
+
+    rerender(
+      <Provider store={createStore()}>
+        <OutputBundles
+          outputs={[output]}
+          widgets={null}
+          tables={{ kernelId: 'kernel-1', notebookPath: 'sales.ipynb', executionCount: 9 }}
+        />
+      </Provider>
+    );
+    fireEvent.click(screen.getByText('row 3'));
+
+    expect(queryRows.mock.calls.length).toBe(asked);
+    expect(screen.getByText('row 3')).toHaveClass('is-selected');
+  });
+
   it('filters from its bar, and goes back to the first page', async () => {
     renderOutput('kernel-1');
     await screen.findByText('row 9');

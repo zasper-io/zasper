@@ -1,5 +1,6 @@
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowRight,
   ArrowUp,
   BetweenHorizontalEnd,
@@ -165,6 +166,7 @@ export const ICONS = {
   'cloud-download': CloudDownload, // fa-cloud-download-alt, Fetch
   'arrow-down': ArrowDown, // fa-arrow-down, Pull
   'arrow-up': ArrowUp, // fa-arrow-up, Push
+  'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight, // fa-arrow-right, the direction of a diff
   'undo-2': Undo2, // fa-undo, Discard
   check: Check, // fa-check, and CheckmarkIcon

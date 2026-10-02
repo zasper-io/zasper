@@ -8,12 +8,15 @@ import DataViewerTab from './DataViewerTab';
 
 const queryRows = vi.fn();
 const profileVariable = vi.fn();
+const exportRows = vi.fn();
 vi.mock('@/api', async () => {
   const client = await import('@/api/client');
   return {
     apiErrorMessage: client.apiErrorMessage,
     queryRows: (id: string, name: string, query: RowQuery) => queryRows(id, name, query),
     profileVariable: (id: string, name: string) => profileVariable(id, name),
+    exportRows: (id: string, name: string, query: RowQuery) => exportRows(id, name, query),
+    ApiError: client.ApiError,
   };
 });
 
@@ -101,7 +104,7 @@ describe('DataViewerTab', () => {
     expect(screen.getByText('int64')).toBeInTheDocument();
     expect(screen.getByText('150 rows × 2 columns')).toBeInTheDocument();
     expect(container.querySelector('td.is-missing')?.textContent).toBe('NaN');
-    expect(screen.getByText('100 of 150 rows')).toBeInTheDocument();
+    expect(screen.getByText('150 rows')).toBeInTheDocument();
     await waitFor(() =>
       expect(container.querySelectorAll('.dataGrid-distribution rect')).toHaveLength(5)
     );
@@ -109,13 +112,36 @@ describe('DataViewerTab', () => {
     expect(screen.getByText('135 distinct · row 1 1%')).toBeInTheDocument();
   });
 
-  it('loads the next page under the first', async () => {
-    renderTab();
-    fireEvent.click(await screen.findByText('Load 100 more'));
+  it('draws only the rows near the view, and reads the next page as it scrolls there', async () => {
+    const { container } = renderTab();
+    await screen.findByText('row 1');
 
-    expect(await screen.findByText('row 149')).toBeInTheDocument();
+    // A 600px view of 28px rows, and twenty more each way: row 60 has been read but is not drawn.
+    expect(screen.queryByText('row 60')).not.toBeInTheDocument();
+    expect(queryRows).toHaveBeenCalledTimes(1);
+
+    const scroller = container.querySelector('.dataGrid-scroll') as HTMLElement;
+    Object.defineProperty(scroller, 'scrollTop', { value: 3000, configurable: true });
+    fireEvent.scroll(scroller);
+
+    expect(await screen.findByText('row 120')).toBeInTheDocument();
     expect(lastQuery().offset).toBe(100);
-    expect(screen.getByText('150 of 150 rows')).toBeInTheDocument();
+    expect(screen.queryByText('row 1')).not.toBeInTheDocument();
+  });
+
+  it('copies the cell the reader picked, as the kernel sent it', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const { container } = renderTab();
+    fireEvent.click(await screen.findByText('row 3'));
+
+    const scroller = container.querySelector('.dataGrid-scroll') as HTMLElement;
+    fireEvent.keyDown(scroller, { key: 'ArrowRight' });
+    fireEvent.keyDown(scroller, { key: 'ArrowUp' });
+    expect(container.querySelector('td.is-selected')?.textContent).toBe('row 2');
+
+    fireEvent.keyDown(scroller, { key: 'c', metaKey: true });
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('row 2'));
   });
 
   it('sorts from a column’s menu, and describes the column there', async () => {
@@ -145,7 +171,7 @@ describe('DataViewerTab', () => {
       expect(lastQuery().filters).toEqual([{ column: 1, op: 'starts_with', value: 'row 1' }])
     );
     expect(await screen.findByText('3 of 150 rows × 2 columns')).toBeInTheDocument();
-    expect(screen.getByText('3 of 3 rows')).toBeInTheDocument();
+    expect(screen.getByText('3 rows')).toBeInTheDocument();
     expect(screen.getByText('label starts with row 1')).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Remove this filter'));
@@ -161,6 +187,64 @@ describe('DataViewerTab', () => {
 
     expect((screen.getByLabelText('Column') as HTMLSelectElement).value).toBe('1');
     expect((screen.getByLabelText('Comparison') as HTMLSelectElement).value).toBe('contains');
+  });
+
+  it('hides a column from its menu, and shows it again from the bar', async () => {
+    renderTab();
+    await screen.findByText('row 1');
+
+    fireEvent.click(screen.getByTitle('x (int64)'));
+    fireEvent.click(screen.getByText('Hide column'));
+
+    expect(screen.queryByTitle('x (int64)')).not.toBeInTheDocument();
+    expect(screen.queryByText('99')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Show 1 hidden'));
+    expect(screen.getByTitle('x (int64)')).toBeInTheDocument();
+  });
+
+  it('moves a column, and its cells go with it', async () => {
+    const { container } = renderTab();
+    await screen.findByText('row 1');
+    const firstHeader = () => container.querySelector('thead .dataGrid-columnName')?.textContent;
+    const secondRow = () =>
+      [...container.querySelectorAll('tbody tr')][1].querySelectorAll('td')[0].textContent;
+    expect(firstHeader()).toBe('x');
+
+    fireEvent.click(screen.getByTitle('x (int64)'));
+    fireEvent.click(screen.getByText('Move right'));
+
+    expect(firstHeader()).toBe('label');
+    expect(secondRow()).toBe('row 1');
+  });
+
+  it('resizes a column by its edge', async () => {
+    renderTab();
+    await screen.findByText('row 1');
+
+    // jsdom has no PointerEvent, and the bare Event it falls back to carries no clientX.
+    const pointer = (type: string, clientX: number) =>
+      new MouseEvent(type, { bubbles: true, clientX });
+    fireEvent(screen.getByLabelText('Resize label'), pointer('pointerdown', 100));
+    fireEvent(window, pointer('pointermove', 220));
+    fireEvent(window, pointer('pointerup', 220));
+
+    const header = screen.getByTitle('label (object)').closest('th') as HTMLElement;
+    expect(header.style.width).toBe('120px');
+  });
+
+  it('exports the columns as they are arranged', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    exportRows.mockResolvedValue(',label\n0,row 0\n');
+    renderTab();
+    await screen.findByText('row 1');
+
+    fireEvent.click(screen.getByTitle('x (int64)'));
+    fireEvent.click(screen.getByText('Hide column'));
+    fireEvent.click(screen.getByLabelText('Copy as CSV'));
+
+    await waitFor(() => expect(exportRows).toHaveBeenCalled());
+    expect(exportRows.mock.calls[0][2].columns).toEqual([1]);
   });
 
   it('says so when the notebook’s kernel is not running', () => {
