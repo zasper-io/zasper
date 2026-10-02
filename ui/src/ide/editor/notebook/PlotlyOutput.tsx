@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type * as Plotly from 'plotly.js-dist-min';
 
-type PlotlyModule = typeof import('plotly.js-dist-min');
+export type PlotlyModule = typeof import('plotly.js-dist-min');
 
 /**
  * A figure as an `application/vnd.plotly.v1+json` output carries it: plotly.js' own arguments, less
@@ -20,7 +20,7 @@ export interface PlotlyFigure {
  * It is one UMD file, so what an `import` hands back depends on who bundled it: Vite puts the
  * CommonJS exports under `default`, and a bundler that read the named exports would not.
  */
-async function loadPlotly(): Promise<PlotlyModule> {
+export async function loadPlotly(): Promise<PlotlyModule> {
   const loaded = await import('plotly.js-dist-min');
   return (loaded as { default?: PlotlyModule }).default ?? loaded;
 }

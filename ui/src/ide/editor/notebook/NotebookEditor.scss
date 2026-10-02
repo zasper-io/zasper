@@ -445,7 +445,7 @@
   // HTML output can contain one.
 
   // pandas' "1240 rows × 5 columns" under its table. The app's own notes in an output are not that line.
-  p:not(.dataGrid-static-note, .z-note) {
+  p:not(.dataGrid-static-note, .dataChart-note, .z-note) {
     color: var(--z-fg-muted);
     font-weight: 700;
   }

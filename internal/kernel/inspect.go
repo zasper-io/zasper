@@ -122,6 +122,23 @@ type Histogram struct {
 	Edges  []*float64 `json:"edges"`
 }
 
+// ChartQuery is what to draw, and over which rows: columns are named by position, as in Query. Y is a
+// list for every kind, though only a line draws more than one.
+type ChartQuery struct {
+	Kind    string   `json:"kind"`
+	X       *int     `json:"x,omitempty"`
+	Y       []int    `json:"y,omitempty"`
+	Color   *int     `json:"color,omitempty"`
+	Agg     string   `json:"agg,omitempty"`
+	Filters []Filter `json:"filters,omitempty"`
+}
+
+// ChartKinds and ChartAggregates are what a ChartQuery can ask for.
+var (
+	ChartKinds      = map[string]bool{"histogram": true, "bar": true, "line": true, "scatter": true, "box": true}
+	ChartAggregates = map[string]bool{"count": true, "sum": true, "mean": true, "median": true, "min": true, "max": true}
+)
+
 type TopValue struct {
 	Value interface{} `json:"value"`
 	Count int         `json:"count"`
@@ -163,6 +180,30 @@ func (km *KernelManager) CSV(ctx context.Context, name string, query Query) (Exp
 	var export Export
 	err = km.inspect(ctx, fmt.Sprintf("__import__('_zasper_inspect').csv(%s, %s)", pyString(name), pyString(string(encoded))), &export)
 	return export, err
+}
+
+// Chart answers what a chart of the variable called name draws: a few hundred numbers counted in the
+// kernel, never its rows. The answer's shape depends on the kind, so it is passed on as the kernel wrote
+// it, with what was wrong taken out.
+func (km *KernelManager) Chart(ctx context.Context, name string, query ChartQuery) (json.RawMessage, Answered, error) {
+	encoded, err := json.Marshal(query)
+	if err != nil {
+		return nil, Answered{}, err
+	}
+	var answer json.RawMessage
+	err = km.inspect(ctx, fmt.Sprintf("__import__('_zasper_inspect').chart(%s, %s)", pyString(name), pyString(string(encoded))), &answer)
+	if err != nil {
+		return nil, Answered{}, err
+	}
+	var problem Answered
+	err = json.Unmarshal(answer, &problem)
+	return answer, problem, err
+}
+
+// Answered is the part of any answer that says the kernel could not give one.
+type Answered struct {
+	Error string `json:"error,omitempty"`
+	Gone  bool   `json:"gone,omitempty"`
 }
 
 // LoadHelper loads the inspector into a Python kernel, which also installs the formatter that lets a

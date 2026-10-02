@@ -12,6 +12,9 @@ export interface OutputTables {
   kernelId: string | undefined;
   notebookPath: string;
   executionCount: number | null | undefined;
+  /** The name the cell's last line printed, when that is all it is: what a chart's code is written against. */
+  variable?: string | null;
+  insertBelow?: (source: string) => void;
 }
 
 interface DataFrameOutputProps {
@@ -61,6 +64,8 @@ export default function DataFrameOutput({ table, tables, fallback }: DataFrameOu
       label={name}
       kindLabel={table.kind === 'series' ? 'Series' : 'DataFrame'}
       onGone={() => setGone(true)}
+      variable={tables.variable ?? null}
+      insertCode={tables.insertBelow}
       onOpenInTab={(view) => {
         const key = dataViewerKey(tables.notebookPath, ref);
         openWithView(key, view);

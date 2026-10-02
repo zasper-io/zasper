@@ -28,6 +28,8 @@ interface ColumnHeaderProps {
   onMoveRight: (() => void) | undefined;
   /** Dragging one header onto another moves it there. */
   onDropColumn: (from: number) => void;
+  /** Absent where there is no chart to open: a frame the kernel cannot filter. */
+  onChart?: (column: number) => void;
 }
 
 const MIN_WIDTH = 48;
@@ -91,7 +93,8 @@ function stats(profile: ColumnProfile): { label: string; value: string }[] {
 
 /** A column's name, type and shape, and the menu that sorts, filters and describes it. */
 export default function ColumnHeader(props: ColumnHeaderProps) {
-  const { index, name, dtype, kind, profile, sort, queryable, onSort, onFilter, width } = props;
+  const { index, name, dtype, kind, profile, sort, queryable, onSort, onFilter, onChart, width } =
+    props;
   const [dropping, setDropping] = useState(false);
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState({ top: 0, left: 0 });
@@ -230,6 +233,13 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
                   label="Filter this column…"
                   onSelect={act(() => onFilter(index))}
                 />
+                {onChart && kind !== 'other' && (
+                  <MenuAction
+                    icon="chart-column"
+                    label="Chart this column"
+                    onSelect={act(() => onChart(index))}
+                  />
+                )}
               </>
             )}
             <MenuAction icon="eye-off" label="Hide column" onSelect={act(props.onHide)} />

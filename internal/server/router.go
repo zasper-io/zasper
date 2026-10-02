@@ -193,6 +193,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/kernels/{kernelId}/variables/{name}/rows", s.kernels.RowsHandler).Methods("POST")
 	apiRouter.HandleFunc("/kernels/{kernelId}/variables/{name}/profile", s.kernels.ProfileHandler).Methods("GET")
 	apiRouter.HandleFunc("/kernels/{kernelId}/variables/{name}/csv", s.kernels.CSVHandler).Methods("POST")
+	apiRouter.HandleFunc("/kernels/{kernelId}/variables/{name}/chart", s.kernels.ChartHandler).Methods("POST")
 	apiRouter.HandleFunc("/kernels/{kernelId}/stop", s.kernels.KillHandler).Methods("POST")
 	apiRouter.HandleFunc("/kernels/{kernelId}", s.kernels.KillHandler).Methods("DELETE")
 

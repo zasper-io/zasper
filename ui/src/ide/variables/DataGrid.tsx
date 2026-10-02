@@ -16,6 +16,8 @@ import {
 import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
+import ChartView from './ChartView';
+import { ChartSpec, columnChart, defaultChart } from './chartSpec';
 import ColumnHeader from './ColumnHeader';
 import FilterBar from './FilterBar';
 import { displayValue } from './filters';
@@ -38,6 +40,8 @@ export interface GridView {
   columns?: number[];
   hidden?: number[];
   widths?: Record<number, number>;
+  /** The chart shown in place of the rows, if one is. */
+  chart?: ChartSpec | null;
 }
 
 interface DataGridProps {
@@ -57,6 +61,10 @@ interface DataGridProps {
   onGone?: () => void;
   /** Asks the kernel nothing while set: a tab that is not in front. */
   paused?: boolean;
+  /** The name a chart's code is written against, when the frame has one. */
+  variable?: string | null;
+  /** Puts a chart's code in a cell below; where there is no cell, the code is copied instead. */
+  insertCode?: (source: string) => void;
 }
 
 function rowsLabel(table: RowsPage, filtered: boolean): string {
@@ -78,6 +86,7 @@ export default function DataGrid(props: DataGridProps) {
   const [order, setOrder] = useState<number[] | null>(props.initialView?.columns ?? null);
   const [hidden, setHidden] = useState<number[]>(props.initialView?.hidden ?? []);
   const [widths, setWidths] = useState<Record<number, number>>(props.initialView?.widths ?? {});
+  const [chart, setChart] = useState<ChartSpec | null>(props.initialView?.chart ?? null);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(PAGE_SIZES[0]);
   const [table, setTable] = useState<RowsPage | null>(null);
@@ -309,7 +318,7 @@ export default function DataGrid(props: DataGridProps) {
     next.splice(next.indexOf(target), 0, dragged);
     setOrder(next);
   };
-  const view = (): GridView => ({ sort, filters, columns: arranged, hidden, widths });
+  const view = (): GridView => ({ sort, filters, columns: arranged, hidden, widths, chart });
 
   /** Copies the selected cell's value as the kernel sent it, not as the grid rounded it. */
   const copyCell = () => {
@@ -367,6 +376,7 @@ export default function DataGrid(props: DataGridProps) {
   };
 
   const filtered = filters.length > 0;
+  const chartable = table !== null && defaultChart(table.columns) !== null;
   const showFilters = table?.queryable && (mode === 'tab' || filtered || formOpen);
   const pages = table === null ? 1 : Math.max(1, Math.ceil(table.matched_rows / size));
   const first = page * size + 1;
@@ -379,6 +389,7 @@ export default function DataGrid(props: DataGridProps) {
         'dataGrid',
         mode === 'cell' ? 'is-in-cell' : 'is-tab',
         filtered ? 'has-filters' : '',
+        chart ? 'is-chart' : '',
       ].join(' ')}
     >
       <div className="dataGrid-bar">
@@ -399,6 +410,15 @@ export default function DataGrid(props: DataGridProps) {
         <span className="dataGrid-actions">
           {table?.queryable && (
             <IconButton icon="list-filter" label="Filter rows" onClick={() => askFilter(0)} />
+          )}
+          {table?.queryable && (
+            <IconButton
+              icon="chart-column"
+              label={chartable ? 'Show as a chart' : 'No column in this table can be drawn'}
+              pressed={chart !== null}
+              disabled={!chartable}
+              onClick={() => setChart(chart === null ? defaultChart(table.columns) : null)}
+            />
           )}
           <IconButton icon="copy" label="Copy as CSV" onClick={copyCsv} disabled={table === null} />
           <IconButton
@@ -436,9 +456,26 @@ export default function DataGrid(props: DataGridProps) {
               addButton={mode === 'tab' || filtered}
             />
           )}
+          {chart !== null && (
+            <ChartView
+              kernelId={kernelId}
+              name={name}
+              mode={mode}
+              columns={table.columns}
+              filters={filters}
+              spec={chart}
+              onSpecChange={setChart}
+              reload={reload}
+              paused={paused || !visible}
+              onGone={onGone}
+              variable={props.variable ?? null}
+              insertCode={props.insertCode}
+            />
+          )}
           <div
             className="dataGrid-scroll"
             ref={scroller}
+            hidden={chart !== null}
             tabIndex={-1}
             onKeyDown={onKeyDown}
             onScroll={mode === 'tab' ? onScroll : undefined}
@@ -470,6 +507,11 @@ export default function DataGrid(props: DataGridProps) {
                         onMoveLeft={place > 0 ? () => move(index, -1) : undefined}
                         onMoveRight={place < shown.length - 1 ? () => move(index, 1) : undefined}
                         onDropColumn={(from) => dropOnto(from, index)}
+                        onChart={
+                          table.queryable
+                            ? (at) => setChart(columnChart(table.columns, at))
+                            : undefined
+                        }
                       />
                     );
                   })}
@@ -574,7 +616,7 @@ export default function DataGrid(props: DataGridProps) {
             )}
           </div>
 
-          {mode === 'cell' && table.matched_rows > 0 && (
+          {mode === 'cell' && chart === null && table.matched_rows > 0 && (
             <div className="dataGrid-foot">
               <span className="z-tabular">
                 {`Rows ${first.toLocaleString()}–${last.toLocaleString()} of ${table.matched_rows.toLocaleString()}`}

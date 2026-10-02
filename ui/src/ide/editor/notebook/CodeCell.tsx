@@ -22,6 +22,12 @@ import { tabCompletionKeymap } from './kernelCompletion';
 import { useNotebookEditor } from './NotebookEditorContext';
 import { zoomAwareTooltips } from '../tooltipParent';
 
+/** The name a cell's last line is when it is nothing else: what a chart's code can be written against. */
+function printedName(source: string): string | null {
+  const last = source.trimEnd().split('\n').pop()?.trim() ?? '';
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(last) ? last : null;
+}
+
 /** A code cell, and a raw one: an editor, its execution count, and its output. */
 export default function CodeCell(props: CellProps) {
   const { cell, isFocused } = props;
@@ -157,6 +163,8 @@ export default function CodeCell(props: CellProps) {
               kernelId: editor.kernelId,
               notebookPath: editor.notebookPath,
               executionCount: cell.execution_count,
+              variable: printedName(cell.source),
+              insertBelow: (source) => editor.insertCodeAfter(cell.id, source),
             }}
           />
         </div>

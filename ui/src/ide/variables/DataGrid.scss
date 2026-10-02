@@ -118,6 +118,7 @@
   .dataGrid:hover &,
   .dataGrid:focus-within &,
   .dataGrid.has-filters &,
+  .dataGrid.is-chart &,
   .dataGrid.is-tab & {
     opacity: 1;
   }
@@ -368,4 +369,93 @@
   margin: 6px 0 0;
   color: var(--z-fg-subtle);
   font-size: var(--z-ui-font-size-sm);
+}
+
+// --- The chart ---------------------------------------------------------------
+//
+// Drawn by plotly on the output's own surface rather than the white plate a kernel's figure gets: these
+// pixels are the app's, so they take the theme. chartFigure.ts gives plotly the marks.
+
+.dataChart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+
+  &.is-tab {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 16px 8px;
+  }
+}
+
+.dataChart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: var(--z-ui-font-size);
+}
+
+.dataChart-kinds {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.dataChart-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--z-fg-muted);
+
+  // A fixed width, as the rows-per-page select has: one sized by its text runs under its own arrow.
+  .z-select {
+    width: 112px;
+  }
+}
+
+.dataChart-plot {
+  position: relative;
+  min-width: 0;
+
+  &.is-reading .dataChart-graph {
+    opacity: 0.6;
+  }
+
+  .dataChart.is-tab & {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+
+// An explicit height: plotly's autosize reads the graph div's computed height, and padding on it would
+// be the figure's whole height.
+.dataChart-graph {
+  height: 300px;
+
+  .dataChart.is-tab & {
+    height: 100%;
+  }
+}
+
+.dataChart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}
+
+.dataChart-note {
+  margin: 0;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.dataChart-insert {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }

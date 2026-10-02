@@ -158,6 +158,86 @@ export function exportRows(kernelId: string, name: string, query: RowQuery): Pro
   });
 }
 
+export type ChartKind = 'histogram' | 'bar' | 'line' | 'scatter' | 'box';
+export type ChartAggregate = 'count' | 'sum' | 'mean' | 'median' | 'min' | 'max';
+
+/** What to draw, with columns by position. `y` is a list for every kind; only a line draws several. */
+export interface ChartQuery {
+  kind: ChartKind;
+  x?: number;
+  y?: number[];
+  color?: number;
+  agg?: ChartAggregate;
+  filters?: RowFilter[];
+}
+
+/** One coloured group, or the only series when nothing colours the chart: `name` is then null. */
+interface ChartGroup {
+  name: CellValue | null;
+  /** The group's place among the colour column's commonest values in the whole frame: its colour. */
+  slot: number | null;
+  /** The groups past the eighth (third, for a scatter), together. */
+  other?: boolean;
+}
+
+/** An x value: a number, or a date as pandas prints it. */
+type AxisValue = number | string | null;
+
+interface ChartCounts {
+  matched_rows: number;
+  total_rows: number;
+  /** Groups of the colour column folded into the series marked `other`. */
+  other_groups?: number;
+}
+
+export type ChartAnswer = ChartCounts &
+  (
+    | { kind: 'histogram'; counts: number[]; edges: AxisValue[] }
+    | {
+        kind: 'bar';
+        categories: CellValue[];
+        /** Categories past the twentieth, drawn as one more bar at the end of each series' values. */
+        other_categories: number;
+        series: (ChartGroup & { values: (number | null)[] })[];
+      }
+    | {
+        kind: 'line';
+        /** `points` is the line's length before it was thinned to at most 2,000. */
+        series: (ChartGroup & { x: AxisValue[]; y: (number | null)[]; points: number })[];
+      }
+    | {
+        kind: 'scatter';
+        series: (ChartGroup & { x: AxisValue[]; y: (number | null)[] })[];
+        sampled: { shown: number; of: number } | null;
+      }
+    | {
+        kind: 'box';
+        series: (ChartGroup & {
+          q1: number | null;
+          median: number | null;
+          q3: number | null;
+          lower: number | null;
+          upper: number | null;
+          mean: number | null;
+          count: number;
+          outliers: (number | null)[];
+        })[];
+        other_categories?: number;
+      }
+  );
+
+/** What a chart of a table-like variable draws, counted in the kernel. */
+export function chartVariable(
+  kernelId: string,
+  name: string,
+  query: ChartQuery
+): Promise<ChartAnswer> {
+  return requestJson<ChartAnswer>(`/api/kernels/${kernelId}/variables/${name}/chart`, {
+    method: 'POST',
+    body: query,
+  });
+}
+
 /** What a cell's DataFrame output carries beside pandas' HTML, while the kernel holds the frame. */
 export const TABLE_MIME = 'application/vnd.zasper.dataframe+json';
 

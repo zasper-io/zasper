@@ -444,6 +444,281 @@ def csv(name, request):
     return _encode({"csv": rows.to_csv()})
 
 
+# A chart is answered in a few hundred numbers however long the frame is: these are what bound it.
+MAX_BINS = 50
+MAX_BARS = 20
+MAX_GROUPS = 8
+# Three hues stay apart for every pair of readers with colour-blindness; eight only for neighbours.
+MAX_SCATTER_GROUPS = 3
+MAX_BOXES = 20
+MAX_OUTLIERS = 50
+LINE_POINTS = 2000
+SCATTER_POINTS = 5000
+_AGGREGATES = ("count", "sum", "mean", "median", "min", "max")
+
+
+def _column(frame, query, field, kinds=None):
+    index = query.get(field)
+    if not isinstance(index, int) or not 0 <= index < frame.shape[1]:
+        raise ValueError(f"choose a column for {field}")
+    series = frame.iloc[:, index]
+    kind = _column_kind(series)
+    if kinds is not None and kind not in kinds:
+        raise ValueError(f"{series.name} is a {kind} column, and this chart needs a {' or '.join(kinds)} column")
+    return series
+
+
+def _plain(series):
+    """A date column without its time zone, as wall time: plotly reads a date string with an offset wrong."""
+    if getattr(series.dtype, "tz", None) is not None:
+        return series.dt.tz_localize(None)
+    return series
+
+
+def _floats(values):
+    return [_number(item) for item in values]
+
+
+def _labels(values):
+    return [_value(item) for item in values]
+
+
+def _axis(values):
+    """An x axis's values: a date as pandas prints it, which numpy's own `item()` turns into an int."""
+    import numpy as np
+    import pandas as pd
+
+    if np.issubdtype(values.dtype, np.datetime64):
+        return [str(stamp) for stamp in pd.DatetimeIndex(values)]
+    return _floats(values)
+
+
+def _group_order(series, limit):
+    """The commonest values of a whole column, so a filter that removes a group never repaints the rest."""
+    counts = series.dropna().value_counts(sort=True)
+    return list(counts.index[:limit]), max(0, len(counts) - limit)
+
+
+def _grouped(data, column, order):
+    """Rows split by `column` as (slot, label, rows) in `order`, and the rest as one group with neither.
+    The slot is a group's place in the whole column, which is the colour it keeps when a filter empties another."""
+    import pandas as pd
+
+    codes = pd.Categorical(data[column], categories=order).codes
+    parts = dict(iter(data.groupby(codes, sort=True)))
+    groups = [(code, label, parts[code]) for code, label in enumerate(order) if code in parts]
+    if -1 in parts:
+        groups.append((None, None, parts[-1]))
+    return groups
+
+
+def _group(slot, label):
+    return {"name": None if slot is None else _value(label), "slot": slot, "other": slot is None}
+
+
+def _aggregate(rows, by, agg):
+    grouped = rows.groupby(by, sort=False, observed=True, dropna=True)
+    return grouped.size() if agg == "count" else grouped["y"].agg(agg)
+
+
+def _histogram(frame, rows, query):
+    import numpy as np
+    import pandas as pd
+
+    series = _plain(_column(rows, query, "x", ("number", "datetime")).dropna())
+    dates = _column_kind(series) == "datetime"
+    if dates:
+        values = series.to_numpy().astype("datetime64[ns]").astype("int64")
+    else:
+        values = series.astype(float).to_numpy()
+        values = values[np.isfinite(values)]
+    if not len(values):
+        return {"counts": [], "edges": []}
+    low, high = values.min(), values.max()
+    if not dates and np.all(values == np.round(values)) and high - low < MAX_BINS:
+        # Whole numbers get a bin each, centred on the number, so a bar stands over the value it counts.
+        bins = np.arange(low - 0.5, high + 1.5)
+    else:
+        bins = max(1, min(MAX_BINS, len(np.unique(values))))
+    counts, edges = np.histogram(values, bins=bins)
+    edges = [str(pd.Timestamp(int(edge))) for edge in edges] if dates else _floats(edges)
+    return {"counts": counts.tolist(), "edges": edges}
+
+
+def _bar(frame, rows, query):
+    import pandas as pd
+
+    agg = query.get("agg") or "count"
+    if agg not in _AGGREGATES:
+        raise ValueError(f"unknown aggregate {agg!r}")
+    data = pd.DataFrame({"x": _plain(_column(rows, query, "x")).to_numpy()})
+    if agg != "count":
+        data["y"] = _column(rows, query, "y", ("number",)).to_numpy()
+    totals = _aggregate(data, "x", agg).sort_values(ascending=False, kind="stable")
+    kept = list(totals.index[:MAX_BARS])
+    folded = max(0, len(totals) - MAX_BARS)
+
+    def heights(part):
+        found = _aggregate(part, "x", agg)
+        heights = [found.get(label) for label in kept]
+        if folded:
+            rest = part[~part["x"].isin(kept) & part["x"].notna()]
+            heights.append(_aggregate(rest.assign(x=0), "x", agg).get(0) if len(rest) else None)
+        return [None if height is None else _number(height) for height in heights]
+
+    answer = {"categories": _labels(kept), "other_categories": folded}
+    if query.get("color") is None:
+        return {**answer, "series": [{"name": None, "slot": None, "other": False, "values": heights(data)}]}
+    order, other_groups = _group_order(_column(frame, query, "color"), MAX_GROUPS)
+    data["c"] = _column(rows, query, "color").to_numpy()
+    series = [{**_group(slot, label), "values": heights(part)} for slot, label, part in _grouped(data, "c", order)]
+    return {**answer, "series": series, "other_groups": other_groups}
+
+
+def _downsample(xs, ys, points):
+    """The lowest and highest point of each stretch, in order: a peak survives, which an average loses."""
+    import numpy as np
+
+    if len(xs) <= points:
+        return xs, ys
+    keep = []
+    edges = np.linspace(0, len(xs), points // 2 + 1).astype(int)
+    for start, stop in zip(edges[:-1], edges[1:]):
+        if stop > start:
+            stretch = ys[start:stop]
+            keep.extend(sorted({start + int(np.argmin(stretch)), start + int(np.argmax(stretch))}))
+    return xs[keep], ys[keep]
+
+
+def _line(frame, rows, query):
+    import pandas as pd
+
+    agg = query.get("agg") or "sum"
+    if agg not in _AGGREGATES:
+        raise ValueError(f"unknown aggregate {agg!r}")
+    x = _plain(_column(rows, query, "x", ("number", "datetime"))).to_numpy()
+    measures = query["measures"]
+    if not 1 <= len(measures) <= 3:
+        raise ValueError("a line chart draws one to three columns")
+    if len(measures) > 1 and query.get("color") is not None:
+        raise ValueError("a line chart is coloured by a column or draws several, not both")
+
+    def line(group, part):
+        points = _aggregate(part, "x", agg).sort_index().dropna()
+        xs, ys = _downsample(points.index.to_numpy(), points.to_numpy(dtype=float), LINE_POINTS)
+        return {**group, "x": _axis(xs), "y": _floats(ys), "points": int(len(points))}
+
+    if query.get("color") is None:
+        series = []
+        for index in measures:
+            measure = _column(rows, {"y": index}, "y", ("number",))
+            group = {"name": str(measure.name), "slot": len(series), "other": False}
+            series.append(line(group, pd.DataFrame({"x": x, "y": measure.to_numpy()})))
+        return {"series": series}
+    data = pd.DataFrame({"x": x, "y": _column(rows, {"y": measures[0]}, "y", ("number",)).to_numpy()})
+    order, other_groups = _group_order(_column(frame, query, "color"), MAX_GROUPS)
+    data["c"] = _column(rows, query, "color").to_numpy()
+    series = [line(_group(slot, label), part) for slot, label, part in _grouped(data, "c", order)]
+    return {"series": series, "other_groups": other_groups}
+
+
+def _scatter(frame, rows, query):
+    import numpy as np
+    import pandas as pd
+
+    data = pd.DataFrame(
+        {
+            "x": _plain(_column(rows, query, "x", ("number", "datetime"))).to_numpy(),
+            "y": _column(rows, query, "y", ("number",)).to_numpy(),
+        }
+    )
+    if query.get("color") is not None:
+        data["c"] = _column(rows, query, "color").to_numpy()
+    data = data.dropna(subset=["x", "y"])
+    total = len(data)
+    if total > SCATTER_POINTS:
+        # Seeded, so the same frame draws the same points every time it is asked.
+        chosen = np.sort(np.random.default_rng(0).choice(total, SCATTER_POINTS, replace=False))
+        data = data.iloc[chosen]
+    sampled = {"shown": len(data), "of": total} if total > SCATTER_POINTS else None
+
+    def points(group, part):
+        return {**group, "x": _axis(part["x"].to_numpy()), "y": _floats(part["y"].to_numpy())}
+
+    if query.get("color") is None:
+        return {"series": [points({"name": None, "slot": None, "other": False}, data)], "sampled": sampled}
+    order, other_groups = _group_order(_column(frame, query, "color"), MAX_SCATTER_GROUPS)
+    series = [points(_group(slot, label), part) for slot, label, part in _grouped(data, "c", order)]
+    return {"series": series, "sampled": sampled, "other_groups": other_groups}
+
+
+def _box_of(name, values):
+    import numpy as np
+
+    q1, median, q3 = np.percentile(values, [25, 50, 75])
+    reach = 1.5 * (q3 - q1)
+    inside = values[(values >= q1 - reach) & (values <= q3 + reach)]
+    outliers = np.sort(values[(values < q1 - reach) | (values > q3 + reach)])
+    if len(outliers) > MAX_OUTLIERS:
+        # Spread over the range rather than the first fifty, so the furthest on each side are still drawn.
+        outliers = outliers[np.linspace(0, len(outliers) - 1, MAX_OUTLIERS).astype(int)]
+    return {
+        "name": name,
+        "q1": _number(q1),
+        "median": _number(median),
+        "q3": _number(q3),
+        "lower": _number(inside.min()),
+        "upper": _number(inside.max()),
+        "mean": _number(values.mean()),
+        "count": int(len(values)),
+        "outliers": _floats(outliers),
+    }
+
+
+def _box(frame, rows, query):
+    import numpy as np
+    import pandas as pd
+
+    data = pd.DataFrame({"y": _column(rows, query, "y", ("number",)).astype(float).to_numpy()})
+    data = data[np.isfinite(data["y"])]
+    if query.get("x") is None:
+        return {"series": [_box_of(None, data["y"].to_numpy())] if len(data) else []}
+    data["x"] = _plain(_column(rows, query, "x")).to_numpy()[data.index]
+    order, folded = _group_order(data["x"], MAX_BOXES)
+    series = [_box_of(_value(label), part["y"].to_numpy()) for slot, label, part in _grouped(data, "x", order) if slot is not None]
+    return {"series": series, "other_categories": folded}
+
+
+_CHARTS = {"histogram": _histogram, "bar": _bar, "line": _line, "scatter": _scatter, "box": _box}
+
+
+def chart(name, request):
+    """What a chart of a table-like variable draws, counted in the kernel: never the rows themselves."""
+    query = json.loads(request)
+    try:
+        value = _lookup(name)
+    except LookupError as reason:
+        return _missing_answer(reason)
+    frame = _as_frame(value)
+    if frame is None:
+        return _encode({"error": f"{name} cannot be drawn as a chart"})
+    draw = _CHARTS.get(query.get("kind"))
+    if draw is None:
+        return _encode({"error": f"unknown chart {query.get('kind')!r}"})
+    measures = query.get("y") or []
+    query = {**query, "y": measures[0] if measures else None, "measures": measures}
+    filters = query.get("filters") or []
+    for condition in filters:
+        if condition.get("op") not in (*_COMPARE, "contains", "not_contains", "starts_with", "missing", "present"):
+            return _encode({"error": f"unknown filter {condition.get('op')!r}"})
+    try:
+        positions = _positions(name, value, frame, {"filters": filters})
+        answer = draw(frame, frame.iloc[positions], query)
+    except (ValueError, TypeError) as reason:
+        return _encode({"error": str(reason)})
+    return _encode({"kind": query["kind"], **answer, "matched_rows": int(len(positions)), "total_rows": int(len(frame))})
+
+
 # The tables a cell's output showed, so the output can page, sort and filter the very frame it printed —
 # an expression's result has no name to find it by. The newest are kept; an output whose frame was let
 # go shows the HTML pandas wrote, as a notebook opened without a kernel does.

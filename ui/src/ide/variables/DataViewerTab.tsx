@@ -71,6 +71,7 @@ export default function DataViewerTab({ data }: { data: FileTab }) {
               initialView={initialView}
               onGone={() => setGone(true)}
               paused={!data.active}
+              variable={target.name.startsWith('@') ? null : target.name}
             />
           )
         )}

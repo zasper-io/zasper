@@ -192,6 +192,37 @@ func (k *Kernels) CSVHandler(w http.ResponseWriter, req *http.Request) {
 	_, _ = io.WriteString(w, export.CSV)
 }
 
+// ChartHandler answers what a chart of a table-like variable draws, after the filters in the request.
+func (k *Kernels) ChartHandler(w http.ResponseWriter, req *http.Request) {
+	km, name, ok := k.inspected(w, req)
+	if !ok {
+		return
+	}
+	var query ChartQuery
+	if err := json.NewDecoder(io.LimitReader(req.Body, 64<<10)).Decode(&query); err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "malformed query")
+		return
+	}
+	if problem := checkChartQuery(query); problem != "" {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, problem)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(req.Context(), inspectTimeout)
+	defer cancel()
+	answer, problem, err := km.Chart(ctx, name, query)
+	if err != nil {
+		sendInspectError(w, err)
+		return
+	}
+	if problem.Error != "" {
+		httpx.SendErrorResponse(w, answeredStatus(problem.Gone), problem.Error)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(answer)
+}
+
 // answeredStatus is the status for a question the kernel answered with an error: 410 for a table it
 // has let go, which a client tells apart from a question it got wrong.
 func answeredStatus(gone bool) int {
@@ -244,6 +275,34 @@ func checkQuery(query Query) string {
 		}
 	}
 	return ""
+}
+
+func checkChartQuery(query ChartQuery) string {
+	if !ChartKinds[query.Kind] {
+		return fmt.Sprintf("unknown chart %q", query.Kind)
+	}
+	if query.Agg != "" && !ChartAggregates[query.Agg] {
+		return fmt.Sprintf("unknown aggregate %q", query.Agg)
+	}
+	if len(query.Y) > 3 {
+		return "a chart draws at most three columns"
+	}
+	for _, column := range append(append([]int{}, query.Y...), derefs(query.X, query.Color)...) {
+		if column < 0 {
+			return "no such column"
+		}
+	}
+	return checkQuery(Query{Limit: 1, Filters: query.Filters})
+}
+
+func derefs(columns ...*int) []int {
+	found := []int{}
+	for _, column := range columns {
+		if column != nil {
+			found = append(found, *column)
+		}
+	}
+	return found
 }
 
 func sendInspectError(w http.ResponseWriter, err error) {

@@ -17,6 +17,12 @@ import {
   Lightbulb,
   ListChecks,
   ListFilter,
+  ChartBar,
+  ChartCandlestick,
+  ChartColumn,
+  ChartLine,
+  ChartScatter,
+  Code,
   SquareArrowOutUpRight,
   Table,
   Variable,
@@ -192,6 +198,12 @@ export const ICONS = {
   'list-filter': ListFilter,
   'chevron-left': ChevronLeft,
   'square-arrow-out-up-right': SquareArrowOutUpRight,
+  'chart-column': ChartColumn, // Show a table as a chart, and a histogram
+  'chart-bar': ChartBar,
+  'chart-line': ChartLine,
+  'chart-scatter': ChartScatter,
+  'chart-candlestick': ChartCandlestick, // A box plot: Lucide has no box glyph
+  code: Code, // Insert the code that draws a chart
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

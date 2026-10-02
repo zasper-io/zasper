@@ -193,6 +193,27 @@ func TestACellsDataFrameOutputCanBePagedByItsOwnId(t *testing.T) {
 	})
 	require.Equal(t, http.StatusOK, status, "body was %s", body)
 	assert.Equal(t, ",y,x\n0,a,0\n1,b,1\n", string(body), "the columns as the grid arranged them")
+	column := func(n int) *int { return &n }
+	status, body = call(t, srv, http.MethodPost, base+"/chart", kernel.ChartQuery{
+		Kind: "bar", X: column(1), Y: []int{0}, Agg: "sum", Filters: []kernel.Filter{{Column: 0, Op: "lt", Value: "4"}},
+	})
+	require.Equal(t, http.StatusOK, status, "body was %s", body)
+	bar := decode[map[string]any](t, body)
+	assert.Equal(t, []any{"b", "a"}, bar["categories"], "the larger sum first")
+	assert.Equal(t, []any{4.0, 2.0}, bar["series"].([]any)[0].(map[string]any)["values"], "1+3 and 0+2")
+	assert.EqualValues(t, 4, bar["matched_rows"])
+
+	status, body = call(t, srv, http.MethodPost, base+"/chart", kernel.ChartQuery{Kind: "histogram", X: column(0)})
+	require.Equal(t, http.StatusOK, status, "body was %s", body)
+	histogram := decode[map[string]any](t, body)
+	assert.Len(t, histogram["counts"], 30, "a bin a value, up to fifty")
+
+	status, body = call(t, srv, http.MethodPost, base+"/chart", kernel.ChartQuery{Kind: "histogram", X: column(1)})
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+	assert.Contains(t, string(body), "needs a number or datetime column")
+
+	status, _ = call(t, srv, http.MethodPost, base+"/chart", kernel.ChartQuery{Kind: "pie", X: column(1)})
+	assert.Equal(t, http.StatusBadRequest, status, "only known kinds reach the kernel")
 
 	status, _ = call(t, srv, http.MethodPost, "/api/kernels/"+created.Kernel.Id+"/variables/@"+strings.Repeat("0", 32)+"/rows", kernel.Query{Limit: 3})
 	assert.Equal(t, http.StatusGone, status, "a table the kernel does not hold")

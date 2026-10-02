@@ -532,6 +532,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     run: useStableCallback(runCommand),
     focusNextCell: useStableCallback(cells.focusNextCell),
     addCellAt: useStableCallback(cells.addCellAt),
+    insertCodeAfter: useStableCallback(cells.insertCodeAfter),
     submitCell: useStableCallback(submitCell),
     interruptKernel: useStableCallback(kernel.interruptKernel),
     submitPrompt: useStableCallback(submitPrompt),

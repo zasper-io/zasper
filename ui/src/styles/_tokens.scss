@@ -127,6 +127,20 @@
   // theme it is a white slab. The plate makes that deliberate: the figure gets a surface the right
   // size, and it is white in every theme because the pixels the kernel sent are.
   --z-bg-figure: #ffffff;
+
+  // A chart the grid draws: one series is --z-fg-accent; a colour column's groups take these, in this
+  // order and never cycled, and the rest fold into the grey. Validated as a set on every light output
+  // tint and on white: worst neighbouring CVD ΔE 9.1, normal-vision ΔE 19.6. Four sit under 3:1 on the
+  // tint, which the legend, the tooltip and the table one press away answer.
+  --z-chart-1: #2a78d6;
+  --z-chart-2: #eb6834;
+  --z-chart-3: #1baf7a;
+  --z-chart-4: #eda100;
+  --z-chart-5: #e87ba4;
+  --z-chart-6: #008300;
+  --z-chart-7: #4a3aa7;
+  --z-chart-8: #e34948;
+  --z-chart-other: #9a9a9a;
   // A tint under stderr and under a traceback, so a failed cell is findable while scrolling past it.
   // Far weaker than --z-bg-danger, which is a fill under white text: this one sits under the
   // kernel's own ANSI colours and must not compete with them.
@@ -430,6 +444,16 @@
   --z-bg-notice: #2d2d2d;
   // Not overridden to a dark value: see the light theme, the plate is white because the figure is.
   --z-bg-figure: #ffffff;
+  // The same eight hues stepped for a dark surface: worst neighbouring CVD ΔE 8.4 on the output box.
+  --z-chart-1: #3987e5;
+  --z-chart-2: #d95926;
+  --z-chart-3: #199e70;
+  --z-chart-4: #c98500;
+  --z-chart-5: #d55181;
+  --z-chart-6: #008300;
+  --z-chart-7: #9085e9;
+  --z-chart-8: #e66767;
+  --z-chart-other: #7a7a7a;
   --z-bg-error-subtle: #3a2a2a;
   // The panel's value, which is the whole point of the name: the `#181818` this replaces was two steps
   // below the editor it floated over, so a menu in the dark theme read as a hole rather than as a card.

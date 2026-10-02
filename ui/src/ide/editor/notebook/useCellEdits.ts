@@ -143,6 +143,24 @@ export function useCellEdits(
     [pushUndo, setNotebook, focusCell]
   );
 
+  /** A code cell holding `source` right after the cell `afterId`, in command mode so it is not run by accident. */
+  const insertCodeAfter = useCallback(
+    (afterId: string, source: string) => {
+      pushUndo();
+      const added = { ...newCell('code'), source };
+      setNotebook((prevNotebook) => {
+        const at = prevNotebook.cells.findIndex((each) => each.id === afterId);
+        const index = at < 0 ? prevNotebook.cells.length : at + 1;
+        return {
+          ...prevNotebook,
+          cells: [...prevNotebook.cells.slice(0, index), added, ...prevNotebook.cells.slice(index)],
+        };
+      });
+      focusCellBox(added.id);
+    },
+    [pushUndo, setNotebook, focusCellBox]
+  );
+
   /**
    * Command mode on the cell that takes over when the focused one goes — the one after it, or else the
    * one before — as after Jupyter's `dd`.
@@ -292,6 +310,7 @@ export function useCellEdits(
     addCellUp,
     addCellDown,
     addCellAt,
+    insertCodeAfter,
     deleteCell,
     copyCell,
     /** Exposed so `notebook:paste-cell` can report itself unavailable with nothing to paste. */
