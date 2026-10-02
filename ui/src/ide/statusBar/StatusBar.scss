@@ -158,3 +158,18 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+// The update menu's title carries a badge beside the version, so it is a row rather than one line of text.
+.statusMenu .updateMenuHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// The release's date and the running version: a fact under the title, not something to press.
+.updateMenuFact {
+  padding: 0 10px 6px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+  white-space: nowrap;
+}

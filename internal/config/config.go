@@ -27,6 +27,8 @@ type Config struct {
 	// PythonInterpreter is the Python that runs a file and that a file editor's imports are read with.
 	// "" is automatic: the project's .venv or venv, and otherwise the python3 the shell finds.
 	PythonInterpreter string `json:"python_interpreter,omitempty"`
+	// SeenVersion is the newest version whose notes What's new has shown.
+	SeenVersion string `json:"seen_version,omitempty"`
 }
 
 // DefaultTheme names a theme in ui/src/themes, which is the only place that knows what one means: the
@@ -150,6 +152,38 @@ func TelemetryPreference() (enabled bool, chosen bool) {
 		return true, false
 	}
 	return *config.TelemetryEnabled, true
+}
+
+// Exists reports whether config.json has been written, which it has not on a machine that has never run
+// Zasper.
+func Exists() bool {
+	filePath, err := getConfigFilePath()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(filePath)
+	return err == nil
+}
+
+// SeenVersion answers the newest version whose notes have been shown, "" when none has been recorded.
+func SeenVersion() string {
+	config, err := ReadConfig()
+	if err != nil {
+		return ""
+	}
+	return config.SeenVersion
+}
+
+// SetSeenVersion records that version's notes as shown.
+func SetSeenVersion(version string) error {
+	_, err := UpdateConfig(func(config *Config) bool {
+		if config.SeenVersion == version {
+			return false
+		}
+		config.SeenVersion = version
+		return true
+	})
+	return err
 }
 
 // WidgetCDNEnabled reports whether widget libraries that are not bundled may be loaded from the CDN,

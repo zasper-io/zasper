@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -26,6 +27,7 @@ func main() {
 	protected := flag.Bool("protected", true, "deprecated and ignored: Zasper always runs in protected mode")
 	tracking := flag.Bool("tracking", true, "enable usage tracking")
 	showVersion := flag.Bool("version", false, "print the version and exit")
+	checkUpdate := flag.Bool("check-update", false, "ask zasper.io for the newest version and exit: 0 when up to date, 1 when there is a newer one, 2 when the check failed")
 	noBrowser := flag.Bool("no-browser", false, "do not open the app in a browser on startup")
 	allowHost := flag.String("allow-host", "", "other host names a server on loopback answers to, comma-separated, such as a reverse proxy's")
 
@@ -36,6 +38,10 @@ func main() {
 	if *showVersion {
 		fmt.Println(resolveVersion())
 		return
+	}
+	if *checkUpdate {
+		version = resolveVersion()
+		os.Exit(checkForUpdate(context.Background(), newUpdateChecker(), os.Stdout))
 	}
 
 	// Before anything else logs, so that every line in the run has the same shape.
@@ -67,7 +73,7 @@ func main() {
 		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
 	}
 
-	printBanner(zasper.address, zasper.accessToken, version, zasper.tracking)
+	printBanner(zasper.address, zasper.accessToken, version, zasper.tracking, zasper.updates.Status())
 
 	if shouldOpenBrowser(*noBrowser, logging.Console(), runtime.GOOS, os.Getenv) {
 		launchBrowser(loginURL(zasper.address, zasper.accessToken))

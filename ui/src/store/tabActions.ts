@@ -56,6 +56,9 @@ export const HELP_TAB_KEY = 'zasper:help';
 /** The Settings tab's key, for the same reason. */
 export const SETTINGS_TAB_KEY = 'zasper:settings';
 
+/** The What's new tab's key. */
+export const WHATS_NEW_TAB_KEY = 'zasper:whats-new';
+
 /**
  * The tabs a close took, oldest first, for Reopen Closed Tab. Terminals are not kept: reopening one
  * would be a new shell wearing an old name, which is why a terminal is not restored across a reload
@@ -64,7 +67,7 @@ export const SETTINGS_TAB_KEY = 'zasper:settings';
  */
 export const closedTabsAtom = atom<OpenTab[]>([]);
 
-const REOPENABLE = new Set(['file', 'notebook', 'diff', 'help', 'settings']);
+const REOPENABLE = new Set(['file', 'notebook', 'diff', 'help', 'settings', 'whats-new']);
 
 /** How many closes back Reopen can reach. */
 const CLOSED_TABS_KEPT = 10;
@@ -90,6 +93,8 @@ export interface TabActions {
   openHelp: (section?: 'about') => void;
   /** Opens the Settings tab or brings it to the front. */
   openSettings: () => void;
+  /** Opens the release notes of the running version, or brings them to the front. */
+  openWhatsNew: () => void;
   /** Opens the comparison of a file's unsaved edits with the version of it now on disk. */
   openDiskCompare: (path: string) => void;
   /** Opens a file on disk against the file after the search panel's replace. */
@@ -291,6 +296,10 @@ export function useTabActions(): TabActions {
 
     openSettings: () => {
       openTab({ name: 'Settings', path: SETTINGS_TAB_KEY, type: 'settings', extension: null });
+    },
+
+    openWhatsNew: () => {
+      openTab({ name: "What's New", path: WHATS_NEW_TAB_KEY, type: 'whats-new', extension: null });
     },
 
     openDiskCompare: (path: string) => {

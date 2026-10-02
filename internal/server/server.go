@@ -12,6 +12,7 @@ import (
 	"github.com/zasper-io/zasper/internal/search"
 	"github.com/zasper-io/zasper/internal/session"
 	"github.com/zasper-io/zasper/internal/terminal"
+	"github.com/zasper-io/zasper/internal/updates"
 )
 
 // Server is one Zasper server: the project it serves and everything that answers for it.
@@ -27,6 +28,7 @@ type Server struct {
 	kernelSockets *kernelws.Handler
 	terminals     *terminal.Terminals
 	languages     *lsp.Manager
+	updates       *updates.Checker
 }
 
 // New builds the server for app, and connects the parts that cannot import each other.
@@ -58,6 +60,12 @@ func New(app core.Application) *Server {
 	s.content.OnMoved(func(from, to string) { sessions.Relocate(from, to) })
 
 	return s
+}
+
+// UseUpdates gives the server the update check its /api/updates routes answer from. A server without one,
+// such as a test's, has no such routes.
+func (s *Server) UseUpdates(checker *updates.Checker) {
+	s.updates = checker
 }
 
 // Shutdown stops every shell and kernel the server started.

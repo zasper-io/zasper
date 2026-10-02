@@ -451,8 +451,16 @@ A single click on a rendered markdown cell only selects it; it stays rendered.
 | `--tracking` | `true` | Send anonymous usage data; see [Logging and privacy](#logging-and-privacy) |
 | `--debug` | off | Set the log level to debug |
 | `--version` | | Print the version and exit |
+| `--check-update` | | Ask zasper.io for the newest version and exit: `0` when up to date, `1` when there is a newer one, `2` when the check failed |
 
 `--protected` is still accepted but ignored: Zasper always runs in protected mode.
+
+### Updates
+
+Once a day the server fetches `https://zasper.io/latest.json`, which names the newest release. When it
+is newer than the running version, the startup banner and the status bar say so, and Settings shows
+what the last check found. A check that fails is silent. The snap does not check, because snapd keeps
+it up to date. The first launch after an upgrade opens the new version's release notes once.
 
 ### Environment variables
 

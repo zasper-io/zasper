@@ -14,6 +14,7 @@ export const HELP_COMMANDS = defineCommands({
   'help:about': { ...help, label: 'About Zasper' },
   'help:docs': { ...help, label: 'Documentation' },
   'help:report-issue': { ...help, label: 'Report an Issue' },
+  'help:whats-new': { ...help, label: "What's New" },
 });
 
 function openExternal(url: string): void {
@@ -22,12 +23,13 @@ function openExternal(url: string): void {
 
 /** Not memoized, like the notebook's: `useRegisterCommands` re-registers only when the ids change. */
 export function useHelpCommands(): Command[] {
-  const { openHelp } = useTabActions();
+  const { openHelp, openWhatsNew } = useTabActions();
 
   return [
     { ...HELP_COMMANDS['help:shortcuts'], execute: () => openHelp() },
     { ...HELP_COMMANDS['help:about'], execute: () => openHelp('about') },
     { ...HELP_COMMANDS['help:docs'], execute: () => openExternal(DOCS_URL) },
     { ...HELP_COMMANDS['help:report-issue'], execute: () => openExternal(ISSUES_URL) },
+    { ...HELP_COMMANDS['help:whats-new'], execute: openWhatsNew },
   ];
 }

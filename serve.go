@@ -13,6 +13,7 @@ import (
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/logging"
 	"github.com/zasper-io/zasper/internal/server"
+	"github.com/zasper-io/zasper/internal/updates"
 )
 
 // zasperServer is a Zasper server that is bound and serving. The CLI and the desktop app both start
@@ -27,6 +28,8 @@ type zasperServer struct {
 
 	httpServer *http.Server
 	zasper     *server.Server
+	updates    *updates.Checker
+	stopChecks context.CancelFunc
 }
 
 /*
@@ -36,8 +39,13 @@ It returns once the listener is bound, not once the first request is served: a r
 before Serve is running waits in the listener's backlog, so the caller can open a page straight away.
 */
 func startServer(cwd string, addresses []string, tracking bool, allowedHosts []string) (*zasperServer, error) {
+	// Before anything writes config.json, which is how a first run is told from an upgrade.
+	updates.MarkFirstRun(version)
+
 	app := core.NewApplication(version, cwd)
 	zasper := server.New(app)
+	checker := newUpdateChecker()
+	zasper.UseUpdates(checker)
 	router := zasper.Router(getSpaHandler())
 
 	// Anonymous usage tracking. It is what tells me whether anyone is actually using Zasper, which is
@@ -72,6 +80,9 @@ func startServer(cwd string, addresses []string, tracking bool, allowedHosts []s
 	serving := make(chan error, 1)
 	go func() { serving <- httpServer.Serve(listener) }()
 
+	checks, stopChecks := context.WithCancel(context.Background())
+	go checker.Run(checks)
+
 	return &zasperServer{
 		address:     bound,
 		accessToken: app.AccessToken,
@@ -79,11 +90,14 @@ func startServer(cwd string, addresses []string, tracking bool, allowedHosts []s
 		serving:     serving,
 		httpServer:  httpServer,
 		zasper:      zasper,
+		updates:     checker,
+		stopChecks:  stopChecks,
 	}, nil
 }
 
 // Stop lets running requests finish for up to timeout, then stops the shells and kernels.
 func (s *zasperServer) Stop(timeout time.Duration) {
+	s.stopChecks()
 	shutDown(s.httpServer, timeout, func() { cleanup(s.zasper, s.tracking) })
 }
 

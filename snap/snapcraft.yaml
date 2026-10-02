@@ -73,7 +73,8 @@ parts:
       node --version
 
       make init
-      make build
+      # snapd keeps the snap up to date, so this build never checks for a newer version itself.
+      make build INSTALL_METHOD=snap
 
       mkdir -p "$SNAPCRAFT_PART_INSTALL/bin"
       cp zasper "$SNAPCRAFT_PART_INSTALL/bin/"

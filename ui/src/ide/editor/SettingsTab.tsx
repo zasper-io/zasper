@@ -1,8 +1,9 @@
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { toast } from 'react-toastify';
 
 import {
+  checkForUpdates,
   EditorSettings,
   getLanguageServers,
   LanguageServerSettings,
@@ -16,6 +17,8 @@ import { DEFAULT_TYPE_CHECKING, setTypeChecking } from '@/lsp/settings';
 import { setTelemetrySettings } from '@/api/telemetry';
 import { useEditorSettings } from '@/store/editorSettingsActions';
 import { telemetryAtom, themeAtom, widgetCdnAtom } from '@/store/settings';
+import { zasperVersionAtom } from '@/store/serverInfo';
+import { describeUpdateCheck, updateStatusAtom } from '@/store/updates';
 import { FileTab } from '@/store/tabState';
 import { setEnabled, track } from '@/telemetry';
 import { themes } from '@/themes';
@@ -101,6 +104,9 @@ function useSettings(): Setting[] {
   const [editor, changeEditor] = useEditorSettings();
   const [servers, setServers] = useAtom(languageServerListAtom);
   const [interpreters, choosePython] = usePythonInterpreter();
+  const version = useAtomValue(zasperVersionAtom);
+  const [updates, setUpdates] = useAtom(updateStatusAtom);
+  const [checking, setChecking] = useState(false);
 
   // Written whole, from what the server list says is configured, and every server changed is started again
   // so the new command or the switch takes effect without reopening a file.
@@ -161,6 +167,14 @@ function useSettings(): Setting[] {
     setTelemetrySettings({ reset_id: true })
       .then(() => toast.success('A new anonymous ID was generated.'))
       .catch(logApiError('Error resetting the anonymous ID:'));
+  };
+
+  const checkNow = () => {
+    setChecking(true);
+    checkForUpdates()
+      .then(setUpdates)
+      .catch(logApiError('Error checking for updates:'))
+      .finally(() => setChecking(false));
   };
 
   const changeWidgetCdn = (allowed: boolean) => {
@@ -589,6 +603,38 @@ function useSettings(): Setting[] {
       help: 'Widgets from outside ipywidgets, such as bqplot or ipyleaflet, get their code from cdn.jsdelivr.net. Turned off, those widgets are not shown.',
       words: 'cdn jsdelivr ipywidgets bqplot ipyleaflet',
       control: <Checkbox id="settings-widget-cdn" checked={widgetCdn} onChange={changeWidgetCdn} />,
+    },
+    {
+      id: 'settings-check-updates',
+      group: 'Updates',
+      name: `Zasper ${version}`,
+      help: (
+        <>
+          {describeUpdateCheck(updates)}
+          {updates?.checks && updates.available && updates.latest?.notes ? (
+            <>
+              {' '}
+              <a href={updates.latest.notes} target="_blank" rel="noreferrer">
+                Release notes
+              </a>
+            </>
+          ) : null}
+        </>
+      ),
+      words: 'version update upgrade release new check',
+      control:
+        updates?.checks === false ? null : (
+          <button
+            id="settings-check-updates"
+            type="button"
+            className="z-button z-button-secondary"
+            aria-label="Check for updates"
+            disabled={checking}
+            onClick={checkNow}
+          >
+            {checking ? 'Checking…' : 'Check now'}
+          </button>
+        ),
     },
   ];
 }
