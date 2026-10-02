@@ -124,15 +124,17 @@ A tag carrying a pre-release suffix is marked as a pre-release automatically.
 
 ### 6. Tell running servers
 
-Once the GitHub Release is published, update `latest.json` at the root of
-[zasper-io.github.io](https://github.com/zasper-io/zasper-io.github.io), which every
-server fetches once a day:
+Once the GitHub Release is published, make two changes in
+[zasper-io.github.io](https://github.com/zasper-io/zasper-io.github.io), in one commit. Add the
+release to the top of `_data/releases.yml`, written from its section of `CHANGELOG.md`; that is
+what [zasper.io/changelog](https://zasper.io/changelog/) shows. Then update `latest.json` at the
+root, which every server fetches once a day:
 
 ```json
 {
   "version": "2.0.0",
   "date": "2026-09-22",
-  "notes": "https://github.com/zasper-io/zasper/releases/tag/v2.0.0",
+  "notes": "https://zasper.io/changelog/#2.0.0",
   "minimum": "1.0.0"
 }
 ```

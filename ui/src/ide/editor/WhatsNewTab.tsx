@@ -8,7 +8,7 @@ import './WhatsNewTab.scss';
 
 const MarkdownRenderer = lazy(() => import('./notebook/MarkdownRenderer'));
 
-export const CHANGELOG_URL = 'https://zasper.io/changelog';
+export const CHANGELOG_URL = 'https://zasper.io/changelog/';
 
 const MONTHS = [
   'January',
