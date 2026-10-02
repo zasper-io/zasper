@@ -2,11 +2,12 @@ package kernel
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -81,9 +82,15 @@ const (
 	inspectTimeout = 10 * time.Second
 	previewRows    = 100
 	maxPreviewRows = 1000
+	maxFilters     = 20
 )
 
-var identifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+// A variable's name, or `@` and the id a cell's DataFrame output carries.
+var identifier = regexp.MustCompile(`^(?:[A-Za-z_][A-Za-z0-9_]*|@[0-9a-f]{32})$`)
+
+// maxExportRows is how many rows a CSV export carries at most: the answer travels through the kernel's
+// reply as one string.
+const maxExportRows = 100_000
 
 // VariablesHandler lists the names in a kernel's namespace.
 func (k *Kernels) VariablesHandler(w http.ResponseWriter, req *http.Request) {
@@ -103,51 +110,135 @@ func (k *Kernels) VariablesHandler(w http.ResponseWriter, req *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, variables)
 }
 
-// PreviewHandler answers a page of rows from a table-like variable.
-func (k *Kernels) PreviewHandler(w http.ResponseWriter, req *http.Request) {
-	vars := mux.Vars(req)
-	km, ok := k.Get(vars["kernelId"])
+// RowsHandler answers a page of a table-like variable, after the filters and sort in the request body.
+func (k *Kernels) RowsHandler(w http.ResponseWriter, req *http.Request) {
+	km, name, ok := k.inspected(w, req)
 	if !ok {
-		httpx.SendErrorResponse(w, http.StatusNotFound, "kernel not found")
 		return
 	}
-	name := vars["name"]
-	if !identifier.MatchString(name) {
-		httpx.SendErrorResponse(w, http.StatusBadRequest, "not a variable name")
+	query := Query{Limit: previewRows}
+	if err := json.NewDecoder(io.LimitReader(req.Body, 64<<10)).Decode(&query); err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "malformed query")
 		return
 	}
-	offset, err := queryInt(req, "offset", 0)
-	if err != nil || offset < 0 {
-		httpx.SendErrorResponse(w, http.StatusBadRequest, "offset must be a whole number")
-		return
-	}
-	limit, err := queryInt(req, "limit", previewRows)
-	if err != nil || limit < 1 || limit > maxPreviewRows {
-		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("limit must be between 1 and %d", maxPreviewRows))
+	if problem := checkQuery(query); problem != "" {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, problem)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(req.Context(), inspectTimeout)
 	defer cancel()
-
-	preview, err := km.Preview(ctx, name, offset, limit)
+	page, err := km.Rows(ctx, name, query)
 	if err != nil {
 		sendInspectError(w, err)
 		return
 	}
-	if preview.Error != "" {
-		httpx.SendErrorResponse(w, http.StatusUnprocessableEntity, preview.Error)
+	if page.Error != "" {
+		httpx.SendErrorResponse(w, answeredStatus(page.Gone), page.Error)
 		return
 	}
-	httpx.SendJSON(w, http.StatusOK, preview)
+	httpx.SendJSON(w, http.StatusOK, page)
 }
 
-func queryInt(req *http.Request, key string, fallback int) (int, error) {
-	value := req.URL.Query().Get(key)
-	if value == "" {
-		return fallback, nil
+// ProfileHandler answers what is in each column of a table-like variable.
+func (k *Kernels) ProfileHandler(w http.ResponseWriter, req *http.Request) {
+	km, name, ok := k.inspected(w, req)
+	if !ok {
+		return
 	}
-	return strconv.Atoi(value)
+	ctx, cancel := context.WithTimeout(req.Context(), inspectTimeout)
+	defer cancel()
+	profile, err := km.Profile(ctx, name)
+	if err != nil {
+		sendInspectError(w, err)
+		return
+	}
+	if profile.Error != "" {
+		httpx.SendErrorResponse(w, answeredStatus(profile.Gone), profile.Error)
+		return
+	}
+	httpx.SendJSON(w, http.StatusOK, profile)
+}
+
+// CSVHandler answers the rows a query leaves as a CSV file, the first maxExportRows of them.
+func (k *Kernels) CSVHandler(w http.ResponseWriter, req *http.Request) {
+	km, name, ok := k.inspected(w, req)
+	if !ok {
+		return
+	}
+	query := Query{Limit: maxExportRows}
+	if err := json.NewDecoder(io.LimitReader(req.Body, 64<<10)).Decode(&query); err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "malformed query")
+		return
+	}
+	query.Offset, query.Limit = 0, maxExportRows
+	if problem := checkQuery(Query{Limit: 1, Sort: query.Sort, Filters: query.Filters}); problem != "" {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, problem)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(req.Context(), inspectTimeout)
+	defer cancel()
+	export, err := km.CSV(ctx, name, query)
+	if err != nil {
+		sendInspectError(w, err)
+		return
+	}
+	if export.Error != "" {
+		httpx.SendErrorResponse(w, answeredStatus(export.Gone), export.Error)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	_, _ = io.WriteString(w, export.CSV)
+}
+
+// answeredStatus is the status for a question the kernel answered with an error: 410 for a table it
+// has let go, which a client tells apart from a question it got wrong.
+func answeredStatus(gone bool) int {
+	if gone {
+		return http.StatusGone
+	}
+	return http.StatusUnprocessableEntity
+}
+
+// inspected answers the kernel and variable a request names, having answered the request itself when
+// either is not there to inspect.
+func (k *Kernels) inspected(w http.ResponseWriter, req *http.Request) (*KernelManager, string, bool) {
+	vars := mux.Vars(req)
+	km, ok := k.Get(vars["kernelId"])
+	if !ok {
+		httpx.SendErrorResponse(w, http.StatusNotFound, "kernel not found")
+		return nil, "", false
+	}
+	if !identifier.MatchString(vars["name"]) {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "not a variable name")
+		return nil, "", false
+	}
+	return km, vars["name"], true
+}
+
+func checkQuery(query Query) string {
+	if query.Offset < 0 {
+		return "offset must not be negative"
+	}
+	if query.Limit < 1 || query.Limit > maxPreviewRows {
+		return fmt.Sprintf("limit must be between 1 and %d", maxPreviewRows)
+	}
+	if query.Sort != nil && query.Sort.Column < 0 {
+		return "no such column"
+	}
+	if len(query.Filters) > maxFilters {
+		return fmt.Sprintf("at most %d filters", maxFilters)
+	}
+	for _, filter := range query.Filters {
+		if !FilterOps[filter.Op] {
+			return fmt.Sprintf("unknown filter %q", filter.Op)
+		}
+		if filter.Column < 0 {
+			return "no such column"
+		}
+	}
+	return ""
 }
 
 func sendInspectError(w http.ResponseWriter, err error) {

@@ -556,6 +556,8 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       kernelIdle,
       languageServer,
       widgets: kernel.widgets,
+      kernelId: kernel.session?.kernel.id,
+      notebookPath: data.path,
     }),
     // `stable`'s members never change identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -576,6 +578,8 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       kernelIdle,
       languageServer,
       kernel.widgets,
+      kernel.session?.kernel.id,
+      data.path,
     ]
   );
 

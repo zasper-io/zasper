@@ -55,6 +55,9 @@ export interface NotebookEditorContextValue {
   /** The language server the cells are given to, when one serves the kernel's language. */
   languageServer: NotebookLanguageServer | null;
   widgets: WidgetBridge | null;
+  /** The kernel a cell's DataFrame output can be explored in, while there is one. */
+  kernelId: string | undefined;
+  notebookPath: string;
 }
 
 export const NotebookEditorContext = createContext<NotebookEditorContextValue | null>(null);

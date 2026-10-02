@@ -116,7 +116,15 @@ should treat any message as "something changed".
 | `GET` | `/api/kernels/{kernelId}` | Read one kernel. |
 | `POST` | `/api/kernels/{kernelId}/interrupt` | Interrupt. |
 | `GET` | `/api/kernels/{kernelId}/variables` | The names in a Python kernel's namespace: type, kind, shape or length, a short summary, and whether it can be shown as a table. `422` for a kernel that is not Python, `504` if a running cell kept the kernel busy for 10 seconds. |
-| `GET` | `/api/kernels/{kernelId}/variables/{name}` | A page of a DataFrame, Series or 1–2-D array: `?offset=` (default 0) and `?limit=` (default 100, at most 1000). Columns with their dtypes, the index, and the rows; a missing value is `{"missing": "NaN"}` with the text pandas prints. `400` for a name that is not an identifier, `422` for one that is not defined or not a table. |
+| `POST` | `/api/kernels/{kernelId}/variables/{name}/rows` | A page of a DataFrame, Series or 1–2-D array, filtered and sorted in the kernel. Body: `offset`, `limit` (1–1000), optional `sort` (`column`, `descending`) and up to 20 `filters` (`column`, `op`, `value`); columns are named by position. `op` is one of `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `not_contains`, `starts_with`, `missing`, `present`. Answers the columns with dtype and kind, the index, the rows, `total_rows` and `matched_rows`; a missing value is `{"missing": "NaN"}` with the text pandas prints. `400` for a malformed query or a name that is not an identifier, `422` for a value a column cannot be compared with, or a variable that is not defined or not a table. |
+
+`{name}` in the three routes above is a variable's name, or `@` and the `id` of a cell's DataFrame
+output. In a Python kernel such an output carries `application/vnd.zasper.dataframe+json` —
+`{"id", "kind", "rows", "columns"}` — beside pandas' own `text/html`, and the kernel keeps the last 50
+frames it displayed under those ids. One it has let go, or one from a kernel since restarted, answers
+`410`, and the output is shown as the HTML pandas wrote.
+| `POST` | `/api/kernels/{kernelId}/variables/{name}/csv` | The rows the body's `sort` and `filters` leave, as `text/csv`, the first 100,000 of them. |
+| `GET` | `/api/kernels/{kernelId}/variables/{name}/profile` | Per column: kind, count, missing, distinct, and either min, max, mean, standard deviation and a histogram, or the five commonest values. |
 | `POST` | `/api/kernels/{kernelId}/stop` | Stop. |
 | `DELETE` | `/api/kernels/{kernelId}` | Stop. Equivalent to `/stop`. |
 | `GET` | `/api/kernelspecs` | Installed kernelspecs. |

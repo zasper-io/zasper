@@ -11,11 +11,12 @@ import {
 import { AnsiUp } from 'ansi_up';
 import DOMPurify from 'dompurify';
 
-import { NotebookCell, NotebookOutput } from '@/api';
+import { NotebookCell, NotebookOutput, OutputTable, TABLE_MIME } from '@/api';
 import WidgetRenderer, { type WidgetSource } from '@/ide/widgets/WidgetRenderer';
 
 import type { MarkdownRendererProps } from './MarkdownRenderer';
 
+import DataFrameOutput, { OutputTables } from './DataFrameOutput';
 import { hasMathDelimiters } from './mathDelimiters';
 import { isProducedHere } from './outputTrust';
 import PlotlyOutput from './PlotlyOutput';
@@ -97,6 +98,8 @@ const LatexOutput = ({ latex }: { latex: string }) => {
 interface OutputBundlesProps {
   outputs: NotebookOutput[];
   widgets: WidgetSource | null;
+  /** Only a live cell passes this: an export, or an Output widget, shows pandas' table as it is. */
+  tables?: OutputTables;
 }
 
 /**
@@ -106,7 +109,7 @@ interface OutputBundlesProps {
  * Exported because a cell is not the only place outputs are shown: ipywidgets' Output widget holds
  * some of its own, and renders them through here so that they look like every other output.
  */
-export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
+export const OutputBundles = ({ outputs, widgets, tables }: OutputBundlesProps) => {
   const ansi_up = new AnsiUp();
   // Classes rather than the `style="color:rgb(187,0,0)"` this emits by default, which would bake a
   // 16-colour terminal palette into the HTML where no theme could reach it. The map from `.ansi-*-fg`
@@ -174,6 +177,18 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
             return <WidgetRenderer key={index} modelId={widgetData.model_id} widgets={widgets} />;
           }
 
+          const table = outputData[TABLE_MIME] as OutputTable | undefined;
+          if (tables && table?.id) {
+            const fallback = htmlContent ? (
+              <HTMLOutput html={htmlContent} trusted={trusted} />
+            ) : (
+              <pre>{textPlainData}</pre>
+            );
+            return (
+              <DataFrameOutput key={index} table={table} tables={tables} fallback={fallback} />
+            );
+          }
+
           // Ahead of text/html because a plotly renderer that sends both sends markup that loads
           // plotly.js from a CDN, and the figure is already here.
           if (plotlyFigure) {
@@ -235,15 +250,16 @@ export const OutputBundles = ({ outputs, widgets }: OutputBundlesProps) => {
 interface CellOutputProps {
   data: NotebookCell;
   widgets: WidgetSource | null;
+  tables?: OutputTables;
 }
 
 /** The output area of a single cell. */
-const CellOutput = ({ data, widgets }: CellOutputProps) => {
+const CellOutput = ({ data, widgets, tables }: CellOutputProps) => {
   const outputs = data?.outputs;
   if (!outputs || outputs.length === 0) {
     return null;
   }
-  return <OutputBundles outputs={outputs} widgets={widgets} />;
+  return <OutputBundles outputs={outputs} widgets={widgets} tables={tables} />;
 };
 
 export default CellOutput;

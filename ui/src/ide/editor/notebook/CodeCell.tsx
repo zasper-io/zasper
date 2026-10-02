@@ -150,7 +150,15 @@ export default function CodeCell(props: CellProps) {
           so an empty one is a tinted strip under every un-run cell. */}
       {cell.outputs && cell.outputs.length > 0 && (
         <div className={props.isOutputExpanded ? 'inner-text is-expanded' : 'inner-text'}>
-          <CellOutput data={cell} widgets={editor.widgets} />
+          <CellOutput
+            data={cell}
+            widgets={editor.widgets}
+            tables={{
+              kernelId: editor.kernelId,
+              notebookPath: editor.notebookPath,
+              executionCount: cell.execution_count,
+            }}
+          />
         </div>
       )}
     </div>

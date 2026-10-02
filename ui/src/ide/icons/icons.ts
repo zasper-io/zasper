@@ -6,6 +6,7 @@ import {
   BetweenHorizontalStart,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronUp,
   ChevronsUp,
@@ -14,6 +15,8 @@ import {
   Info,
   Lightbulb,
   ListChecks,
+  ListFilter,
+  SquareArrowOutUpRight,
   Table,
   Variable,
   ListTree,
@@ -184,6 +187,9 @@ export const ICONS = {
   // A kernel's variables, and one of them opened as a table.
   variable: Variable,
   table: Table,
+  'list-filter': ListFilter,
+  'chevron-left': ChevronLeft,
+  'square-arrow-out-up-right': SquareArrowOutUpRight,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

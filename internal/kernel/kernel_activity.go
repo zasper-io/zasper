@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,6 +41,7 @@ func watchKernelActivity(ctx context.Context, km *KernelManager) {
 		if !heard {
 			heard = true
 			close(published)
+			go loadHelper(ctx, km)
 		}
 		km.recordActivity(km.publish(zmsg))
 	}
@@ -91,5 +93,18 @@ func nudgeUntilPublished(ctx context.Context, km *KernelManager, published <-cha
 func stopWatchingKernel(km *KernelManager) {
 	if km.stopWatching != nil {
 		km.stopWatching()
+	}
+}
+
+// loadHelper loads the inspector into a Python kernel as soon as it answers. A kernel of any other
+// language is left alone.
+func loadHelper(ctx context.Context, km *KernelManager) {
+	if !strings.EqualFold(km.Spec.Language, "python") {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, KernelStartupBudget)
+	defer cancel()
+	if err := km.LoadHelper(ctx); err != nil && ctx.Err() == nil {
+		log.Debug().Err(err).Msgf("could not load the inspector into kernel %s", km.KernelId)
 	}
 }

@@ -1,5 +1,5 @@
 import { Kernel, KernelspecsState } from '@/store/kernels';
-import { requestBlob, requestEmpty, requestJson } from './client';
+import { requestBlob, requestEmpty, requestJson, requestText } from './client';
 
 export async function listKernelspecs(): Promise<KernelspecsState> {
   const res = await requestJson<{ kernelspecs?: KernelspecsState }>('/api/kernelspecs');
@@ -72,14 +72,67 @@ export interface KernelVariable {
   viewable: boolean;
 }
 
-export interface VariablePreview {
-  columns: { name: string; dtype: string }[];
+export type ColumnKind = 'number' | 'datetime' | 'bool' | 'text' | 'other';
+
+/** A missing value is `{ missing }`, with the text pandas prints for it: NaN, None, NaT or <NA>. */
+export type CellValue = string | number | boolean | { missing: string };
+
+export type FilterOp =
+  | 'eq'
+  | 'ne'
+  | 'gt'
+  | 'ge'
+  | 'lt'
+  | 'le'
+  | 'contains'
+  | 'not_contains'
+  | 'starts_with'
+  | 'missing'
+  | 'present';
+
+/** Columns are named by position, so a frame with duplicate or non-string names still works. */
+export interface RowFilter {
+  column: number;
+  op: FilterOp;
+  value: string;
+}
+
+export interface RowSort {
+  column: number;
+  descending: boolean;
+}
+
+export interface RowQuery {
+  offset: number;
+  limit: number;
+  sort?: RowSort;
+  filters?: RowFilter[];
+}
+
+export interface RowsPage {
+  columns: { name: string; dtype: string; kind: ColumnKind }[];
   total_columns: number;
   index: string[];
-  /** A missing value is `{ missing }`, with the text pandas prints for it: NaN, None, NaT or <NA>. */
-  rows: (string | number | boolean | { missing: string })[][];
+  rows: CellValue[][];
   total_rows: number;
+  /** Rows left after the filters. */
+  matched_rows: number;
   offset: number;
+  /** False for an array in a kernel without pandas: it pages, but cannot be sorted or filtered. */
+  queryable: boolean;
+}
+
+export interface ColumnProfile {
+  kind: ColumnKind;
+  count: number;
+  missing: number;
+  distinct: number | null;
+  min?: number | string | null;
+  max?: number | string | null;
+  mean?: number | null;
+  std?: number | null;
+  histogram?: { counts: number[]; edges: (number | null)[] };
+  top?: { value: CellValue; count: number }[];
 }
 
 /** The kernel's variables. Waits behind a running cell, and answers 504 if that takes too long. */
@@ -87,15 +140,40 @@ export function listVariables(kernelId: string): Promise<KernelVariable[]> {
   return requestJson<KernelVariable[]>(`/api/kernels/${kernelId}/variables`);
 }
 
-export function previewVariable(
-  kernelId: string,
-  name: string,
-  offset: number,
-  limit: number
-): Promise<VariablePreview> {
-  return requestJson<VariablePreview>(`/api/kernels/${kernelId}/variables/${name}`, {
-    query: { offset, limit },
+/** A page of a table-like variable, filtered and sorted in the kernel. */
+export function queryRows(kernelId: string, name: string, query: RowQuery): Promise<RowsPage> {
+  return requestJson<RowsPage>(`/api/kernels/${kernelId}/variables/${name}/rows`, {
+    method: 'POST',
+    body: query,
   });
+}
+
+/** The rows a query leaves as CSV, the first 100,000 of them. */
+export function exportRows(kernelId: string, name: string, query: RowQuery): Promise<string> {
+  return requestText(`/api/kernels/${kernelId}/variables/${name}/csv`, {
+    method: 'POST',
+    body: query,
+  });
+}
+
+/** What a cell's DataFrame output carries beside pandas' HTML, while the kernel holds the frame. */
+export const TABLE_MIME = 'application/vnd.zasper.dataframe+json';
+
+export interface OutputTable {
+  id: string;
+  kind: 'dataframe' | 'series';
+  rows: number;
+  columns: number;
+}
+
+/** What is in each column of a table-like variable. */
+export function profileVariable(
+  kernelId: string,
+  name: string
+): Promise<{ columns: ColumnProfile[] }> {
+  return requestJson<{ columns: ColumnProfile[] }>(
+    `/api/kernels/${kernelId}/variables/${name}/profile`
+  );
 }
 
 /** One running kernel; a kernel that has stopped answers 404. */

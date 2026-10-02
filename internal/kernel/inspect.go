@@ -35,24 +35,94 @@ type Variable struct {
 	Shape   []int  `json:"shape"`
 	Size    *int   `json:"size"`
 	Summary string `json:"summary"`
-	// Whether Preview can show it as a table.
+	// Whether Rows can show it as a table.
 	Viewable bool `json:"viewable"`
 }
 
 type Column struct {
 	Name  string `json:"name"`
 	Dtype string `json:"dtype"`
+	// number, datetime, bool, text or other: what a filter on it can compare.
+	Kind string `json:"kind"`
 }
 
-// Preview is a page of rows from a table-like variable.
-type Preview struct {
+// Page is some rows of a table-like variable, after the query's filters and sort.
+type Page struct {
 	Columns      []Column        `json:"columns"`
 	TotalColumns int             `json:"total_columns"`
 	Index        []string        `json:"index"`
 	Rows         [][]interface{} `json:"rows"`
 	TotalRows    int             `json:"total_rows"`
+	MatchedRows  int             `json:"matched_rows"`
 	Offset       int             `json:"offset"`
-	Error        string          `json:"error,omitempty"`
+	// False for an array in a kernel without pandas, which can be paged but not sorted or filtered.
+	Queryable bool   `json:"queryable"`
+	Error     string `json:"error,omitempty"`
+	// The output's table was let go by the kernel, or the kernel that drew it is not this one.
+	Gone bool `json:"gone,omitempty"`
+}
+
+// Query is which rows of a variable to read. Columns are named by position, so a frame with duplicate
+// or non-string column names can still be sorted and filtered.
+type Query struct {
+	Offset  int      `json:"offset"`
+	Limit   int      `json:"limit"`
+	Sort    *Sort    `json:"sort,omitempty"`
+	Filters []Filter `json:"filters,omitempty"`
+}
+
+type Sort struct {
+	Column     int  `json:"column"`
+	Descending bool `json:"descending"`
+}
+
+type Filter struct {
+	Column int    `json:"column"`
+	Op     string `json:"op"`
+	Value  string `json:"value"`
+}
+
+// FilterOps are the comparisons a filter can make.
+var FilterOps = map[string]bool{
+	"eq": true, "ne": true, "gt": true, "ge": true, "lt": true, "le": true,
+	"contains": true, "not_contains": true, "starts_with": true, "missing": true, "present": true,
+}
+
+// Profile describes what is in each column of a table-like variable.
+type Profile struct {
+	Columns []ColumnProfile `json:"columns"`
+	Error   string          `json:"error,omitempty"`
+	Gone    bool            `json:"gone,omitempty"`
+}
+
+// Export is the rows a query leaves, as CSV.
+type Export struct {
+	CSV   string `json:"csv"`
+	Error string `json:"error,omitempty"`
+	Gone  bool   `json:"gone,omitempty"`
+}
+
+type ColumnProfile struct {
+	Kind      string      `json:"kind"`
+	Count     int         `json:"count"`
+	Missing   int         `json:"missing"`
+	Distinct  *int        `json:"distinct"`
+	Min       interface{} `json:"min,omitempty"`
+	Max       interface{} `json:"max,omitempty"`
+	Mean      *float64    `json:"mean,omitempty"`
+	Std       *float64    `json:"std,omitempty"`
+	Histogram *Histogram  `json:"histogram,omitempty"`
+	Top       []TopValue  `json:"top,omitempty"`
+}
+
+type Histogram struct {
+	Counts []int      `json:"counts"`
+	Edges  []*float64 `json:"edges"`
+}
+
+type TopValue struct {
+	Value interface{} `json:"value"`
+	Count int         `json:"count"`
 }
 
 // Variables lists the user's names in the kernel. It waits behind a running cell, as any request to a
@@ -63,17 +133,48 @@ func (km *KernelManager) Variables(ctx context.Context) ([]Variable, error) {
 	return variables, err
 }
 
-// Preview reads rows [offset, offset+limit) of the variable called name. name must already be a
-// Python identifier; it is passed as a JSON string, which Python reads as the same string.
-func (km *KernelManager) Preview(ctx context.Context, name string, offset, limit int) (Preview, error) {
-	quoted, err := json.Marshal(name)
+// Rows reads the rows query asks for from the variable called name, which must already be a Python
+// identifier. Both are passed as JSON strings, which Python reads as the same strings.
+func (km *KernelManager) Rows(ctx context.Context, name string, query Query) (Page, error) {
+	encoded, err := json.Marshal(query)
 	if err != nil {
-		return Preview{}, err
+		return Page{}, err
 	}
-	var preview Preview
-	expression := fmt.Sprintf("__import__('_zasper_inspect').preview(%s, %d, %d)", quoted, offset, limit)
-	err = km.inspect(ctx, expression, &preview)
-	return preview, err
+	var page Page
+	err = km.inspect(ctx, fmt.Sprintf("__import__('_zasper_inspect').rows(%s, %s)", pyString(name), pyString(string(encoded))), &page)
+	return page, err
+}
+
+// Profile summarises each column of the variable called name.
+func (km *KernelManager) Profile(ctx context.Context, name string) (Profile, error) {
+	var profile Profile
+	err := km.inspect(ctx, fmt.Sprintf("__import__('_zasper_inspect').profile(%s)", pyString(name)), &profile)
+	return profile, err
+}
+
+// CSV exports the rows a query leaves, up to query.Limit of them.
+func (km *KernelManager) CSV(ctx context.Context, name string, query Query) (Export, error) {
+	encoded, err := json.Marshal(query)
+	if err != nil {
+		return Export{}, err
+	}
+	var export Export
+	err = km.inspect(ctx, fmt.Sprintf("__import__('_zasper_inspect').csv(%s, %s)", pyString(name), pyString(string(encoded))), &export)
+	return export, err
+}
+
+// LoadHelper loads the inspector into a Python kernel, which also installs the formatter that lets a
+// cell's DataFrame output page, sort and filter. Run once a kernel first answers, so the first cell's
+// output already has it.
+func (km *KernelManager) LoadHelper(ctx context.Context) error {
+	var loaded bool
+	return km.inspect(ctx, "__import__('_zasper_inspect')._encode(True)", &loaded)
+}
+
+// pyString quotes text as a JSON string, which is also a Python string literal for the same text.
+func pyString(text string) string {
+	quoted, _ := json.Marshal(text)
+	return string(quoted)
 }
 
 /*

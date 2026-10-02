@@ -1,0 +1,316 @@
+// A table from a kernel: in a cell's output it pages, in a tab it scrolls. The table inside is the
+// notebook's own `table.dataframe`; this adds the bar above it, a header cell that describes its column,
+// and a foot.
+.dataGrid {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--z-fg-editor);
+
+  table.dataframe {
+    // `table.dataframe` clips its corners with `overflow: hidden`, which would make the table the sticky
+    // header's scroller, and the table does not scroll.
+    overflow: visible;
+  }
+
+  // In a cell the output box is the scroller, so the header sticks to it; in a tab it is `.dataGrid-scroll`.
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    vertical-align: bottom;
+    background: var(--z-bg-cell-output);
+  }
+
+  // The index stays while a wide frame scrolls sideways.
+  tbody th,
+  thead th:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--z-bg-cell-output);
+  }
+
+  thead th:first-child {
+    z-index: 2;
+  }
+
+  td.is-missing {
+    color: var(--z-fg-subtle);
+  }
+
+  &.is-tab {
+    flex: 1 1 auto;
+    min-height: 0;
+    background: var(--z-bg-editor);
+
+    thead th,
+    tbody th {
+      background: var(--z-bg-editor);
+    }
+  }
+}
+
+.dataGrid-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--z-ui-control-height);
+  padding-bottom: 4px;
+  font-size: var(--z-ui-font-size);
+
+  .is-tab > & {
+    padding: 4px 16px;
+  }
+}
+
+.dataGrid-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--z-fg-muted);
+
+  strong {
+    color: var(--z-fg-default);
+    font-weight: 500;
+  }
+}
+
+// The actions belong to the output, so they show when the pointer is on it, as a cell's own buttons do,
+// and stay while a filter is set. A keyboard that reaches one shows them too.
+.dataGrid-actions {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+
+  .dataGrid:hover &,
+  .dataGrid:focus-within &,
+  .dataGrid.has-filters &,
+  .dataGrid.is-tab & {
+    opacity: 1;
+  }
+}
+
+.dataGrid-error {
+  margin: 0 0 6px;
+}
+
+.dataGrid-scroll {
+  min-width: 0;
+  overflow-x: auto;
+
+  .is-tab > & {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 16px 16px;
+  }
+}
+
+.dataGrid-empty {
+  margin: 8px 0 0;
+}
+
+// --- A column's header ---
+
+.dataGrid-column {
+  min-width: 96px;
+
+  &.is-sorted .dataGrid-columnName {
+    color: var(--z-fg-accent);
+  }
+}
+
+.dataGrid-columnButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover .dataGrid-columnName {
+    text-decoration: underline;
+  }
+}
+
+.dataGrid-columnName {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dataGrid-dtype,
+.dataGrid-missing {
+  display: block;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+  font-weight: normal;
+}
+
+// A fixed line, filled or not, so every column's name sits at one height.
+.dataGrid-missing {
+  height: 15px;
+  line-height: 15px;
+}
+
+.dataGrid-distribution {
+  display: block;
+  height: 20px;
+  margin-top: 4px;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  // The accent as ink: these are marks read against the output's surface, and the fill accent at any
+  // opacity sinks into a dark one.
+  rect {
+    fill: var(--z-fg-accent);
+    opacity: 0.6;
+  }
+
+  // As tall as a histogram, so a text column's name lines up with a number column's.
+  &.is-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 3px;
+  }
+}
+
+.dataGrid-shares {
+  display: flex;
+  gap: 1px;
+  height: 6px;
+  border-radius: 2px;
+  overflow: hidden;
+
+  span {
+    background: var(--z-fg-accent);
+  }
+
+  span:nth-child(1) {
+    opacity: 0.7;
+  }
+
+  span:nth-child(2) {
+    opacity: 0.5;
+  }
+
+  span:nth-child(3) {
+    opacity: 0.35;
+  }
+
+  span.is-rest {
+    background: var(--z-border-strong);
+    opacity: 1;
+  }
+}
+
+.dataGrid-commonest {
+  overflow: hidden;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size-sm);
+  font-weight: normal;
+  line-height: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataGrid-menu {
+  position: fixed;
+  width: 220px;
+  max-height: 360px;
+  overflow-y: auto;
+  text-align: left;
+  font-weight: normal;
+}
+
+.dataGrid-stat {
+  cursor: default;
+
+  .panel-row-label {
+    flex: 1 1 auto;
+  }
+}
+
+// --- Filters ---
+
+.dataGrid-filters {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
+
+  .is-tab > & {
+    padding: 8px 16px;
+  }
+}
+
+.dataGrid-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--z-ui-control-height);
+  padding-left: 8px;
+  border: 1px solid var(--z-border-field);
+  border-radius: 3px;
+  background: var(--z-bg-row-selected);
+  font-size: var(--z-ui-font-size);
+}
+
+.dataGrid-filterForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .z-select {
+    min-width: 120px;
+  }
+
+  .z-field {
+    width: 160px;
+  }
+}
+
+// --- The foot ---
+
+.dataGrid-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size);
+}
+
+.dataGrid-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.dataGrid-size {
+  width: 96px;
+}
+
+// A cell's output whose table the kernel no longer holds: pandas' own HTML, and a line saying what a run
+// gives back.
+.dataGrid-static-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
