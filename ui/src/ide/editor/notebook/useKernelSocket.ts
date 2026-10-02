@@ -23,7 +23,9 @@ const disconnectedClient = {
 export function useKernelSocket(
   userName: string,
   onMessage: (message: KernelMessage) => void,
-  setKernelStatus: (status: string) => void
+  setKernelStatus: (status: string) => void,
+  onOpened?: () => void,
+  onClosed?: () => void
 ) {
   const [connection, setConnection] = useState<WebSocket>(disconnectedClient);
   const [widgets, setWidgets] = useState<WidgetBridge | null>(null);
@@ -31,6 +33,10 @@ export function useKernelSocket(
   const liveWidgets = useRef<WidgetBridge | null>(null);
   const handleMessage = useRef(onMessage);
   handleMessage.current = onMessage;
+  const opened = useRef(onOpened);
+  opened.current = onOpened;
+  const closed = useRef(onClosed);
+  closed.current = onClosed;
   // Sockets opened but not yet `connection`, which the effect that closes the connection cannot see.
   const pendingSockets = useRef(new Set<WebSocket>());
 
@@ -62,6 +68,7 @@ export function useKernelSocket(
           liveWidgets.current = bridge;
           setWidgets(bridge);
 
+          opened.current?.();
           setKernelStatus('connected');
           resolve(client);
         };
@@ -79,11 +86,27 @@ export function useKernelSocket(
         // kernel is gone.
         client.onclose = () => {
           setKernelStatus('disconnected');
+          closed.current?.();
         };
       });
     },
     [userName, setKernelStatus]
   );
+
+  /*
+   * A page put in the back/forward cache is frozen with its sockets open, and the server would count it
+   * as watching every run from then on. Closed instead; the reconnect on the way back replays what it
+   * missed.
+   */
+  useEffect(() => {
+    const onHide = (event: PageTransitionEvent) => {
+      if (event.persisted && connection !== disconnectedClient) {
+        connection.close();
+      }
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, [connection]);
 
   // A tab closing, or a kernel being replaced, takes its widgets with it.
   useEffect(() => () => widgets?.dispose(), [widgets]);

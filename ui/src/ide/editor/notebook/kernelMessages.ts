@@ -152,6 +152,75 @@ export function applyKernelMessage(
 }
 
 /**
+ * A run the server kept while this page was not listening, from the `zasper_replay` message a kernel
+ * socket opens with: one still going, or one that finished with no page attached.
+ */
+export interface ReplayedRun {
+  msg_id: string;
+  cell_id: string;
+  code: string;
+  execution_count: number | null;
+  outputs: NotebookOutput[];
+  clear_waiting: boolean;
+  done: boolean;
+}
+
+/** A replayed run and the cell it belongs to in this document. */
+export interface PlacedRun {
+  cellId: string;
+  run: ReplayedRun;
+}
+
+/**
+ * The cell a run belongs to: the one it names, or else the only code cell holding the code that ran.
+ * Two cells holding it is no answer — lighting up the wrong one is worse than lighting up none.
+ */
+export function findRunCell(
+  cells: NotebookCell[],
+  cellId: string | undefined,
+  code: string
+): string | undefined {
+  if (cellId && cells.some((cell) => cell.id === cellId)) {
+    return cellId;
+  }
+  const ran = code.trim();
+  if (!ran) {
+    return undefined;
+  }
+  const holding = cells.filter((cell) => cell.cell_type === 'code' && cell.source.trim() === ran);
+  return holding.length === 1 ? holding[0].id : undefined;
+}
+
+/**
+ * Puts replayed runs' outputs into their cells. A cell already showing exactly that output is left as
+ * the same object, so a notebook reopened after its file was written is not marked unsaved.
+ */
+export function applyReplayedRuns(notebook: NotebookModel, placed: PlacedRun[]): NotebookModel {
+  const runs = new Map(placed.map(({ cellId, run }) => [cellId, run]));
+  let changed = false;
+
+  const cells = notebook.cells.map((cell) => {
+    const run = runs.get(cell.id);
+    if (!run) {
+      return cell;
+    }
+    const count = run.done ? run.execution_count : (run.execution_count ?? -1);
+    if (
+      cell.execution_count === count &&
+      JSON.stringify(cell.outputs ?? []) === JSON.stringify(run.outputs)
+    ) {
+      (cell.outputs ?? []).forEach(markProducedHere);
+      return cell;
+    }
+    changed = true;
+    run.outputs.forEach(markProducedHere);
+    return { ...cell, execution_count: count, outputs: run.outputs };
+  });
+
+  return changed ? { ...notebook, cells } : notebook;
+}
+
+/**
  * `msgId` identifies this request and is what the replies will carry in their `parent_header`;
  * `cellId` says which cell the code came from, and goes in the message metadata where other Jupyter
  * clients put it.

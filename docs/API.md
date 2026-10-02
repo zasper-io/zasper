@@ -130,6 +130,14 @@ should treat any message as "something changed".
 message protocol version 5.3. Messages are signed and signatures are verified on
 receipt.
 
+The first message on every such socket is Zasper's own, sent before any kernel
+message: `channel` is `zasper`, `header.msg_type` is `zasper_replay`, and
+`content.runs` lists the cell runs this client missed — those still going, and those
+that finished with no client attached. Each run carries `msg_id` (the request's),
+`cell_id`, `code`, `execution_count`, `outputs` (nbformat outputs), `clear_waiting`
+and `done`. A client that does not know the message can ignore it. See
+[RUNS.md](RUNS.md).
+
 ## Terminals
 
 | Method | Path | Purpose |

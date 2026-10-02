@@ -149,21 +149,29 @@ are not a whole message, are not signed with this kernel's key, or do not parse:
 that the kernel did not send, and nothing a kernel sends can panic the poller reading it.
 */
 func (ks *KernelSession) Deserialize(zmsg zmq4.Msg, channel string) []byte {
+	message, ok := ks.decode(zmsg, channel)
+	if !ok {
+		return nil
+	}
+	return encodeForClient(message)
+}
+
+func (ks *KernelSession) decode(zmsg zmq4.Msg, channel string) (*Message, bool) {
 	signature, signed, buffers, ok := splitFrames(zmsg.Frames)
 	if !ok {
 		log.Warn().Str("channel", channel).Int("frames", len(zmsg.Frames)).Msg("ignoring frames that are not a kernel message")
-		return nil
+		return nil, false
 	}
 	if !ks.signedBy(signature, signed) {
 		log.Error().Str("channel", channel).Msg("ignoring a message that is not signed with this kernel's key")
-		return nil
+		return nil, false
 	}
 
-	message := Message{Channel: channel}
+	message := &Message{Channel: channel}
 	for part, into := range []interface{}{&message.Header, &message.ParentHeader, &message.Metadata, &message.Content} {
 		if err := json.Unmarshal(signed[part], into); err != nil {
 			log.Warn().Err(err).Str("channel", channel).Msg("ignoring a kernel message that is not valid JSON")
-			return nil
+			return nil, false
 		}
 	}
 
@@ -173,7 +181,10 @@ func (ks *KernelSession) Deserialize(zmsg zmq4.Msg, channel string) []byte {
 	if len(buffers) > 0 {
 		message.Buffers = buffers
 	}
+	return message, true
+}
 
+func encodeForClient(message *Message) []byte {
 	jsonBytes, err := json.Marshal(message)
 	if err != nil {
 		log.Error().Msgf("Error marshaling message: %v", err)

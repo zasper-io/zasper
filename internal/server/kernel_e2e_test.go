@@ -310,7 +310,17 @@ func TestOpeningARunningNotebookAgainJoinsItsSession(t *testing.T) {
 // its replies will name as their parent.
 func executeOverSocket(t *testing.T, conn *websocket.Conn, sessionId, code string) string {
 	t.Helper()
+	return runCellOverSocket(t, conn, sessionId, "", code)
+}
 
+// runCellOverSocket is executeOverSocket for a request naming the cell it came from, as the editor's do.
+func runCellOverSocket(t *testing.T, conn *websocket.Conn, sessionId, cellId, code string) string {
+	t.Helper()
+
+	metadata := map[string]any{}
+	if cellId != "" {
+		metadata["cellId"] = cellId
+	}
 	msgId := uuid.New().String()
 	require.NoError(t, conn.WriteJSON(map[string]any{
 		"channel": "shell",
@@ -320,7 +330,7 @@ func executeOverSocket(t *testing.T, conn *websocket.Conn, sessionId, code strin
 			"date": time.Now().UTC().Format(time.RFC3339),
 		},
 		"parent_header": map[string]any{},
-		"metadata":      map[string]any{},
+		"metadata":      metadata,
 		"content": map[string]any{
 			"code": code, "silent": false, "store_history": true,
 			"user_expressions": map[string]any{}, "allow_stdin": true, "stop_on_error": true,

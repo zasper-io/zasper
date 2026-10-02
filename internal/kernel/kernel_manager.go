@@ -42,6 +42,7 @@ type KernelManager struct {
 	stopWatching context.CancelFunc
 
 	activity activity
+	feed     feed
 }
 
 // activity is what /api/kernels reports about a running kernel. The activity watcher and the websocket

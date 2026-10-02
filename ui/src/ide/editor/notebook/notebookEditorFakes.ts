@@ -24,6 +24,7 @@ export const sessionForPath = vi.fn();
 export const createSession = vi.fn();
 export const deleteSession = vi.fn();
 export const saveNotebook = vi.fn();
+export const getKernel = vi.fn();
 
 export async function apiModule() {
   const client = await import('@/api/client');
@@ -36,6 +37,8 @@ export async function apiModule() {
       createSession(path, name, type, kernelspec),
     deleteSession: (id: string) => deleteSession(id),
     interruptKernel: vi.fn(),
+    getKernel: (id: string) => getKernel(id),
+    ApiError: client.ApiError,
     saveNotebook: (path: string, notebook: unknown) => saveNotebook(path, notebook),
     // Not stubbed: what it extracts from a failed request is what the load-error banner shows.
     apiErrorMessage: client.apiErrorMessage,
@@ -57,6 +60,7 @@ export interface RecordedSocket {
   opened: boolean;
   closed: boolean;
   receive: (message: any) => void;
+  drop: () => void;
 }
 
 /** The fake sockets the editor has opened, so tests can push kernel messages. */
@@ -98,6 +102,12 @@ export class FakeSocket {
 
   receive(message: any) {
     this.onmessage?.({ data: JSON.stringify(message) });
+  }
+
+  /** The connection going away from the far end: a network gone, a laptop asleep. */
+  drop() {
+    this.closed = true;
+    this.onclose?.();
   }
 }
 

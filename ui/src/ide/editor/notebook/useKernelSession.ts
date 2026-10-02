@@ -16,8 +16,9 @@ import { FileTab } from '@/store/tabState';
 import { WidgetBridge } from '@/ide/widgets/widgetBridge';
 
 import { kernelToStart, NO_KERNEL } from './kernelChoice';
-import { decodeBuffers, KernelMessage } from './kernelMessages';
+import { decodeBuffers, KernelMessage, PlacedRun, ReplayedRun } from './kernelMessages';
 import { useInputPrompt } from './useInputPrompt';
+import { useKernelReconnect } from './useKernelReconnect';
 import { useKernelRequests } from './useKernelRequests';
 import { useKernelSocket } from './useKernelSocket';
 import { useKernelStatus } from './useKernelStatus';
@@ -31,7 +32,8 @@ import { useKernelStatus } from './useKernelStatus';
 export function useKernelSession(
   tab: FileTab,
   applyMessage: (message: KernelMessage, cellId: string | undefined) => void,
-  onExternalExecute?: (code: string, cellId?: string) => string | undefined
+  onExternalExecute?: (code: string, cellId?: string) => string | undefined,
+  onReplay?: (runs: ReplayedRun[]) => PlacedRun[]
 ) {
   const [session, setSession] = useState<Session | null>();
   const [kernelName, setKernelName] = useState<string>(tab.kernelspec);
@@ -58,10 +60,33 @@ export function useKernelSession(
   const kernelLanguage = kernelspecs[kernelName]?.spec?.language;
 
   const prompt = useInputPrompt();
-  const socket = useKernelSocket(userName, (message) => handleMessage(message), setKernelStatus);
+  const socket = useKernelSocket(
+    userName,
+    (message) => handleMessage(message),
+    setKernelStatus,
+    () => requests.socketOpened(),
+    () => socketClosed()
+  );
   const requests = useKernelRequests(session, socket.connection, userName);
+  const socketClosed = useKernelReconnect(session, async (target) => {
+    socket.setConnection(await socket.open(target));
+  });
+
+  function takeReplay(runs: ReplayedRun[]) {
+    const placed = onReplay?.(runs) ?? [];
+    const stillRunning = new Set(runs.filter((run) => !run.done).map((run) => run.msg_id));
+    const adopted = new Map(
+      placed.filter(({ run }) => !run.done).map(({ cellId, run }) => [run.msg_id, cellId])
+    );
+    requests.reconcileRuns(stillRunning, adopted);
+  }
 
   function handleMessage(message: KernelMessage) {
+    if (message.header?.msg_type === 'zasper_replay') {
+      takeReplay(message.content?.runs ?? []);
+      return;
+    }
+
     let cellId = requests.cellFor(message);
 
     if (

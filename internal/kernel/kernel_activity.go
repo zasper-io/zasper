@@ -15,9 +15,9 @@ import (
 const watchNudgeInterval = 500 * time.Millisecond
 
 /*
-watchKernelActivity subscribes to a kernel's iopub for as long as the kernel runs, so /api/kernels can say
-what a kernel is doing when no browser is attached to it. iopub is a broadcast, so another subscriber
-costs the kernel nothing; jupyter_server keeps the same watch.
+watchKernelActivity subscribes to a kernel's iopub for as long as the kernel runs. It is the kernel's only
+iopub subscription: /api/kernels reads what the kernel is doing from it, the run journal keeps output
+from it while no browser is attached, and every client's iopub is fanned out from it.
 */
 func watchKernelActivity(ctx context.Context, km *KernelManager) {
 	// Dialling waits for the kernel to bind its ports, which is why this runs on a goroutine of its own.
@@ -41,7 +41,7 @@ func watchKernelActivity(ctx context.Context, km *KernelManager) {
 			heard = true
 			close(published)
 		}
-		km.recordActivity(km.Session.PublishedState(zmsg))
+		km.recordActivity(km.publish(zmsg))
 	}
 }
 

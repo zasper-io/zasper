@@ -526,6 +526,8 @@ covers the development workflow.
   1.0.0 onwards.
 - [docs/LANGUAGE-SERVERS.md](docs/LANGUAGE-SERVERS.md): which language servers Zasper starts, what
   they are told, and what they give a notebook that a file does not get.
+- [docs/RUNS.md](docs/RUNS.md): how a cell's output survives the browser going away, and reaches
+  the file when nobody was watching.
 - [PRIVACY.md](PRIVACY.md): what anonymous usage data is collected, event by event.
 - [PUBLISHING.md](PUBLISHING.md): how releases are cut.
 

@@ -1,6 +1,8 @@
 package server
 
 import (
+	"github.com/rs/zerolog/log"
+
 	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
@@ -56,6 +58,16 @@ func New(app core.Application) *Server {
 	// client told its socket has closed finds no session left to rejoin.
 	kernels.OnDisconnect(func(kernelId string) { sessions.DeleteForKernel(kernelId) })
 	kernels.OnDisconnect(s.kernelSockets.CloseConnections)
+	// A run that ends with no tab open on it would otherwise leave its output only in memory.
+	kernels.OnRunFinished(func(kernelId string, run kernel.Run) {
+		path, ok := sessions.PathForKernel(kernelId)
+		if !ok {
+			return
+		}
+		if err := project.WriteRunOutputs(path, run.CellID, run.Code, run.ExecutionCount, run.Outputs); err != nil {
+			log.Warn().Err(err).Msgf("could not write a finished run's output into %s", path)
+		}
+	})
 	// A renamed notebook's session follows the file.
 	s.content.OnMoved(func(from, to string) { sessions.Relocate(from, to) })
 

@@ -21,6 +21,8 @@ type Kernels struct {
 	// Told when a kernel stops, by what depends on it and cannot be imported from here: its sessions and
 	// its client sockets. Registered before the server serves anything.
 	disconnectHandlers []func(kernelId string)
+	// Told when a run finishes with no client attached, so its output can reach the notebook's file.
+	runFinishedHandlers []func(kernelId string, run Run)
 }
 
 // New starts kernels from the kernelspecs in specs.
@@ -52,6 +54,11 @@ func (k *Kernels) OnDisconnect(handler func(kernelId string)) {
 	k.disconnectHandlers = append(k.disconnectHandlers, handler)
 }
 
+// OnRunFinished registers a handler for a run that finished while no client was attached.
+func (k *Kernels) OnRunFinished(handler func(kernelId string, run Run)) {
+	k.runFinishedHandlers = append(k.runFinishedHandlers, handler)
+}
+
 func (k *Kernels) notifyDisconnect(kernelId string) {
 	for _, handler := range k.disconnectHandlers {
 		handler(kernelId)
@@ -79,6 +86,12 @@ func (k *Kernels) Start(dir string, kernelName string, env map[string]string) (s
 	// Not the request's context: the watch lasts as long as the kernel, and whatever stops it cancels it.
 	watching, stopWatching := context.WithCancel(context.Background())
 	km.stopWatching = stopWatching
+
+	km.feed.finished = func(run Run) {
+		for _, handler := range k.runFinishedHandlers {
+			handler(kernelId, run)
+		}
+	}
 
 	k.running.Set(kernelId, km)
 	go watchKernelActivity(watching, km)

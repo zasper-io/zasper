@@ -28,7 +28,7 @@ import BreadCrumb from '../BreadCrumb';
 import { cellFindHighlighter, currentMatchField } from '../findHighlight';
 import ConfirmRestartDialog, { RestartIntent } from './ConfirmRestartDialog';
 import { NO_KERNEL } from './kernelChoice';
-import { KernelMessage } from './kernelMessages';
+import { findRunCell, KernelMessage, PlacedRun, ReplayedRun } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
 import NotebookCells from './NotebookCells';
@@ -72,41 +72,35 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const [editorSettings] = useEditorSettings();
   const kernelspecs = useAtomValue(kernelspecsAtom);
 
-  /**
-   * Which cell a run started somewhere else belongs to, or undefined when that cannot be told.
-   *
-   * A client that came through Zasper names the cell, and that is the answer. One that spoke to the
-   * kernel directly cannot be asked, and all iopub carries is the code, so the code is matched
-   * against the open document — but only when exactly one cell holds it. Two cells with the same
-   * line in them, which is ordinary in a notebook, say nothing about which of them ran, and lighting
-   * up the wrong one is worse than lighting up none: the reader is told a cell is running that is
-   * not, and its output is written over by someone else's.
-   */
+  /** Which cell a run started somewhere else belongs to, or undefined when that cannot be told. */
   const handleExternalExecute = useCallback(
     (code: string, cellId?: string): string | undefined => {
-      const named = cellId ? notebook.cells.find((cell) => cell.id === cellId) : undefined;
-      if (named) {
-        markCellRunning(named.id);
-        return named.id;
+      const ran = findRunCell(notebook.cells, cellId, code);
+      if (ran) {
+        markCellRunning(ran);
       }
-
-      const ran = code.trim();
-      if (!ran) {
-        return undefined;
-      }
-      const holding = notebook.cells.filter(
-        (cell) => cell.cell_type === 'code' && cell.source.trim() === ran
-      );
-      if (holding.length !== 1) {
-        return undefined;
-      }
-      markCellRunning(holding[0].id);
-      return holding[0].id;
+      return ran;
     },
     [notebook.cells, markCellRunning]
   );
 
-  const kernel = useKernelSession(data, cells.applyMessage, handleExternalExecute);
+  /** Runs the server kept while this tab was not listening, matched to their cells by the same rule. */
+  const { applyReplay } = cells;
+  const handleReplay = useCallback(
+    (runs: ReplayedRun[]): PlacedRun[] => {
+      const placed = runs.flatMap((run) => {
+        const cellId = findRunCell(notebook.cells, run.cell_id, run.code);
+        return cellId ? [{ cellId, run }] : [];
+      });
+      if (placed.length > 0) {
+        applyReplay(placed);
+      }
+      return placed;
+    },
+    [notebook.cells, applyReplay]
+  );
+
+  const kernel = useKernelSession(data, cells.applyMessage, handleExternalExecute, handleReplay);
   const { startSessionForNotebook } = kernel;
 
   // The attached kernel's language first, then what the file says it was written in.

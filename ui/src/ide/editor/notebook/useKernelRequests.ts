@@ -43,6 +43,8 @@ export function useKernelRequests(
   // The same cells as state, so a cell can draw a spinner for as long as it runs: a ref write is not a
   // render.
   const [runningCellIds, setRunningCellIds] = useState<ReadonlySet<string>>(new Set());
+  // Runs sent on the socket now open, which a replay taken as it opened cannot know about yet.
+  const sentSinceOpen = useRef(new Set<string>());
 
   const syncRunningCells = useCallback(() => {
     setRunningCellIds(new Set(executingCells.current.values()));
@@ -85,6 +87,7 @@ export function useKernelRequests(
       if (session && connection && connection.readyState === WebSocket.OPEN) {
         const msgId = uuidv4();
         executingCells.current.set(msgId, cellId);
+        sentSinceOpen.current.add(msgId);
         try {
           connection.send(buildExecuteRequest(session.id, userName, msgId, cellId, source));
         } catch (error) {
@@ -101,6 +104,27 @@ export function useKernelRequests(
   const trackExecution = useCallback(
     (msgId: string, cellId: string) => {
       executingCells.current.set(msgId, cellId);
+      syncRunningCells();
+    },
+    [syncRunningCells]
+  );
+
+  const socketOpened = useCallback(() => sentSinceOpen.current.clear(), []);
+
+  /**
+   * Brings the running cells into line with a replay: a run that finished while the socket was down
+   * stops spinning, and one still going is followed into its cell.
+   */
+  const reconcileRuns = useCallback(
+    (stillRunning: ReadonlySet<string>, adopted: ReadonlyMap<string, string>) => {
+      for (const msgId of [...executingCells.current.keys()]) {
+        if (!stillRunning.has(msgId) && !sentSinceOpen.current.has(msgId)) {
+          executingCells.current.delete(msgId);
+        }
+      }
+      for (const [msgId, cellId] of adopted) {
+        executingCells.current.set(msgId, cellId);
+      }
       syncRunningCells();
     },
     [syncRunningCells]
@@ -178,6 +202,8 @@ export function useKernelRequests(
     forgetRunningCells,
     sendExecuteRequest,
     trackExecution,
+    socketOpened,
+    reconcileRuns,
     sendInputReply,
     requestCompletions,
     requestInspection,

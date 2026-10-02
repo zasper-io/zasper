@@ -2,7 +2,13 @@ import { Dispatch, SetStateAction, useCallback, useRef } from 'react';
 
 import { NotebookModel } from '@/api';
 
-import { applyKernelMessage, carriesOutput, KernelMessage } from './kernelMessages';
+import {
+  applyKernelMessage,
+  applyReplayedRuns,
+  carriesOutput,
+  KernelMessage,
+  PlacedRun,
+} from './kernelMessages';
 
 /** What the kernel writes into the cells it runs: a clean slate when a run starts, then its output. */
 export function useCellOutputs(setNotebook: Dispatch<SetStateAction<NotebookModel>>) {
@@ -66,5 +72,20 @@ export function useCellOutputs(setNotebook: Dispatch<SetStateAction<NotebookMode
     [clearCellOutputs, setNotebook]
   );
 
-  return { markCellRunning, clearCellOutputs, applyMessage };
+  /** Takes the runs the server kept while this page was not listening. */
+  const applyReplay = useCallback(
+    (placed: PlacedRun[]) => {
+      for (const { cellId, run } of placed) {
+        if (!run.done && run.clear_waiting) {
+          clearWaiting.current.add(cellId);
+        } else {
+          clearWaiting.current.delete(cellId);
+        }
+      }
+      setNotebook((prevNotebook) => applyReplayedRuns(prevNotebook, placed));
+    },
+    [setNotebook]
+  );
+
+  return { markCellRunning, clearCellOutputs, applyMessage, applyReplay };
 }

@@ -59,6 +59,11 @@ export function listKernels(): Promise<KernelModel[]> {
   return requestJson<KernelModel[]>('/api/kernels');
 }
 
+/** One running kernel; a kernel that has stopped answers 404. */
+export function getKernel(kernelId: string): Promise<KernelModel> {
+  return requestJson<KernelModel>(`/api/kernels/${kernelId}`);
+}
+
 export function interruptKernel(kernelId: string): Promise<void> {
   return requestEmpty(`/api/kernels/${kernelId}/interrupt`, { method: 'POST' });
 }

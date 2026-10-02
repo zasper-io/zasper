@@ -33,6 +33,7 @@ type Connection struct {
 	Session       kernel.KernelSession
 	mu            sync.Mutex
 	closeOnce     sync.Once
+	subscription  *kernel.Subscription
 
 	// The handshake. `iopubSeen` is closed by the iopub poller on the first message it receives, `ready`
 	// once the kernel has both answered a kernel_info_request and published that message. Made by
@@ -156,13 +157,78 @@ func (kwsConn *Connection) pollChannel(socket zmq4.Socket, socketName string) {
 	}()
 }
 
+// forward hands a message to the write loop, and answers false once the connection is closing.
+func (kwsConn *Connection) forward(payload []byte) bool {
+	select {
+	case kwsConn.Send <- payload:
+		return true
+	case <-kwsConn.Context.Done():
+		return false
+	}
+}
+
+/*
+relayIopub feeds the client from the kernel's shared iopub subscription rather than a socket of its own.
+The runs it missed come first, and the kernel's messages from the same instant after them, so nothing
+is replayed twice or lost in between.
+*/
+func (kwsConn *Connection) relayIopub() {
+	subscription := kwsConn.KernelManager.Subscribe()
+	kwsConn.mu.Lock()
+	kwsConn.subscription = subscription
+	kwsConn.pollingWait.Add(1)
+	kwsConn.mu.Unlock()
+
+	go func() {
+		defer func() {
+			kwsConn.KernelManager.Unsubscribe(subscription)
+			kwsConn.mu.Lock()
+			kwsConn.pollingWait.Done()
+			kwsConn.mu.Unlock()
+		}()
+
+		if replay := replayMessage(subscription.Replay); replay == nil || !kwsConn.forward(replay) {
+			return
+		}
+		for {
+			select {
+			case <-kwsConn.Context.Done():
+				return
+			case payload, ok := <-subscription.Messages:
+				if !ok {
+					// Fell too far behind. Closing makes the client reconnect, and be replayed what it lost.
+					kwsConn.Close()
+					return
+				}
+				kwsConn.iopubArrived()
+				if !kwsConn.forward(payload) {
+					return
+				}
+			}
+		}
+	}()
+}
+
+func replayMessage(replay kernel.Replay) []byte {
+	payload, err := json.Marshal(kernel.Message{
+		Channel:  "zasper",
+		Header:   kernel.MessageHeader{MsgID: uuid.New().String(), MsgType: "zasper_replay"},
+		Content:  replay,
+		Metadata: map[string]interface{}{},
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("could not encode the runs to replay")
+		return nil
+	}
+	return payload
+}
+
 func (kwsConn *Connection) startPolling() { //msg interface{}, binary bool
-	iopubChannel := kwsConn.Channels["iopub"]
 	stdinChannel := kwsConn.Channels["stdin"]
 	controlChannel := kwsConn.Channels["control"]
 	shellChannel := kwsConn.Channels["shell"]
 
-	kwsConn.pollChannel(iopubChannel, "iopub")
+	kwsConn.relayIopub()
 	kwsConn.pollChannel(controlChannel, "control")
 	kwsConn.pollChannel(stdinChannel, "stdin")
 	kwsConn.pollChannel(shellChannel, "shell")
@@ -189,12 +255,10 @@ func (kwsConn *Connection) Connect() {
 
 func (kwsConn *Connection) createStream() {
 
-	// connect on iopub, shell, control, stdin
-	// not sure about hb
+	// iopub is not among them: it comes from the kernel's shared subscription, see relayIopub.
 	id := zmq4.SocketIdentity(fmt.Sprintf("channel-%s", uuid.New().String()))
 	cinfo := kwsConn.KernelManager.ConnectionInfo
 	context := kwsConn.Context
-	kwsConn.Channels["iopub"] = cinfo.ConnectIopub(context)
 	kwsConn.Channels["shell"] = cinfo.ConnectShell(context, id)
 	kwsConn.Channels["control"] = cinfo.ConnectControl(context)
 	kwsConn.Channels["stdin"] = cinfo.ConnectStdin(context, id)
@@ -297,6 +361,7 @@ func (kwsConn *Connection) handleIncomingMessage(incomingMsg []byte) {
 		analytics.Track(analytics.EventCodeCellExecuted, map[string]interface{}{
 			"kernel_language": analytics.NormalizeLanguage(kwsConn.KernelManager.KernelName),
 		})
+		beginRun(kwsConn.KernelManager, msg)
 	}
 
 	if msg.Channel == "stdin" {
@@ -360,4 +425,16 @@ func (kwsConn *Connection) WriteMessages(waiter *sync.WaitGroup) {
 			}
 		}
 	}
+}
+
+// beginRun records a cell run before the kernel has it, so that its output is kept from the first message.
+func beginRun(km *kernel.KernelManager, msg kernel.Message) {
+	content, _ := msg.Content.(map[string]interface{})
+	if silent, _ := content["silent"].(bool); silent {
+		return
+	}
+	code, _ := content["code"].(string)
+	metadata, _ := msg.Metadata.(map[string]interface{})
+	cellID, _ := metadata["cellId"].(string)
+	km.BeginRun(msg.Header.MsgID, cellID, code)
 }

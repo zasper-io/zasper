@@ -83,6 +83,16 @@ func (s *Sessions) update(change func(models.SessionModel) (models.SessionModel,
 	return changed
 }
 
+// PathForKernel answers the notebook a kernel is running for.
+func (s *Sessions) PathForKernel(kernelId string) (string, bool) {
+	for _, session := range s.List() {
+		if session.Kernel.Id == kernelId {
+			return session.Path, true
+		}
+	}
+	return "", false
+}
+
 // DeleteForKernel drops every session on the kernel and returns their ids, for a kernel stopped without
 // going through its session.
 func (s *Sessions) DeleteForKernel(kernelId string) []string {
