@@ -43,6 +43,7 @@ import { ApiError, getInfo } from '../api';
 import { useKernelspecActions } from '../store/kernelspecActions';
 import { useRememberRecentFiles } from '../store/useRememberRecentFiles';
 import { useRememberTabs } from '../store/useRememberTabs';
+import { useUpdates } from '../store/updates';
 import { applyTheme, getTheme, rememberTheme } from '../themes';
 import { useApplyZoom } from '../zoom/useApplyZoom';
 import { PanelName } from './sidebar/types';
@@ -244,6 +245,8 @@ function IDE() {
   // Remembers the open tabs, and drops a strip remembered for another project. The strip itself was
   // already seeded when TabState loaded; this is what confirms and maintains it.
   useRememberTabs();
+  // After the strip is restored: What's new opens beside the tabs that come back, not instead of them.
+  useUpdates();
   // The files this project had open, for the palette's empty query and the Launcher's Recent list.
   useRememberRecentFiles();
 

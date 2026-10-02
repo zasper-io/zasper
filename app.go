@@ -11,6 +11,7 @@ import (
 	"github.com/zasper-io/zasper/internal/config"
 	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/logging"
+	"github.com/zasper-io/zasper/internal/updates"
 
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
@@ -21,7 +22,7 @@ var version string
 // printBanner announces the server to whoever is reading. A person at a terminal gets the banner;
 // output that is being collected as JSON gets the same facts as one structured line, because ASCII
 // art in a log collector is neither readable nor parseable.
-func printBanner(address string, accessToken string, version string, tracking bool) {
+func printBanner(address string, accessToken string, version string, tracking bool, update updates.Status) {
 	if !logging.Console() {
 		log.Info().
 			Str("version", version).
@@ -31,6 +32,14 @@ func printBanner(address string, accessToken string, version string, tracking bo
 			Str("access_token", accessToken).
 			Bool("tracking", tracking).
 			Msg("zasper server started")
+		if update.Available {
+			log.Info().
+				Str("version", version).
+				Str("latest", update.Latest.Version).
+				Str("notes", update.Latest.Notes).
+				Bool("security", update.Security).
+				Msg("a newer version is available")
+		}
 		return
 	}
 
@@ -49,7 +58,41 @@ func printBanner(address string, accessToken string, version string, tracking bo
 	fmt.Printf(" 🖥️  Webapp available at: %s\n", browsableURL(address))
 	fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
 	fmt.Printf(" 🔗 Sign in with:        %s\n", loginURL(address, accessToken))
+	if notice := updateNotice(update); notice != nil {
+		fmt.Println("----------------------------------------------------------")
+		fmt.Printf(" ⬆️  %s\n", bold(notice[0], logging.Color()))
+		for _, line := range notice[1:] {
+			fmt.Printf("    %s\n", line)
+		}
+	}
 	fmt.Println("==========================================================")
+}
+
+// updateNotice is what the banner and --check-update say about a newer version: a headline, then how to
+// update and where the notes are. Nil when there is nothing newer.
+func updateNotice(update updates.Status) []string {
+	if !update.Available {
+		return nil
+	}
+	headline := fmt.Sprintf("Zasper %s is available — you have %s", update.Latest.Version, update.Version)
+	if update.Security {
+		headline = fmt.Sprintf("Zasper %s is a security update — you have %s", update.Latest.Version, update.Version)
+	}
+	lines := []string{headline}
+	if update.UpgradeCommand != "" {
+		lines = append(lines, "Update with:   "+update.UpgradeCommand)
+	}
+	if update.Latest.Notes != "" {
+		lines = append(lines, "Release notes: "+update.Latest.Notes)
+	}
+	return lines
+}
+
+func bold(text string, color bool) string {
+	if !color {
+		return text
+	}
+	return "\x1b[1m" + text + bannerReset
 }
 
 var bannerArt = []string{

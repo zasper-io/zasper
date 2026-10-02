@@ -19,6 +19,7 @@ import InterpreterStatus from './InterpreterStatus';
 import LanguageServerStatus from './LanguageServerStatus';
 import LanguageStatus from './LanguageStatus';
 import ProblemCounts from './ProblemCounts';
+import UpdateStatus from './UpdateStatus';
 import ZoomStatus from './ZoomStatus';
 
 /** What the status bar calls the thing in the active tab. */
@@ -33,6 +34,8 @@ function describeTab(tab: FileTab | undefined): string {
       return 'Help';
     case 'settings':
       return 'Settings';
+    case 'whats-new':
+      return "What's New";
     case 'notebook':
       return 'Notebook';
     default:
@@ -150,6 +153,7 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
         {/* Last on the bar: it belongs to the window rather than to whatever is in the tab, so it
             stays put as the items to its left come and go with the kind of tab that is open. */}
         <ZoomStatus />
+        <UpdateStatus />
       </div>
     </div>
   );

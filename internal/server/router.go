@@ -111,6 +111,13 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/telemetry/settings", analytics.TelemetrySettingsHandler).Methods("GET")
 	apiRouter.HandleFunc("/telemetry/settings", analytics.TelemetrySettingsModifyHandler).Methods("POST")
 
+	if s.updates != nil {
+		apiRouter.HandleFunc("/updates", s.updates.StatusHandler).Methods("GET")
+		apiRouter.HandleFunc("/updates/check", s.updates.CheckHandler).Methods("POST")
+		apiRouter.HandleFunc("/updates/whats-new", s.updates.WhatsNewHandler).Methods("GET")
+		apiRouter.HandleFunc("/updates/whats-new/seen", s.updates.SeenHandler).Methods("POST")
+	}
+
 	authRouter.HandleFunc("/login", s.auth.Login).Methods("POST")
 	authRouter.HandleFunc("/logout", s.auth.Logout).Methods("POST")
 

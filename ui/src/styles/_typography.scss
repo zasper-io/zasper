@@ -76,3 +76,17 @@
 .z-tabular {
   font-variant-numeric: tabular-nums;
 }
+
+// A pill: a word set on a surface of its own, such as the "Major" beside a release.
+.z-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: var(--z-ui-font-size-sm);
+  font-weight: 500;
+  background: var(--z-bg-panel-alt);
+  color: var(--z-fg-muted);
+}

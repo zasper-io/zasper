@@ -82,7 +82,10 @@ changelog-draft:
 	@npx --yes git-cliff@$(GIT_CLIFF_VERSION) --config cliff.toml --unreleased --tag $(TAG_PREFIX)$(CURRENT_VERSION)
 
 
-VERSION_BUILD_FLAG = "-X main.version=$(CURRENT_VERSION)"
+# A channel that builds its own binary names itself, so that the binary knows what updates it: the snap
+# passes INSTALL_METHOD=snap.
+INSTALL_METHOD ?=
+VERSION_BUILD_FLAG = "-X main.version=$(CURRENT_VERSION) -X main.installMethod=$(INSTALL_METHOD)"
 
 
 NODE_VERSION = $(shell cat .nvmrc)

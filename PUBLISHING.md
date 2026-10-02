@@ -122,6 +122,26 @@ Pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`, which:
 
 A tag carrying a pre-release suffix is marked as a pre-release automatically.
 
+### 6. Tell running servers
+
+Once the GitHub Release is published, make two changes in
+[zasper-io.github.io](https://github.com/zasper-io/zasper-io.github.io), in one commit. Add the
+release to the top of `_data/releases.yml`, written from its section of `CHANGELOG.md`; that is
+what [zasper.io/changelog](https://zasper.io/changelog/) shows. Then update `latest.json` at the
+root, which every server fetches once a day:
+
+```json
+{
+  "version": "2.0.0",
+  "date": "2026-09-22",
+  "notes": "https://zasper.io/changelog/#2.0.0",
+  "minimum": "1.0.0"
+}
+```
+
+Raise `minimum` only for a security fix: a server older than it calls the update
+a security update. Never point the file at a pre-release.
+
 ### Required secrets
 
 | Secret | Used for |

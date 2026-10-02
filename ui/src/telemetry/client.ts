@@ -88,6 +88,7 @@ const NOT_FILES = new Set([
   'launcher',
   'help',
   'settings',
+  'whats-new',
   'disk-diff',
   'search-preview',
   'lsp-log',

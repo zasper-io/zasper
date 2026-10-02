@@ -1,0 +1,57 @@
+// The What's New tab, drawn in the design prototype under the same class names.
+
+// A tab pane's one scroller, as .help-tab-page is.
+.whatsnew-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-default);
+}
+
+.whatsnew-measure {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.whatsnew-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--z-border-subtle);
+}
+
+.whatsnew-meta {
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size);
+  font-weight: 400;
+}
+
+.whatsnew-link {
+  margin-left: auto;
+  color: var(--z-fg-accent);
+  font-size: var(--z-ui-font-size);
+}
+
+.whatsnew-older {
+  margin-top: 32px;
+
+  .z-subheading {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+}
+
+.whatsnew-foot {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--z-border-subtle);
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size);
+}

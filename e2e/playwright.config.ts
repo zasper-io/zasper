@@ -81,6 +81,8 @@ export default defineConfig({
       ZASPER_E2E_PROJECT: projectDir,
       ZASPER_E2E_FIXTURE: fixtureProject,
       ZASPER_ACCESS_TOKEN: accessToken,
+      // Nothing listens here, so a release on zasper.io cannot put an update in the status bar mid-run.
+      ZASPER_UPDATE_URL: 'http://127.0.0.1:9/latest.json',
     },
   },
 });

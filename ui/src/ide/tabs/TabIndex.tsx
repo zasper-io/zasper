@@ -44,6 +44,9 @@ function TabMark({ tab }: { tab: FileTab }) {
   if (tab.type === 'settings') {
     return <Icon name="settings" className="tabIcon" />;
   }
+  if (tab.type === 'whats-new') {
+    return <Icon name="scroll-text" className="tabIcon" />;
+  }
   if (tab.type === 'lsp-log') {
     return <Icon name="terminal" className="tabIcon" />;
   }
@@ -282,6 +285,7 @@ function Tab({ tab, isDirty, onActivate, onClose, onMenu }: TabProps) {
     tab.type === 'launcher' ||
     tab.type === 'help' ||
     tab.type === 'settings' ||
+    tab.type === 'whats-new' ||
     tab.type === 'lsp-log'
       ? tab.name
       : tab.type === 'disk-diff'

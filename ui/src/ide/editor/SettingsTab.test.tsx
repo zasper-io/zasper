@@ -3,19 +3,24 @@ import { createStore, Provider, useAtomValue } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SettingsTab, { parseRulers } from './SettingsTab';
+import { UpdateStatus } from '@/api';
 import { interpreterChoiceAtom } from '@/store/interpreters';
+import { zasperVersionAtom } from '@/store/serverInfo';
+import { updateStatusAtom } from '@/store/updates';
 import { DEFAULT_EDITOR_SETTINGS, themeAtom } from '@/store/settings';
 import { FileTab } from '@/store/tabState';
 import { themes } from '@/themes';
 
 const modifyConfig = vi.fn();
 const getInterpreters = vi.fn();
+const checkForUpdates = vi.fn();
 
 vi.mock('@/api', () => ({
   modifyConfig: (key: string, value: string) => modifyConfig(key, value),
   saveEditorSettings: (settings: unknown) => modifyConfig('editor', JSON.stringify(settings)),
   logApiError: () => () => {},
   getInterpreters: () => getInterpreters(),
+  checkForUpdates: () => checkForUpdates(),
   apiErrorMessage: (error: unknown) => String(error),
 }));
 
@@ -211,5 +216,51 @@ describe('the Python interpreter', () => {
     expect(select.value).toBe('/gone/bin/python3');
     expect(select.selectedOptions[0].textContent).toBe('Not found');
     expect(screen.getByText('/gone/bin/python3').tagName).toBe('CODE');
+  });
+});
+
+describe('the version row', () => {
+  const status: UpdateStatus = {
+    version: '1.1.0',
+    checks: true,
+    latest: { version: '2.0.0', date: '2026-09-22', notes: 'https://zasper.io/changelog#2.0.0' },
+    available: true,
+    major: true,
+    security: false,
+    checked_at: new Date().toISOString(),
+    whats_new: false,
+  };
+
+  function renderWithStatus(update: UpdateStatus) {
+    const store = createStore();
+    store.set(zasperVersionAtom, '1.1.0');
+    store.set(updateStatusAtom, update);
+    render(
+      <Provider store={store}>
+        <SettingsTab data={tab} />
+      </Provider>
+    );
+    return store;
+  }
+
+  it('says what the last check found, and checks again on request', async () => {
+    const newest = { ...status, available: false, latest: { ...status.latest!, version: '1.1.0' } };
+    checkForUpdates.mockResolvedValue(newest);
+    const store = renderWithStatus(status);
+
+    expect(screen.getByText('Zasper 1.1.0')).not.toBeNull();
+    expect(screen.getByText('2.0.0 is available. Checked just now.')).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Release notes' })).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }));
+    expect(checkForUpdates).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(store.get(updateStatusAtom)).toEqual(newest));
+  });
+
+  it('has nothing to press in the snap', () => {
+    renderWithStatus({ ...status, checks: false, latest: undefined, available: false });
+
+    expect(screen.getByText('Installed as a snap, which keeps itself up to date.')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Check for updates' })).toBeNull();
   });
 });

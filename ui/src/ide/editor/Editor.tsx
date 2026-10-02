@@ -11,6 +11,7 @@ import PdfViewer from './PdfViewer';
 import LanguageServerLogTab from './LanguageServerLogTab';
 import SearchPreviewTab from './SearchPreviewTab';
 import SettingsTab from './SettingsTab';
+import WhatsNewTab from './WhatsNewTab';
 import { FileTab } from '@/store/tabState';
 
 interface EditorProps {
@@ -54,6 +55,9 @@ export default function Editor(props: EditorProps) {
   }
   if (props.data.type === 'settings') {
     return <SettingsTab data={props.data} />;
+  }
+  if (props.data.type === 'whats-new') {
+    return <WhatsNewTab data={props.data} />;
   }
   return <></>;
 }
