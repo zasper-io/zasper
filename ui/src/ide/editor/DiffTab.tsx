@@ -5,6 +5,7 @@ import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { FileTab } from '@/store/tabState';
 import BreadCrumb from './BreadCrumb';
+import NotebookDiff from './notebookDiff/NotebookDiff';
 import { useMergeView } from './useMergeView';
 import './DiffTab.scss';
 
@@ -41,6 +42,9 @@ export default function DiffTab(props: DiffTabProps) {
   // do with the unstaged one is to keep editing the file it is about.
   const [reloads, setReloads] = useState<number>(0);
   const container = useRef<HTMLDivElement>(null);
+  // A notebook's diff opens every output change and closes every metadata change until these say otherwise.
+  const [outputsOpen, setOutputsOpen] = useState(true);
+  const [metadataOpen, setMetadataOpen] = useState(false);
   /** The comparison this tab has already read, so being brought forward again is not a re-read. */
   const lastRead = useRef<string>('');
 
@@ -83,7 +87,9 @@ export default function DiffTab(props: DiffTabProps) {
     };
   }, [path, staged, ref, from, reloads, props.data.active]);
 
-  const comparable = documents !== null && !documents.isBinary && !documents.tooLarge;
+  const cells = documents?.notebook;
+  const comparable =
+    documents !== null && !documents.isBinary && !documents.tooLarge && cells === undefined;
   useMergeView(
     container,
     comparable ? documents.original : null,
@@ -106,6 +112,22 @@ export default function DiffTab(props: DiffTabProps) {
           <span className="diff-side">{left}</span>
           <Icon name="arrow-right" className="diff-arrow" />
           <span className="diff-side">{right}</span>
+          {cells !== undefined && (
+            <span className="diff-switches">
+              <IconButton
+                icon="image"
+                label={outputsOpen ? 'Close every output change' : 'Open every output change'}
+                pressed={outputsOpen}
+                onClick={() => setOutputsOpen(!outputsOpen)}
+              />
+              <IconButton
+                icon="list-checks"
+                label={metadataOpen ? 'Close every metadata change' : 'Open every metadata change'}
+                pressed={metadataOpen}
+                onClick={() => setMetadataOpen(!metadataOpen)}
+              />
+            </span>
+          )}
           <IconButton
             icon="refresh-cw"
             className="diff-refresh"
@@ -119,7 +141,7 @@ export default function DiffTab(props: DiffTabProps) {
             <p>Renamed from {from}.</p>
           </div>
         )}
-        {documents?.isNotebook === true && (
+        {documents?.isNotebook === true && cells === undefined && (
           <div className="z-notice">
             <p>
               Cell sources only. Outputs, execution counts and metadata are left out, so this is a
@@ -149,7 +171,17 @@ export default function DiffTab(props: DiffTabProps) {
           </div>
         )}
 
-        <div className="diff-body" ref={container} />
+        {cells !== undefined ? (
+          <NotebookDiff
+            original={cells.original}
+            modified={cells.modified}
+            sides={[left, right]}
+            outputsOpen={outputsOpen}
+            metadataOpen={metadataOpen}
+          />
+        ) : (
+          <div className="diff-body" ref={container} />
+        )}
       </div>
     </div>
   );

@@ -43,6 +43,24 @@ type DiffResponse struct {
 	IsNotebook bool `json:"isNotebook"`
 	// TooLarge is the same for a file this refuses to send: honest about why it is empty.
 	TooLarge bool `json:"tooLarge"`
+	// Notebook is each side of a notebook as its cells, for a diff drawn cell by cell. A side that is
+	// absent — a notebook added or deleted — is null. Original and Modified still carry the flattened
+	// sources, for a client that draws a notebook as text.
+	Notebook *NotebookSides `json:"notebook,omitempty"`
+}
+
+// NotebookSides is the two sides of a notebook's comparison, read by nbformat.
+type NotebookSides struct {
+	Original *NotebookSide `json:"original"`
+	Modified *NotebookSide `json:"modified"`
+}
+
+// NotebookSide is one side's cells — source, outputs, metadata and id, as nbformat reads them — and the
+// notebook's own metadata.
+type NotebookSide struct {
+	Cells         []map[string]interface{} `json:"cells"`
+	Metadata      map[string]interface{}   `json:"metadata"`
+	NbformatMinor int                      `json:"nbformat_minor"`
 }
 
 const (
@@ -163,6 +181,7 @@ func getDiff(repo *git.Repository, root, path, from string, staged bool, ref str
 			if left, right, ok := notebookSides(original, modified); ok {
 				response.IsNotebook = true
 				response.Original, response.Modified = left, right
+				response.Notebook = &NotebookSides{Original: readSide(original), Modified: readSide(modified)}
 				return response, nil
 			}
 			// Not a notebook this can read — a merge conflict left in the JSON, or a file with the
@@ -360,4 +379,22 @@ func notebookCells(data []byte) (string, bool) {
 		}
 	}
 	return out.String(), true
+}
+
+// readSide reads one side of a notebook comparison for the cell-by-cell diff. notebookSides has already
+// read both, so a side that fails here is an absent one.
+func readSide(data []byte) *NotebookSide {
+	if len(bytes.TrimSpace(data)) == 0 {
+		return nil
+	}
+	doc, err := nbformat.Read(data)
+	if err != nil {
+		return nil
+	}
+	_, minor := doc.Version()
+	cells := doc.Cells()
+	if cells == nil {
+		cells = []map[string]interface{}{}
+	}
+	return &NotebookSide{Cells: cells, Metadata: doc.Metadata(), NbformatMinor: minor}
 }

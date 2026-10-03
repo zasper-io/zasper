@@ -108,3 +108,10 @@
     padding: 0 10px;
   }
 }
+
+// A notebook's two switches: every output change open, every metadata change open.
+.diff-switches {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 12px;
+}

@@ -1,3 +1,4 @@
+import { NotebookOutput } from './notebook';
 import { requestJson } from './client';
 
 /**
@@ -62,7 +63,23 @@ export type DiffDocuments = {
   isNotebook: boolean;
   /** The same for a file the server would not send, so the tab can say why it is empty. */
   tooLarge: boolean;
+  /** A notebook's two sides as cells, for the cell-by-cell diff; an absent side is null. */
+  notebook?: { original: NotebookDiffSide | null; modified: NotebookDiffSide | null };
 };
+
+/** One side of a notebook's comparison, as nbformat reads it on the server. */
+export interface NotebookDiffSide {
+  cells: {
+    id?: string;
+    cell_type: string;
+    source: string;
+    outputs?: NotebookOutput[];
+    metadata?: Record<string, unknown>;
+    execution_count?: number | null;
+  }[];
+  metadata: Record<string, unknown> | null;
+  nbformat_minor: number;
+}
 
 /** Which comparison of which file, as the diff tab and the panel rows both name one. */
 export type DiffTarget = {

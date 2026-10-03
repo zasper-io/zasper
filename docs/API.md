@@ -169,7 +169,7 @@ All routes act on the project directory's repository.
 | `GET` | `/api/git/status` | Working tree and index status. |
 | `GET` | `/api/git/log` | History. |
 | `GET` | `/api/git/commit/{hash}` | One commit's detail. |
-| `GET` | `/api/git/diff` | Diff for a path. |
+| `GET` | `/api/git/diff` | Both sides of a path's comparison, whole. For a notebook, also each side's cells under `notebook` (`original`, `modified`; an absent side is `null`). See [NOTEBOOK-DIFFS.md](NOTEBOOK-DIFFS.md). |
 | `POST` | `/api/git/stage` · `/unstage` · `/discard` | Index and working tree. |
 | `POST` | `/api/git/commit` | Commit what is staged. |
 | `GET` | `/api/git/branches` | List branches. |

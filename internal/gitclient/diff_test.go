@@ -236,6 +236,37 @@ func TestANotebookIsComparedAsItsCellSources(t *testing.T) {
 	assert.Equal(t, strings.Replace(expected, "print(1)", "print(2)", 1), diff.Modified)
 }
 
+// The cell-by-cell diff is drawn from each side's cells, outputs and ids included, and an added
+// notebook's original side is absent rather than an empty notebook.
+func TestANotebookComparisonCarriesEachSidesCells(t *testing.T) {
+	dir := projectRepo(t)
+
+	writeIn(t, dir, "analysis.ipynb", aNotebook)
+	gitIn(t, dir, "add", "analysis.ipynb")
+	gitIn(t, dir, "commit", "-m", "the first one")
+	writeIn(t, dir, "analysis.ipynb", theNotebookRunAgain)
+
+	repo, root, err := openRepo(dir)
+	require.NoError(t, err)
+	diff, err := getDiff(repo, root, "analysis.ipynb", "", false, "")
+	require.NoError(t, err)
+
+	require.NotNil(t, diff.Notebook)
+	require.NotNil(t, diff.Notebook.Original)
+	require.NotNil(t, diff.Notebook.Modified)
+	require.Len(t, diff.Notebook.Modified.Cells, len(diff.Notebook.Original.Cells))
+	cell := diff.Notebook.Modified.Cells[0]
+	assert.Equal(t, "print(1)", strings.TrimSpace(cell["source"].(string)))
+	assert.Contains(t, cell, "outputs")
+
+	writeIn(t, dir, "fresh.ipynb", aNotebook)
+	diff, err = getDiff(repo, root, "fresh.ipynb", "", false, "")
+	require.NoError(t, err)
+	require.NotNil(t, diff.Notebook)
+	assert.Nil(t, diff.Notebook.Original, "an untracked notebook has no original side")
+	assert.NotNil(t, diff.Notebook.Modified)
+}
+
 /*
 A file with the notebook extension that is not a notebook is compared as the text it is.
 

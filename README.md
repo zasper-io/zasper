@@ -530,6 +530,8 @@ covers the development workflow.
   the file when nobody was watching.
 - [docs/DATAFRAMES.md](docs/DATAFRAMES.md): DataFrames as tables — in a cell's output, in a tab,
   and in the Variables panel — read from the kernel, including how polars frames are handled.
+- [docs/NOTEBOOK-DIFFS.md](docs/NOTEBOOK-DIFFS.md): how a changed notebook is compared in the git
+  panel, cell by cell, and how its cells are matched.
 - [PRIVACY.md](PRIVACY.md): what anonymous usage data is collected, event by event.
 - [PUBLISHING.md](PUBLISHING.md): how releases are cut.
 
