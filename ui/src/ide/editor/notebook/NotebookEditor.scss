@@ -469,11 +469,12 @@
   }
 }
 
-// An output holding a DataFrame's grid or its chart is read like the page, not like printed text: its
-// distributions, meters and lines are drawn in the accent and the chart colours, the tint's own hue, and
-// on the tint they lost their contrast and the rows read as shaded. So it drops the tint for the
-// editor's surface, as the same grid is drawn in a tab, with a hairline where the tint's edge was.
-.inner-text:has(.dataGrid.is-in-cell) {
+// An output holding data or a picture is read like the page, not like printed text, so it drops the tint
+// for the editor's surface with a hairline where the tint's edge was: a DataFrame's grid or chart, whose
+// distributions and lines are the tint's own hue and lost their contrast on it, as a tab draws them; the
+// table pandas printed, whose rows read as shaded on it; and a figure, whose white plate (--z-bg-figure)
+// sat in a tinted frame.
+.inner-text:has(.dataGrid.is-in-cell, table.dataframe, img, .output-svg) {
   background: var(--z-bg-editor);
   border: 1px solid var(--z-border);
 }
