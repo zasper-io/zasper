@@ -19,7 +19,8 @@
     top: 0;
     z-index: 1;
     vertical-align: bottom;
-    background: var(--z-bg-cell-output);
+    // The surface the grid is drawn on, in a cell as in a tab, so a scrolled row never shows through.
+    background: var(--z-bg-editor);
   }
 
   // The index stays while a wide frame scrolls sideways.
@@ -27,7 +28,7 @@
   thead th:first-child {
     position: sticky;
     left: 0;
-    background: var(--z-bg-cell-output);
+    background: var(--z-bg-editor);
   }
 
   thead th:first-child {
@@ -73,11 +74,6 @@
 
     tbody tr.dataGrid-pending {
       color: var(--z-fg-subtle);
-    }
-
-    thead th,
-    tbody th {
-      background: var(--z-bg-editor);
     }
   }
 }

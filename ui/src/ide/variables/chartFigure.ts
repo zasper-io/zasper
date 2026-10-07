@@ -30,7 +30,8 @@ export function readPalette(element: Element): ChartPalette {
     muted: token('--z-fg-muted'),
     grid: token('--z-border'),
     axis: token('--z-border-strong'),
-    surface: token('--z-bg-cell-output'),
+    // What the chart is drawn on, in a cell as in a tab: a point's outline in it separates overlaps.
+    surface: token('--z-bg-editor'),
     overlay: token('--z-bg-overlay'),
     font: token('--z-ui-font-family'),
   };
