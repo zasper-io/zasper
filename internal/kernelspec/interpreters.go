@@ -152,6 +152,15 @@ func projectEnvironment(project string) string {
 	return ""
 }
 
+// PythonVersion is the major.minor of the interpreter at path, "" when it cannot be asked. Probed once
+// per binary, like the interpreters a listing finds.
+func PythonVersion(path string) string {
+	if found := probe(path); found != nil {
+		return found.Version
+	}
+	return ""
+}
+
 // probe asks a Python on PATH or in a known install where it looks for packages, once per binary.
 func probe(path string) *interpreter {
 	info, err := os.Stat(path)
@@ -168,7 +177,11 @@ func probe(path string) *interpreter {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var found *interpreter
-	if out, err := exec.CommandContext(ctx, path, "-c", probeScript).Output(); err == nil {
+	cmd := exec.CommandContext(ctx, path, "-c", probeScript)
+	// `-c` puts the working directory first on sys.path, and probeScript imports json: run anywhere else
+	// and a json.py in the folder Zasper was started in is imported, which is to say run.
+	cmd.Dir = os.TempDir()
+	if out, err := cmd.Output(); err == nil {
 		var parsed interpreter
 		if json.Unmarshal(out, &parsed) == nil && parsed.Prefix != "" {
 			if parsed.Executable == "" {

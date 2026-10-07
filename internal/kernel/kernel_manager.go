@@ -177,16 +177,43 @@ func (km *KernelManager) argv() []string {
 			cmd[i] = km.ConnectionFile
 		}
 	}
-	if len(cmd) == 0 || !barePython.MatchString(cmd[0]) {
+	if len(cmd) == 0 {
 		return cmd
 	}
-	if interpreter := kernelspec.ResolvedInterpreter(km.Spec); interpreter != "" {
-		cmd[0] = interpreter
-	} else if cmd[0] == "python3" || cmd[0] == "python" {
-		cmd[0] = getPython()
+	if barePython.MatchString(cmd[0]) {
+		if interpreter := kernelspec.ResolvedInterpreter(km.Spec); interpreter != "" {
+			cmd[0] = interpreter
+		} else if cmd[0] == "python3" || cmd[0] == "python" {
+			cmd[0] = getPython()
+		}
 	}
-	return cmd
+	return safePath(cmd)
 }
+
+/*
+safePath starts an ipykernel with the notebook's folder off sys.path. `python -m` puts the folder first,
+and the kernel starts in it: a pathlib.py beside the notebook was imported by ipykernel_launcher, which is
+to say run, and the kernel then failed to start. So the module is run from `-c` instead, which drops the
+folder before importing anything. Not -P, which Python 3.11 added and an older one refuses. IPython puts
+the folder back once it is up, so a cell can still import a module beside the notebook.
+*/
+func safePath(cmd []string) []string {
+	launcher := slices.Index(cmd, "-m")
+	if launcher < 1 || launcher+1 >= len(cmd) || !strings.HasPrefix(cmd[launcher+1], "ipykernel") {
+		return cmd
+	}
+	safe := slices.Clone(cmd[:launcher])
+	safe = append(safe, "-c", fmt.Sprintf(safeLaunch, cmd[launcher+1]))
+	return append(safe, cmd[launcher+2:]...)
+}
+
+// safeLaunch runs a module as `python -m` would, after taking the working directory off sys.path. Only an
+// empty first entry is taken: with -P or PYTHONSAFEPATH there is none, and the first is the standard library.
+const safeLaunch = `import sys
+if sys.path[:1] == [""]:
+    del sys.path[0]
+import runpy
+runpy.run_module(%q, run_name="__main__", alter_sys=True)`
 
 // string.Template's pattern, which jupyter_client uses on a spec's env: $$, ${name} and $name.
 var envReference = regexp.MustCompile(`\$(?:(\$)|\{([_A-Za-z][_A-Za-z0-9]*)\}|([_A-Za-z][_A-Za-z0-9]*))`)

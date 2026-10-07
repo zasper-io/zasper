@@ -121,3 +121,17 @@ func TestTheConnectionFileIsFilledIntoTheCommand(t *testing.T) {
 	assert.Equal(t, []string{"ir", "--connection-file", "/run/kernel-1.json"}, km.argv())
 	assert.Equal(t, "{connection_file}", km.Spec.Argv[2], "the kernelspec itself is not rewritten")
 }
+
+func TestAnIpykernelStartsWithItsFolderOffSysPath(t *testing.T) {
+	t.Parallel()
+	launch := []string{"/py", "-Xfrozen_modules=off", "-m", "ipykernel_launcher", "-f", "{connection_file}"}
+
+	safe := safePath(launch)
+	assert.Equal(t, []string{"/py", "-Xfrozen_modules=off", "-c"}, safe[:3], "the interpreter's own flags are kept")
+	assert.Contains(t, safe[3], `runpy.run_module("ipykernel_launcher"`)
+	assert.Equal(t, []string{"-f", "{connection_file}"}, safe[4:], "the kernel's own arguments follow")
+	assert.Equal(t, "-m", launch[2], "the kernelspec itself is not rewritten")
+
+	ir := []string{"ir", "--connection-file", "{connection_file}"}
+	assert.Equal(t, ir, safePath(ir), "not a Python kernel")
+}

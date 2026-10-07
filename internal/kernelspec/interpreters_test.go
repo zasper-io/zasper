@@ -156,3 +156,19 @@ func TestTheInstallerShimsAreNeverRun(t *testing.T) {
 	assert.True(t, isShim(`C:\Users\me\AppData\Local\Microsoft\WindowsApps\python.exe`, "windows"))
 	assert.False(t, isShim("/usr/bin/python3", "linux"))
 }
+
+func TestAnInterpreterIsAskedOutsideTheFolderZasperStartedIn(t *testing.T) {
+	unixOnly(t)
+	// Not parallel: it moves the process's working directory, which the probe used to inherit.
+	project := t.TempDir()
+	t.Chdir(project)
+	python := filepath.Join(t.TempDir(), "bin", "python3")
+	ran := filepath.Join(t.TempDir(), "cwd")
+	executable(t, python)
+	require.NoError(t, os.WriteFile(python, []byte("#!/bin/sh\npwd > '"+ran+"'\nprintf '%s\\n' '{\"version\": \"3.13\", \"prefix\": \"/p\"}'\n"), 0o755))
+
+	assert.Equal(t, "3.13", PythonVersion(python))
+	cwd, err := os.ReadFile(ran)
+	require.NoError(t, err)
+	assert.NotEqual(t, project, filepath.Clean(string(cwd[:len(cwd)-1])), "a json.py in the project would be imported")
+}
