@@ -4,6 +4,8 @@ import { Transport } from '@codemirror/lsp-client';
 export const CLOSE_TURNED_OFF = 4001;
 export const CLOSE_NOT_INSTALLED = 4002;
 export const CLOSE_EXITED = 4003;
+/** The folder is not trusted and this server runs project code: docs/TRUST.md. */
+export const CLOSE_RESTRICTED = 4004;
 
 export interface SocketTransport extends Transport {
   close: () => void;

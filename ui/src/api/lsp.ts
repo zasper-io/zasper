@@ -18,6 +18,8 @@ export interface LanguageServerInfo {
   program?: string;
   /** What has to be installed in that program as well. */
   needs?: string;
+  /** Off because the folder is not trusted and this server runs project code. */
+  restricted?: boolean;
 }
 
 export interface LanguageServerList {

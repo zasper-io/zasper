@@ -29,6 +29,16 @@ type Config struct {
 	PythonInterpreter string `json:"python_interpreter,omitempty"`
 	// SeenVersion is the newest version whose notes What's new has shown.
 	SeenVersion string `json:"seen_version,omitempty"`
+	// TrustedFolders are the folders whose code may run without asking, each with everything under it.
+	TrustedFolders []TrustedFolder `json:"trusted_folders,omitempty"`
+	// TrustAll trusts every folder, for a server that only ever opens its owner's own files.
+	TrustAll *bool `json:"trust_all,omitempty"`
+}
+
+// TrustedFolder is a folder trusted, and since when (RFC 3339).
+type TrustedFolder struct {
+	Path  string `json:"path"`
+	Since string `json:"since"`
 }
 
 // DefaultTheme names a theme in ui/src/themes, which is the only place that knows what one means: the
@@ -350,6 +360,51 @@ func GetPythonInterpreter() string {
 func setPythonInterpreter(path string) error {
 	_, err := UpdateConfig(func(config *Config) bool {
 		config.PythonInterpreter = path
+		return true
+	})
+	return err
+}
+
+// Trust answers the folders trusted and whether every folder is.
+func Trust() ([]TrustedFolder, bool) {
+	config, err := ReadConfig()
+	if err != nil {
+		return nil, false
+	}
+	return config.TrustedFolders, config.TrustAll != nil && *config.TrustAll
+}
+
+// AddTrustedFolder trusts path, once: trusting it again keeps the date it was first trusted.
+func AddTrustedFolder(path, since string) error {
+	_, err := UpdateConfig(func(config *Config) bool {
+		for _, folder := range config.TrustedFolders {
+			if folder.Path == path {
+				return false
+			}
+		}
+		config.TrustedFolders = append(config.TrustedFolders, TrustedFolder{Path: path, Since: since})
+		return true
+	})
+	return err
+}
+
+// RemoveTrustedFolder stops trusting path. A folder trusted only through a parent stays trusted.
+func RemoveTrustedFolder(path string) error {
+	_, err := UpdateConfig(func(config *Config) bool {
+		kept := slices.DeleteFunc(slices.Clone(config.TrustedFolders), func(f TrustedFolder) bool { return f.Path == path })
+		if len(kept) == len(config.TrustedFolders) {
+			return false
+		}
+		config.TrustedFolders = kept
+		return true
+	})
+	return err
+}
+
+// SetTrustAll trusts every folder, or stops doing so.
+func SetTrustAll(all bool) error {
+	_, err := UpdateConfig(func(config *Config) bool {
+		config.TrustAll = &all
 		return true
 	})
 	return err

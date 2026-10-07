@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
 import { toast } from 'react-toastify';
 
-import { apiErrorMessage, emptyGitStatus, getGitStatus, GitStatus } from '@/api';
+import { apiErrorMessage, emptyGitStatus, getGitStatus, GitStatus, isUntrusted } from '@/api';
 import { branchNameAtom } from '@/store/git';
+import { useAskTrust } from '@/store/trust';
 import { useContentWatcher } from '@/ide/useContentWatcher';
 
 export interface GitPanelStatus {
@@ -38,6 +39,7 @@ export function useGitStatus(hidden: boolean): GitPanelStatus {
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [, setBranchName] = useAtom(branchNameAtom);
+  const askTrust = useAskTrust();
 
   // The watcher callback outlives the renders it was made in, so what it needs to know about the
   // current one it reads through a ref.
@@ -98,6 +100,12 @@ export function useGitStatus(hidden: boolean): GitPanelStatus {
         }
         return true;
       } catch (failure) {
+        // A folder that is not trusted: the repository's own config could make git run commands, so a
+        // change to it asks first, as Run does.
+        if (isUntrusted(failure)) {
+          askTrust({ reason: 'other', what: 'change this repository' });
+          return false;
+        }
         // The server's own words: "Please tell me who you are", or which file is in the way.
         toast.error(apiErrorMessage(failure));
         return false;
@@ -105,7 +113,7 @@ export function useGitStatus(hidden: boolean): GitPanelStatus {
         setBusy(false);
       }
     },
-    [apply]
+    [apply, askTrust]
   );
 
   return { status, loading, busy, error, refresh, run };

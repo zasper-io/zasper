@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 
 /** Where one language's server stands, for the status bar. */
-export type ServerState = 'starting' | 'ready' | 'failed' | 'missing' | 'off';
+export type ServerState = 'starting' | 'ready' | 'failed' | 'missing' | 'off' | 'restricted';
 
 export interface ServerStatus {
   state: ServerState;

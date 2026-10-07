@@ -256,3 +256,52 @@ func TestAServerInsideARuntimeSaysWhatItNeeds(t *testing.T) {
 	assert.Equal(t, "julia", resolved.Program)
 	assert.Equal(t, "the LanguageServer.jl package", resolved.Needs)
 }
+
+func TestARestrictedFolderLooksNowhereInsideItselfForAServer(t *testing.T) {
+	root := t.TempDir()
+	executableIn(t, filepath.Join(root, ".venv", venvPrograms()), "basedpyright-langserver")
+	f := finder{root: root, home: t.TempDir(), lookPath: noPath, restricted: true}
+	python, _ := languageByID("python")
+
+	resolved := f.resolve(python, config.LanguageServerSettings{})
+
+	assert.False(t, resolved.Found, "the project's own program would run")
+	assert.False(t, resolved.Restricted, "basedpyright reads code, so it would start if it were installed elsewhere")
+	for _, entry := range f.env() {
+		if strings.HasPrefix(entry, "PATH=") {
+			assert.NotContains(t, entry, root, "the project's folders are not on the server's PATH")
+		}
+	}
+}
+
+func TestARestrictedFolderStartsOnlyServersThatReadCode(t *testing.T) {
+	home := t.TempDir()
+	executableIn(t, filepath.Join(home, "go", "bin"), "gopls")
+	pyright := executableIn(t, filepath.Join(home, ".local", "bin"), "pyright-langserver")
+	executableIn(t, filepath.Join(home, ".local", "bin"), "pylsp")
+	f := finder{root: t.TempDir(), home: home, lookPath: noPath, restricted: true}
+	python, _ := languageByID("python")
+
+	gopls := f.resolve(Languages[0], config.LanguageServerSettings{})
+	assert.True(t, gopls.Restricted)
+	assert.False(t, gopls.Found)
+
+	resolved := f.resolve(python, config.LanguageServerSettings{})
+	assert.Equal(t, "pyright", resolved.Server, "pylsp is passed over: its plugins run tools")
+	assert.Equal(t, pyright, resolved.Path)
+
+	configured := f.resolve(Languages[0], config.LanguageServerSettings{Commands: map[string]string{"go": "gopls -remote=auto"}})
+	assert.True(t, configured.Restricted, "a configured command is held to the same rule")
+}
+
+func TestARestrictedServerClosesTheSocketSayingSo(t *testing.T) {
+	m, server := testManager(t, helperSettings())
+	m.RequireTrust(func() bool { return false })
+	conn := dial(t, server, "go")
+
+	_, _, err := conn.ReadMessage()
+	var closed *websocket.CloseError
+	require.ErrorAs(t, err, &closed)
+	assert.Equal(t, closeRestricted, closed.Code)
+	assert.Equal(t, 0, m.Running())
+}

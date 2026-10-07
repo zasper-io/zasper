@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -104,7 +106,7 @@ func run(ctx context.Context, root string, args ...string) (string, error) {
 		return "", fmt.Errorf("git is not installed")
 	}
 
-	cmd := exec.CommandContext(ctx, gitBinary.path, args...)
+	cmd := exec.CommandContext(ctx, gitBinary.path, append(restrictedArgs(root), args...)...)
 	cmd.Dir = root
 
 	// Inheriting the environment, since that is where a credential helper's configuration and
@@ -153,4 +155,47 @@ so this is about how git reads them rather than about where they point.
 */
 func pathArgs(args []string, paths []string) []string {
 	return append(append(args, "--"), paths...)
+}
+
+// restriction is a project whose repository runs nothing the repository configured until the project is
+// trusted.
+type restriction struct {
+	project string
+	trusted func() bool
+}
+
+var (
+	restrictionsMu sync.Mutex
+	restrictions   []restriction
+)
+
+/*
+restrictedArgs turns off what a repository's own .git/config can make the reads git still does in a project
+that is not trusted run: core.fsmonitor, on anything that reads the index, and hooks and core.sshCommand
+for good measure. Everything that changes the repository is refused before git runs at all (the server's
+router asks for trust), because filters, credential helpers and a signing program have no such switch.
+*/
+func restrictedArgs(root string) []string {
+	root = resolvedPath(root)
+	restrictionsMu.Lock()
+	defer restrictionsMu.Unlock()
+	for _, r := range restrictions {
+		if (r.project == root || isWithin(r.project, root)) && !r.trusted() {
+			return []string{"-c", "core.hooksPath=" + os.DevNull, "-c", "core.fsmonitor=false", "-c", "core.sshCommand=ssh"}
+		}
+	}
+	return nil
+}
+
+func isWithin(path, folder string) bool {
+	rel, err := filepath.Rel(folder, path)
+	return err == nil && rel != "." && !strings.HasPrefix(rel, "..")
+}
+
+// resolvedPath follows symlinks, so a repository found at /private/tmp is the project opened at /tmp.
+func resolvedPath(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	return path
 }

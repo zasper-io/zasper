@@ -361,10 +361,10 @@ produces under `%config InlineBackend.figure_format = 'svg'`, is inlined rather 
   is gone — after the server restarts, or when the file is opened anywhere else, such as on GitHub —
   the widget shows a placeholder until the cell is run again. JupyterLab can save widget state into
   the file so it renders without a kernel; Zasper does not write it yet.
-- **Notebooks are not signed or trusted.** Zasper does not yet implement Jupyter's signature
-  database, and stored `text/html` output can carry scripts that run when the notebook is opened,
-  which is how Plotly and Bokeh outputs draw themselves. Treat a notebook you did not write the way
-  you would treat any downloaded file.
+- **A saved output does not run its scripts.** HTML and SVG read from a notebook are sanitised; only
+  output a running kernel sends runs its scripts, which is how Bokeh and HTML Plotly outputs draw
+  themselves, so after a notebook is reopened those cells have to be run again. Zasper does not
+  implement Jupyter's notebook signatures.
 
 ## Keyboard shortcuts
 
@@ -448,6 +448,7 @@ A single click on a rendered markdown cell only selects it; it stays rendered.
 | `--port` | `:8048` | Port to start the server on |
 | `--allow-host` | | Other host names a server on loopback answers to, comma-separated, such as a reverse proxy's |
 | `--no-browser` | off | Do not open the app in a browser on startup |
+| `--trust` | off | Trust the project folder for this run: its kernels, `.venv` and language servers start without asking. See [docs/TRUST.md](docs/TRUST.md) |
 | `--tracking` | `true` | Send anonymous usage data; see [Logging and privacy](#logging-and-privacy) |
 | `--debug` | off | Set the log level to debug |
 | `--version` | | Print the version and exit |
@@ -471,6 +472,7 @@ it up to date. The first launch after an upgrade opens the new version's release
 | `ZASPER_TELEMETRY` | `0` or `1` to turn anonymous usage data off or on for this run |
 | `ZASPER_LOG_FORMAT` | `json` or `console`; by default, console on a terminal and JSON otherwise |
 | `ZASPER_ACCESS_LOG` | `1` to log every request, not only the ones that failed |
+| `ZASPER_TRUST_ALL` | `1` to trust every folder, as the Docker image does; see [docs/TRUST.md](docs/TRUST.md) |
 
 ## Logging and privacy
 
@@ -532,6 +534,8 @@ covers the development workflow.
   and in the Variables panel — read from the kernel, including how polars frames are handled.
 - [docs/NOTEBOOK-DIFFS.md](docs/NOTEBOOK-DIFFS.md): how a changed notebook is compared in the git
   panel, cell by cell, and how its cells are matched.
+- [docs/TRUST.md](docs/TRUST.md): trusted folders and restricted mode — what runs when a folder opens,
+  how Zasper asks first, and what the server refuses until it is trusted.
 - [docs/KERNEL-RESOURCES.md](docs/KERNEL-RESOURCES.md): the memory and GPU memory each kernel holds,
   in the status bar and the Jupyter info panel, and how it is measured on each platform.
 - [PRIVACY.md](PRIVACY.md): what anonymous usage data is collected, event by event.

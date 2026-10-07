@@ -31,6 +31,7 @@ import { NO_KERNEL } from './kernelChoice';
 import { findRunCell, KernelMessage, PlacedRun, ReplayedRun } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
+import { useAskTrust } from '@/store/trust';
 import NotebookCells from './NotebookCells';
 import NotebookFindCard from './NotebookFindCard';
 import NotebookOutline from './NotebookOutline';
@@ -259,13 +260,47 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
 
   const { sendExecuteRequest } = kernel;
+  const askTrust = useAskTrust();
+  /*
+   * Runs asked for in a folder that was not trusted, sent once trusting it has started the kernel and its
+   * socket is open: before then there is nothing to send them on.
+   */
+  const heldRuns = useRef<{ source: string; cellId: string }[]>([]);
   const submitCell = useCallback(
     (source: string, cellId: string) => {
+      if (kernel.restricted) {
+        askTrust({
+          reason: 'run',
+          notebook: data.name,
+          kernel: kernel.kernelDisplayName ?? kernel.kernelName,
+          onTrusted: () => heldRuns.current.push({ source, cellId }),
+        });
+        return;
+      }
       markCellRunning(cellId);
       sendExecuteRequest(source, cellId);
     },
-    [markCellRunning, sendExecuteRequest]
+    [
+      markCellRunning,
+      sendExecuteRequest,
+      kernel.restricted,
+      kernel.kernelDisplayName,
+      kernel.kernelName,
+      askTrust,
+      data.name,
+    ]
   );
+  useEffect(() => {
+    if (kernel.connection?.readyState !== WebSocket.OPEN || heldRuns.current.length === 0) {
+      return;
+    }
+    const runs = heldRuns.current;
+    heldRuns.current = [];
+    runs.forEach(({ source, cellId }) => {
+      markCellRunning(cellId);
+      sendExecuteRequest(source, cellId);
+    });
+  }, [kernel.connection, markCellRunning, sendExecuteRequest]);
 
   const submitPrompt = (parentHeader: KernelMessage, inputValue: string) => {
     // Which cell the kernel is waiting on is resolved by the kernel session: the prompt itself
@@ -277,6 +312,20 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   };
 
   const submitAllCellsForExecution = useCallback(() => {
+    if (kernel.restricted) {
+      askTrust({
+        reason: 'run',
+        notebook: data.name,
+        kernel: kernel.kernelDisplayName ?? kernel.kernelName,
+        onTrusted: () =>
+          notebook.cells.forEach((cell) => {
+            if (cell.cell_type === 'code') {
+              heldRuns.current.push({ source: cell.source, cellId: cell.id });
+            }
+          }),
+      });
+      return;
+    }
     if (kernel.session) {
       notebook.cells.forEach((cell) => {
         if (cell.cell_type === 'code') {
@@ -610,7 +659,25 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           kernelName={kernel.kernelName}
           kernelDisplayName={kernel.kernelDisplayName}
           kernelStatus={kernel.kernelStatus}
+          restricted={kernel.restricted}
+          onRestricted={() => askTrust({ reason: 'open' })}
         />
+        {kernel.restricted && (
+          <div className="z-notice notebook-restricted">
+            <Icon name="shield" size={14} />
+            <p>
+              <strong>Restricted mode.</strong> You can read every file, notebook and output here;
+              nothing in this folder runs until you trust it.
+            </p>
+            <button
+              type="button"
+              className="z-button z-button-secondary z-notice-action"
+              onClick={() => askTrust({ reason: 'open' })}
+            >
+              Trust folder…
+            </button>
+          </div>
+        )}
 
         {/* The box the find card hangs off: the cells scroll inside it, and it does not, so the card
             stays under the toolbar wherever the notebook has been scrolled to. */}

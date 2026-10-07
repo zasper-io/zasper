@@ -32,6 +32,8 @@ type Application struct {
 	Version     string
 	// What /auth/login takes in exchange for a session.
 	AccessToken string
+	// --trust: the project is trusted for this run, without asking and without writing it down.
+	Trust bool
 }
 
 // NewApplication settles what a server for the project at cwd starts with.

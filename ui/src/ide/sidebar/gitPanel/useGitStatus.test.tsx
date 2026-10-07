@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useGitStatus } from './useGitStatus';
 import type { GitStatus } from '@/api';
+import { ApiError } from '@/api/client';
+import { createStore, Provider } from 'jotai';
+import { trustAskAtom } from '@/store/trust';
 
 const getGitStatus = vi.fn();
 const toastError = vi.fn();
@@ -13,6 +16,7 @@ vi.mock('@/api', async () => ({
   getGitStatus: () => getGitStatus(),
   emptyGitStatus: (await import('@/api/git')).emptyGitStatus,
   apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
+  isUntrusted: (await import('@/api/trust')).isUntrusted,
 }));
 
 vi.mock('react-toastify', () => ({
@@ -141,5 +145,22 @@ describe('useGitStatus', () => {
     // The server's own words rather than a message of the panel's.
     expect(toastError).toHaveBeenCalledWith('Please tell me who you are');
     expect(result.current.busy).toBe(false);
+  });
+
+  it('asks to trust the folder rather than toasting a write the server refused for it', async () => {
+    const store = createStore();
+    const { result } = renderHook(() => useGitStatus(false), {
+      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.run(async () => {
+        throw new ApiError('POST', '/api/git/commit', 403, '{"error":"untrusted"}');
+      });
+    });
+
+    expect(store.get(trustAskAtom)).toEqual({ reason: 'other', what: 'change this repository' });
+    expect(toastError).not.toHaveBeenCalled();
   });
 });

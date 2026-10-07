@@ -876,3 +876,14 @@ table.dataframe tbody tr:hover {
 .export-dialog-note code {
   color: var(--z-fg-default);
 }
+
+// The band over a notebook whose folder is not trusted: the notice's own shape, with the shield where an
+// error has its icon. Not an error, so no edge; the action is a whole button rather than a 20px one.
+.notebook-restricted {
+  align-items: center;
+
+  .z-notice-action {
+    height: auto;
+    padding: 2px 12px;
+  }
+}

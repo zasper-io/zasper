@@ -38,6 +38,8 @@ import {
   CornerDownLeft,
   Cpu,
   MemoryStick,
+  Shield,
+  ShieldCheck,
   Microchip,
   Download,
   Ellipsis,
@@ -209,6 +211,9 @@ export const ICONS = {
   // A kernel's memory and its GPU memory, in the status bar.
   'memory-stick': MemoryStick,
   microchip: Microchip,
+  // A folder not yet trusted, and one that is.
+  shield: Shield,
+  'shield-check': ShieldCheck,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

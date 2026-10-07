@@ -13,12 +13,28 @@ type Catalog struct {
 
 	setupMu     sync.Mutex
 	setupStatus SetupStatus
+	// Whether the project's own code may run. Until it may, its .venv is neither listed nor set up.
+	trusted func() bool
 }
 
 // NewCatalog finds kernels on jupyterPath and in the environments of the project at project.
 func NewCatalog(jupyterPath []string, project string) *Catalog {
 	k := &Catalog{jupyterPath: jupyterPath, project: project, setupStatus: SetupStatus{State: "idle"}}
-	k.candidates = func() []candidate { return defaultInterpreterCandidates(project) }
+	k.trusted = func() bool { return true }
+	k.candidates = func() []candidate { return defaultInterpreterCandidates(k.ownProject()) }
 	k.setupTools = k.findSetupTools
 	return k
+}
+
+// RequireTrust leaves the project's own environment out while trusted reports false.
+func (k *Catalog) RequireTrust(trusted func() bool) {
+	k.trusted = trusted
+}
+
+// ownProject is the project whose .venv may be listed and run, "" while it is not trusted.
+func (k *Catalog) ownProject() string {
+	if !k.trusted() {
+		return ""
+	}
+	return k.project
 }

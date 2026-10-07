@@ -105,12 +105,24 @@ carries no detail about what changed — re-read what you need. This protocol is
 deliberately minimal and may gain structure in a later 2.x release; a client
 should treat any message as "something changed".
 
+## Trust
+
+Whether the project's own code may run: its kernels, its `.venv` and language servers that build it.
+See [TRUST.md](TRUST.md).
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/trust` | `folder` (the project, absolute), `trusted`, `by` (`folder`, `parent`, `all`, `flag`, `env`, or `""` while restricted), `through` (the trusted folder that covers it), `trust_all`, `env` (`ZASPER_TRUST_ALL` is set), `folders` (each `path` and `since`), and `environment`, the project's own Python while it is restricted. |
+| `POST` | `/api/trust` | `{"path"}`: trust the project or a folder it is in. Answers the state that follows; `400` for any other folder. |
+| `DELETE` | `/api/trust` | `{"path"}`: stop trusting a folder in the list. |
+| `PUT` | `/api/trust/all` | `{"trust_all": true}` trusts every folder; `false` stops. |
+
 ## Sessions and kernels
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/sessions` | List sessions. |
-| `POST` | `/api/sessions` | Create a session, starting a kernel. |
+| `POST` | `/api/sessions` | Create a session, starting a kernel. `403` with `{"error": "untrusted"}` when it would start one in a folder that is not trusted; rejoining a running kernel is not refused. |
 | `DELETE` | `/api/sessions/{sessionId}` | End a session and stop its kernel. |
 | `GET` | `/api/kernels` | List running kernels. |
 | `GET` | `/api/kernels/resources` | What every running kernel holds, read at most once a second. `kernels` by id: `memory` (bytes, the footprint of the kernel and every process it started), `processes`, and `gpus` (`index`, `memory`) it holds memory on. `memory`: the machine's or its container's `used`, `total` and `limit` (`machine` or `container`), `null` on Windows. `gpus`: each NVIDIA device's `index`, `name`, `utilization` (percent, or `null`), `memory_used`, `memory_total`, and `unattributed`, memory held by processes the server cannot see. See [KERNEL-RESOURCES.md](KERNEL-RESOURCES.md). |
@@ -134,7 +146,7 @@ frames it displayed under those ids. One it has let go, or one from a kernel sin
 | `GET` | `/kernelspecs/{kernel}/{resource}` | A kernelspec resource, such as its logo. |
 | `GET` | `/static/kernelspecs/{kernel}/{resource}` | The same resource at Zasper's older address. |
 | `GET` | `/api/environment/setup` | State of the project `.venv` setup: `idle`, `running`, `succeeded` or `failed`, with its log. |
-| `POST` | `/api/environment/setup` | Start setting up a `.venv` with `ipykernel` in the project. `202`, or `409` if one is already running. |
+| `POST` | `/api/environment/setup` | Start setting up a `.venv` with `ipykernel` in the project. `202`, or `409` if one is already running. `403` (`untrusted`) in a folder that is not trusted. |
 | `GET` | `/api/interpreters` | The Python interpreters found, the one chosen in Settings, and the one the project would use automatically. |
 | `GET` | `/ws/kernels/{kernelId}/channels` | **WebSocket.** Jupyter wire protocol. |
 
@@ -155,7 +167,7 @@ and `done`. A client that does not know the message can ignore it. See
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/terminals` | List running terminals. |
-| `GET` | `/api/terminals/run-command` | `?path=`. The shell line that runs a project `.py` file, and the interpreter it uses: `{"command", "interpreter"}`. `400` for anything but a `.py` file. |
+| `GET` | `/api/terminals/run-command` | `?path=`. The shell line that runs a project `.py` file, and the interpreter it uses: `{"command", "interpreter"}`. `400` for anything but a `.py` file, `403` (`untrusted`) in a folder that is not trusted. |
 | `DELETE` | `/api/terminals/{terminalId}` | Kill one. |
 | `GET` | `/ws/terminals/{terminalId}` | **WebSocket.** Bytes to and from the shell. |
 
@@ -164,6 +176,10 @@ Terminals are not available on Windows yet; the WebSocket says so and closes.
 ## Git
 
 All routes act on the project directory's repository.
+
+In a folder that is not trusted, every route below that changes the repository — stage, unstage,
+discard, commit, checkout, branch delete, fetch, pull, push — answers `403` with `{"error": "untrusted"}`:
+a repository's own config can make git run commands. See [TRUST.md](TRUST.md).
 
 | Method | Path | Purpose |
 |---|---|---|

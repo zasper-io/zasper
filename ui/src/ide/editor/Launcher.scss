@@ -286,3 +286,21 @@ $launcher-gutter: 32px;
     color: var(--z-fg-subtle);
   }
 }
+
+// A restricted folder's own .venv: listed so that its absence has a reason on the page, and not pressable
+// until the folder is trusted. The shield sits at the row's end where nothing else is.
+.launcher-row.is-locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+
+  .z-icon {
+    margin-left: auto;
+  }
+}
+
+.launcher-locked-help {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}

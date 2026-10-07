@@ -32,6 +32,7 @@ import (
 
 	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/core"
+	"github.com/zasper-io/zasper/internal/kernelspec/jupyterpaths"
 	"github.com/zasper-io/zasper/internal/models"
 )
 
@@ -49,11 +50,35 @@ func testServer(t *testing.T, jupyterPath ...string) (*httptest.Server, string) 
 	t.Helper()
 	t.Parallel()
 
+	srv, project, _ := serverFor(t, true, jupyterPath...)
+	return srv, project
+}
+
+/*
+untrustedServer is a server whose project nobody has trusted, with HOME moved to a temp directory so that
+the trust list it reads and writes is the test's and not the developer's own config.json. Not parallel:
+t.Setenv forbids it.
+*/
+func untrustedServer(t *testing.T) (*httptest.Server, string) {
+	t.Helper()
+	// Found before HOME moves, since that is where they are found from.
+	jupyterPath := jupyterpaths.Dirs()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ZASPER_TRUST_ALL", "")
+	srv, project, _ := serverFor(t, false, jupyterPath...)
+	return srv, project
+}
+
+// serverFor starts a server on a fresh project, trusted for the run as --trust would when trusted is set.
+func serverFor(t *testing.T, trusted bool, jupyterPath ...string) (*httptest.Server, string, *Server) {
+	t.Helper()
+
 	project := filepath.Join(t.TempDir(), "project")
 	require.NoError(t, os.MkdirAll(project, 0o755))
 
 	app := core.NewApplication("test", project)
 	app.JupyterPath = append(jupyterPath, app.JupyterPath...)
+	app.Trust = trusted
 	s := New(app)
 
 	srv := httptest.NewServer(signedIn(t, s))
@@ -68,7 +93,7 @@ func testServer(t *testing.T, jupyterPath ...string) (*httptest.Server, string) 
 		srv.Close()
 	})
 
-	return srv, project
+	return srv, project, s
 }
 
 /*

@@ -18,6 +18,7 @@ import { Kernelspec, kernelspecsAtom, kernelspecsStatusAtom } from '@/store/kern
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
 import { folderOf, recentFilesAtom } from '@/store/recentFiles';
 import { useTabActions } from '@/store/tabActions';
+import { trustAtom, useAskTrust } from '@/store/trust';
 import { fileTabsAtom } from '@/store/tabState';
 import { useKernelspecActions } from '@/store/kernelspecActions';
 import ConfirmShutdownDialog from '@/ide/sidebar/jupyterInfoPanel/ConfirmShutdownDialog';
@@ -62,6 +63,12 @@ function markFor(spec: Kernelspec): string {
   return MARKS[language] ?? (language || spec.name).slice(0, 2);
 }
 
+/** path as it reads from inside folder: `.venv/bin/python3`, or path itself when it is elsewhere. */
+function relativeTo(folder: string, path: string): string {
+  const prefix = folder.endsWith('/') ? folder : `${folder}/`;
+  return path.startsWith(prefix) ? path.slice(prefix.length) : path;
+}
+
 /** The groups the kernels are drawn in, in this order; a group with nothing in it is not drawn. */
 interface KernelGroup {
   label: string;
@@ -101,6 +108,14 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
   // The project's own environment first, then the Pythons, then a group for everything else: ten
   // kernelspecs is an ordinary laptop, and one to a line they run past the foot of the pane.
   const groups = useMemo(() => groupKernels(kernelspecs), [kernelspecs]);
+  // A restricted folder's own .venv is not offered by the server, and is shown locked here so that the
+  // reason it is missing is on the page: see docs/TRUST.md.
+  const trust = useAtomValue(trustAtom);
+  const askTrust = useAskTrust();
+  const lockedEnvironment =
+    trust !== null && !trust.trusted && trust.environment
+      ? relativeTo(trust.folder, trust.environment)
+      : undefined;
 
   const createNewNotebook = async (path: string, contentType: ContentType, kernelspec: string) => {
     const created = await createContent(path, contentType);
@@ -121,29 +136,54 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
               </p>
             ) : status === 'failed' ? (
               <KernelspecsUnavailable onRetry={loadKernelspecs} />
-            ) : groups.length > 0 ? (
-              groups.map((group) => (
-                <React.Fragment key={group.label}>
-                  <div className="z-label launcher-group">{group.label}</div>
-                  <div className="launcher-rows">
-                    {group.names.map((name) => (
+            ) : groups.length > 0 || lockedEnvironment ? (
+              <>
+                {lockedEnvironment && (
+                  <>
+                    <div className="z-label launcher-group">This project</div>
+                    <div className="launcher-rows">
+                      <button type="button" className="launcher-row is-project is-locked" disabled>
+                        <span className="launcher-row-label">{lockedEnvironment}</span>
+                        <Icon name="shield" size={12} />
+                      </button>
+                    </div>
+                    <p className="z-form-help launcher-locked-help">
+                      The folder&apos;s own interpreter starts once the folder is trusted.
                       <button
                         type="button"
-                        className={
-                          name === PROJECT_KERNEL_NAME ? 'launcher-row is-project' : 'launcher-row'
-                        }
-                        key={name}
-                        onClick={() => createNewNotebook('', 'notebook', kernelspecs[name].name)}
+                        className="z-button z-button-secondary"
+                        onClick={() => askTrust({ reason: 'open' })}
                       >
-                        <KernelArt spec={kernelspecs[name]} />
-                        <span className="launcher-row-label">
-                          {kernelspecs[name].spec.display_name}
-                        </span>
+                        Trust folder…
                       </button>
-                    ))}
-                  </div>
-                </React.Fragment>
-              ))
+                    </p>
+                  </>
+                )}
+                {groups.map((group) => (
+                  <React.Fragment key={group.label}>
+                    <div className="z-label launcher-group">{group.label}</div>
+                    <div className="launcher-rows">
+                      {group.names.map((name) => (
+                        <button
+                          type="button"
+                          className={
+                            name === PROJECT_KERNEL_NAME
+                              ? 'launcher-row is-project'
+                              : 'launcher-row'
+                          }
+                          key={name}
+                          onClick={() => createNewNotebook('', 'notebook', kernelspecs[name].name)}
+                        >
+                          <KernelArt spec={kernelspecs[name]} />
+                          <span className="launcher-row-label">
+                            {kernelspecs[name].spec.display_name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </>
             ) : (
               <NoKernelsFound onRetry={loadKernelspecs} />
             )}

@@ -20,6 +20,9 @@ interface NbButtonsProps {
   /** The kernelspec's own name for itself, when the specs have been read. */
   kernelDisplayName?: string;
   kernelStatus: string;
+  /** No kernel, because the folder is not trusted: the pill says so, and opens the trust question. */
+  restricted?: boolean;
+  onRestricted?: () => void;
 }
 
 /**
@@ -152,15 +155,27 @@ function NbButtons(props: NbButtonsProps) {
           `Python 3 (ipykernel)` is what the kernel calls itself, which is the name every other
           Jupyter front end shows. It falls back to the id, because the specs are a separate request
           and this readout must not be blank while it is in flight. */}
-      <button
-        className="kernel-pill"
-        onClick={() => props.run('notebook:change-kernel')}
-        {...kernelTip.anchorProps}
-      >
-        <span className={`kernelStatus ks-${props.kernelStatus}`} />
-        {props.kernelDisplayName ?? props.kernelName}
-      </button>
-      <Tooltip tip={kernelTip} label="Change Kernel" />
+      {props.restricted ? (
+        <button className="kernel-pill" onClick={props.onRestricted} {...kernelTip.anchorProps}>
+          <Icon name="shield" size={12} />
+          Restricted
+        </button>
+      ) : (
+        <button
+          className="kernel-pill"
+          onClick={() => props.run('notebook:change-kernel')}
+          {...kernelTip.anchorProps}
+        >
+          <span className={`kernelStatus ks-${props.kernelStatus}`} />
+          {props.kernelDisplayName ?? props.kernelName}
+        </button>
+      )}
+      <Tooltip
+        tip={kernelTip}
+        label={
+          props.restricted ? "This folder's code does not run until you trust it" : 'Change Kernel'
+        }
+      />
       <IconButton
         icon="plug-zap"
         label="Reconnect Kernel"

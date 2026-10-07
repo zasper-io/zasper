@@ -8,6 +8,7 @@ import (
 
 	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/kernelspec"
+	"github.com/zasper-io/zasper/internal/trust"
 )
 
 // RunCommand is the line a terminal is given to run a file, and the interpreter in it.
@@ -46,6 +47,9 @@ func needsQuoting(r rune) bool {
 
 // RunCommandHandler answers GET /api/terminals/run-command?path=, for a Python file in the project.
 func (ts *Terminals) RunCommandHandler(w http.ResponseWriter, req *http.Request) {
+	if ts.allowRun != nil && trust.Refused(w, ts.allowRun()) {
+		return
+	}
 	relativePath := req.URL.Query().Get("path")
 	osPath := ts.project.SafePath(relativePath)
 	if osPath == "" {

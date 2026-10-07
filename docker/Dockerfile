@@ -37,6 +37,9 @@ EXPOSE 8048
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8048/api/health', timeout=4)"
 
+# The folder a container serves is its user's own, so every folder is trusted: see docs/TRUST.md.
+ENV ZASPER_TRUST_ALL=1
+
 # --host 0.0.0.0 because a server bound to loopback inside a container is unreachable from the host.
 # Every route still needs the access token, which `docker logs` shows on the startup line.
 CMD ["zasper", "--host=0.0.0.0"]

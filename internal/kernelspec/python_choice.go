@@ -89,7 +89,7 @@ func (k *Catalog) Interpreters() []PythonInstall {
 func (k *Catalog) InterpretersHandler(w http.ResponseWriter, req *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, InterpreterChoice{
 		Chosen:       config.GetPythonInterpreter(),
-		Automatic:    ProjectPython(k.project),
+		Automatic:    ProjectPython(k.ownProject()),
 		Interpreters: k.Interpreters(),
 	})
 }

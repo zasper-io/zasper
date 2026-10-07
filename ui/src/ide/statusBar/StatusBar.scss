@@ -125,7 +125,8 @@
   }
 
   &.is-missing,
-  &.is-off {
+  &.is-off,
+  &.is-restricted {
     background: none;
     box-shadow: inset 0 0 0 1.5px currentColor;
   }

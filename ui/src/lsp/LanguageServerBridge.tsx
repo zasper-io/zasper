@@ -8,6 +8,7 @@ import { languageServerListAtom, problemsAtom, serverStatusAtom } from '@/store/
 import { interpreterChoiceAtom } from '@/store/interpreters';
 import { kernelspecsAtom } from '@/store/kernels';
 import { projectDirAtom } from '@/store/serverInfo';
+import { trustAtom } from '@/store/trust';
 import { useTabActions } from '@/store/tabActions';
 import {
   configurationChanged,
@@ -29,6 +30,8 @@ export default function LanguageServerBridge() {
   const setStatus = useSetAtom(serverStatusAtom);
   const setProblems = useSetAtom(problemsAtom);
   const setList = useSetAtom(languageServerListAtom);
+  // Which servers may start changes with it, so the list is read again when it does.
+  const trusted = useAtomValue(trustAtom)?.trusted;
   const { openTab } = useTabActions();
 
   useEffect(
@@ -76,7 +79,7 @@ export default function LanguageServerBridge() {
         .then(setInterpreterChoice)
         .catch(logApiError('Error listing Python interpreters:'));
     }
-  }, [root, setInterpreterChoice]);
+  }, [root, setInterpreterChoice, trusted]);
 
   useEffect(() => {
     if (root !== '') {
@@ -89,7 +92,7 @@ export default function LanguageServerBridge() {
         })
         .catch(logApiError('Error listing language servers:'));
     }
-  }, [root, setList]);
+  }, [root, setList, trusted]);
 
   return null;
 }

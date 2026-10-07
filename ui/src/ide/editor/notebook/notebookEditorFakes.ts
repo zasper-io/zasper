@@ -28,7 +28,10 @@ export const getKernel = vi.fn();
 
 export async function apiModule() {
   const client = await import('@/api/client');
+  const trust = await import('@/api/trust');
   return {
+    // Not stubbed: it reads an ApiError, which is what a test rejects with.
+    isUntrusted: trust.isUntrusted,
     // Not stubbed: the real one only builds a URL, and the socket it is handed to is mocked anyway.
     websocketUrl: client.websocketUrl,
     getNotebook: (path: string) => getNotebook(path),

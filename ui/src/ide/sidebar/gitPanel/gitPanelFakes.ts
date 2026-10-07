@@ -46,6 +46,7 @@ export async function apiModule() {
     logApiError: () => () => {},
     emptyGitStatus: (await import('@/api/git')).emptyGitStatus,
     apiErrorMessage: client.apiErrorMessage,
+    isUntrusted: (await import('@/api/trust')).isUntrusted,
   };
 }
 

@@ -30,6 +30,7 @@ func main() {
 	checkUpdate := flag.Bool("check-update", false, "ask zasper.io for the newest version and exit: 0 when up to date, 1 when there is a newer one, 2 when the check failed")
 	noBrowser := flag.Bool("no-browser", false, "do not open the app in a browser on startup")
 	allowHost := flag.String("allow-host", "", "other host names a server on loopback answers to, comma-separated, such as a reverse proxy's")
+	trustFolder := flag.Bool("trust", false, "trust the project folder for this run: its kernels, .venv and language servers start without asking")
 
 	flag.Parse()
 
@@ -68,7 +69,7 @@ func main() {
 
 	// Bind before announcing, so that a port that is already taken is the only thing printed.
 	address := listenAddress(*host, *port)
-	zasper, err := startServer(*cwd, []string{address}, resolveTracking(*tracking), allowedHosts)
+	zasper, err := startServer(*cwd, []string{address}, resolveTracking(*tracking), allowedHosts, *trustFolder)
 	if err != nil {
 		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/models"
+	"github.com/zasper-io/zasper/internal/trust"
 )
 
 // ListHandler answers every running session.
@@ -26,6 +27,9 @@ func (s *Sessions) CreateHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	session, err := s.Create(body)
+	if trust.Refused(w, err) {
+		return
+	}
 	if errors.Is(err, kernelspec.ErrKernelspecNotFound) {
 		httpx.SendErrorResponse(w, http.StatusNotFound, "Failed to create session: "+err.Error())
 		return

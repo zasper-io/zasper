@@ -39,6 +39,11 @@ gives the command to install one.
 The counts beside it are the problems in the project; pressing them opens the Problems panel under
 the editor.
 
+In a folder that is not trusted, only basedpyright, pyright and clangd start, because they read code
+without running it, and they are found outside the folder: its `.venv` and `node_modules` are not
+looked in. Every other server says *off in restricted mode*, and its menu asks to trust the folder.
+See [TRUST.md](TRUST.md).
+
 ## How a problem is shown
 
 An error or a warning is a squiggle under the code in the severity's colour, a mark in the gutter

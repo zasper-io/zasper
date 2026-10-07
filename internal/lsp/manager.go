@@ -25,6 +25,7 @@ const (
 	closeTurnedOff    = 4001
 	closeNotInstalled = 4002
 	closeExited       = 4003
+	closeRestricted   = 4004
 )
 
 // How much of a server's standard error is kept for Show log.
@@ -65,10 +66,24 @@ func (b *logBuffer) String() string {
 type Manager struct {
 	finder   finder
 	settings func() config.LanguageServerSettings
+	// Whether the project is trusted. Until it is, servers that run project code stay off.
+	trusted func() bool
 
 	mu      sync.Mutex
 	running map[*exec.Cmd]struct{}
 	logs    map[string]*logBuffer
+}
+
+// RequireTrust makes the manager restricted while trusted reports false.
+func (m *Manager) RequireTrust(trusted func() bool) {
+	m.trusted = trusted
+}
+
+// finderNow is the finder as the project's trust stands at this moment.
+func (m *Manager) finderNow() finder {
+	f := m.finder
+	f.restricted = !m.trusted()
+	return f
 }
 
 // New answers a manager for the project at root.
@@ -83,6 +98,7 @@ func New(root string) *Manager {
 			system:   systemFolders,
 		},
 		settings: config.GetLanguageServerSettings,
+		trusted:  func() bool { return true },
 		running:  map[*exec.Cmd]struct{}{},
 		logs:     map[string]*logBuffer{},
 	}
@@ -108,13 +124,14 @@ type ServerList struct {
 // Servers answers, for every language, which server would be started and whether it is installed.
 func (m *Manager) Servers(w http.ResponseWriter, r *http.Request) {
 	settings := m.settings()
+	finder := m.finderNow()
 	list := ServerList{
 		Enabled:      !settings.Disabled,
 		Servers:      []Resolved{},
 		TypeChecking: settings.TypeChecking,
 	}
 	for _, language := range Languages {
-		list.Servers = append(list.Servers, m.finder.resolve(language, settings))
+		list.Servers = append(list.Servers, finder.resolve(language, settings))
 	}
 	httpx.SendJSON(w, http.StatusOK, list)
 }
@@ -160,7 +177,12 @@ func (m *Manager) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		closeWith(conn, closeTurnedOff, "Language servers are turned off in Settings.")
 		return
 	}
-	resolved := m.finder.resolve(language, settings)
+	finder := m.finderNow()
+	resolved := finder.resolve(language, settings)
+	if resolved.Restricted {
+		closeWith(conn, closeRestricted, resolved.Server+" is off until this folder is trusted.")
+		return
+	}
 	if !resolved.Found {
 		closeWith(conn, closeNotInstalled, resolved.Server+" is not installed.")
 		return
@@ -170,8 +192,8 @@ func (m *Manager) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(logs, "[zasper] starting %s\n", strings.Join(resolved.argv, " "))
 
 	cmd := exec.Command(resolved.argv[0], resolved.argv[1:]...)
-	cmd.Dir = m.finder.root
-	cmd.Env = m.finder.env()
+	cmd.Dir = finder.root
+	cmd.Env = finder.env()
 	cmd.Stderr = logs
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

@@ -11,6 +11,7 @@ import {
   serverStatusAtom,
 } from '@/store/languageServers';
 import { useTabActions } from '@/store/tabActions';
+import { useAskTrust } from '@/store/trust';
 import { MenuAction, MenuGroup, StatusPicker } from './StatusMenu';
 
 const STATE_WORDS: Record<ServerState, string> = {
@@ -19,6 +20,7 @@ const STATE_WORDS: Record<ServerState, string> = {
   failed: 'failed',
   missing: 'not installed',
   off: 'stopped',
+  restricted: 'off in restricted mode',
 };
 
 interface LanguageServerStatusProps {
@@ -37,6 +39,7 @@ export default function LanguageServerStatus({ fileName, server }: LanguageServe
   const interpreters = useAtomValue(serverInterpretersAtom);
   const list = useAtomValue(languageServerListAtom);
   const { openSettings, openLanguageServerLog } = useTabActions();
+  const askTrust = useAskTrust();
 
   const language = server === undefined ? serverLanguageFor(fileName) : { server };
   if (language === null || list === null || !list.enabled) {
@@ -46,6 +49,39 @@ export default function LanguageServerStatus({ fileName, server }: LanguageServe
   const status = statuses[language.server];
   if (info === undefined) {
     return null;
+  }
+
+  // A server that runs project code, in a folder that is not trusted: off until it is, and the menu is
+  // the way to the question.
+  if (status?.state === 'restricted' || (status === undefined && info.restricted === true)) {
+    return (
+      <StatusPicker
+        label={
+          <>
+            <span className="serverDot is-restricted" /> {info.server}
+          </>
+        }
+        spokenLabel={`Language server ${info.server}, off in restricted mode`}
+      >
+        {(close) => (
+          <>
+            <MenuGroup label={info.server} />
+            <li className="serverMenuNote" role="presentation">
+              Off in restricted mode: {info.server} runs code from the project, so it starts once
+              this folder is trusted.
+            </li>
+            <MenuAction
+              label="Trust folder…"
+              icon="shield"
+              onSelect={() => {
+                close();
+                askTrust({ reason: 'other', what: `start ${info.server}` });
+              }}
+            />
+          </>
+        )}
+      </StatusPicker>
+    );
   }
 
   if (status?.state === 'missing' || (status === undefined && !info.found)) {

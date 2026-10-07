@@ -17,4 +17,5 @@ export * from './notebook';
 export * from './search';
 export * from './sessions';
 export * from './terminals';
+export * from './trust';
 export * from './updates';

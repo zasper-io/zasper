@@ -15,6 +15,14 @@ type Terminals struct {
 	sessions store.Map[string, *Session]
 	// Counts the sessions handed out, which is what makes their ids unique.
 	sessionSeq atomic.Uint64
+	// Refuses to run a project's file while the project is not trusted. Nil runs it.
+	allowRun func() error
+}
+
+// RequireTrust refuses Run Python File while check refuses. A terminal is not refused: what is typed
+// into one is asked for.
+func (ts *Terminals) RequireTrust(check func() error) {
+	ts.allowRun = check
 }
 
 // New starts with no shells running.

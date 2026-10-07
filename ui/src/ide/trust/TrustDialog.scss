@@ -1,0 +1,40 @@
+// The trust question. The dialog is ConfirmDialog's; this is the few lines it says differently.
+.trustTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trustDialog {
+  max-width: 480px;
+  // The dialogs' own inset, as .update-kernel-popup gives every other question.
+  padding: 16px 16px 0;
+
+  p {
+    margin: 0 0 10px;
+  }
+
+  code {
+    font-family: var(--z-mono-font-family);
+    font-size: var(--z-ui-font-size-sm);
+  }
+}
+
+// Which folder, on a line of its own: the one fact the answer is about.
+.trustPath code {
+  overflow-wrap: anywhere;
+}
+
+.trustParent {
+  align-items: flex-start;
+  margin-top: 4px;
+
+  // The box sits on the first line of a label long enough to wrap: a parent's path can be.
+  input {
+    margin-top: 2px;
+  }
+
+  code {
+    overflow-wrap: anywhere;
+  }
+}

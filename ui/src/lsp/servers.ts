@@ -22,6 +22,7 @@ import { versionOf } from './serverInfo';
 import {
   CLOSE_EXITED,
   CLOSE_NOT_INSTALLED,
+  CLOSE_RESTRICTED,
   CLOSE_TURNED_OFF,
   openSocketTransport,
   SocketTransport,
@@ -535,6 +536,10 @@ function closed(
     setStatus(connection, { ...connection.status, state: 'off', message: reason });
     return;
   }
+  if (code === CLOSE_RESTRICTED) {
+    setStatus(connection, { ...connection.status, state: 'restricted', message: reason });
+    return;
+  }
   if (code === CLOSE_NOT_INSTALLED) {
     setStatus(connection, { ...connection.status, state: 'missing', message: reason });
     return;
@@ -700,6 +705,15 @@ export function restartLanguageServer(server: string): void {
       void connect(connection);
     }
   }, 50);
+}
+
+/** Starts again every server the folder's trust kept off, once it is trusted. */
+export function restartRestrictedLanguageServers(): void {
+  connections.forEach((connection, server) => {
+    if (connection.status.state === 'restricted') {
+      restartLanguageServer(server);
+    }
+  });
 }
 
 export function stopLanguageServer(server: string): void {

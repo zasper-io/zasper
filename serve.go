@@ -38,11 +38,12 @@ startServer binds the first of addresses it can and serves the app for the proje
 It returns once the listener is bound, not once the first request is served: a request that arrives
 before Serve is running waits in the listener's backlog, so the caller can open a page straight away.
 */
-func startServer(cwd string, addresses []string, tracking bool, allowedHosts []string) (*zasperServer, error) {
+func startServer(cwd string, addresses []string, tracking bool, allowedHosts []string, trustProject bool) (*zasperServer, error) {
 	// Before anything writes config.json, which is how a first run is told from an upgrade.
 	updates.MarkFirstRun(version)
 
 	app := core.NewApplication(version, cwd)
+	app.Trust = trustProject
 	zasper := server.New(app)
 	checker := newUpdateChecker()
 	zasper.UseUpdates(checker)

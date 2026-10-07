@@ -24,6 +24,8 @@ import JupyterInfoPanel from './sidebar/jupyterInfoPanel/JupyterInfoPanel';
 import SearchPanel from './sidebar/searchPanel/SearchPanel';
 import EditorDock from './editor/EditorDock';
 import LanguageServerBridge from '../lsp/LanguageServerBridge';
+import TrustController from './trust/TrustController';
+import TrustDialog from './trust/TrustDialog';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
@@ -263,6 +265,8 @@ function IDE() {
       <SessionEndedNotice />
       <ServerDisconnectedDialog />
       <LanguageServerBridge />
+      <TrustController />
+      <TrustDialog />
       <div className="editor-container">
         {/* Outside the resizable group, so hiding the sidebar leaves the rail — and the way back —
             on screen. The activity bar reads the same state it writes, so its highlight and the

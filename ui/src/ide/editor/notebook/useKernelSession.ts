@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import {
   apiErrorMessage,
   createSession,
   deleteSession,
   interruptKernel,
+  isUntrusted,
   NotebookMetadata,
   Session,
   sessionForPath,
 } from '@/api';
 import { finishedRunsAtom, kernelspecsAtom, notebookKernelMapAtom } from '@/store/kernels';
 import { userNameAtom } from '@/store/serverInfo';
+import { trustAtom } from '@/store/trust';
 import { FileTab } from '@/store/tabState';
 import { WidgetBridge } from '@/ide/widgets/widgetBridge';
 
@@ -44,6 +46,12 @@ export function useKernelSession(
    * in a dialog of its own: a failure and "choose a kernel" are the same moment.
    */
   const [kernelError, setKernelError] = useState<string>('');
+  /*
+   * The kernel this tab would have started, held back because the folder is not trusted. It starts once the
+   * folder is: see docs/TRUST.md. Null when nothing is held back.
+   */
+  const [restrictedKernel, setRestrictedKernel] = useState<string | null>(null);
+  const trusted = useAtomValue(trustAtom)?.trusted === true;
   const [notebookKernelMap, setNotebookKernelMap] = useAtom(notebookKernelMapAtom);
   const [userName] = useAtom(userNameAtom);
   const [kernelspecs] = useAtom(kernelspecsAtom);
@@ -160,8 +168,10 @@ export function useKernelSession(
         return data;
       } catch (error: unknown) {
         // Recorded rather than shown: the caller decides what to raise, and the only useful thing to
-        // raise is the picker.
-        setKernelError(apiErrorMessage(error));
+        // raise is the picker. A folder that is not trusted is not a failure, and raises neither.
+        if (!isUntrusted(error)) {
+          setKernelError(apiErrorMessage(error));
+        }
         throw error;
       }
     },
@@ -172,6 +182,10 @@ export function useKernelSession(
   const startTabSession = useCallback(
     (kernelspec: string) => {
       startSession(tab.path, tab.name, tab.type, kernelspec).catch((error) => {
+        if (isUntrusted(error)) {
+          setRestrictedKernel(kernelspec);
+          return;
+        }
         console.error('Failed to start session:', error);
         setShowKernelSwitcher(true);
       });
@@ -198,6 +212,15 @@ export function useKernelSession(
     },
     [startTabSession, tab.kernelspec, tab.path]
   );
+
+  // Trusting the folder starts the kernel restricted mode held back.
+  useEffect(() => {
+    if (trusted && restrictedKernel !== null) {
+      const kernelspec = restrictedKernel;
+      setRestrictedKernel(null);
+      startTabSession(kernelspec);
+    }
+  }, [trusted, restrictedKernel, startTabSession]);
 
   /** Moves this notebook to another kernel, ending the session it was on first. */
   const changeKernel = async (value: string) => {
@@ -278,6 +301,8 @@ export function useKernelSession(
     showKernelSwitcher,
     toggleKernelSwitcher,
     kernelError,
+    /** No kernel, because the folder is not trusted. */
+    restricted: restrictedKernel !== null,
     showPrompt: prompt.showPrompt,
     promptContent: prompt.promptContent,
     promptCellId: prompt.promptCellId,

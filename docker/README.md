@@ -20,7 +20,8 @@ docker compose logs zasper
 
 The startup line in the log carries the access token. Zasper is published on `127.0.0.1:8048`;
 change the mapping in `docker-compose.yml` to `"8048:8048"` to reach it from other machines.
-Notebooks go in `./workspace`, which is mounted as the project.
+Notebooks go in `./workspace`, which is mounted as the project. The image sets `ZASPER_TRUST_ALL=1`,
+so that folder is trusted without asking: see [docs/TRUST.md](../docs/TRUST.md).
 
 ## Without Compose
 

@@ -20,6 +20,7 @@ import InterpreterStatus from './InterpreterStatus';
 import LanguageServerStatus from './LanguageServerStatus';
 import LanguageStatus from './LanguageStatus';
 import ProblemCounts from './ProblemCounts';
+import RestrictedStatus from '@/ide/trust/RestrictedStatus';
 import UpdateStatus from './UpdateStatus';
 import ZoomStatus from './ZoomStatus';
 
@@ -85,6 +86,8 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
   return (
     <div className="statusBar">
       <div className="leftStatus">
+        {/* First: it is what this window is, before anything in it. */}
+        <RestrictedStatus />
         {/* Inert text until now. It is the one place the branch is always visible, so it is where people
             press to change it — the panel it opens is where the branch list lives. */}
         {branchName && (

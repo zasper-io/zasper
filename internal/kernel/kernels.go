@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/zasper-io/zasper/internal/kernelspec"
-	"github.com/zasper-io/zasper/internal/resources"
 	"github.com/zasper-io/zasper/internal/models"
+	"github.com/zasper-io/zasper/internal/resources"
 	"github.com/zasper-io/zasper/internal/store"
 )
 
@@ -26,11 +26,18 @@ type Kernels struct {
 	runFinishedHandlers []func(kernelId string, run Run)
 	// Reads what each kernel holds, for /api/kernels/resources.
 	resources *resources.Sampler
+	// Refuses a start in a folder that is not trusted. Nil starts anything.
+	allowStart func() error
 }
 
 // New starts kernels from the kernelspecs in specs.
 func New(specs *kernelspec.Catalog) *Kernels {
 	return &Kernels{specs: specs, resources: resources.NewSampler()}
+}
+
+// RequireTrust refuses every start that check refuses. A kernel already running is left to run.
+func (k *Kernels) RequireTrust(check func() error) {
+	k.allowStart = check
 }
 
 // Get answers the manager for a running kernel.
@@ -73,6 +80,11 @@ var ErrKernelNotFound = errors.New("kernel not found")
 
 // Start starts a kernel in dir, with env set for it on top of its kernelspec's own, and answers its id.
 func (k *Kernels) Start(dir string, kernelName string, env map[string]string) (string, error) {
+	if k.allowStart != nil {
+		if err := k.allowStart(); err != nil {
+			return "", err
+		}
+	}
 	kernelId := uuid.New().String()
 
 	km := newKernelManager(kernelName, kernelId)

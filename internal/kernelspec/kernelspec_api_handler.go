@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/zasper-io/zasper/internal/httpx"
+	"github.com/zasper-io/zasper/internal/trust"
 )
 
 // ResourceHandler serves one of a kernel's own files, such as its logo.
@@ -109,6 +110,10 @@ func defaultKernelName(specs map[string]KspecData) string {
 // SetupHandler starts setting up the project's .venv: 202 with the job's state when it
 // starts, 409 with it when one is already running.
 func (k *Catalog) SetupHandler(w http.ResponseWriter, req *http.Request) {
+	if !k.trusted() {
+		trust.Refused(w, trust.ErrUntrusted)
+		return
+	}
 	status := http.StatusAccepted
 	if err := k.StartSetup(k.project); errors.Is(err, ErrSetupRunning) {
 		status = http.StatusConflict

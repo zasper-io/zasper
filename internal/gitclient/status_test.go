@@ -278,3 +278,25 @@ func TestAPathIsConfinedToTheRepository(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "gone.txt", got)
 }
+
+// A repository someone handed over can carry a hook in .git/hooks. Until the project is trusted a commit
+// does not run it.
+func TestAnUntrustedProjectsCommitRunsNoHook(t *testing.T) {
+	dir := projectRepo(t)
+	marker := filepath.Join(t.TempDir(), "hook-ran")
+	hook := filepath.Join(dir, ".git", "hooks", "pre-commit")
+	require.NoError(t, os.MkdirAll(filepath.Dir(hook), 0o755))
+	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ntouch '"+marker+"'\n"), 0o755))
+
+	trusted := false
+	NewHandler(dir).RequireTrust(func() bool { return trusted })
+
+	_, err := run(t.Context(), dir, "commit", "--allow-empty", "-m", "first")
+	require.NoError(t, err)
+	assert.NoFileExists(t, marker, "the hook ran in a project that is not trusted")
+
+	trusted = true
+	_, err = run(t.Context(), dir, "commit", "--allow-empty", "-m", "second")
+	require.NoError(t, err)
+	assert.FileExists(t, marker, "a trusted project's hooks run, as git runs them")
+}

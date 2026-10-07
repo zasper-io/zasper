@@ -148,6 +148,12 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/search/replace", s.search.Replace).Methods("POST")
 	apiRouter.HandleFunc("/search/buffer", s.search.Buffer).Methods("POST")
 
+	// trust: whether the project's code may run, and the folders that may
+	apiRouter.HandleFunc("/trust", s.trust.StateHandler).Methods("GET")
+	apiRouter.HandleFunc("/trust", s.trust.TrustHandler).Methods("POST")
+	apiRouter.HandleFunc("/trust", s.trust.ForgetHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/trust/all", s.trust.TrustAllHandler).Methods("PUT")
+
 	// language servers
 	apiRouter.HandleFunc("/lsp/servers", s.languages.Servers).Methods("GET")
 	apiRouter.HandleFunc("/lsp/log", s.languages.Log).Methods("GET")
@@ -157,16 +163,19 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/git/log", s.git.Log).Methods("GET")
 	apiRouter.HandleFunc("/git/commit/{hash}", s.git.CommitDetail).Methods("GET")
 	apiRouter.HandleFunc("/git/diff", s.git.Diff).Methods("GET")
-	apiRouter.HandleFunc("/git/stage", gitclient.Tracked("stage", s.git.Stage)).Methods("POST")
-	apiRouter.HandleFunc("/git/unstage", gitclient.Tracked("unstage", s.git.Unstage)).Methods("POST")
-	apiRouter.HandleFunc("/git/discard", gitclient.Tracked("discard", s.git.Discard)).Methods("POST")
-	apiRouter.HandleFunc("/git/commit", gitclient.Tracked("commit", s.git.Commit)).Methods("POST")
+	// Everything that changes the repository asks first in a folder that is not trusted: a repository's
+	// own .git/config can make git run commands — hooks, filters, credential helpers, a signing program —
+	// and git has no switch that ignores it. Reading stays open. See docs/TRUST.md.
+	apiRouter.HandleFunc("/git/stage", gitclient.Tracked("stage", s.trust.Require(s.git.Stage))).Methods("POST")
+	apiRouter.HandleFunc("/git/unstage", gitclient.Tracked("unstage", s.trust.Require(s.git.Unstage))).Methods("POST")
+	apiRouter.HandleFunc("/git/discard", gitclient.Tracked("discard", s.trust.Require(s.git.Discard))).Methods("POST")
+	apiRouter.HandleFunc("/git/commit", gitclient.Tracked("commit", s.trust.Require(s.git.Commit))).Methods("POST")
 	apiRouter.HandleFunc("/git/branches", s.git.Branches).Methods("GET")
-	apiRouter.HandleFunc("/git/branches", gitclient.Tracked("branch_delete", s.git.DeleteBranch)).Methods("DELETE")
-	apiRouter.HandleFunc("/git/checkout", gitclient.Tracked("checkout", s.git.Checkout)).Methods("POST")
-	apiRouter.HandleFunc("/git/fetch", gitclient.Tracked("fetch", s.git.Fetch)).Methods("POST")
-	apiRouter.HandleFunc("/git/pull", gitclient.Tracked("pull", s.git.Pull)).Methods("POST")
-	apiRouter.HandleFunc("/git/push", gitclient.Tracked("push", s.git.Push)).Methods("POST")
+	apiRouter.HandleFunc("/git/branches", gitclient.Tracked("branch_delete", s.trust.Require(s.git.DeleteBranch))).Methods("DELETE")
+	apiRouter.HandleFunc("/git/checkout", gitclient.Tracked("checkout", s.trust.Require(s.git.Checkout))).Methods("POST")
+	apiRouter.HandleFunc("/git/fetch", gitclient.Tracked("fetch", s.trust.Require(s.git.Fetch))).Methods("POST")
+	apiRouter.HandleFunc("/git/pull", gitclient.Tracked("pull", s.trust.Require(s.git.Pull))).Methods("POST")
+	apiRouter.HandleFunc("/git/push", gitclient.Tracked("push", s.trust.Require(s.git.Push))).Methods("POST")
 	apiRouter.HandleFunc("/git/init", gitclient.Tracked("init", s.git.Init)).Methods("POST")
 	// The status bar wants one string on boot and nothing else, so it keeps an endpoint of its own
 	// rather than reading a whole status.

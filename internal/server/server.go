@@ -14,6 +14,7 @@ import (
 	"github.com/zasper-io/zasper/internal/search"
 	"github.com/zasper-io/zasper/internal/session"
 	"github.com/zasper-io/zasper/internal/terminal"
+	"github.com/zasper-io/zasper/internal/trust"
 	"github.com/zasper-io/zasper/internal/updates"
 )
 
@@ -31,6 +32,7 @@ type Server struct {
 	terminals     *terminal.Terminals
 	languages     *lsp.Manager
 	updates       *updates.Checker
+	trust         *trust.Gate
 }
 
 // New builds the server for app, and connects the parts that cannot import each other.
@@ -52,7 +54,17 @@ func New(app core.Application) *Server {
 		kernelSockets: kernelws.NewHandler(kernels, sessions),
 		terminals:     terminal.New(project),
 		languages:     lsp.New(project.Root()),
+		trust:         trust.New(project.Root(), app.Trust),
 	}
+
+	// Until the project is trusted nothing it controls runs: see docs/TRUST.md.
+	gate := s.trust
+	gate.DescribeEnvironment(func() string { return kernelspec.ProjectPython(project.Root()) })
+	kernels.RequireTrust(gate.Check)
+	specs.RequireTrust(gate.Trusted)
+	s.terminals.RequireTrust(gate.Check)
+	s.languages.RequireTrust(gate.Trusted)
+	s.git.RequireTrust(gate.Trusted)
 
 	// A stopped kernel takes its sessions and its notebooks' sockets with it. Sessions go first, so that a
 	// client told its socket has closed finds no session left to rejoin.

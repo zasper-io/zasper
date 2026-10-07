@@ -27,6 +27,9 @@ type Server struct {
 	// What has to be installed besides the program that is found: R and Julia are found by their runtime,
 	// and the runtime alone serves nothing.
 	Needs string
+	// ReadsOnly is a server that reads a project's code without running any of it, so it starts in a
+	// folder that is not trusted. gopls runs `go list`, rust-analyzer builds, R sources .Rprofile.
+	ReadsOnly bool
 }
 
 // Language is a language and the servers that can serve it, the preferred one first.
@@ -49,8 +52,8 @@ var Languages = []Language{
 		{Name: "gopls", Command: []string{"gopls"}, Install: "go install golang.org/x/tools/gopls@latest"},
 	}},
 	{ID: "python", Name: "Python", Servers: []Server{
-		{Name: "basedpyright", Command: []string{"basedpyright-langserver", "--stdio"}, Install: "pip install basedpyright"},
-		{Name: "pyright", Command: []string{"pyright-langserver", "--stdio"}, Install: "npm install -g pyright"},
+		{Name: "basedpyright", Command: []string{"basedpyright-langserver", "--stdio"}, Install: "pip install basedpyright", ReadsOnly: true},
+		{Name: "pyright", Command: []string{"pyright-langserver", "--stdio"}, Install: "npm install -g pyright", ReadsOnly: true},
 		{Name: "pylsp", Command: []string{"pylsp"}, Install: "pip install python-lsp-server"},
 	}},
 	{ID: "typescript", Name: "JavaScript and TypeScript", Servers: []Server{
@@ -60,7 +63,7 @@ var Languages = []Language{
 		{Name: "rust-analyzer", Command: []string{"rust-analyzer"}, Install: "rustup component add rust-analyzer"},
 	}},
 	{ID: "c", Name: "C and C++", Servers: []Server{
-		{Name: "clangd", Command: []string{"clangd"}, Install: clangdInstall()},
+		{Name: "clangd", Command: []string{"clangd"}, Install: clangdInstall(), ReadsOnly: true},
 	}},
 	{ID: "r", Name: "R", Servers: []Server{
 		{Name: "languageserver", Command: []string{"R", "--no-echo", "-e", "languageserver::run()"}, Install: `R -e 'install.packages("languageserver")'`, Needs: "the languageserver package"},
@@ -96,6 +99,9 @@ type finder struct {
 	// machine has basedpyright in /opt/homebrew/bin and gopls in ~/go/bin, and a test given a fake
 	// home found both of them anyway.
 	system []string
+	// In a folder that is not trusted: only servers that read code start, and nothing is looked for in
+	// the project's own .venv, venv or node_modules, where the project could put a program of its own.
+	restricted bool
 }
 
 // systemFolders are the ones a real finder searches.
@@ -110,10 +116,13 @@ func venvPrograms() string {
 }
 
 func (f finder) folders() []string {
-	folders := []string{
-		filepath.Join(f.root, ".venv", venvPrograms()),
-		filepath.Join(f.root, "venv", venvPrograms()),
-		filepath.Join(f.root, "node_modules", ".bin"),
+	var folders []string
+	if !f.restricted {
+		folders = append(folders,
+			filepath.Join(f.root, ".venv", venvPrograms()),
+			filepath.Join(f.root, "venv", venvPrograms()),
+			filepath.Join(f.root, "node_modules", ".bin"),
+		)
 	}
 	if f.gopath != "" {
 		folders = append(folders, filepath.Join(f.gopath, "bin"))
@@ -175,7 +184,9 @@ type Resolved struct {
 	// The program found, when the server is a package inside it: julia, for LanguageServer.jl.
 	Program string `json:"program,omitempty"`
 	Needs   string `json:"needs,omitempty"`
-	argv    []string
+	// Off because the folder is not trusted and this server runs project code.
+	Restricted bool `json:"restricted,omitempty"`
+	argv       []string
 }
 
 // resolve answers the server for a language: the configured command when there is one, and otherwise
@@ -188,6 +199,10 @@ func (f finder) resolve(language Language, settings config.LanguageServerSetting
 		argv := splitCommand(command)
 		answer.Configured = true
 		answer.Command = command
+		if f.restricted && (len(argv) == 0 || !readsOnly(language, programName(argv[0]))) {
+			answer.Restricted = true
+			return answer
+		}
 		if len(argv) > 0 {
 			answer.Server = programName(argv[0])
 			answer.Path = f.look(argv[0])
@@ -197,7 +212,12 @@ func (f finder) resolve(language Language, settings config.LanguageServerSetting
 		return answer
 	}
 
+	allowed := 0
 	for _, server := range language.Servers {
+		if f.restricted && !server.ReadsOnly {
+			continue
+		}
+		allowed++
 		if found := f.look(server.Command[0]); found != "" {
 			answer.Server = server.Name
 			answer.Install = server.Install
@@ -213,7 +233,19 @@ func (f finder) resolve(language Language, settings config.LanguageServerSetting
 		}
 	}
 	answer.Command = strings.Join(preferred.Command, " ")
+	answer.Restricted = allowed == 0
 	return answer
+}
+
+// readsOnly reports whether the program a configured command runs is one of the language's servers
+// that read code without running it.
+func readsOnly(language Language, program string) bool {
+	for _, server := range language.Servers {
+		if server.ReadsOnly && programName(server.Command[0]) == program {
+			return true
+		}
+	}
+	return false
 }
 
 // programName is a program's name as it is typed: julia, not julia.exe.

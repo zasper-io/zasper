@@ -3,12 +3,16 @@ import { useAtom, useAtomValue } from 'jotai';
 import { toast } from 'react-toastify';
 
 import {
+  apiErrorMessage,
   checkForUpdates,
   EditorSettings,
+  forgetTrustedFolder,
   getLanguageServers,
   LanguageServerSettings,
   logApiError,
   modifyConfig,
+  setTrustAll,
+  TrustState,
 } from '@/api';
 import { configurationChanged, restartLanguageServer } from '@/lsp/servers';
 import { usePythonInterpreter } from '@/store/interpreters';
@@ -18,6 +22,7 @@ import { setTelemetrySettings } from '@/api/telemetry';
 import { useEditorSettings } from '@/store/editorSettingsActions';
 import { telemetryAtom, themeAtom, widgetCdnAtom } from '@/store/settings';
 import { zasperVersionAtom } from '@/store/serverInfo';
+import { TrustAsk, trustAtom, useAskTrust } from '@/store/trust';
 import { describeUpdateCheck, updateStatusAtom } from '@/store/updates';
 import { FileTab } from '@/store/tabState';
 import { setEnabled, track } from '@/telemetry';
@@ -107,6 +112,15 @@ function useSettings(): Setting[] {
   const version = useAtomValue(zasperVersionAtom);
   const [updates, setUpdates] = useAtom(updateStatusAtom);
   const [checking, setChecking] = useState(false);
+  const [trust, setTrust] = useAtom(trustAtom);
+  const askTrust = useAskTrust();
+
+  // Answered with the state that follows, which is what the rows are drawn from.
+  const changeTrust = (request: () => Promise<TrustState>, failure: string) => {
+    request()
+      .then(setTrust)
+      .catch((error) => toast.error(`${failure}: ${apiErrorMessage(error)}`));
+  };
 
   // Written whole, from what the server list says is configured, and every server changed is started again
   // so the new command or the switch takes effect without reopening a file.
@@ -604,6 +618,7 @@ function useSettings(): Setting[] {
       words: 'cdn jsdelivr ipywidgets bqplot ipyleaflet',
       control: <Checkbox id="settings-widget-cdn" checked={widgetCdn} onChange={changeWidgetCdn} />,
     },
+    ...trustSettings(trust, askTrust, changeTrust),
     {
       id: 'settings-check-updates',
       group: 'Updates',
@@ -637,6 +652,92 @@ function useSettings(): Setting[] {
         ),
     },
   ];
+}
+
+/** When a folder was trusted, as a reader would say it. */
+function trustedSince(since: string): string {
+  const date = new Date(since);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : `since ${date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`;
+}
+
+const TRUSTED_BY: Record<TrustState['by'], string> = {
+  '': 'restricted: its code does not run until it is trusted',
+  folder: 'trusted',
+  parent: 'trusted, with the folder it is in',
+  all: 'trusted, as every folder is',
+  flag: 'trusted for this run, by --trust',
+  env: 'trusted, as every folder is here',
+};
+
+/** Settings → Trust: this folder, the folders trusted, and trusting every folder. See docs/TRUST.md. */
+function trustSettings(
+  trust: TrustState | null,
+  askTrust: (ask: TrustAsk) => void,
+  change: (request: () => Promise<TrustState>, failure: string) => void
+): Setting[] {
+  if (trust === null) {
+    return [];
+  }
+  const folder: Setting = {
+    id: 'settings-trust-folder',
+    group: 'Trust',
+    name: 'This folder',
+    help: (
+      <>
+        <code>{trust.folder}</code> · {TRUSTED_BY[trust.by]}
+      </>
+    ),
+    words: 'trust restricted folder project code run kernel',
+    control: trust.trusted ? null : (
+      <button
+        id="settings-trust-folder"
+        type="button"
+        className="z-button"
+        onClick={() => askTrust({ reason: 'open' })}
+      >
+        Trust folder…
+      </button>
+    ),
+  };
+  const folders: Setting[] = trust.folders.map((trusted, index) => ({
+    id: `settings-trusted-${index}`,
+    group: 'Trust',
+    name: trusted.path,
+    help: ['and everything in it', trustedSince(trusted.since)].filter(Boolean).join(' · '),
+    words: 'trusted folder remove forget',
+    control: (
+      <button
+        id={`settings-trusted-${index}`}
+        type="button"
+        className="z-button z-button-secondary"
+        aria-label={`Stop trusting ${trusted.path}`}
+        onClick={() =>
+          change(() => forgetTrustedFolder(trusted.path), 'Could not stop trusting the folder')
+        }
+      >
+        Remove
+      </button>
+    ),
+  }));
+  const all: Setting = {
+    id: 'settings-trust-all',
+    group: 'Trust',
+    name: 'Trust every folder',
+    help: trust.env
+      ? 'Every folder is trusted here, by ZASPER_TRUST_ALL, as in the Docker image.'
+      : 'Never ask. For a server that only opens your own files. zasper --trust trusts the one folder it starts in, for that run.',
+    words: 'trust all every folder docker zasperhub never ask',
+    control: (
+      <Checkbox
+        id="settings-trust-all"
+        checked={trust.trust_all || trust.env}
+        onChange={(checked) => change(() => setTrustAll(checked), 'Could not change the setting')}
+      />
+    ),
+  };
+  return [folder, ...folders, all];
 }
 
 function Checkbox(props: { id: string; checked: boolean; onChange: (checked: boolean) => void }) {

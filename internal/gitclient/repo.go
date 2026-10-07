@@ -36,6 +36,14 @@ type Handler struct {
 	projectDir string
 }
 
+// RequireTrust runs git for this project with the repository's hooks and its other commands off while
+// trusted reports false.
+func (h *Handler) RequireTrust(trusted func() bool) {
+	restrictionsMu.Lock()
+	defer restrictionsMu.Unlock()
+	restrictions = append(restrictions, restriction{project: resolvedPath(h.projectDir), trusted: trusted})
+}
+
 // NewHandler serves the repository the project at projectDir belongs to.
 func NewHandler(projectDir string) *Handler {
 	return &Handler{projectDir: projectDir}
