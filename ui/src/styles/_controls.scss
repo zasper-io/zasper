@@ -270,3 +270,23 @@
 .file-mark-plain {
   color: var(--z-fg-subtle);
 }
+
+// How full something is: a kernel's memory and the machine's, a GPU's memory and how busy it is. The
+// fill is the accent, and the warning colour from 90% up, where a reader should do something about it;
+// the figure beside every meter says the same in words.
+.z-meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--z-border);
+  overflow: hidden;
+
+  > span {
+    display: block;
+    height: 100%;
+    background: var(--z-accent);
+  }
+
+  &.is-high > span {
+    background: var(--z-status-warning);
+  }
+}

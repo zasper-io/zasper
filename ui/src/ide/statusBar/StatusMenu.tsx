@@ -8,11 +8,13 @@ interface StatusPickerProps {
   label: ReactNode;
   /** Read aloud: the value with what it is a value of. */
   spokenLabel: string;
+  /** For a menu whose rows are not one line each, which needs a width of its own. */
+  menuClassName?: string;
   children: (close: () => void) => ReactNode;
 }
 
 /** A status bar item that is the control for what it shows: pressed, it opens a menu upwards. */
-export function StatusPicker({ label, spokenLabel, children }: StatusPickerProps) {
+export function StatusPicker({ label, spokenLabel, menuClassName, children }: StatusPickerProps) {
   const [open, setOpen] = useState(false);
   const picker = useRef<HTMLDivElement>(null);
 
@@ -33,7 +35,7 @@ export function StatusPicker({ label, spokenLabel, children }: StatusPickerProps
         {label}
       </button>
       {open && (
-        <div className="z-overlay z-menu statusMenu">
+        <div className={`z-overlay z-menu statusMenu ${menuClassName ?? ''}`.trim()}>
           <ul className="z-overlay-list" role="menu">
             {children(close)}
           </ul>

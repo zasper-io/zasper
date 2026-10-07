@@ -3,18 +3,22 @@
 ## The layout
 
 ```
-┌ Jupyter info ───────────────────── ⟳ ┐   content-head: refresh
-├──────────────────────────────────────┤
-│ ▾ Running kernels               2    │   PanelSection: collapsible, counted
-│   ● Python 3  src/demo.ipynb  now ⏸⏻ │   ● busy/idle · when it last spoke · Interrupt, Shut down
-│   ● R         stats.ipynb     2h  ⏸⏻ │   idle two hours, nothing attached: an abandoned kernel
-│ ▾ Terminals                     1    │
-│     Terminal 1                       │   opens the tab it is for
-│ ▸ Available kernels             3    │   reference material, so folded
-└──────────────────────────────────────┘
+┌ Jupyter info ──────────────────────────── ⟳ ┐   content-head: refresh
+├─────────────────────────────────────────────┤
+│ ▾ This machine                              │   MachineSection: uncounted, readings not rows
+│   Memory                    41.6 of 62.8 GB │
+│   ████████████░░░░░░  9.2 GB in the kernels │
+│   GPU 0 · A10G               18.2 of 24 GB  │   one meter per GPU, naming the notebook holding most
+│ ▾ Running kernels               2           │   PanelSection: collapsible, counted
+│   ● Python 3  src/demo.ipynb  5.1 GB now ⏸⏻ │   ● busy/idle · memory · when it last spoke · actions
+│   ● R         stats.ipynb     3.9 GB 2h  ⏸⏻ │   idle two hours, 3.9 GB, nothing attached: abandoned
+│ ▾ Terminals                     1           │
+│     Terminal 1                              │   opens the tab it is for
+│ ▸ Available kernels             3           │   reference material, so folded
+└─────────────────────────────────────────────┘
 ```
 
-Running things first, because they are the only rows there is anything to do about; what _could_ be
+How full the machine is comes first, as the measure for the figures on the kernel rows under it. Then running things, because they are the only rows there is anything to do about; what _could_ be
 started is reference material and starts folded. Rows are `.panel-row`, the shape the source control
 panel already uses — a name button filling the row, dimmed icon actions pinned right — which needs no
 `<a>` and moved up into [\_panel.scss](../../../styles/_panel.scss) when a second panel wanted it.
@@ -39,13 +43,14 @@ this panel.
 
 ## The files
 
-| File                                                   | What is in it                                                                 |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| [JupyterInfoPanel.tsx](JupyterInfoPanel.tsx)           | The three sections, the empty states, and what each row's click opens.        |
-| [useJupyterInfo.ts](useJupyterInfo.ts)                 | The state: the two reads merged, the poll, and one `run` for every write.     |
-| [KernelList.tsx](KernelList.tsx)                       | A kernel row: status dot, display name, its notebook's path, the two actions. |
-| [PanelSection.tsx](PanelSection.tsx)                   | A heading that is a disclosure button, with a count.                          |
-| [ConfirmShutdownDialog.tsx](ConfirmShutdownDialog.tsx) | The dialog in front of losing everything a kernel holds in memory.            |
+| File                                                   | What is in it                                                                                              |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| [JupyterInfoPanel.tsx](JupyterInfoPanel.tsx)           | The three sections, the empty states, and what each row's click opens.                                     |
+| [useJupyterInfo.ts](useJupyterInfo.ts)                 | The state: the two reads merged, the poll, and one `run` for every write.                                  |
+| [KernelList.tsx](KernelList.tsx)                       | A kernel row: status dot, display name, its notebook's path, the two actions.                              |
+| [PanelSection.tsx](PanelSection.tsx)                   | A heading that is a disclosure button, with a count.                                                       |
+| [ConfirmShutdownDialog.tsx](ConfirmShutdownDialog.tsx) | The dialog in front of losing everything a kernel holds in memory.                                         |
+| [MachineSection.tsx](MachineSection.tsx)               | How full the machine and its GPUs are: see [KERNEL-RESOURCES.md](../../../../../docs/KERNEL-RESOURCES.md). |
 
 Outside this directory: [api/kernels.ts](../../../api/kernels.ts) and
 [api/sessions.ts](../../../api/sessions.ts) are the typed clients, [dates.ts](../dates.ts) writes the

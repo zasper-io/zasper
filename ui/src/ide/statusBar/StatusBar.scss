@@ -173,3 +173,15 @@
   font-size: var(--z-ui-font-size-sm);
   white-space: nowrap;
 }
+
+// The GPU figure sits after the memory one inside the same button, with the gap two items would have.
+.kernelResourceGpu {
+  margin-left: 8px;
+}
+
+// Readings rather than rows: a meter is drawn at this width, and its fact line wraps under it.
+.kernelResourceMenu {
+  width: 280px;
+  // The bar's items do not wrap, and this menu hangs inside one of them.
+  white-space: normal;
+}

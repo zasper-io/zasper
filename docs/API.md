@@ -113,6 +113,7 @@ should treat any message as "something changed".
 | `POST` | `/api/sessions` | Create a session, starting a kernel. |
 | `DELETE` | `/api/sessions/{sessionId}` | End a session and stop its kernel. |
 | `GET` | `/api/kernels` | List running kernels. |
+| `GET` | `/api/kernels/resources` | What every running kernel holds, read at most once a second. `kernels` by id: `memory` (bytes, the footprint of the kernel and every process it started), `processes`, and `gpus` (`index`, `memory`) it holds memory on. `memory`: the machine's or its container's `used`, `total` and `limit` (`machine` or `container`), `null` on Windows. `gpus`: each NVIDIA device's `index`, `name`, `utilization` (percent, or `null`), `memory_used`, `memory_total`, and `unattributed`, memory held by processes the server cannot see. See [KERNEL-RESOURCES.md](KERNEL-RESOURCES.md). |
 | `GET` | `/api/kernels/{kernelId}` | Read one kernel. |
 | `POST` | `/api/kernels/{kernelId}/interrupt` | Interrupt. |
 | `GET` | `/api/kernels/{kernelId}/variables` | The names in a Python kernel's namespace: type, kind, shape or length, a short summary, and whether it can be shown as a table. `422` for a kernel that is not Python, `504` if a running cell kept the kernel busy for 10 seconds. |

@@ -15,6 +15,7 @@ import { terminalsAvailableAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import EolStatus from './EolStatus';
 import IndentStatus from './IndentStatus';
+import KernelResourceStatus from './KernelResourceStatus';
 import InterpreterStatus from './InterpreterStatus';
 import LanguageServerStatus from './LanguageServerStatus';
 import LanguageStatus from './LanguageStatus';
@@ -150,6 +151,8 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
                 server={notebookServers[activeTab.path]}
               />
             )}
+            {/* What the notebook's kernel is holding. Before the zoom, which belongs to the window. */}
+            {activeTab?.type === 'notebook' && <KernelResourceStatus path={activeTab.path} />}
           </>
         )}
         {/* Last on the bar: it belongs to the window rather than to whatever is in the tab, so it

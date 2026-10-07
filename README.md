@@ -532,6 +532,8 @@ covers the development workflow.
   and in the Variables panel — read from the kernel, including how polars frames are handled.
 - [docs/NOTEBOOK-DIFFS.md](docs/NOTEBOOK-DIFFS.md): how a changed notebook is compared in the git
   panel, cell by cell, and how its cells are matched.
+- [docs/KERNEL-RESOURCES.md](docs/KERNEL-RESOURCES.md): the memory and GPU memory each kernel holds,
+  in the status bar and the Jupyter info panel, and how it is measured on each platform.
 - [PRIVACY.md](PRIVACY.md): what anonymous usage data is collected, event by event.
 - [PUBLISHING.md](PUBLISHING.md): how releases are cut.
 

@@ -3,7 +3,8 @@ import { Icon } from '@/ide/icons';
 
 interface PanelSectionProps {
   title: string;
-  count: number;
+  /** Left out for a section of readings rather than a list. */
+  count?: number;
   /**
    * Whether the section starts open. What is running does; a list of what could be run is reference
    * material, and three panels' worth of it unfolded is a panel nobody can find their place in.
@@ -35,7 +36,13 @@ export default function PanelSection(props: PanelSectionProps) {
           {/* 12px: a chevron points at something rather than being the thing. */}
           <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
           <span>
-            {title} <span className="panel-section-count">{count}</span>
+            {title}
+            {count !== undefined && (
+              <>
+                {' '}
+                <span className="panel-section-count">{count}</span>
+              </>
+            )}
           </span>
         </button>
       </h2>

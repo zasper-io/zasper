@@ -25,6 +25,7 @@ const listTerminals = vi.fn();
 const interruptKernel = vi.fn();
 const deleteKernel = vi.fn();
 const deleteTerminal = vi.fn();
+const getKernelResources = vi.fn();
 
 vi.mock('@/api', async () => ({
   listKernels: () => listKernels(),
@@ -33,6 +34,7 @@ vi.mock('@/api', async () => ({
   interruptKernel: (id: string) => interruptKernel(id),
   deleteKernel: (id: string) => deleteKernel(id),
   deleteTerminal: (id: string) => deleteTerminal(id),
+  getKernelResources: () => getKernelResources(),
   logApiError: () => () => {},
   apiErrorMessage: (await import('@/api/client')).apiErrorMessage,
 }));
@@ -94,6 +96,8 @@ beforeEach(() => {
   interruptKernel.mockResolvedValue(undefined);
   deleteKernel.mockResolvedValue(undefined);
   deleteTerminal.mockResolvedValue(undefined);
+  // A platform the server reads nothing on, so the panel looks as it did before memory was read.
+  getKernelResources.mockResolvedValue({ memory: null, gpus: [], kernels: {} });
 });
 
 // The poll is the only thing here that needs fake timers, and a test that left them on would hang the
@@ -312,6 +316,63 @@ describe('JupyterInfoPanel', () => {
     expect(tip).toHaveTextContent('src/demo.ipynb');
     expect(tip).toHaveTextContent('Kernel is idle');
     expect(tip).toHaveTextContent('1 client attached');
+  });
+
+  it('says how full the machine is, and what each kernel holds', async () => {
+    const GIB = 1024 ** 3;
+    listKernels.mockResolvedValue([python, r]);
+    listSessions.mockResolvedValue({
+      'session-kernel-1': sessionFor(python, 'src/train.ipynb'),
+      'session-kernel-2': sessionFor(r, 'stats.ipynb'),
+    });
+    getKernelResources.mockResolvedValue({
+      memory: { used: 41.6 * GIB, total: 62.8 * GIB, limit: 'machine' },
+      gpus: [
+        {
+          index: 0,
+          name: 'NVIDIA A10G',
+          utilization: 87,
+          memory_used: 18.2 * GIB,
+          memory_total: 24 * GIB,
+          unattributed: 0,
+        },
+      ],
+      kernels: {
+        'kernel-1': { memory: 5.1 * GIB, processes: 5, gpus: [{ index: 0, memory: 17.9 * GIB }] },
+        'kernel-2': { memory: 212 * 1024 ** 2, processes: 1, gpus: [] },
+      },
+    });
+    renderPanel();
+
+    expect(await screen.findByText('This machine')).toBeInTheDocument();
+    expect(screen.getByText('41.6 of 62.8 GB')).toBeInTheDocument();
+    expect(screen.getByText('5.3 GB of it in the kernels below')).toBeInTheDocument();
+    expect(screen.getByText('GPU 0 · A10G')).toBeInTheDocument();
+    expect(screen.getByText('87% busy · 17.9 GB of it train.ipynb')).toBeInTheDocument();
+    expect(screen.getByRole('meter', { name: 'Memory' })).toHaveAttribute('aria-valuenow', '66');
+
+    expect(await screen.findByText('5.1 GB')).toBeInTheDocument();
+    expect(screen.getByText('212 MB')).toBeInTheDocument();
+    const row = screen
+      .getByText('src/train.ipynb', { selector: '.panel-row-meta' })
+      .closest('button');
+    (row as HTMLElement).focus();
+    fireEvent.focusIn(row as HTMLElement);
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent('Memory 5.1 GB — the kernel and 4 processes it started');
+    expect(tip).toHaveTextContent('GPU 0: 17.9 GB');
+  });
+
+  it('calls a container a container', async () => {
+    getKernelResources.mockResolvedValue({
+      memory: { used: 8 * 1024 ** 3, total: 16 * 1024 ** 3, limit: 'container' },
+      gpus: [],
+      kernels: {},
+    });
+    renderPanel();
+
+    expect(await screen.findByText('This container')).toBeInTheDocument();
+    expect(screen.queryByText(/^GPU/)).toBeNull();
   });
 
   it('opens the notebook a kernel is running', async () => {

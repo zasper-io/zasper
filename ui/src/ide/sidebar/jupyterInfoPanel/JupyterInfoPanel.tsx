@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import { deleteKernel, deleteTerminal, interruptKernel, TerminalModel } from '@/api';
+import { kernelResourcesAtom, usePollKernelResources } from '@/store/kernelResources';
 import { kernelspecsAtom, kernelStatusAtom, notebookKernelMapAtom } from '@/store/kernels';
 import { terminalsAtom } from '@/store/terminals';
 import { Icon } from '@/ide/icons';
@@ -11,9 +12,10 @@ import Tooltip from '@/ide/Tooltip';
 import { useTabActions } from '@/store/tabActions';
 import ConfirmShutdownDialog from './ConfirmShutdownDialog';
 import KernelList, { kernelLabel } from './KernelList';
+import MachineSection from './MachineSection';
 import PanelSection from './PanelSection';
 import TerminalList from './TerminalList';
-import { RunningKernel, useJupyterInfo } from './useJupyterInfo';
+import { POLL_MS, RunningKernel, useJupyterInfo } from './useJupyterInfo';
 import { PanelProps } from '../types';
 
 /**
@@ -28,6 +30,9 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
   const { kernels, terminals, loading, busy, error, refresh, run } = useJupyterInfo(hidden);
   const kernelspecs = useAtomValue(kernelspecsAtom);
   const kernelStatus = useAtomValue(kernelStatusAtom);
+  const resources = useAtomValue(kernelResourcesAtom);
+  // On the panel's own five seconds, which is how often its list is read too.
+  usePollKernelResources(!hidden, POLL_MS);
   const localTerminals = useAtomValue(terminalsAtom);
   const setNotebookKernelMap = useSetAtom(notebookKernelMapAtom);
   const { openTab, closeTab, showTerminal } = useTabActions();
@@ -96,13 +101,25 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
 
       {/* One scroll area for the panel, not one per section. */}
       <div className="content-inner">
-        {/* Running things first: they are the only rows here there is anything to do about. */}
+        {/* How full the machine is, above the kernels using it. */}
+        {resources !== null && (
+          <MachineSection
+            resources={resources}
+            notebookOf={(id) => {
+              const path = kernels.find((kernel) => kernel.id === id)?.session?.path;
+              return path?.split('/').pop();
+            }}
+          />
+        )}
+
+        {/* Then the running things: they are the only rows here there is anything to do about. */}
         <PanelSection title="Running kernels" count={kernels.length}>
           {kernels.length > 0 ? (
             <KernelList
               kernels={kernels}
               kernelspecs={kernelspecs}
               statuses={kernelStatus}
+              usage={resources?.kernels ?? {}}
               disabled={busy}
               onOpen={openFor}
               onInterrupt={(kernel) => void run(() => interruptKernel(kernel.id), 'Interrupted.')}

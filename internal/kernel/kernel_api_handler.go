@@ -22,6 +22,12 @@ func (k *Kernels) ListHandler(w http.ResponseWriter, req *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, k.list())
 }
 
+// ResourcesHandler answers the memory and GPU memory every running kernel holds, and how full the machine
+// is. One answer for all of them, so the status bar and the Jupyter panel share a read.
+func (k *Kernels) ResourcesHandler(w http.ResponseWriter, req *http.Request) {
+	httpx.SendJSON(w, http.StatusOK, k.Resources(req.Context()))
+}
+
 // GetHandler answers one running kernel.
 func (k *Kernels) GetHandler(w http.ResponseWriter, req *http.Request) {
 	kernel, err := k.model(mux.Vars(req)["kernelId"])

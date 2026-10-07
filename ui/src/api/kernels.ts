@@ -59,6 +59,46 @@ export function listKernels(): Promise<KernelModel[]> {
   return requestJson<KernelModel[]>('/api/kernels');
 }
 
+/** The memory a kernel can run out of: the machine's, or its container's limit when it has one. */
+export interface MachineMemory {
+  used: number;
+  total: number;
+  limit: 'machine' | 'container';
+}
+
+/** One GPU, as nvidia-smi reports it. Sizes are in bytes. */
+export interface GpuDevice {
+  index: number;
+  name: string;
+  /** Percent busy, for the whole device. Null when the driver does not say. */
+  utilization: number | null;
+  memory_used: number;
+  memory_total: number;
+  /** Held by processes the server cannot see, which in a container is every one of them. */
+  unattributed: number;
+}
+
+/** What one kernel holds: the kernel and every process it started. */
+export interface KernelUsage {
+  memory: number;
+  processes: number;
+  /** Only the devices it holds memory on. */
+  gpus: { index: number; memory: number }[];
+}
+
+/** `/api/kernels/resources`: every running kernel at once, read at most once a second by the server. */
+export interface KernelResources {
+  /** Null on a platform whose memory the server does not read, which is Windows. */
+  memory: MachineMemory | null;
+  gpus: GpuDevice[];
+  /** By kernel id. A kernel whose process could not be read is absent. */
+  kernels: Record<string, KernelUsage>;
+}
+
+export function getKernelResources(): Promise<KernelResources> {
+  return requestJson<KernelResources>('/api/kernels/resources');
+}
+
 /** A name in a Python kernel's namespace, described without its value. */
 export interface KernelVariable {
   name: string;

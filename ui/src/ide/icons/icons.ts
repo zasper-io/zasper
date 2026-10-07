@@ -37,6 +37,8 @@ import {
   Copy,
   CornerDownLeft,
   Cpu,
+  MemoryStick,
+  Microchip,
   Download,
   Ellipsis,
   Eraser,
@@ -204,6 +206,9 @@ export const ICONS = {
   'chart-scatter': ChartScatter,
   'chart-candlestick': ChartCandlestick, // A box plot: Lucide has no box glyph
   code: Code, // Insert the code that draws a chart
+  // A kernel's memory and its GPU memory, in the status bar.
+  'memory-stick': MemoryStick,
+  microchip: Microchip,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

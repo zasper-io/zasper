@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/zasper-io/zasper/internal/kernelspec"
+	"github.com/zasper-io/zasper/internal/resources"
 	"github.com/zasper-io/zasper/internal/models"
 	"github.com/zasper-io/zasper/internal/store"
 )
@@ -23,11 +24,13 @@ type Kernels struct {
 	disconnectHandlers []func(kernelId string)
 	// Told when a run finishes with no client attached, so its output can reach the notebook's file.
 	runFinishedHandlers []func(kernelId string, run Run)
+	// Reads what each kernel holds, for /api/kernels/resources.
+	resources *resources.Sampler
 }
 
 // New starts kernels from the kernelspecs in specs.
 func New(specs *kernelspec.Catalog) *Kernels {
-	return &Kernels{specs: specs}
+	return &Kernels{specs: specs, resources: resources.NewSampler()}
 }
 
 // Get answers the manager for a running kernel.
@@ -173,4 +176,16 @@ func newKernelManager(kernelName string, kernelId string) *KernelManager {
 	km.ConnectionInfo.Transport = "tcp"
 	km.ConnectionInfo.IP = "127.0.0.1"
 	return km
+}
+
+// Resources answers what every running kernel holds, by kernel id, and how full the machine and its GPUs
+// are.
+func (k *Kernels) Resources(ctx context.Context) resources.Snapshot {
+	roots := map[string]int{}
+	for _, km := range k.running.Values() {
+		if km.Process != nil && !km.Process.Exited() {
+			roots[km.KernelId] = km.Process.Pid
+		}
+	}
+	return k.resources.Sample(ctx, roots)
 }

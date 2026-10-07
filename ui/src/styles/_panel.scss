@@ -512,6 +512,31 @@
   font-size: 11px;
 }
 
+// A kernel's memory, before its time: right-aligned at one width so the figures read as a column down
+// the list, and in ink rather than the time's subtle grey, since it is what the row is now looked at for.
+.panel-row-figure {
+  flex: 0 0 44px;
+  text-align: right;
+  font-size: 11px;
+}
+
+// A kernel row carries a figure and a time beside its two buttons, which leaves the name and the path a
+// third of the panel. The name is what identifies the kernel, so it keeps its width up to 60% and the
+// path, which the row's tooltip has in full, clips first.
+.kernelRow .panel-row-label {
+  flex-shrink: 0;
+  max-width: 60%;
+}
+
+// The Jupyter panel's machine meters, at the indent of the rows under them.
+.machineReadings {
+  padding: 2px 2px 6px 6px;
+
+  .resourceReading-line {
+    font-size: var(--z-ui-font-size-sm);
+  }
+}
+
 // The chord that would do the same thing, which only a palette row carries. It takes the *place* of the
 // actions rather than sitting beside them, so a row's right edge is one thing: a palette row has nothing
 // to press and a panel row has no chord. Tabular, because a column of chords is read down.

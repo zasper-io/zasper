@@ -1,6 +1,8 @@
 import IconButton from '@/ide/IconButton';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
+import { KernelUsage } from '@/api';
+import { describeProcesses, formatMemory } from '@/ide/resources/memory';
 import { KernelspecsState } from '@/store/kernels';
 import { fullDate, relativeDate, shortAgo } from '../dates';
 import { RunningKernel } from './useJupyterInfo';
@@ -15,6 +17,8 @@ interface KernelListProps {
    * instead, and where neither knows there is no dot rather than one that means nothing.
    */
   statuses: Record<string, string>;
+  /** What each kernel holds, by id, where the server could read it. */
+  usage: Record<string, KernelUsage>;
   disabled: boolean;
   /** Opens what the kernel is running, or brings that tab forward. */
   onOpen: (kernel: RunningKernel) => void;
@@ -34,7 +38,12 @@ export function kernelLabel(kernel: RunningKernel, kernelspecs: KernelspecsState
  * The count is the one fact here that has no other way in. A kernel with no client attached is one whose
  * notebook was closed hours ago, which is the kernel this panel exists to find.
  */
-function tooltip(kernel: RunningKernel, label: string, status: string): string[] {
+function tooltip(
+  kernel: RunningKernel,
+  label: string,
+  status: string,
+  usage: KernelUsage | undefined
+): string[] {
   const lines: string[] = [];
   if (kernel.session !== undefined) {
     lines.push(kernel.session.path);
@@ -50,6 +59,10 @@ function tooltip(kernel: RunningKernel, label: string, status: string): string[]
   lines.push(
     kernel.connections === 1 ? '1 client attached' : `${kernel.connections} clients attached`
   );
+  if (usage !== undefined) {
+    lines.push(`Memory ${formatMemory(usage.memory)} — ${describeProcesses(usage).toLowerCase()}`);
+    usage.gpus.forEach((gpu) => lines.push(`GPU ${gpu.index}: ${formatMemory(gpu.memory)}`));
+  }
   return lines;
 }
 
@@ -57,6 +70,7 @@ interface KernelRowProps {
   kernel: RunningKernel;
   label: string;
   status: string;
+  usage: KernelUsage | undefined;
   disabled: boolean;
   onOpen: (kernel: RunningKernel) => void;
   onInterrupt: (kernel: RunningKernel) => void;
@@ -67,7 +81,7 @@ interface KernelRowProps {
  * One kernel. A row of its own rather than a block inside the map because of the tooltip: `useTooltip`
  * holds one box, so the row that has one has to be the thing that calls it.
  */
-function KernelRow({ kernel, label, status, disabled, ...props }: KernelRowProps) {
+function KernelRow({ kernel, label, status, usage, disabled, ...props }: KernelRowProps) {
   const since = shortAgo(kernel.last_activity);
   const path = kernel.session?.path;
   // The row is the app's first real tooltip, and this is the case that asked for one: five facts that
@@ -77,7 +91,7 @@ function KernelRow({ kernel, label, status, disabled, ...props }: KernelRowProps
   const sinceTip = useTooltip();
 
   return (
-    <li className="panel-row">
+    <li className="panel-row kernelRow">
       <button
         type="button"
         className="panel-row-name"
@@ -96,7 +110,13 @@ function KernelRow({ kernel, label, status, disabled, ...props }: KernelRowProps
             atoms instead of the server's sessions. */}
         {path !== undefined && <span className="panel-row-meta">{path}</span>}
       </button>
-      <Tooltip tip={tip} label={tooltip(kernel, label, status)} />
+      <Tooltip tip={tip} label={tooltip(kernel, label, status, usage)} />
+
+      {/* Its memory beside how long it has been idle: the two together are what an abandoned kernel
+          looks like, with its Shut down button on the same row. */}
+      {usage !== undefined && (
+        <span className="panel-row-figure z-tabular">{formatMemory(usage.memory)}</span>
+      )}
 
       {/* How long since the kernel last said anything, which is how an abandoned kernel is told
           from one that is being used. `3m`, because two buttons are already in this row. */}
@@ -131,7 +151,7 @@ function KernelRow({ kernel, label, status, disabled, ...props }: KernelRowProps
 
 /** The running kernels: what each one is, what it is running, and the two things to do to it. */
 export default function KernelList(props: KernelListProps) {
-  const { kernels, kernelspecs, statuses, disabled } = props;
+  const { kernels, kernelspecs, statuses, usage, disabled } = props;
 
   return (
     <ul className="z-list-plain noborder-list">
@@ -145,6 +165,7 @@ export default function KernelList(props: KernelListProps) {
           // while the server's copy is at most one poll old — and for a kernel nothing here is attached
           // to, the server's is the only one there is.
           status={statuses[kernel.id] ?? kernel.execution_state ?? ''}
+          usage={usage[kernel.id]}
           disabled={disabled}
           onOpen={props.onOpen}
           onInterrupt={props.onInterrupt}

@@ -40,7 +40,7 @@ export interface JupyterInfo {
  * `exit` into are the states this panel most needs to be right about, and polling is the only way it
  * hears. Three local requests every few seconds, and only while somebody is looking.
  */
-const POLL_MS = 5000;
+export const POLL_MS = 5000;
 
 /**
  * What is running on the server: the kernels, which file each one belongs to, and the shells.
