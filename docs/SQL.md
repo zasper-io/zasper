@@ -31,9 +31,17 @@ turns a code cell into a SQL cell and back. The query keeps its text either way.
 | `--fresh`          | Run the query again even when the cache holds its answer.                                     |
 
 The cell's output starts with a line that says where the rows came from: the dataframe, the connection,
-how many rows there are and how long the query took. **Load all** reruns the cell once with
-`--limit none` when the limit left rows behind. **Run fresh** reruns it once past the cache. Neither
-changes the cell. Then comes the dataframe, shown in the grid like any other.
+how many rows there are and how long the query took. **Run fresh** reruns the cell once past the cache.
+Then comes the dataframe, shown in the grid like any other.
+
+**Load all** appears when the limit left rows behind, and it is pressed twice. The first press counts
+the rows the query answers and says what reading them would take in memory:
+`first 1,000 of 2,964,606 rows · Load all · about 237 MB`. The estimate is the memory of the rows
+already fetched, per row, times the count. The second press reruns the cell once with `--limit none`.
+Neither changes the cell. Counting is the query wrapped in `count(*)`, so it runs again on the
+database. That is why it waits for the press rather than following every run, and why the kernel
+cancels it after 10 seconds. A count that fails or runs out of time says why, and the button becomes
+**Load all anyway**.
 
 Because it is a cell magic, the notebook stays a notebook other tools can open. JupyterLab and nbconvert
 see a code cell (see [Outside Zasper](#outside-zasper)). The script export writes a SQL cell as a
@@ -88,6 +96,14 @@ cell offers to install it, which runs `pip install` (or `uv pip install` in an e
 pip) for that interpreter, then the cell can be run again.
 
 A query the database refuses shows the database's own message, without a Python traceback.
+
+**Interrupting the kernel stops a query.** The query runs on a thread of its own, so the interrupt
+reaches the kernel while the driver is still working. The kernel then tells the driver to cancel:
+`interrupt()` for SQLite and DuckDB, and the connection's `cancel` for PostgreSQL through psycopg, which
+stops the query on the server too. The cell says `Stopped. <connection> was told to cancel the query.`
+Before this, a SQLite query interrupted after 1 second ran until it finished, 11 seconds later. A
+driver with no way to cancel, such as pymysql, is left to finish on its own, and the
+cell says the database may still be running the query.
 
 **Dataframes** are queried with DuckDB, which reads the kernel's pandas and polars frames by name
 without copying them. A SQL cell on Dataframes can join the output of one SQL cell with a frame a

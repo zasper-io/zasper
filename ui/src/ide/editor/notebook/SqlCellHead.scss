@@ -94,6 +94,15 @@
   color: var(--z-fg-accent);
   font: inherit;
   cursor: pointer;
+
+  &:disabled {
+    color: var(--z-fg-subtle);
+    cursor: default;
+  }
+}
+
+.sqlOutput-note {
+  color: var(--z-fg-muted);
 }
 
 // A query the database refused, said once and without a traceback.

@@ -185,7 +185,8 @@ export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesPr
 
           const sqlRun = outputData[SQL_MIME] as SqlRunInfo | undefined;
           if (sqlRun) {
-            return <SqlProvenance key={index} info={sqlRun} actions={sql} />;
+            // Keyed by the run too, so a count Load all made forgets itself when the cell runs again.
+            return <SqlProvenance key={`${index}:${sqlRun.ran_at}`} info={sqlRun} actions={sql} />;
           }
 
           const table = outputData[TABLE_MIME] as OutputTable | undefined;

@@ -92,3 +92,17 @@ func (km *KernelManager) SQLTest(ctx context.Context, name string) (SQLTest, err
 	err := km.sql(ctx, fmt.Sprintf("test(%s)", pyString(name)), &answer)
 	return answer, err
 }
+
+// SQLCount is how many rows a query answers, or why that is not known.
+type SQLCount struct {
+	Rows  *int64 `json:"rows"`
+	Error string `json:"error,omitempty"`
+}
+
+// SQLCount counts the rows a query answers, for Load all to say what it would read. The kernel gives up
+// after ten seconds and cancels the count.
+func (km *KernelManager) SQLCount(ctx context.Context, name, query string) (SQLCount, error) {
+	var answer SQLCount
+	err := km.sql(ctx, fmt.Sprintf("count(%s, %s)", pyString(name), pyString(query)), &answer)
+	return answer, err
+}

@@ -9,6 +9,7 @@ import {
   deleteSession,
   FakeSocket,
   getNotebook,
+  countRows,
   prepareConnection,
   resetIds,
   sessionForPath,
@@ -103,7 +104,8 @@ describe('a SQL cell in a notebook', () => {
     expect(JSON.parse(sockets[0].sent[0]).content.code).toBe(sqlSource);
   });
 
-  it('says where its rows came from, and Load all runs it again without its limit', async () => {
+  it('says where its rows came from, and Load all counts them before it runs it without its limit', async () => {
+    countRows.mockResolvedValue({ rows: 48_210 });
     renderNotebook([
       {
         output_type: 'display_data',
@@ -117,6 +119,7 @@ describe('a SQL cell in a notebook', () => {
             seconds: 0.8,
             cached: false,
             ran_at: 0,
+            row_bytes: 4096,
           },
           'text/plain': 'df_orders · analytics · first 1,000 rows, more available',
         },
@@ -130,6 +133,12 @@ describe('a SQL cell in a notebook', () => {
     ).toBeInTheDocument();
     act(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Load all' }));
+    });
+    const load = await screen.findByRole('button', { name: 'Load all · about 188 MB' });
+    expect(countRows).toHaveBeenCalledWith('kernel-1', 'analytics', 'SELECT * FROM orders');
+    expect(sockets[0].sent).toHaveLength(0);
+    act(() => {
+      fireEvent.click(load);
     });
 
     await waitFor(() => expect(sockets[0].sent).toHaveLength(1));

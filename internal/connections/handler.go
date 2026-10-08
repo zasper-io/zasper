@@ -103,6 +103,7 @@ type askBody struct {
 	Name   string `json:"name"`
 	Schema string `json:"schema,omitempty"`
 	Table  string `json:"table,omitempty"`
+	Query  string `json:"query,omitempty"`
 }
 
 // kernelFor is the kernel a request names, or the Data panel's own, started if it has to be.
@@ -230,6 +231,26 @@ func (h *Handler) ColumnsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	answer, err := km.SQLColumns(ctx, body.Name, body.Schema, body.Table)
+	if err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	httpx.SendJSON(w, http.StatusOK, answer)
+}
+
+// CountHandler counts the rows a SQL cell's query answers, in the notebook's kernel, before Load all.
+func (h *Handler) CountHandler(w http.ResponseWriter, req *http.Request) {
+	body, km, ok := h.decode(w, req)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(req.Context(), askTimeout)
+	defer cancel()
+	if err := h.prepare(ctx, km, body.Name); err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	answer, err := km.SQLCount(ctx, body.Name, body.Query)
 	if err != nil {
 		httpx.SendErrorResponse(w, http.StatusBadGateway, err.Error())
 		return

@@ -52,7 +52,7 @@ func TestAnUntrustedProjectReadsButRunsNothingUntilItIsTrusted(t *testing.T) {
 	// A connection is read through a kernel, so it waits for trust too; listing them is settings.
 	status, _ = call(t, srv, http.MethodGet, "/api/connections", nil)
 	assert.Equal(t, http.StatusOK, status)
-	for _, ask := range []string{"/api/connections/prepare", "/api/connections/schema", "/api/connections/test"} {
+	for _, ask := range []string{"/api/connections/prepare", "/api/connections/schema", "/api/connections/count", "/api/connections/test"} {
 		status, _ = call(t, srv, http.MethodPost, ask, map[string]any{"name": "local"})
 		assert.Equal(t, http.StatusForbidden, status, ask)
 	}

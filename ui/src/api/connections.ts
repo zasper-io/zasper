@@ -104,6 +104,20 @@ export function readColumns(
   });
 }
 
+/** How many rows a query answers; `rows` is null, with the reason, when it could not be counted. */
+export interface SqlCount {
+  rows: number | null;
+  error?: string;
+}
+
+/** Counts the rows a SQL cell's query answers, in the notebook's kernel, before Load all. */
+export function countRows(kernel: string, name: string, query: string): Promise<SqlCount> {
+  return requestJson<SqlCount>('/api/connections/count', {
+    method: 'POST',
+    body: { kernel, name, query },
+  });
+}
+
 /** Connects with what a form holds, saved or not. */
 export function testConnection(
   connection: DataConnection,

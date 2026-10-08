@@ -20,7 +20,7 @@ import {
 } from './cellShared';
 import { tabCompletionKeymap } from './kernelCompletion';
 import { useNotebookEditor } from './NotebookEditorContext';
-import { DATAFRAMES } from '@/api';
+import { countRows, DATAFRAMES } from '@/api';
 import { connectionsAtom } from '@/store/connections';
 import { parseSqlCell, withRunFlags, withSqlOptions } from './sqlCell';
 import { sqlCellExtensions } from './sqlEditor';
@@ -201,6 +201,10 @@ export default function CodeCell(props: CellProps) {
                 ? undefined
                 : {
                     run: (flags) => editor.submitCell(withRunFlags(cell.source, flags), cellId),
+                    count:
+                      editor.kernelId === undefined
+                        ? undefined
+                        : () => countRows(editor.kernelId ?? '', sqlCell.connection, sqlCell.query),
                     kernelId: editor.kernelId,
                   }
             }

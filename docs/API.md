@@ -175,9 +175,10 @@ The databases SQL cells run on. Passwords are never answered. See [SQL.md](SQL.m
 | `POST` | `/api/connections/prepare` | `{"kernel", "name"}`: hand a notebook's kernel the connection a SQL cell is about to run on. |
 | `POST` | `/api/connections/schema` | `{"name", "kernel"?}`: `schemas`, each `name`, `default` and `tables` (`name`, `kind` of `table`, `view` or `dataframe`, and `rows` for a dataframe), or `error`. Asks the Data panel's own kernel unless `kernel` names one; `dataframes` is the frames of the kernel named. |
 | `POST` | `/api/connections/columns` | `{"name", "schema", "table", "kernel"?}`: `columns`, each `name` and `type`, or `error`. |
+| `POST` | `/api/connections/count` | `{"kernel", "name", "query"}`: how many rows a SQL cell's query answers, counted in the notebook's kernel before Load all. `rows`, or `rows: null` and `error`, which is also the answer after 10 seconds, when the kernel cancels the count. |
 | `POST` | `/api/connections/test` | `{"connection", "password"?, "kernel"?}`: connect with a connection as a form holds it, saved or not. `ok`, `version`, `ms`, or `error` and `missing`, the package to install. |
 
-`prepare`, `schema`, `columns` and `test` run code in a kernel: `403` (`untrusted`) in a folder that is not
+`prepare`, `schema`, `columns`, `count` and `test` run code in a kernel: `403` (`untrusted`) in a folder that is not
 trusted, `409` when the kernel named is not running or no Python kernel is installed. `error` with
 `missing` set means the kernel lacks that driver.
 

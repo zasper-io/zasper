@@ -156,6 +156,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/connections/prepare", s.trust.Require(s.connections.PrepareHandler)).Methods("POST")
 	apiRouter.HandleFunc("/connections/schema", s.trust.Require(s.connections.SchemaHandler)).Methods("POST")
 	apiRouter.HandleFunc("/connections/columns", s.trust.Require(s.connections.ColumnsHandler)).Methods("POST")
+	apiRouter.HandleFunc("/connections/count", s.trust.Require(s.connections.CountHandler)).Methods("POST")
 	apiRouter.HandleFunc("/connections/test", s.trust.Require(s.connections.TestHandler)).Methods("POST")
 	apiRouter.HandleFunc("/kernels/{kernelId}/install", s.trust.Require(s.kernels.InstallHandler)).Methods("POST")
 

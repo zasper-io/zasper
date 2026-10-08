@@ -96,6 +96,7 @@ func TestASQLCellRunsOnAConnectionAndLeavesADataframe(t *testing.T) {
 	assert.Equal(t, "by_region", about["out"])
 	assert.EqualValues(t, 1, about["rows"])
 	assert.Equal(t, true, about["more"], "a limit of one row leaves the second")
+	assert.Greater(t, about["row_bytes"], 0.0, "what Load all would cost, judged by the row it has")
 	require.Len(t, of(outputs, "execute_result"), 1, "the dataframe, shown as the cell's result")
 
 	result := awaitExecuteResult(t, conn, executeOverSocket(t, conn, created.Id, "by_region.to_dict('records')"), 30*time.Second)
@@ -117,6 +118,21 @@ func TestASQLCellRunsOnAConnectionAndLeavesADataframe(t *testing.T) {
 	require.Len(t, errors, 1)
 	assert.Equal(t, "SqlError", errors[0]["ename"])
 	assert.Contains(t, errors[0]["evalue"], "no such column: totl")
+
+	// Interrupting the kernel stops a query that would never end, and says so in one line. Before the
+	// query ran on a thread of its own, SQLite's C code held the interrupt until the query returned.
+	forever := "%%zasper_sql local\nWITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n) SELECT count(*) FROM n"
+	msgId := executeOverSocket(t, conn, created.Id, forever)
+	awaitMessage(t, conn, msgId, "execute_input", 30*time.Second)
+	time.Sleep(500 * time.Millisecond)
+	status, body = call(t, srv, http.MethodPost, "/api/kernels/"+created.Kernel.Id+"/interrupt", nil)
+	require.Equal(t, http.StatusOK, status, "body was %s", body)
+	stopped := awaitMessage(t, conn, msgId, "error", 15*time.Second)
+	assert.Equal(t, "SqlError", stopped["ename"])
+	assert.Equal(t, "Stopped. local was told to cancel the query.", stopped["evalue"])
+	assert.Len(t, stopped["traceback"], 1)
+	// Until the stopped run is over, ipykernel drops what it is sent, as after any error.
+	runOutputs(t, conn, msgId, 15*time.Second)
 
 	// A connection whose driver this kernel lacks names the package, which the UI offers to install. This
 	// kernel has no DuckDB; on one that has, the query simply runs.
@@ -145,6 +161,14 @@ func TestASQLCellRunsOnAConnectionAndLeavesADataframe(t *testing.T) {
 	test := decode[kernel.SQLTest](t, body)
 	assert.True(t, test.OK, "%+v", test)
 	assert.Contains(t, test.Version, "SQLite")
+
+	// Before Load all, the rows the cell's query answers are counted in the notebook's kernel.
+	status, body = call(t, srv, http.MethodPost, "/api/connections/count", map[string]string{
+		"kernel": created.Kernel.Id, "name": "local", "query": "SELECT region FROM orders;"})
+	require.Equal(t, http.StatusOK, status, "body was %s", body)
+	counted := decode[kernel.SQLCount](t, body)
+	require.NotNil(t, counted.Rows, "%+v", counted)
+	assert.EqualValues(t, 4, *counted.Rows)
 
 	// The kernel's own dataframes, read through the notebook's kernel.
 	status, body = call(t, srv, http.MethodPost, "/api/connections/schema",

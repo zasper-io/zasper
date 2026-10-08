@@ -13,6 +13,7 @@ import json
 import os
 import shlex
 import sys
+import threading
 import time
 from collections import OrderedDict
 
@@ -24,6 +25,8 @@ MIME = "application/vnd.zasper.sql+json"
 DEFAULT_LIMIT = 1000
 CACHE_SECONDS = 3600
 MAX_CACHED = 20
+# How long counting a result for Load all may take. On a warehouse a count is the query run again.
+COUNT_SECONDS = 10
 DATAFRAMES = "dataframes"
 # Answered in milliseconds, and changed by the notebook itself: a cached answer would only be a stale one.
 UNCACHED = {DATAFRAMES, "sqlite", "duckdb"}
@@ -128,33 +131,25 @@ def _frame_from(columns, rows):
     return pd.DataFrame.from_records(list(rows), columns=list(columns))
 
 
-def _run(name, query, limit):
-    """Runs query on the connection called name and answers a dataframe and whether rows were left."""
+def _run(name, query, limit, within=None):
+    """
+    Runs query on the connection called name and answers a dataframe and whether rows were left. A query
+    still running after within seconds is cancelled, and raises _TooLong.
+    """
     take = None if limit is None else limit + 1
     if name == DATAFRAMES:
-        return _run_duckdb(None, query, take, limit)
+        return _interruptible(lambda hold: _run_duckdb(None, query, take, limit, hold), "DuckDB", within)
     spec = _connections.get(name) or _from_files(name)
     if spec is None:
         raise SqlError(f"There is no connection called {name}.")
     kind = spec["type"]
     if kind == "sqlite":
-        import sqlite3
-
-        connection = sqlite3.connect(spec["path"])
-        try:
-            cursor = connection.execute(query)
-            columns = [d[0] for d in cursor.description or []]
-            rows = cursor.fetchall() if take is None else cursor.fetchmany(take)
-        except sqlite3.Error as error:
-            raise SqlError(str(error)) from None
-        finally:
-            connection.close()
-        return _trimmed(columns, rows, limit)
+        return _interruptible(lambda hold: _run_sqlite(spec["path"], query, take, limit, hold), name, within)
     if kind == "duckdb":
-        return _run_duckdb(spec.get("path") or ":memory:", query, take, limit)
+        path = spec.get("path") or ":memory:"
+        return _interruptible(lambda hold: _run_duckdb(path, query, take, limit, hold), name, within)
     try:
         import sqlalchemy
-        from sqlalchemy import text
     except ImportError as error:
         raise _missing(error) from None
     engine = _engines.get(name)
@@ -164,29 +159,84 @@ def _run(name, query, limit):
         except ImportError as error:
             raise _missing(error) from None
         _engines[name] = engine
+    return _interruptible(lambda hold: _run_sqlalchemy(engine, query, take, limit, hold), name, within)
+
+
+class _TooLong(Exception):
+    """A query cancelled for running past the time it was given."""
+
+
+def _interruptible(work, what, within=None):
+    """
+    Runs work on a thread of its own, so that interrupting the kernel reaches a query still running.
+    ipykernel interrupts with SIGINT, which Python acts on only between bytecodes: a query inside a
+    driver's C code ran to its end first, 11.9 s for a SQLite query interrupted at 1 s. work is handed
+    hold, which it calls with the function that cancels its query once it has a connection, or None for
+    a driver that has no way to.
+    """
+    outcome = {}
+    cancels = []
+
+    def run():
+        try:
+            outcome["value"] = work(cancels.append)
+        except BaseException as error:
+            outcome["error"] = error
+
+    thread = threading.Thread(target=run, name="zasper-sql", daemon=True)
+    thread.start()
+    deadline = None if within is None else time.monotonic() + within
     try:
-        with engine.connect() as connection:
-            result = connection.execute(text(query))
-            if not result.returns_rows:
-                connection.commit()
-                return _frame_from(["rows affected"], [(result.rowcount,)]), False
-            columns = list(result.keys())
-            rows = result.fetchall() if take is None else result.fetchmany(take)
-    except ImportError as error:
-        raise _missing(error) from None
-    except sqlalchemy.exc.DBAPIError as error:
-        raise SqlError(str(error.orig).strip()) from None
-    except sqlalchemy.exc.SQLAlchemyError as error:
-        raise SqlError(str(error).strip()) from None
+        while thread.is_alive():
+            thread.join(0.1)
+            if deadline is not None and time.monotonic() > deadline and thread.is_alive():
+                if cancels and cancels[0] is not None:
+                    try:
+                        cancels[0]()
+                    except Exception:
+                        pass
+                raise _TooLong()
+    except KeyboardInterrupt:
+        if not cancels:
+            raise SqlError(f"Stopped before {what} answered.") from None
+        if cancels[0] is None:
+            raise SqlError(
+                f"Stopped waiting. The driver for {what} cannot cancel a query, so the database may still be running it."
+            ) from None
+        try:
+            cancels[0]()
+        except Exception:
+            pass
+        thread.join(10)
+        raise SqlError(f"Stopped. {what} was told to cancel the query.") from None
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome["value"]
+
+
+def _run_sqlite(path, query, take, limit, hold):
+    import sqlite3
+
+    connection = sqlite3.connect(path)
+    hold(connection.interrupt)
+    try:
+        cursor = connection.execute(query)
+        columns = [d[0] for d in cursor.description or []]
+        rows = cursor.fetchall() if take is None else cursor.fetchmany(take)
+    except sqlite3.Error as error:
+        raise SqlError(str(error)) from None
+    finally:
+        connection.close()
     return _trimmed(columns, rows, limit)
 
 
-def _run_duckdb(path, query, take, limit):
+def _run_duckdb(path, query, take, limit, hold):
     try:
         import duckdb
     except ImportError as error:
         raise _missing(error) from None
     connection = duckdb.connect(path or ":memory:")
+    hold(connection.interrupt)
     try:
         if path is None:
             # Registered as views, not copied: DuckDB reads pandas and polars frames where they are.
@@ -199,6 +249,38 @@ def _run_duckdb(path, query, take, limit):
         raise SqlError(str(error)) from None
     finally:
         connection.close()
+    return _trimmed(columns, rows, limit)
+
+
+def _canceller(dbapi_connection):
+    """How a DBAPI connection stops the query it is running, or None. psycopg 3 and psycopg2 have one;
+    pymysql does not."""
+    for name in ("cancel_safe", "cancel"):
+        cancel = getattr(dbapi_connection, name, None)
+        if callable(cancel):
+            return cancel
+    return None
+
+
+def _run_sqlalchemy(engine, query, take, limit, hold):
+    import sqlalchemy
+    from sqlalchemy import text
+
+    try:
+        with engine.connect() as connection:
+            hold(_canceller(connection.connection.dbapi_connection))
+            result = connection.execute(text(query))
+            if not result.returns_rows:
+                connection.commit()
+                return _frame_from(["rows affected"], [(result.rowcount,)]), False
+            columns = list(result.keys())
+            rows = result.fetchall() if take is None else result.fetchmany(take)
+    except ImportError as error:
+        raise _missing(error) from None
+    except sqlalchemy.exc.DBAPIError as error:
+        raise SqlError(str(error.orig).strip()) from None
+    except sqlalchemy.exc.SQLAlchemyError as error:
+        raise SqlError(str(error).strip()) from None
     return _trimmed(columns, rows, limit)
 
 
@@ -304,12 +386,38 @@ def zasper_sql(line, cell):
                 "seconds": round(seconds, 3),
                 "cached": from_cache,
                 "ran_at": ran_at,
+                # What Load all would cost in memory, per row, judged by the rows already here.
+                "row_bytes": _row_bytes(frame) if more else None,
             },
             "text/plain": words,
         },
         raw=True,
     )
     return frame
+
+
+def _row_bytes(frame):
+    if len(frame) == 0:
+        return None
+    try:
+        return int(frame.memory_usage(index=True, deep=True).sum() / len(frame))
+    except Exception:
+        return None
+
+
+def count(name, query):
+    """
+    How many rows query answers, for Load all to say what it would read. The count is the query wrapped in
+    count(*), so it is given COUNT_SECONDS and then cancelled, as an interrupt would.
+    """
+    counting = f"SELECT count(*) AS n FROM ({query.strip().rstrip(';')}) AS zasper_counted"
+    try:
+        frame, _ = _run(name, counting, 1, within=COUNT_SECONDS)
+    except _TooLong:
+        return _encode({"rows": None, "error": f"Counting took longer than {COUNT_SECONDS} seconds."})
+    except SqlError as error:
+        return _encode({"rows": None, "error": str(error)})
+    return _encode({"rows": int(frame.iloc[0, 0])})
 
 
 def schema(name):

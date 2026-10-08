@@ -26,6 +26,7 @@ export const deleteSession = vi.fn();
 export const saveNotebook = vi.fn();
 export const getKernel = vi.fn();
 export const prepareConnection = vi.fn();
+export const countRows = vi.fn();
 
 export async function apiModule() {
   const client = await import('@/api/client');
@@ -35,6 +36,7 @@ export async function apiModule() {
     isUntrusted: trust.isUntrusted,
     DATAFRAMES: 'dataframes',
     prepareConnection: (kernel: string, name: string) => prepareConnection(kernel, name),
+    countRows: (kernel: string, name: string, query: string) => countRows(kernel, name, query),
     readSchema: () => Promise.resolve({ schemas: [] }),
     readColumns: () => Promise.resolve({ columns: [] }),
     installIntoKernel: vi.fn(),
