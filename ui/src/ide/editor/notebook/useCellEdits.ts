@@ -92,6 +92,13 @@ export function useCellEdits(
   const moveCellUp = useCallback(() => moveCell(-1), [moveCell]);
   const moveCellDown = useCallback(() => moveCell(1), [moveCell]);
 
+  const connections = useAtomValue(connectionsAtom);
+  /** Where a new SQL cell runs: the project's first connection, else anyone's, else the kernel's frames. */
+  const defaultConnection =
+    connections?.connections.find((c) => c.scope === 'project')?.name ??
+    connections?.connections[0]?.name ??
+    DATAFRAMES;
+
   /** A new cell above the focused one, which takes the focus. */
   const addCellUp = useCallback(() => {
     pushUndo();
@@ -131,9 +138,21 @@ export function useCellEdits(
    * it.
    */
   const addCellAt = useCallback(
-    (index: number, cellType: NotebookCell['cell_type'] = 'code') => {
+    (index: number, cellType: NotebookCell['cell_type'] | 'sql' = 'code') => {
       pushUndo();
-      const added = newCell(cellType);
+      // A SQL cell is a code cell under the magic, on the connection and into the frame name that
+      // turning a cell into one picks.
+      const added =
+        cellType === 'sql'
+          ? {
+              ...newCell('code'),
+              source: toSqlSource(
+                '',
+                defaultConnection,
+                nextFrameName(notebook.cells.map((c) => parseSqlCell(c.source)?.out ?? ''))
+              ),
+            }
+          : newCell(cellType);
       setNotebook((prevNotebook) => {
         const at = Math.max(0, Math.min(index, prevNotebook.cells.length));
         return {
@@ -143,7 +162,7 @@ export function useCellEdits(
       });
       focusCell(added.id);
     },
-    [pushUndo, setNotebook, focusCell]
+    [pushUndo, setNotebook, focusCell, defaultConnection, notebook]
   );
 
   /** A code cell holding `source` right after the cell `afterId`, in command mode so it is not run by accident. */
@@ -252,7 +271,6 @@ export function useCellEdits(
     [setNotebook]
   );
 
-  const connections = useAtomValue(connectionsAtom);
   /*
    * `sql` is a code cell whose first line is the %%zasper_sql magic: it runs on the project's first
    * connection, or the kernel's own dataframes when there is none, into the next free df_<n>. Leaving SQL
@@ -266,10 +284,7 @@ export function useCellEdits(
       // Jupyter does: the text was code a moment ago.
       setEditingCellId(value === 'markdown' && target ? target.id : null);
       const used = notebook.cells.map((cell) => parseSqlCell(cell.source)?.out ?? '');
-      const connection =
-        connections?.connections.find((c) => c.scope === 'project')?.name ??
-        connections?.connections[0]?.name ??
-        DATAFRAMES;
+      const connection = defaultConnection;
       setNotebook((prevNotebook) => ({
         ...prevNotebook,
         cells: prevNotebook.cells.map((cell, idx) => {
@@ -294,7 +309,7 @@ export function useCellEdits(
         }),
       }));
     },
-    [notebook, focusedIndex, pushUndo, setNotebook, setEditingCellId, connections]
+    [notebook, focusedIndex, pushUndo, setNotebook, setEditingCellId, defaultConnection]
   );
 
   /** Throws away the focused cell's output. Undoable, because it changes the document. */

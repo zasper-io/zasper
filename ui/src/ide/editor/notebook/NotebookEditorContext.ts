@@ -37,7 +37,7 @@ export interface NotebookEditorContextValue {
   focusPreviousCell: () => void;
   updateCellSource: (value: string, cellId: string) => void;
   /** Puts a cell where the pointer is, for the rail between two cells. */
-  addCellAt: (index: number, cellType: NotebookCell['cell_type']) => void;
+  addCellAt: (index: number, cellType: NotebookCell['cell_type'] | 'sql') => void;
   insertCodeAfter: (cellId: string, source: string) => void;
   /** Runs one named cell: `notebook:run-cell` acts on the focused index, which a click has not set yet. */
   submitCell: (source: string, cellId: string) => void;

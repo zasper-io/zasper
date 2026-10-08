@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createStore, Provider } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -108,6 +108,32 @@ describe('a SQL cell in a notebook', () => {
     expect(boxes[0]).toHaveClass('has-head');
     expect(boxes[0].querySelector('.sqlCell-bar')).not.toBeNull();
     expect(screen.queryByText('SQL', { selector: 'span' })).toBeNull();
+  });
+
+  it('adds a SQL cell or a raw cell from the rail at the end, as well as code and markdown', async () => {
+    const { container } = renderNotebook();
+    await screen.findByRole('button', { name: 'Run on analytics' });
+    const end = () => container.querySelector('.cell-insert.is-end') as HTMLElement;
+    expect([...end().querySelectorAll('button')].map((button) => button.textContent)).toEqual([
+      'Code',
+      'SQL',
+      'Markdown',
+      'Raw',
+    ]);
+
+    fireEvent.click(within(end()).getByRole('button', { name: 'SQL' }));
+    await waitFor(() => expect(container.querySelectorAll('.cellEditor')).toHaveLength(2));
+    // On the project's connection, into a frame name no other cell writes.
+    const names = screen.getAllByRole('textbox', { name: 'Dataframe' }) as HTMLInputElement[];
+    expect(names.map((input) => input.value)).toEqual(['df_orders', 'df_1']);
+    expect(screen.getAllByRole('button', { name: 'Run on analytics' })).toHaveLength(2);
+
+    fireEvent.click(within(end()).getByRole('button', { name: 'Raw' }));
+    await waitFor(() =>
+      expect(
+        [...container.querySelectorAll<HTMLElement>('.cellEditor')].map((box) => box.dataset.kind)
+      ).toEqual(['sql', 'sql', 'raw'])
+    );
   });
 
   it('hands the kernel its connection before sending the query', async () => {

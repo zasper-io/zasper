@@ -601,6 +601,12 @@
 // on a one-line cell, reaches 5px past the bottom border there; it is also where VS Code and
 // JupyterLab's execute-time extension put a cell's time. The accent while the kernel is on it, as the
 // gutter's spinner is.
+// The output under a timed box starts 4px further down, so the time, which hangs 6px below the box,
+// has room above the output's edge rather than the 2px it had.
+.inner-content:has(.cellTime) ~ .inner-text {
+  margin-top: 12px;
+}
+
 .cellTime {
   position: absolute;
   z-index: 1;
@@ -633,15 +639,17 @@
 //
 // The code box's own numbers, so the two kinds of cell carry one edge rather than two that nearly
 // match: 2px wide, the 4px radius `.cellEditor .cm-editor` has — with no other border to close it,
-// that radius is what curves the ends of the bar — and text 12px from the box, which is the 2px edge
-// plus the 10px `.cm-line` insets code by. The width is held whatever the state, so nothing moves
+// that radius is what curves the ends of the bar — and text 18px from the box's edge, where a code
+// cell's first character is: its 2px edge, the fold gutter's 10.4px and `.cm-line`'s 6px. It was 12,
+// counting the line's inset as 10 and the gutter as nothing, and prose started 6.4px left of the code
+// in the cell below it. The width is held whatever the state, so nothing moves
 // when a cell becomes the focused one, and the 4px above and below is what leaves the curve room to
 // be seen. Prose is not a box: it keeps the notebook's ground rather than `--z-bg-cell`, and the
 // other three borders stay off.
 .cellEditor.is-rendered {
   border-left: 2px solid transparent;
   border-radius: 4px 0 0 4px;
-  padding: 4px 0 4px 10px;
+  padding: 4px 0 4px 16px;
 }
 
 .activeCell .cellEditor.is-rendered {
@@ -810,7 +818,9 @@ table.dataframe tbody tr:hover {
   h5,
   h6 {
     margin: 16px 0 4px;
-    font-weight: 500;
+    // One weight for every level, so size alone says which is which. The h1 was 300 and the h2 and h3
+    // 500, and at a glance the largest heading read as the weakest.
+    font-weight: 600;
     line-height: 1.3;
   }
 
@@ -826,7 +836,6 @@ table.dataframe tbody tr:hover {
 
   h1 {
     font-size: var(--z-font-size-title);
-    font-weight: 300;
     letter-spacing: -0.02em;
   }
 
@@ -843,7 +852,6 @@ table.dataframe tbody tr:hover {
   h5,
   h6 {
     font-size: inherit;
-    font-weight: 600;
   }
 
   p {
@@ -879,13 +887,16 @@ table.dataframe tbody tr:hover {
     color: var(--z-fg-muted);
   }
 
-  // Prose code, which is not the same thing as a code cell: it stays at the prose size rather than
-  // taking `--z-font-size-code`, so a name in a sentence sits on the sentence's line. The family and
-  // the ink come from `code, samp` in styles/_base.scss.
+  // Prose code, which is not the same thing as a code cell: it follows the prose size rather than
+  // taking `--z-font-size-code`, so a name in a sentence sits on the sentence's line — at 0.9 of it,
+  // because a monospace face at Inter's size has wider letters and a taller x-height, and a name in a
+  // sentence read heavier than the sentence. The family and the ink come from `code, samp` in
+  // styles/_base.scss.
   code {
     padding: 1px 4px;
     border-radius: 2px;
     background: var(--z-bg-cell-output);
+    font-size: 0.9em;
   }
 
   // A fenced block, which is the one place in a markdown cell that is a grid rather than a line of
@@ -901,9 +912,11 @@ table.dataframe tbody tr:hover {
     overflow: auto;
   }
 
+  // The block's own size, not 0.9 of it: a fenced block is a grid of code, like a code cell's.
   pre code {
     padding: 0;
     background: none;
+    font-size: inherit;
   }
 
   hr {

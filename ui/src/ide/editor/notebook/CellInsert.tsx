@@ -1,8 +1,17 @@
 import React, { memo } from 'react';
 
+import { NotebookCell } from '@/api';
 import { Icon } from '@/ide/icons';
 
 import { useNotebookEditor } from './NotebookEditorContext';
+
+/** What a cell added here can be, in the order the toolbar's cell type picker lists them. */
+const KINDS: { kind: NotebookCell['cell_type'] | 'sql'; label: string }[] = [
+  { kind: 'code', label: 'Code' },
+  { kind: 'sql', label: 'SQL' },
+  { kind: 'markdown', label: 'Markdown' },
+  { kind: 'raw', label: 'Raw' },
+];
 
 interface CellInsertProps {
   /** Where a cell added here would land. */
@@ -25,7 +34,7 @@ interface CellInsertProps {
  * `notebook:insert-cell-above` and `-below` are both relative to whichever cell holds the focus, so
  * putting a cell somewhere with the mouse cost a click to move the focus there first.
  *
- * Labelled rather than a bare `+`, because the choice being made is Code or Markdown and an icon
+ * Labelled rather than a bare `+`, because the choice being made is which kind of cell, and an icon
  * cannot say which.
  */
 function CellInsert(props: CellInsertProps) {
@@ -33,22 +42,17 @@ function CellInsert(props: CellInsertProps) {
 
   return (
     <div className={props.isEnd === true ? 'cell-insert is-end' : 'cell-insert'}>
-      <button
-        type="button"
-        className="cell-insert-button"
-        onClick={() => addCellAt(props.index, 'code')}
-      >
-        <Icon name="plus" size={12} />
-        Code
-      </button>
-      <button
-        type="button"
-        className="cell-insert-button"
-        onClick={() => addCellAt(props.index, 'markdown')}
-      >
-        <Icon name="plus" size={12} />
-        Markdown
-      </button>
+      {KINDS.map(({ kind, label }) => (
+        <button
+          key={kind}
+          type="button"
+          className="cell-insert-button"
+          onClick={() => addCellAt(props.index, kind)}
+        >
+          <Icon name="plus" size={12} />
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
