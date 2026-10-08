@@ -1,5 +1,12 @@
 // Notebook editor: cell chrome, kernel status and DataFrame output.
 
+// The gap between two cells, and the insert rail that fills it: one number in five places — the space
+// under a cell, the rail's height and the pull that sets it in that space, the room the first rail needs
+// at the top, and what a jump to a cell leaves above it. 40px since each box carries its kind on its top
+// border and its time on its bottom one, which reach 6px into the gap each: at 28 that left 16px between
+// one cell's time and the next cell's kind, and the cells read as packed together. 40 leaves 28.
+$cell-gap: 40px;
+
 // A 30px band, the same height as the tab strip and the breadcrumb above it, and on the panel's
 // surface rather than the editor's: the toolbar is chrome. It had no fill at all, so it was the
 // notebook's own background with a rule under it, and in a dark theme the band and the cells it sits
@@ -164,12 +171,12 @@
   // the bottom is room to scroll past the last cell: without it the cell you are typing in is pinned
   // to the bottom edge of the pane, which is where a scrollbar and a status bar already are.
   //
-  // The 28px at the top is the insert rail's, and has to be exactly its height: every rail is pulled
-  // up by its own 28px to sit in the gap the cell above leaves, and the first one has no cell above
+  // The `$cell-gap` at the top is the insert rail's, and has to be exactly its height: every rail is
+  // pulled up by its own height to sit in the gap the cell above leaves, and the first one has no cell above
   // it — so it was pulled above the top of this scroller, where 16px of it and over half of each
   // button were clipped. A scroller cannot be scrolled above its own content, so the only way to see
   // the first rail is to leave it the room it takes.
-  padding: 28px 16px 40px;
+  padding: $cell-gap 16px 40px;
   background-color: var(--z-bg-editor);
   color: var(--z-fg-editor);
 
@@ -180,17 +187,15 @@
   .single-line {
     // The anchor for .cellOptions and for the gutter's run button.
     position: relative;
-    // 28px, and it is the insert rail's measure rather than the bar's. It was 12px, which was half
-    // of a 24px bar that hung over the cell above — the bar is inside the cell now, so nothing was
-    // holding this number and the gap was free to be whatever the notebook wanted. What wanted
-    // something was the rail: a 22px button in a 12px gap overhangs 5px into the cell either side
-    // and reads as jammed against both. 22 + 3 either side is 28, and the output stays 8px under
-    // the code that produced it, so a cell still reads as one thing with space around it.
-    margin: 0 0 28px;
+    // `$cell-gap`, which the insert rail fills: see it at the top of this file. It was 12px, half of a
+    // 24px bar that hung over the cell above, then 28, the rail's 22px button with 3px either side.
+    // The output stays 8px under the code that produced it, so a cell still reads as one thing with
+    // space around it.
+    margin: 0 0 $cell-gap;
     // What a jump from the table of contents leaves above the cell it lands on: the insert rail is
     // pulled up into the gap above each cell, and a cell scrolled flush to the top of the scroller
-    // would have that rail clipped against the toolbar. Same 28px, for the same reason the gap is.
-    scroll-margin-top: 28px;
+    // would have that rail clipped against the toolbar. The gap's own size, for the same reason.
+    scroll-margin-top: $cell-gap;
   }
 
   // Command mode puts the keyboard on the cell's box, and Chromium rings a focused box in its own
@@ -308,14 +313,14 @@
 
   // The gap between two cells, made into somewhere to put one.
   //
-  // It fills the 28px `.single-line` already leaves and adds nothing to it: 28px tall pulled up by
-  // 28px, so the collapsed margin plus this box's own height is the 28px that was there before and
-  // nothing moves when it appears. Insertion here is by index rather than relative to the focused
+  // It fills the gap `.single-line` already leaves and adds nothing to it: `$cell-gap` tall pulled up
+  // by `$cell-gap`, so the collapsed margin plus this box's own height is the gap that was there
+  // before and nothing moves when it appears. Insertion here is by index rather than relative to the focused
   // cell, which is what makes it worth having — see CellInsert.tsx.
   .cell-insert {
     position: relative;
-    height: 28px;
-    margin-top: -28px;
+    height: $cell-gap;
+    margin-top: -$cell-gap;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -365,9 +370,8 @@
     content: none;
   }
 
-  // 22px like every control, sitting inside the 28px the rail measures with 3px clear above and
-  // below. Labelled rather than a bare `+`, because the choice being made is Code or Markdown and an
-  // icon cannot say which — which is also why the padding is 10px and not the 8px a row's control
+  // 22px like every control, centred in the rail's `$cell-gap`. Labelled rather than a bare `+`,
+  // because the choice being made is which kind of cell and an icon cannot say which — which is also why the padding is 10px and not the 8px a row's control
   // takes: these two are read as words, not aimed at as glyphs.
   .cell-insert-button {
     position: relative;
