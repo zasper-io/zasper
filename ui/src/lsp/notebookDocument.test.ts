@@ -3,6 +3,22 @@ import { describe, expect, it } from 'vitest';
 import { buildVirtualDocument, fromVirtual, maskIPython, toVirtual } from './notebookDocument';
 
 describe('maskIPython', () => {
+  it('lets a SQL cell define the dataframe it names, and shows the server none of its query', () => {
+    const cell = '%%zasper_sql taxi --out df_trips --limit 1000\nSELECT *\nFROM trips';
+    const { text, hidden } = maskIPython(cell);
+    expect(text.split('\n')).toEqual([
+      'import pandas as _zasper_pd; df_trips: _zasper_pd.DataFrame = eval("")',
+      '',
+      '',
+    ]);
+    expect([...hidden]).toEqual([0, 1, 2]);
+
+    // `_` when it names none, as the magic does.
+    expect(maskIPython('%%zasper_sql taxi\nSELECT 1').text.split('\n')[0]).toContain('_: ');
+    // A formatter is shown nothing of it, and so leaves the cell alone.
+    expect(maskIPython(cell, (line) => `# ${line}`).text).toBe('\n\n');
+  });
+
   it('keeps every line, and hides the ones that are not Python', () => {
     const source = ['%matplotlib inline', 'import os', '!ls -la', 'files = !ls', 'os.path?'].join(
       '\n'

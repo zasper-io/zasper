@@ -37,6 +37,10 @@ const GAP = 2;
 const PYTHON_CELL_MAGICS = new Set(['time', 'timeit', 'capture', 'prun', 'debug']);
 
 const ASSIGNED_MAGIC = /^(\s*[A-Za-z_][\w.]*(?:\s*,\s*[A-Za-z_][\w.]*)*\s*=)\s*[!%]/;
+
+/** A SQL cell's magic line, and the dataframe it names with `--out`. */
+const SQL_MAGIC = /^%%zasper_sql\b/;
+const SQL_OUT = /\s--out\s+([A-Za-z_]\w*)(?=\s|$)/;
 const HELP = /^\s*(?:\?{1,2}[\w.]+|[\w.[\]()'"]+\?{1,2})\s*$/;
 
 /** How much a line opens brackets by, ignoring strings and comments on it. */
@@ -81,7 +85,16 @@ export function maskIPython(
   const cellMagic = /^%%(\w+)/.exec(lines[0] ?? '');
   if (cellMagic !== null) {
     if (!PYTHON_CELL_MAGICS.has(cellMagic[1])) {
-      return { text: lines.map(() => '').join('\n'), hidden: new Set(lines.keys()) };
+      const blank = lines.map(() => '');
+      // A SQL cell assigns the dataframe it names, and the cells after it use it: without this, every
+      // use was reported as an undefined name. Its magic line stands for that assignment, typed as the
+      // DataFrame it is, so the next cell completes `df.` too; the query below it is not Python and
+      // stays blank. A formatter is shown none of it.
+      const out = SQL_MAGIC.test(lines[0]) ? (SQL_OUT.exec(lines[0])?.[1] ?? '_') : null;
+      if (out !== null && placeholder === undefined) {
+        blank[0] = `import pandas as _zasper_pd; ${out}: _zasper_pd.DataFrame = eval("")`;
+      }
+      return { text: blank.join('\n'), hidden: new Set(lines.keys()) };
     }
     hidden.add(0);
     lines[0] = placeholder?.(0) ?? '';
