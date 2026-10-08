@@ -194,21 +194,13 @@
   }
 }
 
-// The actions belong to the output, so they show when the pointer is on it, as a cell's own buttons do,
-// and stay while a filter is set. A keyboard that reaches one shows them too.
+// Always shown: filter, chart, copy, download and open in a tab. They appeared only under the pointer,
+// as a cell's own buttons do, and a reader looking at a table had no way to know a chart was one press
+// away until the pointer happened to cross it.
 .dataGrid-actions {
   display: inline-flex;
   gap: 2px;
   margin-left: auto;
-  opacity: 0;
-
-  .dataGrid:hover &,
-  .dataGrid:focus-within &,
-  .dataGrid.has-filters &,
-  .dataGrid.is-chart &,
-  .dataGrid.is-tab & {
-    opacity: 1;
-  }
 }
 
 .dataGrid-error {
