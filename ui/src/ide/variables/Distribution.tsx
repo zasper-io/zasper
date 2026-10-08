@@ -1,3 +1,4 @@
+import React from 'react';
 import { ColumnProfile } from '@/api';
 import { cellText, formatNumber } from './filters';
 
@@ -8,7 +9,14 @@ const HEIGHT = 20;
  * A column's shape, small enough for its header: bars over the range of a number or date column, or a
  * text column's commonest values as one bar split by share, with the commonest named under it.
  */
-export default function Distribution({ profile }: { profile: ColumnProfile | undefined }) {
+export default function Distribution({
+  profile,
+  anchor,
+}: {
+  profile: ColumnProfile | undefined;
+  /** Spread onto the shape: what a tooltip saying the column's numbers hangs from. */
+  anchor?: React.HTMLAttributes<HTMLSpanElement>;
+}) {
   if (profile === undefined) {
     return <span className="dataGrid-distribution" />;
   }
@@ -22,7 +30,7 @@ export default function Distribution({ profile }: { profile: ColumnProfile | und
         ? ''
         : `${formatNumber(profile.min)} to ${formatNumber(profile.max)}`;
     return (
-      <span className="dataGrid-distribution">
+      <span className="dataGrid-distribution" {...anchor}>
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           preserveAspectRatio="none"
@@ -57,7 +65,7 @@ export default function Distribution({ profile }: { profile: ColumnProfile | und
   const distinct = profile.distinct === null ? '' : `${formatNumber(profile.distinct)} distinct · `;
 
   return (
-    <span className="dataGrid-distribution is-text">
+    <span className="dataGrid-distribution is-text" {...anchor}>
       <span className="dataGrid-shares" aria-hidden="true">
         {shown.map((each, index) => (
           <span key={index} style={{ flex: each.count }} />

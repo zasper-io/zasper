@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ColumnKind, ColumnProfile, RowSort } from '@/api';
 import { Icon, IconName } from '@/ide/icons';
-import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import { useDismissOnEscape, useDismissOnPressOutside, useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { currentZoomFactor } from '@/zoom';
 import Distribution from './Distribution';
 import { cellText, formatNumber } from './filters';
@@ -91,11 +92,51 @@ function stats(profile: ColumnProfile): { label: string; value: string }[] {
   return rows;
 }
 
+/**
+ * What hovering a column's shape says: the numbers the shape and its one-line summary have no room for,
+ * from the same profile the menu's Summary lists. A number's range, mean and spread; a text column's
+ * commonest values with their counts; and how many rows are missing, in rows rather than a share.
+ */
+// Four significant digits: a tooltip says roughly where a column's middle is, not to the last place.
+const roughly = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 4 });
+
+export function shapeTip(profile: ColumnProfile): string[] {
+  const lines: string[] = [];
+  if (typeof profile.min === 'number' || typeof profile.max === 'number') {
+    lines.push(`Min ${formatNumber(profile.min)} · Max ${formatNumber(profile.max)}`);
+  } else if (profile.min !== undefined && profile.min !== null) {
+    lines.push(`From ${formatNumber(profile.min)} to ${formatNumber(profile.max)}`);
+  }
+  if (profile.mean !== undefined && profile.mean !== null) {
+    const spread =
+      profile.std === undefined || profile.std === null
+        ? ''
+        : ` · Std dev ${roughly.format(profile.std)}`;
+    lines.push(`Mean ${roughly.format(profile.mean)}${spread}`);
+  }
+  if (profile.distinct !== null) {
+    lines.push(`${formatNumber(profile.distinct)} distinct of ${formatNumber(profile.count)}`);
+  }
+  const top = (profile.top ?? []).slice(0, 3);
+  if (top.length > 0) {
+    lines.push(
+      top.map((each) => `${cellText(each.value)} (${formatNumber(each.count)})`).join(' · ')
+    );
+  }
+  lines.push(
+    profile.missing > 0
+      ? `${formatNumber(profile.missing)} of ${formatNumber(profile.count)} rows missing`
+      : 'None missing'
+  );
+  return lines;
+}
+
 /** A column's name, type and shape, and the menu that sorts, filters and describes it. */
 export default function ColumnHeader(props: ColumnHeaderProps) {
   const { index, name, dtype, kind, profile, sort, queryable, onSort, onFilter, onChart, width } =
     props;
   const [dropping, setDropping] = useState(false);
+  const shape = useTooltip(profile !== undefined);
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState({ top: 0, left: 0 });
   const header = useRef<HTMLTableCellElement>(null);
@@ -201,7 +242,8 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
         </span>
         <span className="dataGrid-dtype">{dtype}</span>
       </button>
-      <Distribution profile={profile} />
+      <Distribution profile={profile} anchor={shape.anchorProps} />
+      {profile !== undefined && <Tooltip tip={shape} label={shapeTip(profile)} />}
       <span className="dataGrid-missing">{missing > 0 ? `${missing}% missing` : ''}</span>
       <span
         className="dataGrid-resize"

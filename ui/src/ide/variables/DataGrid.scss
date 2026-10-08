@@ -78,6 +78,97 @@
   }
 }
 
+// --- Compact, in a cell -------------------------------------------------------------------------
+//
+// A table in a cell's output is scanned, not read, and was drawn at the size of prose: 14px on a 30px
+// row, an 86px header and the bar and foot at the chrome's size, so ten rows took 449px of a 1000px
+// window. In a cell it is 12px on a 22px row, the name and its type on one line, and the bar, the
+// index and the pager a step under the cells: 350px for the same ten rows, with every column's shape and
+// summary kept. A grid in its own tab keeps the roomier size, where the data is studied.
+.dataGrid.is-in-cell {
+  table.dataframe td,
+  table.dataframe tbody th {
+    padding: 3px 8px;
+    font-size: 12px;
+    // 15px of line, 3px above and below, and the row's 1px rule: a 22px row.
+    line-height: 15px;
+  }
+
+  // Where a row is, not what it says: quieter, so the eye starts at the first column.
+  table.dataframe tbody th {
+    color: var(--z-fg-subtle);
+    font-size: 11px;
+    font-weight: normal;
+  }
+
+  .dataGrid-columnButton {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .dataGrid-columnName {
+    font-size: 12px;
+  }
+
+  .dataGrid-distribution {
+    height: 14px;
+    margin-top: 3px;
+  }
+
+  // A text column's block holds its bar and the line under it, so it grows to fit them.
+  .dataGrid-distribution.is-text {
+    height: auto;
+  }
+
+  .dataGrid-bar,
+  .dataGrid-foot {
+    min-height: 0;
+    padding: 6px 8px 6px 12px;
+    font-size: 11px;
+  }
+
+  .dataGrid-actions .z-icon-button,
+  .dataGrid-pages .z-icon-button,
+  .dataChart-controls .z-icon-button {
+    width: 20px;
+    height: 20px;
+  }
+
+  .dataGrid-foot .z-select,
+  .dataChart-field .z-select {
+    height: 20px;
+    font-size: 11px;
+  }
+
+  .dataGrid-size {
+    width: 80px;
+  }
+
+  // On the inset the bar and the foot have, so the chart's rows start on one edge.
+  .dataChart-controls,
+  .dataChart-note {
+    padding: 0 8px 0 12px;
+    font-size: 11px;
+  }
+
+  .dataChart-field .z-select {
+    width: 104px;
+  }
+
+  .dataChart-insert {
+    height: 20px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  // A chart of a page's rows says what it has to in less: 240px, from 300.
+  .dataChart-graph {
+    height: 240px;
+  }
+}
+
 .dataGrid-bar {
   display: flex;
   align-items: center;
