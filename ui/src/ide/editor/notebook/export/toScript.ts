@@ -1,4 +1,5 @@
 import { NotebookModel } from '@/api';
+import { parseSqlCell } from '../sqlCell';
 
 import { cellSource, notebookLanguage, scriptExtension } from './exportFormats';
 
@@ -67,7 +68,9 @@ export function notebookToScript(notebook: NotebookModel, attachedLanguage?: str
   for (const cell of notebook.cells) {
     const source = cellSource(cell.source).replace(/\n+$/, '');
 
-    if (cell.cell_type === 'code') {
+    // A SQL cell is not code in the script's language: it goes in as a commented block, magic line and
+    // all, like prose, so the file still runs and the query can still be read.
+    if (cell.cell_type === 'code' && parseSqlCell(source) === null) {
       chunks.push(`${marker} %%\n${source}`);
       continue;
     }
@@ -75,7 +78,8 @@ export function notebookToScript(notebook: NotebookModel, attachedLanguage?: str
     // Prose and raw text become comments, one per line, so that the file still runs. A blank line
     // inside a markdown cell keeps its marker rather than becoming a bare newline: without it the
     // comment block reads as two, and jupytext would take the second as code.
-    const kind = cell.cell_type === 'markdown' ? 'markdown' : 'raw';
+    const kind =
+      cell.cell_type === 'markdown' ? 'markdown' : cell.cell_type === 'code' ? 'sql' : 'raw';
     if (source.trim() === '') {
       continue;
     }

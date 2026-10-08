@@ -125,3 +125,38 @@ func (k *Catalog) SetupHandler(w http.ResponseWriter, req *http.Request) {
 func (k *Catalog) SetupStatusHandler(w http.ResponseWriter, req *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, k.CurrentSetup())
 }
+
+/*
+PythonKernelName is the Python kernel to start when one is needed and no notebook says which. It runs the
+Python a file runs with — the one chosen in Settings, else the project's own — whether that is offered as
+project-venv or by a kernelspec installed for it; then python3, then the first Python by name. A spec
+whose interpreter has been deleted is passed over: the first by name is often an old venv's. "" when no
+Python kernel can start.
+*/
+func (k *Catalog) PythonKernelName() string {
+	specs := k.Specs()
+	names := append([]string{ProjectKernelName, "python3"}, slices.Sorted(maps.Keys(specs))...)
+	usable := func(name string) bool {
+		data, ok := specs[name]
+		return ok && strings.EqualFold(data.Spec.Language, "python") && canStart(data.Spec)
+	}
+	if python := DefaultPython(k.ownProject()); python != "" {
+		want := canonicalPath(environmentOf(python))
+		for _, name := range names {
+			if usable(name) && canonicalPath(ownerPrefix(specs[name].Spec)) == want {
+				return name
+			}
+		}
+	}
+	for _, name := range names[1:] {
+		if usable(name) {
+			return name
+		}
+	}
+	return ""
+}
+
+// canStart is false for a spec whose argv names an interpreter by a path that is no longer there.
+func canStart(spec KernelSpecJsonData) bool {
+	return len(spec.Argv) > 0 && (!filepath.IsAbs(spec.Argv[0]) || isExecutable(spec.Argv[0]))
+}

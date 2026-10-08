@@ -25,6 +25,8 @@ import SearchPanel from './sidebar/searchPanel/SearchPanel';
 import EditorDock from './editor/EditorDock';
 import LanguageServerBridge from '../lsp/LanguageServerBridge';
 import TrustController from './trust/TrustController';
+import DataPanel from './sidebar/dataPanel/DataPanel';
+import { useLoadConnections } from '@/store/connections';
 import TrustDialog from './trust/TrustDialog';
 import StatusBar from './statusBar/StatusBar';
 
@@ -238,6 +240,12 @@ function IDE() {
     loadKernelspecs();
   }, [loadKernelspecs]);
 
+  // Read once, for SQL cells' connection pickers; the Data panel and Settings read again when changed.
+  const loadConnections = useLoadConnections();
+  useEffect(() => {
+    void loadConnections();
+  }, [loadConnections]);
+
   // Publish the active theme to <html>, as the hue and the polarity it is made of.
   // Every colour in the app resolves through the custom properties keyed off those
   // two attributes (see styles/_accents.scss), so this repaints the whole UI.
@@ -286,6 +294,7 @@ function IDE() {
               <div className="sideBar">
                 <FileBrowser hidden={activePanel !== 'fileBrowser'} reloadCount={reloadCount} />
                 <SearchPanel hidden={activePanel !== 'searchPanel'} />
+                <DataPanel hidden={activePanel !== 'dataPanel'} />
                 <JupyterInfoPanel hidden={activePanel !== 'jupyterInfoPanel'} />
                 <GitPanel
                   hidden={activePanel !== 'gitPanel'}

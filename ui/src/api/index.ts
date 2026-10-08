@@ -8,6 +8,7 @@ export {
 } from './client';
 export * from './auth';
 export * from './config';
+export * from './connections';
 export * from './contents';
 export * from './git';
 export * from './interpreters';

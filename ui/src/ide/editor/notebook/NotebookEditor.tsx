@@ -8,10 +8,12 @@ import './NotebookEditor.scss';
 
 import {
   apiErrorMessage,
+  DATAFRAMES,
   downloadContent,
   getNotebook,
   logApiError,
   NotebookMetadata,
+  prepareConnection,
   saveNotebook,
 } from '@/api';
 import DiskChangeBand from '../DiskChangeBand';
@@ -31,6 +33,8 @@ import { NO_KERNEL } from './kernelChoice';
 import { findRunCell, KernelMessage, PlacedRun, ReplayedRun } from './kernelMessages';
 import KernelSwitcher from './KernelSwitch';
 import NbButtons from './NbButtons';
+import { insertCellRequestAtom } from '@/store/editorRequests';
+import { freeFrameName, parseSqlCell, withSqlOptions } from './sqlCell';
 import { useAskTrust } from '@/store/trust';
 import NotebookCells from './NotebookCells';
 import NotebookFindCard from './NotebookFindCard';
@@ -124,6 +128,23 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       });
     }
   }, [data, loadNotebook, startSessionForNotebook]);
+
+  // The Data panel's "Query this table", for this notebook: a SQL cell below the focused one.
+  const [insertRequest, setInsertRequest] = useAtom(insertCellRequestAtom);
+  useEffect(() => {
+    if (insertRequest === null || insertRequest.path !== data.path) {
+      return;
+    }
+    setInsertRequest(null);
+    // A dataframe another cell already writes is left to that cell.
+    let source = insertRequest.source;
+    const sql = parseSqlCell(source);
+    if (sql !== null) {
+      const used = notebook.cells.map((cell) => parseSqlCell(cell.source)?.out ?? '');
+      source = withSqlOptions(source, { out: freeFrameName(sql.out, used) });
+    }
+    cells.insertCodeAfter(notebook.cells[cells.focusedIndex]?.id ?? '', source);
+  }, [insertRequest, data.path, setInsertRequest, cells, notebook.cells]);
 
   const changedWhileHidden = useRef(false);
   const [conflict, setConflict] = useState<string | null>(null);
@@ -266,6 +287,30 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
    * socket is open: before then there is nothing to send them on.
    */
   const heldRuns = useRef<{ source: string; cellId: string }[]>([]);
+  const kernelId = kernel.session?.kernel.id;
+  /*
+   * Sends a run. A SQL cell's connection is handed to the kernel first, password and all, from the server:
+   * the notebook names a connection and never holds its credentials. See docs/SQL.md.
+   */
+  const send = useCallback(
+    (source: string, cellId: string) => {
+      const sql = parseSqlCell(source);
+      if (sql === null || sql.connection === DATAFRAMES || kernelId === undefined) {
+        markCellRunning(cellId);
+        sendExecuteRequest(source, cellId);
+        return;
+      }
+      prepareConnection(kernelId, sql.connection)
+        .then(() => {
+          markCellRunning(cellId);
+          sendExecuteRequest(source, cellId);
+        })
+        .catch((error) =>
+          toast.error(`Could not use ${sql.connection}: ${apiErrorMessage(error)}`)
+        );
+    },
+    [kernelId, markCellRunning, sendExecuteRequest]
+  );
   const submitCell = useCallback(
     (source: string, cellId: string) => {
       if (kernel.restricted) {
@@ -277,18 +322,9 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         });
         return;
       }
-      markCellRunning(cellId);
-      sendExecuteRequest(source, cellId);
+      send(source, cellId);
     },
-    [
-      markCellRunning,
-      sendExecuteRequest,
-      kernel.restricted,
-      kernel.kernelDisplayName,
-      kernel.kernelName,
-      askTrust,
-      data.name,
-    ]
+    [send, kernel.restricted, kernel.kernelDisplayName, kernel.kernelName, askTrust, data.name]
   );
   useEffect(() => {
     if (kernel.connection?.readyState !== WebSocket.OPEN || heldRuns.current.length === 0) {
@@ -296,11 +332,8 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
     const runs = heldRuns.current;
     heldRuns.current = [];
-    runs.forEach(({ source, cellId }) => {
-      markCellRunning(cellId);
-      sendExecuteRequest(source, cellId);
-    });
-  }, [kernel.connection, markCellRunning, sendExecuteRequest]);
+    runs.forEach(({ source, cellId }) => send(source, cellId));
+  }, [kernel.connection, send]);
 
   const submitPrompt = (parentHeader: KernelMessage, inputValue: string) => {
     // Which cell the kernel is waiting on is resolved by the kernel session: the prompt itself
@@ -663,7 +696,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         <NbButtons
           run={runCommand}
           downloadNotebook={downloadNotebook}
-          cellType={notebook.cells[cells.focusedIndex]?.cell_type ?? ''}
+          cellType={cellTypeOf(notebook.cells[cells.focusedIndex])}
           contentsShown={showContents}
           kernelName={kernel.kernelName}
           kernelDisplayName={kernel.kernelDisplayName}
@@ -786,4 +819,12 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       </div>
     </div>
   );
+}
+
+/** What the cell type select shows: `sql` for a code cell that is a SQL cell. */
+function cellTypeOf(cell: { cell_type: string; source: string } | undefined): string {
+  if (cell === undefined) {
+    return '';
+  }
+  return cell.cell_type === 'code' && parseSqlCell(cell.source) !== null ? 'sql' : cell.cell_type;
 }

@@ -1,0 +1,117 @@
+// A SQL cell's head: what it runs on and what it makes, above its query.
+.sqlCell-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: var(--z-ui-font-size);
+}
+
+// The cell's kind, as a word: a SQL cell and a code cell are the same box otherwise.
+.sqlCell-lang {
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--z-bg-row-selected);
+  color: var(--z-fg-accent);
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size-sm);
+  font-weight: 600;
+}
+
+.sqlCell-pickerArea {
+  position: relative;
+}
+
+// The connection: a control with the look of the text beside it.
+.sqlCell-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 6px;
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-default);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &[aria-expanded='true'] {
+    border-color: var(--z-fg-subtle);
+  }
+
+  // A name the notebook gives that no connection here has: a colleague's, not yet added.
+  &.is-unknown {
+    border-style: dashed;
+  }
+}
+
+.sqlCell-engine {
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.sqlCell-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  min-width: 260px;
+
+  .panel-row-meta {
+    margin-left: auto;
+    padding-left: 12px;
+  }
+}
+
+.sqlCell-into {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--z-fg-subtle);
+}
+
+.sqlCell-name {
+  width: 120px;
+  height: 22px;
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+// The line above a SQL cell's result: where the rows came from, and what to do about a partial one.
+.sqlOutput {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.sqlOutput-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--z-fg-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+// A query the database refused, said once and without a traceback.
+.sqlError {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--z-ui-font-size);
+
+  .z-icon {
+    flex: 0 0 auto;
+    color: var(--z-status-error);
+  }
+}
+
+.sqlOutput-install {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+  padding: 1px 10px;
+}

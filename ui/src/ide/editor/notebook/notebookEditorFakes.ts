@@ -25,6 +25,7 @@ export const createSession = vi.fn();
 export const deleteSession = vi.fn();
 export const saveNotebook = vi.fn();
 export const getKernel = vi.fn();
+export const prepareConnection = vi.fn();
 
 export async function apiModule() {
   const client = await import('@/api/client');
@@ -32,6 +33,11 @@ export async function apiModule() {
   return {
     // Not stubbed: it reads an ApiError, which is what a test rejects with.
     isUntrusted: trust.isUntrusted,
+    DATAFRAMES: 'dataframes',
+    prepareConnection: (kernel: string, name: string) => prepareConnection(kernel, name),
+    readSchema: () => Promise.resolve({ schemas: [] }),
+    readColumns: () => Promise.resolve({ columns: [] }),
+    installIntoKernel: vi.fn(),
     // Not stubbed: the real one only builds a URL, and the socket it is handed to is mocked anyway.
     websocketUrl: client.websocketUrl,
     getNotebook: (path: string) => getNotebook(path),

@@ -18,10 +18,15 @@ var inspectSource []byte
 // Loads inspect.py as its own module rather than running it in the user's namespace, so reading the
 // variables adds none. Loaded on every request, which costs microseconds and means an upgraded server
 // never talks to the helper an older one left in a kernel.
-var inspectCode = fmt.Sprintf(
-	"exec(__import__('base64').b64decode('%s').decode(), __import__('sys').modules.setdefault("+
-		"'_zasper_inspect', __import__('types').ModuleType('_zasper_inspect')).__dict__)",
-	base64.StdEncoding.EncodeToString(inspectSource))
+var inspectCode = moduleCode("_zasper_inspect", inspectSource)
+
+// moduleCode execs source as the module called name, creating it the first time.
+func moduleCode(name string, source []byte) string {
+	return fmt.Sprintf(
+		"exec(__import__('base64').b64decode('%s').decode(), __import__('sys').modules.setdefault("+
+			"'%s', __import__('types').ModuleType('%s')).__dict__)",
+		base64.StdEncoding.EncodeToString(source), name, name)
+}
 
 // ErrNotInspectable is answered for a kernel whose language the helper is not written in.
 var ErrNotInspectable = errors.New("variables can only be read from a Python kernel")
@@ -211,7 +216,11 @@ type Answered struct {
 // output already has it.
 func (km *KernelManager) LoadHelper(ctx context.Context) error {
 	var loaded bool
-	return km.inspect(ctx, "__import__('_zasper_inspect')._encode(True)", &loaded)
+	if err := km.inspect(ctx, "__import__('_zasper_inspect')._encode(True)", &loaded); err != nil {
+		return err
+	}
+	// And the %%zasper_sql magic, so a SQL cell runs as the first cell of a kernel.
+	return km.ask(ctx, sqlCode, "__import__('_zasper_sql')._encode(True)", &loaded)
 }
 
 // pyString quotes text as a JSON string, which is also a Python string literal for the same text.
@@ -226,6 +235,11 @@ with `silent` set: nothing is published as output, the execution count does not 
 into the history. The expression answers base64 JSON, whose repr is that string in quotes.
 */
 func (km *KernelManager) inspect(ctx context.Context, expression string, into interface{}) error {
+	return km.ask(ctx, inspectCode, expression, into)
+}
+
+// ask runs code, silently, and answers expression's base64 JSON: the helpers' one way into a kernel.
+func (km *KernelManager) ask(ctx context.Context, code, expression string, into interface{}) error {
 	if !strings.EqualFold(km.Spec.Language, "python") {
 		return ErrNotInspectable
 	}
@@ -235,7 +249,7 @@ func (km *KernelManager) inspect(ctx context.Context, expression string, into in
 
 	request := km.Session.MessageFromString("execute_request")
 	request.Content = map[string]interface{}{
-		"code":             inspectCode,
+		"code":             code,
 		"silent":           true,
 		"store_history":    false,
 		"user_expressions": map[string]string{"answer": expression},

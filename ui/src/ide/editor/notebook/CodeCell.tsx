@@ -20,6 +20,12 @@ import {
 } from './cellShared';
 import { tabCompletionKeymap } from './kernelCompletion';
 import { useNotebookEditor } from './NotebookEditorContext';
+import { DATAFRAMES } from '@/api';
+import { connectionsAtom } from '@/store/connections';
+import { parseSqlCell, withRunFlags, withSqlOptions } from './sqlCell';
+import { sqlCellExtensions } from './sqlEditor';
+import SqlCellHead from './SqlCellHead';
+import { useSqlSchema } from './useSqlSchema';
 import { zoomAwareTooltips } from '../tooltipParent';
 
 /** The name a cell's last line is when it is nothing else: what a chart's code can be written against. */
@@ -71,11 +77,28 @@ export default function CodeCell(props: CellProps) {
   // at its own coordinate times the zoom.
   const popupPlacement = useMemo(() => zoomAwareTooltips(), []);
 
+  // A SQL cell: a code cell whose first line is the %%zasper_sql magic, which the editor hides and the
+  // head above it shows as controls. Its language is SQL, completed from the connection's schema.
+  const sqlCell = cell.cell_type === 'code' ? parseSqlCell(cell.source) : null;
+  const connections = useAtomValue(connectionsAtom);
+  const connectionType =
+    sqlCell === null
+      ? ''
+      : sqlCell.connection === DATAFRAMES
+        ? DATAFRAMES
+        : (connections?.connections.find((c) => c.name === sqlCell.connection)?.type ?? '');
+  const { namespace, defaultSchema } = useSqlSchema(sqlCell?.connection ?? '', editor.kernelId);
+  const isSql = sqlCell !== null;
+  const sqlLanguage = useMemo(
+    () => (isSql ? sqlCellExtensions(connectionType, namespace, defaultSchema) : null),
+    [isSql, connectionType, namespace, defaultSchema]
+  );
+
   // Memoized for the reason CELL_SETUP gives.
   const extensions = useMemo(
     () => [
-      cellLanguage,
-      intelligence,
+      // A SQL cell's completion is the schema's, not the Python language server's or the kernel's.
+      ...(sqlLanguage !== null ? [sqlLanguage] : [cellLanguage, intelligence]),
       popupPlacement,
       Prec.highest(keymap.of(cellTabIndents ? tabIndentKeymap : tabCompletionKeymap)),
       leaveCell,
@@ -83,6 +106,7 @@ export default function CodeCell(props: CellProps) {
       commandKeymap,
     ],
     [
+      sqlLanguage,
       cellLanguage,
       intelligence,
       popupPlacement,
@@ -132,6 +156,12 @@ export default function CodeCell(props: CellProps) {
           )}
         </div>
         <div className="cellEditor">
+          {sqlCell !== null && (
+            <SqlCellHead
+              cell={sqlCell}
+              onChange={(changes) => updateCellSource(withSqlOptions(cell.source, changes), cellId)}
+            />
+          )}
           <CodeMirror
             theme={theme.codeMirror}
             value={cell.source}
@@ -166,6 +196,14 @@ export default function CodeCell(props: CellProps) {
               variable: printedName(cell.source),
               insertBelow: (source) => editor.insertCodeAfter(cell.id, source),
             }}
+            sql={
+              sqlCell === null
+                ? undefined
+                : {
+                    run: (flags) => editor.submitCell(withRunFlags(cell.source, flags), cellId),
+                    kernelId: editor.kernelId,
+                  }
+            }
           />
         </div>
       )}

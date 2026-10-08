@@ -1,0 +1,27 @@
+// The Data panel's tree: connections, schemas, tables and columns, each level indented under the last.
+.dataTree-children {
+  padding-left: 14px;
+}
+
+// A column: its name, and its type where the meta goes, in the code face since a type is a word of SQL.
+.dataTree-columns .panel-row {
+  padding-left: 34px;
+}
+
+.dataTree-type {
+  margin-left: auto;
+  font-family: var(--z-mono-font-family);
+}
+
+.dataTree-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px 2px 32px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+
+  &.is-error {
+    color: var(--z-status-error);
+  }
+}

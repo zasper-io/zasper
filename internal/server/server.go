@@ -4,6 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/zasper-io/zasper/internal/auth"
+	"github.com/zasper-io/zasper/internal/connections"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/gitclient"
@@ -33,6 +34,7 @@ type Server struct {
 	languages     *lsp.Manager
 	updates       *updates.Checker
 	trust         *trust.Gate
+	connections   *connections.Handler
 }
 
 // New builds the server for app, and connects the parts that cannot import each other.
@@ -58,6 +60,8 @@ func New(app core.Application) *Server {
 	}
 
 	// Until the project is trusted nothing it controls runs: see docs/TRUST.md.
+	s.connections = connections.NewHandler(connections.New(project.Root()), kernels, project.Root(), specs.PythonKernelName)
+
 	gate := s.trust
 	gate.DescribeEnvironment(func() string { return kernelspec.ProjectPython(project.Root()) })
 	kernels.RequireTrust(gate.Check)

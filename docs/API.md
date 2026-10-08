@@ -128,6 +128,7 @@ See [TRUST.md](TRUST.md).
 | `GET` | `/api/kernels/resources` | What every running kernel holds, read at most once a second. `kernels` by id: `memory` (bytes, the footprint of the kernel and every process it started), `processes`, and `gpus` (`index`, `memory`) it holds memory on. `memory`: the machine's or its container's `used`, `total` and `limit` (`machine` or `container`), `null` on Windows. `gpus`: each NVIDIA device's `index`, `name`, `utilization` (percent, or `null`), `memory_used`, `memory_total`, and `unattributed`, memory held by processes the server cannot see. See [KERNEL-RESOURCES.md](KERNEL-RESOURCES.md). |
 | `GET` | `/api/kernels/{kernelId}` | Read one kernel. |
 | `POST` | `/api/kernels/{kernelId}/interrupt` | Interrupt. |
+| `POST` | `/api/kernels/{kernelId}/install` | `{"package"}`: install a package, extras allowed (`psycopg[binary]`), into the interpreter a Python kernel runs, with pip, or uv where there is no pip. Answers `ok` and pip's `log`. `400` for anything but a package name, `403` (`untrusted`) in a folder that is not trusted. |
 | `GET` | `/api/kernels/{kernelId}/variables` | The names in a Python kernel's namespace: type, kind, shape or length, a short summary, and whether it can be shown as a table. `422` for a kernel that is not Python, `504` if a running cell kept the kernel busy for 10 seconds. |
 | `POST` | `/api/kernels/{kernelId}/variables/{name}/rows` | A page of a DataFrame, Series or 1–2-D array, filtered and sorted in the kernel. Body: `offset`, `limit` (1–1000), optional `sort` (`column`, `descending`) and up to 20 `filters` (`column`, `op`, `value`); columns are named by position. The CSV route also takes `columns`, the positions to export in order. `op` is one of `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `contains`, `not_contains`, `starts_with`, `missing`, `present`. Answers the columns with dtype and kind, the index, the rows, `total_rows` and `matched_rows`; a missing value is `{"missing": "NaN"}` with the text pandas prints. `400` for a malformed query or a name that is not an identifier, `422` for a value a column cannot be compared with, or a variable that is not defined or not a table. |
 
@@ -161,6 +162,24 @@ that finished with no client attached. Each run carries `msg_id` (the request's)
 `cell_id`, `code`, `execution_count`, `outputs` (nbformat outputs), `clear_waiting`
 and `done`. A client that does not know the message can ignore it. See
 [RUNS.md](RUNS.md).
+
+## Data connections
+
+The databases SQL cells run on. Passwords are never answered. See [SQL.md](SQL.md).
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/connections` | `connections`, each `name`, `type`, `host`, `port`, `database`, `user`, `path` or `url`, `scope` (`project` or `user`) and `has_password`; and `types`, the types a connection can have. |
+| `PUT` | `/api/connections` | Add or change one: a connection, plus `previous` (the name it had, for a rename) and `password` (absent keeps the stored one, `""` removes it). Answers the list. `400` for a name already taken or a connection that lacks what its type needs. |
+| `DELETE` | `/api/connections` | `{"scope", "name"}`: remove one and its password. Answers the list. |
+| `POST` | `/api/connections/prepare` | `{"kernel", "name"}`: hand a notebook's kernel the connection a SQL cell is about to run on. |
+| `POST` | `/api/connections/schema` | `{"name", "kernel"?}`: `schemas`, each `name`, `default` and `tables` (`name`, `kind` of `table`, `view` or `dataframe`, and `rows` for a dataframe), or `error`. Asks the Data panel's own kernel unless `kernel` names one; `dataframes` is the frames of the kernel named. |
+| `POST` | `/api/connections/columns` | `{"name", "schema", "table", "kernel"?}`: `columns`, each `name` and `type`, or `error`. |
+| `POST` | `/api/connections/test` | `{"connection", "password"?, "kernel"?}`: connect with a connection as a form holds it, saved or not. `ok`, `version`, `ms`, or `error` and `missing`, the package to install. |
+
+`prepare`, `schema`, `columns` and `test` run code in a kernel: `403` (`untrusted`) in a folder that is not
+trusted, `409` when the kernel named is not running or no Python kernel is installed. `error` with
+`missing` set means the kernel lacks that driver.
 
 ## Terminals
 

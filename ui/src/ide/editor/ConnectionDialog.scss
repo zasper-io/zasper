@@ -1,0 +1,62 @@
+// Adding or editing a data connection: a form of label and field pairs, inset as every question is.
+.connectionTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connectionForm {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  width: 440px;
+  max-width: 100%;
+  padding: 16px 16px 0;
+}
+
+.connectionHost {
+  display: flex;
+  gap: 6px;
+
+  .z-field:first-child {
+    flex: 1 1 auto;
+  }
+}
+
+.connectionPort {
+  width: 70px;
+}
+
+.connectionKeychain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -4px 0 0;
+}
+
+.connectionScope {
+  display: flex;
+  gap: 16px;
+}
+
+.connectionResult {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 16px 0;
+  font-size: var(--z-ui-font-size);
+
+  &.is-ok {
+    color: var(--z-git-added);
+  }
+
+  &.is-error {
+    color: var(--z-status-error);
+  }
+}
+
+// Test is not an answer to the dialog, so it stands apart from the ones that are.
+.connectionTest {
+  margin-right: auto;
+}

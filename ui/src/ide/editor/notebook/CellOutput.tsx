@@ -12,6 +12,7 @@ import { AnsiUp } from 'ansi_up';
 import DOMPurify from 'dompurify';
 
 import { NotebookCell, NotebookOutput, OutputTable, TABLE_MIME } from '@/api';
+import { SQL_MIME, SqlActions, SqlError, SqlProvenance, SqlRunInfo } from './SqlOutput';
 import WidgetRenderer, { type WidgetSource } from '@/ide/widgets/WidgetRenderer';
 
 import type { MarkdownRendererProps } from './MarkdownRenderer';
@@ -100,6 +101,8 @@ interface OutputBundlesProps {
   widgets: WidgetSource | null;
   /** Only a live cell passes this: an export, or an Output widget, shows pandas' table as it is. */
   tables?: OutputTables;
+  /** A SQL cell's: its outputs can run it again and install a missing driver. */
+  sql?: SqlActions;
 }
 
 /**
@@ -109,7 +112,7 @@ interface OutputBundlesProps {
  * Exported because a cell is not the only place outputs are shown: ipywidgets' Output widget holds
  * some of its own, and renders them through here so that they look like every other output.
  */
-export const OutputBundles = ({ outputs, widgets, tables }: OutputBundlesProps) => {
+export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesProps) => {
   const ansi_up = new AnsiUp();
   // Classes rather than the `style="color:rgb(187,0,0)"` this emits by default, which would bake a
   // 16-colour terminal palette into the HTML where no theme could reach it. The map from `.ansi-*-fg`
@@ -120,6 +123,9 @@ export const OutputBundles = ({ outputs, widgets, tables }: OutputBundlesProps) 
   return (
     <>
       {outputs.map((output: NotebookOutput, index: number) => {
+        if (output.output_type === 'error' && output.ename === 'SqlError') {
+          return <SqlError key={index} message={String(output.evalue)} actions={sql} />;
+        }
         if (output.output_type === 'error') {
           const { ename, evalue, traceback } = output;
           const tracebackHtml = ansi_up.ansi_to_html(traceback ? traceback.join('\n') : '');
@@ -175,6 +181,11 @@ export const OutputBundles = ({ outputs, widgets, tables }: OutputBundlesProps) 
 
           if (widgetData) {
             return <WidgetRenderer key={index} modelId={widgetData.model_id} widgets={widgets} />;
+          }
+
+          const sqlRun = outputData[SQL_MIME] as SqlRunInfo | undefined;
+          if (sqlRun) {
+            return <SqlProvenance key={index} info={sqlRun} actions={sql} />;
           }
 
           const table = outputData[TABLE_MIME] as OutputTable | undefined;
@@ -251,15 +262,16 @@ interface CellOutputProps {
   data: NotebookCell;
   widgets: WidgetSource | null;
   tables?: OutputTables;
+  sql?: SqlActions;
 }
 
 /** The output area of a single cell. */
-const CellOutput = ({ data, widgets, tables }: CellOutputProps) => {
+const CellOutput = ({ data, widgets, tables, sql }: CellOutputProps) => {
   const outputs = data?.outputs;
   if (!outputs || outputs.length === 0) {
     return null;
   }
-  return <OutputBundles outputs={outputs} widgets={widgets} tables={tables} />;
+  return <OutputBundles outputs={outputs} widgets={widgets} tables={tables} sql={sql} />;
 };
 
 export default CellOutput;

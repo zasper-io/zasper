@@ -400,6 +400,11 @@ func ownerPrefix(spec KernelSpecJsonData) string {
 	if exe == "" {
 		return ""
 	}
+	return environmentOf(exe)
+}
+
+// environmentOf is the prefix an interpreter belongs to: the folder above its bin or Scripts.
+func environmentOf(exe string) string {
 	dir := filepath.Dir(exe)
 	if base := filepath.Base(dir); base == "bin" || base == "Scripts" {
 		return filepath.Dir(dir)

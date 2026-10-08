@@ -75,6 +75,7 @@ const EXPORT_MENU: { id: string; label: string }[] = [
 
 const CELL_TYPES = [
   { label: 'Code', value: 'code' },
+  { label: 'SQL', value: 'sql' },
   { label: 'Markdown', value: 'markdown' },
   { label: 'Raw', value: 'raw' },
 ];

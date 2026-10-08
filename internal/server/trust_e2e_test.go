@@ -49,6 +49,14 @@ func TestAnUntrustedProjectReadsButRunsNothingUntilItIsTrusted(t *testing.T) {
 	status, _ = call(t, srv, http.MethodPost, "/api/environment/setup", nil)
 	assert.Equal(t, http.StatusForbidden, status)
 
+	// A connection is read through a kernel, so it waits for trust too; listing them is settings.
+	status, _ = call(t, srv, http.MethodGet, "/api/connections", nil)
+	assert.Equal(t, http.StatusOK, status)
+	for _, ask := range []string{"/api/connections/prepare", "/api/connections/schema", "/api/connections/test"} {
+		status, _ = call(t, srv, http.MethodPost, ask, map[string]any{"name": "local"})
+		assert.Equal(t, http.StatusForbidden, status, ask)
+	}
+
 	// Git reads; it does not change the repository, where its own config could make it run commands.
 	status, _ = call(t, srv, http.MethodGet, "/api/git/status", nil)
 	assert.Equal(t, http.StatusOK, status)

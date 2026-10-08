@@ -16,3 +16,9 @@ export const goToLineAtom = atom<number | null>(null);
  * it, so nothing re-renders on a keystroke unless it is watching for exactly this.
  */
 export const editorPulseAtom = atom(0);
+
+/**
+ * A SQL cell to add to the notebook at `path`, below its focused cell: the Data panel's "Query this
+ * table". That notebook's editor carries it out and clears it.
+ */
+export const insertCellRequestAtom = atom<{ path: string; source: string } | null>(null);

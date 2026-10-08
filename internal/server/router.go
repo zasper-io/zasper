@@ -148,6 +148,17 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/search/replace", s.search.Replace).Methods("POST")
 	apiRouter.HandleFunc("/search/buffer", s.search.Buffer).Methods("POST")
 
+	// data connections for SQL cells: kept by the server, used in a kernel. Everything that reaches a
+	// kernel asks for trust; listing and editing them is settings. See docs/SQL.md.
+	apiRouter.HandleFunc("/connections", s.connections.ListHandler).Methods("GET")
+	apiRouter.HandleFunc("/connections", s.connections.SaveHandler).Methods("PUT")
+	apiRouter.HandleFunc("/connections", s.connections.DeleteHandler).Methods("DELETE")
+	apiRouter.HandleFunc("/connections/prepare", s.trust.Require(s.connections.PrepareHandler)).Methods("POST")
+	apiRouter.HandleFunc("/connections/schema", s.trust.Require(s.connections.SchemaHandler)).Methods("POST")
+	apiRouter.HandleFunc("/connections/columns", s.trust.Require(s.connections.ColumnsHandler)).Methods("POST")
+	apiRouter.HandleFunc("/connections/test", s.trust.Require(s.connections.TestHandler)).Methods("POST")
+	apiRouter.HandleFunc("/kernels/{kernelId}/install", s.trust.Require(s.kernels.InstallHandler)).Methods("POST")
+
 	// trust: whether the project's code may run, and the folders that may
 	apiRouter.HandleFunc("/trust", s.trust.StateHandler).Methods("GET")
 	apiRouter.HandleFunc("/trust", s.trust.TrustHandler).Methods("POST")

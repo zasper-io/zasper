@@ -1,4 +1,5 @@
 import { NotebookCell, NotebookModel, NotebookOutput } from '@/api';
+import { parseSqlCell } from '../sqlCell';
 
 import { cellSource, joinOutputLines, notebookLanguage } from './exportFormats';
 
@@ -130,7 +131,10 @@ function cellToMarkdown(cell: NotebookCell, language: string, includeOutputs: bo
   }
 
   if (source.trim() !== '') {
-    blocks.push(fence(source.replace(/\n+$/, ''), language));
+    // A SQL cell is tagged as SQL, with the magic line that says where it ran kept above its query.
+    blocks.push(
+      fence(source.replace(/\n+$/, ''), parseSqlCell(source) === null ? language : 'sql')
+    );
   }
 
   if (includeOutputs) {

@@ -117,6 +117,7 @@ export const NOTEBOOK_COMMANDS = defineCommands({
     keys: ['Ctrl-Shift-m'],
   },
   'notebook:change-to-raw': { ...NOTEBOOK, label: 'Change Cell to Raw' },
+  'notebook:change-to-sql': { ...NOTEBOOK, label: 'Change Cell to SQL' },
 
   // The notebook's, not a cell's: `searchKeymap` is off in the cells, so this reaches the window
   // dispatcher from inside an editor as well as from the pane around it.
@@ -316,6 +317,11 @@ export function useNotebookCommands(targets: NotebookCommandTargets): Command[] 
       ...NOTEBOOK_COMMANDS['notebook:change-to-raw'],
       isEnabled: hasCell,
       execute: () => cells.changeCellType('raw'),
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:change-to-sql'],
+      isEnabled: hasCell,
+      execute: () => cells.changeCellType('sql'),
     },
 
     {

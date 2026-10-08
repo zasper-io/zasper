@@ -39,6 +39,11 @@ import {
   Cpu,
   MemoryStick,
   Shield,
+  CircleCheck,
+  Database,
+  KeyRound,
+  Timer,
+  CircleStop,
   ShieldCheck,
   Microchip,
   Download,
@@ -214,6 +219,12 @@ export const ICONS = {
   // A folder not yet trusted, and one that is.
   shield: Shield,
   'shield-check': ShieldCheck,
+  // Data connections, their passwords, how long a query took, and stopping one.
+  database: Database,
+  'key-round': KeyRound,
+  timer: Timer,
+  'circle-stop': CircleStop,
+  'circle-check': CircleCheck,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

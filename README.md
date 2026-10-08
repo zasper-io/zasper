@@ -538,6 +538,8 @@ covers the development workflow.
   how Zasper asks first, and what the server refuses until it is trusted.
 - [docs/KERNEL-RESOURCES.md](docs/KERNEL-RESOURCES.md): the memory and GPU memory each kernel holds,
   in the status bar and the Jupyter info panel, and how it is measured on each platform.
+- [docs/SQL.md](docs/SQL.md): SQL cells and data connections — the magic a SQL cell is saved as,
+  where connections and their passwords are kept, and the Data panel.
 - [PRIVACY.md](PRIVACY.md): what anonymous usage data is collected, event by event.
 - [PUBLISHING.md](PUBLISHING.md): how releases are cut.
 

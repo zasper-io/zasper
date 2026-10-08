@@ -111,3 +111,25 @@ describe('notebookToScript', () => {
     expect(notebookToScript(notebook([], python)).text).toBe('');
   });
 });
+
+describe('a SQL cell in a script', () => {
+  it('is kept as a commented block, so the script still runs', () => {
+    const notebook = {
+      cells: [
+        {
+          cell_type: 'code',
+          source: '%%zasper_sql local --out df_1\nSELECT 1',
+          metadata: {},
+          outputs: [],
+        },
+      ],
+      metadata: {},
+      nbformat: 4,
+      nbformat_minor: 5,
+    } as never;
+
+    expect(notebookToScript(notebook, 'python').text).toBe(
+      '# %% [sql]\n# %%zasper_sql local --out df_1\n# SELECT 1\n'
+    );
+  });
+});

@@ -1,7 +1,10 @@
 import { useCallback, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import { NotebookCell, NotebookModel } from '@/api';
+import { DATAFRAMES, NotebookCell, NotebookModel } from '@/api';
+import { useAtomValue } from 'jotai';
+import { connectionsAtom } from '@/store/connections';
+import { fromSqlSource, nextFrameName, parseSqlCell, toSqlSource } from './sqlCell';
 
 import { CellFocus } from './useCellFocus';
 import { newCell, NotebookDocument } from './useNotebookDocument';
@@ -249,6 +252,12 @@ export function useCellEdits(
     [setNotebook]
   );
 
+  const connections = useAtomValue(connectionsAtom);
+  /*
+   * `sql` is a code cell whose first line is the %%zasper_sql magic: it runs on the project's first
+   * connection, or the kernel's own dataframes when there is none, into the next free df_<n>. Leaving SQL
+   * for any other type takes the magic off and keeps the query.
+   */
   const changeCellType = useCallback(
     (value: string) => {
       pushUndo();
@@ -256,14 +265,36 @@ export function useCellEdits(
       // A cell that has just become markdown shows its source rather than rendering on the spot, as
       // Jupyter does: the text was code a moment ago.
       setEditingCellId(value === 'markdown' && target ? target.id : null);
+      const used = notebook.cells.map((cell) => parseSqlCell(cell.source)?.out ?? '');
+      const connection =
+        connections?.connections.find((c) => c.scope === 'project')?.name ??
+        connections?.connections[0]?.name ??
+        DATAFRAMES;
       setNotebook((prevNotebook) => ({
         ...prevNotebook,
-        cells: prevNotebook.cells.map((cell, idx) =>
-          idx === focusedIndex ? { ...cell, cell_type: value } : cell
-        ),
+        cells: prevNotebook.cells.map((cell, idx) => {
+          if (idx !== focusedIndex) {
+            return cell;
+          }
+          const isSql = cell.cell_type === 'code' && parseSqlCell(cell.source) !== null;
+          if (value === 'sql') {
+            return isSql
+              ? cell
+              : {
+                  ...cell,
+                  cell_type: 'code',
+                  source: toSqlSource(cell.source, connection, nextFrameName(used)),
+                };
+          }
+          return {
+            ...cell,
+            cell_type: value,
+            source: isSql ? fromSqlSource(cell.source) : cell.source,
+          };
+        }),
       }));
     },
-    [notebook, focusedIndex, pushUndo, setNotebook, setEditingCellId]
+    [notebook, focusedIndex, pushUndo, setNotebook, setEditingCellId, connections]
   );
 
   /** Throws away the focused cell's output. Undoable, because it changes the document. */
