@@ -32,8 +32,9 @@ interface SqlCellHeadProps {
 }
 
 /**
- * What a SQL cell runs on and what it makes, above its query: the connection, as a picker, and the
- * dataframe it assigns, as a name to edit. Both are its magic line, which the editor hides.
+ * What a SQL cell runs on and what it makes, as the first line of its box: the connection, as a
+ * picker, and the dataframe it assigns, as a name to edit. Both are its magic line, which the editor
+ * hides, so the head stands where that line is.
  */
 export default function SqlCellHead({ cell, onChange }: SqlCellHeadProps) {
   const list = useAtomValue(connectionsAtom);
@@ -101,7 +102,6 @@ export default function SqlCellHead({ cell, onChange }: SqlCellHeadProps) {
 
   return (
     <div className="sqlCell-bar">
-      <span className="sqlCell-lang">SQL</span>
       <div className="sqlCell-pickerArea" ref={picker}>
         <button
           type="button"
@@ -157,7 +157,7 @@ export default function SqlCellHead({ cell, onChange }: SqlCellHeadProps) {
       <span className="sqlCell-into">
         <Icon name="arrow-right" size={12} />
         <input
-          className="z-field sqlCell-name"
+          className="sqlCell-name"
           aria-label="Dataframe"
           value={name}
           spellCheck={false}

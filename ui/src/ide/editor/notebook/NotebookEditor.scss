@@ -543,6 +543,59 @@
   border-left-color: var(--z-accent);
 }
 
+// A SQL cell's box holds its head as well as its query, so the box is drawn by `.cellEditor` and the
+// editor inside it draws none: the head is the box's first line, where the `%%zasper_sql` line it
+// stands for is. The same border, surface and accent edge as a code cell's, from the same tokens.
+.cellEditor.has-head {
+  border: 1px solid var(--z-border);
+  border-left: 2px solid var(--z-border);
+  border-radius: 4px;
+  background: var(--z-bg-cell);
+
+  .cm-editor {
+    border: 0;
+    border-radius: 0 0 4px 4px;
+    background: transparent;
+  }
+}
+
+.activeCell .cellEditor.has-head {
+  border-left-color: var(--z-accent);
+}
+
+// Every box says what kind of cell it is, set in its top border at the left as a legend sits in a
+// frame's: the kernel's language for code, `raw`, `sql`, `markdown` while one is edited. On the border
+// rather than in the box, because a code cell's first line can be any width and would run under a
+// label in a corner. At the left, because the right end of that border is where CellButtons hangs on
+// the cell under the pointer and the cell being edited, and covered the label on exactly the cell being
+// looked at. The notebook's ground behind it cuts the border, as a legend's does. A rendered markdown
+// cell has no box and so no label.
+.cellEditor[data-kind] {
+  position: relative;
+}
+
+.cellEditor[data-kind]::before {
+  content: attr(data-kind);
+  position: absolute;
+  z-index: 1;
+  // 12px, centred on the border: 6px of it inside the box, which clears the first line's letters. At
+  // 16px it sat on them.
+  top: -6px;
+  left: 8px;
+  padding: 0 4px;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-subtle);
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size-sm);
+  line-height: 12px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.cellEditor.is-rendered::before {
+  content: none;
+}
+
 // A markdown cell that is rendered has no editor, so until now it was the one cell that could hold
 // the keyboard and say nothing about it — which command mode made obvious, since Shift-Enter lands on
 // those cells as often as on any other.

@@ -1,54 +1,50 @@
-// A SQL cell's head: what it runs on and what it makes, above its query.
+// A SQL cell's head: the first line of its box, under it a hairline and the query. Where the
+// `%%zasper_sql` line is in the file, and in the code face a step down, as a comment would be. 30px, so
+// the execution count beside it lands on its centre as it lands on a code cell's first line.
 .sqlCell-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
-  font-size: var(--z-ui-font-size);
-}
-
-// The cell's kind, as a word: a SQL cell and a code cell are the same box otherwise.
-.sqlCell-lang {
-  padding: 0 6px;
-  border-radius: 3px;
-  background: var(--z-bg-row-selected);
-  color: var(--z-fg-accent);
+  min-height: 30px;
+  padding: 2px 10px;
+  border-bottom: 1px solid var(--z-border);
+  color: var(--z-fg-subtle);
   font-family: var(--z-mono-font-family);
   font-size: var(--z-ui-font-size-sm);
-  font-weight: 600;
 }
 
 .sqlCell-pickerArea {
   position: relative;
 }
 
-// The connection: a control with the look of the text beside it.
+// The connection: text that opens a menu, not a bordered button. Hover says it is one.
 .sqlCell-picker {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 1px 6px;
-  border: 1px solid var(--z-border);
-  border-radius: 4px;
-  background: var(--z-bg-editor);
-  color: var(--z-fg-default);
+  margin-left: -4px;
+  padding: 1px 4px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--z-fg-editor);
   font: inherit;
   cursor: pointer;
 
   &:hover,
   &[aria-expanded='true'] {
-    border-color: var(--z-fg-subtle);
+    background: var(--z-bg-row-selected);
   }
 
   // A name the notebook gives that no connection here has: a colleague's, not yet added.
   &.is-unknown {
-    border-style: dashed;
+    text-decoration: underline dashed var(--z-fg-subtle);
+    text-underline-offset: 3px;
   }
 }
 
 .sqlCell-engine {
   color: var(--z-fg-subtle);
-  font-size: var(--z-ui-font-size-sm);
 }
 
 .sqlCell-menu {
@@ -57,6 +53,8 @@
   left: 0;
   z-index: 10;
   min-width: 260px;
+  font-family: var(--z-ui-font-family);
+  font-size: var(--z-ui-font-size);
 
   .panel-row-meta {
     margin-left: auto;
@@ -67,15 +65,29 @@
 .sqlCell-into {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: var(--z-fg-subtle);
+  gap: 4px;
 }
 
+// The dataframe it makes: a name edited in place, with no box until it is pointed at.
 .sqlCell-name {
-  width: 120px;
-  height: 22px;
-  font-family: var(--z-mono-font-family);
-  font-size: var(--z-ui-font-size-sm);
+  width: 110px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--z-fg-editor);
+  font: inherit;
+
+  &:hover,
+  &:focus {
+    border-color: var(--z-border-field);
+    background: var(--z-bg-field);
+  }
+
+  &:focus {
+    border-color: var(--z-fg-accent);
+  }
 }
 
 // The line above a SQL cell's result: where the rows came from, and what to do about a partial one.

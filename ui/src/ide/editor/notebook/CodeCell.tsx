@@ -44,6 +44,7 @@ export default function CodeCell(props: CellProps) {
     requestInspection,
     kernelIdle,
     languageServer,
+    cellLanguageName,
     cellLanguage,
     findExtension,
     commandKeymap,
@@ -155,7 +156,13 @@ export default function CodeCell(props: CellProps) {
             />
           )}
         </div>
-        <div className="cellEditor">
+        {/* The cell's kind is set in its box's top border: the kernel's language, `raw` or `sql`. A
+            SQL cell's head is the box's first line, so the box is drawn here rather than by the
+            editor inside it. */}
+        <div
+          className={sqlCell === null ? 'cellEditor' : 'cellEditor has-head'}
+          data-kind={sqlCell !== null ? 'sql' : cell.cell_type === 'raw' ? 'raw' : cellLanguageName}
+        >
           {sqlCell !== null && (
             <SqlCellHead
               cell={sqlCell}

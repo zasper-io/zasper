@@ -19,6 +19,8 @@ export interface NotebookEditorContextValue {
   commandKeymap: Extension;
   /** Highlighting for code cells, in the kernel's language: see useCellLanguage. */
   cellLanguage: Extension;
+  /** That language's name, lower case, which a code cell shows as its kind: `python`, `r`, `julia`. */
+  cellLanguageName: string;
   /** Search and its marks, one copy per cell: the library searches one view, a notebook is fifty. */
   findExtension: Extension;
   /**

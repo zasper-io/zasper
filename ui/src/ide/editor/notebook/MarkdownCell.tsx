@@ -67,7 +67,7 @@ export default function MarkdownCell(props: CellProps) {
               onClick={() => editor.endEditing()}
             />
           </div>
-          <div className="cellEditor">
+          <div className="cellEditor" data-kind="markdown">
             <CodeMirror
               theme={theme.codeMirror}
               value={cell.source}

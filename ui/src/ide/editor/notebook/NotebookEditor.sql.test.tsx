@@ -30,7 +30,7 @@ vi.stubGlobal('WebSocket', FakeSocket);
 
 const sqlSource = '%%zasper_sql analytics --out df_orders --limit 1000\nSELECT * FROM orders';
 
-function notebookWith(outputs: unknown[] = []) {
+function notebookWith(outputs: unknown[] = [], others: unknown[] = []) {
   return {
     cells: [
       {
@@ -41,6 +41,7 @@ function notebookWith(outputs: unknown[] = []) {
         outputs,
         metadata: {},
       },
+      ...others,
     ],
     nbformat: 4,
     nbformat_minor: 5,
@@ -48,12 +49,12 @@ function notebookWith(outputs: unknown[] = []) {
   };
 }
 
-function renderNotebook(outputs: unknown[] = []) {
+function renderNotebook(outputs: unknown[] = [], others: unknown[] = []) {
   getNotebook.mockResolvedValue({
     name: tab.name,
     type: tab.type,
     path: tab.path,
-    content: notebookWith(outputs),
+    content: notebookWith(outputs, others),
   });
   const store = createStore();
   store.set(connectionsAtom, {
@@ -90,6 +91,23 @@ describe('a SQL cell in a notebook', () => {
     );
     expect(screen.getByRole('textbox', { name: 'Dataframe' })).toHaveValue('df_orders');
     expect(screen.getByRole('combobox', { name: 'Cell type' })).toHaveValue('sql');
+  });
+
+  it('says its kind in its box as every cell does, with its head inside the box', async () => {
+    const { container } = renderNotebook(
+      [],
+      [
+        { cell_type: 'code', id: 'py', source: 'x = 1', outputs: [], metadata: {} },
+        { cell_type: 'raw', id: 'raw', source: '---', metadata: {} },
+      ]
+    );
+    await screen.findByRole('button', { name: 'Run on analytics' });
+
+    const boxes = [...container.querySelectorAll<HTMLElement>('.cellEditor')];
+    expect(boxes.map((box) => box.dataset.kind)).toEqual(['sql', 'python', 'raw']);
+    expect(boxes[0]).toHaveClass('has-head');
+    expect(boxes[0].querySelector('.sqlCell-bar')).not.toBeNull();
+    expect(screen.queryByText('SQL', { selector: 'span' })).toBeNull();
   });
 
   it('hands the kernel its connection before sending the query', async () => {

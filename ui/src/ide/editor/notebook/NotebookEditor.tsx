@@ -115,6 +115,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     notebook.metadata.language_info?.name ??
     (typeof savedKernelspec === 'object' ? savedKernelspec?.language : undefined);
   const cellLanguage = useCellLanguage(languageName);
+  const cellLanguageName = languageName?.trim().toLowerCase() || 'python';
 
   useEffect(() => {
     if (data.load_required === true) {
@@ -634,6 +635,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       ...stable,
       commandKeymap,
       cellLanguage,
+      cellLanguageName,
       findExtension,
       registerCellView,
       registerCellBox: cells.registerCellBox,
@@ -656,6 +658,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     [
       commandKeymap,
       cellLanguage,
+      cellLanguageName,
       findExtension,
       registerCellView,
       cells.registerCellBox,
