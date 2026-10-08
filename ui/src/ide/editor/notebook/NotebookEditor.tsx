@@ -333,7 +333,16 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         }
       });
     }
-  }, [kernel.session, notebook, submitCell]);
+  }, [
+    kernel.session,
+    kernel.restricted,
+    kernel.kernelDisplayName,
+    kernel.kernelName,
+    askTrust,
+    data.name,
+    notebook,
+    submitCell,
+  ]);
 
   // Run all after a restart waits for the render that carries the new kernel's session: the callbacks
   // from before the restart still hold the old one.
