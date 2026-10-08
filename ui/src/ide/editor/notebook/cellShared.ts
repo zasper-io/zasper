@@ -5,7 +5,7 @@ import { getIndentUnit, indentString } from '@codemirror/language';
 import { EditorView, KeyBinding, keymap } from '@codemirror/view';
 
 import { NotebookCell } from '@/api';
-import { KernelMessage } from './kernelMessages';
+import { CellTiming, KernelMessage } from './kernelMessages';
 import { useNotebookEditor } from './NotebookEditorContext';
 
 /** What a cell is told by the list it is in; everything the cells share comes from the context. */
@@ -21,6 +21,8 @@ export interface CellProps {
   isEditing: boolean;
   /** The kernel's `input()` prompt, when it is this cell the kernel is waiting on. */
   prompt?: KernelMessage;
+  /** When the cell last ran: as this page saw it, or else as the file records it. */
+  timing?: CellTiming;
 }
 
 /*

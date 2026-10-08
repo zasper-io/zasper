@@ -4,6 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/zasper-io/zasper/internal/auth"
+	"github.com/zasper-io/zasper/internal/config"
 	"github.com/zasper-io/zasper/internal/connections"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/core"
@@ -80,7 +81,11 @@ func New(app core.Application) *Server {
 		if !ok {
 			return
 		}
-		if err := project.WriteRunOutputs(path, run.CellID, run.Code, run.ExecutionCount, run.Outputs); err != nil {
+		var execution map[string]string
+		if recording := config.GetEditorSettings().RecordTiming; recording != nil && *recording {
+			execution = run.Execution
+		}
+		if err := project.WriteRunOutputs(path, run.CellID, run.Code, run.ExecutionCount, run.Outputs, execution); err != nil {
 			log.Warn().Err(err).Msgf("could not write a finished run's output into %s", path)
 		}
 	})

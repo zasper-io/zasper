@@ -56,6 +56,8 @@ export interface EditorSettings {
   inlay_hints: boolean;
   /** Which bindings the file editor takes. */
   keymap: 'default' | 'vim' | 'emacs';
+  /** Write when each cell ran into its `metadata.execution`, as JupyterLab's Record timing does. */
+  record_timing: boolean;
 }
 
 /** Written as one object: a default for one of these alone means nothing. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyKernelMessage, carriesOutput } from './kernelMessages';
+import { applyKernelMessage, applyReplayedRuns, carriesOutput, nextTiming } from './kernelMessages';
 import { isProducedHere } from './outputTrust';
 import { NotebookModel } from '@/api';
 
@@ -199,5 +199,92 @@ describe('carriesOutput', () => {
     expect(carriesOutput(message('execute_input', { execution_count: 1 }))).toBe(false);
     expect(carriesOutput(message('status', { execution_state: 'idle' }))).toBe(false);
     expect(carriesOutput(message('clear_output', { wait: true }))).toBe(false);
+  });
+});
+
+function dated(msgType: string, date: string, content: unknown, metadata: unknown = {}) {
+  return { ...message(msgType, content), header: { msg_type: msgType, date }, metadata };
+}
+
+describe('cell timing', () => {
+  const busy = dated('status', '2026-10-08T09:00:00.000Z', { execution_state: 'busy' });
+  const input = dated('execute_input', '2026-10-08T09:00:00.010Z', { execution_count: 4 });
+  const reply = dated(
+    'execute_reply',
+    '2026-10-08T09:02:14.310Z',
+    { status: 'ok' },
+    { started: '2026-10-08T09:00:00.011Z' }
+  );
+
+  it("follows a run through JupyterLab's keys, and a busy starts it again keeping when it was sent", () => {
+    let timing = nextTiming({ sent: '2026-10-08T08:59:59.200Z' }, busy);
+    timing = nextTiming(timing, input);
+    timing = nextTiming(timing, reply);
+    expect(timing).toEqual({
+      sent: '2026-10-08T08:59:59.200Z',
+      'iopub.status.busy': '2026-10-08T09:00:00.000Z',
+      'iopub.execute_input': '2026-10-08T09:00:00.010Z',
+      'shell.execute_reply.started': '2026-10-08T09:00:00.011Z',
+      'shell.execute_reply': '2026-10-08T09:02:14.310Z',
+    });
+    expect(nextTiming(timing, busy)).toEqual({
+      sent: '2026-10-08T08:59:59.200Z',
+      'iopub.status.busy': '2026-10-08T09:00:00.000Z',
+    });
+    expect(nextTiming(timing, dated('stream', '2026-10-08T09:00:01Z', {}))).toBeUndefined();
+    expect(nextTiming(timing, message('execute_input', {}))).toBeUndefined();
+  });
+
+  it('ends a run at idle when the reply has not come, and lets the reply replace it', () => {
+    const idle = dated('status', '2026-10-08T09:02:14.400Z', { execution_state: 'idle' });
+    const ended = nextTiming(nextTiming(nextTiming(undefined, busy), input), idle);
+    expect(ended?.['shell.execute_reply']).toBe('2026-10-08T09:02:14.400Z');
+    expect(nextTiming(ended, reply)?.['shell.execute_reply']).toBe('2026-10-08T09:02:14.310Z');
+    // Idle after the reply, or before the run began, says nothing new.
+    expect(nextTiming(nextTiming(ended, reply), idle)).toBeUndefined();
+    expect(nextTiming(nextTiming(undefined, busy), idle)).toBeUndefined();
+  });
+
+  it('writes the times into metadata.execution only when recording, and never when it was sent', () => {
+    const run = (record: boolean) =>
+      [busy, input, reply].reduce(
+        (notebook, each) => applyKernelMessage(notebook, each, 'cell-1', false, record),
+        notebookWith('cell-1')
+      ).cells[0];
+
+    expect(run(true).metadata.execution).toEqual({
+      'iopub.status.busy': '2026-10-08T09:00:00.000Z',
+      'iopub.execute_input': '2026-10-08T09:00:00.010Z',
+      'shell.execute_reply.started': '2026-10-08T09:00:00.011Z',
+      'shell.execute_reply': '2026-10-08T09:02:14.310Z',
+    });
+    expect(run(true).execution_count).toBe(4);
+    expect(run(false).metadata).toEqual({});
+  });
+
+  it("takes a finished replayed run's times, and leaves a cell already holding them as it was", () => {
+    const execution = {
+      'iopub.execute_input': '2026-10-08T09:00:00.010Z',
+      'shell.execute_reply': '2026-10-08T09:02:14.310Z',
+    };
+    const placed = [
+      {
+        cellId: 'cell-1',
+        run: {
+          msg_id: 'm',
+          cell_id: 'cell-1',
+          code: 'print(1)',
+          execution_count: 4,
+          outputs: [],
+          clear_waiting: false,
+          done: true,
+          execution,
+        },
+      },
+    ];
+    const once = applyReplayedRuns(notebookWith('cell-1'), placed, true);
+    expect(once.cells[0].metadata.execution).toEqual(execution);
+    expect(applyReplayedRuns(once, placed, true)).toBe(once);
+    expect(applyReplayedRuns(notebookWith('cell-1'), placed, false).cells[0].metadata).toEqual({});
   });
 });

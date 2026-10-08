@@ -4,12 +4,14 @@ import { NotebookModel } from '@/api';
 
 import Cell from './Cell';
 import CellInsert from './CellInsert';
-import { KernelMessage } from './kernelMessages';
+import { CellTiming, KernelMessage } from './kernelMessages';
 
 interface NotebookCellsProps {
   notebook: NotebookModel;
   /** The cells the kernel is currently running, so each can show a spinner for as long as it is. */
   runningCellIds: ReadonlySet<string>;
+  /** When each cell ran, as this page saw it; a cell missing here shows what its file records. */
+  timings: Record<string, CellTiming>;
   /** The cells whose output has been let past its height cap. */
   expandedOutputs: ReadonlySet<string>;
   /** The markdown cell whose source is open, if any. */
@@ -26,6 +28,7 @@ interface NotebookCellsProps {
 export default function NotebookCells({
   notebook,
   runningCellIds,
+  timings,
   expandedOutputs,
   editingCellId,
   focusedCellId,
@@ -46,6 +49,7 @@ export default function NotebookCells({
             index={index}
             cell={cell}
             isRunning={runningCellIds.has(cell.id)}
+            timing={timings[cell.id] ?? (cell.metadata?.execution as CellTiming | undefined)}
             isOutputExpanded={expandedOutputs.has(cell.id)}
             isFocused={focusedCellId === cell.id}
             isEditing={editingCellId === cell.id}

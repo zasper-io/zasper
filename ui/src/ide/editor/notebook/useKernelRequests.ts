@@ -45,6 +45,13 @@ export function useKernelRequests(
   const [runningCellIds, setRunningCellIds] = useState<ReadonlySet<string>>(new Set());
   // Runs sent on the socket now open, which a replay taken as it opened cannot know about yet.
   const sentSinceOpen = useRef(new Set<string>());
+  /*
+   * Runs the kernel has gone idle on but has not yet replied to. The reply comes on the shell channel and
+   * idle on iopub, and the two are not ordered: the reply often arrives second, and must still find its
+   * cell, since it carries when the kernel started the run. Forgotten when the reply comes; capped, so
+   * a reply that never comes cannot grow it.
+   */
+  const awaitingReply = useRef(new Map<string, string>());
 
   const syncRunningCells = useCallback(() => {
     setRunningCellIds(new Set(executingCells.current.values()));
@@ -53,7 +60,17 @@ export function useKernelRequests(
   /** The cell a message answers, when it answers an execute_request sent from here. */
   const cellFor = useCallback((message: KernelMessage): string | undefined => {
     const requestId: string | undefined = message.parent_header?.msg_id;
-    return requestId ? executingCells.current.get(requestId) : undefined;
+    if (!requestId) {
+      return undefined;
+    }
+    const running = executingCells.current.get(requestId);
+    // After idle only the reply is still owed to the cell: anything else is too late to show.
+    return (
+      running ??
+      (message.header?.msg_type === 'execute_reply'
+        ? awaitingReply.current.get(requestId)
+        : undefined)
+    );
   }, []);
 
   /** Settles what a message finishes: the question it answers, or the run the kernel is idle after. */
@@ -63,13 +80,23 @@ export function useKernelRequests(
       if (AWAITED_REPLIES.has(message.header.msg_type) && requestId) {
         pendingReplies.current.get(requestId)?.(message.content);
       }
-      // Idle means the kernel has finished with the request and will send nothing further for it.
+      if (message.header.msg_type === 'execute_reply' && requestId) {
+        awaitingReply.current.delete(requestId);
+      }
+      // Idle means the kernel has finished running the request: the cell stops spinning, though its
+      // reply may still be on its way.
       if (
         message.header.msg_type === 'status' &&
         message.content.execution_state === 'idle' &&
         requestId
       ) {
-        executingCells.current.delete(requestId);
+        const cellId = executingCells.current.get(requestId);
+        if (cellId !== undefined && executingCells.current.delete(requestId)) {
+          awaitingReply.current.set(requestId, cellId);
+          if (awaitingReply.current.size > 100) {
+            awaitingReply.current.delete(awaitingReply.current.keys().next().value!);
+          }
+        }
         syncRunningCells();
       }
     },
@@ -79,6 +106,7 @@ export function useKernelRequests(
   /** Forgets every run, for a restart: nothing the old kernel was running will ever report back. */
   const forgetRunningCells = useCallback(() => {
     executingCells.current.clear();
+    awaitingReply.current.clear();
     syncRunningCells();
   }, [syncRunningCells]);
 

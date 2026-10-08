@@ -289,6 +289,7 @@ func TestEditorSettingsCanBeChangedOverTheApi(t *testing.T) {
 		Rulers:         []int{80, 100},
 		CellTabIndents: true,
 		Keymap:         "default",
+		RecordTiming:   DefaultEditorSettings().RecordTiming,
 	}, GetEditorSettings())
 	assert.NotNil(t, readRaw(t, path).Editor)
 }
@@ -306,6 +307,19 @@ func TestEditorSettingsKeepWhatASaveDoesAndWhetherItIsAutomatic(t *testing.T) {
 	// The rest of the object was absent, so it is the defaults rather than zeroes the editor cannot draw.
 	assert.Equal(t, 13, settings.FontSize)
 	assert.Equal(t, 4, settings.TabSize)
+}
+
+// Cell times are kept unless turned off, so settings saved before there was a choice, which say nothing
+// about it, keep them; turning it off is kept too.
+func TestCellTimesAreKeptUnlessTurnedOff(t *testing.T) {
+	aHome(t)
+
+	require.Equal(t, http.StatusNoContent, modify(t, `{"key":"editor","value":"{\"font_size\":15}"}`).Code)
+	require.NotNil(t, GetEditorSettings().RecordTiming)
+	assert.True(t, *GetEditorSettings().RecordTiming)
+
+	require.Equal(t, http.StatusNoContent, modify(t, `{"key":"editor","value":"{\"record_timing\":false}"}`).Code)
+	assert.False(t, *GetEditorSettings().RecordTiming)
 }
 
 func TestEditorKeymapIsOneOfTheThreeTheEditorCanLoad(t *testing.T) {

@@ -248,6 +248,9 @@ type EditorSettings struct {
 	InlayHints bool `json:"inlay_hints"`
 	// Which bindings the file editor takes: "default", "vim" or "emacs".
 	Keymap string `json:"keymap"`
+	// Write when each cell ran into its metadata.execution, as JupyterLab's Record timing does. On unless
+	// turned off, so a pointer: settings saved before it existed have no key, and that means on.
+	RecordTiming *bool `json:"record_timing"`
 }
 
 // Keymaps are the values EditorSettings.Keymap can hold; the frontend loads the module each one names.
@@ -255,7 +258,8 @@ var Keymaps = []string{"default", "vim", "emacs"}
 
 // DefaultEditorSettings are what an install that has chosen nothing gets.
 func DefaultEditorSettings() EditorSettings {
-	return EditorSettings{FontSize: 13, TabSize: 4, LineNumbers: true, Rulers: []int{}, Keymap: "default"}
+	on := true
+	return EditorSettings{FontSize: 13, TabSize: 4, LineNumbers: true, Rulers: []int{}, Keymap: "default", RecordTiming: &on}
 }
 
 // normalised keeps settings from a hand-edited file or a made-up request inside what the editor can draw.
@@ -279,6 +283,9 @@ func (s EditorSettings) normalised() EditorSettings {
 	s.Rulers = rulers
 	if !slices.Contains(Keymaps, s.Keymap) {
 		s.Keymap = defaults.Keymap
+	}
+	if s.RecordTiming == nil {
+		s.RecordTiming = defaults.RecordTiming
 	}
 	return s
 }

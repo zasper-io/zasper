@@ -469,6 +469,20 @@ function useSettings(editConnection: (connection: DataConnection | 'new') => voi
         />
       ),
     },
+    {
+      id: 'settings-record-timing',
+      group: 'Notebook',
+      name: 'Keep cell times in the file',
+      help: "When each cell ran, in its metadata as JupyterLab's Record timing writes it, so a notebook opened later still says how long its cells took. Off, the times are shown but not saved, and a re-run changes nothing in the file but the outputs and counts.",
+      words: 'timing time duration execution record metadata',
+      control: (
+        <Checkbox
+          id="settings-record-timing"
+          checked={editor.record_timing}
+          onChange={(record_timing) => changeEditor({ record_timing })}
+        />
+      ),
+    },
     ...(interpreters === null
       ? []
       : [

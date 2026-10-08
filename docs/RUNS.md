@@ -105,7 +105,12 @@ The first message on every kernel websocket is a replay, sent before any kernel 
         "execution_count": 1,
         "outputs": [{ "output_type": "stream", "name": "stdout", "text": "step 0\n…" }],
         "clear_waiting": false,
-        "done": true
+        "done": true,
+        "execution": {
+          "iopub.status.busy": "2026-10-08T09:48:16.011Z",
+          "iopub.execute_input": "2026-10-08T09:48:16.012Z",
+          "shell.execute_reply": "2026-10-08T09:48:22.019Z"
+        }
       }
     ]
   }
@@ -153,9 +158,31 @@ and the `pageshow` on return reconnects and replays.
 ## Writing to disk
 
 `WriteRunOutputs` reads the notebook through `internal/nbformat`, sets the run's cell's `outputs`
-and `execution_count`, and writes it back atomically. Nothing else in the file changes, and the
-bytes are what nbformat would write. The notebook is found by the kernel's current session, so a
+and `execution_count`, and its `metadata.execution` while cell times are kept (below), and writes
+it back atomically. Nothing else in the file changes, and the bytes are what nbformat would write. The notebook is found by the kernel's current session, so a
 renamed notebook is written under its new name. A cell that cannot be found leaves the file alone.
+
+## Cell times
+
+Each code cell says how long its last run took, in its box's bottom border, counting up while the
+kernel is on it and saying `queued` while it waits behind another cell. The time runs from
+`execute_input` to `execute_reply`: the kernel's own time, not the queue's. Hovering it gives when
+the cell started and finished, and how long it waited, which is known only for a run this page sent.
+
+The times are kept in the cell's `metadata.execution` under JupyterLab's four keys
+(`iopub.status.busy`, `iopub.execute_input`, `shell.execute_reply.started`,
+`shell.execute_reply`), as its Record timing setting writes them, so a notebook timed in either
+reads the same in the other. A run that finishes with no tab open gets them from the server, which
+sees `status: busy` and `execute_input` on iopub and takes the closing `status: idle` for the reply,
+since it does not see the shell channel. Settings → Notebook → *Keep cell times in the file* turns
+the writing off: the times are still shown, and a re-run then changes only outputs and counts.
+
+| File | What it does |
+| --- | --- |
+| `ui/src/ide/editor/notebook/CellTime.tsx` | The time in the border, the running count and the tooltip. |
+| `ui/src/ide/editor/notebook/kernelMessages.ts` | `nextTiming`, and writing it into `metadata.execution`. |
+| `ui/src/ide/editor/notebook/useCellOutputs.ts` | The times this page saw, whether or not they are kept. |
+| `internal/kernel/runs.go` | A run's times, for the replay and the file. |
 
 ## What it does not do
 

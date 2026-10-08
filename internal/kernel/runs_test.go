@@ -172,3 +172,39 @@ func TestAStreamOutgrowingItsLimitKeepsItsEnd(t *testing.T) {
 	assert.True(t, strings.HasSuffix(text, "last\n"))
 	assert.True(t, strings.HasPrefix(text, "x"), "cut at a line boundary")
 }
+
+// iopubAt is iopub with the kernel's date on the message, which is what a run's times are read from.
+func iopubAt(t *testing.T, parent, msgType, date string, content map[string]interface{}) zmq4.Msg {
+	t.Helper()
+	frame := func(value interface{}) []byte {
+		encoded, err := json.Marshal(value)
+		require.NoError(t, err)
+		return encoded
+	}
+	return zmq4.NewMsgFrom(
+		[]byte(DELIM), []byte(""),
+		frame(MessageHeader{MsgID: newID(), MsgType: msgType, Date: date}),
+		frame(MessageHeader{MsgID: parent}),
+		frame(map[string]interface{}{}),
+		frame(content),
+	)
+}
+
+// A run keeps when the kernel took it up and when it went idle again, under JupyterLab's keys.
+func TestARunKeepsWhenItRan(t *testing.T) {
+	km := journalKernel()
+	km.BeginRun("m1", "cell-1", "train()")
+
+	publishAll(km,
+		iopubAt(t, "m1", "status", "2026-10-07T08:33:12.098Z", map[string]interface{}{"execution_state": "busy"}),
+		iopubAt(t, "m1", "execute_input", "2026-10-07T08:33:12.104Z", map[string]interface{}{"execution_count": 7}),
+		iopubAt(t, "m1", "status", "2026-10-07T08:35:26.402Z", map[string]interface{}{"execution_state": "idle"}),
+	)
+
+	run := km.Subscribe().Replay.Runs[0]
+	assert.Equal(t, map[string]string{
+		"iopub.status.busy":   "2026-10-07T08:33:12.098Z",
+		"iopub.execute_input": "2026-10-07T08:33:12.104Z",
+		"shell.execute_reply": "2026-10-07T08:35:26.402Z",
+	}, run.Execution)
+}

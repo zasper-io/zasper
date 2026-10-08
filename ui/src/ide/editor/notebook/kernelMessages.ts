@@ -44,6 +44,74 @@ export function carriesOutput(message: KernelMessage): boolean {
   }
 }
 
+/**
+ * When a cell's run happened, under the keys JupyterLab's Record timing writes into `metadata.execution`,
+ * so that a notebook timed here reads the same there. How long the cell took is execute_input to
+ * execute_reply: the kernel's own time, not the time it spent waiting behind another cell.
+ */
+export interface CellTiming {
+  'iopub.status.busy'?: string;
+  'iopub.execute_input'?: string;
+  'shell.execute_reply.started'?: string;
+  'shell.execute_reply'?: string;
+  /** When this page sent the request, so the wait is the gap to execute_input. Never saved. */
+  sent?: string;
+}
+
+/**
+ * The timing a message moves a cell's run on to, or undefined when it says nothing about time. A busy
+ * starts the record again, so a cell run twice holds its second run; the `sent` its run began with
+ * survives it.
+ *
+ * The run ends at execute_reply or at the idle after it, whichever comes first: the reply is on the
+ * shell channel and idle on iopub, which are not ordered, and the reply often arrives second — so a run
+ * timed by its reply alone showed no time at all. Idle stands in until the reply, which then replaces
+ * it, as the server's own record of an unwatched run does.
+ */
+export function nextTiming(
+  previous: CellTiming | undefined,
+  message: KernelMessage
+): CellTiming | undefined {
+  const date = message.header?.date;
+  if (typeof date !== 'string' || date === '') {
+    return undefined;
+  }
+  switch (message.header.msg_type) {
+    case 'status':
+      if (message.content?.execution_state === 'idle') {
+        return previous?.['iopub.execute_input'] && !previous['shell.execute_reply']
+          ? { ...previous, 'shell.execute_reply': date }
+          : undefined;
+      }
+      if (message.content?.execution_state !== 'busy') {
+        return undefined;
+      }
+      return { ...(previous?.sent ? { sent: previous.sent } : {}), 'iopub.status.busy': date };
+    case 'execute_input':
+      return { ...previous, 'iopub.execute_input': date };
+    case 'execute_reply': {
+      const started = message.metadata?.started;
+      return {
+        ...previous,
+        ...(typeof started === 'string' ? { 'shell.execute_reply.started': started } : {}),
+        'shell.execute_reply': date,
+      };
+    }
+    default:
+      return undefined;
+  }
+}
+
+/** A cell with a message's timing written into its metadata, or null when the message has none. */
+function withTiming(cell: NotebookCell, message: KernelMessage): NotebookCell | null {
+  const next = nextTiming(cell.metadata?.execution as CellTiming | undefined, message);
+  if (!next) {
+    return null;
+  }
+  const { sent: _sent, ...saved } = next;
+  return { ...cell, metadata: { ...cell.metadata, execution: saved } };
+}
+
 function appendOutput(cell: NotebookCell, output: NotebookOutput, replace: boolean): NotebookCell {
   markProducedHere(output);
   cell.outputs = replace ? [output] : [...(cell.outputs ?? []), output];
@@ -62,12 +130,15 @@ function appendOutput(cell: NotebookCell, output: NotebookOutput, replace: boole
  * waiting for: the output area is replaced rather than added to, which is how a cell rewritten in a
  * loop does not blink empty between the clear and the next frame. The flag is the caller's because
  * whether a clear is outstanding is a message that has been seen, not anything the document holds.
+ *
+ * `recordTiming` writes when the run happened into the cell's `metadata.execution`: see CellTiming.
  */
 export function applyKernelMessage(
   notebook: NotebookModel,
   message: KernelMessage,
   cellId: string | undefined,
-  replaceOutputs: boolean = false
+  replaceOutputs: boolean = false,
+  recordTiming: boolean = false
 ): NotebookModel {
   if (!cellId) {
     return notebook;
@@ -76,9 +147,19 @@ export function applyKernelMessage(
   switch (message.header.msg_type) {
     case 'execute_input':
       return updateCellById(notebook, cellId, (cell) => {
-        cell.execution_count = message.content.execution_count;
-        return cell;
+        const timed = recordTiming ? withTiming(cell, message) : null;
+        return { ...(timed ?? cell), execution_count: message.content.execution_count };
       });
+
+    case 'status':
+    case 'execute_reply': {
+      if (!recordTiming) {
+        return notebook;
+      }
+      const cell = notebook.cells.find((each) => each.id === cellId);
+      const timed = cell ? withTiming(cell, message) : null;
+      return timed ? updateCellById(notebook, cellId, () => timed) : notebook;
+    }
 
     case 'error':
       return updateCellById(notebook, cellId, (cell) =>
@@ -163,6 +244,8 @@ export interface ReplayedRun {
   outputs: NotebookOutput[];
   clear_waiting: boolean;
   done: boolean;
+  /** When the server saw the kernel take it up and finish it. */
+  execution?: CellTiming;
 }
 
 /** A replayed run and the cell it belongs to in this document. */
@@ -192,10 +275,15 @@ export function findRunCell(
 }
 
 /**
- * Puts replayed runs' outputs into their cells. A cell already showing exactly that output is left as
- * the same object, so a notebook reopened after its file was written is not marked unsaved.
+ * Puts replayed runs' outputs into their cells, and a finished run's times when they are recorded. A cell
+ * already showing exactly that is left as the same object, so a notebook reopened after its file was
+ * written is not marked unsaved.
  */
-export function applyReplayedRuns(notebook: NotebookModel, placed: PlacedRun[]): NotebookModel {
+export function applyReplayedRuns(
+  notebook: NotebookModel,
+  placed: PlacedRun[],
+  recordTiming: boolean = false
+): NotebookModel {
   const runs = new Map(placed.map(({ cellId, run }) => [cellId, run]));
   let changed = false;
 
@@ -205,16 +293,23 @@ export function applyReplayedRuns(notebook: NotebookModel, placed: PlacedRun[]):
       return cell;
     }
     const count = run.done ? run.execution_count : (run.execution_count ?? -1);
+    const timing = recordTiming && run.done && run.execution ? run.execution : undefined;
     if (
       cell.execution_count === count &&
-      JSON.stringify(cell.outputs ?? []) === JSON.stringify(run.outputs)
+      JSON.stringify(cell.outputs ?? []) === JSON.stringify(run.outputs) &&
+      (timing === undefined || JSON.stringify(cell.metadata?.execution) === JSON.stringify(timing))
     ) {
       (cell.outputs ?? []).forEach(markProducedHere);
       return cell;
     }
     changed = true;
     run.outputs.forEach(markProducedHere);
-    return { ...cell, execution_count: count, outputs: run.outputs };
+    return {
+      ...cell,
+      execution_count: count,
+      outputs: run.outputs,
+      ...(timing ? { metadata: { ...cell.metadata, execution: timing } } : {}),
+    };
   });
 
   return changed ? { ...notebook, cells } : notebook;

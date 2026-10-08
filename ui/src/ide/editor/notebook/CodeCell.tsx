@@ -25,6 +25,7 @@ import { connectionsAtom } from '@/store/connections';
 import { parseSqlCell, withRunFlags, withSqlOptions } from './sqlCell';
 import { sqlCellExtensions } from './sqlEditor';
 import SqlCellHead from './SqlCellHead';
+import CellTime from './CellTime';
 import { useSqlSchema } from './useSqlSchema';
 import { zoomAwareTooltips } from '../tooltipParent';
 
@@ -180,6 +181,9 @@ export default function CodeCell(props: CellProps) {
             onChange={onChange}
             basicSetup={CODE_SETUP}
           />
+          {cell.cell_type === 'code' && (
+            <CellTime timing={props.timing} isRunning={props.isRunning} />
+          )}
         </div>
       </div>
       {props.prompt?.content && (

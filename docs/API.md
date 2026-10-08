@@ -159,8 +159,10 @@ The first message on every such socket is Zasper's own, sent before any kernel
 message: `channel` is `zasper`, `header.msg_type` is `zasper_replay`, and
 `content.runs` lists the cell runs this client missed — those still going, and those
 that finished with no client attached. Each run carries `msg_id` (the request's),
-`cell_id`, `code`, `execution_count`, `outputs` (nbformat outputs), `clear_waiting`
-and `done`. A client that does not know the message can ignore it. See
+`cell_id`, `code`, `execution_count`, `outputs` (nbformat outputs), `clear_waiting`,
+`done`, and `execution`: when the kernel took the run up and finished it, under
+JupyterLab's `metadata.execution` keys. A client that does not know the message can
+ignore it. See
 [RUNS.md](RUNS.md).
 
 ## Data connections

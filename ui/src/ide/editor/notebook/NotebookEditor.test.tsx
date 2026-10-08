@@ -327,6 +327,40 @@ describe('NotebookEditor', () => {
     expect(await screen.findByText('[3]:')).toBeInTheDocument();
   });
 
+  // The end of a run comes twice, idle on iopub and execute_reply on shell, in no fixed order. With the
+  // reply second the cell showed no time at all, since the reply had lost its cell by then.
+  it('says how long a run took when idle comes before the reply', async () => {
+    const { container } = render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+
+    fireEvent.click(runButton(container));
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(1));
+    const requestId = requestIdOf(sockets[0], 0);
+    const at = (msgType: string, date: string, content: unknown, metadata: unknown = {}) => ({
+      ...kernelMessage(msgType, requestId, content),
+      header: { msg_type: msgType, date },
+      metadata,
+    });
+
+    sockets[0].receive(at('status', '2026-10-08T09:00:00.000Z', { execution_state: 'busy' }));
+    sockets[0].receive(at('execute_input', '2026-10-08T09:00:00.000Z', { execution_count: 3 }));
+    sockets[0].receive(at('status', '2026-10-08T09:00:06.020Z', { execution_state: 'idle' }));
+    expect(await screen.findByText('6.0 s')).toBeInTheDocument();
+
+    sockets[0].receive(
+      at(
+        'execute_reply',
+        '2026-10-08T09:00:06.010Z',
+        { status: 'ok' },
+        { started: '2026-10-08T09:00:00.001Z' }
+      )
+    );
+    // The reply still finds its cell after idle, and its time (6.01 s) replaces idle's.
+    expect(await screen.findByText('6.0 s')).toBeInTheDocument();
+    expect(screen.queryByText('queued')).toBeNull();
+  });
+
   // A colour the kernel asked for has to arrive as a class, not as `style="color:rgb(0,187,0)"`: an
   // inline colour is a 16-colour terminal palette baked into the output, which no theme can reach and
   // no contrast rule can touch. --z-ansi-* in styles/_tokens.scss is the other half.

@@ -44,6 +44,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   format_on_save: false,
   inlay_hints: false,
   keymap: 'default',
+  record_timing: true,
 };
 
 /** The file editor's defaults, from /api/info and changed in the Settings tab or the status bar. */

@@ -1,6 +1,7 @@
 package content
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,7 +54,7 @@ func TestARunsOutputIsWrittenIntoItsCellAndNothingElseChanges(t *testing.T) {
 	path := filepath.Join(dir, "train.ipynb")
 	require.NoError(t, os.WriteFile(path, []byte(runNotebook45), 0o644))
 
-	require.NoError(t, project.WriteRunOutputs("train.ipynb", "train", "train()", 7, streamOutput))
+	require.NoError(t, project.WriteRunOutputs("train.ipynb", "train", "train()", 7, streamOutput, nil))
 
 	written, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -113,7 +114,7 @@ func TestANotebookWithoutCellIdsIsMatchedByTheCodeThatRan(t *testing.T) {
 		{"cell_type": "code", "execution_count": null, "metadata": {}, "outputs": [], "source": "train()\n"}
 	], "metadata": {}, "nbformat": 4, "nbformat_minor": 4}`), 0o644))
 
-	require.NoError(t, project.WriteRunOutputs("old.ipynb", "made-up-by-a-tab", "train()", 2, streamOutput))
+	require.NoError(t, project.WriteRunOutputs("old.ipynb", "made-up-by-a-tab", "train()", 2, streamOutput, nil))
 
 	written, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -131,10 +132,41 @@ func TestTwoCellsHoldingTheCodeThatRanLeaveTheFileAlone(t *testing.T) {
 	], "metadata": {}, "nbformat": 4, "nbformat_minor": 4}`
 	require.NoError(t, os.WriteFile(path, []byte(original), 0o644))
 
-	err := project.WriteRunOutputs("twice.ipynb", "", "df.head()", 1, streamOutput)
+	err := project.WriteRunOutputs("twice.ipynb", "", "df.head()", 1, streamOutput, nil)
 	assert.ErrorIs(t, err, ErrCellNotFound)
 
 	written, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, original, string(written))
+}
+
+// When each run began and ended goes into the cell's metadata under JupyterLab's keys, beside what the
+// cell's metadata already held.
+func TestARunsTimesAreWrittenIntoItsMetadata(t *testing.T) {
+	project, dir := testProject(t)
+	path := filepath.Join(dir, "train.ipynb")
+	require.NoError(t, os.WriteFile(path, []byte(runNotebook45), 0o644))
+
+	times := map[string]string{
+		"iopub.status.busy":   "2026-10-07T08:33:12.098Z",
+		"iopub.execute_input": "2026-10-07T08:33:12.104Z",
+		"shell.execute_reply": "2026-10-07T08:35:26.402Z",
+	}
+	require.NoError(t, project.WriteRunOutputs("train.ipynb", "train", "train()", 7, streamOutput, times))
+
+	written, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var doc struct {
+		Cells []struct {
+			Metadata map[string]interface{} `json:"metadata"`
+		} `json:"cells"`
+	}
+	require.NoError(t, json.Unmarshal(written, &doc))
+	metadata := doc.Cells[1].Metadata
+	assert.Equal(t, []interface{}{"keep"}, metadata["tags"])
+	assert.Equal(t, map[string]interface{}{
+		"iopub.status.busy":   "2026-10-07T08:33:12.098Z",
+		"iopub.execute_input": "2026-10-07T08:33:12.104Z",
+		"shell.execute_reply": "2026-10-07T08:35:26.402Z",
+	}, metadata["execution"])
 }

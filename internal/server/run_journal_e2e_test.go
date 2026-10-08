@@ -119,6 +119,19 @@ func TestARunThatEndsWithNoTabOpenIsWrittenIntoTheNotebook(t *testing.T) {
 		}
 		return outputs[0].(map[string]any)["text"] == "0\n1\n2\n" && cell["execution_count"] != nil
 	}, 30*time.Second, 200*time.Millisecond, "the finished run's output never reached the file")
+
+	// And when it ran, under JupyterLab's keys, since recording is on unless turned off.
+	cell := notebookIn(t, srv, "train.ipynb")["content"].(map[string]any)["cells"].([]any)[0].(map[string]any)
+	times, _ := cell["metadata"].(map[string]any)["execution"].(map[string]any)
+	require.NotNil(t, times, "the run's times never reached the file")
+	for _, key := range []string{"iopub.status.busy", "iopub.execute_input", "shell.execute_reply"} {
+		assert.NotEmpty(t, times[key], key)
+	}
+	began, err := time.Parse(time.RFC3339Nano, times["iopub.execute_input"].(string))
+	require.NoError(t, err)
+	ended, err := time.Parse(time.RFC3339Nano, times["shell.execute_reply"].(string))
+	require.NoError(t, err)
+	assert.False(t, ended.Before(began), "a run cannot end before it began")
 }
 
 func jsonEscape(text string) string {

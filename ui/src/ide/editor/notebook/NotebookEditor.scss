@@ -578,8 +578,8 @@
   content: attr(data-kind);
   position: absolute;
   z-index: 1;
-  // 12px, centred on the border: 6px of it inside the box, which clears the first line's letters. At
-  // 16px it sat on them.
+  // 12px, centred on the border, as `.cellTime` is on the bottom one: 6px inside, which clears the
+  // first line's letters.
   top: -6px;
   left: 8px;
   padding: 0 4px;
@@ -594,6 +594,37 @@
 
 .cellEditor.is-rendered::before {
   content: none;
+}
+
+// How long the cell took, set in the bottom border at the left, under its kind in the top border and in
+// the same type: see CellTime.tsx. At the left because `.cellOptions` hangs in the top-right corner and,
+// on a one-line cell, reaches 5px past the bottom border there; it is also where VS Code and
+// JupyterLab's execute-time extension put a cell's time. The accent while the kernel is on it, as the
+// gutter's spinner is.
+.cellTime {
+  position: absolute;
+  z-index: 1;
+  // 12px tall and centred on the border, so 6px of it is inside the box: the 4px under the last line and
+  // the line's own room below its descenders. At 16px it sat on the bottom of the last line's letters.
+  bottom: -6px;
+  left: 8px;
+  padding: 0 4px;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-subtle);
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: 12px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+
+  &.is-running {
+    color: var(--z-fg-accent);
+  }
+
+  &.is-queued {
+    opacity: 0.7;
+  }
 }
 
 // A markdown cell that is rendered has no editor, so until now it was the one cell that could hold

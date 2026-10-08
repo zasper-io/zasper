@@ -31,6 +31,9 @@ type Run struct {
 	// A clear_output(wait=True) is holding out for the next output to replace what is shown.
 	ClearWaiting bool `json:"clear_waiting"`
 	Done         bool `json:"done"`
+	// When the kernel took the run up and finished it, under JupyterLab's metadata.execution keys. The
+	// reply is on the shell channel, which this feed does not see, so the idle that follows it stands in.
+	Execution map[string]string `json:"execution,omitempty"`
 
 	// Some of this run was published while no client was attached.
 	missed      bool
@@ -192,6 +195,7 @@ func (f *feed) fold(message *Message) *Run {
 	switch message.Header.MsgType {
 	case "execute_input":
 		run.ExecutionCount = content["execution_count"]
+		run.timed("iopub.execute_input", message.Header.Date)
 	case "stream":
 		name := "stdout"
 		if content["name"] == "stderr" {
@@ -232,9 +236,14 @@ func (f *feed) fold(message *Message) *Run {
 			run.outputBytes = 0
 		}
 	case "status":
+		if stateOf(message) == "busy" {
+			run.Execution = map[string]string{}
+			run.timed("iopub.status.busy", message.Header.Date)
+		}
 		if stateOf(message) != "idle" {
 			return nil
 		}
+		run.timed("shell.execute_reply", message.Header.Date)
 		run.Done = true
 		if !run.missed {
 			f.forget(run.MsgID)
@@ -319,9 +328,25 @@ func outputSize(output map[string]interface{}) int {
 	return len(encoded)
 }
 
+func (run *Run) timed(key, date string) {
+	if date == "" {
+		return
+	}
+	if run.Execution == nil {
+		run.Execution = map[string]string{}
+	}
+	run.Execution[key] = date
+}
+
 // snapshot copies a run deeply enough that later output does not reach the copy.
 func (run *Run) snapshot() Run {
 	copied := *run
+	if run.Execution != nil {
+		copied.Execution = make(map[string]string, len(run.Execution))
+		for key, value := range run.Execution {
+			copied.Execution[key] = value
+		}
+	}
 	copied.Outputs = make([]map[string]interface{}, len(run.Outputs))
 	for i, output := range run.Outputs {
 		clone := make(map[string]interface{}, len(output))

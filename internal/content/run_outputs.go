@@ -17,13 +17,13 @@ import (
 var ErrCellNotFound = errors.New("no cell in the notebook matches the run")
 
 /*
-WriteRunOutputs puts a finished run's outputs and execution count into the notebook on disk, and changes
-nothing else in it.
+WriteRunOutputs puts a finished run's outputs and execution count into the notebook on disk, and its times
+into metadata.execution when execution is not nil, and changes nothing else in it.
 
 The cell is found by id, or for a notebook older than nbformat 4.5, which keeps no ids, by being the one
 code cell holding the code that ran. Two cells holding it is no answer, and the file is left alone.
 */
-func (p Project) WriteRunOutputs(path, cellID, code string, executionCount interface{}, outputs []map[string]interface{}) error {
+func (p Project) WriteRunOutputs(path, cellID, code string, executionCount interface{}, outputs []map[string]interface{}, execution map[string]string) error {
 	osPath, err := p.savePath(path)
 	if err != nil {
 		return err
@@ -47,6 +47,18 @@ func (p Project) WriteRunOutputs(path, cellID, code string, executionCount inter
 	}
 	cell["outputs"] = written
 	cell["execution_count"] = executionCount
+	if execution != nil {
+		metadata, _ := cell["metadata"].(map[string]interface{})
+		if metadata == nil {
+			metadata = map[string]interface{}{}
+			cell["metadata"] = metadata
+		}
+		times := make(map[string]interface{}, len(execution))
+		for key, value := range execution {
+			times[key] = value
+		}
+		metadata["execution"] = times
+	}
 
 	for _, problem := range nbformat.Validate(nbformat.Normalize(doc)) {
 		log.Warn().Msgf("writing a run's output into %s with something the notebook format does not allow: %s", path, problem)
