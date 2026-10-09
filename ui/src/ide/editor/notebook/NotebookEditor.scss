@@ -167,16 +167,19 @@ $cell-gap: 40px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  // 16px matches the toolbar and breadcrumb above, so the cells share their left edge. The 40px at
-  // the bottom is room to scroll past the last cell: without it the cell you are typing in is pinned
-  // to the bottom edge of the pane, which is where a scrollbar and a status bar already are.
+  // 16px matches the toolbar and breadcrumb above, so the cells share their left edge. The bottom is
+  // room to scroll past the last cell, enough for Shift-Enter to land a new one a third of the way down
+  // the pane with its output arriving above it, rather than on the bottom edge. Divided by the zoom
+  // factor as `.inner-text`'s cap is.
   //
   // The `$cell-gap` at the top is the insert rail's, and has to be exactly its height: every rail is
   // pulled up by its own height to sit in the gap the cell above leaves, and the first one has no cell above
   // it — so it was pulled above the top of this scroller, where 16px of it and over half of each
   // button were clipped. A scroller cannot be scrolled above its own content, so the only way to see
   // the first rail is to leave it the room it takes.
-  padding: $cell-gap 16px 40px;
+  padding: $cell-gap 16px calc(40vh / var(--z-zoom, 1));
+  // `scrollKeeper.ts` anchors on the focused cell; the browser's anchoring would correct a second time.
+  overflow-anchor: none;
   background-color: var(--z-bg-editor);
   color: var(--z-fg-editor);
 
@@ -790,6 +793,38 @@ table.dataframe tbody tr {
 
 table.dataframe tbody tr:hover {
   background: var(--z-bg-row-selected);
+}
+
+// A table in a cell's output is scanned, not read: 12px on a 22px row, the grid's density, and pandas'
+// own table — what a cell shows when the kernel no longer holds the frame — at the same one.
+.inner-text table.dataframe {
+  // 15px of line, 3px above and below, and the row's 1px rule: a 22px row.
+  td,
+  tbody th {
+    padding: 3px 8px;
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  // pandas' header; the grid lays out its own.
+  &:not(.dataGrid *) thead th {
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  // Where a row is, not what it says: quieter, so the eye starts at the first column.
+  tbody th {
+    color: var(--z-fg-subtle);
+    font-size: var(--z-ui-font-size-sm);
+    font-weight: normal;
+  }
+}
+
+// pandas' "1000 rows × 19 columns", as the grid's foot says its count.
+.inner-text table.dataframe + p {
+  margin-top: 6px;
+  font-size: var(--z-ui-font-size-sm);
+  font-weight: normal;
 }
 
 /* ===== Rendered markdown ===== */

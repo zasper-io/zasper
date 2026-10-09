@@ -33,7 +33,7 @@ export interface NotebookEditorContextValue {
   focusCell: (cellId: string) => void;
   /** Puts the keyboard on the cell's own box — Jupyter's command mode. */
   focusCellBox: (cellId: string) => void;
-  focusNextCell: (addCellIfLast: boolean) => void;
+  focusNextCell: (afterRun: boolean) => void;
   focusPreviousCell: () => void;
   updateCellSource: (value: string, cellId: string) => void;
   /** Puts a cell where the pointer is, for the rail between two cells. */

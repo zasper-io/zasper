@@ -26,6 +26,7 @@ export function useCellEdits(
     cellAround,
     setEditingCellId,
     focusCellBox,
+    advanceTo,
   }: Pick<
     CellFocus,
     | 'focusedIndex'
@@ -34,6 +35,7 @@ export function useCellEdits(
     | 'cellAround'
     | 'setEditingCellId'
     | 'focusCellBox'
+    | 'advanceTo'
   >,
   clearCellOutputs: (cellId: string) => void
 ) {
@@ -335,13 +337,19 @@ export function useCellEdits(
 
   /**
    * Moves the focus down in command mode, as in Jupyter: the box takes the keyboard, so the next
-   * Shift-Enter runs *this* cell and a stray keystroke cannot reach the one just run. On the last cell,
-   * `addCellIfLast` appends one to move to.
+   * Shift-Enter runs *this* cell and a stray keystroke cannot reach the one just run. `afterRun` is
+   * Shift-Enter's own step: it places the next cell where the output has room to arrive, and on the
+   * last cell appends one to type in.
    */
   const focusNextCell = useCallback(
-    (addCellIfLast: boolean) => {
-      if (addCellIfLast && focusedIndex === notebook.cells.length - 1) {
-        focusCellBox(addCellDown());
+    (afterRun: boolean) => {
+      if (afterRun) {
+        const ran = notebook.cells[focusedIndex]?.id;
+        const last = focusedIndex === notebook.cells.length - 1;
+        const next = last ? addCellDown() : cellAround(1);
+        if (next !== undefined) {
+          advanceTo(ran, next, last);
+        }
         return;
       }
       const next = cellAround(1);
@@ -349,7 +357,7 @@ export function useCellEdits(
         focusCellBox(next);
       }
     },
-    [notebook, focusedIndex, addCellDown, cellAround, focusCellBox]
+    [notebook, focusedIndex, addCellDown, cellAround, focusCellBox, advanceTo]
   );
 
   return {

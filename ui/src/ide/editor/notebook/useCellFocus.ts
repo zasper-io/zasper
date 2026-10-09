@@ -1,6 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { NotebookModel } from '@/api';
+
+import { createScrollKeeper } from './scrollKeeper';
 
 /**
  * The pane's view of the document: which cell has the focus, which markdown cell is open for editing,
@@ -24,25 +26,43 @@ export function useCellFocus(notebook: NotebookModel) {
   const notebookRef = useRef(notebook);
   notebookRef.current = notebook;
   const focusedRef = useRef(focusedCellId);
+  const [keeper] = useState(() =>
+    createScrollKeeper(() =>
+      focusedRef.current === null ? undefined : cellBoxes.current.get(focusedRef.current)
+    )
+  );
+  useEffect(() => keeper.dispose, [keeper]);
 
   // Before any cell has been chosen, and after the focused one is deleted, the first cell has it.
   const found = notebook.cells.findIndex((cell) => cell.id === focusedCellId);
   const focusedIndex = found >= 0 ? found : 0;
 
   /** Selects a cell by id: what a cell's own `onFocus` calls, and every step from one to another. */
-  const focusCell = useCallback((cellId: string | null) => {
-    focusedRef.current = cellId;
-    setFocusedCellId(cellId);
-  }, []);
+  const focusCell = useCallback(
+    (cellId: string | null) => {
+      focusedRef.current = cellId;
+      setFocusedCellId(cellId);
+      keeper.record();
+    },
+    [keeper]
+  );
 
   /** Where a cell's box is, for the notebook to scroll to and focus. */
-  const registerCellBox = useCallback((cellId: string, box: HTMLDivElement | null) => {
-    if (box === null) {
-      cellBoxes.current.delete(cellId);
-    } else {
-      cellBoxes.current.set(cellId, box);
-    }
-  }, []);
+  const registerCellBox = useCallback(
+    (cellId: string, box: HTMLDivElement | null) => {
+      const old = cellBoxes.current.get(cellId);
+      if (old !== undefined) {
+        keeper.unobserve(old);
+      }
+      if (box === null) {
+        cellBoxes.current.delete(cellId);
+      } else {
+        cellBoxes.current.set(cellId, box);
+        keeper.observe(box);
+      }
+    },
+    [keeper]
+  );
 
   /**
    * Brings a cell into view. `nearest` for the callers that step from one cell to the next — moving
@@ -59,19 +79,42 @@ export function useCellFocus(notebook: NotebookModel) {
    * Jupyter's command mode on a cell: selected, in view, and its own box holding the keyboard rather
    * than its editor.
    *
-   * Deferred by a frame because the cell may not be in the DOM yet — `focusNextCell` appends one when it
-   * runs the last cell. `preventScroll`, because a focus scrolls the box flush and the scroll has already
-   * said where the notebook should be.
+   * Deferred by a frame because the cell may not be in the DOM yet. Instant, because holding an arrow
+   * key outruns a smooth scroll. `preventScroll`, because a focus scrolls the box flush and the scroll
+   * has already said where the notebook should be.
    */
   const focusCellBox = useCallback(
     (cellId: string) => {
       focusCell(cellId);
       requestAnimationFrame(() => {
-        scrollTo(cellId);
-        cellBoxes.current.get(cellId)?.focus({ preventScroll: true });
+        const box = cellBoxes.current.get(cellId);
+        box?.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+        box?.focus({ preventScroll: true });
+        keeper.record();
       });
     },
-    [focusCell, scrollTo]
+    [focusCell, keeper]
+  );
+
+  /**
+   * Shift-Enter's step from the cell just run to `nextId`; see `ScrollKeeper.advance`. A cell appended
+   * to step to is left to take the keyboard into its editor as it mounts, as in Jupyter.
+   */
+  const advanceTo = useCallback(
+    (ranId: string | undefined, nextId: string, appended: boolean) => {
+      focusCell(nextId);
+      requestAnimationFrame(() => {
+        const next = cellBoxes.current.get(nextId);
+        if (next === undefined) {
+          return;
+        }
+        if (!appended) {
+          next.focus({ preventScroll: true });
+        }
+        keeper.advance(ranId === undefined ? undefined : cellBoxes.current.get(ranId), next);
+      });
+    },
+    [focusCell, keeper]
   );
 
   /** The cell `offset` places from the focused one, held at either end of the notebook. */
@@ -119,6 +162,7 @@ export function useCellFocus(notebook: NotebookModel) {
     registerCellBox,
     cellAround,
     focusCellBox,
+    advanceTo,
     scrollTo,
     editingCellId,
     setEditingCellId,

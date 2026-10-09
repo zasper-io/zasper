@@ -80,27 +80,11 @@
 
 // --- Compact, in a cell -------------------------------------------------------------------------
 //
-// A table in a cell's output is scanned, not read, and was drawn at the size of prose: 14px on a 30px
-// row, an 86px header and the bar and foot at the chrome's size, so ten rows took 449px of a 1000px
-// window. In a cell it is 12px on a 22px row, the name and its type on one line, and the bar, the
-// index and the pager a step under the cells: 350px for the same ten rows, with every column's shape and
-// summary kept. A grid in its own tab keeps the roomier size, where the data is studied.
+// A table in a cell's output is scanned, not read. Its rows are compact wherever it is in an output —
+// see `.inner-text table.dataframe` in NotebookEditor.scss — and here the grid's own parts follow: the
+// name and its type on one line, and the bar and the pager a step under the cells. A grid in its own
+// tab keeps the roomier size, where the data is studied.
 .dataGrid.is-in-cell {
-  table.dataframe td,
-  table.dataframe tbody th {
-    padding: 3px 8px;
-    font-size: 12px;
-    // 15px of line, 3px above and below, and the row's 1px rule: a 22px row.
-    line-height: 15px;
-  }
-
-  // Where a row is, not what it says: quieter, so the eye starts at the first column.
-  table.dataframe tbody th {
-    color: var(--z-fg-subtle);
-    font-size: 11px;
-    font-weight: normal;
-  }
-
   .dataGrid-columnButton {
     flex-direction: row;
     align-items: baseline;
