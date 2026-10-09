@@ -43,7 +43,7 @@
     "@xterm/addon-web-links": "0.11.0",
     "@xterm/xterm": "5.5.0",
     "ansi_up": "^6.0.6",
-    "dompurify": "^3.4.15",
+    "dompurify": "^3.4.16",
     "jotai": "^2.20.3",
     "katex": "^0.16.47",
     "lodash": "^4.17.21",
