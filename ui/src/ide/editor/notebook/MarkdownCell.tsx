@@ -58,7 +58,7 @@ export default function MarkdownCell(props: CellProps) {
               `[n]:` occupies, or the two cell types sit on different left edges. Open for editing it
               is the one markdown case the gutter offers anything for, because running a markdown
               cell is what renders it. */}
-          <div className="cell-gutter has-run">
+          <div className="cell-gutter">
             <IconButton
               icon="play"
               className="cell-run"

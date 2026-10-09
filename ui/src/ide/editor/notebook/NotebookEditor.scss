@@ -7,6 +7,10 @@
 // one cell's time and the next cell's kind, and the cells read as packed together. 40 leaves 28.
 $cell-gap: 40px;
 
+// The gutter beside a cell: the run button and the execution count side by side, both always shown.
+// The output under a cell is indented by the same width, so it lines up with the code that made it.
+$cell-gutter: 64px;
+
 // A 30px band, the same height as the tab strip and the breadcrumb above it, and on the panel's
 // surface rather than the editor's: the toolbar is chrome. It had no fill at all, so it was the
 // notebook's own background with a rule under it, and in a dark theme the band and the cells it sits
@@ -227,44 +231,15 @@ $cell-gap: 40px;
     pointer-events: auto;
   }
 
-  // The gutter's button arrives on two conditions, and they are written twice — once here to bring
-  // the button in, once below to take the count out. **The two selector lists have to stay
-  // identical.** They are what makes this a swap rather than two things in one box, and both ways of
-  // getting them apart have now been seen: `.activeCell` revealed the button with nothing hiding the
-  // count, and the cell drew `[ ▷:`; then `:focus-visible` hid the count for a button it did not
-  // reveal, because a focus that did not come from the keyboard does not match it, and the gutter
-  // went empty.
-  //
-  // The two conditions are the pointer on the cell, and focus inside the gutter — which can only be
-  // this button, since it is the one thing in there that takes focus. Not `.activeCell` and not the
-  // cell's own `:focus-within`: both are true for the whole time a cell is being typed in, and a
-  // count that turns into a play button while you write is worse than one that never moves. Focused,
-  // the count stays and the keyboard has Ctrl-Enter.
-  .single-line:hover .cell-run,
-  .cell-gutter:focus-within .cell-run {
-    opacity: 0.75;
-    pointer-events: auto;
-  }
-
-  // Full ink once it is actually the thing being pointed at or tabbed to.
-  .single-line .cell-run:hover,
-  .single-line .cell-run:focus-visible {
-    opacity: 1;
-  }
-
-  // A fixed gutter, so `[1]:` and `[10]:` put their editors on the same left edge — and the same 44px
-  // .inner-text is indented by, so output lines up with the code that produced it. A markdown cell
-  // renders the same box with no count in it, or the two cell types sit on different left edges.
-  //
-  // `position: relative` because the count and the run button are stacked in it: they share one 22px
-  // box so the swap between them cannot move a pixel of the notebook.
+  // A fixed gutter, so `[1]:` and `[10]:` put their editors on the same left edge. A markdown cell
+  // renders the same box with nothing in it, or the two cell types sit on different left edges.
   .cell-gutter {
-    position: relative;
-    flex: 0 0 44px;
+    flex: 0 0 $cell-gutter;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    // 5px is `.cm-editor`'s border plus `.cm-content`'s padding, so the 22px box's centre lands on
+    gap: 2px;
+    // 5px is `.cm-editor`'s border plus `.cm-content`'s padding, so the 22px row's centre lands on
     // the centre of the first line of code beside it.
     height: 27px;
     padding-top: 5px;
@@ -272,23 +247,23 @@ $cell-gap: 40px;
   }
 
   .cell-run {
-    position: absolute;
-    top: 5px;
-    right: 4px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 80ms linear;
+    color: var(--z-fg-subtle);
   }
 
-  // The other half of the swap: the same two conditions as `.cell-run` above, and they must be kept
-  // the same two.
-  //
-  // `.has-run` is Cell.tsx saying there is a button at all. A rendered markdown cell and a raw cell
-  // get none — the rule is that the button appears where pressing it would change something — and
-  // their gutters must not empty themselves under the pointer for a button that is not coming.
-  .single-line:hover .cell-gutter.has-run .serial-no,
-  .cell-gutter.has-run:focus-within .serial-no {
-    opacity: 0;
+  .cell-run:hover:not(:disabled) {
+    color: var(--z-fg-accent);
+  }
+
+  // The cell the kernel is on: the button is the stop, at full ink in the accent the spinner and the
+  // running time are drawn in.
+  .cell-gutter.is-running :is(.cell-run, .serial-no) {
+    color: var(--z-fg-accent);
+    opacity: 1;
+  }
+
+  // Waiting behind another cell: `[*]` dimmed, and run disabled, since it would only queue it twice.
+  .cell-gutter.is-queued .serial-no {
+    opacity: 0.5;
   }
 
   // The execution count: a number that changes in place beside a column of other numbers, which is
@@ -299,13 +274,13 @@ $cell-gap: 40px;
   // reader looks for down the left edge, so it takes the accent as ink (--a-700) rather than the grey
   // everything else unimportant takes. The weight is the body's, as drawn.
   .serial-no {
-    transition: opacity 80ms linear;
+    display: inline-flex;
+    justify-content: flex-end;
     color: var(--z-fg-serial-no);
     font-family: var(--z-mono-font-family);
     font-size: var(--z-ui-font-size-sm);
     font-variant-numeric: tabular-nums;
-    // The line box of the code beside it at the 14px default. The offset is `.cell-gutter`'s padding
-    // rather than a margin here, because the box is shared with the run button.
+    // The line box of the code beside it at the 14px default.
     line-height: 21px;
   }
 
@@ -401,7 +376,7 @@ $cell-gap: 40px;
 // The output area, below the cell's input. The left margin is the gutter above, so output
 // lines up with the code that produced it rather than with the execution count.
 .inner-text {
-  margin: 8px 0 0 44px;
+  margin: 8px 0 0 $cell-gutter;
   padding: 6px 10px;
   overflow: auto;
   position: relative;
@@ -673,12 +648,6 @@ $cell-gap: 40px;
 // A toolbar button like the rest of them, sized to the status dot beside it.
 // `.reconnectButton` was here, restating a 16px box beside the kernel dot. It is a
 // `.z-icon-button` in the toolbar like every other action in it.
-
-// `.cell-spinner` was here, a third gutter box beside `.serial-no` and `.cell-gutter`. The spinner is
-// inside `.serial-no` now — it is what the count reads while the kernel is on the cell, so it is the
-// same box, right-aligned by the same rule, and it swaps to the stop button on hover exactly as a
-// count swaps to run. Three boxes for one 44px column was what made "which cell is running" and
-// "run this cell" two unrelated pieces of chrome.
 
 // An error output: the `ename` and the traceback the kernel sent. The red this file spends is the 2px
 // edge and the name, and none of it lands on the traceback — the same rule the notice band and the toast

@@ -119,43 +119,45 @@ export default function CodeCell(props: CellProps) {
     ]
   );
 
+  // A submitted cell holds -1 until the kernel's execute_input gives it its count.
+  const queued = props.isRunning && cell.execution_count === -1;
+  const running = props.isRunning && !queued;
+  const gutterClass = running
+    ? 'cell-gutter is-running'
+    : queued
+      ? 'cell-gutter is-queued'
+      : 'cell-gutter';
+
   return (
     <div {...box}>
       <CellButtons run={editor.run} cellType={cell.cell_type} />
 
       <div className="inner-content">
-        {/* The count and the button that runs the cell share one 22px box, so the swap between them
-            cannot move a pixel of the notebook. At rest the gutter says what it has always said —
-            the execution count, or a spinner while the kernel is on this cell — and under the
-            pointer it becomes the action, which is beside the code rather than at the far end of
-            it. Run used to be the first of eleven icons in a bar at the cell's top-right corner. */}
-        <div className={cell.cell_type === 'code' ? 'cell-gutter has-run' : 'cell-gutter'}>
-          <span className="serial-no">
-            {props.isRunning ? (
-              // A spinner rather than `[*]`: the count arrives with `execute_input` a few
-              // milliseconds after the cell is submitted, and a cell that went on running for a
-              // minute showed a stale `[17]:` and nothing else. Named, because which cell the kernel
-              // is on is the one thing in this gutter a screen reader has to be told.
-              <span className="z-spinner" role="status" aria-label="Running" />
-            ) : (
-              // A cell that has not run shows an empty bracket, as Jupyter does. A raw cell never
-              // runs, so it has no bracket at all: an empty one says the cell is waiting to run.
-              cell.cell_type === 'code' && `[${cell.execution_count ?? ' '}]:`
-            )}
-          </span>
-          {/* A raw cell is neither run nor rendered, as in Jupyter, so its gutter stays a gutter:
-              the rule is that the button appears where pressing it would change something. */}
+        {/* The run button and the count, both always shown. While the kernel is on this cell the
+            button is the stop and the count a spinner; a cell waiting behind it says `[*]`. A raw
+            cell is neither run nor rendered, as in Jupyter, so its gutter stays empty. */}
+        <div className={gutterClass}>
           {cell.cell_type === 'code' && (
             <IconButton
-              icon={props.isRunning ? 'square' : 'play'}
+              icon={running ? 'square' : 'play'}
               className="cell-run"
-              label={props.isRunning ? 'Interrupt Kernel' : 'Run Cell'}
-              name={props.isRunning ? 'Interrupt Kernel' : `Run cell ${props.index + 1}`}
+              label={running ? 'Interrupt Kernel' : queued ? 'Queued' : 'Run Cell'}
+              name={running ? 'Interrupt Kernel' : `Run cell ${props.index + 1}`}
+              disabled={queued}
               onClick={() =>
-                props.isRunning ? editor.interruptKernel() : editor.submitCell(cell.source, cellId)
+                running ? editor.interruptKernel() : editor.submitCell(cell.source, cellId)
               }
             />
           )}
+          <span className="serial-no">
+            {running ? (
+              // Named, because which cell the kernel is on is the one thing in this gutter a screen
+              // reader has to be told.
+              <span className="z-spinner" role="status" aria-label="Running" />
+            ) : (
+              cell.cell_type === 'code' && `[${queued ? '*' : (cell.execution_count ?? ' ')}]:`
+            )}
+          </span>
         </div>
         {/* The cell's kind is set in its box's top border: the kernel's language, `raw` or `sql`. A
             SQL cell's head is the box's first line, so the box is drawn here rather than by the

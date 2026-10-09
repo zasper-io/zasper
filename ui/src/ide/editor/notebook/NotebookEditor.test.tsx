@@ -283,8 +283,9 @@ describe('NotebookEditor', () => {
     // The cell id goes in the metadata, where other Jupyter clients put it; the msg_id identifies
     // the request, not the cell.
     expect(request.metadata.cellId).toBe('server-cell-id');
-    // The cell waits on the kernel: no execution count, spinner instead.
-    expect(container.querySelector('.z-spinner')).toBeInTheDocument();
+    // The cell waits for the kernel to start it: `[*]` until execute_input gives it its count.
+    expect(screen.getByText('[*]:')).toBeInTheDocument();
+    expect(container.querySelector('.z-spinner')).toBeNull();
   });
 
   it('runs the focused cell from the toolbar', async () => {

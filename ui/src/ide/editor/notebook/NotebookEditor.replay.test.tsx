@@ -128,11 +128,11 @@ describe('NotebookEditor, given the runs it missed', () => {
     expect(await screen.findByText(/while you were away/)).toBeInTheDocument();
   });
 
-  it('reconnects a dropped socket, and stops a spinner whose run ended meanwhile', async () => {
+  it('reconnects a dropped socket, and settles a run that ended meanwhile', async () => {
     const { container } = await openNotebook();
     act(() => sockets[0].receive(replay([])));
     act(() => runButton(container).click());
-    await waitFor(() => expect(spinning(container)).toBe(true));
+    await screen.findByText('[*]:');
 
     act(() => sockets[0].drop());
 
@@ -142,8 +142,9 @@ describe('NotebookEditor, given the runs it missed', () => {
       sockets[1].receive(replay([run({ msg_id: firstRequestId, outputs: [], execution_count: 1 })]))
     );
 
-    await waitFor(() => expect(spinning(container)).toBe(false));
-    expect(screen.getByText('[1]:')).toBeInTheDocument();
+    expect(await screen.findByText('[1]:')).toBeInTheDocument();
+    expect(screen.queryByText('[*]:')).toBeNull();
+    expect(spinning(container)).toBe(false);
   });
 
   it('lets go of its socket when the page is put in the back/forward cache', async () => {
