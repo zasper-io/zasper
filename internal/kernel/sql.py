@@ -126,8 +126,10 @@ def _frames():
 
 
 def _frame_from(columns, rows):
-    import pandas as pd
-
+    try:
+        import pandas as pd
+    except ImportError as error:
+        raise _missing(error) from None
     return pd.DataFrame.from_records(list(rows), columns=list(columns))
 
 
