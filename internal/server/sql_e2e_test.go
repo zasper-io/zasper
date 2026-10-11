@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,6 +89,11 @@ func TestASQLCellRunsOnAConnectionAndLeavesADataframe(t *testing.T) {
 	query := "%%zasper_sql local --out by_region --limit 1\n" +
 		"SELECT region, sum(total) AS total FROM orders GROUP BY region ORDER BY region"
 	outputs := runOutputs(t, conn, executeOverSocket(t, conn, created.Id, query), 60*time.Second)
+	if failed := of(outputs, "error"); len(failed) == 1 {
+		if evalue, _ := failed[0]["evalue"].(string); strings.HasPrefix(evalue, "pandas is not installed") {
+			t.Skip("the kernel has no pandas, which a SQL cell's rows become")
+		}
+	}
 
 	displays := of(outputs, "display_data")
 	require.NotEmpty(t, displays, "the line saying where the rows came from")

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -28,9 +29,12 @@ func TestTheFileKeepsSecretsReadableByTheirOwnerAlone(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "hunter2", value)
 
-	info, err := os.Stat(path)
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	// Windows keeps no Unix permission bits: Go reports 0666 for any file it can write.
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	}
 
 	require.NoError(t, f.Delete("connection:analytics"))
 	_, err = f.Get("connection:analytics")

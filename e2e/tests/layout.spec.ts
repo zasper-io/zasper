@@ -503,15 +503,18 @@ test('a rendered markdown cell carries the same left edge, and the same inset, a
   expect(active.radius, "the edge does not carry the code box's own radius").toBe('4px');
 
   // One left edge for the notebook: prose and code start at the same x, measured from the box each
-  // sits in rather than from the pane, so the gutter's width is not part of the assertion.
+  // sits in rather than from the pane, so the gutter's width is not part of the assertion. Where the
+  // text itself starts, not its element's box: a code line is inset inside `.cm-content`, so that box
+  // sits left of the first character.
   const textLeft = (box: typeof prose, inner: string) =>
     box.evaluate((el, selector) => {
-      const text = el.querySelector(selector)!.getBoundingClientRect();
-      return Math.round(text.left - el.getBoundingClientRect().left);
+      const range = document.createRange();
+      range.selectNodeContents(el.querySelector(selector)!);
+      return Math.round(range.getClientRects()[0].left - el.getBoundingClientRect().left);
     }, inner);
 
   expect(await textLeft(prose, 'h1, h2, h3, p'), 'prose and code do not share a left edge').toBe(
-    await textLeft(code, '.cm-content')
+    await textLeft(code, '.cm-line')
   );
 });
 

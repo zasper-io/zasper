@@ -159,11 +159,11 @@ func TestACellsDataFrameOutputCanBePagedByItsOwnId(t *testing.T) {
 		wsURL(t, srv, "/ws/kernels/"+created.Kernel.Id+"/channels")+"?session_id="+created.Id, nil)
 	require.NoError(t, err)
 	defer conn.Close()
-	msgId := executeOverSocket(t, conn, created.Id, "try:\n    import pandas as pd\nexcept ImportError:\n    pd = None\npd and pd.DataFrame({'x': range(30), 'y': list('ab') * 15}).sort_values('x', ascending=False)")
+	msgId := executeOverSocket(t, conn, created.Id, "try:\n    import pandas as pd\nexcept ImportError:\n    pd = None\npd.DataFrame({'x': range(30), 'y': list('ab') * 15}).sort_values('x', ascending=False) if pd else 'no pandas'")
 	result := awaitExecuteResult(t, conn, msgId, 60*time.Second)
 	data, ok := result["data"].(map[string]any)
 	require.True(t, ok, "the result carried no data: %v", result)
-	if data["text/plain"] == "None" {
+	if data["text/plain"] == "'no pandas'" {
 		t.Skip("the kernel has no pandas")
 	}
 

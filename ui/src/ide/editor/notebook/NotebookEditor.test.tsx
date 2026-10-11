@@ -330,6 +330,7 @@ describe('NotebookEditor', () => {
 
   // The end of a run comes twice, idle on iopub and execute_reply on shell, in no fixed order. With the
   // reply second the cell showed no time at all, since the reply had lost its cell by then.
+  // The dates are fixed, so the time carries their day after them: matched from its start.
   it('says how long a run took when idle comes before the reply', async () => {
     const { container } = render(<NotebookEditor data={tab} />);
     await waitFor(() => expect(sockets).toHaveLength(1));
@@ -347,7 +348,7 @@ describe('NotebookEditor', () => {
     sockets[0].receive(at('status', '2026-10-08T09:00:00.000Z', { execution_state: 'busy' }));
     sockets[0].receive(at('execute_input', '2026-10-08T09:00:00.000Z', { execution_count: 3 }));
     sockets[0].receive(at('status', '2026-10-08T09:00:06.020Z', { execution_state: 'idle' }));
-    expect(await screen.findByText('6.0 s')).toBeInTheDocument();
+    expect(await screen.findByText(/^6\.0 s/)).toBeInTheDocument();
 
     sockets[0].receive(
       at(
@@ -358,7 +359,7 @@ describe('NotebookEditor', () => {
       )
     );
     // The reply still finds its cell after idle, and its time (6.01 s) replaces idle's.
-    expect(await screen.findByText('6.0 s')).toBeInTheDocument();
+    expect(await screen.findByText(/^6\.0 s/)).toBeInTheDocument();
     expect(screen.queryByText('queued')).toBeNull();
   });
 
