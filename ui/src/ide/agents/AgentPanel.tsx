@@ -17,7 +17,8 @@ import { agentChatAtom } from '@/store/agents';
 import { projectDirAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import { useAskTrust } from '@/store/trust';
-import { ChatItem, PlanEntry, ToolCall } from './chatLog';
+import { lineDiff } from '@/ide/editor/notebookDiff/cellDiff';
+import { ChatItem, PlanEntry, ToolCall, ToolDiff } from './chatLog';
 import { useAgentChat } from './useAgentChat';
 import './AgentPanel.scss';
 
@@ -162,7 +163,8 @@ function Conversation({ chat }: { chat: AgentChat }) {
 
   const send = () => {
     const text = draft.trim();
-    if (text === '' || view.answering || view.exited) {
+    // Not before the chat's socket is open: what was typed would go nowhere.
+    if (text === '' || view.answering || view.exited || !connected) {
       return;
     }
     prompt(text);
@@ -210,7 +212,7 @@ function Conversation({ chat }: { chat: AgentChat }) {
           onKeyDown={onKeyDown}
         />
         <div className="agentComposer-foot">
-          <span>{connected ? 'Your own agent, your own subscription' : 'Reconnecting…'}</span>
+          <span>{connected ? 'Your own agent, your own subscription' : 'Connecting…'}</span>
           {view.answering ? (
             <button type="button" className="z-button z-button-secondary" onClick={cancel}>
               <Icon name="circle-stop" size={14} /> Stop
@@ -301,8 +303,9 @@ function Item({
 function Tools({ calls }: { calls: ToolCall[] }) {
   const { openTab } = useTabActions();
   const projectDir = useAtomValue(projectDirAtom);
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
 
-  const open = (path: string) => {
+  const openFile = (path: string) => {
     const root = projectDir.endsWith('/') ? projectDir : `${projectDir}/`;
     if (!path.startsWith(root)) {
       return;
@@ -312,22 +315,70 @@ function Tools({ calls }: { calls: ToolCall[] }) {
     openTab({ name, path: relative, type: name.endsWith('.ipynb') ? 'notebook' : 'file' });
   };
 
+  const toggle = (id: string) =>
+    setOpen((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+
   return (
     <div className="agentTools">
-      {calls.map((call) => (
-        <button
-          type="button"
-          key={call.id}
-          className="panel-row"
-          disabled={call.locations.length === 0}
-          title={call.locations[0] ?? call.title}
-          onClick={() => call.locations[0] && open(call.locations[0])}
-        >
-          <Icon name={TOOL_ICONS[call.kind] ?? 'bot'} />
-          <span className="panel-row-name">{call.title}</span>
-          <span className={`agentTools-status is-${call.status}`}>{statusOf(call.status)}</span>
-        </button>
-      ))}
+      {calls.map((call) => {
+        const hasOutput = call.output !== '' || call.diffs.length > 0;
+        const expanded = open.has(call.id);
+        return (
+          <div key={call.id}>
+            <button
+              type="button"
+              className="panel-row"
+              disabled={!hasOutput && call.locations.length === 0}
+              aria-expanded={hasOutput ? expanded : undefined}
+              title={call.locations[0] ?? call.title}
+              onClick={() =>
+                hasOutput ? toggle(call.id) : call.locations[0] && openFile(call.locations[0])
+              }
+            >
+              <Icon name={TOOL_ICONS[call.kind] ?? 'bot'} />
+              <span className="panel-row-name">{call.title}</span>
+              <span className={`agentTools-status is-${call.status}`}>{statusOf(call.status)}</span>
+              {hasOutput && (
+                <Icon name={expanded ? 'chevron-down' : 'chevron-right'} className="z-icon-sm" />
+              )}
+            </button>
+            {expanded && (
+              <div className="agentTools-output">
+                {call.diffs.map((diff) => (
+                  <Diff key={diff.path} diff={diff} onOpen={() => openFile(diff.path)} />
+                ))}
+                {call.output !== '' && <pre>{call.output}</pre>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Diff({ diff, onOpen }: { diff: ToolDiff; onOpen: () => void }) {
+  const lines = lineDiff(diff.oldText ?? '', diff.newText);
+  return (
+    <div className="agentDiff">
+      <button type="button" className="agentDiff-file" onClick={onOpen}>
+        {diff.path.split('/').pop()}
+        {diff.oldText === null && ' (new)'}
+      </button>
+      <pre>
+        {lines
+          .filter((line) => line.kind !== 'same')
+          .map((line, index) => (
+            <span key={index} className={`agentDiff-line is-${line.kind}`}>
+              {line.kind === 'added' ? '+ ' : '− '}
+              {line.text}
+            </span>
+          ))}
+      </pre>
     </div>
   );
 }

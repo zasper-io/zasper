@@ -127,6 +127,49 @@
   }
 }
 
+// What a tool printed, and the changes it made, opened under its row.
+.agentTools-output {
+  margin: 0 8px 6px 28px;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--z-border);
+  border-radius: 3px;
+  background: var(--z-bg-cell);
+
+  pre {
+    margin: 0;
+    padding: 6px 8px;
+    color: var(--z-fg-editor);
+    font-family: var(--z-mono-font-family);
+    font-size: var(--z-ui-font-size-sm);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.agentDiff-file {
+  display: block;
+  padding: 4px 8px 0;
+  border: 0;
+  background: none;
+  color: var(--z-fg-accent);
+  font: inherit;
+  font-size: var(--z-ui-font-size-sm);
+  cursor: pointer;
+}
+
+.agentDiff-line {
+  display: block;
+
+  &.is-added {
+    background: var(--z-bg-diff-added);
+  }
+
+  &.is-removed {
+    background: var(--z-bg-diff-deleted);
+  }
+}
+
 .agentTools-status {
   margin-left: auto;
   color: var(--z-fg-subtle);

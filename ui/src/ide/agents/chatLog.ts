@@ -10,6 +10,17 @@ export interface ToolCall {
   status: string;
   /** The files it touched, absolute. */
   locations: string[];
+  /** What it printed or answered, as text. */
+  output: string;
+  /** The changes it made to files. */
+  diffs: ToolDiff[];
+}
+
+export interface ToolDiff {
+  path: string;
+  /** Null for a file it created. */
+  oldText: string | null;
+  newText: string;
 }
 
 export interface PermissionOption {
@@ -67,6 +78,34 @@ function findCall(items: ChatItem[], id: string): ToolCall | undefined {
   return undefined;
 }
 
+/** A tool call's content, which an update replaces whole: its text, and its diffs. */
+function contentOf(content: unknown): { output: string; diffs: ToolDiff[] } | undefined {
+  if (!Array.isArray(content)) {
+    return undefined;
+  }
+  const output: string[] = [];
+  const diffs: ToolDiff[] = [];
+  for (const entry of content) {
+    if (entry?.type === 'content') {
+      const text = unfenced(textOf(entry.content));
+      if (text !== '') output.push(text);
+    } else if (entry?.type === 'diff' && typeof entry.path === 'string') {
+      diffs.push({
+        path: entry.path,
+        oldText: entry.oldText ?? null,
+        newText: entry.newText ?? '',
+      });
+    }
+  }
+  return { output: output.join('\n'), diffs };
+}
+
+/** Text an agent wrapped in a markdown code fence, without it: the panel already shows it as code. */
+function unfenced(text: string): string {
+  const fenced = /^```[^\n]*\n([\s\S]*?)\n?```\s*$/.exec(text.trim());
+  return fenced ? fenced[1] : text;
+}
+
 function locationsOf(update: { locations?: { path?: string }[] }): string[] | undefined {
   return update.locations
     ?.map((location) => location.path)
@@ -113,6 +152,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
               kind: update.kind ?? 'other',
               status: update.status ?? 'pending',
               locations: locationsOf(update) ?? [],
+              ...(contentOf(update.content) ?? { output: '', diffs: [] }),
             };
             const previous = last();
             if (previous?.kind === 'tools') {
@@ -129,6 +169,11 @@ export function foldChat(events: ChatEvent[]): ChatView {
               call.kind = update.kind ?? call.kind;
               call.status = update.status ?? call.status;
               call.locations = locationsOf(update) ?? call.locations;
+              const content = contentOf(update.content);
+              if (content) {
+                call.output = content.output;
+                call.diffs = content.diffs;
+              }
             }
             break;
           }

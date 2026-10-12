@@ -24,6 +24,8 @@ vi.mock('@/ide/editor/notebook/MarkdownRenderer', () => ({
 class FakeSocket {
   static latest: FakeSocket;
   static OPEN = 1;
+  /** Off for a test that has to hold the socket unopened. */
+  static autoOpen = true;
   readyState = 1;
   sent: Record<string, string>[] = [];
   onopen: (() => void) | null = null;
@@ -31,7 +33,9 @@ class FakeSocket {
   onclose: (() => void) | null = null;
   constructor(readonly url: string) {
     FakeSocket.latest = this;
-    setTimeout(() => this.onopen?.(), 0);
+    if (FakeSocket.autoOpen) {
+      setTimeout(() => this.onopen?.(), 0);
+    }
   }
   send(data: string) {
     this.sent.push(JSON.parse(data));
@@ -51,6 +55,7 @@ const said = (text: string) => ({
 
 describe('AgentPanel', () => {
   beforeEach(() => {
+    FakeSocket.autoOpen = true;
     listAgents.mockResolvedValue([
       { id: 'claude-code', name: 'Claude Code', installed: true, hint: 'npm i' },
       { id: 'codex', name: 'Codex', installed: false, hint: 'install codex-acp' },
@@ -116,5 +121,55 @@ describe('AgentPanel', () => {
     });
     fireEvent.keyDown(screen.getByLabelText('Message to the agent'), { key: 'Enter' });
     expect(socket.sent).toContainEqual({ type: 'prompt', text: 'thanks' });
+  });
+
+  it('keeps what was typed until the chat is connected', async () => {
+    render(
+      <Provider>
+        <AgentPanel hidden={false} />
+      </Provider>
+    );
+    FakeSocket.autoOpen = false;
+    fireEvent.click(await screen.findByRole('button', { name: /Claude Code/ }));
+    const box = await screen.findByLabelText('Message to the agent');
+    expect(screen.getByText('Connecting…')).toBeInTheDocument();
+    fireEvent.change(box, { target: { value: 'too early' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+
+    expect(box).toHaveValue('too early');
+    expect(FakeSocket.latest.sent).toEqual([]);
+  });
+
+  it('opens what a tool printed and the change it made under its row', async () => {
+    render(
+      <Provider>
+        <AgentPanel hidden={false} />
+      </Provider>
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Claude Code/ }));
+    await screen.findByText('Your own agent, your own subscription');
+    const socket = FakeSocket.latest;
+    socket.push({
+      type: 'update',
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 't1',
+        title: 'Edit prepare.py',
+        kind: 'edit',
+        status: 'completed',
+        content: [
+          { type: 'diff', path: '/project/prepare.py', oldText: 'X = 1\n', newText: 'X = 2\n' },
+          { type: 'content', content: { type: 'text', text: 'Updated one line' } },
+        ],
+      },
+    });
+
+    const row = await screen.findByRole('button', { name: /Edit prepare.py/ });
+    expect(screen.queryByText('Updated one line')).not.toBeInTheDocument();
+    fireEvent.click(row);
+
+    expect(row).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Updated one line')).toBeInTheDocument();
+    expect(screen.getByText(/X = 2/)).toHaveClass('agentDiff-line', 'is-added');
   });
 });

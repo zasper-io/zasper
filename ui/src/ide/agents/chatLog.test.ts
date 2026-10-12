@@ -51,8 +51,24 @@ describe('foldChat', () => {
     expect(view.items[1]).toEqual({
       kind: 'tools',
       calls: [
-        { id: 't1', title: 'Read prepare.py', kind: 'read', status: 'completed', locations: [] },
-        { id: 't2', title: 'Edit', kind: 'edit', status: 'pending', locations: ['/p/a.py'] },
+        {
+          id: 't1',
+          title: 'Read prepare.py',
+          kind: 'read',
+          status: 'completed',
+          locations: [],
+          output: '',
+          diffs: [],
+        },
+        {
+          id: 't2',
+          title: 'Edit',
+          kind: 'edit',
+          status: 'pending',
+          locations: ['/p/a.py'],
+          output: '',
+          diffs: [],
+        },
       ],
     });
   });
@@ -152,5 +168,33 @@ describe('foldChat', () => {
 
     expect(view.mode).toBe('edits');
     expect(view.items[0]).toMatchObject({ kind: 'permission', answer: 'y', auto: true });
+  });
+
+  it('keeps what a tool printed and the changes it made, as its last update has them', () => {
+    const view = foldChat([
+      {
+        type: 'update',
+        update: { sessionUpdate: 'tool_call', toolCallId: 't', title: 'pytest', kind: 'execute' },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 't',
+          status: 'completed',
+          content: [
+            { type: 'content', content: { type: 'text', text: '```console\n3 passed\n```' } },
+            { type: 'diff', path: '/p/a.py', oldText: 'x = 1', newText: 'x = 2' },
+          ],
+        },
+      },
+    ]);
+
+    expect(view.items[0]).toMatchObject({
+      kind: 'tools',
+      calls: [
+        { output: '3 passed', diffs: [{ path: '/p/a.py', oldText: 'x = 1', newText: 'x = 2' }] },
+      ],
+    });
   });
 });
