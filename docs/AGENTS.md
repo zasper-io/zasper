@@ -36,7 +36,7 @@ Every agent is given Zasper's own MCP server as `zasper`, so it can read and run
 | What the agent asks | What Zasper does |
 |---|---|
 | `session/request_permission` | Asks the reader, and waits for the answer or for the turn to be cancelled — unless the chat's mode covers it: *Allow edits* answers edits, moves and deletes, *Allow edits and commands* commands as well, each with the agent's allow-once option. |
-| `fs/read_text_file` | Reads the file from the project. |
+| `fs/read_text_file` | What a tab holds of the file when it has unsaved edits there, so the agent sees what the reader sees; otherwise the file on disk. |
 | `fs/write_text_file` | Writes it as a save does, and open tabs say the agent wrote it. |
 | `terminal/*` | Not offered yet: the agent runs commands its own way. |
 

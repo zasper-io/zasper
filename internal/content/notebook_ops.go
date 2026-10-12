@@ -195,10 +195,14 @@ func (h *Handler) Notebooks() ([]string, error) {
 	return found, err
 }
 
-// ReadText reads a file in the project as text, for an agent.
+// ReadText reads a file in the project as text, for an agent: what an open tab holds that it has not
+// saved, when one does, or else the file on disk.
 func (h *Handler) ReadText(path string) (string, error) {
 	if h.project.outsideProject(path) {
 		return "", errors.New("invalid path")
+	}
+	if text, ok := h.watch.unsaved(path); ok {
+		return text, nil
 	}
 	model, err := h.project.GetContent(path, "file", "text")
 	if err != nil {

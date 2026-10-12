@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { checkServer, serverAnswered } from './serverConnection';
 import { useContentWatcher, useFileWatcher } from './useContentWatcher';
+import { useOpenDocument } from '@/store/openDocuments';
 
 const serverAnswers = vi.fn();
 
@@ -278,6 +279,50 @@ describe('useContentWatcher', () => {
       changed([{ path: 'anything.txt' }]);
 
       expect(onChange).toHaveBeenCalledOnce();
+    });
+
+    describe('when an agent reads it', () => {
+      function asked(path: string) {
+        act(() => {
+          FakeSocket.latest.onmessage?.({ data: JSON.stringify({ read: { id: 'q1', path } }) });
+        });
+      }
+
+      function editor(path: string, unsaved: string | null) {
+        renderHook(() => useFileWatcher(path, vi.fn()));
+        renderHook(() => useOpenDocument(path, { applyEdits: vi.fn(), unsaved: () => unsaved }));
+        open(FakeSocket.latest);
+      }
+
+      it('answers with what the editor holds unsaved', () => {
+        editor('./notes.txt', 'typed, not saved');
+
+        asked('notes.txt');
+
+        expect(FakeSocket.latest.send).toHaveBeenLastCalledWith(
+          JSON.stringify({ unsaved: { id: 'q1', text: 'typed, not saved' } })
+        );
+      });
+
+      it('says it holds nothing unsaved, so the file is read from disk without waiting', () => {
+        editor('notes.txt', null);
+
+        asked('notes.txt');
+
+        expect(FakeSocket.latest.send).toHaveBeenLastCalledWith(
+          JSON.stringify({ unsaved: { id: 'q1', none: true } })
+        );
+      });
+
+      it('is not taken for a change to the file', () => {
+        const notes = vi.fn();
+        renderHook(() => useFileWatcher('notes.txt', notes));
+
+        asked('notes.txt');
+        act(() => vi.advanceTimersByTime(500));
+
+        expect(notes).not.toHaveBeenCalled();
+      });
     });
   });
 });

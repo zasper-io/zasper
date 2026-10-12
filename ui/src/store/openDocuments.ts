@@ -25,6 +25,8 @@ export interface OpenDocument {
   applyEdits: (edits: LineEdit[]) => EditOutcome;
   /** What the editor holds now, which is what its reader sees whether or not it has been saved. */
   text?: () => string;
+  /** What the editor holds as the file would be written, or null when it holds nothing unsaved. */
+  unsaved?: () => string | null;
 }
 
 const documents = new Map<string, OpenDocument>();
@@ -52,4 +54,17 @@ export function useOpenDocument(path: string, document: OpenDocument | null): vo
 
 export function openDocument(path: string): OpenDocument | undefined {
   return documents.get(path);
+}
+
+/** What an editor open on the file `matches` holds that it has not saved, or null. */
+export function unsavedText(matches: (path: string) => boolean): string | null {
+  for (const [path, document] of documents) {
+    if (matches(path)) {
+      const text = document.unsaved?.();
+      if (text != null) {
+        return text;
+      }
+    }
+  }
+  return null;
 }

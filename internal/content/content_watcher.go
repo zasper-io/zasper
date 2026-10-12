@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 	"github.com/zasper-io/zasper/internal/httpx"
@@ -43,6 +44,8 @@ type projectWatch struct {
 	tree map[string]struct{}
 	// Who last wrote each path through Zasper and named themselves, and the hash of what they wrote.
 	writers map[string]writer
+	// Questions asked of the clients, by id, and where their answers go.
+	questions map[string]chan unsavedAnswer
 }
 
 type writer struct {
@@ -60,6 +63,8 @@ type watchSubscriber struct {
 	reload  bool
 	// The files this client has open, reported wherever they are and sent with their hash.
 	wants map[string]struct{}
+	// Questions for this client, such as what an open file holds that is not saved.
+	asks chan []byte
 }
 
 // Change is one path in a message to a client, relative to the project. Hash is set for a file the
@@ -75,9 +80,18 @@ type watchMessage struct {
 	Changed []Change `json:"changed"`
 }
 
-// watchRequest is what a client sends: every file it has open, replacing what it sent before.
+// watchRequest is what a client sends: every file it has open, replacing what it sent before, or an
+// answer to a question it was asked.
 type watchRequest struct {
-	Watch []string `json:"watch"`
+	Watch   []string       `json:"watch"`
+	Unsaved *unsavedAnswer `json:"unsaved"`
+}
+
+// unsavedAnswer is what an open file holds that is not saved, or None when it holds nothing unsaved.
+type unsavedAnswer struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+	None bool   `json:"none"`
 }
 
 func newProjectWatch(root string) *projectWatch {
@@ -127,6 +141,7 @@ func (p *projectWatch) subscribe() (*watchSubscriber, error) {
 		changed: make(chan struct{}, 1),
 		pending: map[string]string{},
 		wants:   map[string]struct{}{},
+		asks:    make(chan []byte, 16),
 	}
 	p.subscribers[subscriber] = struct{}{}
 	return subscriber, nil
@@ -362,6 +377,12 @@ func (h *Handler) Watch(w http.ResponseWriter, req *http.Request) {
 			select {
 			case <-stop:
 				return
+			case ask := <-subscriber.asks:
+				connection.SetWriteDeadline(time.Now().Add(watchWriteTimeout))
+				if err := connection.WriteMessage(websocket.TextMessage, ask); err != nil {
+					connection.Close()
+					return
+				}
 			case <-subscriber.changed:
 				message := h.watch.take(subscriber)
 				if message == nil {
@@ -384,10 +405,78 @@ func (h *Handler) Watch(w http.ResponseWriter, req *http.Request) {
 			break
 		}
 		var request watchRequest
-		if json.Unmarshal(data, &request) == nil && request.Watch != nil {
+		if json.Unmarshal(data, &request) != nil {
+			continue
+		}
+		if request.Watch != nil {
 			h.watch.want(subscriber, request.Watch)
+		}
+		if request.Unsaved != nil {
+			h.watch.answered(*request.Unsaved)
 		}
 	}
 	close(stop)
 	<-written
+}
+
+// How long the tabs that have a file open are given to say what they hold that is not saved.
+const unsavedWait = time.Second
+
+/*
+unsaved asks the clients that have path open what it holds that they have not saved, and answers the
+first unsaved text one sends, or false when none has any or none answers in time.
+*/
+func (p *projectWatch) unsaved(path string) (string, bool) {
+	clean := filepath.ToSlash(filepath.Clean(path))
+	id := uuid.New().String()
+	answers := make(chan unsavedAnswer, 16)
+
+	p.mu.Lock()
+	if p.questions == nil {
+		p.questions = map[string]chan unsavedAnswer{}
+	}
+	p.questions[id] = answers
+	asked := 0
+	question, _ := json.Marshal(map[string]any{"read": map[string]string{"id": id, "path": clean}})
+	for subscriber := range p.subscribers {
+		if _, ok := subscriber.wants[clean]; !ok {
+			continue
+		}
+		select {
+		case subscriber.asks <- question:
+			asked++
+		default:
+		}
+	}
+	p.mu.Unlock()
+	defer func() {
+		p.mu.Lock()
+		delete(p.questions, id)
+		p.mu.Unlock()
+	}()
+
+	deadline := time.After(unsavedWait)
+	for ; asked > 0; asked-- {
+		select {
+		case answer := <-answers:
+			if !answer.None {
+				return answer.Text, true
+			}
+		case <-deadline:
+			return "", false
+		}
+	}
+	return "", false
+}
+
+// answered passes a client's answer to the question it answers, if anyone is still waiting on it.
+func (p *projectWatch) answered(answer unsavedAnswer) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if answers, ok := p.questions[answer.ID]; ok {
+		select {
+		case answers <- answer:
+		default:
+		}
+	}
 }

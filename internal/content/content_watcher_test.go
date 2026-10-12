@@ -267,3 +267,77 @@ func TestAPathOutsideTheProjectIsNotWatched(t *testing.T) {
 
 	assert.Equal(t, map[string]struct{}{"notes.txt": {}}, subscriber.wants)
 }
+
+// answer replies to the next question the subscriber is asked with reply, and returns the path asked about.
+func answer(t *testing.T, watch *projectWatch, subscriber *watchSubscriber, reply func(id string) unsavedAnswer) <-chan string {
+	t.Helper()
+	asked := make(chan string, 1)
+	go func() {
+		var question struct {
+			Read struct{ ID, Path string } `json:"read"`
+		}
+		select {
+		case data := <-subscriber.asks:
+			if json.Unmarshal(data, &question) == nil {
+				asked <- question.Read.Path
+				watch.answered(reply(question.Read.ID))
+			}
+		case <-time.After(5 * time.Second):
+		}
+		close(asked)
+	}()
+	return asked
+}
+
+func TestATabWithTheFileOpenIsAskedForItsUnsavedText(t *testing.T) {
+	watch, _ := watchedProject(t)
+	subscriber := subscribe(t, watch)
+	watch.want(subscriber, []string{"notes.txt"})
+
+	asked := answer(t, watch, subscriber, func(id string) unsavedAnswer { return unsavedAnswer{ID: id, Text: "typed"} })
+	text, ok := watch.unsaved("notes.txt")
+
+	assert.True(t, ok)
+	assert.Equal(t, "typed", text)
+	assert.Equal(t, "notes.txt", <-asked)
+}
+
+func TestATabWithNothingUnsavedLeavesTheReadToTheDisk(t *testing.T) {
+	watch, _ := watchedProject(t)
+	subscriber := subscribe(t, watch)
+	watch.want(subscriber, []string{"notes.txt"})
+
+	answer(t, watch, subscriber, func(id string) unsavedAnswer { return unsavedAnswer{ID: id, None: true} })
+	start := time.Now()
+	_, ok := watch.unsaved("notes.txt")
+
+	assert.False(t, ok)
+	assert.Less(t, time.Since(start), unsavedWait, "waited for an answer already given")
+}
+
+func TestOnlyTabsWithTheFileOpenAreAsked(t *testing.T) {
+	watch, _ := watchedProject(t)
+	subscriber := subscribe(t, watch)
+	watch.want(subscriber, []string{"other.txt"})
+
+	start := time.Now()
+	_, ok := watch.unsaved("notes.txt")
+
+	assert.False(t, ok)
+	assert.Less(t, time.Since(start), unsavedWait)
+	assert.Empty(t, subscriber.asks)
+}
+
+func TestATabThatDoesNotAnswerIsNotWaitedOnForLong(t *testing.T) {
+	watch, _ := watchedProject(t)
+	subscriber := subscribe(t, watch)
+	watch.want(subscriber, []string{"notes.txt"})
+
+	start := time.Now()
+	_, ok := watch.unsaved("notes.txt")
+
+	assert.False(t, ok)
+	assert.Less(t, time.Since(start), 2*unsavedWait)
+	// An answer that comes too late goes nowhere.
+	watch.answered(unsavedAnswer{ID: "late", Text: "typed"})
+}

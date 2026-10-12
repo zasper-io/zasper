@@ -267,6 +267,13 @@ export default function FileEditor(props: FileEditorProps) {
       canSave
         ? {
             text: () => viewRef.current?.state.doc.toString() ?? '',
+            unsaved: () => {
+              const doc = viewRef.current?.state.doc;
+              if (doc === undefined || !isDirty(doc)) {
+                return null;
+              }
+              return doc.sliceString(0, doc.length, eolRef.current === 'CRLF' ? '\r\n' : '\n');
+            },
             applyEdits: (edits) => {
               const editor = viewRef.current;
               if (editor === null) {
@@ -280,7 +287,7 @@ export default function FileEditor(props: FileEditorProps) {
             },
           }
         : null,
-    [canSave]
+    [canSave, isDirty]
   );
   useOpenDocument(path, openDoc);
 

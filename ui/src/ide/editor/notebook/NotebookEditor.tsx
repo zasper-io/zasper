@@ -486,6 +486,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     ready: !cells.loading && cells.error === '',
     cellViews,
     updateCellSource: cells.updateCellSource,
+    unsaved: cells.unsaved,
   });
 
   useNotebookReveal({

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { websocketUrl } from '@/api';
+import { unsavedText } from '@/store/openDocuments';
 import { checkServer, serverAnswered, watchServer } from './serverConnection';
 
 /**
@@ -84,7 +85,34 @@ function parse(data: unknown): ChangeMessage | null {
   }
 }
 
+/** A question from the server: what this tab holds of `path` that it has not saved, for an agent. */
+interface ReadMessage {
+  read: { id: string; path: string };
+}
+
+function answerRead(data: unknown): boolean {
+  if (typeof data !== 'string' || !data.startsWith('{"read"')) {
+    return false;
+  }
+  let question: ReadMessage['read'];
+  try {
+    question = (JSON.parse(data) as ReadMessage).read;
+  } catch {
+    return false;
+  }
+  const text = unsavedText((path) => normalise(path) === question.path);
+  socket?.send(
+    JSON.stringify({
+      unsaved: text === null ? { id: question.id, none: true } : { id: question.id, text },
+    })
+  );
+  return true;
+}
+
 function receive(event: MessageEvent): void {
+  if (answerRead(event.data)) {
+    return;
+  }
   const message = parse(event.data);
   if (message === null) {
     listeners.forEach((listener) => collect(listener));

@@ -157,6 +157,11 @@ write without reading the file. When the change was made through `/api/contents/
 client that named itself, and the file still holds what it wrote, the change also
 carries `by`, that name.
 
+The server may ask what a tab holds of an open file that it has not saved, when an agent reads the
+file: `{"read": {"id", "path"}}`, sent only to clients that have `path` open. The client answers
+`{"unsaved": {"id", "text"}}`, or `{"unsaved": {"id", "none": true}}` when it holds nothing unsaved. The
+first text answered is what the agent reads; with none within a second, it reads the file on disk.
+
 A client written for the bare `reload` still works: it should treat any message
 as "something changed".
 

@@ -4,6 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { NotebookModel } from '@/api';
 import { LineEdit, OpenDocument, useOpenDocument } from '@/store/openDocuments';
 import { editedText, lineEditChanges } from '../lineEdits';
+import { stringifyNotebook } from './useNotebookDocument';
 
 /**
  * A project replace carried out while the notebook is open: through a cell's editor, so its undo takes
@@ -16,16 +17,21 @@ export function useNotebookReplace(options: {
   ready: boolean;
   cellViews: MutableRefObject<Map<string, EditorView>>;
   updateCellSource: (value: string, cellId: string) => void;
+  /** The notebook holds edits it has not saved. */
+  unsaved: boolean;
 }) {
   const { path, notebook, ready, cellViews, updateCellSource } = options;
   const notebookRef = useRef(notebook);
   notebookRef.current = notebook;
+  const unsavedRef = useRef(options.unsaved);
+  unsavedRef.current = options.unsaved;
 
   const openDoc = useMemo<OpenDocument | null>(
     () =>
       !ready
         ? null
         : {
+            unsaved: () => (unsavedRef.current ? stringifyNotebook(notebookRef.current) : null),
             applyEdits: (edits) => {
               let applied = 0;
               let stale = 0;
