@@ -209,3 +209,8 @@ func uniqueCellID(taken map[string]bool) string {
 		}
 	}
 }
+
+// NewCellID is an id no cell in doc has yet, for a cell about to be added to it.
+func NewCellID(doc Document) string {
+	return uniqueCellID(existingCellIDs(doc))
+}

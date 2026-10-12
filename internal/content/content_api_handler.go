@@ -124,7 +124,55 @@ func (h *Handler) Update(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	h.watch.wrote(body.Path, hash, "")
 	httpx.SendJSON(w, http.StatusOK, SaveResult{Hash: hash})
+}
+
+// NotebookOps changes an open or closed notebook's cells by id, as an agent does, and tells every open
+// tab who did it. Checked against Hash and locked like a save.
+func (h *Handler) NotebookOps(w http.ResponseWriter, req *http.Request) {
+	var body NotebookOpsRequest
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+	if h.project.outsideProject(body.Path) {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
+		return
+	}
+
+	h.saving.Lock()
+	defer h.saving.Unlock()
+	if body.Hash != "" {
+		current, err := h.project.DiskHash(body.Path)
+		if err != nil {
+			httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error reading %s: %v", body.Path, err))
+			return
+		}
+		if current != body.Hash {
+			httpx.SendJSON(w, http.StatusConflict, SaveConflict{
+				Error:   http.StatusText(http.StatusConflict),
+				Message: "The notebook changed on disk after it was read, so nothing was changed.",
+				Hash:    current,
+			})
+			return
+		}
+	}
+
+	hash, inserted, err := h.project.ApplyNotebookOps(body.Path, body.Ops)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			httpx.SendErrorResponse(w, http.StatusNotFound, "Content not found")
+			return
+		}
+		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	h.watch.wrote(body.Path, hash, body.Client)
+	if inserted == nil {
+		inserted = []string{}
+	}
+	httpx.SendJSON(w, http.StatusOK, NotebookOpsResult{Hash: hash, Inserted: inserted})
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, req *http.Request) {

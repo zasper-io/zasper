@@ -651,6 +651,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
             path={data.path}
             name={data.name}
             refused={refused}
+            by={refused ? undefined : disk.changedBy}
             onCompare={disk.compare}
             onKeepMine={refused ? overwrite : keepAllMine}
             onTakeTheirs={takeAllTheirs}
@@ -661,6 +662,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               name={data.name}
               conflicts={Object.keys(disk.conflicts).length}
               refused={refused}
+              by={disk.changedBy}
               onGoTo={() => cells.focusCellBox(Object.keys(disk.conflicts)[0])}
             />
           )

@@ -41,6 +41,13 @@ type projectWatch struct {
 	// The folders the walk of the project watches, so that a folder watched only for a file someone has
 	// open reports that file and nothing else in it.
 	tree map[string]struct{}
+	// Who last wrote each path through Zasper and named themselves, and the hash of what they wrote.
+	writers map[string]writer
+}
+
+type writer struct {
+	hash   string
+	client string
 }
 
 /*
@@ -56,10 +63,12 @@ type watchSubscriber struct {
 }
 
 // Change is one path in a message to a client, relative to the project. Hash is set for a file the
-// client has open, and is "" when that file is gone.
+// client has open, and is "" when that file is gone. By names who wrote it, when they wrote it through
+// Zasper and said who they were, and it still holds what they wrote.
 type Change struct {
 	Path string  `json:"path"`
 	Hash *string `json:"hash,omitempty"`
+	By   string  `json:"by,omitempty"`
 }
 
 type watchMessage struct {
@@ -72,7 +81,25 @@ type watchRequest struct {
 }
 
 func newProjectWatch(root string) *projectWatch {
-	return &projectWatch{root: root, subscribers: map[*watchSubscriber]struct{}{}, tree: map[string]struct{}{}}
+	return &projectWatch{
+		root:        root,
+		subscribers: map[*watchSubscriber]struct{}{},
+		tree:        map[string]struct{}{},
+		writers:     map[string]writer{},
+	}
+}
+
+// wrote records that client wrote hash to path, so the change it makes is reported as theirs.
+func (p *projectWatch) wrote(path, hash, client string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	clean := filepath.ToSlash(filepath.Clean(path))
+	if client == "" {
+		delete(p.writers, clean)
+		return
+	}
+	p.writers[clean] = writer{hash: hash, client: client}
 }
 
 func (p *projectWatch) subscribe() (*watchSubscriber, error) {
@@ -161,6 +188,9 @@ func (p *projectWatch) take(subscriber *watchSubscriber) []byte {
 		change := Change{Path: path}
 		if _, ok := subscriber.wants[path]; ok {
 			change.Hash = &hash
+			if writer, ok := p.writers[path]; ok && writer.hash == hash {
+				change.By = writer.client
+			}
 		}
 		message.Changed = append(message.Changed, change)
 	}

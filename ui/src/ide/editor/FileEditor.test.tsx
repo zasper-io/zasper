@@ -106,9 +106,9 @@ vi.mock('@uiw/react-codemirror', async () => {
 const dispatched = vi.hoisted(() => ({ last: null as { selection?: { anchor: number } } | null }));
 
 // The watch socket, as the editor's listener: a test says when the project changed.
-const watchers = vi.hoisted(() => ({ latest: (_hash?: string) => {} }));
+const watchers = vi.hoisted(() => ({ latest: (_hash?: string, _by?: string) => {} }));
 vi.mock('@/ide/useContentWatcher', () => ({
-  useFileWatcher: (_path: string, changed: (hash?: string) => void) => {
+  useFileWatcher: (_path: string, changed: (hash?: string, by?: string) => void) => {
     watchers.latest = changed;
   },
 }));
@@ -258,6 +258,16 @@ describe('FileEditor', () => {
     await waitFor(() =>
       expect(screen.getByRole('textbox')).toHaveValue('first line\nwritten by an agent\n')
     );
+  });
+
+  it('names who changed the file, when the watch says', async () => {
+    await renderEditor();
+    type('first line\nmine\n');
+    getFileContent.mockResolvedValue(text('first line\ntheirs\n'));
+
+    await act(async () => watchers.latest('hash of first line\ntheirs\n', 'claude-code'));
+
+    expect(await screen.findByText('claude-code changed notes.txt.')).toBeInTheDocument();
   });
 
   describe('a save over a change it has not seen', () => {

@@ -6,6 +6,8 @@ interface NotebookDiskBandProps {
   conflicts: number;
   /** A save was refused because of the change, rather than the change being seen first. */
   refused: boolean;
+  /** Who changed it, when they did it through Zasper and named themselves. */
+  by?: string;
   /** Scrolls to the first cell that asks. */
   onGoTo: () => void;
 }
@@ -18,7 +20,11 @@ export function NotebookDiskBand(props: NotebookDiskBandProps) {
       <Icon name="circle-alert" size={14} />
       <p>
         <strong>
-          {props.refused ? `${props.name} was not saved.` : `${props.name} changed on disk.`}
+          {props.refused
+            ? `${props.name} was not saved.`
+            : props.by
+              ? `${props.by} changed ${props.name}.`
+              : `${props.name} changed on disk.`}
         </strong>{' '}
         {cells} changed on both sides.
       </p>

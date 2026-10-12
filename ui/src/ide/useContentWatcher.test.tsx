@@ -192,7 +192,7 @@ describe('useContentWatcher', () => {
       });
     }
 
-    function changed(changes: { path: string; hash?: string }[]) {
+    function changed(changes: { path: string; hash?: string; by?: string }[]) {
       act(() => {
         FakeSocket.latest.onmessage?.({ data: JSON.stringify({ changed: changes }) });
         vi.advanceTimersByTime(500);
@@ -230,7 +230,7 @@ describe('useContentWatcher', () => {
 
       changed([{ path: 'notes.txt', hash: 'abc' }]);
 
-      expect(notes).toHaveBeenCalledExactlyOnceWith('abc');
+      expect(notes).toHaveBeenCalledExactlyOnceWith('abc', undefined);
       expect(other).not.toHaveBeenCalled();
     });
 
@@ -248,7 +248,16 @@ describe('useContentWatcher', () => {
         vi.advanceTimersByTime(500);
       });
 
-      expect(notes).toHaveBeenCalledExactlyOnceWith('second');
+      expect(notes).toHaveBeenCalledExactlyOnceWith('second', undefined);
+    });
+
+    it('is told who changed its file, when the server knows', () => {
+      const notes = vi.fn();
+      renderHook(() => useFileWatcher('notes.ipynb', notes));
+
+      changed([{ path: 'notes.ipynb', hash: 'abc', by: 'claude-code' }]);
+
+      expect(notes).toHaveBeenCalledExactlyOnceWith('abc', 'claude-code');
     });
 
     it('is told without a hash when the server says to read everything again', () => {
@@ -260,7 +269,7 @@ describe('useContentWatcher', () => {
         vi.advanceTimersByTime(500);
       });
 
-      expect(notes).toHaveBeenCalledExactlyOnceWith(undefined);
+      expect(notes).toHaveBeenCalledExactlyOnceWith(undefined, undefined);
     });
 
     it('leaves listeners for the whole project told of every change', () => {

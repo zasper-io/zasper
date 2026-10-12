@@ -93,6 +93,7 @@ pins that token, in which case sessions survive the restart.
 | `POST` | `/api/contents/upload` | Upload; body is the file. |
 | `GET` | `/api/contents/editorconfig` | `?path=`. The `.editorconfig` properties that apply to a file, read up to a `root = true`. A file that cannot be parsed gives an empty answer. |
 | `POST` | `/api/contents/edits` | Apply a language server's edits to files no editor holds. Each file answers for itself: what was applied, or why not. |
+| `POST` | `/api/contents/ops` | Change a notebook's cells by id. See below. |
 | `GET` | `/api/contents/watch` | **WebSocket.** See below. |
 
 Writes are atomic: Zasper writes beside the target and renames over it, so an
@@ -109,6 +110,31 @@ and save again with that hash to overwrite it deliberately.
 
 Without `hash` a save writes whatever is there, as it always has, so an older
 client keeps working. Zasper's own editors always send it.
+
+### Changing a notebook's cells
+
+`POST /api/contents/ops` changes a notebook's cells by their ids, which is how an
+agent edits a notebook someone may have open:
+
+```json
+{"path": "drift.ipynb", "client": "claude-code", "hash": "9f2c…",
+ "ops": [{"op": "edit", "id": "3f1c", "source": "drift = readings.median()"},
+         {"op": "insert", "after": "3f1c", "cell_type": "code", "source": "drift.plot()"},
+         {"op": "move", "id": "a07e", "after": ""},
+         {"op": "delete", "id": "b1d2"}]}
+```
+
+The operations are carried out in order and written once; when one cannot be —
+an id the notebook does not have, a `cell_type` other than `code`, `markdown` or
+`raw` — nothing is written and the answer is `400`. `after` names the cell to go
+after, and `""` means the top. An edit keeps the cell's outputs. A notebook older
+than nbformat 4.5 has no cell ids and is refused. `hash` is checked as a save's
+is (`409` with the current hash). The answer is `{"hash", "inserted"}`, the ids
+of the inserted cells in order.
+
+`client` names who asked. A tab with the notebook open is told so on the watch
+socket (below), and merges the change cell by cell: a cell its reader has not
+touched takes the new version, and only a cell they changed too asks.
 
 ### `GET /api/contents/watch` (WebSocket)
 
@@ -127,7 +153,9 @@ which replaces what it sent before. Those files are reported even in a folder th
 project's watch leaves out, such as one `.gitignore` ignores, and come with
 `hash`, the SHA-256 their contents now have (`""` when the file is gone) — the
 same hash a read serves, so a client can tell its own save from someone else's
-write without reading the file.
+write without reading the file. When the change was made through `/api/contents/ops` by a
+client that named itself, and the file still holds what it wrote, the change also
+carries `by`, that name.
 
 A client written for the bare `reload` still works: it should treat any message
 as "something changed".

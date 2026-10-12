@@ -1,0 +1,158 @@
+package content
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"os"
+
+	"github.com/zasper-io/zasper/internal/atomicfile"
+	"github.com/zasper-io/zasper/internal/nbformat"
+)
+
+// ErrNoCellIDs answers operations on a notebook older than nbformat 4.5, whose cells have no ids to name.
+var ErrNoCellIDs = errors.New("the notebook is older than nbformat 4.5, so its cells have no ids to name")
+
+/*
+NotebookOp is one change to a notebook's cells, named by id rather than by position, so it means the same
+thing whatever else has changed in the notebook since the caller read it.
+
+	insert  a new cell of CellType holding Source, after the cell After, or first when After is empty
+	edit    the Source of cell ID; its outputs stay, as after any edit
+	delete  cell ID
+	move    cell ID to after the cell After, or to the top when After is empty
+*/
+type NotebookOp struct {
+	Op       string `json:"op"`
+	ID       string `json:"id,omitempty"`
+	After    string `json:"after,omitempty"`
+	CellType string `json:"cell_type,omitempty"`
+	Source   string `json:"source,omitempty"`
+}
+
+/*
+ApplyNotebookOps carries out ops on the notebook at path, in order, and writes it once. It answers the hash
+of what was written and the id of each cell an insert made, in order. Nothing is written when any op cannot
+be carried out.
+*/
+func (p Project) ApplyNotebookOps(path string, ops []NotebookOp) (string, []string, error) {
+	osPath, err := p.savePath(path)
+	if err != nil {
+		return "", nil, err
+	}
+	data, err := os.ReadFile(osPath)
+	if err != nil {
+		return "", nil, err
+	}
+	doc, err := nbformat.Read(data)
+	if err != nil {
+		return "", nil, err
+	}
+	if _, minor := doc.Version(); minor < 5 {
+		return "", nil, ErrNoCellIDs
+	}
+
+	cells := doc.Cells()
+	var inserted []string
+	for i, op := range ops {
+		cells, err = applyOp(doc, cells, op, &inserted)
+		if err != nil {
+			return "", nil, fmt.Errorf("operation %d (%s): %w", i+1, op.Op, err)
+		}
+	}
+	list := make([]interface{}, len(cells))
+	for i, cell := range cells {
+		list[i] = cell
+	}
+	doc["cells"] = list
+
+	encoded, err := nbformat.Marshal(doc)
+	if err != nil {
+		return "", nil, err
+	}
+	if _, err := atomicfile.Write(osPath, bytes.NewReader(encoded), 0o644); err != nil {
+		return "", nil, fmt.Errorf("error writing notebook to path %s: %w", path, err)
+	}
+	return contentHash(encoded), inserted, nil
+}
+
+func applyOp(doc nbformat.Document, cells []map[string]interface{}, op NotebookOp, inserted *[]string) ([]map[string]interface{}, error) {
+	switch op.Op {
+	case "insert":
+		cell, err := newCell(doc, op.CellType, op.Source)
+		if err != nil {
+			return nil, err
+		}
+		at, err := after(cells, op.After)
+		if err != nil {
+			return nil, err
+		}
+		*inserted = append(*inserted, cell["id"].(string))
+		// The cells already in doc have to be seen by NewCellID for the next insert in the same batch.
+		doc["cells"] = append(doc["cells"].([]interface{}), cell)
+		return append(cells[:at], append([]map[string]interface{}{cell}, cells[at:]...)...), nil
+	case "edit":
+		i, err := indexOf(cells, op.ID)
+		if err != nil {
+			return nil, err
+		}
+		cells[i]["source"] = op.Source
+		return cells, nil
+	case "delete":
+		i, err := indexOf(cells, op.ID)
+		if err != nil {
+			return nil, err
+		}
+		return append(cells[:i], cells[i+1:]...), nil
+	case "move":
+		i, err := indexOf(cells, op.ID)
+		if err != nil {
+			return nil, err
+		}
+		cell := cells[i]
+		rest := append(append([]map[string]interface{}{}, cells[:i]...), cells[i+1:]...)
+		at, err := after(rest, op.After)
+		if err != nil {
+			return nil, err
+		}
+		return append(rest[:at], append([]map[string]interface{}{cell}, rest[at:]...)...), nil
+	default:
+		return nil, fmt.Errorf("unknown operation %q", op.Op)
+	}
+}
+
+func newCell(doc nbformat.Document, cellType, source string) (map[string]interface{}, error) {
+	cell := map[string]interface{}{
+		"id":        nbformat.NewCellID(doc),
+		"cell_type": cellType,
+		"metadata":  map[string]interface{}{},
+		"source":    source,
+	}
+	switch cellType {
+	case "code":
+		cell["outputs"] = []interface{}{}
+		cell["execution_count"] = nil
+	case "markdown", "raw":
+	default:
+		return nil, fmt.Errorf("a cell is code, markdown or raw, not %q", cellType)
+	}
+	return cell, nil
+}
+
+func indexOf(cells []map[string]interface{}, id string) (int, error) {
+	for i, cell := range cells {
+		if cell["id"] == id {
+			return i, nil
+		}
+	}
+	return 0, fmt.Errorf("no cell has the id %q", id)
+}
+
+// after is where a cell placed after the one with id goes: the top for an empty id.
+func after(cells []map[string]interface{}, id string) (int, error) {
+	if id == "" {
+		return 0, nil
+	}
+	i, err := indexOf(cells, id)
+	return i + 1, err
+}

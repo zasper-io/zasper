@@ -6,6 +6,8 @@ interface DiskChangeBandProps {
   name: string;
   /** A save was refused because of the change, rather than the change being seen first. */
   refused?: boolean;
+  /** Who changed it, when they did it through Zasper and named themselves. */
+  by?: string;
   /** Records the two versions for the comparison tab, which is opened straight after. */
   onCompare: () => void;
   onKeepMine: () => void;
@@ -24,12 +26,16 @@ export default function DiskChangeBand(props: DiskChangeBandProps) {
       <Icon name="circle-alert" size={14} />
       {props.refused ? (
         <p>
-          <strong>{props.name} was not saved.</strong> It changed on disk after you opened it, and
+          <strong>{props.name} was not saved.</strong>{' '}
+          {props.by ? `${props.by} changed it` : 'It changed on disk'} after you opened it, and
           saving would have overwritten that.
         </p>
       ) : (
         <p>
-          <strong>{props.name} changed on disk.</strong> You have unsaved edits to it as well.
+          <strong>
+            {props.by ? `${props.by} changed ${props.name}.` : `${props.name} changed on disk.`}
+          </strong>{' '}
+          You have unsaved edits to it as well.
         </p>
       )}
       <span className="editor-notice-actions">

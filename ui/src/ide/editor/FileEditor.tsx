@@ -120,6 +120,9 @@ export default function FileEditor(props: FileEditorProps) {
   const [conflict, setConflict] = useState<string | null>(null);
   /** Whether the band is up because a save was refused, rather than because the watcher saw a change. */
   const [refused, setRefused] = useState(false);
+  /** Who made the change the band is about, when the watch said; and who made the last one heard of. */
+  const [changedBy, setChangedBy] = useState<string | undefined>();
+  const lastWriter = useRef<string | undefined>(undefined);
   /** Whether the find card is up, what its field starts with, and which ⌘F asked for the focus. */
   const [finding, setFinding] = useState(false);
   const [findSeed, setFindSeed] = useState('');
@@ -526,10 +529,12 @@ export default function FileEditor(props: FileEditorProps) {
       return;
     }
     setRefused(false);
+    setChangedBy(lastWriter.current);
     setConflict(file.content);
   }, [path, isDirty, adoptLineEnding]);
 
-  useFileWatcher(path, (hash) => {
+  useFileWatcher(path, (hash, by) => {
+    lastWriter.current = by;
     // The version this editor already holds, such as the echo of its own save.
     if (!canSave || (hash !== undefined && hash === diskHash.current)) {
       return;
@@ -957,6 +962,7 @@ export default function FileEditor(props: FileEditorProps) {
             path={path}
             name={name}
             refused={refused}
+            by={refused ? undefined : changedBy}
             onCompare={compareWithDisk}
             onKeepMine={refused ? overwrite : keepMine}
             onTakeTheirs={takeTheirs}

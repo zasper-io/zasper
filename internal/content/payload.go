@@ -46,6 +46,21 @@ type (
 		Hash string `json:"hash"`
 	}
 
+	// NotebookOpsRequest changes a notebook's cells by id. Hash, as for a save, is the version the
+	// operations were worked out against; Client names who asks, for open tabs to say so.
+	NotebookOpsRequest struct {
+		Path   string       `json:"path"`
+		Hash   string       `json:"hash"`
+		Client string       `json:"client"`
+		Ops    []NotebookOp `json:"ops"`
+	}
+
+	NotebookOpsResult struct {
+		Hash string `json:"hash"`
+		// The id of each cell an insert made, in the order of the inserts.
+		Inserted []string `json:"inserted"`
+	}
+
 	// SaveConflict answers a save whose Hash is no longer the file's, with the hash it has now.
 	SaveConflict struct {
 		Error   string `json:"error"`

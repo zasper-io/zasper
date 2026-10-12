@@ -50,6 +50,9 @@ export function useNotebookDisk(
   heldRef.current = held;
   /** Whether what is asked was raised by a refused save rather than by the watcher. */
   const [refused, setRefused] = useState(false);
+  /** Who made the change being asked about, when the watch said. */
+  const [changedBy, setChangedBy] = useState<string | undefined>();
+  const lastWriter = useRef<string | undefined>(undefined);
 
   const setCompares = useSetAtom(diskComparesAtom);
   const [resolution] = useAtom(
@@ -164,7 +167,9 @@ export function useNotebookDisk(
       return;
     }
     setRefused(false);
-    reconcile(read.content, read.hash ?? '');
+    if (reconcile(read.content, read.hash ?? '').asked) {
+      setChangedBy(lastWriter.current);
+    }
   }, [tab.path, reconcile]);
 
   /**
@@ -201,7 +206,8 @@ export function useNotebookDisk(
   }, [cells.focusedCellId, held, release, typingIn]);
 
   const changedWhileHidden = useRef(false);
-  useFileWatcher(tab.path, (hash) => {
+  useFileWatcher(tab.path, (hash, by) => {
+    lastWriter.current = by;
     // The version this editor already holds, such as the echo of its own save.
     if (hash !== undefined && hash === cellsRef.current.diskHash.current) {
       return;
@@ -329,6 +335,7 @@ export function useNotebookDisk(
     conflicts,
     held,
     refused,
+    changedBy,
     asking,
     resolution,
     clearResolution: () => setResolutions((resolutions) => without(resolutions, tab.path)),

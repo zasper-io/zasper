@@ -15,16 +15,20 @@ const RECONNECT_MAX_MS = 30000;
 interface Listener {
   /** Told of a change to this file only, with its hash; every change when absent. */
   path?: string;
-  /** `hash` is what the file now holds, `''` when it is gone, and undefined when it is not known. */
-  changed: (hash?: string) => void;
+  /**
+   * `hash` is what the file now holds, `''` when it is gone, and undefined when it is not known. `by` is
+   * who wrote it, when they wrote it through Zasper and named themselves.
+   */
+  changed: (hash?: string, by?: string) => void;
   collect?: ReturnType<typeof setTimeout>;
-  /** The last hash heard while collecting, so the listener is told of the latest version. */
+  /** The last change heard while collecting, so the listener is told of the latest version. */
   hash?: string;
+  by?: string;
 }
 
 /** What the server sends for a change; a bare `reload` says to read everything again. */
 interface ChangeMessage {
-  changed: { path: string; hash?: string }[];
+  changed: { path: string; hash?: string; by?: string }[];
 }
 
 /*
@@ -38,12 +42,13 @@ let attempt = 0;
 let opened = 0;
 let stopWatchingServer: (() => void) | undefined;
 
-function collect(listener: Listener, hash?: string): void {
+function collect(listener: Listener, hash?: string, by?: string): void {
   listener.hash = hash;
+  listener.by = by;
   if (listener.collect === undefined) {
     listener.collect = setTimeout(() => {
       listener.collect = undefined;
-      listener.changed(listener.hash);
+      listener.changed(listener.hash, listener.by);
     }, COLLECT_MS);
   }
 }
@@ -85,12 +90,15 @@ function receive(event: MessageEvent): void {
     listeners.forEach((listener) => collect(listener));
     return;
   }
-  const hashes = new Map(message.changed.map((change) => [change.path, change.hash]));
+  const changes = new Map(message.changed.map((change) => [change.path, change]));
   listeners.forEach((listener) => {
     if (listener.path === undefined) {
       collect(listener);
-    } else if (hashes.has(listener.path)) {
-      collect(listener, hashes.get(listener.path));
+    } else {
+      const change = changes.get(listener.path);
+      if (change !== undefined) {
+        collect(listener, change.hash, change.by);
+      }
     }
   });
 }
@@ -185,12 +193,12 @@ export function useContentWatcher(onChange: () => void): void {
  * to be this file's alone — a reconnect, or more changes than the server lists — and the file should be
  * read again.
  */
-export function useFileWatcher(path: string, onChange: (hash?: string) => void): void {
+export function useFileWatcher(path: string, onChange: (hash?: string, by?: string) => void): void {
   const latest = useRef(onChange);
   latest.current = onChange;
 
   useEffect(
-    () => listen({ path: normalise(path), changed: (hash) => latest.current(hash) }),
+    () => listen({ path: normalise(path), changed: (hash, by) => latest.current(hash, by) }),
     [path]
   );
 }
