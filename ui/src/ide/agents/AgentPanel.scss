@@ -24,6 +24,11 @@
   border-bottom: 1px solid var(--z-border);
 }
 
+.agentPanel-mode {
+  flex: 0 0 auto;
+  margin: 8px 10px 0;
+}
+
 .agentPanel-empty {
   display: flex;
   flex-direction: column;

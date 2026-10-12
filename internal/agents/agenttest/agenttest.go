@@ -7,6 +7,7 @@ pipes with no agent installed.
 	write  writes notes.txt through the editor, then says so
 	read   reads notes.txt through the editor, and says what it holds
 	ask    asks permission, and says which option was chosen
+	edit   asks permission to edit a file, and says which option was chosen
 	wait   says "waiting", then works until the turn is cancelled
 
 At the start of a session it writes the names of the MCP servers it was given to mcp-servers.txt.
@@ -83,6 +84,20 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 			a.say(ctx, session, "could not read: "+err.Error())
 		} else {
 			a.say(ctx, session, "notes.txt says: "+read.Content)
+		}
+	case "edit":
+		kind := acp.ToolKindEdit
+		answer, err := a.conn.RequestPermission(ctx, acp.RequestPermissionRequest{
+			SessionId: session,
+			ToolCall:  acp.ToolCallUpdate{ToolCallId: "call-2", Kind: &kind},
+			Options: []acp.PermissionOption{
+				{OptionId: "always", Name: "Always", Kind: acp.PermissionOptionKindAllowAlways},
+				{OptionId: "once", Name: "Yes", Kind: acp.PermissionOptionKindAllowOnce},
+				{OptionId: "reject", Name: "No", Kind: acp.PermissionOptionKindRejectOnce},
+			},
+		})
+		if err == nil && answer.Outcome.Selected != nil {
+			a.say(ctx, session, "chose "+string(answer.Outcome.Selected.OptionId))
 		}
 	case "ask":
 		answer, err := a.conn.RequestPermission(ctx, acp.RequestPermissionRequest{

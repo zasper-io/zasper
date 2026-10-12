@@ -67,5 +67,6 @@ export function useAgentChat(chatId: string | null) {
       (id: string, optionId: string) => send({ type: 'answer', id, option_id: optionId }),
       [send]
     ),
+    setMode: useCallback((mode: string) => send({ type: 'mode', mode }), [send]),
   };
 }

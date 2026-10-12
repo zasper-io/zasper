@@ -152,7 +152,7 @@ function Picker(props: {
 }
 
 function Conversation({ chat }: { chat: AgentChat }) {
-  const { view, connected, prompt, cancel, answer } = useAgentChat(chat.id);
+  const { view, connected, prompt, cancel, answer, setMode } = useAgentChat(chat.id);
   const [draft, setDraft] = useState('');
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -178,6 +178,17 @@ function Conversation({ chat }: { chat: AgentChat }) {
 
   return (
     <>
+      <div className="agentPanel-mode z-select">
+        <select
+          aria-label="What the agent may do without asking"
+          value={view.mode}
+          onChange={(event) => setMode(event.target.value)}
+        >
+          <option value="ask">Ask every time</option>
+          <option value="edits">Allow edits</option>
+          <option value="all">Allow edits and commands</option>
+        </select>
+      </div>
       <div className="agentChat" aria-live="polite">
         {view.items.map((item, index) => (
           <Item key={index} item={item} onAnswer={answer} />
@@ -275,7 +286,9 @@ function Item({
             <p className="agentAsk-answer">
               {item.answer === null
                 ? 'Withdrawn.'
-                : `${item.options.find((option) => option.optionId === item.answer)?.name ?? item.answer}.`}
+                : item.auto
+                  ? 'Allowed by this chat’s mode.'
+                  : `${item.options.find((option) => option.optionId === item.answer)?.name ?? item.answer}.`}
             </p>
           )}
         </div>

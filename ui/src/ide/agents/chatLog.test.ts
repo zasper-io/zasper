@@ -136,4 +136,21 @@ describe('foldChat', () => {
       { kind: 'agent', text: 'Done' },
     ]);
   });
+
+  it('follows the chat’s mode, and marks a question the mode answered', () => {
+    const view = foldChat([
+      { type: 'mode', text: 'edits' },
+      {
+        type: 'permission',
+        permission: {
+          id: 'q1',
+          request: { options: [{ optionId: 'y', name: 'Yes', kind: 'allow_once' }] },
+        },
+      },
+      { type: 'answered', permission: { id: 'q1', option_id: 'y', auto: true } },
+    ]);
+
+    expect(view.mode).toBe('edits');
+    expect(view.items[0]).toMatchObject({ kind: 'permission', answer: 'y', auto: true });
+  });
 });

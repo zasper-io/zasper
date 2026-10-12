@@ -100,10 +100,15 @@ func (m *Manager) CatalogueHandler(w http.ResponseWriter, _ *http.Request) {
 
 // ListHandler answers GET /api/agents/chats.
 func (m *Manager) ListHandler(w http.ResponseWriter, _ *http.Request) {
+	type listed struct {
+		ID    string `json:"id"`
+		Agent string `json:"agent"`
+		Mode  string `json:"mode"`
+	}
 	m.mu.Lock()
-	chats := make([]*Chat, 0, len(m.chats))
+	chats := make([]listed, 0, len(m.chats))
 	for _, chat := range m.chats {
-		chats = append(chats, chat)
+		chats = append(chats, listed{ID: chat.ID, Agent: chat.Agent, Mode: chat.mode()})
 	}
 	m.mu.Unlock()
 	httpx.SendJSON(w, http.StatusOK, chats)
@@ -189,6 +194,7 @@ func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 			Text     string `json:"text"`
 			ID       string `json:"id"`
 			OptionID string `json:"option_id"`
+			Mode     string `json:"mode"`
 		}
 		if err := conn.ReadJSON(&message); err != nil {
 			return
@@ -201,6 +207,8 @@ func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 			err = chat.Cancel()
 		case "answer":
 			err = chat.Answer(message.ID, message.OptionID)
+		case "mode":
+			err = chat.SetMode(message.Mode)
 		default:
 			err = errors.New("unknown message " + message.Type)
 		}

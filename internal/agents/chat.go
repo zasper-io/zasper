@@ -35,7 +35,8 @@ Event is one entry in a chat's log, in the order things happened.
 	user        the reader's message, in Text
 	update      what the agent streamed, as ACP's session/update has it, in Update
 	permission  the agent asks before doing something; answered by an `answered` with the same ID
-	answered    the option chosen, or none when the question was withdrawn
+	answered    the option chosen, or none when the question was withdrawn; Auto when the chat's mode chose
+	mode        the chat's permission mode changed, to Text
 	turn_end    the agent has finished answering, with ACP's stop reason
 	error       something went wrong, in Text
 	exited      the agent's process has ended
@@ -54,12 +55,40 @@ type Permission struct {
 	ID       string                        `json:"id"`
 	Request  *acp.RequestPermissionRequest `json:"request,omitempty"`
 	OptionID string                        `json:"option_id,omitempty"`
+	// Answered by the chat's mode, not by the reader.
+	Auto bool `json:"auto,omitempty"`
+}
+
+/*
+The permission modes a chat runs in: what the agent may do without asking.
+
+	ask     everything is asked
+	edits   changing, moving and deleting files is allowed
+	all     that, and running commands
+*/
+const (
+	ModeAsk   = "ask"
+	ModeEdits = "edits"
+	ModeAll   = "all"
+)
+
+// allows says whether mode lets a tool of kind go on without asking.
+func allows(mode string, kind acp.ToolKind) bool {
+	switch kind {
+	case acp.ToolKindEdit, acp.ToolKindDelete, acp.ToolKindMove:
+		return mode == ModeEdits || mode == ModeAll
+	case acp.ToolKindExecute:
+		return mode == ModeAll
+	}
+	return false
 }
 
 // Chat is one conversation with one agent process.
 type Chat struct {
 	ID    string `json:"id"`
 	Agent string `json:"agent"`
+	// What the agent may do without asking: see ModeAsk.
+	Mode string `json:"mode"`
 
 	mu          sync.Mutex
 	events      []Event
@@ -172,6 +201,24 @@ func (c *Chat) Answer(id, optionID string) error {
 	return nil
 }
 
+// SetMode changes what the agent may do without asking, for every tab watching.
+func (c *Chat) SetMode(mode string) error {
+	if mode != ModeAsk && mode != ModeEdits && mode != ModeAll {
+		return fmt.Errorf("no such mode %q", mode)
+	}
+	c.mu.Lock()
+	c.Mode = mode
+	c.mu.Unlock()
+	c.record(Event{Type: "mode", Text: mode})
+	return nil
+}
+
+func (c *Chat) mode() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Mode
+}
+
 // close stops the agent's process and everything it started. A launcher like npx hands off to children
 // that can outlive it outside its process group, so they are found first and stopped by name.
 func (c *Chat) close() {
@@ -200,6 +247,7 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 	chat := &Chat{
 		ID:          uuid.New().String(),
 		Agent:       agent,
+		Mode:        ModeAsk,
 		subscribers: map[chan Event]struct{}{},
 		pending:     map[string]chan string{},
 		process:     process,

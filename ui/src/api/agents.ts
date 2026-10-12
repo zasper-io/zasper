@@ -13,12 +13,17 @@ export interface AgentInfo {
 export interface AgentChat {
   id: string;
   agent: string;
+  /** What the agent may do without asking. */
+  mode?: AgentMode;
 }
+
+/** ask: everything is asked; edits: file changes are allowed; all: and commands. */
+export type AgentMode = 'ask' | 'edits' | 'all';
 
 /** One entry in a chat's log, as the server keeps it. See docs/AGENTS.md. */
 export interface ChatEvent {
   seq?: number;
-  type: 'user' | 'update' | 'permission' | 'answered' | 'turn_end' | 'error' | 'exited';
+  type: 'user' | 'update' | 'permission' | 'answered' | 'turn_end' | 'error' | 'exited' | 'mode';
   text?: string;
   /** ACP's session/update, as the agent sent it. */
   update?: any;
@@ -29,6 +34,8 @@ export interface ChatEvent {
       options: { optionId: string; name: string; kind: string }[];
     };
     option_id?: string;
+    /** Answered by the chat's mode, not the reader. */
+    auto?: boolean;
   };
   stop_reason?: string;
 }

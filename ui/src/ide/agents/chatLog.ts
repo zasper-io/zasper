@@ -1,4 +1,4 @@
-import { ChatEvent } from '@/api';
+import { AgentMode, ChatEvent } from '@/api';
 
 /** A tool the agent called, as its calls and their updates have it so far. */
 export interface ToolCall {
@@ -31,6 +31,8 @@ export type ChatItem =
       options: PermissionOption[];
       /** The option chosen; null once withdrawn; undefined while it waits. */
       answer?: string | null;
+      /** The chat's mode answered it. */
+      auto?: boolean;
     }
   | { kind: 'note'; text: string; failed: boolean };
 
@@ -47,6 +49,7 @@ export interface ChatView {
   answering: boolean;
   /** The agent's process has ended, and nothing more can be sent. */
   exited: boolean;
+  mode: AgentMode;
 }
 
 function textOf(content: unknown): string {
@@ -79,6 +82,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let plan: PlanEntry[] = [];
   let answering = false;
   let exited = false;
+  let mode: AgentMode = 'ask';
   const last = () => items[items.length - 1];
 
   for (const event of events) {
@@ -153,9 +157,13 @@ export function foldChat(events: ChatEvent[]): ChatView {
         );
         if (question?.kind === 'permission') {
           question.answer = event.permission?.option_id || null;
+          question.auto = event.permission?.auto;
         }
         break;
       }
+      case 'mode':
+        mode = (event.text as AgentMode) ?? 'ask';
+        break;
       case 'turn_end':
         answering = false;
         if (event.stop_reason && event.stop_reason !== 'end_turn') {
@@ -173,7 +181,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
         break;
     }
   }
-  return { items, plan, answering, exited };
+  return { items, plan, answering, exited, mode };
 }
 
 function stopNote(reason: string): string {

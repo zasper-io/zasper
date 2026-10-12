@@ -211,3 +211,39 @@ func TestAnAgentThatIsNotInstalledSaysSo(t *testing.T) {
 
 	assert.ErrorContains(t, err, "not installed")
 }
+
+func TestAChatsModeAnswersWhatItCovers(t *testing.T) {
+	_, chat, _ := fakeChat(t)
+	require.NoError(t, chat.SetMode(ModeEdits))
+
+	require.NoError(t, chat.Prompt("edit"))
+	events := waitFor(t, chat, turnEnded)
+
+	assert.Contains(t, agentText(events), "chose once", "allowed once, not always")
+	var auto bool
+	for _, event := range events {
+		if event.Type == "answered" && event.Permission.Auto {
+			auto = true
+		}
+	}
+	assert.True(t, auto, "the answer was not marked as the mode's")
+}
+
+func TestAChatThatAsksLeavesTheQuestionToTheReader(t *testing.T) {
+	_, chat, _ := fakeChat(t)
+
+	require.NoError(t, chat.Prompt("edit"))
+	events := waitFor(t, chat, func(e Event) bool { return e.Type == "permission" })
+	require.NoError(t, chat.Answer(events[len(events)-1].Permission.ID, "reject"))
+	waitFor(t, chat, turnEnded)
+}
+
+func TestAModeThatDoesNotCoverAToolStillAsks(t *testing.T) {
+	assert.True(t, allows(ModeAll, acp.ToolKindExecute))
+	assert.False(t, allows(ModeEdits, acp.ToolKindExecute))
+	assert.True(t, allows(ModeEdits, acp.ToolKindDelete))
+	assert.False(t, allows(ModeAsk, acp.ToolKindEdit))
+	assert.False(t, allows(ModeAll, acp.ToolKindRead))
+	_, chat, _ := fakeChat(t)
+	assert.Error(t, chat.SetMode("anything"))
+}

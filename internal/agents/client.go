@@ -32,6 +32,19 @@ func (c chatClient) SessionUpdate(_ context.Context, notification acp.SessionNot
 // RequestPermission asks the reader, and waits for their answer or for the turn to be cancelled.
 func (c chatClient) RequestPermission(ctx context.Context, request acp.RequestPermissionRequest) (acp.RequestPermissionResponse, error) {
 	id := uuid.New().String()
+	// Allowed by the chat's mode: once, so that changing the mode back is not undone by the agent
+	// remembering an "always".
+	if kind := request.ToolCall.Kind; kind != nil && allows(c.chat.mode(), *kind) {
+		for _, option := range request.Options {
+			if option.Kind == acp.PermissionOptionKindAllowOnce {
+				c.chat.record(Event{Type: "permission", Permission: &Permission{ID: id, Request: &request}})
+				c.chat.record(Event{Type: "answered", Permission: &Permission{ID: id, OptionID: string(option.OptionId), Auto: true}})
+				return acp.RequestPermissionResponse{Outcome: acp.RequestPermissionOutcome{
+					Selected: &acp.RequestPermissionOutcomeSelected{OptionId: option.OptionId},
+				}}, nil
+			}
+		}
+	}
 	answer := make(chan string, 1)
 	c.chat.mu.Lock()
 	c.chat.pending[id] = answer
