@@ -112,8 +112,63 @@ function withTiming(cell: NotebookCell, message: KernelMessage): NotebookCell | 
   return { ...cell, metadata: { ...cell.metadata, execution: saved } };
 }
 
-function appendOutput(cell: NotebookCell, output: NotebookOutput, replace: boolean): NotebookCell {
+/*
+The `display_id` each displayed output was shown under, which `update_display_data` replaces it by. Kept
+beside the output rather than in it: it is in the message's `transient`, which nbformat does not store,
+and an output carrying it would write it into the file.
+*/
+const displayIds = new WeakMap<NotebookOutput, string>();
+
+function displayIdOf(message: KernelMessage): string | undefined {
+  const id = message.content?.transient?.display_id;
+  return typeof id === 'string' && id !== '' ? id : undefined;
+}
+
+/**
+ * Replaces every output shown under the message's `display_id`, in whichever cell it is: a display is
+ * updated from wherever the code that holds its handle runs, which need not be the cell that showed it.
+ */
+function updateDisplay(notebook: NotebookModel, message: KernelMessage): NotebookModel {
+  const id = displayIdOf(message);
+  if (id === undefined) {
+    return notebook;
+  }
+  let changed = false;
+  const cells = notebook.cells.map((cell) => {
+    if (!cell.outputs?.some((output) => displayIds.get(output) === id)) {
+      return cell;
+    }
+    changed = true;
+    return {
+      ...cell,
+      outputs: cell.outputs.map((output) => {
+        if (displayIds.get(output) !== id) {
+          return output;
+        }
+        const updated: NotebookOutput = {
+          ...output,
+          data: message.content.data,
+          metadata: message.content.metadata ?? {},
+        };
+        displayIds.set(updated, id);
+        markProducedHere(updated);
+        return updated;
+      }),
+    };
+  });
+  return changed ? { ...notebook, cells } : notebook;
+}
+
+function appendOutput(
+  cell: NotebookCell,
+  output: NotebookOutput,
+  replace: boolean,
+  displayId?: string
+): NotebookCell {
   markProducedHere(output);
+  if (displayId !== undefined) {
+    displayIds.set(output, displayId);
+  }
   cell.outputs = replace ? [output] : [...(cell.outputs ?? []), output];
   return cell;
 }
@@ -140,6 +195,9 @@ export function applyKernelMessage(
   replaceOutputs: boolean = false,
   recordTiming: boolean = false
 ): NotebookModel {
+  if (message.header.msg_type === 'update_display_data') {
+    return updateDisplay(notebook, message);
+  }
   if (!cellId) {
     return notebook;
   }
@@ -210,7 +268,8 @@ export function applyKernelMessage(
             metadata: message.content.metadata ?? {},
             execution_count: message.content.execution_count ?? cell.execution_count ?? null,
           },
-          replaceOutputs
+          replaceOutputs,
+          displayIdOf(message)
         )
       );
 
@@ -223,7 +282,8 @@ export function applyKernelMessage(
             data: message.content.data,
             metadata: message.content.metadata ?? {},
           },
-          replaceOutputs
+          replaceOutputs,
+          displayIdOf(message)
         )
       );
 

@@ -288,3 +288,57 @@ describe('cell timing', () => {
     expect(applyReplayedRuns(notebookWith('cell-1'), placed, false).cells[0].metadata).toEqual({});
   });
 });
+
+describe('a display updated in place', () => {
+  const show = (cellId: string, text: string, displayId?: string) => ({
+    header: { msg_type: 'display_data' },
+    parent_header: { msg_id: `run-${cellId}` },
+    content: {
+      data: { 'text/plain': text },
+      metadata: {},
+      ...(displayId ? { transient: { display_id: displayId } } : {}),
+    },
+  });
+  const update = (text: string) => ({
+    header: { msg_type: 'update_display_data' },
+    parent_header: { msg_id: 'some-later-run' },
+    content: { data: { 'text/plain': text }, metadata: {}, transient: { display_id: 'progress' } },
+  });
+  const notebook: NotebookModel = {
+    cells: [
+      { id: 'a', cell_type: 'code', source: '', metadata: {}, outputs: [], reload: false },
+      { id: 'b', cell_type: 'code', source: '', metadata: {}, outputs: [], reload: false },
+    ],
+    metadata: {},
+    nbformat: 4,
+    nbformat_minor: 5,
+  };
+  const texts = (model: NotebookModel) =>
+    model.cells.map((cell) => (cell.outputs ?? []).map((output) => output.data?.['text/plain']));
+
+  it('replaces the output shown under its display id, whichever run updates it', () => {
+    let model = applyKernelMessage(notebook, show('a', '10%', 'progress'), 'a');
+    model = applyKernelMessage(model, show('b', 'unrelated'), 'b');
+
+    model = applyKernelMessage(model, update('90%'), undefined);
+
+    expect(texts(model)).toEqual([['90%'], ['unrelated']]);
+  });
+
+  it('keeps the display id out of the output, so it never reaches the file', () => {
+    let model = applyKernelMessage(notebook, show('a', '10%', 'progress'), 'a');
+    model = applyKernelMessage(model, update('90%'), undefined);
+
+    expect(model.cells[0].outputs?.[0]).toEqual({
+      output_type: 'display_data',
+      data: { 'text/plain': '90%' },
+      metadata: {},
+    });
+  });
+
+  it('changes nothing for a display it has not shown', () => {
+    const model = applyKernelMessage(notebook, show('a', 'plain'), 'a');
+
+    expect(applyKernelMessage(model, update('90%'), undefined)).toBe(model);
+  });
+});

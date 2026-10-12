@@ -254,3 +254,47 @@ func TestAMessageNoRunAskedForIsLeftAsTheKernelSentIt(t *testing.T) {
 
 	assert.Equal(t, map[string]interface{}{}, sent(t, watching).Metadata)
 }
+
+func TestADisplayUpdatedInPlaceIsReplayedAtItsLatest(t *testing.T) {
+	km := journalKernel()
+	km.BeginRun("m1", "cell-1", "", "h = display('10%', display_id=True)")
+	km.BeginRun("m2", "cell-2", "", "h.update('90%')")
+
+	publishAll(km,
+		iopub(t, "m1", "display_data", map[string]interface{}{
+			"data": map[string]interface{}{"text/plain": "10%"}, "metadata": map[string]interface{}{},
+			"transient": map[string]interface{}{"display_id": "progress"},
+		}),
+		idle(t, "m1"),
+		iopub(t, "m2", "update_display_data", map[string]interface{}{
+			"data": map[string]interface{}{"text/plain": "90%"}, "metadata": map[string]interface{}{},
+			"transient": map[string]interface{}{"display_id": "progress"},
+		}),
+		idle(t, "m2"),
+	)
+
+	var shown Run
+	for _, run := range km.Subscribe().Replay.Runs {
+		if run.MsgID == "m1" {
+			shown = run
+		}
+	}
+	require.Len(t, shown.Outputs, 1)
+	assert.Equal(t, map[string]interface{}{"text/plain": "90%"}, shown.Outputs[0]["data"])
+	_, kept := shown.Outputs[0]["transient"]
+	assert.False(t, kept, "the display id reached the output, and would reach the file")
+}
+
+func TestARunsDisplaysGoWithIt(t *testing.T) {
+	km := journalKernel()
+	km.Subscribe()
+	km.BeginRun("m1", "cell-1", "", "display")
+	publishAll(km,
+		iopub(t, "m1", "display_data", map[string]interface{}{
+			"data": map[string]interface{}{}, "transient": map[string]interface{}{"display_id": "d"},
+		}),
+		idle(t, "m1"),
+	)
+
+	assert.Empty(t, km.feed.displays)
+}

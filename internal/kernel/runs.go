@@ -65,6 +65,13 @@ type feed struct {
 	finished    func(Run)
 	// Runs someone on the server is waiting on, told the run as it ends.
 	waiters map[string]chan Run
+	// The outputs shown under each display_id, which update_display_data replaces in place.
+	displays map[string][]display
+}
+
+type display struct {
+	msgID  string
+	output map[string]interface{}
 }
 
 func (f *feed) init() {
@@ -90,6 +97,7 @@ func (km *KernelManager) Subscribe() *Subscription {
 			subscription.Replay.Runs = append(subscription.Replay.Runs, run.snapshot())
 		}
 		if run.Done {
+			f.dropDisplays(msgID)
 			delete(f.runs, msgID)
 			continue
 		}
@@ -130,6 +138,7 @@ func (km *KernelManager) BeginRun(msgID, cellID, client, code string) {
 	f.runs[msgID] = &Run{MsgID: msgID, CellID: cellID, Client: client, Code: code, Outputs: []map[string]interface{}{}}
 	f.order = append(f.order, msgID)
 	if len(f.order) > maxRuns {
+		f.dropDisplays(f.order[0])
 		delete(f.runs, f.order[0])
 		f.order = f.order[1:]
 	}
@@ -215,6 +224,11 @@ func stateOf(message *Message) string {
 // fold applies a message to the run it answers, and answers that run when this message finished it
 // with nobody attached to see the end.
 func (f *feed) fold(message *Message) *Run {
+	// From whatever run holds the display's handle, which need not be the run that showed it, or none.
+	if message.Header.MsgType == "update_display_data" {
+		f.updateDisplay(message)
+		return nil
+	}
 	run := f.runs[message.ParentHeader.MsgID]
 	if run == nil || run.Done {
 		return nil
@@ -247,14 +261,14 @@ func (f *feed) fold(message *Message) *Run {
 		if count == nil {
 			count = run.ExecutionCount
 		}
-		run.appendOutput(map[string]interface{}{
+		f.show(run, content, map[string]interface{}{
 			"output_type":     "execute_result",
 			"data":            content["data"],
 			"metadata":        orEmpty(content["metadata"]),
 			"execution_count": count,
 		})
 	case "display_data":
-		run.appendOutput(map[string]interface{}{
+		f.show(run, content, map[string]interface{}{
 			"output_type": "display_data",
 			"data":        content["data"],
 			"metadata":    orEmpty(content["metadata"]),
@@ -293,12 +307,56 @@ func (f *feed) fold(message *Message) *Run {
 	return nil
 }
 
+// show appends an output, remembering it under its display_id when it has one.
+func (f *feed) show(run *Run, content map[string]interface{}, output map[string]interface{}) {
+	run.appendOutput(output)
+	transient, _ := content["transient"].(map[string]interface{})
+	if id, _ := transient["display_id"].(string); id != "" {
+		if f.displays == nil {
+			f.displays = map[string][]display{}
+		}
+		f.displays[id] = append(f.displays[id], display{msgID: run.MsgID, output: output})
+	}
+}
+
+// updateDisplay replaces every output still held under the message's display_id.
+func (f *feed) updateDisplay(message *Message) {
+	content, _ := message.Content.(map[string]interface{})
+	transient, _ := content["transient"].(map[string]interface{})
+	id, _ := transient["display_id"].(string)
+	for _, shown := range f.displays[id] {
+		shown.output["data"] = content["data"]
+		shown.output["metadata"] = orEmpty(content["metadata"])
+		if run := f.runs[shown.msgID]; run != nil && len(f.subscribers) == 0 {
+			run.missed = true
+		}
+	}
+}
+
 func (f *feed) forget(msgID string) {
+	f.dropDisplays(msgID)
 	delete(f.runs, msgID)
 	for i, id := range f.order {
 		if id == msgID {
 			f.order = append(f.order[:i], f.order[i+1:]...)
 			break
+		}
+	}
+}
+
+// dropDisplays forgets the displays a run showed, as the run goes.
+func (f *feed) dropDisplays(msgID string) {
+	for id, shown := range f.displays {
+		kept := shown[:0]
+		for _, each := range shown {
+			if each.msgID != msgID {
+				kept = append(kept, each)
+			}
+		}
+		if len(kept) == 0 {
+			delete(f.displays, id)
+		} else {
+			f.displays[id] = kept
 		}
 	}
 }
