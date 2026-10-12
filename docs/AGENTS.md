@@ -13,7 +13,8 @@ conversation streams in as the agent works: its messages, its thinking folded aw
 that opens the file it touched, its plan, and each question it asks with its options as buttons. Enter
 sends, and the button becomes Stop while the agent works. A reload or a second tab shows the same chat.
 
-`@` in the composer finds a file by name, and the message mentions it: the agent is sent a link to it
+`@` in the composer finds a file by name, including one `.gitignore` leaves out (a dataset often is),
+shown dimmed after the rest; the message mentions it: the agent is sent a link to it
 (ACP's `resource_link`) and reads it itself. In a notebook, a cell's menu has **Add Cell to Chat** and
 **Add Output to Chat**, which are also commands in the palette: the cell's source, or its output as
 text, goes with the next message as it is on screen, unsaved edits and all — embedded (`resource`, with

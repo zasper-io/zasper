@@ -557,7 +557,7 @@ function FilePicker(props: {
   onClose: () => void;
   field: React.RefObject<HTMLTextAreaElement | null>;
 }) {
-  const matches = useFileMatches(props.query).slice(0, PICKER_SIZE);
+  const matches = useFileMatches(props.query, true).slice(0, PICKER_SIZE);
   const [chosen, setChosen] = useState(0);
   const { onPick, onClose } = props;
 
@@ -600,7 +600,7 @@ function FilePicker(props: {
             role="option"
             key={match.path}
             aria-selected={index === chosen}
-            className="panel-row"
+            className={match.ignored ? 'panel-row is-ignored' : 'panel-row'}
             // Before the field's blur, which would close the list under the pointer.
             onMouseDown={(event) => {
               event.preventDefault();

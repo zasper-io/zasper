@@ -406,6 +406,11 @@
     &[aria-selected='true'] {
       background: var(--z-bg-row-selected);
     }
+
+    // What .gitignore leaves out, dimmed as the file tree dims it.
+    &.is-ignored {
+      color: var(--z-fg-subtle);
+    }
   }
 }
 

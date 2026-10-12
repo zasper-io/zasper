@@ -325,7 +325,7 @@ a repository's own config can make git run commands. See [TRUST.md](TRUST.md).
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/files` | Filename suggestions for the command palette. |
+| `GET` | `/api/files` | Filename suggestions for the command palette, `?query=`. `&ignored=true` adds what `.gitignore` leaves out, marked `ignored` and after the rest (up to 100,000 such files; `node_modules`, `.venv` and the like stay out). |
 | `POST` | `/api/search` | Search file contents. The answer is newline-delimited JSON: one object per file as it is found, then a summary. Closing the request cancels the search. |
 | `POST` | `/api/search/buffer` | Search text the client sends for one file, such as an editor's unsaved contents, with the same engine. |
 | `POST` | `/api/search/preview` | A text file as it is on disk and as a replace would leave it: `{"original", "replaced"}`. |

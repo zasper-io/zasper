@@ -64,6 +64,11 @@ var alwaysSkipped = map[string]bool{
 	".git": true, "node_modules": true, "__pycache__": true, ".ipynb_checkpoints": true, ".venv": true,
 }
 
+// IsSkippedFolder says whether a folder of this name is left out of every walk.
+func IsSkippedFolder(name string) bool {
+	return alwaysSkipped[name]
+}
+
 // SkippedFolders names the folders left out of every walk whatever the .gitignore files say, sorted.
 func SkippedFolders() []string {
 	names := make([]string, 0, len(alwaysSkipped))

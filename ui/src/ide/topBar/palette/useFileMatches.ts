@@ -13,9 +13,10 @@ import { ContentEntry, searchFiles } from '@/api';
  * keystroke and never hit.
  *
  * An empty query is not a search for everything but a question not yet asked, so it clears the list
- * without a request.
+ * without a request. `ignored` takes in what .gitignore leaves out: the palette does not, an @ mention
+ * does, since a dataset is often both ignored and what the agent is asked about.
  */
-export function useFileMatches(query: string): ContentEntry[] {
+export function useFileMatches(query: string, ignored = false): ContentEntry[] {
   const [matches, setMatches] = useState<ContentEntry[]>([]);
   const cache = useRef<Record<string, ContentEntry[]>>({});
   // What the list is currently meant to be about. A walk of a large tree can take longer than the
@@ -32,7 +33,7 @@ export function useFileMatches(query: string): ContentEntry[] {
           return;
         }
         try {
-          const found = await searchFiles(needle);
+          const found = await searchFiles(needle, ignored);
           cache.current[needle] = found;
           if (wanted.current === needle) {
             setMatches(found);
@@ -41,7 +42,7 @@ export function useFileMatches(query: string): ContentEntry[] {
           console.error('Failed to search for files:', error);
         }
       }, 100),
-    []
+    [ignored]
   );
 
   useEffect(() => {

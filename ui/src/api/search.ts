@@ -1,9 +1,14 @@
 import { requestJson, requestLines } from './client';
 import { ContentEntry } from './contents';
 
-/** Returns the files whose name contains `query`. */
-export function searchFiles(query: string): Promise<ContentEntry[]> {
-  return requestJson<ContentEntry[]>('/api/files', { query: { query } });
+/**
+ * Returns the files whose name contains `query`. With `ignored`, what .gitignore leaves out too, marked
+ * `ignored` and after the rest.
+ */
+export function searchFiles(query: string, ignored = false): Promise<ContentEntry[]> {
+  return requestJson<ContentEntry[]>('/api/files', {
+    query: { query, ignored: ignored ? true : undefined },
+  });
 }
 
 /** What the search panel asks the server to look for. */

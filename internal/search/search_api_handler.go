@@ -26,10 +26,21 @@ const listingTTL = 10 * time.Second
 // large project would otherwise send every file in it.
 const maxSuggestions = 500
 
+// The most ignored files a listing that includes them holds: an ignored folder can hold a dataset of a
+// million files, and the walk goes no further into ignored folders once it has this many.
+const maxIgnoredListing = 100_000
+
 type projectFile struct {
 	name     string
 	path     string
 	modified time.Time
+	// What .gitignore leaves out, in a listing that includes it.
+	ignored bool
+}
+
+type listing struct {
+	files []projectFile
+	at    time.Time
 }
 
 // Handler answers file suggestions for one project, from a listing of its files that is walked again once it
@@ -40,37 +51,43 @@ type Handler struct {
 	// The ripgrep a content search uses, or "" to search without it.
 	ripgrep string
 
-	mu    sync.Mutex
-	files []projectFile
-	at    time.Time
+	mu sync.Mutex
+	// By whether they include what .gitignore leaves out.
+	listings map[bool]*listing
 }
 
 // NewHandler suggests the files of project.
 func NewHandler(project content.Project) *Handler {
 	ripgrep, _ := exec.LookPath("rg")
-	return &Handler{project: project, ttl: listingTTL, ripgrep: ripgrep}
+	return &Handler{project: project, ttl: listingTTL, ripgrep: ripgrep, listings: map[bool]*listing{}}
 }
 
 // projectFiles answers the project's files, walking it only when the last walk is older than ttl. Requests
 // that arrive during a walk wait for it rather than starting walks of their own.
-func (h *Handler) projectFiles() []projectFile {
+func (h *Handler) projectFiles(withIgnored bool) []projectFile {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.files == nil || time.Since(h.at) >= h.ttl {
-		h.files, h.at = walkProject(h.project.Root()), time.Now()
+	found := h.listings[withIgnored]
+	if found == nil || time.Since(found.at) >= h.ttl {
+		found = &listing{files: walkProject(h.project.Root(), withIgnored), at: time.Now()}
+		h.listings[withIgnored] = found
 	}
-	return h.files
+	return found.files
 }
 
 /*
 walkProject lists the project's files, leaving out what content.ProjectIgnores skips: generated folders
-such as .git and node_modules, and whatever the project's .gitignore files ignore. A folder that cannot be
-read is passed over rather than failing the whole search.
+such as .git and node_modules, and whatever the project's .gitignore files ignore. withIgnored keeps what
+.gitignore ignores, marked so, up to maxIgnoredListing of them; the generated folders stay out. A folder
+that cannot be read is passed over rather than failing the whole search.
 */
-func walkProject(root string) []projectFile {
+func walkProject(root string, withIgnored bool) []projectFile {
 	ignores := content.NewProjectIgnores(root)
 	files := []projectFile{}
+	// The ignored folders being walked into, whose files are ignored whatever .gitignore says of each.
+	var inIgnored []string
+	ignoredCount := 0
 
 	filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -80,14 +97,25 @@ func walkProject(root string) []projectFile {
 		if path == root {
 			return nil
 		}
-		if ignores.Skips(path, entry.IsDir()) {
+		for len(inIgnored) > 0 && !strings.HasPrefix(path, inIgnored[len(inIgnored)-1]+string(filepath.Separator)) {
+			inIgnored = inIgnored[:len(inIgnored)-1]
+		}
+		ignored := len(inIgnored) > 0 || ignores.Skips(path, entry.IsDir())
+		tooMany := ignoredCount >= maxIgnoredListing
+		if ignored && (!withIgnored || tooMany || (entry.IsDir() && content.IsSkippedFolder(entry.Name()))) {
 			if entry.IsDir() {
 				return fs.SkipDir
 			}
 			return nil
 		}
 		if entry.IsDir() {
+			if ignored {
+				inIgnored = append(inIgnored, path)
+			}
 			return nil
+		}
+		if ignored {
+			ignoredCount++
 		}
 
 		info, err := entry.Info()
@@ -98,13 +126,14 @@ func walkProject(root string) []projectFile {
 		if err != nil {
 			return nil
 		}
-		files = append(files, projectFile{name: entry.Name(), path: filepath.ToSlash(relative), modified: info.ModTime()})
+		files = append(files, projectFile{name: entry.Name(), path: filepath.ToSlash(relative), modified: info.ModTime(), ignored: ignored})
 		return nil
 	})
 	return files
 }
 
-// Files answers the project's files whose name contains the query, whatever its case.
+// Files answers the project's files whose name contains the query, whatever its case. With ignored=true,
+// what .gitignore leaves out is offered too, marked so and after the rest.
 func (h *Handler) Files(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	if query == "" {
@@ -115,22 +144,26 @@ func (h *Handler) Files(w http.ResponseWriter, r *http.Request) {
 	// Case-insensitively: the palette matches its commands that way, and one query box whose two halves
 	// disagree about whether `README` and `readme` are the same word is a bug report.
 	needle := strings.ToLower(query)
+	withIgnored := r.URL.Query().Get("ignored") == "true"
+	files := h.projectFiles(withIgnored)
 	suggestions := []models.ContentModel{}
-	for _, file := range h.projectFiles() {
-		if !strings.Contains(strings.ToLower(file.name), needle) {
-			continue
-		}
-		suggestions = append(suggestions, models.ContentModel{
-			ContentType:  fileType(file.name),
-			Name:         file.name,
-			Path:         file.path,
-			LastModified: file.modified.UTC().Format(time.RFC3339),
-		})
-		if len(suggestions) == maxSuggestions {
-			break
+	for _, ignored := range []bool{false, true} {
+		for _, file := range files {
+			if len(suggestions) == maxSuggestions {
+				break
+			}
+			if file.ignored != ignored || !strings.Contains(strings.ToLower(file.name), needle) {
+				continue
+			}
+			suggestions = append(suggestions, models.ContentModel{
+				ContentType:  fileType(file.name),
+				Name:         file.name,
+				Path:         file.path,
+				LastModified: file.modified.UTC().Format(time.RFC3339),
+				Ignored:      file.ignored,
+			})
 		}
 	}
-
 	httpx.SendJSON(w, http.StatusOK, suggestions)
 }
 

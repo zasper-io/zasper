@@ -24,7 +24,7 @@ vi.mock('@/api', async (importOriginal) => ({
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
   openPastChat: (chatId: string, id: string) => openPastChat(chatId, id),
   undoTurn: (chatId: string, turn: number, anyway?: boolean) => undoTurn(chatId, turn, anyway),
-  searchFiles: (query: string) => searchFiles(query),
+  searchFiles: (query: string, ignored?: boolean) => searchFiles(query, ignored),
 }));
 
 vi.mock('@/ide/editor/notebook/MarkdownRenderer', () => ({
@@ -354,13 +354,23 @@ describe('AgentPanel', () => {
 
     it('finds a file after an @, and sends it with the message', async () => {
       searchFiles.mockResolvedValue([
-        { type: 'file', name: 'readings.csv', path: 'data/readings.csv', content: null },
         { type: 'file', name: 'reader.py', path: 'reader.py', content: null },
+        {
+          type: 'file',
+          name: 'readings.csv',
+          path: 'data/readings.csv',
+          content: null,
+          ignored: true,
+        },
       ]);
       const field = await connected();
 
       type(field, 'clean @rea');
-      await screen.findByRole('option', { name: /readings\.csv/ });
+      const ignored = await screen.findByRole('option', { name: /readings\.csv/ });
+      // What .gitignore leaves out is offered too: a dataset often is.
+      expect(searchFiles).toHaveBeenLastCalledWith('rea', true);
+      expect(ignored).toHaveClass('is-ignored');
+      fireEvent.keyDown(field, { key: 'ArrowDown' });
       fireEvent.keyDown(field, { key: 'ArrowDown' });
       fireEvent.keyDown(field, { key: 'ArrowUp' });
       fireEvent.keyDown(field, { key: 'Enter' });

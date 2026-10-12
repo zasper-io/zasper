@@ -222,3 +222,18 @@ func TestASuggestionSaysWhatItIsAndWhenItChanged(t *testing.T) {
 		assert.NoError(t, err, "last_modified %q is not RFC 3339", suggestion.LastModified)
 	}
 }
+
+func TestIgnoredFilesAreOfferedOnlyWhenAskedForAndAfterTheRest(t *testing.T) {
+	h, dir := projectWith(t, "data/readings.csv", "readings.py", "out/readings-2.csv", "node_modules/readings/index.js")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("data/\n*.csv\n"), 0o644))
+
+	_, plain := suggest(t, h, "readings")
+	assert.Equal(t, []string{"readings.py"}, plain)
+
+	_, found := suggestions(t, h, "readings&ignored=true")
+	var offered []string
+	for _, file := range found {
+		offered = append(offered, fmt.Sprintf("%s %v", file.Path, file.Ignored))
+	}
+	assert.Equal(t, []string{"readings.py false", "data/readings.csv true", "out/readings-2.csv true"}, offered)
+}
