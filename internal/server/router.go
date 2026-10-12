@@ -97,6 +97,8 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	authRouter.Use(httpx.LimitBody(16 << 10))
 	apiRouter.Use(httpx.LimitBody(512<<20, "/api/contents/upload"))
 	router.HandleFunc("/api/health", health.HealthCheckHandler).Methods("GET")
+	// Agents, over MCP: authenticated like /api. See docs/MCP.md.
+	router.Handle("/mcp", s.auth.Middleware(httpx.LimitBody(16<<20)(s.mcp)))
 	router.HandleFunc("/api/config", s.configHandler).Methods("GET")
 
 	apiRouter.HandleFunc("/info", s.infoHandler).Methods("GET")

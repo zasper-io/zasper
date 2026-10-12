@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -12,6 +13,7 @@ import (
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/logging"
+	"github.com/zasper-io/zasper/internal/runtimeinfo"
 	"github.com/zasper-io/zasper/internal/server"
 	"github.com/zasper-io/zasper/internal/updates"
 )
@@ -23,6 +25,8 @@ type zasperServer struct {
 	address     string
 	accessToken string
 	tracking    bool
+	// The file that tells programs on this machine, such as `zasper mcp`, where the server is.
+	runtimeFile string
 	// serving receives the error that stopped Serve, if it stops before Stop is called.
 	serving <-chan error
 
@@ -84,7 +88,15 @@ func startServer(cwd string, addresses []string, tracking bool, allowedHosts []s
 	checks, stopChecks := context.WithCancel(context.Background())
 	go checker.Run(checks)
 
+	runtimeFile, err := runtimeinfo.Write(runtimeinfo.Info{
+		URL: browsableURL(bound), Token: app.AccessToken, Project: app.HomeDir, PID: os.Getpid(),
+	})
+	if err != nil {
+		log.Warn().Err(err).Msg("could not record the server for `zasper mcp` to find")
+	}
+
 	return &zasperServer{
+		runtimeFile: runtimeFile,
 		address:     bound,
 		accessToken: app.AccessToken,
 		tracking:    tracking,
@@ -99,6 +111,9 @@ func startServer(cwd string, addresses []string, tracking bool, allowedHosts []s
 // Stop lets running requests finish for up to timeout, then stops the shells and kernels.
 func (s *zasperServer) Stop(timeout time.Duration) {
 	s.stopChecks()
+	if s.runtimeFile != "" {
+		os.Remove(s.runtimeFile)
+	}
 	shutDown(s.httpServer, timeout, func() { cleanup(s.zasper, s.tracking) })
 }
 

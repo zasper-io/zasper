@@ -118,3 +118,12 @@ func (s *Sessions) RunCellHandler(w http.ResponseWriter, req *http.Request) {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 	}
 }
+
+// KernelFor is the kernel the notebook at path is running on, if any.
+func (s *Sessions) KernelFor(path string) (*kernel.KernelManager, bool) {
+	session, ok := s.forPath(path, "")
+	if !ok {
+		return nil, false
+	}
+	return s.kernels.Get(session.Kernel.Id)
+}

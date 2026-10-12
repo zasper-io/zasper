@@ -128,51 +128,68 @@ func (h *Handler) Update(w http.ResponseWriter, req *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, SaveResult{Hash: hash})
 }
 
-// NotebookOps changes an open or closed notebook's cells by id, as an agent does, and tells every open
-// tab who did it. Checked against Hash and locked like a save.
+// ErrStale answers changes worked out against a version of a file that is no longer the one on disk.
+var ErrStale = errors.New("the file changed on disk after it was read")
+
+// StaleError is ErrStale, with the hash the file has now.
+type StaleError struct{ Hash string }
+
+func (e StaleError) Error() string        { return ErrStale.Error() }
+func (e StaleError) Is(target error) bool { return target == ErrStale }
+
+/*
+ApplyNotebookOps changes a notebook's cells by id for client, as an agent does, and tells every open tab who
+did it. It is checked against hash, when there is one, and locked, as a save is.
+*/
+func (h *Handler) ApplyNotebookOps(path, hash, client string, ops []NotebookOp) (NotebookOpsResult, error) {
+	if h.project.outsideProject(path) {
+		return NotebookOpsResult{}, errors.New("invalid path")
+	}
+	h.saving.Lock()
+	defer h.saving.Unlock()
+	if hash != "" {
+		current, err := h.project.DiskHash(path)
+		if err != nil {
+			return NotebookOpsResult{}, err
+		}
+		if current != hash {
+			return NotebookOpsResult{}, StaleError{Hash: current}
+		}
+	}
+	written, inserted, err := h.project.ApplyNotebookOps(path, ops)
+	if err != nil {
+		return NotebookOpsResult{}, err
+	}
+	h.watch.wrote(path, written, client)
+	if inserted == nil {
+		inserted = []string{}
+	}
+	return NotebookOpsResult{Hash: written, Inserted: inserted}, nil
+}
+
+// NotebookOps answers POST /api/contents/ops: see [Handler.ApplyNotebookOps].
 func (h *Handler) NotebookOps(w http.ResponseWriter, req *http.Request) {
 	var body NotebookOpsRequest
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
-	if h.project.outsideProject(body.Path) {
-		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
-		return
-	}
-
-	h.saving.Lock()
-	defer h.saving.Unlock()
-	if body.Hash != "" {
-		current, err := h.project.DiskHash(body.Path)
-		if err != nil {
-			httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error reading %s: %v", body.Path, err))
-			return
-		}
-		if current != body.Hash {
-			httpx.SendJSON(w, http.StatusConflict, SaveConflict{
-				Error:   http.StatusText(http.StatusConflict),
-				Message: "The notebook changed on disk after it was read, so nothing was changed.",
-				Hash:    current,
-			})
-			return
-		}
-	}
-
-	hash, inserted, err := h.project.ApplyNotebookOps(body.Path, body.Ops)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			httpx.SendErrorResponse(w, http.StatusNotFound, "Content not found")
-			return
-		}
+	result, err := h.ApplyNotebookOps(body.Path, body.Hash, body.Client, body.Ops)
+	var stale StaleError
+	switch {
+	case err == nil:
+		httpx.SendJSON(w, http.StatusOK, result)
+	case errors.As(err, &stale):
+		httpx.SendJSON(w, http.StatusConflict, SaveConflict{
+			Error:   http.StatusText(http.StatusConflict),
+			Message: "The notebook changed on disk after it was read, so nothing was changed.",
+			Hash:    stale.Hash,
+		})
+	case errors.Is(err, os.ErrNotExist):
+		httpx.SendErrorResponse(w, http.StatusNotFound, "Content not found")
+	default:
 		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
-		return
 	}
-	h.watch.wrote(body.Path, hash, body.Client)
-	if inserted == nil {
-		inserted = []string{}
-	}
-	httpx.SendJSON(w, http.StatusOK, NotebookOpsResult{Hash: hash, Inserted: inserted})
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, req *http.Request) {

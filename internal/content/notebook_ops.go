@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/zasper-io/zasper/internal/atomicfile"
+	"github.com/zasper-io/zasper/internal/models"
 	"github.com/zasper-io/zasper/internal/nbformat"
 )
 
@@ -155,4 +159,38 @@ func after(cells []map[string]interface{}, id string) (int, error) {
 	}
 	i, err := indexOf(cells, id)
 	return i + 1, err
+}
+
+// Notebook reads the notebook at path, with its hash.
+func (h *Handler) Notebook(path string) (models.ContentModel, error) {
+	if h.project.outsideProject(path) {
+		return models.ContentModel{}, errors.New("invalid path")
+	}
+	return h.project.GetContent(path, "notebook", "")
+}
+
+// Notebooks lists the project's notebooks, relative to it, leaving out what the file browser dims.
+func (h *Handler) Notebooks() ([]string, error) {
+	root := h.project.Root()
+	ignores := NewProjectIgnores(root)
+	var found []string
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if path != root && ignores.Skips(path, entry.IsDir()) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".ipynb") {
+			rel, err := filepath.Rel(root, path)
+			if err == nil {
+				found = append(found, filepath.ToSlash(rel))
+			}
+		}
+		return nil
+	})
+	return found, err
 }

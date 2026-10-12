@@ -252,6 +252,12 @@ still runs, and a tab places it by its code only when exactly one cell holds
 that code; otherwise it shows as the kernel being busy. Each run also carries
 `client` in the replay.
 
+## MCP
+
+`POST /mcp` is Zasper's MCP server over streamable HTTP, answering in JSON, signed in like the rest of
+`/api`. Most agents reach it through `zasper mcp` on stdio instead. The tools and how to connect an
+agent are in [MCP.md](MCP.md).
+
 ## Data connections
 
 The databases SQL cells run on. Passwords are never answered. See [SQL.md](SQL.md).

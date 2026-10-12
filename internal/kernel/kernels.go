@@ -202,3 +202,8 @@ func (k *Kernels) Resources(ctx context.Context) resources.Snapshot {
 	}
 	return k.resources.Sample(ctx, roots)
 }
+
+// Interrupt interrupts a running kernel, as its interrupt button does.
+func (k *Kernels) Interrupt(kernelId string) error {
+	return k.interrupt(kernelId)
+}

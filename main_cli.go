@@ -6,6 +6,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -16,9 +17,15 @@ import (
 
 	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/logging"
+	"github.com/zasper-io/zasper/internal/mcpbridge"
+	"github.com/zasper-io/zasper/internal/runtimeinfo"
 )
 
 func main() {
+	// A command of its own, before the server's flags: an agent runs `zasper mcp` and talks MCP on stdio.
+	if len(os.Args) > 1 && os.Args[1] == "mcp" {
+		os.Exit(runMCP())
+	}
 
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	cwd := flag.String("cwd", ".", "base directory of project")
@@ -91,4 +98,36 @@ func main() {
 
 	zasper.Stop(5 * time.Second)
 	log.Info().Msg("server stopped")
+}
+
+// runMCP is `zasper mcp`: the running server's MCP tools, on stdin and stdout. See docs/MCP.md.
+func runMCP() int {
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "zasper mcp:", err)
+		return 1
+	}
+	servers, err := runtimeinfo.List()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "zasper mcp:", err)
+		return 1
+	}
+	local := &http.Client{Timeout: 0}
+	server, err := mcpbridge.Find(dir, servers, mcpbridge.Alive(&http.Client{Timeout: 2 * time.Second}))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "zasper mcp:", err)
+		return 1
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	bridge, err := mcpbridge.Connect(ctx, server, local)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "zasper mcp:", err)
+		return 1
+	}
+	if err := bridge.Serve(ctx, os.Stdin, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, "zasper mcp:", err)
+		return 1
+	}
+	return 0
 }

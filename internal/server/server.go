@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/rs/zerolog/log"
+	"net/http"
 
 	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/config"
@@ -13,6 +14,7 @@ import (
 	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/kernelws"
 	"github.com/zasper-io/zasper/internal/lsp"
+	"github.com/zasper-io/zasper/internal/mcpserver"
 	"github.com/zasper-io/zasper/internal/search"
 	"github.com/zasper-io/zasper/internal/session"
 	"github.com/zasper-io/zasper/internal/terminal"
@@ -36,6 +38,7 @@ type Server struct {
 	updates       *updates.Checker
 	trust         *trust.Gate
 	connections   *connections.Handler
+	mcp           http.Handler
 }
 
 // New builds the server for app, and connects the parts that cannot import each other.
@@ -90,6 +93,13 @@ func New(app core.Application) *Server {
 			log.Warn().Err(err).Msgf("could not write a finished run's output into %s", path)
 		}
 	})
+	s.mcp = mcpserver.Handler(mcpserver.New(mcpserver.Deps{
+		Content:  s.content,
+		Sessions: sessions,
+		Kernels:  kernels,
+		AllowRun: gate.Check,
+		Version:  app.Version,
+	}))
 	// A renamed notebook's session follows the file.
 	s.content.OnMoved(func(from, to string) { sessions.Relocate(from, to) })
 
