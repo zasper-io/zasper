@@ -22,6 +22,7 @@ import {
   EditorConfig,
   getEditorConfig,
   getFileContent,
+  isSaveConflict,
   logApiError,
   saveFile,
 } from '@/api';
@@ -126,6 +127,8 @@ export default function FileEditor(props: FileEditorProps) {
    * the editor's unsaved text, and the reader has not yet said which to keep.
    */
   const [conflict, setConflict] = useState<string | null>(null);
+  /** Whether the band is up because a save was refused, rather than because the watcher saw a change. */
+  const [refused, setRefused] = useState(false);
   /** Whether the find card is up, what its field starts with, and which ⌘F asked for the focus. */
   const [finding, setFinding] = useState(false);
   const [findSeed, setFindSeed] = useState('');
@@ -144,6 +147,8 @@ export default function FileEditor(props: FileEditorProps) {
   const savedDoc = useRef(Text.empty);
   /** The last version seen on disk, so a change already answered is not asked about again. */
   const diskDoc = useRef(Text.empty);
+  /** That version's hash, which a save hands back so that it never writes over one it has not seen. */
+  const diskHash = useRef('');
   /** A change on disk reported while this tab was in the background, to be looked at once it is not. */
   const changedWhileHidden = useRef(false);
   // Typing stays responsive in a long document: the rendering catches up between keystrokes.
@@ -189,6 +194,32 @@ export default function FileEditor(props: FileEditorProps) {
     []
   );
 
+  /**
+   * A save the server refused because the file changed after it was read. What is there now is shown in
+   * the band, and becomes the version the next save replaces, so answering the band is enough to save.
+   * Resolves to whether the save should simply be made again: the file is gone, or already says the same.
+   */
+  const refuseSave = useCallback(
+    async (written: Text): Promise<boolean> => {
+      let file;
+      try {
+        file = await getFileContent(path);
+      } catch {
+        diskHash.current = '';
+        return true;
+      }
+      diskDoc.current = documentOf(file.content);
+      diskHash.current = file.hash;
+      if (diskDoc.current.eq(written)) {
+        return true;
+      }
+      setRefused(true);
+      setConflict(file.content);
+      return false;
+    },
+    [path]
+  );
+
   const saveFileToDisk = useCallback(async () => {
     const editor = viewRef.current;
     if (editor === null) {
@@ -211,17 +242,24 @@ export default function FileEditor(props: FileEditorProps) {
     // keystroke made in between leaves the file unsaved again.
     const written = editor.state.doc;
     const writtenEol = eolRef.current;
-    await saveFile(
-      path,
-      written.sliceString(0, written.length, writtenEol === 'CRLF' ? '\r\n' : '\n')
-    );
+    const text = written.sliceString(0, written.length, writtenEol === 'CRLF' ? '\r\n' : '\n');
+    let hash;
+    try {
+      hash = await saveFile(path, text, diskHash.current || undefined);
+    } catch (failure) {
+      if (!isSaveConflict(failure) || !(await refuseSave(written))) {
+        throw failure;
+      }
+      hash = await saveFile(path, text, diskHash.current || undefined);
+    }
+    diskHash.current = hash;
     savedDoc.current = written;
     diskDoc.current = written;
     savedEol.current = writtenEol;
     // A save made while the band is up keeps the reader's version.
     setConflict(null);
     setDirty(isDirty(editor.state.doc));
-  }, [path, isDirty]);
+  }, [path, isDirty, refuseSave]);
 
   // Nothing to save when the read failed: what the editor holds is not the file, and writing it would
   // create the file the tab is only pointing at. The close prompt must not offer to either.
@@ -255,7 +293,12 @@ export default function FileEditor(props: FileEditorProps) {
   const save = useRef(() => {});
   save.current = () => {
     if (canSave) {
-      saveFileToDisk().catch(logApiError('Error saving file:'));
+      saveFileToDisk().catch((failure: unknown) => {
+        // Said in the band, not the console.
+        if (!isSaveConflict(failure)) {
+          logApiError('Error saving file:')(failure);
+        }
+      });
     }
   };
   const saveKeymap = useMemo(
@@ -397,6 +440,7 @@ export default function FileEditor(props: FileEditorProps) {
       setNotText(file.format !== 'text');
       savedDoc.current = documentOf(text);
       diskDoc.current = savedDoc.current;
+      diskHash.current = file.hash;
       if (file.format === 'text') {
         const opened = formatFor(text, settingsRef.current, editorConfig);
         savedEol.current = opened.eol;
@@ -408,6 +452,7 @@ export default function FileEditor(props: FileEditorProps) {
       setPreviewText(text);
       setDirty(false);
       setConflict(null);
+      setRefused(false);
       setError('');
       setReadCount((count) => count + 1);
     } catch (failure) {
@@ -465,6 +510,7 @@ export default function FileEditor(props: FileEditorProps) {
       return;
     }
     const onDisk = documentOf(file.content);
+    diskHash.current = file.hash;
     if (onDisk.eq(diskDoc.current)) {
       return;
     }
@@ -488,6 +534,7 @@ export default function FileEditor(props: FileEditorProps) {
       setDirty(isDirty(doc));
       return;
     }
+    setRefused(false);
     setConflict(file.content);
   }, [path, isDirty, adoptLineEnding]);
 
@@ -513,6 +560,10 @@ export default function FileEditor(props: FileEditorProps) {
 
   // The band comes down and the editor stays unsaved, so the next save writes it.
   const keepMine = useCallback(() => setConflict(null), []);
+  const overwrite = useCallback(() => {
+    setConflict(null);
+    save.current();
+  }, []);
 
   // An edit like any other, so undo brings the reader's version back.
   const takeTheirs = useCallback(() => {
@@ -548,11 +599,11 @@ export default function FileEditor(props: FileEditorProps) {
     }
     setResolutions((resolutions) => without(resolutions, path));
     if (resolution === 'mine') {
-      keepMine();
+      (refused ? overwrite : keepMine)();
     } else {
       takeTheirs();
     }
-  }, [resolution, path, keepMine, takeTheirs, setResolutions]);
+  }, [resolution, path, refused, overwrite, keepMine, takeTheirs, setResolutions]);
 
   // A line asked for in the palette, which only the tab in front can carry out. The request is cleared
   // as it is taken, so asking for the same line twice is two moves.
@@ -914,8 +965,9 @@ export default function FileEditor(props: FileEditorProps) {
           <DiskChangeBand
             path={path}
             name={name}
+            refused={refused}
             onCompare={compareWithDisk}
-            onKeepMine={keepMine}
+            onKeepMine={refused ? overwrite : keepMine}
             onTakeTheirs={takeTheirs}
           />
         )}

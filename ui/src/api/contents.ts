@@ -1,4 +1,4 @@
-import { requestBlob, requestEmpty, requestJson, requestUpload } from './client';
+import { ApiError, requestBlob, requestEmpty, requestJson, requestUpload } from './client';
 import { NotebookModel } from './notebook';
 
 export type ContentType = 'file' | 'directory' | 'notebook';
@@ -32,6 +32,8 @@ export interface ContentModel<T> {
   type: string;
   path: string;
   content: T;
+  /** SHA-256 of the file's bytes, which a save hands back to say which version it replaces. */
+  hash?: string;
 }
 
 /**
@@ -53,6 +55,7 @@ export interface FileContent {
   format: 'text' | 'base64';
   content: string;
   mimetype: string;
+  hash: string;
 }
 
 /** Reads a single file, as text when it is text. */
@@ -64,7 +67,12 @@ export async function getFileContent(path: string): Promise<FileContent> {
       body: { path },
     }
   );
-  return { format: model.format, content: model.content, mimetype: model.mimetype };
+  return {
+    format: model.format,
+    content: model.content,
+    mimetype: model.mimetype,
+    hash: model.hash ?? '',
+  };
 }
 
 /** Reads a notebook document. */
@@ -130,18 +138,34 @@ export function deleteContent(path: string): Promise<void> {
   });
 }
 
-export function saveFile(path: string, content: string): Promise<void> {
-  return requestEmpty('/api/contents', {
+/**
+ * Writes a file, and resolves to the hash of what was written. `hash` is the version this replaces: when
+ * the file no longer is that version nothing is written, and the save rejects with an `isSaveConflict`.
+ */
+export async function saveFile(path: string, content: string, hash?: string): Promise<string> {
+  const saved = await requestJson<{ hash: string }>('/api/contents', {
     method: 'PUT',
-    body: { path, content, type: 'file', format: 'text' },
+    body: { path, content, type: 'file', format: 'text', hash },
   });
+  return saved.hash;
 }
 
-export function saveNotebook(path: string, notebook: NotebookModel): Promise<void> {
-  return requestEmpty('/api/contents', {
+/** Writes a notebook, as `saveFile` writes a file. */
+export async function saveNotebook(
+  path: string,
+  notebook: NotebookModel,
+  hash?: string
+): Promise<string> {
+  const saved = await requestJson<{ hash: string }>('/api/contents', {
     method: 'PUT',
-    body: { path, content: notebook, type: 'notebook', format: 'json' },
+    body: { path, content: notebook, type: 'notebook', format: 'json', hash },
   });
+  return saved.hash;
+}
+
+/** A save refused because the file changed on disk after the version it was replacing was read. */
+export function isSaveConflict(failure: unknown): boolean {
+  return failure instanceof ApiError && failure.status === 409;
 }
 
 export interface UploadRequest {

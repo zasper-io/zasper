@@ -18,7 +18,8 @@ func TestSavingALinkedFileKeepsTheLink(t *testing.T) {
 	require.NoError(t, os.WriteFile(target, []byte("before"), 0o644))
 	require.NoError(t, os.Symlink("real.txt", link))
 
-	require.NoError(t, project.UpdateContent("link.txt", "file", "text", "after"))
+	_, err := project.UpdateContent("link.txt", "file", "text", "after")
+	require.NoError(t, err)
 
 	info, err := os.Lstat(link)
 	require.NoError(t, err)
@@ -34,7 +35,8 @@ func TestALinkOutOfTheProjectIsNotSavedThrough(t *testing.T) {
 	require.NoError(t, os.WriteFile(outside, []byte("private"), 0o644))
 	require.NoError(t, os.Symlink(outside, filepath.Join(projectDir, "link.txt")))
 
-	assert.ErrorIs(t, project.UpdateContent("link.txt", "file", "text", "overwritten"), errLinkOutside)
+	_, err := project.UpdateContent("link.txt", "file", "text", "overwritten")
+	assert.ErrorIs(t, err, errLinkOutside)
 
 	written, err := os.ReadFile(outside)
 	require.NoError(t, err)

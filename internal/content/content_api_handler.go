@@ -37,11 +37,6 @@ func (h *Handler) Read(w http.ResponseWriter, req *http.Request) {
 		contentType = "file"
 	}
 
-	if !slices.Contains([]string{"", "0", "1"}, body.Hash) {
-		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("hash is 0 or 1, not %q", body.Hash))
-		return
-	}
-
 	if h.project.outsideProject(relativePath) {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid path")
 		return
@@ -49,7 +44,7 @@ func (h *Handler) Read(w http.ResponseWriter, req *http.Request) {
 
 	// A file's format is passed through as asked, and not defaulted: an empty one lets the file's own
 	// bytes decide between text and base64. A notebook is always JSON.
-	contentModel, err := h.project.GetContent(relativePath, contentType, body.Format, body.Hash == "1")
+	contentModel, err := h.project.GetContent(relativePath, contentType, body.Format)
 
 	if err != nil {
 		log.Error().Msgf("Error fetching content: %v", err)
@@ -81,9 +76,29 @@ func (h *Handler) Update(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// The check and the write are one step for every save that comes through here.
+	h.saving.Lock()
+	defer h.saving.Unlock()
+	if body.Hash != "" {
+		current, err := h.project.DiskHash(body.Path)
+		if err != nil {
+			httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error reading %s: %v", body.Path, err))
+			return
+		}
+		if current != body.Hash {
+			httpx.SendJSON(w, http.StatusConflict, SaveConflict{
+				Error:   http.StatusText(http.StatusConflict),
+				Message: "The file changed on disk after it was read, so it was not saved.",
+				Hash:    current,
+			})
+			return
+		}
+	}
+
+	var hash string
 	switch body.Type {
 	case "notebook":
-		err = h.project.UpdateNbContent(body.Path, body.Type, body.Format, body.Content)
+		hash, err = h.project.UpdateNbContent(body.Path, body.Type, body.Format, body.Content)
 
 		if err != nil {
 			log.Error().Err(err).Msg("Error saving notebook content")
@@ -97,7 +112,7 @@ func (h *Handler) Update(w http.ResponseWriter, req *http.Request) {
 			httpx.SendErrorResponse(w, http.StatusBadRequest, "Invalid content type")
 			return
 		}
-		err = h.project.UpdateContent(body.Path, body.Type, body.Format, contentStr)
+		hash, err = h.project.UpdateContent(body.Path, body.Type, body.Format, contentStr)
 		if err != nil {
 			log.Error().Err(err).Msg("Error saving content")
 			httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Error saving content: %v", err))
@@ -109,7 +124,7 @@ func (h *Handler) Update(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	httpx.SendJSON(w, http.StatusOK, SaveResult{Hash: hash})
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, req *http.Request) {

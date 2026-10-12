@@ -22,9 +22,10 @@ import (
 
 /*
 GetContent reads a directory listing, a notebook, or a file. A file's format is "text", "base64", or ""
-for whichever of the two keeps its bytes; withHash adds a SHA-256 of the file.
+for whichever of the two keeps its bytes. A file or a notebook carries the SHA-256 of its bytes on disk,
+which a save hands back to say which version it replaces.
 */
-func (p Project) GetContent(relativePath string, contentType string, format string, withHash bool) (models.ContentModel, error) {
+func (p Project) GetContent(relativePath string, contentType string, format string) (models.ContentModel, error) {
 	log.Debug().Msgf("getting content for path : %s", relativePath)
 	// get path info
 	osPath := p.SafePath(relativePath)
@@ -43,7 +44,7 @@ func (p Project) GetContent(relativePath string, contentType string, format stri
 		if contentType == "notebook" {
 			model, err = p.getNotebookModel(relativePath)
 		} else {
-			model, err = p.getFileModelWithContent(relativePath, format, withHash)
+			model, err = p.getFileModelWithContent(relativePath, format)
 		}
 
 	}
@@ -77,14 +78,16 @@ func (p Project) getNotebookModel(path string) (models.ContentModel, error) {
 	}
 
 	output := models.ContentModel{
-		Name:         info.Name(),
-		Path:         path,
-		ContentType:  "notebook",
-		Format:       "json",
-		Content:      nb,
-		Created:      info.ModTime().UTC().Format(time.RFC3339),
-		LastModified: info.ModTime().UTC().Format(time.RFC3339),
-		Size:         info.Size()}
+		Name:          info.Name(),
+		Path:          path,
+		ContentType:   "notebook",
+		Format:        "json",
+		Content:       nb,
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		LastModified:  info.ModTime().UTC().Format(time.RFC3339),
+		Size:          info.Size(),
+		Hash:          contentHash(content),
+		HashAlgorithm: "sha256"}
 	return output, nil
 }
 
@@ -204,7 +207,7 @@ encoding/json replaces invalid UTF-8 with U+FFFD, so a Latin-1 or binary file se
 the editor with its bytes changed. Without a format asked for, a file that is not valid UTF-8, or that holds
 a NUL byte, is sent as base64.
 */
-func (p Project) getFileModelWithContent(path, format string, withHash bool) (models.ContentModel, error) {
+func (p Project) getFileModelWithContent(path, format string) (models.ContentModel, error) {
 	osPath := p.SafePath(path)
 
 	// Stat rather than Lstat: through a link, the size that matters is the file's.
@@ -243,22 +246,25 @@ func (p Project) getFileModelWithContent(path, format string, withHash bool) (mo
 	}
 
 	output := models.ContentModel{
-		Name:         info.Name(),
-		Path:         path,
-		ContentType:  "file",
-		Format:       format,
-		Mimetype:     mimetypeFor(info.Name(), format == "text"),
-		Content:      content,
-		Created:      info.ModTime().UTC().Format(time.RFC3339),
-		LastModified: info.ModTime().UTC().Format(time.RFC3339),
-		Size:         info.Size()}
-	if withHash {
-		sum := sha256.Sum256(data)
-		output.Hash = hex.EncodeToString(sum[:])
-		output.HashAlgorithm = "sha256"
-	}
+		Name:          info.Name(),
+		Path:          path,
+		ContentType:   "file",
+		Format:        format,
+		Mimetype:      mimetypeFor(info.Name(), format == "text"),
+		Content:       content,
+		Created:       info.ModTime().UTC().Format(time.RFC3339),
+		LastModified:  info.ModTime().UTC().Format(time.RFC3339),
+		Size:          info.Size(),
+		Hash:          contentHash(data),
+		HashAlgorithm: "sha256"}
 
 	return output, nil
+}
+
+// contentHash is the hash a read serves and a save is checked against.
+func contentHash(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 func mimetypeFor(name string, text bool) string {

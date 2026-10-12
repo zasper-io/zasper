@@ -50,7 +50,9 @@ export async function apiModule() {
     interruptKernel: vi.fn(),
     getKernel: (id: string) => getKernel(id),
     ApiError: client.ApiError,
-    saveNotebook: (path: string, notebook: unknown) => saveNotebook(path, notebook),
+    saveNotebook: (path: string, notebook: unknown, hash?: string) =>
+      saveNotebook(path, notebook, hash),
+    isSaveConflict: (failure: unknown) => (failure as { status?: number }).status === 409,
     // Not stubbed: what it extracts from a failed request is what the load-error banner shows.
     apiErrorMessage: client.apiErrorMessage,
     logApiError: () => () => {},

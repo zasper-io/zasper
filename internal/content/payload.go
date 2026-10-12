@@ -38,5 +38,18 @@ type (
 		Content interface{} `json:"content"`
 		Format  string      `json:"format"`
 		Type    string      `json:"type"`
+		// Hash is the version the save replaces, as a read served it. Empty writes whatever is there.
+		Hash string `json:"hash"`
+	}
+
+	SaveResult struct {
+		Hash string `json:"hash"`
+	}
+
+	// SaveConflict answers a save whose Hash is no longer the file's, with the hash it has now.
+	SaveConflict struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+		Hash    string `json:"hash"`
 	}
 )

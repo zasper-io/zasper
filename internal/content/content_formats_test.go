@@ -44,7 +44,7 @@ func everyByte() []byte {
 func TestAUTF8FileIsReadAsText(t *testing.T) {
 	project, _ := projectFile(t, "notes.txt", []byte("café ☕\n"))
 
-	model, err := project.GetContent("notes.txt", "file", "", false)
+	model, err := project.GetContent("notes.txt", "file", "")
 
 	require.NoError(t, err)
 	assert.Equal(t, "file", model.ContentType)
@@ -61,7 +61,7 @@ func TestAFileThatIsNotUTF8TextIsReadAsBase64(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			project, _ := projectFile(t, name, data)
 
-			model, err := project.GetContent(name, "file", "", false)
+			model, err := project.GetContent(name, "file", "")
 
 			require.NoError(t, err)
 			assert.Equal(t, "base64", model.Format)
@@ -75,7 +75,7 @@ func TestAFileThatIsNotUTF8TextIsReadAsBase64(t *testing.T) {
 func TestAFileAskedForAsTextMustBeText(t *testing.T) {
 	project, _ := projectFile(t, "latin1.txt", []byte("caf\xe9\n"))
 
-	_, err := project.GetContent("latin1.txt", "file", "text", false)
+	_, err := project.GetContent("latin1.txt", "file", "text")
 
 	assert.ErrorIs(t, err, errNotText)
 }
@@ -83,7 +83,7 @@ func TestAFileAskedForAsTextMustBeText(t *testing.T) {
 func TestATextFileCanBeAskedForAsBase64(t *testing.T) {
 	project, _ := projectFile(t, "notes.txt", []byte("hello"))
 
-	model, err := project.GetContent("notes.txt", "file", "base64", false)
+	model, err := project.GetContent("notes.txt", "file", "base64")
 
 	require.NoError(t, err)
 	assert.Equal(t, "base64", model.Format)
@@ -93,7 +93,7 @@ func TestATextFileCanBeAskedForAsBase64(t *testing.T) {
 func TestAFileIsNotReadInAFormatThatDoesNotExist(t *testing.T) {
 	project, _ := projectFile(t, "notes.txt", []byte("hello"))
 
-	_, err := project.GetContent("notes.txt", "file", "json", false)
+	_, err := project.GetContent("notes.txt", "file", "json")
 
 	assert.Error(t, err)
 }
@@ -103,10 +103,10 @@ func TestAFileOverTheSizeLimitIsNotRead(t *testing.T) {
 	project.maxFileSize = 8
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "big.txt"), []byte("123456789"), 0o644))
 
-	_, err := project.GetContent("small.txt", "file", "", false)
+	_, err := project.GetContent("small.txt", "file", "")
 	require.NoError(t, err, "a file of exactly the limit is read")
 
-	_, err = project.GetContent("big.txt", "file", "", false)
+	_, err = project.GetContent("big.txt", "file", "")
 	require.Error(t, err)
 	assert.Equal(t, "big.txt is 9 B, and files over 8 B are not opened here", err.Error())
 }
@@ -117,29 +117,35 @@ func TestSizesAreWrittenForPeople(t *testing.T) {
 	assert.Equal(t, "2.1 GB", byteSize(2254857830))
 }
 
-func TestAHashIsSentOnlyWhenAskedFor(t *testing.T) {
+func TestAReadCarriesTheHashOfTheBytesOnDisk(t *testing.T) {
 	project, _ := projectFile(t, "notes.txt", []byte("hello"))
 
-	without, err := project.GetContent("notes.txt", "file", "", false)
-	require.NoError(t, err)
-	assert.Empty(t, without.Hash)
-
-	with, err := project.GetContent("notes.txt", "file", "", true)
+	model, err := project.GetContent("notes.txt", "file", "")
 	require.NoError(t, err)
 	sum := sha256.Sum256([]byte("hello"))
-	assert.Equal(t, hex.EncodeToString(sum[:]), with.Hash)
-	assert.Equal(t, "sha256", with.HashAlgorithm)
+	assert.Equal(t, hex.EncodeToString(sum[:]), model.Hash)
+	assert.Equal(t, "sha256", model.HashAlgorithm)
+}
+
+func TestANotebookReadCarriesTheHashOfItsFile(t *testing.T) {
+	data := []byte(`{"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}`)
+	project, _ := projectFile(t, "notes.ipynb", data)
+
+	model, err := project.GetContent("notes.ipynb", "notebook", "")
+	require.NoError(t, err)
+	sum := sha256.Sum256(data)
+	assert.Equal(t, hex.EncodeToString(sum[:]), model.Hash)
 }
 
 func TestAFileWithNoKnownExtensionIsTypedByWhatItHolds(t *testing.T) {
 	project, projectDir := projectFile(t, "notes.zasper-unknown", []byte("hello"))
 	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "blob.zasper-unknown"), everyByte(), 0o644))
 
-	text, err := project.GetContent("notes.zasper-unknown", "file", "", false)
+	text, err := project.GetContent("notes.zasper-unknown", "file", "")
 	require.NoError(t, err)
 	assert.Equal(t, "text/plain", text.Mimetype)
 
-	binary, err := project.GetContent("blob.zasper-unknown", "file", "", false)
+	binary, err := project.GetContent("blob.zasper-unknown", "file", "")
 	require.NoError(t, err)
 	assert.Equal(t, "application/octet-stream", binary.Mimetype)
 }
@@ -147,7 +153,8 @@ func TestAFileWithNoKnownExtensionIsTypedByWhatItHolds(t *testing.T) {
 func TestSavingBase64WritesTheBytesItCarries(t *testing.T) {
 	project, projectDir := projectFile(t, "blob.bin", nil)
 
-	require.NoError(t, project.UpdateContent("blob.bin", "file", "base64", base64.StdEncoding.EncodeToString(everyByte())))
+	_, err := project.UpdateContent("blob.bin", "file", "base64", base64.StdEncoding.EncodeToString(everyByte()))
+	require.NoError(t, err)
 
 	written, err := os.ReadFile(filepath.Join(projectDir, "blob.bin"))
 	require.NoError(t, err)
@@ -159,7 +166,8 @@ func TestASaveThatCannotBeDecodedLeavesTheFileAlone(t *testing.T) {
 		t.Run(format, func(t *testing.T) {
 			project, projectDir := projectFile(t, "keep.txt", []byte("original"))
 
-			assert.Error(t, project.UpdateContent("keep.txt", "file", format, content))
+			_, err := project.UpdateContent("keep.txt", "file", format, content)
+			assert.Error(t, err)
 
 			written, err := os.ReadFile(filepath.Join(projectDir, "keep.txt"))
 			require.NoError(t, err)
@@ -193,13 +201,13 @@ func TestEveryByteSurvivesOpeningAndSavingOverHTTP(t *testing.T) {
 	assert.Equal(t, everyByte(), written)
 }
 
-func TestAHashIsAskedForWithZeroOrOne(t *testing.T) {
+func TestAnOlderClientsHashFlagIsStillAccepted(t *testing.T) {
 	project, _ := projectFile(t, "notes.txt", []byte("hello"))
 
-	for hash, want := range map[string]int{"": http.StatusOK, "0": http.StatusOK, "1": http.StatusOK, "2": http.StatusBadRequest, "yes": http.StatusBadRequest} {
+	for _, hash := range []string{"", "0", "1"} {
 		recorder := httptest.NewRecorder()
 		body := `{"path": "notes.txt", "hash": "` + hash + `"}`
 		NewHandler(project).Read(recorder, httptest.NewRequest(http.MethodPost, "/api/contents", strings.NewReader(body)))
-		assert.Equal(t, want, recorder.Code, "hash %q", hash)
+		assert.Equal(t, http.StatusOK, recorder.Code, "hash %q", hash)
 	}
 }

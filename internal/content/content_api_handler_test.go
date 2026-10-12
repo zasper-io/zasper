@@ -165,3 +165,76 @@ func TestUploadSaysWhenTheRequestCarriedNoFile(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 }
+
+func save(t *testing.T, project Project, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	recorder := httptest.NewRecorder()
+	NewHandler(project).Update(recorder, httptest.NewRequest(http.MethodPut, "/api/contents", strings.NewReader(body)))
+	return recorder
+}
+
+func TestASaveAnswersWithTheHashOfWhatItWrote(t *testing.T) {
+	project, _ := testProject(t)
+
+	response := save(t, project, `{"path": "notes.txt", "type": "file", "format": "text", "content": "hello"}`)
+
+	assert.Equal(t, http.StatusOK, response.Code)
+	var result SaveResult
+	assert.NoError(t, json.Unmarshal(response.Body.Bytes(), &result))
+	assert.Equal(t, contentHash([]byte("hello")), result.Hash)
+}
+
+func TestASaveOfTheVersionOnDiskIsWritten(t *testing.T) {
+	project, projectDir := testProject(t)
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte("before"), 0o644))
+
+	body := `{"path": "notes.txt", "type": "file", "format": "text", "content": "after", "hash": "` + contentHash([]byte("before")) + `"}`
+	response := save(t, project, body)
+
+	assert.Equal(t, http.StatusOK, response.Code)
+	written, _ := os.ReadFile(filepath.Join(projectDir, "notes.txt"))
+	assert.Equal(t, "after", string(written))
+}
+
+func TestASaveOverAChangeItHasNotSeenIsRefused(t *testing.T) {
+	project, projectDir := testProject(t)
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte("theirs"), 0o644))
+
+	body := `{"path": "notes.txt", "type": "file", "format": "text", "content": "mine", "hash": "` + contentHash([]byte("before")) + `"}`
+	response := save(t, project, body)
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+	var conflict SaveConflict
+	assert.NoError(t, json.Unmarshal(response.Body.Bytes(), &conflict))
+	assert.Equal(t, contentHash([]byte("theirs")), conflict.Hash)
+	written, _ := os.ReadFile(filepath.Join(projectDir, "notes.txt"))
+	assert.Equal(t, "theirs", string(written))
+}
+
+func TestASaveOverAFileDeletedSinceItWasReadIsRefused(t *testing.T) {
+	project, projectDir := testProject(t)
+
+	body := `{"path": "notes.txt", "type": "file", "format": "text", "content": "mine", "hash": "` + contentHash([]byte("before")) + `"}`
+	response := save(t, project, body)
+
+	assert.Equal(t, http.StatusConflict, response.Code)
+	assert.NoFileExists(t, filepath.Join(projectDir, "notes.txt"))
+}
+
+func TestANotebookSaveIsCheckedAgainstTheFileOnDisk(t *testing.T) {
+	project, projectDir := testProject(t)
+	theirs := []byte(`{"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}`)
+	assert.NoError(t, os.WriteFile(filepath.Join(projectDir, "notes.ipynb"), theirs, 0o644))
+	mine := `{"cells": [{"cell_type": "code", "id": "a", "source": "print(1)", "metadata": {}, "outputs": [], "execution_count": null}], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}`
+
+	stale := save(t, project, `{"path": "notes.ipynb", "type": "notebook", "format": "json", "content": `+mine+`, "hash": "stale"}`)
+	assert.Equal(t, http.StatusConflict, stale.Code)
+
+	current := save(t, project, `{"path": "notes.ipynb", "type": "notebook", "format": "json", "content": `+mine+`, "hash": "`+contentHash(theirs)+`"}`)
+	assert.Equal(t, http.StatusOK, current.Code)
+	var result SaveResult
+	assert.NoError(t, json.Unmarshal(current.Body.Bytes(), &result))
+	written, _ := os.ReadFile(filepath.Join(projectDir, "notes.ipynb"))
+	assert.Equal(t, contentHash(written), result.Hash)
+}

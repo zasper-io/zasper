@@ -243,7 +243,8 @@ func (h *Handler) replaceFile(run *run, file ReplaceFile) (int, error) {
 		if err != nil || count == 0 {
 			return 0, err
 		}
-		return count, h.project.UpdateContent(file.Path, "file", "text", after)
+		_, err = h.project.UpdateContent(file.Path, "file", "text", after)
+		return count, err
 	}
 
 	data, err := os.ReadFile(osPath)
@@ -254,5 +255,6 @@ func (h *Handler) replaceFile(run *run, file ReplaceFile) (int, error) {
 	if err != nil || count == 0 {
 		return 0, err
 	}
-	return count, h.project.UpdateNbContent(file.Path, "notebook", "json", map[string]interface{}(nbformat.Document(doc)))
+	_, err = h.project.UpdateNbContent(file.Path, "notebook", "json", map[string]interface{}(nbformat.Document(doc)))
+	return count, err
 }

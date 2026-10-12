@@ -1,10 +1,13 @@
 package content
 
+import "sync"
+
 // Handler answers /api/contents and the project's watch socket.
 type Handler struct {
 	project Project
 	watch   *projectWatch
 	onMoved func(from, to string)
+	saving  sync.Mutex
 }
 
 // NewHandler serves the files of project.

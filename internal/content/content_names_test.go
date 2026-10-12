@@ -26,7 +26,7 @@ func TestAListingIsNamedAfterItsFolder(t *testing.T) {
 	project, projectDir := testProject(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(projectDir, "data", "raw"), 0o755))
 
-	model, err := project.GetContent("data/raw", "directory", "text", false)
+	model, err := project.GetContent("data/raw", "directory", "text")
 	require.NoError(t, err)
 
 	assert.Equal(t, "raw", model.Name)

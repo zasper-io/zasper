@@ -94,6 +94,8 @@ export function useNotebookDocument() {
    * document afterwards is how reading an unchanged file came to look like somebody else's edit.
    */
   const diskForm = useRef<string | null>(null);
+  /** The hash the server served with that version, which a save hands back. */
+  const diskHash = useRef('');
 
   /**
    * Takes a document the server sent as the one now open, recording what the file says on the way
@@ -127,6 +129,7 @@ export function useNotebookDocument() {
     async (path: string): Promise<NotebookModel | null> => {
       try {
         const resJson = await getNotebook(path);
+        diskHash.current = resJson.hash ?? '';
         applyNotebook(resJson.content);
         return resJson.content;
       } catch (err: unknown) {
@@ -143,8 +146,11 @@ export function useNotebookDocument() {
    * Records that `saved` is now what the file holds. It takes the document that was written rather
    * than reading the current one, so a change made while the write was in flight stays unsaved.
    */
-  const markSaved = useCallback((saved: NotebookModel) => {
+  const markSaved = useCallback((saved: NotebookModel, hash?: string) => {
     diskForm.current = stringifyNotebook(saved);
+    if (hash !== undefined) {
+      diskHash.current = hash;
+    }
     setSavedNotebook(saved);
   }, []);
 
@@ -164,6 +170,7 @@ export function useNotebookDocument() {
     loadNotebook,
     applyNotebook,
     diskForm,
+    diskHash,
   };
 }
 

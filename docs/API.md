@@ -82,8 +82,8 @@ pins that token, in which case sessions survive the restart.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/contents` | **Read** a file or list a directory. Body: `{"path": "..."}`. |
-| `PUT` | `/api/contents` | Write a file. |
+| `POST` | `/api/contents` | **Read** a file or list a directory. Body: `{"path": "..."}`. A file or notebook carries `hash`, the SHA-256 of its bytes on disk, and `hash_algorithm`. |
+| `PUT` | `/api/contents` | Write a file. Answers `{"hash"}`, the hash of what was written. See below. |
 | `POST` | `/api/contents/create` | Create a file or directory. |
 | `DELETE` | `/api/contents` | Delete. Body carries the path. |
 | `POST` | `/api/contents/rename` | Rename in place. |
@@ -97,6 +97,18 @@ pins that token, in which case sessions survive the restart.
 
 Writes are atomic: Zasper writes beside the target and renames over it, so an
 interrupted save cannot truncate a notebook.
+
+### Saving over a change you have not seen
+
+A `PUT` may carry `hash`: the hash of the version it replaces, as a read or an
+earlier save returned it. When the file on disk is no longer that version —
+another program, an agent or a second tab wrote it, or deleted it — nothing is
+written and the answer is `409` with `{"error", "message", "hash"}`, where
+`hash` is what the file holds now (`""` when it is gone). Read the file, decide,
+and save again with that hash to overwrite it deliberately.
+
+Without `hash` a save writes whatever is there, as it always has, so an older
+client keeps working. Zasper's own editors always send it.
 
 ### `GET /api/contents/watch` (WebSocket)
 

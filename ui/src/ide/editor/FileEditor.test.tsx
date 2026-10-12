@@ -15,6 +15,8 @@ import { Provider as SeededProvider } from '@/testing/Provider';
 const getFileContent = vi.fn();
 const getEditorConfig = vi.fn();
 const saveFile = vi.fn();
+/** The version each save said it replaced, kept apart so the many assertions on what was written stay as they are. */
+const savedOver = vi.fn();
 const downloadContent = vi.fn();
 const saveAs = vi.fn();
 const getRunCommand = vi.fn();
@@ -22,7 +24,11 @@ const getRunCommand = vi.fn();
 vi.mock('@/api', () => ({
   getFileContent: (path: string) => getFileContent(path),
   getEditorConfig: (path: string) => getEditorConfig(path),
-  saveFile: (path: string, content: string) => saveFile(path, content),
+  saveFile: (path: string, content: string, hash?: string) => {
+    savedOver(hash);
+    return saveFile(path, content);
+  },
+  isSaveConflict: (failure: unknown) => (failure as { status?: number }).status === 409,
   downloadContent: (path: string) => downloadContent(path),
   getRunCommand: (path: string) => getRunCommand(path),
   logApiError: () => () => {},
@@ -34,7 +40,7 @@ vi.mock('@/browser', () => ({
 }));
 
 function text(content: string) {
-  return { format: 'text', content, mimetype: 'text/plain' };
+  return { format: 'text', content, mimetype: 'text/plain', hash: `hash of ${content}` };
 }
 
 /**
@@ -142,7 +148,7 @@ function TabBar() {
   return (
     <div>
       <span data-testid="unsaved">{Object.keys(unsavedTabs).join(',')}</span>
-      <button type="button" onClick={() => unsavedTabs['notes.txt']?.()}>
+      <button type="button" onClick={() => void unsavedTabs['notes.txt']?.().catch(() => {})}>
         save it
       </button>
     </div>
@@ -162,12 +168,13 @@ describe('FileEditor', () => {
   beforeEach(() => {
     getFileContent.mockReset();
     saveFile.mockReset();
+    savedOver.mockReset();
     downloadContent.mockReset();
     saveAs.mockReset();
     getFileContent.mockResolvedValue(text('first line\n'));
     getEditorConfig.mockReset();
     getEditorConfig.mockResolvedValue({});
-    saveFile.mockResolvedValue(undefined);
+    saveFile.mockResolvedValue('hash after the save');
   });
 
   afterEach(() => {
@@ -215,6 +222,70 @@ describe('FileEditor', () => {
 
     await waitFor(() => expect(unsavedPaths()).toBe(''));
     expect(saveFile).toHaveBeenCalledWith('notes.txt', 'first line\nsecond line\n');
+  });
+
+  it('says which version a save replaces, and the next save replaces what it wrote', async () => {
+    await renderEditor();
+    type('first line\nsecond line\n');
+    fireEvent.click(screen.getByText('save it'));
+    await waitFor(() => expect(unsavedPaths()).toBe(''));
+    type('first line\nthird line\n');
+    fireEvent.click(screen.getByText('save it'));
+    await waitFor(() => expect(saveFile).toHaveBeenCalledTimes(2));
+
+    expect(savedOver.mock.calls).toEqual([['hash of first line\n'], ['hash after the save']]);
+  });
+
+  describe('a save over a change it has not seen', () => {
+    const REFUSED = 'notes.txt was not saved.';
+
+    async function saveAfterAWriteOnDisk() {
+      await renderEditor();
+      type('first line\nmine\n');
+      saveFile.mockRejectedValueOnce({ status: 409 });
+      getFileContent.mockResolvedValue(text('first line\ntheirs\n'));
+      fireEvent.click(screen.getByText('save it'));
+      await screen.findByText(REFUSED);
+    }
+
+    it('writes nothing, keeps the edits, and says so', async () => {
+      await saveAfterAWriteOnDisk();
+
+      expect(saveFile).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('textbox')).toHaveValue('first line\nmine\n');
+      expect(unsavedPaths()).toBe('notes.txt');
+    });
+
+    it('overwrites the version now on disk when asked to', async () => {
+      await saveAfterAWriteOnDisk();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Overwrite' }));
+
+      await waitFor(() => expect(unsavedPaths()).toBe(''));
+      expect(savedOver).toHaveBeenLastCalledWith('hash of first line\ntheirs\n');
+      expect(screen.queryByText(REFUSED)).not.toBeInTheDocument();
+    });
+
+    it('takes theirs', async () => {
+      await saveAfterAWriteOnDisk();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Take theirs' }));
+
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('first line\ntheirs\n'));
+      expect(saveFile).toHaveBeenCalledTimes(1);
+    });
+
+    it('saves without asking when the file was deleted', async () => {
+      await renderEditor();
+      type('first line\nmine\n');
+      saveFile.mockRejectedValueOnce({ status: 409 });
+      getFileContent.mockRejectedValue(new Error('Content not found'));
+      fireEvent.click(screen.getByText('save it'));
+
+      await waitFor(() => expect(unsavedPaths()).toBe(''));
+      expect(savedOver).toHaveBeenLastCalledWith(undefined);
+      expect(screen.queryByText(REFUSED)).not.toBeInTheDocument();
+    });
   });
 
   it('writes a file whose lines end in CRLF back with CRLF', async () => {

@@ -29,7 +29,7 @@ func TestUpdateNbContentWritesInsideTheProjectDirectory(t *testing.T) {
 	project := NewProject(projectDir)
 	t.Chdir(t.TempDir())
 
-	err := project.UpdateNbContent("notes.ipynb", "notebook", "json",
+	_, err := project.UpdateNbContent("notes.ipynb", "notebook", "json",
 		`{"cells": [{"cell_type": "code", "source": "print(1)"}], "nbformat": 4, "nbformat_minor": 4}`)
 	assert.NoError(t, err)
 
@@ -45,7 +45,7 @@ func TestUpdateNbContentWritesInsideTheProjectDirectory(t *testing.T) {
 func TestUpdateContentWritesInsideTheProjectDirectory(t *testing.T) {
 	project, projectDir := testProject(t)
 
-	err := project.UpdateContent("notes.txt", "file", "text", "hello")
+	_, err := project.UpdateContent("notes.txt", "file", "text", "hello")
 	assert.NoError(t, err)
 
 	written, err := os.ReadFile(filepath.Join(projectDir, "notes.txt"))
@@ -57,7 +57,7 @@ func TestWritesOutsideTheProjectDirectoryAreRefused(t *testing.T) {
 	project, projectDir := testProject(t)
 	escape := filepath.Join(filepath.Dir(projectDir), "escaped.txt")
 
-	err := project.UpdateContent("../escaped.txt", "file", "text", "hello")
+	_, err := project.UpdateContent("../escaped.txt", "file", "text", "hello")
 
 	assert.Error(t, err, "a path that leaves the project directory should not be written")
 	assert.NoFileExists(t, escape)

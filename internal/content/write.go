@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/zasper-io/zasper/internal/atomicfile"
 	"github.com/zasper-io/zasper/internal/nbformat"
@@ -12,10 +14,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (p Project) UpdateNbContent(path, ftype, format string, content interface{}) error {
+func (p Project) UpdateNbContent(path, ftype, format string, content interface{}) (string, error) {
 	osPath, err := p.savePath(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Convert content to JSON if it's a string or []byte, otherwise directly marshal it
@@ -32,17 +34,17 @@ func (p Project) UpdateNbContent(path, ftype, format string, content interface{}
 		// If content is already a map, we can directly marshal it into the notebook
 		contentBytes, err = json.Marshal(content)
 		if err != nil {
-			return fmt.Errorf("failed to marshal map content into JSON: %w", err)
+			return "", fmt.Errorf("failed to marshal map content into JSON: %w", err)
 		}
 	default:
 		// If the content is an unsupported type
-		return fmt.Errorf("content is not a valid type (expected string, []byte, or map[string]interface{}), got: %T", content)
+		return "", fmt.Errorf("content is not a valid type (expected string, []byte, or map[string]interface{}), got: %T", content)
 	}
 
 	// The editor sends the notebook back in the form it received it, so no line joining here.
 	nb, err := nbformat.Unmarshal(contentBytes)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal content into notebook: %w", err)
+		return "", fmt.Errorf("failed to unmarshal content into notebook: %w", err)
 	}
 
 	// Checked as it will be written, not as the editor sent it: Normalize takes back out what the
@@ -55,24 +57,24 @@ func (p Project) UpdateNbContent(path, ftype, format string, content interface{}
 
 	nbJSON, err := nbformat.Marshal(disk)
 	if err != nil {
-		return fmt.Errorf("failed to marshal notebook: %w", err)
+		return "", fmt.Errorf("failed to marshal notebook: %w", err)
 	}
 
 	// Atomically: a notebook half-written by a crash is a notebook lost, and this is the save path.
 	if _, err := atomicfile.Write(osPath, bytes.NewReader(nbJSON), 0o644); err != nil {
 		log.Error().Err(err).Msgf("Error updating notebook content for path: %s", osPath)
-		return fmt.Errorf("error writing notebook to path %s: %w", path, err)
+		return "", fmt.Errorf("error writing notebook to path %s: %w", path, err)
 	}
 
 	log.Debug().Msgf("saved notebook %s", path)
-	return nil
+	return contentHash(nbJSON), nil
 }
 
 // UpdateContent writes a file from text, or from base64 for bytes that are not text.
-func (p Project) UpdateContent(path, ftype, format, content string) error {
+func (p Project) UpdateContent(path, ftype, format, content string) (string, error) {
 	osPath, err := p.savePath(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	data := []byte(content)
@@ -80,15 +82,27 @@ func (p Project) UpdateContent(path, ftype, format, content string) error {
 	case "", "text":
 	case "base64":
 		if data, err = base64.StdEncoding.DecodeString(content); err != nil {
-			return fmt.Errorf("the content is not valid base64: %w", err)
+			return "", fmt.Errorf("the content is not valid base64: %w", err)
 		}
 	default:
-		return fmt.Errorf("cannot save a file in format %q", format)
+		return "", fmt.Errorf("cannot save a file in format %q", format)
 	}
 
 	if _, err := atomicfile.Write(osPath, bytes.NewReader(data), 0o644); err != nil {
 		log.Error().Err(err).Msgf("Error updating content for path: %s", osPath)
-		return err
+		return "", err
 	}
-	return nil
+	return contentHash(data), nil
+}
+
+// DiskHash is the hash of what the file holds now, or "" when there is no file.
+func (p Project) DiskHash(path string) (string, error) {
+	data, err := os.ReadFile(p.SafePath(path))
+	if errors.Is(err, os.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return contentHash(data), nil
 }

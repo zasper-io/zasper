@@ -11,8 +11,10 @@ import {
   DATAFRAMES,
   downloadContent,
   getNotebook,
+  isSaveConflict,
   logApiError,
   NotebookMetadata,
+  NotebookModel,
   prepareConnection,
   saveNotebook,
 } from '@/api';
@@ -149,6 +151,8 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
   const changedWhileHidden = useRef(false);
   const [conflict, setConflict] = useState<string | null>(null);
+  /** Whether the band is up because a save was refused, rather than because the watcher saw a change. */
+  const [refused, setRefused] = useState(false);
   const setCompares = useSetAtom(diskComparesAtom);
   const [resolution] = useAtom(
     useMemo(() => selectAtom(diskResolutionsAtom, (all) => all[data.path]), [data.path])
@@ -184,10 +188,42 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     notebook.metadata = metadata;
 
     const written = notebook;
-    await saveNotebook(data.path, written);
+    let hash;
+    try {
+      hash = await saveNotebook(data.path, written, cells.diskHash.current || undefined);
+    } catch (failure) {
+      if (!isSaveConflict(failure) || !(await refuseSave(written))) {
+        throw failure;
+      }
+      hash = await saveNotebook(data.path, written, cells.diskHash.current || undefined);
+    }
     setConflict(null);
     // Only once the write succeeded: a notebook the server refused still holds unsaved work.
-    cells.markSaved(written);
+    cells.markSaved(written, hash);
+  };
+
+  /**
+   * A save the server refused because the file changed after it was read: what is there now goes in the
+   * band and becomes the version the next save replaces. Resolves to whether the save should simply be
+   * made again, because the file is gone or already says the same.
+   */
+  const refuseSave = async (written: NotebookModel): Promise<boolean> => {
+    let resJson;
+    try {
+      resJson = await getNotebook(data.path);
+    } catch {
+      cells.diskHash.current = '';
+      return true;
+    }
+    const onDisk = stringifyNotebook(resJson.content);
+    cells.diskForm.current = onDisk;
+    cells.diskHash.current = resJson.hash ?? '';
+    if (onDisk === stringifyNotebook(written)) {
+      return true;
+    }
+    setRefused(true);
+    setConflict(onDisk);
+    return false;
   };
 
   const cellsRef = useRef(cells);
@@ -202,6 +238,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
     const currentCells = cellsRef.current;
     const onDisk = stringifyNotebook(resJson.content);
+    currentCells.diskHash.current = resJson.hash ?? '';
     if (onDisk === currentCells.diskForm.current) {
       return;
     }
@@ -224,6 +261,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       return;
     }
 
+    setRefused(false);
     setConflict(onDisk);
   }, [data.path]);
 
@@ -243,6 +281,12 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   }, [data.active, takeChangeFromDisk]);
 
   const keepMine = useCallback(() => setConflict(null), []);
+  const saveRef = useRef(saveNotebookToDisk);
+  saveRef.current = saveNotebookToDisk;
+  const overwrite = useCallback(() => {
+    setConflict(null);
+    saveRef.current().catch(logSaveFailure);
+  }, []);
 
   const takeTheirs = useCallback(async () => {
     if (conflict === null) {
@@ -272,11 +316,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
     setResolutions((resolutions) => without(resolutions, data.path));
     if (resolution === 'mine') {
-      keepMine();
+      (refused ? overwrite : keepMine)();
     } else {
       void takeTheirs();
     }
-  }, [resolution, data.path, setResolutions, keepMine, takeTheirs]);
+  }, [resolution, data.path, refused, setResolutions, overwrite, keepMine, takeTheirs]);
 
   // Registered whether or not this is the active tab: any open tab can be closed.
   useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
@@ -584,7 +628,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     // A keystroke has nowhere to report a failed save, so it goes to the console; the close prompt
     // awaits the same promise and shows the reason instead.
     saveNotebook: () => {
-      saveNotebookToDisk().catch(logApiError('Error saving notebook:'));
+      saveNotebookToDisk().catch(logSaveFailure);
     },
     openFind,
     toggleContents: () => setShowContents((shown) => !shown),
@@ -691,8 +735,9 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           <DiskChangeBand
             path={data.path}
             name={data.name}
+            refused={refused}
             onCompare={compareWithDisk}
-            onKeepMine={keepMine}
+            onKeepMine={refused ? overwrite : keepMine}
             onTakeTheirs={takeTheirs}
           />
         )}
@@ -831,4 +876,11 @@ function cellTypeOf(cell: { cell_type: string; source: string } | undefined): st
     return '';
   }
   return cell.cell_type === 'code' && parseSqlCell(cell.source) !== null ? 'sql' : cell.cell_type;
+}
+
+/** A refused save is said in the band, not the console. */
+function logSaveFailure(failure: unknown) {
+  if (!isSaveConflict(failure)) {
+    logApiError('Error saving notebook:')(failure);
+  }
 }
