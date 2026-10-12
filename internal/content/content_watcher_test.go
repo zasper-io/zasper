@@ -1,6 +1,8 @@
 package content
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -158,4 +160,110 @@ func TestASubscriberThatIsNotListeningHoldsNobodyUp(t *testing.T) {
 	for range 3 {
 		assert.True(t, hears(listening, filepath.Join(projectDir, "notes.txt"), 5*time.Second))
 	}
+}
+
+// changes reads what the subscriber's client would be sent next.
+func changes(t *testing.T, watch *projectWatch, subscriber *watchSubscriber) map[string]*string {
+	t.Helper()
+
+	var message watchMessage
+	require.NoError(t, json.Unmarshal(watch.take(subscriber), &message))
+	byPath := map[string]*string{}
+	for _, change := range message.Changed {
+		byPath[change.Path] = change.Hash
+	}
+	return byPath
+}
+
+func TestAChangeSaysWhichFile(t *testing.T) {
+	watch, projectDir := watchedProject(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(projectDir, "data"), 0o755))
+	subscriber := subscribe(t, watch)
+	settle(subscriber)
+	watch.take(subscriber)
+
+	require.True(t, hears(subscriber, filepath.Join(projectDir, "data", "notes.txt"), 5*time.Second))
+	time.Sleep(100 * time.Millisecond)
+
+	reported := changes(t, watch, subscriber)
+	assert.Contains(t, reported, "data/notes.txt")
+	assert.Nil(t, reported["data/notes.txt"], "a file nobody has open was hashed")
+}
+
+func TestManyWritesToOneFileAreOneChange(t *testing.T) {
+	watch, projectDir := watchedProject(t)
+	subscriber := subscribe(t, watch)
+	settle(subscriber)
+	watch.take(subscriber)
+
+	path := filepath.Join(projectDir, "notes.txt")
+	for i := range 20 {
+		require.NoError(t, os.WriteFile(path, []byte(strconv.Itoa(i)), 0o644))
+	}
+	settle(subscriber)
+
+	assert.Equal(t, map[string]*string{"notes.txt": nil}, changes(t, watch, subscriber))
+}
+
+func TestAnOpenFileInAnIgnoredFolderIsReportedWithItsHash(t *testing.T) {
+	watch, projectDir := watchedProject(t)
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, ".gitignore"), []byte("scratch/\n"), 0o644))
+	scratch := filepath.Join(projectDir, "scratch")
+	require.NoError(t, os.MkdirAll(scratch, 0o755))
+	subscriber := subscribe(t, watch)
+	watch.want(subscriber, []string{"scratch/try.py"})
+	settle(subscriber)
+	watch.take(subscriber)
+
+	assert.False(t, hears(subscriber, filepath.Join(scratch, "other.py"), time.Second),
+		"a file nobody has open in an ignored folder was reported")
+	watch.take(subscriber)
+
+	require.True(t, hears(subscriber, filepath.Join(scratch, "try.py"), 5*time.Second))
+	settle(subscriber)
+	reported := changes(t, watch, subscriber)
+	require.Contains(t, reported, "scratch/try.py")
+	data, err := os.ReadFile(filepath.Join(scratch, "try.py"))
+	require.NoError(t, err)
+	assert.Equal(t, contentHash(data), *reported["scratch/try.py"])
+}
+
+func TestAnOpenFileThatIsDeletedIsReportedWithNoHash(t *testing.T) {
+	watch, projectDir := watchedProject(t)
+	path := filepath.Join(projectDir, "notes.txt")
+	require.NoError(t, os.WriteFile(path, []byte("hello"), 0o644))
+	subscriber := subscribe(t, watch)
+	watch.want(subscriber, []string{"notes.txt"})
+	settle(subscriber)
+	watch.take(subscriber)
+
+	require.NoError(t, os.Remove(path))
+	settle(subscriber)
+
+	reported := changes(t, watch, subscriber)
+	require.Contains(t, reported, "notes.txt")
+	assert.Equal(t, "", *reported["notes.txt"])
+}
+
+func TestTooManyChangesAreOneReload(t *testing.T) {
+	watch, _ := watchedProject(t)
+	subscriber := subscribe(t, watch)
+	settle(subscriber)
+	watch.take(subscriber)
+
+	for i := range maxPendingPaths + 1 {
+		watch.notify(fmt.Sprintf("site-packages/%d.py", i), "")
+	}
+
+	assert.Equal(t, "reload", string(watch.take(subscriber)))
+	assert.Nil(t, watch.take(subscriber), "a reload left the paths before it pending")
+}
+
+func TestAPathOutsideTheProjectIsNotWatched(t *testing.T) {
+	watch, _ := watchedProject(t)
+	subscriber := subscribe(t, watch)
+
+	watch.want(subscriber, []string{"../elsewhere.txt", "/etc/passwd", "notes.txt"})
+
+	assert.Equal(t, map[string]struct{}{"notes.txt": {}}, subscriber.wants)
 }

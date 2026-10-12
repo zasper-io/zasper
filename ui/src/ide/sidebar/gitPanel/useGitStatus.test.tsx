@@ -28,7 +28,7 @@ class FakeSocket {
   static instances: FakeSocket[] = [];
 
   onopen: (() => void) | null = null;
-  onmessage: (() => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
   onclose: (() => void) | null = null;
   close = vi.fn();
 
@@ -77,7 +77,7 @@ describe('useGitStatus', () => {
       // only thing that notices, and a source control panel that does not is worse than none.
       getGitStatus.mockResolvedValue(aStatus('other'));
       act(() => {
-        FakeSocket.latest.onmessage?.();
+        FakeSocket.latest.onmessage?.({ data: 'reload' });
         vi.advanceTimersByTime(500);
       });
 
@@ -92,7 +92,7 @@ describe('useGitStatus', () => {
     try {
       renderHook(() => useGitStatus(true));
       act(() => {
-        FakeSocket.latest.onmessage?.();
+        FakeSocket.latest.onmessage?.({ data: 'reload' });
         vi.advanceTimersByTime(500);
       });
 

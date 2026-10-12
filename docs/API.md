@@ -112,10 +112,25 @@ client keeps working. Zasper's own editors always send it.
 
 ### `GET /api/contents/watch` (WebSocket)
 
-Sends the literal string `reload` whenever anything in the project changes. It
-carries no detail about what changed — re-read what you need. This protocol is
-deliberately minimal and may gain structure in a later 2.x release; a client
-should treat any message as "something changed".
+Tells the client what changed in the project, as paths relative to it:
+
+```json
+{"changed": [{"path": "data/raw.csv"}, {"path": "notes.ipynb", "hash": "9f2c…"}]}
+```
+
+Changes are collected while a message waits to be sent, so a file written many
+times in a row is one entry. More than 500 waiting changes are sent as the
+literal string `reload` instead: read everything again.
+
+A client says which files it has open by sending `{"watch": ["notes.ipynb", ...]}`,
+which replaces what it sent before. Those files are reported even in a folder the
+project's watch leaves out, such as one `.gitignore` ignores, and come with
+`hash`, the SHA-256 their contents now have (`""` when the file is gone) — the
+same hash a read serves, so a client can tell its own save from someone else's
+write without reading the file.
+
+A client written for the bare `reload` still works: it should treat any message
+as "something changed".
 
 ## Trust
 

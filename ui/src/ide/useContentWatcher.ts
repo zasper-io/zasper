@@ -4,9 +4,8 @@ import { websocketUrl } from '@/api';
 import { checkServer, serverAnswered, watchServer } from './serverConnection';
 
 /**
- * How long events are collected before a listener is told. The server sends one message per filesystem
- * event, and something like `pip install` sends thousands, so a refresh per message would be a refresh
- * per file written.
+ * How long changes are collected before a listener is told. Something like `pip install` changes
+ * thousands of files, so a refresh per message would be a refresh per file written.
  */
 const COLLECT_MS = 500;
 
@@ -14,8 +13,18 @@ const RECONNECT_MS = 1000;
 const RECONNECT_MAX_MS = 30000;
 
 interface Listener {
-  changed: () => void;
+  /** Told of a change to this file only, with its hash; every change when absent. */
+  path?: string;
+  /** `hash` is what the file now holds, `''` when it is gone, and undefined when it is not known. */
+  changed: (hash?: string) => void;
   collect?: ReturnType<typeof setTimeout>;
+  /** The last hash heard while collecting, so the listener is told of the latest version. */
+  hash?: string;
+}
+
+/** What the server sends for a change; a bare `reload` says to read everything again. */
+interface ChangeMessage {
+  changed: { path: string; hash?: string }[];
 }
 
 /*
@@ -29,13 +38,61 @@ let attempt = 0;
 let opened = 0;
 let stopWatchingServer: (() => void) | undefined;
 
-function collect(listener: Listener): void {
+function collect(listener: Listener, hash?: string): void {
+  listener.hash = hash;
   if (listener.collect === undefined) {
     listener.collect = setTimeout(() => {
       listener.collect = undefined;
-      listener.changed();
+      listener.changed(listener.hash);
     }, COLLECT_MS);
   }
+}
+
+/** The project-relative spelling the server uses, whatever a tab calls its file. */
+function normalise(path: string): string {
+  return path.replace(/^(\.\/|\/)+/, '');
+}
+
+/** Tells the server which files are open, so it reports them wherever they are and with their hash. */
+function sendWatched(): void {
+  if (socket?.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  const paths = new Set<string>();
+  listeners.forEach((listener) => {
+    if (listener.path !== undefined) {
+      paths.add(listener.path);
+    }
+  });
+  socket.send(JSON.stringify({ watch: [...paths] }));
+}
+
+function parse(data: unknown): ChangeMessage | null {
+  if (typeof data !== 'string' || data === 'reload') {
+    return null;
+  }
+  try {
+    const message = JSON.parse(data) as ChangeMessage;
+    return Array.isArray(message.changed) ? message : null;
+  } catch {
+    return null;
+  }
+}
+
+function receive(event: MessageEvent): void {
+  const message = parse(event.data);
+  if (message === null) {
+    listeners.forEach((listener) => collect(listener));
+    return;
+  }
+  const hashes = new Map(message.changed.map((change) => [change.path, change.hash]));
+  listeners.forEach((listener) => {
+    if (listener.path === undefined) {
+      collect(listener);
+    } else if (hashes.has(listener.path)) {
+      collect(listener, hashes.get(listener.path));
+    }
+  });
 }
 
 function connect(): void {
@@ -47,6 +104,7 @@ function connect(): void {
     attempt = 0;
     opened += 1;
     serverAnswered();
+    sendWatched();
     // Anything that happened while the socket was down went unreported, so a reconnect cannot trust
     // what is on screen. The first open comes with each listener's own initial read.
     if (opened > 1) {
@@ -54,7 +112,7 @@ function connect(): void {
     }
   };
 
-  current.onmessage = () => listeners.forEach(collect);
+  current.onmessage = receive;
 
   current.onclose = () => {
     // Closed on purpose, because nobody is listening any more.
@@ -82,12 +140,17 @@ function listen(listener: Listener): () => void {
   if (socket === null && retry === undefined) {
     connect();
     stopWatchingServer = watchServer(reconnectWhenBack);
+  } else if (listener.path !== undefined) {
+    sendWatched();
   }
 
   return () => {
     listeners.delete(listener);
     clearTimeout(listener.collect);
     if (listeners.size > 0) {
+      if (listener.path !== undefined) {
+        sendWatched();
+      }
       return;
     }
     clearTimeout(retry);
@@ -104,8 +167,7 @@ function listen(listener: Listener): () => void {
 
 /**
  * Calls `onChange` when the project directory changes underneath the app — a file written by a
- * terminal, a package installed, a branch checked out. /api/contents/watch answers with the string
- * 'reload' and nothing else, so the message says only that something changed, never what.
+ * terminal, a package installed, a branch checked out — whatever changed.
  */
 export function useContentWatcher(onChange: () => void): void {
   // The callback closes over what is currently open, so it is a new function on every render, while
@@ -114,4 +176,21 @@ export function useContentWatcher(onChange: () => void): void {
   latest.current = onChange;
 
   useEffect(() => listen({ changed: () => latest.current() }), []);
+}
+
+/**
+ * Calls `onChange` when the file at `path` changes on disk, with the hash it now holds, so an editor that
+ * already holds that version need not read it again. The file is watched even in a folder the project's
+ * watch leaves out, such as one `.gitignore` ignores. The hash is undefined when the change is not known
+ * to be this file's alone — a reconnect, or more changes than the server lists — and the file should be
+ * read again.
+ */
+export function useFileWatcher(path: string, onChange: (hash?: string) => void): void {
+  const latest = useRef(onChange);
+  latest.current = onChange;
+
+  useEffect(
+    () => listen({ path: normalise(path), changed: (hash) => latest.current(hash) }),
+    [path]
+  );
 }

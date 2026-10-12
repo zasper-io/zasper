@@ -30,7 +30,7 @@ import { saveAs } from '@/browser';
 import { Icon, IconName } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { useCommandEnabled, useRegisterCommands, useRunCommand } from '@/commands/registry';
-import { useContentWatcher } from '@/ide/useContentWatcher';
+import { useFileWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
 import { formatDocumentNow } from '@/lsp/formatting';
@@ -538,12 +538,12 @@ export default function FileEditor(props: FileEditorProps) {
     setConflict(file.content);
   }, [path, isDirty, adoptLineEnding]);
 
-  useContentWatcher(() => {
-    if (!canSave) {
+  useFileWatcher(path, (hash) => {
+    // The version this editor already holds, such as the echo of its own save.
+    if (!canSave || (hash !== undefined && hash === diskHash.current)) {
       return;
     }
-    // Every open file would read itself again on every change anywhere in the project; a tab nobody
-    // can see waits until it is shown.
+    // A tab nobody can see waits until it is shown.
     if (!props.data.active) {
       changedWhileHidden.current = true;
       return;

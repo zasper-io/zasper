@@ -106,16 +106,16 @@ vi.mock('@uiw/react-codemirror', async () => {
 const dispatched = vi.hoisted(() => ({ last: null as { selection?: { anchor: number } } | null }));
 
 // The watch socket, as the editor's listener: a test says when the project changed.
-const watchers = vi.hoisted(() => ({ latest: () => {} }));
+const watchers = vi.hoisted(() => ({ latest: (_hash?: string) => {} }));
 vi.mock('@/ide/useContentWatcher', () => ({
-  useContentWatcher: (changed: () => void) => {
+  useFileWatcher: (_path: string, changed: (hash?: string) => void) => {
     watchers.latest = changed;
   },
 }));
 
-/** The project changed on disk, as the watch socket reports it. */
-async function changedOnDisk(): Promise<void> {
-  await act(async () => watchers.latest());
+/** The file changed on disk, as the watch socket reports it, with the hash it now holds when known. */
+async function changedOnDisk(hash?: string): Promise<void> {
+  await act(async () => watchers.latest(hash));
 }
 
 const tab: FileTab = {
@@ -234,6 +234,30 @@ describe('FileEditor', () => {
     await waitFor(() => expect(saveFile).toHaveBeenCalledTimes(2));
 
     expect(savedOver.mock.calls).toEqual([['hash of first line\n'], ['hash after the save']]);
+  });
+
+  it('does not read the file again for the echo of its own save', async () => {
+    await renderEditor();
+    type('first line\nsecond line\n');
+    fireEvent.click(screen.getByText('save it'));
+    await waitFor(() => expect(unsavedPaths()).toBe(''));
+    getFileContent.mockClear();
+
+    await changedOnDisk('hash after the save');
+
+    expect(getFileContent).not.toHaveBeenCalled();
+  });
+
+  it('reads the file again for a version it does not hold', async () => {
+    await renderEditor();
+    getFileContent.mockClear();
+    getFileContent.mockResolvedValue(text('first line\nwritten by an agent\n'));
+
+    await changedOnDisk('hash of first line\nwritten by an agent\n');
+
+    await waitFor(() =>
+      expect(screen.getByRole('textbox')).toHaveValue('first line\nwritten by an agent\n')
+    );
   });
 
   describe('a save over a change it has not seen', () => {

@@ -1,11 +1,13 @@
 package content
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,8 +21,12 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: httpx.SameOrigin,
 }
 
-// How long a reload message may take to reach a client before the client is taken to have stalled.
+// How long a message may take to reach a client before the client is taken to have stalled.
 const watchWriteTimeout = 10 * time.Second
+
+// More changes than this waiting for one client are sent as a bare "reload": a checkout or an install
+// is better answered by reading everything again than by a list of thousands of paths.
+const maxPendingPaths = 500
 
 /*
 projectWatch is one fsnotify watcher over the project, shared by every open watch socket. It starts with
@@ -32,16 +38,41 @@ type projectWatch struct {
 	root        string
 	watcher     *fsnotify.Watcher
 	subscribers map[*watchSubscriber]struct{}
+	// The folders the walk of the project watches, so that a folder watched only for a file someone has
+	// open reports that file and nothing else in it.
+	tree map[string]struct{}
 }
 
-// watchSubscriber holds at most one pending change: any number of changes before its client is told
-// make one reload.
+/*
+watchSubscriber is one client. `changed` holds at most one signal, and pending the paths changed since the
+client was last told, so any number of writes to one file before then make one entry.
+*/
 type watchSubscriber struct {
 	changed chan struct{}
+	pending map[string]string
+	reload  bool
+	// The files this client has open, reported wherever they are and sent with their hash.
+	wants map[string]struct{}
+}
+
+// Change is one path in a message to a client, relative to the project. Hash is set for a file the
+// client has open, and is "" when that file is gone.
+type Change struct {
+	Path string  `json:"path"`
+	Hash *string `json:"hash,omitempty"`
+}
+
+type watchMessage struct {
+	Changed []Change `json:"changed"`
+}
+
+// watchRequest is what a client sends: every file it has open, replacing what it sent before.
+type watchRequest struct {
+	Watch []string `json:"watch"`
 }
 
 func newProjectWatch(root string) *projectWatch {
-	return &projectWatch{root: root, subscribers: map[*watchSubscriber]struct{}{}}
+	return &projectWatch{root: root, subscribers: map[*watchSubscriber]struct{}{}, tree: map[string]struct{}{}}
 }
 
 func (p *projectWatch) subscribe() (*watchSubscriber, error) {
@@ -65,9 +96,80 @@ func (p *projectWatch) subscribe() (*watchSubscriber, error) {
 		go p.run(watcher, root)
 	}
 
-	subscriber := &watchSubscriber{changed: make(chan struct{}, 1)}
+	subscriber := &watchSubscriber{
+		changed: make(chan struct{}, 1),
+		pending: map[string]string{},
+		wants:   map[string]struct{}{},
+	}
 	p.subscribers[subscriber] = struct{}{}
 	return subscriber, nil
+}
+
+/*
+want records the files a client has open, as paths relative to the project. A file in a folder the walk
+leaves out, such as one .gitignore ignores, has its folder watched as well, so it reconciles like any other.
+*/
+func (p *projectWatch) want(subscriber *watchSubscriber, paths []string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	subscriber.wants = map[string]struct{}{}
+	for _, path := range paths {
+		clean := filepath.ToSlash(filepath.Clean(path))
+		if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../") {
+			continue
+		}
+		subscriber.wants[clean] = struct{}{}
+		dir := filepath.Dir(filepath.Join(p.root, filepath.FromSlash(clean)))
+		if _, watched := p.tree[dir]; watched || p.watcher == nil {
+			continue
+		}
+		if err := p.watcher.Add(dir); err != nil {
+			log.Debug().Err(err).Str("path", dir).Msg("could not watch the folder of an open file")
+		}
+	}
+}
+
+// wanted says whether any client has path open.
+func (p *projectWatch) wanted(path string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for subscriber := range p.subscribers {
+		if _, ok := subscriber.wants[path]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// take hands over what a subscriber has pending, as the message its client is sent.
+func (p *projectWatch) take(subscriber *watchSubscriber) []byte {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if subscriber.reload {
+		subscriber.reload = false
+		subscriber.pending = map[string]string{}
+		return []byte("reload")
+	}
+	if len(subscriber.pending) == 0 {
+		return nil
+	}
+	message := watchMessage{Changed: make([]Change, 0, len(subscriber.pending))}
+	for path, hash := range subscriber.pending {
+		change := Change{Path: path}
+		if _, ok := subscriber.wants[path]; ok {
+			change.Hash = &hash
+		}
+		message.Changed = append(message.Changed, change)
+	}
+	subscriber.pending = map[string]string{}
+	data, err := json.Marshal(message)
+	if err != nil {
+		return []byte("reload")
+	}
+	return data
 }
 
 func (p *projectWatch) unsubscribe(subscriber *watchSubscriber) {
@@ -81,15 +183,22 @@ func (p *projectWatch) unsubscribe(subscriber *watchSubscriber) {
 	if len(p.subscribers) == 0 && p.watcher != nil {
 		p.watcher.Close()
 		p.watcher = nil
+		p.tree = map[string]struct{}{}
 	}
 }
 
-// notify tells every subscriber that something changed, without waiting on any of them.
-func (p *projectWatch) notify() {
+// notify tells every subscriber that path changed, without waiting on any of them. hash is what an open
+// file now holds.
+func (p *projectWatch) notify(path, hash string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for subscriber := range p.subscribers {
+		if len(subscriber.pending) >= maxPendingPaths {
+			subscriber.reload = true
+		} else {
+			subscriber.pending[path] = hash
+		}
 		select {
 		case subscriber.changed <- struct{}{}:
 		default:
@@ -97,9 +206,26 @@ func (p *projectWatch) notify() {
 	}
 }
 
+// reported says whether a change to path is news to anyone: it is in the watched tree, or someone has it
+// open in a folder watched only for that.
+func (p *projectWatch) reported(path string) bool {
+	p.mu.Lock()
+	_, inTree := p.tree[filepath.Dir(path)]
+	p.mu.Unlock()
+	return inTree || p.wanted(p.relative(path))
+}
+
+func (p *projectWatch) relative(path string) string {
+	rel, err := filepath.Rel(p.root, path)
+	if err != nil {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(rel)
+}
+
 // run watches the project until the watcher is closed.
 func (p *projectWatch) run(watcher *fsnotify.Watcher, root string) {
-	watchTree(watcher, root, root)
+	p.watchTree(watcher, root, root)
 
 	for {
 		select {
@@ -111,7 +237,7 @@ func (p *projectWatch) run(watcher *fsnotify.Watcher, root string) {
 			// clone` and `mkdir -p` make a whole tree before any one level of it could be reported.
 			if event.Has(fsnotify.Create) {
 				if info, err := os.Lstat(event.Name); err == nil && info.IsDir() {
-					watchTree(watcher, root, event.Name)
+					p.watchTree(watcher, root, event.Name)
 				}
 			}
 			// Windows reports a Write on a folder whenever something inside it changes, which would make
@@ -122,8 +248,15 @@ func (p *projectWatch) run(watcher *fsnotify.Watcher, root string) {
 					continue
 				}
 			}
-			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
-				p.notify()
+			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 && p.reported(event.Name) {
+				path := p.relative(event.Name)
+				hash := ""
+				if p.wanted(path) {
+					if data, err := os.ReadFile(event.Name); err == nil {
+						hash = contentHash(data)
+					}
+				}
+				p.notify(path, hash)
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
@@ -139,7 +272,7 @@ watchTree adds dir and the folders under it, leaving out what ProjectIgnores ski
 tests or build is watched like any other. A folder that cannot be read or watched is passed over rather
 than ending the walk, so the rest of the project is still watched.
 */
-func watchTree(watcher *fsnotify.Watcher, root, dir string) {
+func (p *projectWatch) watchTree(watcher *fsnotify.Watcher, root, dir string) {
 	ignores := NewProjectIgnores(root)
 
 	filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
@@ -160,11 +293,18 @@ func watchTree(watcher *fsnotify.Watcher, root, dir string) {
 			log.Debug().Err(err).Str("path", path).Msg("could not watch a folder; changes in it will not refresh the file browser")
 			return fs.SkipDir
 		}
+		p.mu.Lock()
+		p.tree[path] = struct{}{}
+		p.mu.Unlock()
 		return nil
 	})
 }
 
-// Watch sends a client "reload" whenever something in the project changes.
+/*
+Watch tells a client what changed in the project: `{"changed": [{"path"}, ...]}`, with a `hash` for each
+file the client has said it has open, or the bare string "reload" when it should read everything again.
+The client says which files it has open with `{"watch": [paths]}`.
+*/
 func (h *Handler) Watch(w http.ResponseWriter, req *http.Request) {
 	connection, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
@@ -193,10 +333,14 @@ func (h *Handler) Watch(w http.ResponseWriter, req *http.Request) {
 			case <-stop:
 				return
 			case <-subscriber.changed:
+				message := h.watch.take(subscriber)
+				if message == nil {
+					continue
+				}
 				// A client that has stopped reading is dropped when the deadline passes, rather than
 				// holding this goroutine for as long as the server runs.
 				connection.SetWriteDeadline(time.Now().Add(watchWriteTimeout))
-				if err := connection.WriteMessage(websocket.TextMessage, []byte("reload")); err != nil {
+				if err := connection.WriteMessage(websocket.TextMessage, message); err != nil {
 					connection.Close()
 					return
 				}
@@ -205,8 +349,13 @@ func (h *Handler) Watch(w http.ResponseWriter, req *http.Request) {
 	}()
 
 	for {
-		if _, _, err := connection.ReadMessage(); err != nil {
+		_, data, err := connection.ReadMessage()
+		if err != nil {
 			break
+		}
+		var request watchRequest
+		if json.Unmarshal(data, &request) == nil && request.Watch != nil {
+			h.watch.want(subscriber, request.Watch)
 		}
 	}
 	close(stop)

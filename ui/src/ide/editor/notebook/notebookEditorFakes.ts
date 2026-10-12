@@ -16,6 +16,9 @@ export function contentWatcherModule() {
     useContentWatcher: (onChange: () => void) => {
       watcher.fire = onChange;
     },
+    useFileWatcher: (_path: string, onChange: (hash?: string) => void) => {
+      watcher.fire = onChange;
+    },
   };
 }
 

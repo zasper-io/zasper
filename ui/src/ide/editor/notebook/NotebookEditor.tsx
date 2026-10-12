@@ -19,7 +19,7 @@ import {
   saveNotebook,
 } from '@/api';
 import DiskChangeBand from '../DiskChangeBand';
-import { useContentWatcher } from '@/ide/useContentWatcher';
+import { useFileWatcher } from '@/ide/useContentWatcher';
 import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
 import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
@@ -265,7 +265,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     setConflict(onDisk);
   }, [data.path]);
 
-  useContentWatcher(() => {
+  useFileWatcher(data.path, (hash) => {
+    // The version this editor already holds, such as the echo of its own save.
+    if (hash !== undefined && hash === cells.diskHash.current) {
+      return;
+    }
     if (!data.active) {
       changedWhileHidden.current = true;
       return;

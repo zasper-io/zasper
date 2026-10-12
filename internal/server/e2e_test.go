@@ -408,7 +408,7 @@ Two clients at once is the case that used to kill the server: each connection jo
 its own mutex, which guards nothing shared. It also proves the fan-out end to end: one fsnotify watcher
 shared by every connection, each connection writing to its own socket.
 */
-func TestEveryWatchSocketIsToldToReload(t *testing.T) {
+func TestEveryWatchSocketIsToldWhatChanged(t *testing.T) {
 	srv, project := testServer(t)
 
 	watches := []*websocket.Conn{watchSocket(t, srv), watchSocket(t, srv)}
@@ -434,7 +434,7 @@ func TestEveryWatchSocketIsToldToReload(t *testing.T) {
 		require.NoError(t, watch.SetReadDeadline(time.Now().Add(15*time.Second)))
 		_, message, err := watch.ReadMessage()
 		require.NoError(t, err, "watch socket %d heard nothing", i)
-		assert.Equal(t, "reload", string(message))
+		assert.JSONEq(t, `{"changed": [{"path": "touched.txt"}]}`, string(message))
 	}
 }
 
