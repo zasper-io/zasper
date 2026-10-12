@@ -77,9 +77,23 @@ export function useKernelSession(
     () => socketClosed()
   );
   const requests = useKernelRequests(session, socket.connection, userName);
-  const socketClosed = useKernelReconnect(session, async (target) => {
-    socket.setConnection(await socket.open(target));
-  });
+  const socketClosed = useKernelReconnect(
+    session,
+    async (target) => {
+      socket.setConnection(await socket.open(target));
+    },
+    // Restarted from elsewhere, such as by an agent: rejoin the notebook's new kernel. One stopped on
+    // purpose has no successor, and nothing is started in its place.
+    () => {
+      void sessionForPath(tab.path)
+        .then((next) => {
+          if (next) {
+            return startSession(tab.path, tab.name, tab.type, next.kernel.name);
+          }
+        })
+        .catch((error: unknown) => console.error('Could not rejoin the notebook’s kernel:', error));
+    }
+  );
 
   function takeReplay(runs: ReplayedRun[]) {
     const placed = onReplay?.(runs) ?? [];
@@ -105,6 +119,8 @@ export function useKernelSession(
 
     if (
       !cellId &&
+      // Code an agent ran to look at the kernel, which belongs to no cell.
+      !message.metadata?.scratch &&
       message.header.msg_type === 'execute_input' &&
       message.parent_header?.msg_id &&
       onExternalExecute

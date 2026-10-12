@@ -127,3 +127,22 @@ func (s *Sessions) KernelFor(path string) (*kernel.KernelManager, bool) {
 	}
 	return s.kernels.Get(session.Kernel.Id)
 }
+
+// Restart replaces the kernel the notebook at path is running on with a new one of the same kind, as
+// the notebook's restart button does: everything the old one held is gone. Open tabs follow the
+// notebook's new session.
+func (s *Sessions) Restart(path string) (models.SessionModel, error) {
+	session, ok := s.forPath(path, "")
+	if !ok {
+		return models.SessionModel{}, fmt.Errorf("%s has no kernel running", path)
+	}
+	if err := s.Delete(session.Id); err != nil {
+		return models.SessionModel{}, err
+	}
+	return s.Create(models.SessionModel{
+		Path:        path,
+		Name:        session.Name,
+		SessionType: session.SessionType,
+		Kernel:      models.KernelModel{Name: session.Kernel.Name},
+	})
+}

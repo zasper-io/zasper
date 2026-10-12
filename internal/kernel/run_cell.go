@@ -18,6 +18,18 @@ its outputs are written into the notebook. It answers the run once the kernel is
 error, in which case the run carries on and is still journalled.
 */
 func (km *KernelManager) Run(ctx context.Context, cellID, client, code string) (Run, error) {
+	return km.run(ctx, cellID, client, code, false)
+}
+
+/*
+Evaluate runs code for client alone, to look at the kernel's state: its output is answered and goes nowhere
+else, it is in no cell and no notebook, and it does not move the execution count or the history.
+*/
+func (km *KernelManager) Evaluate(ctx context.Context, client, code string) (Run, error) {
+	return km.run(ctx, "", client, code, true)
+}
+
+func (km *KernelManager) run(ctx context.Context, cellID, client, code string, scratch bool) (Run, error) {
 	shell := km.ConnectionInfo.ConnectShell(ctx, zmq4.SocketIdentity("run-"+newID()))
 	defer shell.Close()
 
@@ -29,7 +41,7 @@ func (km *KernelManager) Run(ctx context.Context, cellID, client, code string) (
 	request.Content = map[string]interface{}{
 		"code":             code,
 		"silent":           false,
-		"store_history":    true,
+		"store_history":    !scratch,
 		"user_expressions": map[string]interface{}{},
 		// Nobody may be there to answer an input(): it fails at once rather than waiting forever.
 		"allow_stdin":   false,
@@ -42,7 +54,7 @@ func (km *KernelManager) Run(ctx context.Context, cellID, client, code string) (
 	request.Metadata = metadata
 
 	done := km.awaitRun(request.Header.MsgID)
-	if err := km.Execute(request, cellID, client, nil); err != nil {
+	if err := km.execute(request, cellID, client, nil, scratch); err != nil {
 		km.stopAwaiting(request.Header.MsgID)
 		return Run{}, err
 	}

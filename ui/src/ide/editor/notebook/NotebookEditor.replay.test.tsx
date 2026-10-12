@@ -192,5 +192,23 @@ describe('NotebookEditor, given the runs it missed', () => {
     await waitFor(() => expect(getKernel).toHaveBeenCalled(), { timeout: 3000 });
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(sockets).toHaveLength(1);
+    expect(createSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejoins the kernel that replaced its own, as after a restart from elsewhere', async () => {
+    await openNotebook();
+    const restarted = {
+      ...session,
+      id: 'session-2',
+      kernel: { ...session.kernel, id: 'kernel-2' },
+    };
+    getKernel.mockRejectedValue(new ApiError('GET', '/api/kernels/kernel-1', 404, ''));
+    sessionForPath.mockResolvedValue(restarted);
+    createSession.mockResolvedValue(restarted);
+
+    act(() => sockets[0].drop());
+
+    await waitFor(() => expect(sockets).toHaveLength(2), { timeout: 3000 });
+    expect(sockets[1].url).toContain('kernel-2');
   });
 });

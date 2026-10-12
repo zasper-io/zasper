@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
@@ -118,4 +119,38 @@ func TestAnAgentOnStdioReachesTheToolsThroughZasperMCP(t *testing.T) {
 	send(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_notebooks","arguments":{}}}`)
 	assert.Contains(t, answer(), "drift.ipynb (no kernel)")
 	require.NoError(t, bridgeIn.Close())
+}
+
+func TestAnAgentRunsTheWholeNotebookLooksAtTheKernelAndRestartsIt(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+	notebook := `{"cells": [
+	 {"cell_type": "code", "id": "c1", "metadata": {}, "source": "x = 21", "outputs": [], "execution_count": null},
+	 {"cell_type": "markdown", "id": "m1", "metadata": {}, "source": "# Notes"},
+	 {"cell_type": "code", "id": "c2", "metadata": {}, "source": "print(x * 2)", "outputs": [], "execution_count": null}],
+	 "metadata": {"kernelspec": {"name": "` + kernelName + `", "display_name": "Python"}}, "nbformat": 4, "nbformat_minor": 5}`
+	path := filepath.Join(project, "drift.ipynb")
+	require.NoError(t, os.WriteFile(path, []byte(notebook), 0o644))
+	session := agent(t, srv.URL)
+
+	assert.Contains(t, callTool(t, session, "list_kernelspecs", nil), kernelName+":")
+
+	ranAll := callTool(t, session, "run_all", map[string]any{"path": "drift.ipynb"})
+	assert.Contains(t, ranAll, "cell 1 (c1) [1]")
+	assert.Contains(t, ranAll, "42")
+	assert.NotContains(t, ranAll, "m1")
+
+	// The last run's output is written into the notebook just after the tool answers.
+	var before []byte
+	require.Eventually(t, func() bool {
+		before, _ = os.ReadFile(path)
+		return strings.Contains(string(before), `"42\n"`)
+	}, 10*time.Second, 50*time.Millisecond)
+	assert.Contains(t, callTool(t, session, "run_code", map[string]any{"path": "drift.ipynb", "code": "print(type(x).__name__)"}), "int")
+	after, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "code run to inspect the kernel reached the notebook")
+
+	assert.Contains(t, callTool(t, session, "restart_kernel", map[string]any{"path": "drift.ipynb"}), "Restarted")
+	assert.NotContains(t, callTool(t, session, "list_variables", map[string]any{"path": "drift.ipynb"}), "x: int")
 }

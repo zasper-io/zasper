@@ -33,6 +33,10 @@ An agent that speaks streamable HTTP can also use `POST /mcp` directly, signed i
 | `read_notebook` | A notebook's cells with their ids, sources and outputs. Plots come back as images, long streams as their end, a widget by name. Returns the notebook's hash. |
 | `edit_notebook` | Insert, edit, delete and move cells by id, written once. Pass the hash from `read_notebook`: a notebook changed since is not written over. |
 | `run_cell` | Run a code cell in the notebook's kernel, starting the kernel the notebook names if none is running, and return its outputs. Waits 60 seconds by default, 10 minutes at most; past that the run carries on. |
+| `run_all` | Run every code cell in order, stopping at the first that fails. |
+| `run_code` | Run code in the kernel to look at its state. It goes in no cell, is not saved, and does not move the execution count. |
+| `restart_kernel` | Replace the kernel with a fresh one of the same kind. An open notebook follows the new kernel. |
+| `list_kernelspecs` | The kernels the project can start. |
 | `interrupt_kernel` | Stop the cell the notebook's kernel is running. |
 | `list_variables` | The kernel's variables, with types and shapes. Python kernels. |
 | `describe_dataframe` | A dataframe's or array's columns, their statistics, and its first rows. |

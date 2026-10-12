@@ -40,6 +40,10 @@ type Run struct {
 	// An input() prompt the kernel is waiting on an answer to, as the client is sent it.
 	InputRequest json.RawMessage `json:"input_request,omitempty"`
 
+	// Code run for whoever asked and nobody else: not replayed, not written to the notebook, and marked so
+	// that a tab places it in no cell.
+	scratch bool
+
 	// Some of this run was published while no client was attached.
 	missed      bool
 	outputBytes int
@@ -96,7 +100,7 @@ func (km *KernelManager) Subscribe() *Subscription {
 	kept := f.order[:0]
 	for _, msgID := range f.order {
 		run := f.runs[msgID]
-		if !run.Done || run.missed {
+		if (!run.Done || run.missed) && !run.scratch {
 			subscription.Replay.Runs = append(subscription.Replay.Runs, run.snapshot())
 		}
 		if run.Done {
@@ -127,6 +131,10 @@ func (km *KernelManager) Unsubscribe(subscription *Subscription) {
 // BeginRun records an execute_request on its way to the kernel, so its output is kept whoever is
 // attached when it arrives, and every client can tell which cell it is for and who asked.
 func (km *KernelManager) BeginRun(msgID, cellID, client, code string) {
+	km.beginRun(msgID, cellID, client, code, false)
+}
+
+func (km *KernelManager) beginRun(msgID, cellID, client, code string, scratch bool) {
 	if msgID == "" {
 		return
 	}
@@ -138,7 +146,7 @@ func (km *KernelManager) BeginRun(msgID, cellID, client, code string) {
 	if _, ok := f.runs[msgID]; ok {
 		return
 	}
-	f.runs[msgID] = &Run{MsgID: msgID, CellID: cellID, Client: client, Code: code, Outputs: []map[string]interface{}{}}
+	f.runs[msgID] = &Run{MsgID: msgID, CellID: cellID, Client: client, Code: code, Outputs: []map[string]interface{}{}, scratch: scratch}
 	f.order = append(f.order, msgID)
 	if len(f.order) > maxRuns {
 		f.dropDisplays(f.order[0])
@@ -198,7 +206,7 @@ does not copy a request's metadata onto what it publishes, so without this a cli
 request cannot tell which cell the output is for.
 */
 func stamp(message *Message, run *Run) {
-	if run.CellID == "" && run.Client == "" {
+	if run.CellID == "" && run.Client == "" && !run.scratch {
 		return
 	}
 	metadata, _ := message.Metadata.(map[string]interface{})
@@ -211,6 +219,9 @@ func stamp(message *Message, run *Run) {
 	}
 	if run.Client != "" {
 		stamped["client"] = run.Client
+	}
+	if run.scratch {
+		stamped["scratch"] = true
 	}
 	message.Metadata = stamped
 }
@@ -298,7 +309,7 @@ func (f *feed) fold(message *Message) *Run {
 			waiter <- run.snapshot()
 			delete(f.waiters, run.MsgID)
 		}
-		if !run.missed {
+		if !run.missed || run.scratch {
 			f.forget(run.MsgID)
 			return nil
 		}

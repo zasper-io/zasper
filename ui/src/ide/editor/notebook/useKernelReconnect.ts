@@ -8,11 +8,13 @@ const LONGEST_RETRY_MS = 15000;
 /**
  * Reopens a notebook's kernel socket after it drops — a laptop that slept, a network that went away —
  * for as long as the kernel is still running. The server keeps every run's output meanwhile and replays
- * it on the new socket. Answers what to call when the socket closes.
+ * it on the new socket. Answers what to call when the socket closes. `gone` is called once the kernel has
+ * stopped, for the tab to follow a kernel that replaced it.
  */
 export function useKernelReconnect(
   session: Session | null | undefined,
-  reopen: (session: Session) => Promise<void>
+  reopen: (session: Session) => Promise<void>,
+  gone?: () => void
 ): () => void {
   const current = useRef(session);
   current.current = session;
@@ -42,7 +44,9 @@ export function useKernelReconnect(
       })
       .catch((error: unknown) => {
         // A stopped kernel is not coming back; anything else is the network, which might.
-        if (!(error instanceof ApiError && error.status === 404)) {
+        if (error instanceof ApiError && error.status === 404) {
+          gone?.();
+        } else {
           schedule(target);
         }
       })

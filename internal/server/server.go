@@ -97,6 +97,7 @@ func New(app core.Application) *Server {
 		Content:  s.content,
 		Sessions: sessions,
 		Kernels:  kernels,
+		Specs:    specs,
 		AllowRun: gate.Check,
 		Version:  app.Version,
 	}))

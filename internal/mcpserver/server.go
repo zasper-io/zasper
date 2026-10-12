@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/kernel"
+	"github.com/zasper-io/zasper/internal/kernelspec"
 	"github.com/zasper-io/zasper/internal/nbformat"
 	"github.com/zasper-io/zasper/internal/session"
 )
@@ -33,6 +35,7 @@ type Deps struct {
 	Content  *content.Handler
 	Sessions *session.Sessions
 	Kernels  *kernel.Kernels
+	Specs    *kernelspec.Catalog
 	// Nil when the project's code may run; refuses a run otherwise, as the rest of the server does.
 	AllowRun func() error
 	Version  string
@@ -68,6 +71,25 @@ func New(deps Deps) *mcp.Server {
 		Description: "Run a code cell in the notebook's kernel, starting the kernel the notebook names if none " +
 			"is running, and return its outputs. The user sees it run in the cell. input() cannot be answered.",
 	}, t.runCell)
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "run_all",
+		Description: "Run every code cell of the notebook in order, stopping at the first that fails, and return " +
+			"each one's outputs.",
+	}, t.runAll)
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "run_code",
+		Description: "Run code in the notebook's kernel to look at its state, and return the output. It goes in " +
+			"no cell and is not saved; use it to inspect, and edit_notebook and run_cell to change the notebook.",
+	}, t.runCode)
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "restart_kernel",
+		Description: "Restart the notebook's kernel with a fresh one of the same kind. Everything the kernel " +
+			"holds is lost; the user's open notebook follows the new kernel.",
+	}, t.restartKernel)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_kernelspecs",
+		Description: "The kernels this project can start, by name, with their languages.",
+	}, t.listKernelspecs)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "interrupt_kernel",
 		Description: "Interrupt the notebook's kernel, stopping the cell it is running.",
@@ -201,10 +223,7 @@ func (t tools) runCell(ctx context.Context, req *mcp.CallToolRequest, in runInpu
 			return failure(err), nil, nil
 		}
 	}
-	wait := defaultRunWait
-	if in.Timeout > 0 {
-		wait = min(time.Duration(in.Timeout)*time.Second, maxRunWait)
-	}
+	wait := t.waitFor(in.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, wait)
 	defer cancel()
 
@@ -335,4 +354,134 @@ func describeColumn(column kernel.Column, profile kernel.ColumnProfile) string {
 		line += fmt.Sprintf(", from %v to %v", profile.Min, profile.Max)
 	}
 	return line
+}
+
+func (t tools) waitFor(timeout int) time.Duration {
+	if timeout <= 0 {
+		return defaultRunWait
+	}
+	return min(time.Duration(timeout)*time.Second, maxRunWait)
+}
+
+type runAllInput struct {
+	Path    string `json:"path" jsonschema:"the notebook, relative to the project"`
+	Timeout int    `json:"timeout,omitempty" jsonschema:"seconds to wait for the whole notebook; 60 when left out, 600 at most"`
+}
+
+func (t tools) runAll(ctx context.Context, req *mcp.CallToolRequest, in runAllInput) (*mcp.CallToolResult, any, error) {
+	if t.AllowRun != nil {
+		if err := t.AllowRun(); err != nil {
+			return failure(err), nil, nil
+		}
+	}
+	model, err := t.Content.Notebook(in.Path)
+	if err != nil {
+		return failure(err), nil, nil
+	}
+	doc, _ := model.Content.(nbformat.Document)
+	ctx, cancel := context.WithTimeout(ctx, t.waitFor(in.Timeout))
+	defer cancel()
+
+	var text strings.Builder
+	var images []mcp.Content
+	for i, cell := range doc.Cells() {
+		id, _ := cell["id"].(string)
+		if cell["cell_type"] != "code" || id == "" {
+			continue
+		}
+		run, err := t.Sessions.RunCell(ctx, in.Path, id, clientOf(req))
+		if errors.Is(err, context.DeadlineExceeded) {
+			fmt.Fprintf(&text, "cell %d (%s): still running when the time ran out; the rest were not run\n", i+1, id)
+			return textResult(text.String(), images...), nil, nil
+		}
+		if err != nil {
+			return failure(err), nil, nil
+		}
+		rendered, pictures := renderOutputs(run.Outputs)
+		fmt.Fprintf(&text, "--- cell %d (%s) [%v]\n%s\n", i+1, id, run.ExecutionCount, rendered)
+		if room := maxImages - len(images); room > 0 {
+			images = append(images, pictures[:min(room, len(pictures))]...)
+		}
+		for _, output := range run.Outputs {
+			if output["output_type"] == "error" {
+				text.WriteString("Stopped at this cell's error.\n")
+				result := textResult(text.String(), images...)
+				result.IsError = true
+				return result, nil, nil
+			}
+		}
+	}
+	return textResult(strings.TrimRight(text.String(), "\n"), images...), nil, nil
+}
+
+type codeInput struct {
+	Path    string `json:"path" jsonschema:"the notebook whose kernel runs it, relative to the project"`
+	Code    string `json:"code" jsonschema:"the code to run"`
+	Timeout int    `json:"timeout,omitempty" jsonschema:"seconds to wait; 60 when left out, 600 at most"`
+}
+
+func (t tools) runCode(ctx context.Context, req *mcp.CallToolRequest, in codeInput) (*mcp.CallToolResult, any, error) {
+	if t.AllowRun != nil {
+		if err := t.AllowRun(); err != nil {
+			return failure(err), nil, nil
+		}
+	}
+	km, err := t.kernelOf(in.Path)
+	if err != nil {
+		return failure(err), nil, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, t.waitFor(in.Timeout))
+	defer cancel()
+	run, err := km.Evaluate(ctx, clientOf(req), in.Code)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return textResult("Still running when the time ran out; interrupt_kernel stops it."), nil, nil
+	}
+	if err != nil {
+		return failure(err), nil, nil
+	}
+	rendered, images := renderOutputs(run.Outputs)
+	if rendered == "" {
+		rendered = "(no output)"
+	}
+	result := textResult(rendered, images...)
+	for _, output := range run.Outputs {
+		if output["output_type"] == "error" {
+			result.IsError = true
+		}
+	}
+	return result, nil, nil
+}
+
+func (t tools) restartKernel(_ context.Context, _ *mcp.CallToolRequest, in pathInput) (*mcp.CallToolResult, any, error) {
+	if t.AllowRun != nil {
+		if err := t.AllowRun(); err != nil {
+			return failure(err), nil, nil
+		}
+	}
+	session, err := t.Sessions.Restart(in.Path)
+	if err != nil {
+		return failure(err), nil, nil
+	}
+	return textResult(fmt.Sprintf("Restarted: a new %s kernel.", session.Kernel.Name)), nil, nil
+}
+
+func (t tools) listKernelspecs(_ context.Context, _ *mcp.CallToolRequest, _ noInput) (*mcp.CallToolResult, any, error) {
+	if t.Specs == nil {
+		return failure(errors.New("no kernelspecs are known")), nil, nil
+	}
+	specs := t.Specs.Specs()
+	names := make([]string, 0, len(specs))
+	for name := range specs {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	lines := make([]string, 0, len(names))
+	for _, name := range names {
+		spec := specs[name].Spec
+		lines = append(lines, fmt.Sprintf("%s: %s (%s)", name, spec.DisplayName, spec.Language))
+	}
+	if len(lines) == 0 {
+		return textResult("No kernels are installed."), nil, nil
+	}
+	return textResult(strings.Join(lines, "\n")), nil, nil
 }
