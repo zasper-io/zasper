@@ -74,8 +74,10 @@ type Bridge struct {
 	client    *http.Client
 	session   string
 	sessionID string
-	out       io.Writer
-	writing   sync.Mutex
+	// The protocol version initialize agreed, which HTTP requests after it say in a header.
+	version string
+	out     io.Writer
+	writing sync.Mutex
 }
 
 // Connect signs in to server.
@@ -148,6 +150,13 @@ func (b *Bridge) relay(ctx context.Context, message []byte) {
 	if b.sessionID != "" {
 		req.Header.Set("Mcp-Session-Id", b.sessionID)
 	}
+	if version := versionOf(message, b.version); version != "" {
+		req.Header.Set("Mcp-Protocol-Version", version)
+	}
+	// What newer protocol versions ask an HTTP request to repeat from its body; older ones ignore them.
+	for name, value := range headersOf(message) {
+		req.Header.Set(name, value)
+	}
 	answer, err := b.client.Do(req)
 	if err != nil {
 		b.fail(message, err)
@@ -167,8 +176,32 @@ func (b *Bridge) relay(ctx context.Context, message []byte) {
 		return
 	}
 	if body = bytes.TrimSpace(body); len(body) > 0 {
+		var answer struct {
+			Result struct {
+				ProtocolVersion string `json:"protocolVersion"`
+			} `json:"result"`
+		}
+		if json.Unmarshal(body, &answer) == nil && answer.Result.ProtocolVersion != "" {
+			b.version = answer.Result.ProtocolVersion
+		}
 		b.write(body)
 	}
+}
+
+// versionOf is the protocol version a message is sent under: the one it names in its _meta, as a
+// client probing a newer protocol does, or else the one initialize agreed.
+func versionOf(message []byte, agreed string) string {
+	var request struct {
+		Params struct {
+			Meta map[string]any `json:"_meta"`
+		} `json:"params"`
+	}
+	if json.Unmarshal(message, &request) == nil {
+		if version, ok := request.Params.Meta["io.modelcontextprotocol/protocolVersion"].(string); ok {
+			return version
+		}
+	}
+	return agreed
 }
 
 // fail answers a request that could not be relayed with a JSON-RPC error, so the agent is not left
@@ -209,4 +242,27 @@ func (b *Bridge) end(ctx context.Context) {
 	if answer, err := b.client.Do(req); err == nil {
 		answer.Body.Close()
 	}
+}
+
+// headersOf is the method, and for a call the name of what is called, that a request repeats in headers.
+func headersOf(message []byte) map[string]string {
+	var request struct {
+		ID     json.RawMessage `json:"id"`
+		Method string          `json:"method"`
+		Params struct {
+			Name string `json:"name"`
+			URI  string `json:"uri"`
+		} `json:"params"`
+	}
+	if json.Unmarshal(message, &request) != nil || request.Method == "" || len(request.ID) == 0 {
+		return nil
+	}
+	headers := map[string]string{"Mcp-Method": request.Method}
+	switch request.Method {
+	case "tools/call", "prompts/get":
+		headers["Mcp-Name"] = request.Params.Name
+	case "resources/read":
+		headers["Mcp-Name"] = request.Params.URI
+	}
+	return headers
 }

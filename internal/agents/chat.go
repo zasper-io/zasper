@@ -172,17 +172,22 @@ func (c *Chat) Answer(id, optionID string) error {
 	return nil
 }
 
-// close stops the agent's process.
+// close stops the agent's process and everything it started. A launcher like npx hands off to children
+// that can outlive it outside its process group, so they are found first and stopped by name.
 func (c *Chat) close() {
 	c.stop()
-	if c.process != nil {
-		c.process.Terminate()
-		select {
-		case <-c.process.Done():
-		case <-time.After(3 * time.Second):
-			c.process.Kill()
-		}
+	if c.process == nil {
+		return
 	}
+	tree := c.process.Tree()
+	c.process.Terminate()
+	launcher.SignalTree(tree, false)
+	select {
+	case <-c.process.Done():
+	case <-time.After(3 * time.Second):
+		c.process.Kill()
+	}
+	launcher.SignalTree(tree, true)
 }
 
 // start launches the agent in root and opens its session, with mcpServers as the tools it is given.

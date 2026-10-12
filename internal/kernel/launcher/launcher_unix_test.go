@@ -48,3 +48,26 @@ func TestKillEndsWhatTheKernelStartedToo(t *testing.T) {
 		return errors.Is(syscall.Kill(child, 0), syscall.ESRCH)
 	}, 5*time.Second, 50*time.Millisecond, "the kernel's child is still running")
 }
+
+func TestTheTreeOfAProcessIsEverythingItStarted(t *testing.T) {
+	process, err := Launch(Spec{Argv: []string{"sh", "-c", "sleep 30 & sleep 30 & wait"}})
+	require.NoError(t, err)
+	t.Cleanup(func() { process.Kill() })
+
+	var tree []int
+	require.Eventually(t, func() bool {
+		tree = process.Tree()
+		return len(tree) == 2
+	}, 5*time.Second, 50*time.Millisecond)
+
+	process.Kill()
+	SignalTree(tree, true)
+	require.Eventually(t, func() bool {
+		for _, pid := range tree {
+			if syscall.Kill(pid, 0) == nil {
+				return false
+			}
+		}
+		return true
+	}, 5*time.Second, 50*time.Millisecond, "a child outlived its tree")
+}

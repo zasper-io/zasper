@@ -44,3 +44,20 @@ func TestNoServerRunningSaysHowToStartOne(t *testing.T) {
 
 	assert.ErrorContains(t, err, "start one with `zasper`")
 }
+
+func TestARequestSaysTheProtocolVersionItIsSentUnder(t *testing.T) {
+	probe := []byte(`{"jsonrpc":"2.0","id":"p","method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}`)
+	call := []byte(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
+
+	assert.Equal(t, "2026-07-28", versionOf(probe, "2025-11-25"), "a probe names its own")
+	assert.Equal(t, "2025-11-25", versionOf(call, "2025-11-25"), "anything else is sent under the one agreed")
+	assert.Equal(t, "", versionOf(call, ""), "nothing is said before initialize has agreed one")
+}
+
+func TestARequestRepeatsItsMethodAndWhatItCallsInHeaders(t *testing.T) {
+	assert.Equal(t, map[string]string{"Mcp-Method": "tools/call", "Mcp-Name": "run_cell"},
+		headersOf([]byte(`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"run_cell","arguments":{}}}`)))
+	assert.Equal(t, map[string]string{"Mcp-Method": "server/discover"},
+		headersOf([]byte(`{"jsonrpc":"2.0","id":"p","method":"server/discover","params":{}}`)))
+	assert.Nil(t, headersOf([]byte(`{"jsonrpc":"2.0","method":"notifications/initialized"}`)), "a notification is a request of nobody's")
+}

@@ -33,3 +33,9 @@ func (p *Process) Kill() error {
 	}
 	return nil
 }
+
+// Tree is not looked for here: Kill ends the process alone.
+func (p *Process) Tree() []int { return nil }
+
+// SignalTree does nothing here.
+func SignalTree([]int, bool) {}
