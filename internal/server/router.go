@@ -134,6 +134,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/contents/editorconfig", s.content.EditorConfig).Methods("GET")
 	apiRouter.HandleFunc("/contents/edits", s.content.Edits).Methods("POST")
 	apiRouter.HandleFunc("/contents/ops", s.content.NotebookOps).Methods("POST")
+	apiRouter.HandleFunc("/runs", s.trust.Require(s.sessions.RunCellHandler)).Methods("POST")
 	apiRouter.HandleFunc("/contents/upload", s.content.Upload).Methods("POST")
 
 	// The watcher is a websocket that happens to live under /api, so it authenticates like the /ws

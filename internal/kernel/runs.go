@@ -63,6 +63,8 @@ type feed struct {
 	runs        map[string]*Run
 	order       []string
 	finished    func(Run)
+	// Runs someone on the server is waiting on, told the run as it ends.
+	waiters map[string]chan Run
 }
 
 func (f *feed) init() {
@@ -275,6 +277,10 @@ func (f *feed) fold(message *Message) *Run {
 		}
 		run.timed("shell.execute_reply", message.Header.Date)
 		run.Done = true
+		if waiter, ok := f.waiters[run.MsgID]; ok {
+			waiter <- run.snapshot()
+			delete(f.waiters, run.MsgID)
+		}
 		if !run.missed {
 			f.forget(run.MsgID)
 			return nil

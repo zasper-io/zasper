@@ -44,6 +44,7 @@ func New(app core.Application) *Server {
 	specs := kernelspec.NewCatalog(app.JupyterPath, app.HomeDir)
 	kernels := kernel.New(specs)
 	sessions := session.New(project, kernels)
+	sessions.DefaultKernel(specs.PythonKernelName)
 
 	s := &Server{
 		app:           app,

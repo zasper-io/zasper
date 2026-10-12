@@ -2,8 +2,10 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,4 +177,39 @@ func TestAnotherSocketIsToldWhichCellARunsOutputIsFor(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestACellRunWithNoTabOpenAnswersItsOutputAndWritesItIntoTheNotebook(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+	notebook := `{"cells": [{"cell_type": "code", "id": "c1", "metadata": {}, "source": "print('from the runner')", "outputs": [], "execution_count": null}],
+	 "metadata": {"kernelspec": {"name": "` + kernelName + `", "display_name": "Python"}}, "nbformat": 4, "nbformat_minor": 5}`
+	require.NoError(t, os.WriteFile(filepath.Join(project, "notes.ipynb"), []byte(notebook), 0o644))
+
+	status, body := call(t, srv, http.MethodPost, "/api/runs", map[string]any{
+		"path": "notes.ipynb", "cell_id": "c1", "client": "claude-code", "wait": 60,
+	})
+
+	require.Equal(t, http.StatusOK, status, "body was %s", body)
+	run := decode[kernel.Run](t, body)
+	assert.Equal(t, "c1", run.CellID)
+	assert.Equal(t, "claude-code", run.Client)
+	assert.True(t, run.Done)
+	require.Len(t, run.Outputs, 1)
+	assert.Equal(t, "from the runner\n", run.Outputs[0]["text"])
+
+	assert.Eventually(t, func() bool {
+		data, err := os.ReadFile(filepath.Join(project, "notes.ipynb"))
+		return err == nil && strings.Contains(string(data), "from the runner")
+	}, 10*time.Second, 100*time.Millisecond, "the output was not written into the notebook")
+}
+
+func TestARunOfACellTheNotebookDoesNotHaveIsNotFound(t *testing.T) {
+	srv, project := testServer(t)
+	require.NoError(t, os.WriteFile(filepath.Join(project, "notes.ipynb"),
+		[]byte(`{"cells": [], "metadata": {}, "nbformat": 4, "nbformat_minor": 5}`), 0o644))
+
+	status, _ := call(t, srv, http.MethodPost, "/api/runs", map[string]any{"path": "notes.ipynb", "cell_id": "nope"})
+
+	assert.Equal(t, http.StatusNotFound, status)
 }

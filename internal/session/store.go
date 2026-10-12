@@ -17,6 +17,8 @@ type Sessions struct {
 	// Per notebook rather than one lock for all: starting a kernel takes seconds, and opening a different
 	// notebook should not wait for it.
 	pathLocks pathLocks
+	// The kernel a run starts for a notebook that names none.
+	defaultKernel func() string
 }
 
 type pathLocks struct {
@@ -32,6 +34,11 @@ type pathLock struct {
 // New keeps the sessions of project, and starts their kernels with kernels.
 func New(project content.Project, kernels *kernel.Kernels) *Sessions {
 	return &Sessions{project: project, kernels: kernels, pathLocks: pathLocks{held: map[string]*pathLock{}}}
+}
+
+// DefaultKernel sets the kernel a run starts for a notebook that names none.
+func (s *Sessions) DefaultKernel(name func() string) {
+	s.defaultKernel = name
 }
 
 // Get answers a running session.
