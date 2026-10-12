@@ -69,6 +69,13 @@ const CELL_MENU: {
     group: 'Output',
   },
   { id: 'notebook:clear-cell-outputs', label: 'Clear Output', icon: 'eraser', group: 'Output' },
+  { id: 'notebook:add-cell-to-chat', label: 'Add Cell to Chat', icon: 'bot', group: 'Agent' },
+  {
+    id: 'notebook:add-output-to-chat',
+    label: 'Add Output to Chat',
+    icon: 'bot',
+    group: 'Agent',
+  },
   // No group, so no heading is drawn for it: it sits alone under the separator the menu derives
   // from `danger`.
   { id: 'notebook:delete-cell', label: 'Delete Cell', icon: 'trash-2', danger: true },

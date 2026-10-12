@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ChatEvent, websocketUrl } from '@/api';
+import { ChatEvent, Mention, websocketUrl } from '@/api';
 import { ChatView, foldChat } from './chatLog';
 
 const RETRY_MS = 1000;
@@ -50,7 +50,7 @@ export function useAgentChat(chatId: string | null) {
     };
   }, [chatId]);
 
-  const send = useCallback((message: Record<string, string>) => {
+  const send = useCallback((message: Record<string, unknown>) => {
     if (socket.current?.readyState === WebSocket.OPEN) {
       socket.current.send(JSON.stringify(message));
     }
@@ -61,7 +61,10 @@ export function useAgentChat(chatId: string | null) {
   return {
     view,
     connected,
-    prompt: useCallback((text: string) => send({ type: 'prompt', text }), [send]),
+    prompt: useCallback(
+      (text: string, mentions: Mention[] = []) => send({ type: 'prompt', text, mentions }),
+      [send]
+    ),
     cancel: useCallback(() => send({ type: 'cancel' }), [send]),
     answer: useCallback(
       (id: string, optionId: string) => send({ type: 'answer', id, option_id: optionId }),

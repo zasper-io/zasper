@@ -257,7 +257,7 @@ var upgrader = websocket.Upgrader{CheckOrigin: httpx.SameOrigin}
 
 /*
 SocketHandler serves /ws/agents/chats/{chatId}: the chat's log from the start, then each event as it
-happens. The client sends {"type": "prompt", "text"}, {"type": "cancel"}, or {"type": "answer", "id",
+happens. The client sends {"type": "prompt", "text", "mentions"}, {"type": "cancel"}, or {"type": "answer", "id",
 "option_id"}; a message that cannot be carried out is answered with an `error` event to that client.
 */
 func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
@@ -299,11 +299,12 @@ func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 
 	for {
 		var message struct {
-			Type     string `json:"type"`
-			Text     string `json:"text"`
-			ID       string `json:"id"`
-			OptionID string `json:"option_id"`
-			Mode     string `json:"mode"`
+			Type     string    `json:"type"`
+			Text     string    `json:"text"`
+			ID       string    `json:"id"`
+			OptionID string    `json:"option_id"`
+			Mode     string    `json:"mode"`
+			Mentions []Mention `json:"mentions"`
 		}
 		if err := conn.ReadJSON(&message); err != nil {
 			return
@@ -311,7 +312,7 @@ func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 		var err error
 		switch message.Type {
 		case "prompt":
-			err = chat.Prompt(message.Text)
+			err = chat.Prompt(message.Text, message.Mentions...)
 		case "cancel":
 			err = chat.Cancel()
 		case "answer":

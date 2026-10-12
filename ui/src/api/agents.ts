@@ -19,6 +19,20 @@ export interface AgentChat {
   history?: boolean;
 }
 
+/**
+ * Something the reader points the agent at with a message: a file, which the agent reads itself, or a
+ * cell or an output, sent with its text as the reader sees it.
+ */
+export interface Mention {
+  kind: 'file' | 'cell' | 'output';
+  /** Relative to the project. */
+  path: string;
+  label: string;
+  cell_id?: string;
+  /** A cell's source or an output's text; the log does not keep it. */
+  text?: string;
+}
+
 /** A file a turn changed: A added, M modified, D deleted. */
 export interface TurnFile {
   path: string;
@@ -67,6 +81,8 @@ export interface ChatEvent {
     auto?: boolean;
   };
   stop_reason?: string;
+  /** On `user`, what the message mentions. */
+  mentions?: Mention[];
   /** The files a turn changed, on `changes`; the turn taken back, on `undone`. */
   changes?: { turn: number; files?: TurnFile[] };
   /** What a command the agent runs in Zasper printed since the last, and on the last, how it ended. */

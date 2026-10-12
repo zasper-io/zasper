@@ -59,6 +59,7 @@ import { useNotebookReplace } from './useNotebookReplace';
 import { useNotebookReveal } from './useNotebookReveal';
 import { useStableCallback } from './useStableCallback';
 import { useNotebookFind } from './useNotebookFind';
+import { cellMention, outputMention, useAddMention } from '@/ide/agents/mentions';
 
 interface NotebookEditorProps {
   data: FileTab;
@@ -538,6 +539,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
   };
 
+  const addMention = useAddMention();
   const commands = useNotebookCommands({
     cells,
     kernel,
@@ -557,6 +559,13 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     },
     hasLanguageServer: languageServer !== null,
     editFocusedCell,
+    mentionFocusedCell: (what) => {
+      const cell = notebook.cells[cells.focusedIndex];
+      if (cell !== undefined) {
+        const mention = what === 'cell' ? cellMention : outputMention;
+        addMention(mention(data.path, cell, cells.focusedIndex));
+      }
+    },
     restartKernel: () => setRestartIntent('restart'),
     restartAndExecuteAllCells: () => setRestartIntent('restart-and-run-all'),
     // The hook reports its own outcome as a toast, so there is nothing for a caller to await.

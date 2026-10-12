@@ -1,4 +1,4 @@
-import {
+import React, {
   KeyboardEvent,
   lazy,
   Suspense,
@@ -16,6 +16,7 @@ import {
   ApiError,
   apiErrorMessage,
   isUntrusted,
+  Mention,
   listAgents,
   listChats,
   listPastChats,
@@ -28,7 +29,9 @@ import {
 } from '@/api';
 import IconButton from '@/ide/IconButton';
 import { Icon, IconName } from '@/ide/icons';
-import { agentChatAtom } from '@/store/agents';
+import { agentChatAtom, composerMentionsAtom } from '@/store/agents';
+import { useFileMatches } from '@/ide/topBar/palette/useFileMatches';
+import { fileMention } from './mentions';
 import { projectDirAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import { useAskTrust } from '@/store/trust';
@@ -285,6 +288,9 @@ function Picker(props: {
 function Conversation({ chat }: { chat: AgentChat }) {
   const { view, connected, prompt, cancel, answer, setMode } = useAgentChat(chat.id);
   const [draft, setDraft] = useState('');
+  const [mentions, setMentions] = useAtom(composerMentionsAtom);
+  const [picking, setPicking] = useState<string | null>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -297,11 +303,35 @@ function Conversation({ chat }: { chat: AgentChat }) {
     if (text === '' || view.answering || view.exited || !connected) {
       return;
     }
-    prompt(text);
+    prompt(text, mentions);
     setDraft('');
+    setMentions([]);
+  };
+
+  // A word being typed after an @ is a file to find.
+  const typed = (text: string, caret: number) => {
+    const word = /(?:^|\s)@([^\s@]*)$/.exec(text.slice(0, caret));
+    setPicking(word ? word[1] : null);
+  };
+
+  const pick = (path: string) => {
+    const caret = field.current?.selectionStart ?? draft.length;
+    const before = draft.slice(0, caret).replace(/@[^\s@]*$/, `@${path} `);
+    setDraft(before + draft.slice(caret));
+    setMentions((current) => [
+      ...current.filter((each) => each.path !== path || each.kind !== 'file'),
+      fileMention(path),
+    ]);
+    setPicking(null);
+    field.current?.focus();
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (picking !== null && event.key === 'Escape') {
+      event.preventDefault();
+      setPicking(null);
+      return;
+    }
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       send();
@@ -332,14 +362,42 @@ function Conversation({ chat }: { chat: AgentChat }) {
         <div ref={bottom} />
       </div>
       <div className="agentComposer">
+        {mentions.length > 0 && (
+          <div className="agentComposer-context" aria-label="Mentioned">
+            {mentions.map((mention) => (
+              <MentionChip
+                key={`${mention.kind}:${mention.path}:${mention.cell_id ?? ''}`}
+                mention={mention}
+                onRemove={() =>
+                  setMentions((current) => current.filter((each) => each !== mention))
+                }
+              />
+            ))}
+          </div>
+        )}
+        {picking !== null && (
+          <FilePicker
+            query={picking}
+            onPick={pick}
+            onClose={() => setPicking(null)}
+            field={field}
+          />
+        )}
         <textarea
+          ref={field}
           className="z-field"
           value={draft}
           disabled={view.exited}
-          placeholder={view.exited ? 'The agent has stopped: start a new chat' : 'Ask the agent'}
+          placeholder={
+            view.exited ? 'The agent has stopped: start a new chat' : 'Ask the agent — @ for a file'
+          }
           aria-label="Message to the agent"
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            typed(event.target.value, event.target.selectionStart);
+          }}
           onKeyDown={onKeyDown}
+          onBlur={() => setPicking(null)}
         />
         <div className="agentComposer-foot">
           <span>{connected ? 'Your own agent, your own subscription' : 'Connecting…'}</span>
@@ -375,7 +433,11 @@ function Item({
 }) {
   switch (item.kind) {
     case 'user':
-      return <div className="agentMsg is-user">{item.text}</div>;
+      return (
+        <div className="agentMsg is-user">
+          <UserText text={item.text} mentions={item.mentions} />
+        </div>
+      );
     case 'agent':
       return (
         <div className="agentMsg">
@@ -434,6 +496,125 @@ function Item({
         <TurnChanges chatId={chatId} turn={item.turn} files={item.files} undone={item.undone} />
       );
   }
+}
+
+const MENTION_ICONS: Record<Mention['kind'], IconName> = {
+  file: 'file',
+  cell: 'file-code',
+  output: 'scroll-text',
+};
+
+function MentionChip({ mention, onRemove }: { mention: Mention; onRemove?: () => void }) {
+  return (
+    <span className="agentRef" title={mention.path}>
+      <Icon name={MENTION_ICONS[mention.kind]} size={12} />
+      {mention.label}
+      {onRemove && (
+        <button type="button" aria-label={`Remove ${mention.label}`} onClick={onRemove}>
+          <Icon name="x" size={12} />
+        </button>
+      )}
+    </span>
+  );
+}
+
+/**
+ * A sent message, a file it mentions drawn as a chip where its @path stands, and a cell or an output,
+ * which have no place in the text, as chips before it.
+ */
+function UserText({ text, mentions }: { text: string; mentions: Mention[] }) {
+  const files = new Map(
+    mentions.filter((each) => each.kind === 'file').map((each) => [each.path, each])
+  );
+  const apart = mentions.filter((each) => each.kind !== 'file' || !text.includes(`@${each.path}`));
+  const parts = text.split(/(@[^\s@]+)/);
+  return (
+    <>
+      {apart.length > 0 && (
+        <span className="agentMsg-refs">
+          {apart.map((mention) => (
+            <MentionChip
+              key={`${mention.kind}:${mention.path}:${mention.cell_id ?? ''}`}
+              mention={mention}
+            />
+          ))}
+        </span>
+      )}
+      {parts.map((part, index) => {
+        const file = part.startsWith('@') ? files.get(part.slice(1)) : undefined;
+        return file ? <MentionChip key={index} mention={file} /> : part;
+      })}
+    </>
+  );
+}
+
+const PICKER_SIZE = 8;
+
+/** The files whose names match what follows an @, to pick one with the keyboard or the pointer. */
+function FilePicker(props: {
+  query: string;
+  onPick: (path: string) => void;
+  onClose: () => void;
+  field: React.RefObject<HTMLTextAreaElement | null>;
+}) {
+  const matches = useFileMatches(props.query).slice(0, PICKER_SIZE);
+  const [chosen, setChosen] = useState(0);
+  const { onPick, onClose } = props;
+
+  useEffect(() => setChosen(0), [props.query]);
+
+  // The field keeps the keyboard; the keys that move through the list are taken from it.
+  useEffect(() => {
+    const element = props.field.current;
+    if (element === null) {
+      return;
+    }
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (matches.length === 0) {
+        return;
+      }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        setChosen((current) => (current + step + matches.length) % matches.length);
+      } else if (event.key === 'Enter' || event.key === 'Tab') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        onPick(matches[chosen].path);
+      }
+    };
+    element.addEventListener('keydown', onKey, { capture: true });
+    return () => element.removeEventListener('keydown', onKey, { capture: true });
+  }, [props.field, matches, chosen, onPick, onClose]);
+
+  return (
+    <div className="agentPicker" role="listbox" aria-label="Files to mention">
+      {props.query === '' ? (
+        <p className="agentPicker-hint">Type part of a file’s name</p>
+      ) : matches.length === 0 ? (
+        <p className="agentPicker-hint">No file is called that</p>
+      ) : (
+        matches.map((match, index) => (
+          <button
+            type="button"
+            role="option"
+            key={match.path}
+            aria-selected={index === chosen}
+            className="panel-row"
+            // Before the field's blur, which would close the list under the pointer.
+            onMouseDown={(event) => {
+              event.preventDefault();
+              onPick(match.path);
+            }}
+          >
+            <Icon name="file" />
+            <span className="panel-row-name">{match.name}</span>
+            <span className="panel-row-meta">{match.path}</span>
+          </button>
+        ))
+      )}
+    </div>
+  );
 }
 
 const STATUS_NAMES: Record<string, string> = { A: 'added', M: 'changed', D: 'deleted' };

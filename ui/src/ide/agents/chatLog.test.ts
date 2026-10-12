@@ -13,7 +13,7 @@ describe('foldChat', () => {
     const view = foldChat([{ type: 'user', text: 'hi' }, said('Hello'), said(' there')]);
 
     expect(view.items).toEqual([
-      { kind: 'user', text: 'hi' },
+      { kind: 'user', text: 'hi', mentions: [] },
       { kind: 'agent', text: 'Hello there' },
     ]);
     expect(view.answering).toBe(true);
@@ -215,7 +215,7 @@ describe('foldChat', () => {
     ]);
 
     expect(view.items).toEqual([
-      { kind: 'user', text: 'what is 2 + 2?' },
+      { kind: 'user', text: 'what is 2 + 2?', mentions: [] },
       { kind: 'agent', text: '4' },
     ]);
     expect(view.answering).toBe(false);

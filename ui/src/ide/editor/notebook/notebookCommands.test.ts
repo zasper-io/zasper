@@ -66,6 +66,7 @@ function fakeTargets(options: FakeOptions = {}) {
     restartKernel: vi.fn(),
     restartAndExecuteAllCells: vi.fn(),
     exportNotebook: vi.fn(),
+    mentionFocusedCell: vi.fn(),
   };
 
   const targets: NotebookCommandTargets = {
@@ -108,6 +109,7 @@ function fakeTargets(options: FakeOptions = {}) {
     formatCells: vi.fn(),
     hasLanguageServer: false,
     editFocusedCell: vi.fn(),
+    mentionFocusedCell: spies.mentionFocusedCell,
     exportNotebook: spies.exportNotebook,
   };
 
@@ -192,6 +194,15 @@ describe('useNotebookCommands', () => {
         expect(typable, `${command.id} binds ${binding}`).toBe(false);
       }
     }
+  });
+
+  it('adds the focused cell to the agent’s next message, and its output once it has one', () => {
+    const { commands, spies } = build({ cells: [cell({ id: 'a' })] });
+    expect(byId(commands, 'notebook:add-output-to-chat').isEnabled?.()).toBe(false);
+
+    byId(commands, 'notebook:add-cell-to-chat').execute();
+
+    expect(spies.mentionFocusedCell).toHaveBeenCalledWith('cell');
   });
 
   it('runs the focused cell', () => {

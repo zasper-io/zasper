@@ -13,6 +13,13 @@ conversation streams in as the agent works: its messages, its thinking folded aw
 that opens the file it touched, its plan, and each question it asks with its options as buttons. Enter
 sends, and the button becomes Stop while the agent works. A reload or a second tab shows the same chat.
 
+`@` in the composer finds a file by name, and the message mentions it: the agent is sent a link to it
+(ACP's `resource_link`) and reads it itself. In a notebook, a cell's menu has **Add Cell to Chat** and
+**Add Output to Chat**, which are also commands in the palette: the cell's source, or its output as
+text, goes with the next message as it is on screen, unsaved edits and all — embedded (`resource`, with
+a `file://…#cell=<id>` URI) for an agent that takes embedded context, as part of the message otherwise.
+What a message mentions shows as chips above the field, and in the message once sent.
+
 The clock in the panel's title lists the agent's past conversations in the project, newest first, when
 the agent can list and open them (Claude Code can, including those held with `claude` in a terminal
 here). Picking one goes on in it: the agent replays it into the panel. What Zasper added to a
@@ -97,6 +104,7 @@ and `terminal`: what a command run for the agent printed since
 the last, in `terminal.output` under its `terminal.id`. The last has `exited`, with `exit_code` or
 `signal`; past 256 KB the rest is not streamed, and the last has `cut` with the output's end alone.
 
-The client sends `{"type": "prompt", "text"}`, `{"type": "cancel"}`, and
+The client sends `{"type": "prompt", "text", "mentions"}` (each mention a `kind` — `file`, `cell` or
+`output` — a project `path`, a `label`, and for a cell or output its `cell_id` and `text`), `{"type": "cancel"}`, and
 `{"type": "answer", "id", "option_id"}`, and `{"type": "mode", "mode"}` with `ask`, `edits` or `all`, which
 every tab is told of as a `mode` event.

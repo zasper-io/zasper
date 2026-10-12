@@ -1,4 +1,4 @@
-import { AgentMode, ChatEvent, TurnFile } from '@/api';
+import { AgentMode, ChatEvent, Mention, TurnFile } from '@/api';
 
 /** A tool the agent called, as its calls and their updates have it so far. */
 export interface ToolCall {
@@ -44,7 +44,7 @@ export interface PermissionOption {
 }
 
 export type ChatItem =
-  | { kind: 'user'; text: string }
+  | { kind: 'user'; text: string; mentions: Mention[] }
   | { kind: 'agent'; text: string }
   | { kind: 'thought'; text: string }
   | { kind: 'tools'; calls: ToolCall[] }
@@ -202,7 +202,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
   for (const event of events) {
     switch (event.type) {
       case 'user':
-        items.push({ kind: 'user', text: event.text ?? '' });
+        items.push({ kind: 'user', text: event.text ?? '', mentions: event.mentions ?? [] });
         answering = true;
         break;
       case 'update': {
@@ -211,11 +211,16 @@ export function foldChat(events: ChatEvent[]): ChatView {
           // A past conversation the agent replays has the reader's messages in it.
           case 'user_message_chunk': {
             const text = textOf(update.content);
+            const link = update.content?.type === 'resource_link' ? update.content : undefined;
+            const mentions: Mention[] = link
+              ? [{ kind: 'file', path: link.name, label: link.name.split('/').pop() ?? link.name }]
+              : [];
             const previous = last();
             if (previous?.kind === 'user') {
               previous.text += text;
-            } else if (text !== '') {
-              items.push({ kind: 'user', text });
+              previous.mentions.push(...mentions);
+            } else if (text !== '' || mentions.length > 0) {
+              items.push({ kind: 'user', text, mentions });
             }
             break;
           }

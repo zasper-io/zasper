@@ -29,6 +29,8 @@ export interface NotebookCommandTargets {
   hasLanguageServer: boolean;
   /** Edit mode on the focused cell: its editor takes the keyboard, or a markdown cell opens. */
   editFocusedCell: () => void;
+  /** Adds the focused cell, or its output, to what the agent panel's next message mentions. */
+  mentionFocusedCell: (what: 'cell' | 'output') => void;
 }
 
 const NOTEBOOK = { category: 'Notebook', scope: 'notebook' } as const;
@@ -95,6 +97,8 @@ export const NOTEBOOK_COMMANDS = defineCommands({
   'notebook:cut-cell': { ...NOTEBOOK, label: 'Cut Cell' },
   'notebook:copy-cell': { ...NOTEBOOK, label: 'Copy Cell' },
   'notebook:paste-cell': { ...NOTEBOOK, label: 'Paste Cell' },
+  'notebook:add-cell-to-chat': { ...NOTEBOOK, label: 'Add Cell to Chat' },
+  'notebook:add-output-to-chat': { ...NOTEBOOK, label: 'Add Output to Chat' },
 
   // Jupyter's command mode: bare keys, dispatched only while a cell's box holds the keyboard. Inside a
   // cell's editor the same arrows leave it at its first or last line, which is Cell.tsx's keymap.
@@ -278,6 +282,16 @@ export function useNotebookCommands(targets: NotebookCommandTargets): Command[] 
       // this is not worth a dialog — and `notebook:undo-cell-change` takes it back.
       isEnabled: isLoaded,
       execute: cells.clearAllOutputs,
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:add-cell-to-chat'],
+      isEnabled: hasCell,
+      execute: () => targets.mentionFocusedCell('cell'),
+    },
+    {
+      ...NOTEBOOK_COMMANDS['notebook:add-output-to-chat'],
+      isEnabled: () => (focusedCell()?.outputs?.length ?? 0) > 0,
+      execute: () => targets.mentionFocusedCell('output'),
     },
     { ...NOTEBOOK_COMMANDS['notebook:cut-cell'], isEnabled: hasCell, execute: cells.cutCell },
     { ...NOTEBOOK_COMMANDS['notebook:copy-cell'], isEnabled: hasCell, execute: cells.copyCell },

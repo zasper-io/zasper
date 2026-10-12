@@ -1,9 +1,11 @@
+import React, { useEffect } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/api';
 import { Provider } from '@/testing/Provider';
 import AgentPanel from './AgentPanel';
+import { cellMention, useAddMention } from './mentions';
 
 const listAgents = vi.fn();
 const listChats = vi.fn();
@@ -11,6 +13,7 @@ const startChat = vi.fn();
 const listPastChats = vi.fn();
 const openPastChat = vi.fn();
 const undoTurn = vi.fn();
+const searchFiles = vi.fn();
 
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api')>()),
@@ -21,6 +24,7 @@ vi.mock('@/api', async (importOriginal) => ({
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
   openPastChat: (chatId: string, id: string) => openPastChat(chatId, id),
   undoTurn: (chatId: string, turn: number, anyway?: boolean) => undoTurn(chatId, turn, anyway),
+  searchFiles: (query: string) => searchFiles(query),
 }));
 
 vi.mock('@/ide/editor/notebook/MarkdownRenderer', () => ({
@@ -161,7 +165,7 @@ describe('AgentPanel', () => {
       target: { value: 'thanks' },
     });
     fireEvent.keyDown(screen.getByLabelText('Message to the agent'), { key: 'Enter' });
-    expect(socket.sent).toContainEqual({ type: 'prompt', text: 'thanks' });
+    expect(socket.sent).toContainEqual({ type: 'prompt', text: 'thanks', mentions: [] });
   });
 
   it('keeps what was typed until the chat is connected', async () => {
@@ -260,7 +264,7 @@ describe('AgentPanel', () => {
 
       fireEvent.click(await screen.findByRole('button', { name: /Plot the results/ }));
 
-      await screen.findByPlaceholderText('Ask the agent');
+      await screen.findByPlaceholderText('Ask the agent — @ for a file');
       expect(openPastChat).toHaveBeenCalledWith('chat-1', 'earlier');
     });
 
@@ -328,6 +332,109 @@ describe('AgentPanel', () => {
       expect(await screen.findByText(/prepare\.py changed after this turn/)).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Undo anyway' }));
       await waitFor(() => expect(undoTurn).toHaveBeenLastCalledWith('chat-1', 1, true));
+    });
+  });
+
+  describe('mentions', () => {
+    async function connected(extra?: React.ReactNode) {
+      listChats.mockResolvedValue([{ id: 'chat-1', agent: 'claude-code' }]);
+      render(
+        <Provider>
+          {extra}
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      await screen.findByText('Your own agent, your own subscription');
+      return screen.getByLabelText('Message to the agent') as HTMLTextAreaElement;
+    }
+
+    function type(field: HTMLTextAreaElement, text: string) {
+      fireEvent.change(field, { target: { value: text, selectionStart: text.length } });
+    }
+
+    it('finds a file after an @, and sends it with the message', async () => {
+      searchFiles.mockResolvedValue([
+        { type: 'file', name: 'readings.csv', path: 'data/readings.csv', content: null },
+        { type: 'file', name: 'reader.py', path: 'reader.py', content: null },
+      ]);
+      const field = await connected();
+
+      type(field, 'clean @rea');
+      await screen.findByRole('option', { name: /readings\.csv/ });
+      fireEvent.keyDown(field, { key: 'ArrowDown' });
+      fireEvent.keyDown(field, { key: 'ArrowUp' });
+      fireEvent.keyDown(field, { key: 'Enter' });
+
+      expect(field.value).toBe('clean @data/readings.csv ');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Mentioned')).toHaveTextContent('readings.csv');
+      fireEvent.keyDown(field, { key: 'Enter' });
+
+      expect(FakeSocket.latest.sent).toContainEqual({
+        type: 'prompt',
+        text: 'clean @data/readings.csv',
+        mentions: [{ kind: 'file', path: 'data/readings.csv', label: 'readings.csv' }],
+      });
+      expect(screen.queryByLabelText('Mentioned')).not.toBeInTheDocument();
+    });
+
+    it('sends a cell added from the notebook with its source', async () => {
+      function AddsACell() {
+        const add = useAddMention();
+        useEffect(() => {
+          add(
+            cellMention(
+              'fit.ipynb',
+              {
+                id: 'c4',
+                cell_type: 'code',
+                source: 'model.fit(x)',
+                outputs: [],
+                metadata: {},
+                execution_count: 1,
+                reload: false,
+              },
+              3
+            )
+          );
+        }, [add]);
+        return null;
+      }
+      const field = await connected(<AddsACell />);
+      expect(screen.getByLabelText('Mentioned')).toHaveTextContent('fit.ipynb · cell 4');
+
+      type(field, 'why is this slow?');
+      fireEvent.keyDown(field, { key: 'Enter' });
+
+      expect(FakeSocket.latest.sent).toContainEqual({
+        type: 'prompt',
+        text: 'why is this slow?',
+        mentions: [
+          {
+            kind: 'cell',
+            path: 'fit.ipynb',
+            label: 'fit.ipynb · cell 4',
+            cell_id: 'c4',
+            text: 'model.fit(x)',
+          },
+        ],
+      });
+    });
+
+    it('draws a sent message’s mentions as chips', async () => {
+      await connected();
+      FakeSocket.latest.push({
+        type: 'user',
+        text: 'clean @data/readings.csv please',
+        mentions: [
+          { kind: 'file', path: 'data/readings.csv', label: 'readings.csv' },
+          { kind: 'output', path: 'fit.ipynb', label: 'fit.ipynb · output 4', cell_id: 'c4' },
+        ],
+      });
+
+      const message = screen.getByText(/please/);
+      expect(message).toHaveTextContent('fit.ipynb · output 4clean readings.csv please');
+      expect(message).not.toHaveTextContent('@data');
     });
   });
 });

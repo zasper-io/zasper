@@ -10,6 +10,7 @@ pipes with no agent installed.
 	edit   asks permission to edit a file, and says which option was chosen
 	wait   says "waiting", then works until the turn is cancelled
 	(history: it lists this session and "earlier", and loading "earlier" replays a question and its answer)
+	(a message with more than its text says what else came with it, a line a block)
 	run …  runs the rest of the line in a terminal of the editor's, and says how it ended and what it printed
 
 At the start of a session it writes the names of the MCP servers it was given to mcp-servers.txt.
@@ -45,6 +46,7 @@ func (a *agent) Initialize(context.Context, acp.InitializeRequest) (acp.Initiali
 	return acp.InitializeResponse{ProtocolVersion: acp.ProtocolVersionNumber, AgentCapabilities: acp.AgentCapabilities{
 		LoadSession:         true,
 		SessionCapabilities: acp.SessionCapabilities{List: &acp.SessionListCapabilities{}},
+		PromptCapabilities:  acp.PromptCapabilities{EmbeddedContext: os.Getenv("ZASPER_FAKE_AGENT_PLAIN") == ""},
 	}}, nil
 }
 
@@ -73,6 +75,10 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 		text = request.Prompt[0].Text.Text
 	}
 	session := request.SessionId
+	if len(request.Prompt) > 1 {
+		a.say(ctx, session, describe(request.Prompt[1:]))
+		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
+	}
 	if command, ok := strings.CutPrefix(text, "run "); ok {
 		a.run(ctx, session, command)
 		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
@@ -220,4 +226,21 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// describe is a line for each block that came with a message's text.
+func describe(blocks []acp.ContentBlock) string {
+	var lines []string
+	for _, block := range blocks {
+		switch {
+		case block.ResourceLink != nil:
+			lines = append(lines, "link "+block.ResourceLink.Name+" "+block.ResourceLink.Uri)
+		case block.Resource != nil && block.Resource.Resource.TextResourceContents != nil:
+			contents := block.Resource.Resource.TextResourceContents
+			lines = append(lines, "resource "+contents.Uri+" "+contents.Text)
+		case block.Text != nil:
+			lines = append(lines, "text "+block.Text.Text)
+		}
+	}
+	return strings.Join(lines, "\n")
 }

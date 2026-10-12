@@ -54,6 +54,8 @@ type Event struct {
 	StopReason string          `json:"stop_reason,omitempty"`
 	Terminal   *TerminalOutput `json:"terminal,omitempty"`
 	Changes    *TurnChanges    `json:"changes,omitempty"`
+	// On a `user` event, what the message mentions.
+	Mentions []Mention `json:"mentions,omitempty"`
 }
 
 // Permission is a question the agent asks before acting, and its answer once there is one.
@@ -120,6 +122,8 @@ type Chat struct {
 	files   Files
 	root    string
 	servers []acp.McpServer
+	// The agent takes a resource's contents in a message, rather than only a link to it.
+	embedded bool
 }
 
 // record appends an event and passes it to everyone watching, without waiting on any of them.
@@ -159,8 +163,13 @@ func (c *Chat) Subscribe() ([]Event, <-chan Event, func()) {
 	}
 }
 
-// Prompt sends the reader's message, and answers at once: the agent's answer arrives in the log.
-func (c *Chat) Prompt(text string) error {
+// Prompt sends the reader's message and what it mentions, and answers at once: the agent's answer
+// arrives in the log.
+func (c *Chat) Prompt(text string, mentions ...Mention) error {
+	blocks, err := c.promptBlocks(text, mentions)
+	if err != nil {
+		return err
+	}
 	c.mu.Lock()
 	if c.exited {
 		c.mu.Unlock()
@@ -175,12 +184,12 @@ func (c *Chat) Prompt(text string) error {
 	c.turns[number] = nil
 	c.mu.Unlock()
 
-	c.record(Event{Type: "user", Text: text})
+	c.record(Event{Type: "user", Text: text, Mentions: logged(mentions)})
 	go func() {
 		before := c.snapshot(fmt.Sprintf("%d/before", number))
 		answer, err := c.conn.Prompt(context.Background(), acp.PromptRequest{
 			SessionId: c.session,
-			Prompt:    []acp.ContentBlock{acp.TextBlock(text)},
+			Prompt:    blocks,
 		})
 		c.endTurn(number, before)
 		c.mu.Lock()
@@ -316,6 +325,7 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 	}
 	capabilities := initialized.AgentCapabilities
 	chat.History = capabilities.LoadSession && capabilities.SessionCapabilities.List != nil
+	chat.embedded = capabilities.PromptCapabilities.EmbeddedContext
 	if mcpServers == nil {
 		mcpServers = []acp.McpServer{}
 	}

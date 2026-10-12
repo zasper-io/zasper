@@ -349,3 +349,69 @@
     color: var(--z-git-deleted);
   }
 }
+
+// What the next message mentions, and what a sent one did.
+.agentComposer-context,
+.agentMsg-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.agentMsg-refs {
+  margin-bottom: 4px;
+}
+
+.agentRef {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  padding: 0 5px;
+  border: 1px solid var(--z-border);
+  border-radius: 3px;
+  background: var(--z-bg-panel-alt);
+  color: var(--z-fg-accent);
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size-sm);
+  white-space: nowrap;
+  vertical-align: baseline;
+
+  button {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--z-fg-subtle);
+    cursor: pointer;
+  }
+}
+
+// The files an @ finds, over the field.
+.agentPicker {
+  max-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  background: var(--z-bg-panel);
+  padding: 2px 0;
+
+  .panel-row {
+    width: 100%;
+    gap: 6px;
+    border: 0;
+    background: none;
+    text-align: left;
+
+    &[aria-selected='true'] {
+      background: var(--z-bg-row-selected);
+    }
+  }
+}
+
+.agentPicker-hint {
+  margin: 0;
+  padding: 4px 8px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
