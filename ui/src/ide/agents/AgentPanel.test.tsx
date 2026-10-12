@@ -7,6 +7,8 @@ import AgentPanel from './AgentPanel';
 const listAgents = vi.fn();
 const listChats = vi.fn();
 const startChat = vi.fn();
+const listPastChats = vi.fn();
+const openPastChat = vi.fn();
 
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api')>()),
@@ -14,6 +16,8 @@ vi.mock('@/api', async (importOriginal) => ({
   listChats: () => listChats(),
   startChat: (agent: string) => startChat(agent),
   stopChat: () => Promise.resolve(),
+  listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
+  openPastChat: (chatId: string, id: string) => openPastChat(chatId, id),
 }));
 
 vi.mock('@/ide/editor/notebook/MarkdownRenderer', () => ({
@@ -205,5 +209,68 @@ describe('AgentPanel', () => {
     expect(row).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Updated one line')).toBeInTheDocument();
     expect(screen.getByText(/X = 2/)).toHaveClass('agentDiff-line', 'is-added');
+  });
+
+  describe('past conversations', () => {
+    beforeEach(() => {
+      listChats.mockResolvedValue([{ id: 'chat-1', agent: 'claude-code', history: true }]);
+      listPastChats.mockImplementation((_chat: string, cursor?: string) =>
+        Promise.resolve(
+          cursor
+            ? { chats: [{ id: 'older', title: 'Fix the loader' }], next: '' }
+            : {
+                chats: [
+                  { id: 'now', title: 'This one', current: true },
+                  { id: 'earlier', title: 'Plot the results', updated: '2026-10-11T09:00:00Z' },
+                ],
+                next: 'page-2',
+              }
+        )
+      );
+      openPastChat.mockResolvedValue(undefined);
+    });
+
+    it('lists them a page at a time, the one open now not to be picked', async () => {
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Past conversations' }));
+
+      expect(await screen.findByRole('button', { name: /This one/ })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Plot the results/ })).toBeEnabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Show more' }));
+
+      expect(await screen.findByRole('button', { name: /Fix the loader/ })).toBeInTheDocument();
+      expect(listPastChats).toHaveBeenLastCalledWith('chat-1', 'page-2');
+      expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument();
+    });
+
+    it('goes on in the one picked, back in the conversation', async () => {
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Past conversations' }));
+
+      fireEvent.click(await screen.findByRole('button', { name: /Plot the results/ }));
+
+      await screen.findByPlaceholderText('Ask the agent');
+      expect(openPastChat).toHaveBeenCalledWith('chat-1', 'earlier');
+    });
+
+    it('is not offered for an agent that cannot open its past conversations', async () => {
+      listChats.mockResolvedValue([{ id: 'chat-1', agent: 'claude-code' }]);
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+
+      await screen.findByRole('button', { name: 'New chat' });
+      expect(screen.queryByRole('button', { name: 'Past conversations' })).not.toBeInTheDocument();
+    });
   });
 });

@@ -9,6 +9,7 @@ pipes with no agent installed.
 	ask    asks permission, and says which option was chosen
 	edit   asks permission to edit a file, and says which option was chosen
 	wait   says "waiting", then works until the turn is cancelled
+	(history: it lists this session and "earlier", and loading "earlier" replays a question and its answer)
 	run …  runs the rest of the line in a terminal of the editor's, and says how it ended and what it printed
 
 At the start of a session it writes the names of the MCP servers it was given to mcp-servers.txt.
@@ -41,7 +42,10 @@ type agent struct {
 }
 
 func (a *agent) Initialize(context.Context, acp.InitializeRequest) (acp.InitializeResponse, error) {
-	return acp.InitializeResponse{ProtocolVersion: acp.ProtocolVersionNumber}, nil
+	return acp.InitializeResponse{ProtocolVersion: acp.ProtocolVersionNumber, AgentCapabilities: acp.AgentCapabilities{
+		LoadSession:         true,
+		SessionCapabilities: acp.SessionCapabilities{List: &acp.SessionListCapabilities{}},
+	}}, nil
 }
 
 func (a *agent) NewSession(_ context.Context, request acp.NewSessionRequest) (acp.NewSessionResponse, error) {
@@ -144,8 +148,28 @@ func (a *agent) CloseSession(context.Context, acp.CloseSessionRequest) (acp.Clos
 	return acp.CloseSessionResponse{}, nil
 }
 
-func (a *agent) ListSessions(context.Context, acp.ListSessionsRequest) (acp.ListSessionsResponse, error) {
-	return acp.ListSessionsResponse{}, nil
+// ListSessions lists this session and one earlier conversation, a page each; the earlier one alone in
+// a folder other than the session's.
+func (a *agent) ListSessions(_ context.Context, request acp.ListSessionsRequest) (acp.ListSessionsResponse, error) {
+	title, updated, next := "An earlier chat", "2026-10-11T09:00:00Z", "page-2"
+	if request.Cursor != nil {
+		return acp.ListSessionsResponse{Sessions: []acp.SessionInfo{
+			{SessionId: "earlier", Cwd: a.cwd, Title: &title, UpdatedAt: &updated},
+			{SessionId: "elsewhere", Cwd: "/somewhere/else", Title: &title},
+		}}, nil
+	}
+	now := "This chat"
+	return acp.ListSessionsResponse{Sessions: []acp.SessionInfo{{SessionId: "fake-session", Cwd: a.cwd, Title: &now}}, NextCursor: &next}, nil
+}
+
+// LoadSession replays the earlier conversation, a question and its answer.
+func (a *agent) LoadSession(ctx context.Context, request acp.LoadSessionRequest) (acp.LoadSessionResponse, error) {
+	if request.SessionId != "earlier" {
+		return acp.LoadSessionResponse{}, fmt.Errorf("no conversation %s", request.SessionId)
+	}
+	a.conn.SessionUpdate(ctx, acp.SessionNotification{SessionId: request.SessionId, Update: acp.UpdateUserMessageText("what is 2 + 2?")})
+	a.say(ctx, request.SessionId, "4")
+	return acp.LoadSessionResponse{}, nil
 }
 
 func (a *agent) ResumeSession(context.Context, acp.ResumeSessionRequest) (acp.ResumeSessionResponse, error) {

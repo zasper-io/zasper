@@ -101,14 +101,15 @@ func (m *Manager) CatalogueHandler(w http.ResponseWriter, _ *http.Request) {
 // ListHandler answers GET /api/agents/chats.
 func (m *Manager) ListHandler(w http.ResponseWriter, _ *http.Request) {
 	type listed struct {
-		ID    string `json:"id"`
-		Agent string `json:"agent"`
-		Mode  string `json:"mode"`
+		ID      string `json:"id"`
+		Agent   string `json:"agent"`
+		Mode    string `json:"mode"`
+		History bool   `json:"history"`
 	}
 	m.mu.Lock()
 	chats := make([]listed, 0, len(m.chats))
 	for _, chat := range m.chats {
-		chats = append(chats, listed{ID: chat.ID, Agent: chat.Agent, Mode: chat.mode()})
+		chats = append(chats, listed{ID: chat.ID, Agent: chat.Agent, Mode: chat.mode(), History: chat.History})
 	}
 	m.mu.Unlock()
 	httpx.SendJSON(w, http.StatusOK, chats)
@@ -136,6 +137,48 @@ func (m *Manager) StartHandler(w http.ResponseWriter, req *http.Request) {
 func (m *Manager) StopHandler(w http.ResponseWriter, req *http.Request) {
 	if !m.Stop(mux.Vars(req)["chatId"]) {
 		httpx.SendErrorResponse(w, http.StatusNotFound, "No such chat")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// HistoryHandler answers GET /api/agents/chats/{chatId}/history?cursor=: a page of the agent's past
+// conversations in the project, and the cursor of the next.
+func (m *Manager) HistoryHandler(w http.ResponseWriter, req *http.Request) {
+	chat, ok := m.get(mux.Vars(req)["chatId"])
+	if !ok {
+		httpx.SendErrorResponse(w, http.StatusNotFound, "No such chat")
+		return
+	}
+	past, next, err := chat.Past(req.Context(), req.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	httpx.SendJSON(w, http.StatusOK, map[string]any{"chats": past, "next": next})
+}
+
+// LoadHandler answers POST /api/agents/chats/{chatId}/load with {"id"}: the chat goes on in that past
+// conversation. 409 while the agent is answering.
+func (m *Manager) LoadHandler(w http.ResponseWriter, req *http.Request) {
+	chat, ok := m.get(mux.Vars(req)["chatId"])
+	if !ok {
+		httpx.SendErrorResponse(w, http.StatusNotFound, "No such chat")
+		return
+	}
+	var body struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil || body.ID == "" {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "Name the conversation to open")
+		return
+	}
+	if err := chat.Load(body.ID); err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, ErrBusy) {
+			status = http.StatusConflict
+		}
+		httpx.SendErrorResponse(w, status, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

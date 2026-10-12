@@ -91,6 +91,8 @@ type Chat struct {
 	Agent string `json:"agent"`
 	// What the agent may do without asking: see ModeAsk.
 	Mode string `json:"mode"`
+	// The agent can list its past conversations in the project, and open one again.
+	History bool `json:"history"`
 
 	mu          sync.Mutex
 	events      []Event
@@ -106,6 +108,7 @@ type Chat struct {
 	stop    context.CancelFunc
 	files   Files
 	root    string
+	servers []acp.McpServer
 }
 
 // record appends an event and passes it to everyone watching, without waiting on any of them.
@@ -274,7 +277,7 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 
 	ctx, cancel := context.WithTimeout(lifetime, startBudget)
 	defer cancel()
-	if _, err := chat.conn.Initialize(ctx, acp.InitializeRequest{
+	initialized, err := chat.conn.Initialize(ctx, acp.InitializeRequest{
 		ProtocolVersion: acp.ProtocolVersionNumber,
 		ClientCapabilities: acp.ClientCapabilities{
 			Fs:       acp.FileSystemCapabilities{ReadTextFile: true, WriteTextFile: true},
@@ -283,13 +286,17 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 			// from the rest of the call, as it does for an editor that draws a terminal.
 			Meta: map[string]any{"terminal_output": true},
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		chat.close()
 		return nil, fmt.Errorf("%s did not answer as an ACP agent: %w", argv[0], err)
 	}
+	capabilities := initialized.AgentCapabilities
+	chat.History = capabilities.LoadSession && capabilities.SessionCapabilities.List != nil
 	if mcpServers == nil {
 		mcpServers = []acp.McpServer{}
 	}
+	chat.servers = mcpServers
 	session, err := chat.conn.NewSession(ctx, acp.NewSessionRequest{Cwd: root, McpServers: mcpServers})
 	if err != nil {
 		chat.close()

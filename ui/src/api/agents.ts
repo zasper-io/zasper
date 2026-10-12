@@ -15,6 +15,18 @@ export interface AgentChat {
   agent: string;
   /** What the agent may do without asking. */
   mode?: AgentMode;
+  /** The agent can list its past conversations in the project, and open one again. */
+  history?: boolean;
+}
+
+/** One of the agent's past conversations in the project. */
+export interface PastChat {
+  id: string;
+  title?: string;
+  /** RFC 3339. */
+  updated?: string;
+  /** The conversation the chat is in now. */
+  current?: boolean;
 }
 
 /** ask: everything is asked; edits: file changes are allowed; all: and commands. */
@@ -74,4 +86,21 @@ export function startChat(agent: string): Promise<AgentChat> {
 
 export function stopChat(id: string): Promise<void> {
   return requestEmpty(`/api/agents/chats/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+/** A page of the agent's past conversations in the project, newest first, and the cursor of the next. */
+export function listPastChats(
+  chatId: string,
+  cursor = ''
+): Promise<{ chats: PastChat[]; next: string }> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+  return requestJson(`/api/agents/chats/${encodeURIComponent(chatId)}/history${query}`);
+}
+
+/** Goes on in a past conversation; the chat's log starts again with the agent's replay of it. */
+export function openPastChat(chatId: string, id: string): Promise<void> {
+  return requestEmpty(`/api/agents/chats/${encodeURIComponent(chatId)}/load`, {
+    method: 'POST',
+    body: { id },
+  });
 }

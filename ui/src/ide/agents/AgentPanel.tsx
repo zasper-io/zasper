@@ -1,4 +1,13 @@
-import { KeyboardEvent, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  KeyboardEvent,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 
 import {
@@ -8,6 +17,9 @@ import {
   isUntrusted,
   listAgents,
   listChats,
+  listPastChats,
+  openPastChat,
+  PastChat,
   startChat,
   stopChat,
 } from '@/api';
@@ -18,6 +30,7 @@ import { projectDirAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import { useAskTrust } from '@/store/trust';
 import { lineDiff } from '@/ide/editor/notebookDiff/cellDiff';
+import { relativeDate } from '@/ide/sidebar/dates';
 import { ChatItem, PlanEntry, terminalText, ToolCall, ToolDiff } from './chatLog';
 import { useAgentChat } from './useAgentChat';
 import './AgentPanel.scss';
@@ -45,6 +58,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   const [agents, setAgents] = useState<AgentInfo[] | null>(null);
   const [starting, setStarting] = useState<AgentInfo | null>(null);
   const [error, setError] = useState('');
+  const [browsing, setBrowsing] = useState(false);
   const askTrust = useAskTrust();
 
   useEffect(() => {
@@ -96,15 +110,30 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
       void stopChat(chat.id).catch(() => {});
     }
     setChat(null);
+    setBrowsing(false);
   };
 
   return (
     <aside className="agentPanel" hidden={hidden} aria-label="Agent">
       <div className="agentPanel-title">
         <span className="z-label">{chat ? nameOf(chat, agents) : 'Agent'}</span>
-        {chat && <IconButton icon="plus" label="New chat" onClick={newChat} />}
+        {chat && (
+          <span className="agentPanel-actions">
+            {chat.history && (
+              <IconButton
+                icon="history"
+                label="Past conversations"
+                pressed={browsing}
+                onClick={() => setBrowsing((open) => !open)}
+              />
+            )}
+            <IconButton icon="plus" label="New chat" onClick={newChat} />
+          </span>
+        )}
       </div>
-      {chat ? (
+      {chat && browsing ? (
+        <History chatId={chat.id} onOpened={() => setBrowsing(false)} />
+      ) : chat ? (
         <Conversation chat={chat} />
       ) : (
         <Picker agents={agents} starting={starting} error={error} onStart={start} />
@@ -115,6 +144,90 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
 
 function nameOf(chat: AgentChat, agents: AgentInfo[] | null): string {
   return agents?.find((agent) => agent.id === chat.agent)?.name ?? chat.agent;
+}
+
+/** The agent's past conversations in the project; picking one goes on in it. */
+function History({ chatId, onOpened }: { chatId: string; onOpened: () => void }) {
+  const [past, setPast] = useState<PastChat[] | null>(null);
+  const [next, setNext] = useState('');
+  const [opening, setOpening] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const load = useCallback(
+    (cursor: string) =>
+      listPastChats(chatId, cursor)
+        .then((page) => {
+          setPast((previous) => [...(cursor ? (previous ?? []) : []), ...page.chats]);
+          setNext(page.next);
+        })
+        .catch((failure: unknown) => setError(apiErrorMessage(failure))),
+    [chatId]
+  );
+
+  useEffect(() => {
+    void load('');
+  }, [load]);
+
+  const open = async (id: string) => {
+    setOpening(id);
+    setError('');
+    try {
+      await openPastChat(chatId, id);
+      onOpened();
+    } catch (failure) {
+      setError(apiErrorMessage(failure));
+    } finally {
+      setOpening(null);
+    }
+  };
+
+  return (
+    <div className="agentPanel-empty">
+      {error && (
+        <div className="z-notice z-notice-error">
+          <Icon name="circle-alert" size={14} />
+          <p>{error}</p>
+        </div>
+      )}
+      {past === null && !error && <span className="z-spinner" role="status" aria-label="Loading" />}
+      {past?.length === 0 && <p>No past conversations in this project.</p>}
+      {past !== null && past.length > 0 && (
+        <div className="agentPanel-agents agentHistory" aria-label="Past conversations">
+          {past.map((chat) => (
+            <button
+              type="button"
+              key={chat.id}
+              className="panel-row"
+              disabled={chat.current || opening !== null}
+              title={[chat.title, chat.updated && new Date(chat.updated).toLocaleString()]
+                .filter(Boolean)
+                .join(' · ')}
+              onClick={() => void open(chat.id)}
+            >
+              {opening === chat.id ? (
+                <span className="z-spinner" role="status" aria-label="Opening" />
+              ) : (
+                <Icon name="history" />
+              )}
+              <span className="panel-row-name">{chat.title || 'Untitled'}</span>
+              <span className="panel-row-meta">
+                {chat.current ? 'open now' : chat.updated ? relativeDate(chat.updated) : ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {next && (
+        <button
+          type="button"
+          className="z-button z-button-secondary"
+          onClick={() => void load(next)}
+        >
+          Show more
+        </button>
+      )}
+    </div>
+  );
 }
 
 function Picker(props: {

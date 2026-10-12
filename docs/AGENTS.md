@@ -13,6 +13,12 @@ conversation streams in as the agent works: its messages, its thinking folded aw
 that opens the file it touched, its plan, and each question it asks with its options as buttons. Enter
 sends, and the button becomes Stop while the agent works. A reload or a second tab shows the same chat.
 
+The clock in the panel's title lists the agent's past conversations in the project, newest first, when
+the agent can list and open them (Claude Code can, including those held with `claude` in a terminal
+here). Picking one goes on in it: the agent replays it into the panel. What Zasper added to a
+conversation and the agent did not keep — its questions and their answers, a command's live output —
+does not come back. Zasper keeps no history of its own.
+
 ## Agents
 
 | Agent | Started as | When it is not found |
@@ -51,9 +57,11 @@ and the row shows them as it does for a command run here.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/agents` | The agents Zasper knows: `id`, `name`, `installed`, `hint`. |
-| `GET` | `/api/agents/chats` | The chats running. |
+| `GET` | `/api/agents/chats` | The chats running, each with `history` when its agent can list and open past conversations. |
 | `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. |
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |
+| `GET` | `/api/agents/chats/{id}/history?cursor=` | A page of the agent's past conversations in the project: `{"chats": [{id, title, updated, current}], "next"}`, through ACP's `session/list`. `400` for an agent that cannot. |
+| `POST` | `/api/agents/chats/{id}/load` | Go on in a past conversation, `{"id"}`, through `session/load`. The chat's log starts again with the replay, and every tab's socket is closed so it reconnects to the new log. `409` while the agent is answering. |
 | `GET` | `/ws/agents/chats/{id}` | **WebSocket.** The chat's log from the start, then each event as it happens. |
 
 Each event has a `seq` and a `type`: `user` (the reader's message, in `text`), `update` (what the agent

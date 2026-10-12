@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronsUp,
+  History,
   CircleAlert,
   CircleX,
   Info,
@@ -228,6 +229,7 @@ export const ICONS = {
   'circle-check': CircleCheck,
   // A cell an agent ran.
   bot: Bot,
+  history: History,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

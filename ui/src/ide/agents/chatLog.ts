@@ -206,6 +206,17 @@ export function foldChat(events: ChatEvent[]): ChatView {
       case 'update': {
         const update = event.update ?? {};
         switch (update.sessionUpdate) {
+          // A past conversation the agent replays has the reader's messages in it.
+          case 'user_message_chunk': {
+            const text = textOf(update.content);
+            const previous = last();
+            if (previous?.kind === 'user') {
+              previous.text += text;
+            } else if (text !== '') {
+              items.push({ kind: 'user', text });
+            }
+            break;
+          }
           case 'agent_message_chunk':
           case 'agent_thought_chunk': {
             const kind = update.sessionUpdate === 'agent_message_chunk' ? 'agent' : 'thought';

@@ -24,6 +24,16 @@
   border-bottom: 1px solid var(--z-border);
 }
 
+// The time is kept whole: a long title gives way instead.
+.agentHistory .panel-row-meta {
+  flex-shrink: 0;
+}
+
+.agentPanel-actions {
+  display: flex;
+  gap: 2px;
+}
+
 .agentPanel-mode {
   flex: 0 0 auto;
   margin: 8px 10px 0;

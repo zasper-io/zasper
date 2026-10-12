@@ -198,6 +198,29 @@ describe('foldChat', () => {
     });
   });
 
+  it('draws the reader’s messages in a past conversation the agent replays, without waiting on it', () => {
+    const view = foldChat([
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'user_message_chunk',
+          content: { type: 'text', text: 'what is ' },
+        },
+      },
+      {
+        type: 'update',
+        update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: '2 + 2?' } },
+      },
+      said('4'),
+    ]);
+
+    expect(view.items).toEqual([
+      { kind: 'user', text: 'what is 2 + 2?' },
+      { kind: 'agent', text: '4' },
+    ]);
+    expect(view.answering).toBe(false);
+  });
+
   describe('a command', () => {
     const runs = (content: unknown[], _meta?: unknown): ChatEvent => ({
       type: 'update',
