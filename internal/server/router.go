@@ -226,6 +226,11 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 
 	// terminals. The shells live in the terminal package because the connection is what starts and
 	// ends one; these two are how anything that is not that connection can see them.
+	// agents, over ACP. Starting one is gated like a terminal: it acts in the project. See docs/AGENTS.md.
+	apiRouter.HandleFunc("/agents", s.agents.CatalogueHandler).Methods("GET")
+	apiRouter.HandleFunc("/agents/chats", s.agents.ListHandler).Methods("GET")
+	apiRouter.HandleFunc("/agents/chats", s.trust.Require(s.agents.StartHandler)).Methods("POST")
+	apiRouter.HandleFunc("/agents/chats/{chatId}", s.agents.StopHandler).Methods("DELETE")
 	apiRouter.HandleFunc("/terminals", s.terminals.ListHandler).Methods("GET")
 	apiRouter.HandleFunc("/terminals/run-command", s.terminals.RunCommandHandler).Methods("GET")
 	apiRouter.HandleFunc("/terminals/{terminalId}", s.terminals.KillHandler).Methods("DELETE")
@@ -238,6 +243,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	//web sockets
 	wsRouter.HandleFunc("/kernels/{kernelId}/channels", s.kernelSockets.HandleWebSocket)
 	wsRouter.HandleFunc("/terminals/{terminalId}", s.terminals.HandleWebSocket)
+	wsRouter.HandleFunc("/agents/chats/{chatId}", s.agents.SocketHandler)
 	wsRouter.HandleFunc("/lsp/{language}", s.languages.HandleWebSocket)
 
 	if spa != nil {

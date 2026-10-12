@@ -17,6 +17,9 @@ stopped never lingers as a zombie, and Done says when that has happened.
 */
 type Process struct {
 	Pid int
+	// Set when the spec kept the process's stdio.
+	Stdin  io.WriteCloser
+	Stdout io.ReadCloser
 
 	process *os.Process
 	done    chan struct{}
@@ -63,6 +66,8 @@ type Spec struct {
 	Argv []string
 	Env  []string
 	Dir  string
+	// Talk to the process on its stdin and stdout, as an agent is, rather than logging its output.
+	KeepStdio bool
 }
 
 // Launch starts a kernel in a process group of its own, so that interrupting or stopping it reaches what
@@ -110,10 +115,14 @@ func Launch(spec Spec) (*Process, error) {
 		close(process.done)
 	}()
 
-	// The kernel is spoken to over ZMQ, not stdin, so closing the pipe is all that is wanted here.
-	stdin.Close()
-
-	go pipeToLog(stdout, "stdout", process.Pid)
+	if spec.KeepStdio {
+		process.Stdin = stdin
+		process.Stdout = stdout
+	} else {
+		// A kernel is spoken to over ZMQ, not stdin, so closing the pipe is all that is wanted here.
+		stdin.Close()
+		go pipeToLog(stdout, "stdout", process.Pid)
+	}
 	go pipeToLog(stderr, "stderr", process.Pid)
 
 	log.Debug().Msg("Process started successfully")

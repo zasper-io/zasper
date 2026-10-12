@@ -1,9 +1,13 @@
 package server
 
 import (
+	"os"
+
+	acp "github.com/coder/acp-go-sdk"
 	"github.com/rs/zerolog/log"
 	"net/http"
 
+	"github.com/zasper-io/zasper/internal/agents"
 	"github.com/zasper-io/zasper/internal/auth"
 	"github.com/zasper-io/zasper/internal/config"
 	"github.com/zasper-io/zasper/internal/connections"
@@ -39,6 +43,7 @@ type Server struct {
 	trust         *trust.Gate
 	connections   *connections.Handler
 	mcp           http.Handler
+	agents        *agents.Manager
 }
 
 // New builds the server for app, and connects the parts that cannot import each other.
@@ -103,6 +108,8 @@ func New(app core.Application) *Server {
 		AllowRun: gate.Check,
 		Version:  app.Version,
 	}))
+	s.agents = agents.New(project.Root(), agentFiles{s.content})
+	s.agents.GiveTools(zasperTools)
 	// A renamed notebook's session follows the file.
 	s.content.OnMoved(func(from, to string) { sessions.Relocate(from, to) })
 
@@ -117,7 +124,30 @@ func (s *Server) UseUpdates(checker *updates.Checker) {
 
 // Shutdown stops every shell and kernel the server started.
 func (s *Server) Shutdown() {
+	s.agents.StopAll()
 	s.terminals.StopAll()
 	s.languages.StopAll()
 	s.kernels.StopAll()
+}
+
+// agentFiles is how a hosted agent reads and writes the project: through the contents, so that its writes
+// are locked like a save and open tabs say who made them.
+type agentFiles struct{ content *content.Handler }
+
+func (f agentFiles) Read(path string) (string, error) { return f.content.ReadText(path) }
+
+func (f agentFiles) Write(path, text, client string) error {
+	return f.content.WriteTextAs(path, text, client)
+}
+
+// zasperTools gives a hosted agent Zasper's own MCP server, as `zasper mcp`, which finds this server from
+// the project the agent runs in. Stdio, because every ACP agent supports it.
+func zasperTools(_, _ string) []acp.McpServer {
+	executable, err := os.Executable()
+	if err != nil {
+		return nil
+	}
+	return []acp.McpServer{{Stdio: &acp.McpServerStdio{
+		Name: "zasper", Command: executable, Args: []string{"mcp"}, Env: []acp.EnvVariable{},
+	}}}
 }

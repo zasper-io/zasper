@@ -252,6 +252,11 @@ still runs, and a tab places it by its code only when exactly one cell holds
 that code; otherwise it shows as the kernel being busy. Each run also carries
 `client` in the replay.
 
+## Agents
+
+Coding agents hosted over the Agent Client Protocol: `GET /api/agents`, chats under `/api/agents/chats`,
+and a websocket per chat at `/ws/agents/chats/{id}`. See [AGENTS.md](AGENTS.md).
+
 ## MCP
 
 `POST /mcp` is Zasper's MCP server over streamable HTTP, answering in JSON, signed in like the rest of

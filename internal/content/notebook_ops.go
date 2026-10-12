@@ -194,3 +194,32 @@ func (h *Handler) Notebooks() ([]string, error) {
 	})
 	return found, err
 }
+
+// ReadText reads a file in the project as text, for an agent.
+func (h *Handler) ReadText(path string) (string, error) {
+	if h.project.outsideProject(path) {
+		return "", errors.New("invalid path")
+	}
+	model, err := h.project.GetContent(path, "file", "text")
+	if err != nil {
+		return "", err
+	}
+	text, _ := model.Content.(string)
+	return text, nil
+}
+
+// WriteTextAs writes a file in the project for client, locked like a save, and tells every open tab
+// who wrote it.
+func (h *Handler) WriteTextAs(path, content, client string) error {
+	if h.project.outsideProject(path) {
+		return errors.New("invalid path")
+	}
+	h.saving.Lock()
+	defer h.saving.Unlock()
+	hash, err := h.project.UpdateContent(path, "file", "text", content)
+	if err != nil {
+		return err
+	}
+	h.watch.wrote(path, hash, client)
+	return nil
+}

@@ -29,6 +29,7 @@ require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/andybalholm/brotli v1.2.3 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
+	github.com/coder/acp-go-sdk v0.13.5 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
