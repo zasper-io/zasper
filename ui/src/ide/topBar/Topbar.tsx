@@ -22,9 +22,16 @@ import { PALETTE_COMMANDS, SEARCH_CHORD } from './paletteCommands';
 interface TopbarProps {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  agentOpen: boolean;
+  onToggleAgent: () => void;
 }
 
-export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
+export default function Topbar({
+  sidebarOpen,
+  onToggleSidebar,
+  agentOpen,
+  onToggleAgent,
+}: TopbarProps) {
   // The query the palette is showing, or null when it is closed. One piece of state rather than a
   // flag per palette, because there is one palette now: the two chords differ only in what they
   // type into it.
@@ -153,6 +160,13 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }: TopbarProps) {
           label="Toggle sidebar"
           expanded={sidebarOpen}
           onClick={onToggleSidebar}
+        />
+        <IconButton
+          icon="bot"
+          className="on-chrome"
+          label="Toggle the agent panel"
+          expanded={agentOpen}
+          onClick={onToggleAgent}
         />
         <span className="userName">{userName}</span>
         <LogoutButton />

@@ -6,6 +6,7 @@ export {
   watchSession,
   websocketUrl,
 } from './client';
+export * from './agents';
 export * from './auth';
 export * from './config';
 export * from './connections';

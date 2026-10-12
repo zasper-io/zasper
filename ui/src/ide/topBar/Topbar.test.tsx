@@ -30,7 +30,12 @@ describe('Select Python Interpreter', () => {
     render(
       <Provider store={store}>
         <MemoryRouter>
-          <Topbar sidebarOpen onToggleSidebar={() => {}} />
+          <Topbar
+            sidebarOpen
+            onToggleSidebar={() => {}}
+            agentOpen={false}
+            onToggleAgent={() => {}}
+          />
         </MemoryRouter>
       </Provider>
     );

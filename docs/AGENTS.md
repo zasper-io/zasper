@@ -5,6 +5,14 @@ and hold the conversation with it, over the [Agent Client Protocol](https://agen
 The agent is the user's own, signed in with their own account; Zasper stores nothing of it and sends
 nothing anywhere. For an agent that runs on its own and only uses Zasper's tools, see [MCP.md](MCP.md).
 
+## The panel
+
+The bot in the topbar opens the agent panel on the right of the editor, beside the file tree. With no
+chat it lists the agents Zasper knows, found or with how to install them; picking one starts it. The
+conversation streams in as the agent works: its messages, its thinking folded away, a row per tool call
+that opens the file it touched, its plan, and each question it asks with its options as buttons. Enter
+sends, and the button becomes Stop while the agent works. A reload or a second tab shows the same chat.
+
 ## Agents
 
 | Agent | Started as | When it is not found |

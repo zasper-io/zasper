@@ -18,6 +18,7 @@ import NavigationPanel from './sidebar/navigationPanel/NavigationPanel';
 import FileBrowser from './sidebar/fileBrowser/FileBrowser';
 import ContentPanel from './editor/ContentPanel';
 import TabIndex from './tabs/TabIndex';
+import AgentPanel from './agents/AgentPanel';
 import Topbar from './topBar/Topbar';
 import GitPanel from './sidebar/gitPanel/GitPanel';
 import JupyterInfoPanel from './sidebar/jupyterInfoPanel/JupyterInfoPanel';
@@ -33,6 +34,7 @@ import StatusBar from './statusBar/StatusBar';
 import './IDE.scss';
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
 import { searchFocusRequestAtom } from '@/store/projectSearch';
+import { agentPanelOpenAtom } from '@/store/agents';
 import { dockOpenAtom, dockTabAtom } from '@/store/languageServers';
 import {
   platformAtom,
@@ -104,6 +106,17 @@ function IDE() {
   const { openSettings, showTerminals } = useTabActions();
   const [, setSearchFocus] = useAtom(searchFocusRequestAtom);
   const [dockOpen, setDockOpen] = useAtom(dockOpenAtom);
+  const [agentOpen, setAgentOpen] = useAtom(agentPanelOpenAtom);
+  const agentRef = useRef<ImperativePanelHandle>(null);
+  useEffect(() => {
+    const panel = agentRef.current;
+    if (panel === null) return;
+    if (agentOpen && panel.isCollapsed()) {
+      panel.resize(25);
+    } else if (!agentOpen && !panel.isCollapsed()) {
+      panel.collapse();
+    }
+  }, [agentOpen]);
   const [dockTab, setDockTab] = useAtom(dockTabAtom);
   const terminalsAvailable = useAtomValue(terminalsAvailableAtom);
 
@@ -269,7 +282,12 @@ function IDE() {
 
   return (
     <div className="editor">
-      <Topbar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
+      <Topbar
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={toggleSidebar}
+        agentOpen={agentOpen}
+        onToggleAgent={() => setAgentOpen((open) => !open)}
+      />
       <SessionEndedNotice />
       <ServerDisconnectedDialog />
       <LanguageServerBridge />
@@ -283,6 +301,8 @@ function IDE() {
         <PanelGroup direction="horizontal" className="workbench-panels">
           <Panel
             ref={sidebarRef}
+            id="sidebar"
+            order={1}
             defaultSize={20}
             minSize={20}
             collapsible
@@ -304,7 +324,7 @@ function IDE() {
             </div>
           </Panel>
           <PanelResizeHandle className="panelResizeHandle" />
-          <Panel defaultSize={80} minSize={50}>
+          <Panel id="editor" order={2} defaultSize={80} minSize={40}>
             {/* The panel under the editor , closed to nothing until it is asked for. */}
             <PanelGroup direction="vertical">
               <Panel id="editor-area" order={1} minSize={30}>
@@ -337,6 +357,26 @@ function IDE() {
                 <EditorDock hidden={!dockOpen} />
               </Panel>
             </PanelGroup>
+          </Panel>
+          <PanelResizeHandle
+            className="panelResizeHandle"
+            hidden={!agentOpen}
+            disabled={!agentOpen}
+          />
+          {/* Collapsed rather than unmounted when it is put away, like the dock: the chat lives on
+              the server, but its socket and what is being typed live here. */}
+          <Panel
+            ref={agentRef}
+            id="agent"
+            order={3}
+            defaultSize={0}
+            minSize={18}
+            collapsible
+            collapsedSize={0}
+            onCollapse={() => setAgentOpen(false)}
+            onExpand={() => setAgentOpen(true)}
+          >
+            <AgentPanel hidden={!agentOpen} />
           </Panel>
         </PanelGroup>
       </div>

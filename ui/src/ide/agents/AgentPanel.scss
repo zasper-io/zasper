@@ -1,0 +1,242 @@
+// The agent panel, ported from zasper-prototype's story-agents.css (stories 42 and 43): a panel of its
+// own on the right of the editor, so the file tree and the conversation are open together.
+
+.agentPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  background: var(--z-bg-panel);
+  border-left: 1px solid var(--z-border);
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.agentPanel-title {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--z-border);
+}
+
+.agentPanel-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  color: var(--z-fg-default);
+  font-size: var(--z-ui-font-size);
+  line-height: 1.5;
+
+  p {
+    margin: 0;
+  }
+}
+
+// The known agents: tree rows, so one is picked as a file is.
+.agentPanel-agents,
+.agentTools {
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  padding: 2px 0;
+
+  .panel-row {
+    width: 100%;
+    gap: 6px;
+    border: 0;
+    background: none;
+    text-align: left;
+    font: inherit;
+  }
+
+  .panel-row:disabled {
+    cursor: default;
+  }
+
+  // One line a row: a shell command can be paragraphs long, and its whole text is the row's title.
+  .panel-row-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// The conversation, the one part of the panel that scrolls.
+.agentChat {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 10px;
+  color: var(--z-fg-default);
+  font-size: var(--z-ui-font-size);
+  line-height: 1.5;
+}
+
+.agentChat-working {
+  align-self: flex-start;
+}
+
+// The reader's turn: a quiet box at the right, so the two voices are told apart by place.
+.agentMsg {
+  overflow-wrap: anywhere;
+
+  &.is-user {
+    align-self: flex-end;
+    max-width: 85%;
+    padding: 6px 10px;
+    border: 1px solid var(--z-border);
+    border-radius: 6px;
+    background: var(--z-bg-panel-alt);
+    white-space: pre-wrap;
+  }
+
+  p {
+    margin: 0 0 6px;
+  }
+
+  pre {
+    overflow-x: auto;
+  }
+}
+
+.agentThought {
+  color: var(--z-fg-subtle);
+
+  summary {
+    cursor: pointer;
+  }
+
+  p {
+    margin: 4px 0 0;
+    white-space: pre-wrap;
+  }
+}
+
+.agentTools-status {
+  margin-left: auto;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+  white-space: nowrap;
+
+  &.is-in_progress {
+    color: var(--z-fg-accent);
+  }
+
+  &.is-failed {
+    color: var(--z-status-error);
+  }
+}
+
+// The agent's own checklist, kept current as it works.
+.agentPlan {
+  margin: 0;
+  padding: 6px 8px;
+  list-style: none;
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--z-fg-muted);
+  }
+
+  li.is-completed {
+    color: var(--z-fg-subtle);
+    text-decoration: line-through;
+  }
+
+  li.is-in_progress {
+    color: var(--z-fg-default);
+    font-weight: 500;
+  }
+}
+
+.agentPlan-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+// A question the agent is waiting on: the accent edge, since it is the one thing waiting on the reader.
+.agentAsk {
+  strong {
+    font-weight: 500;
+  }
+
+  padding: 8px 10px;
+  border: 1px solid var(--z-border);
+  border-left: 2px solid var(--z-accent);
+  border-radius: 4px;
+  background: var(--z-bg-notice);
+
+  p {
+    margin: 0 0 6px;
+    overflow-wrap: anywhere;
+  }
+}
+
+.agentAsk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agentAsk-answer {
+  color: var(--z-fg-subtle);
+}
+
+.agentNote {
+  margin: 0;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+
+  &.is-failed {
+    color: var(--z-status-error);
+  }
+}
+
+// The composer, pinned under the conversation. Its button is Send, and Stop while the agent works.
+.agentComposer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--z-border);
+
+  textarea.z-field {
+    height: 56px;
+    padding: 6px;
+    resize: none;
+  }
+}
+
+.agentComposer-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+
+  .z-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+  }
+}
