@@ -265,3 +265,66 @@ func awaitOutputOrErrorFrom(t *testing.T, conn *websocket.Conn, msgId string) {
 		}
 	}
 }
+
+func TestAPromptRaisedWithNoTabAttachedIsReplayedAndCanBeAnswered(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+	socketURL := wsURL(t, srv, "/ws/kernels/"+created.Kernel.Id+"/channels") + "?session_id=" + created.Id
+
+	conn, _, err := websocket.DefaultDialer.Dial(socketURL, nil)
+	require.NoError(t, err)
+	awaitReplay(t, conn)
+	// The prompt comes after the tab has gone.
+	msgId := runCellOverSocket(t, conn, created.Id, "cell-1", "import time; time.sleep(2); print('hello', input('name? '))")
+	time.Sleep(300 * time.Millisecond)
+	require.NoError(t, conn.Close())
+	time.Sleep(3 * time.Second)
+
+	again, _, err := websocket.DefaultDialer.Dial(socketURL, nil)
+	require.NoError(t, err)
+	defer again.Close()
+	replay := awaitReplay(t, again)
+	require.Len(t, replay.Runs, 1)
+	require.NotEmpty(t, replay.Runs[0].InputRequest, "the prompt was not kept for the next tab")
+	var prompt struct {
+		Header  map[string]any `json:"header"`
+		Content struct {
+			Prompt string `json:"prompt"`
+		} `json:"content"`
+	}
+	require.NoError(t, json.Unmarshal(replay.Runs[0].InputRequest, &prompt))
+	assert.Equal(t, "name? ", prompt.Content.Prompt)
+
+	require.NoError(t, again.WriteJSON(map[string]any{
+		"channel": "stdin",
+		"header": map[string]any{
+			"msg_id": "answer-1", "msg_type": "input_reply", "session": created.Id,
+			"username": "test", "version": kernel.ProtocolVersion,
+			"date": time.Now().UTC().Format(time.RFC3339),
+		},
+		"parent_header": prompt.Header,
+		"metadata":      map[string]any{},
+		"content":       map[string]any{"value": "Ada"},
+	}))
+
+	require.NoError(t, again.SetReadDeadline(time.Now().Add(30*time.Second)))
+	for {
+		_, raw, err := again.ReadMessage()
+		require.NoError(t, err, "the run did not go on after the answer")
+		var message struct {
+			Header struct {
+				MsgType string `json:"msg_type"`
+			} `json:"header"`
+			ParentHeader struct {
+				MsgId string `json:"msg_id"`
+			} `json:"parent_header"`
+			Content map[string]any `json:"content"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &message))
+		if message.Header.MsgType == "stream" && message.ParentHeader.MsgId == msgId {
+			assert.Contains(t, message.Content["text"], "hello Ada")
+			return
+		}
+	}
+}

@@ -41,9 +41,9 @@ func (km *KernelManager) Run(ctx context.Context, cellID, client, code string) (
 	}
 	request.Metadata = metadata
 
-	km.BeginRun(request.Header.MsgID, cellID, client, code)
 	done := km.awaitRun(request.Header.MsgID)
-	if err := km.Session.send(shell, request); err != nil {
+	if err := km.Execute(request, cellID, client, nil); err != nil {
+		km.stopAwaiting(request.Header.MsgID)
 		return Run{}, err
 	}
 	select {

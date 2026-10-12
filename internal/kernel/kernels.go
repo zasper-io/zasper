@@ -110,6 +110,7 @@ func (k *Kernels) Start(dir string, kernelName string, env map[string]string) (s
 
 	k.running.Set(kernelId, km)
 	go watchKernelActivity(watching, km)
+	go km.serveRuns(watching)
 	go k.watchForExit(km)
 
 	return kernelId, nil

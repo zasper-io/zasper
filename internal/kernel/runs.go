@@ -37,6 +37,9 @@ type Run struct {
 	// reply is on the shell channel, which this feed does not see, so the idle that follows it stands in.
 	Execution map[string]string `json:"execution,omitempty"`
 
+	// An input() prompt the kernel is waiting on an answer to, as the client is sent it.
+	InputRequest json.RawMessage `json:"input_request,omitempty"`
+
 	// Some of this run was published while no client was attached.
 	missed      bool
 	outputBytes int
@@ -330,6 +333,39 @@ func (f *feed) updateDisplay(message *Message) {
 		if run := f.runs[shown.msgID]; run != nil && len(f.subscribers) == 0 {
 			run.missed = true
 		}
+	}
+}
+
+// askInput keeps an input() prompt on the run it belongs to, and shows it to every attached client: the
+// tab that asked for the run may be gone, and any of them may answer it.
+func (f *feed) askInput(message *Message) {
+	payload := encodeForClient(message)
+	if payload == nil {
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.init()
+	if run := f.runs[message.ParentHeader.MsgID]; run != nil {
+		run.InputRequest = payload
+		if len(f.subscribers) == 0 {
+			run.missed = true
+		}
+	}
+	for subscription := range f.subscribers {
+		select {
+		case subscription.Messages <- payload:
+		default:
+		}
+	}
+}
+
+// inputAnswered clears the prompt a kernel was waiting on: it runs one cell at a time, so there is one.
+func (f *feed) inputAnswered() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, run := range f.runs {
+		run.InputRequest = nil
 	}
 }
 

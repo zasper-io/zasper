@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import NotebookEditor from './NotebookEditor';
@@ -108,6 +108,30 @@ describe('NotebookEditor, given the runs it missed', () => {
 
     act(() => sockets[0].receive(kernelMessage('status', 'going-1', { execution_state: 'idle' })));
     await waitFor(() => expect(spinning(container)).toBe(false));
+  });
+
+  it('asks again for an input() raised while nobody was looking, and sends the answer', async () => {
+    await openNotebook();
+    const prompt = {
+      channel: 'stdin',
+      header: { msg_id: 'prompt-1', msg_type: 'input_request' },
+      parent_header: { msg_id: 'waiting-1' },
+      content: { prompt: 'name? ', password: false },
+    };
+
+    act(() =>
+      sockets[0].receive(
+        replay([run({ msg_id: 'waiting-1', done: false, outputs: [], input_request: prompt })])
+      )
+    );
+    const box = await screen.findByPlaceholderText('Type something and press Enter');
+    fireEvent.change(box, { target: { value: 'Ada' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+
+    const answer = sockets[0].sent
+      .map((sent) => JSON.parse(sent))
+      .find((message) => message.header.msg_type === 'input_reply');
+    expect(answer?.content.value).toBe('Ada');
   });
 
   it('places a run in a notebook without cell ids by the code that ran', async () => {

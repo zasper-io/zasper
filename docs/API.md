@@ -217,7 +217,8 @@ message: `channel` is `zasper`, `header.msg_type` is `zasper_replay`, and
 that finished with no client attached. Each run carries `msg_id` (the request's),
 `cell_id`, `code`, `execution_count`, `outputs` (nbformat outputs), `clear_waiting`,
 `done`, and `execution`: when the kernel took the run up and finished it, under
-JupyterLab's `metadata.execution` keys. A client that does not know the message can
+JupyterLab's `metadata.execution` keys. A run waiting on an `input()` carries `input_request`, the
+prompt as it was sent; answer it with an `input_reply` on this socket. A client that does not know the message can
 ignore it. See
 [RUNS.md](RUNS.md).
 

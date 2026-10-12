@@ -189,6 +189,20 @@ the writing off: the times are still shown, and a re-run then changes only outpu
 | `ui/src/ide/editor/notebook/useCellOutputs.ts` | The times this page saw, whether or not they are kept. |
 | `internal/kernel/runs.go` | A run's times, for the replay and the file. |
 
+## A prompt nobody is there to answer
+
+Every run is sent on the kernel's own shell and stdin, which the server holds for as long as the
+kernel runs (`runSockets` in `internal/kernel/run_sockets.go`), rather than on the asking tab's.
+A kernel sends an `input()` prompt to the identity that sent the run, so this is what makes the
+prompt reach the server even when that tab has gone: ZeroMQ would drop one addressed to a tab's
+closed socket, and the kernel would wait for ever. The run's `execute_reply` comes back to the same
+place and is passed to the tab that asked.
+
+The journal keeps the prompt on its run (`input_request` in the replay), and every attached tab is
+sent it. A tab that attaches later shows it from the replay. Whichever tab answers, its
+`input_reply` goes out on the kernel's stdin, and is sent without waiting for the connection's
+handshake: a kernel waiting on `input()` answers nothing else until it has the reply.
+
 ## What it does not do
 
 - **Edits made while away.** A tab that slept with unsaved edits, whose file was written meanwhile,

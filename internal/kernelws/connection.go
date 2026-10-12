@@ -339,6 +339,22 @@ func (kwsConn *Connection) handleIncomingMessage(incomingMsg []byte) {
 		return
 	}
 
+	var msg kernel.Message
+	if err := json.Unmarshal([]byte(wsMsg), &msg); err != nil {
+		log.Warn().Err(err).Msg("could not parse a message from the notebook")
+		return
+	}
+	log.Debug().Msgf("msg is => %v", msg)
+
+	// Not held for the handshake: a kernel waiting on input() answers nothing else until it has the
+	// reply, so the handshake would wait on this very message.
+	if msg.Header.MsgType == "input_reply" {
+		if err := kwsConn.KernelManager.Answer(msg); err != nil {
+			log.Warn().Err(err).Msg("could not answer the kernel's prompt")
+		}
+		return
+	}
+
 	// Held until the kernel has answered the nudge and its iopub stream has been seen. A cell run the
 	// moment a notebook opens is the case this is for: sent any earlier it executes on a kernel whose
 	// publications have nowhere to go.
@@ -347,13 +363,6 @@ func (kwsConn *Connection) handleIncomingMessage(incomingMsg []byte) {
 		return
 	}
 
-	var msg kernel.Message
-	if err := json.Unmarshal([]byte(wsMsg), &msg); err != nil {
-		log.Warn().Err(err).Msg("could not parse a message from the notebook")
-		return
-	}
-	log.Debug().Msgf("msg is => %v", msg)
-
 	// Every client->kernel message is already parsed here, which makes this the one place a cell
 	// run can be counted without the frontend being trusted to report it — and without the cell's
 	// source going anywhere near a property.
@@ -361,7 +370,16 @@ func (kwsConn *Connection) handleIncomingMessage(incomingMsg []byte) {
 		analytics.Track(analytics.EventCodeCellExecuted, map[string]interface{}{
 			"kernel_language": analytics.NormalizeLanguage(kwsConn.KernelManager.KernelName),
 		})
-		beginRun(kwsConn.KernelManager, msg)
+		// On the kernel's own shell rather than this tab's, so an input() prompt reaches the server
+		// even once the tab has gone. Its reply comes back here, off the reading loop.
+		metadata, _ := msg.Metadata.(map[string]interface{})
+		cellID, _ := metadata["cellId"].(string)
+		client, _ := metadata["client"].(string)
+		reply := func(payload []byte) { go kwsConn.forward(payload) }
+		if err := kwsConn.KernelManager.Execute(msg, cellID, client, reply); err != nil {
+			log.Warn().Err(err).Msg("could not send a run to the kernel")
+		}
+		return
 	}
 
 	if msg.Channel == "stdin" {
@@ -425,17 +443,4 @@ func (kwsConn *Connection) WriteMessages(waiter *sync.WaitGroup) {
 			}
 		}
 	}
-}
-
-// beginRun records a cell run before the kernel has it, so that its output is kept from the first message.
-func beginRun(km *kernel.KernelManager, msg kernel.Message) {
-	content, _ := msg.Content.(map[string]interface{})
-	if silent, _ := content["silent"].(bool); silent {
-		return
-	}
-	code, _ := content["code"].(string)
-	metadata, _ := msg.Metadata.(map[string]interface{})
-	cellID, _ := metadata["cellId"].(string)
-	client, _ := metadata["client"].(string)
-	km.BeginRun(msg.Header.MsgID, cellID, client, code)
 }

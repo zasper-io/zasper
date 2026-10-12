@@ -43,6 +43,9 @@ type KernelManager struct {
 
 	activity activity
 	feed     feed
+	// The kernel's own shell and stdin, which runs are sent on: see runSockets.
+	runs     *runSockets
+	runsOnce sync.Once
 }
 
 // activity is what /api/kernels reports about a running kernel. The activity watcher and the websocket

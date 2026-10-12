@@ -306,6 +306,8 @@ export interface ReplayedRun {
   done: boolean;
   /** When the server saw the kernel take it up and finish it. */
   execution?: CellTiming;
+  /** An input() prompt the kernel is still waiting on an answer to, as it was sent. */
+  input_request?: KernelMessage;
 }
 
 /** A replayed run and the cell it belongs to in this document. */

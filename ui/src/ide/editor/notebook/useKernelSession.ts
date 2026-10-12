@@ -88,6 +88,11 @@ export function useKernelSession(
       placed.filter(({ run }) => !run.done).map(({ cellId, run }) => [run.msg_id, cellId])
     );
     requests.reconcileRuns(stillRunning, adopted);
+    // A prompt raised while no tab was attached: answering it here is what lets the run go on.
+    const waiting = placed.find(({ run }) => !run.done && run.input_request);
+    if (waiting) {
+      prompt.askForInput(waiting.run.input_request, waiting.cellId);
+    }
   }
 
   function handleMessage(message: KernelMessage) {
