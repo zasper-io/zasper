@@ -22,3 +22,13 @@ export const diskResolutionsAtom = atom<Record<string, DiskResolution>>({});
 export function diskComparePath(key: string): string {
   return key.slice('disk:'.length);
 }
+
+/** A record of these, by path, without one path's entry: the same record when it has none. */
+export function without<T>(record: Record<string, T>, key: string): Record<string, T> {
+  if (!(key in record)) {
+    return record;
+  }
+  const next = { ...record };
+  delete next[key];
+  return next;
+}

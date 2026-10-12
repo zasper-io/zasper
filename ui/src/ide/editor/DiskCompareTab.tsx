@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import { Icon } from '@/ide/icons';
@@ -11,6 +11,8 @@ import {
 import { useTabActions } from '@/store/tabActions';
 import { FileTab } from '@/store/tabState';
 import BreadCrumb from './BreadCrumb';
+import NotebookDiff from './notebookDiff/NotebookDiff';
+import { NotebookSide } from './notebookDiff/cellDiff';
 import { useMergeView } from './useMergeView';
 import './DiffTab.scss';
 
@@ -29,7 +31,27 @@ export default function DiskCompareTab({ data }: DiskCompareTabProps) {
   const { activateTab, closeTab } = useTabActions();
   const container = useRef<HTMLDivElement>(null);
 
-  useMergeView(container, compare?.onDisk ?? null, compare?.mine ?? null, path);
+  // A notebook is compared as cells: as raw JSON its outputs and metadata bury the one line that moved.
+  const notebook = useMemo(() => {
+    if (compare === undefined || !path.endsWith('.ipynb')) {
+      return null;
+    }
+    try {
+      return {
+        original: JSON.parse(compare.onDisk) as NotebookSide,
+        modified: JSON.parse(compare.mine) as NotebookSide,
+      };
+    } catch {
+      return null;
+    }
+  }, [compare, path]);
+
+  useMergeView(
+    container,
+    notebook === null ? (compare?.onDisk ?? null) : null,
+    notebook === null ? (compare?.mine ?? null) : null,
+    path
+  );
 
   const answer = (resolution: DiskResolution) => {
     setResolutions((all) => ({ ...all, [path]: resolution }));
@@ -75,7 +97,17 @@ export default function DiskCompareTab({ data }: DiskCompareTabProps) {
           </div>
         )}
 
-        <div className="diff-body" ref={container} />
+        {notebook !== null ? (
+          <NotebookDiff
+            original={notebook.original}
+            modified={notebook.modified}
+            sides={['On disk', 'Your edits']}
+            outputsOpen={false}
+            metadataOpen={false}
+          />
+        ) : (
+          <div className="diff-body" ref={container} />
+        )}
       </div>
     </div>
   );

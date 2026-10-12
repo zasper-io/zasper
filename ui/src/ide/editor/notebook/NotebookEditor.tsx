@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { search } from '@codemirror/search';
 import { EditorView } from '@codemirror/view';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { selectAtom } from 'jotai/utils';
+import { useAtom, useAtomValue } from 'jotai';
 import { toast } from 'react-toastify';
 import './NotebookEditor.scss';
 
@@ -10,7 +9,6 @@ import {
   apiErrorMessage,
   DATAFRAMES,
   downloadContent,
-  getNotebook,
   isSaveConflict,
   logApiError,
   NotebookMetadata,
@@ -19,8 +17,8 @@ import {
   saveNotebook,
 } from '@/api';
 import DiskChangeBand from '../DiskChangeBand';
-import { useFileWatcher } from '@/ide/useContentWatcher';
-import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
+import { CellConflict, CellHeld, NotebookDiskBand } from './DiskNotices';
+import { useNotebookDisk } from './useNotebookDisk';
 import { saveAs } from '@/browser';
 import { Icon } from '@/ide/icons';
 import { FileTab } from '@/store/tabState';
@@ -54,7 +52,6 @@ import { useNotebookExport } from './export/useNotebookExport';
 import ExportDialog from './export/ExportDialog';
 import { exportFilename } from './export/exportFormats';
 import { useNotebookCells } from './useNotebookCells';
-import { stringifyNotebook } from './useNotebookDocument';
 
 import { useNotebookLanguageServer } from './useNotebookLanguageServer';
 import { useNotebookFormatting } from './useNotebookFormatting';
@@ -65,12 +62,6 @@ import { useNotebookFind } from './useNotebookFind';
 
 interface NotebookEditorProps {
   data: FileTab;
-}
-
-function without<T>(record: Record<string, T>, key: string): Record<string, T> {
-  const next = { ...record };
-  delete next[key];
-  return next;
 }
 
 export default function NotebookEditor({ data }: NotebookEditorProps) {
@@ -149,26 +140,25 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     cells.insertCodeAfter(notebook.cells[cells.focusedIndex]?.id ?? '', source);
   }, [insertRequest, data.path, setInsertRequest, cells, notebook.cells]);
 
-  const changedWhileHidden = useRef(false);
-  const [conflict, setConflict] = useState<string | null>(null);
-  /** Whether the band is up because a save was refused, rather than because the watcher saw a change. */
-  const [refused, setRefused] = useState(false);
-  const setCompares = useSetAtom(diskComparesAtom);
-  const [resolution] = useAtom(
-    useMemo(() => selectAtom(diskResolutionsAtom, (all) => all[data.path]), [data.path])
-  );
-  const setResolutions = useSetAtom(diskResolutionsAtom);
-  useEffect(() => {
-    return () => {
-      setCompares((compares) => without(compares, data.path));
-      setResolutions((resolutions) => without(resolutions, data.path));
-    };
-  }, [data.path, setCompares, setResolutions]);
+  // The cells' editors, by cell id. Declared here because the disk's reconciliation asks which one has
+  // the keyboard; see `registerCellView` below for the rest.
+  const cellViews = useRef<Map<string, EditorView>>(new Map());
+  const typingIn = useCallback(() => {
+    for (const [cellId, view] of cellViews.current) {
+      if (view.hasFocus) {
+        return cellId;
+      }
+    }
+    return null;
+  }, []);
+  const cellViewFor = useCallback((cellId: string) => cellViews.current.get(cellId) ?? null, []);
+  const disk = useNotebookDisk(data, cells, typingIn, cellViewFor);
 
-  const saveNotebookToDisk = async () => {
+  /** The notebook as it is written: the attached kernel recorded in its metadata. */
+  const withKernelspec = (written: NotebookModel): NotebookModel => {
     // Merged, not replaced: the server round-trips metadata it does not understand, so replacing
     // the object here would drop language_info and whatever else the file arrived with.
-    const metadata: NotebookMetadata = { ...notebook.metadata };
+    const metadata: NotebookMetadata = { ...written.metadata };
     // Only a kernel that is actually attached: writing the 'none' placeholder would replace the
     // kernel the file remembers with a name that starts nothing.
     if (kernel.kernelName && kernel.kernelName !== NO_KERNEL) {
@@ -185,146 +175,68 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         };
       }
     }
-    notebook.metadata = metadata;
+    written.metadata = metadata;
+    return written;
+  };
 
-    const written = notebook;
+  const saveNotebookToDisk = async () => {
+    // A cell held for the reader to leave is written as the file has it, not as it was shown.
+    let written = withKernelspec(disk.release(null));
     let hash;
     try {
       hash = await saveNotebook(data.path, written, cells.diskHash.current || undefined);
     } catch (failure) {
-      if (!isSaveConflict(failure) || !(await refuseSave(written))) {
+      const again = isSaveConflict(failure) ? await disk.refuseSave(written) : null;
+      if (again === null) {
         throw failure;
       }
+      written = withKernelspec(again);
       hash = await saveNotebook(data.path, written, cells.diskHash.current || undefined);
     }
-    setConflict(null);
+    disk.saved();
     // Only once the write succeeded: a notebook the server refused still holds unsaved work.
     cells.markSaved(written, hash);
   };
 
-  /**
-   * A save the server refused because the file changed after it was read: what is there now goes in the
-   * band and becomes the version the next save replaces. Resolves to whether the save should simply be
-   * made again, because the file is gone or already says the same.
-   */
-  const refuseSave = async (written: NotebookModel): Promise<boolean> => {
-    let resJson;
-    try {
-      resJson = await getNotebook(data.path);
-    } catch {
-      cells.diskHash.current = '';
-      return true;
-    }
-    const onDisk = stringifyNotebook(resJson.content);
-    cells.diskForm.current = onDisk;
-    cells.diskHash.current = resJson.hash ?? '';
-    if (onDisk === stringifyNotebook(written)) {
-      return true;
-    }
-    setRefused(true);
-    setConflict(onDisk);
-    return false;
-  };
-
-  const cellsRef = useRef(cells);
-  cellsRef.current = cells;
-
-  const takeChangeFromDisk = useCallback(async () => {
-    let resJson;
-    try {
-      resJson = await getNotebook(data.path);
-    } catch {
-      return;
-    }
-    const currentCells = cellsRef.current;
-    const onDisk = stringifyNotebook(resJson.content);
-    currentCells.diskHash.current = resJson.hash ?? '';
-    if (onDisk === currentCells.diskForm.current) {
-      return;
-    }
-
-    if (!currentCells.sourceUnsaved) {
-      setConflict(null);
-      currentCells.applyNotebook(resJson.content);
-      return;
-    }
-
-    // What the file says is now known either way, so a reader who keeps their own version is not
-    // asked about this same change again — only about the next one.
-    currentCells.diskForm.current = onDisk;
-
-    const currentDoc = stringifyNotebook(currentCells.notebook);
-    // Someone wrote what the editor already holds: nothing is left to choose between.
-    if (currentDoc === onDisk) {
-      setConflict(null);
-      currentCells.markSaved(currentCells.notebook);
-      return;
-    }
-
-    setRefused(false);
-    setConflict(onDisk);
-  }, [data.path]);
-
-  useFileWatcher(data.path, (hash) => {
-    // The version this editor already holds, such as the echo of its own save.
-    if (hash !== undefined && hash === cells.diskHash.current) {
-      return;
-    }
-    if (!data.active) {
-      changedWhileHidden.current = true;
-      return;
-    }
-    void takeChangeFromDisk();
-  });
-
-  useEffect(() => {
-    if (data.active && changedWhileHidden.current) {
-      changedWhileHidden.current = false;
-      void takeChangeFromDisk();
-    }
-  }, [data.active, takeChangeFromDisk]);
-
-  const keepMine = useCallback(() => setConflict(null), []);
   const saveRef = useRef(saveNotebookToDisk);
   saveRef.current = saveNotebookToDisk;
+  const { keepAllMine, takeAllTheirs, refused, resolution, clearResolution } = disk;
   const overwrite = useCallback(() => {
-    setConflict(null);
+    keepAllMine();
     saveRef.current().catch(logSaveFailure);
-  }, []);
-
-  const takeTheirs = useCallback(async () => {
-    if (conflict === null) {
-      return;
-    }
-    setConflict(null);
-    await loadNotebook(data.path);
-  }, [conflict, data.path, loadNotebook]);
-
-  const compareWithDisk = useCallback(() => {
-    if (conflict !== null) {
-      const mine = stringifyNotebook(cells.notebook);
-      setCompares((compares) => ({ ...compares, [data.path]: { onDisk: conflict, mine } }));
-    }
-  }, [conflict, cells.notebook, data.path, setCompares]);
-
-  useEffect(() => {
-    if (conflict === null) {
-      setCompares((compares) => without(compares, data.path));
-    }
-  }, [conflict, data.path, setCompares]);
+  }, [keepAllMine]);
 
   // An answer given in the comparison tab.
   useEffect(() => {
     if (resolution === undefined) {
       return;
     }
-    setResolutions((resolutions) => without(resolutions, data.path));
+    clearResolution();
     if (resolution === 'mine') {
-      (refused ? overwrite : keepMine)();
+      (refused ? overwrite : keepAllMine)();
     } else {
-      void takeTheirs();
+      void takeAllTheirs();
     }
-  }, [resolution, data.path, refused, setResolutions, overwrite, keepMine, takeTheirs]);
+  }, [resolution, clearResolution, refused, overwrite, keepAllMine, takeAllTheirs]);
+
+  const diskNotices = useMemo(() => {
+    const notices: Record<string, React.ReactNode> = {};
+    for (const [cellId, theirs] of Object.entries(disk.conflicts)) {
+      notices[cellId] = (
+        <CellConflict
+          path={data.path}
+          deleted={theirs === null}
+          onCompare={disk.compare}
+          onKeepMine={() => disk.keepMine(cellId)}
+          onTakeTheirs={() => disk.takeTheirs(cellId)}
+        />
+      );
+    }
+    for (const cellId of Object.keys(disk.held)) {
+      notices[cellId] = <CellHeld onUpdate={() => disk.release(null)} />;
+    }
+    return notices;
+  }, [disk, data.path]);
 
   // Registered whether or not this is the active tab: any open tab can be closed.
   useUnsavedChanges(data.path, cells.unsaved, saveNotebookToDisk);
@@ -477,7 +389,6 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
    * A ref rather than state: a view arriving is not a render, and the find card asks for them only
    * when it searches. Cleared by the cell as it unmounts, so a stale view is never dispatched into.
    */
-  const cellViews = useRef<Map<string, EditorView>>(new Map());
   const [viewsVersion, setViewsVersion] = useState(0);
   const viewFor = useCallback((cellId: string) => cellViews.current.get(cellId) ?? null, []);
 
@@ -735,15 +646,24 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         aria-labelledby="profile-tab"
       >
         <BreadCrumb path={data.path} />
-        {conflict !== null && (
+        {disk.wholeConflict !== null ? (
           <DiskChangeBand
             path={data.path}
             name={data.name}
             refused={refused}
-            onCompare={compareWithDisk}
-            onKeepMine={refused ? overwrite : keepMine}
-            onTakeTheirs={takeTheirs}
+            onCompare={disk.compare}
+            onKeepMine={refused ? overwrite : keepAllMine}
+            onTakeTheirs={takeAllTheirs}
           />
+        ) : (
+          disk.asking && (
+            <NotebookDiskBand
+              name={data.name}
+              conflicts={Object.keys(disk.conflicts).length}
+              refused={refused}
+              onGoTo={() => cells.focusCellBox(Object.keys(disk.conflicts)[0])}
+            />
+          )
         )}
         <NbButtons
           run={runCommand}
@@ -835,6 +755,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
                     expandedOutputs={cells.expandedOutputs}
                     editingCellId={cells.editingCellId}
                     focusedCellId={cells.focusedCellId}
+                    diskNotices={diskNotices}
                     prompt={
                       kernel.showPrompt && kernel.promptCellId && kernel.promptContent
                         ? { cellId: kernel.promptCellId, content: kernel.promptContent }

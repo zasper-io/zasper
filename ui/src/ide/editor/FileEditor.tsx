@@ -32,7 +32,7 @@ import IconButton from '@/ide/IconButton';
 import { useCommandEnabled, useRegisterCommands, useRunCommand } from '@/commands/registry';
 import { useFileWatcher } from '@/ide/useContentWatcher';
 import { baseName } from '@/paths';
-import { diskComparesAtom, diskResolutionsAtom } from '@/store/diskChanges';
+import { diskComparesAtom, diskResolutionsAtom, without } from '@/store/diskChanges';
 import { formatDocumentNow } from '@/lsp/formatting';
 import { inlayHints } from '@/lsp/inlayHints';
 import { serverLanguageFor } from '@/lsp/languages';
@@ -92,15 +92,6 @@ function isMarkdown(extension: string | null): boolean {
 /** Text split into lines the way CodeMirror splits a document, so the two compare as equal. */
 function documentOf(text: string): Text {
   return Text.of(text.split(/\r\n?|\n/));
-}
-
-function without<T>(record: Record<string, T>, key: string): Record<string, T> {
-  if (!(key in record)) {
-    return record;
-  }
-  const next = { ...record };
-  delete next[key];
-  return next;
 }
 
 interface FileEditorProps {

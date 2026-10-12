@@ -135,8 +135,12 @@ export class FakeSocket {
 export async function codeMirrorModule() {
   const react = await import('react');
   return {
-    default: (props: { value?: string }) =>
-      react.createElement('textarea', { value: props.value, readOnly: true }),
+    // Typing reaches the cell as CodeMirror reports it, with the new text.
+    default: (props: { value?: string; onChange?: (value: string) => void }) =>
+      react.createElement('textarea', {
+        value: props.value,
+        onChange: (event: { target: { value: string } }) => props.onChange?.(event.target.value),
+      }),
     Prec: { highest: (extension: unknown) => extension },
   };
 }

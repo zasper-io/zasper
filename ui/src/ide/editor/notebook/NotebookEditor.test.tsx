@@ -519,7 +519,7 @@ describe('NotebookEditor', () => {
     expect(await screen.findByText('print("updated on disk")')).toBeInTheDocument();
   });
 
-  it('asks which version to keep when the file changed under unsaved edits, and takes theirs', async () => {
+  it('takes a cell the reader did not touch, beside the cell they added, without asking', async () => {
     const { container } = render(
       <Provider>
         <NotebookEditor data={tab} />
@@ -528,37 +528,52 @@ describe('NotebookEditor', () => {
     );
     await waitFor(() => expect(sockets).toHaveLength(1));
     await screen.findByText('[0]:');
-
     fireEvent.click(screen.getByText('dispatch'));
     await waitFor(() => expect(container.querySelectorAll('.single-line')).toHaveLength(2));
 
-    const onDiskUpdated = {
-      ...structuredClone(notebookContent),
-      cells: [
-        {
-          ...notebookContent.cells[0],
-          source: 'print("conflict from disk")',
-        },
-      ],
-    };
     getNotebook.mockResolvedValue({
-      name: tab.name,
-      type: tab.type,
-      path: tab.path,
-      content: onDiskUpdated,
+      ...tab,
+      content: {
+        ...structuredClone(notebookContent),
+        cells: [{ ...notebookContent.cells[0], source: 'print("from disk")' }],
+      },
     });
-
     await act(async () => {
       watcher.fire();
     });
 
-    expect(await screen.findByText(/changed on disk/)).toBeInTheDocument();
-    expect(screen.getByText('Keep mine')).toBeInTheDocument();
-    expect(screen.getByText('Take theirs')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('print("from disk")')).toBeInTheDocument();
+    expect(container.querySelectorAll('.single-line')).toHaveLength(2);
+    expect(screen.queryByText(/changed on/)).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByText('Take theirs'));
-    await waitFor(() => expect(screen.queryByText(/changed on disk/)).not.toBeInTheDocument());
-    expect(await screen.findByText('print("conflict from disk")')).toBeInTheDocument();
+  it('asks on the cell when the file changed a cell the reader is editing, and takes theirs', async () => {
+    render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+    fireEvent.change(screen.getByDisplayValue('print("hi")'), {
+      target: { value: 'print("mine")' },
+    });
+
+    getNotebook.mockResolvedValue({
+      ...tab,
+      content: {
+        ...structuredClone(notebookContent),
+        cells: [{ ...notebookContent.cells[0], source: 'print("theirs")' }],
+      },
+    });
+    await act(async () => {
+      watcher.fire();
+    });
+
+    expect(await screen.findByText('Changed on both sides.')).toBeInTheDocument();
+    expect(screen.getByText(/1 cell changed on both sides/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('print("mine")')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take theirs' }));
+
+    expect(await screen.findByDisplayValue('print("theirs")')).toBeInTheDocument();
+    expect(screen.queryByText('Changed on both sides.')).not.toBeInTheDocument();
   });
 
   /*

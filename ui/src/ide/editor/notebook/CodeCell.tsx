@@ -188,6 +188,7 @@ export default function CodeCell(props: CellProps) {
           )}
         </div>
       </div>
+      {props.diskNotice}
       {props.prompt?.content && (
         <Prompt
           content={props.prompt}

@@ -133,7 +133,7 @@ describe('NotebookEditor unsaved changes', () => {
   });
 
   describe('a save over a change it has not seen', () => {
-    async function saveAfterAWriteOnDisk() {
+    function renderWithSave() {
       render(
         <Provider>
           <NotebookEditor data={tab} />
@@ -142,34 +142,68 @@ describe('NotebookEditor unsaved changes', () => {
           <Unsaved />
         </Provider>
       );
+    }
+
+    function anAgentWrote(source: string) {
+      saveNotebook.mockRejectedValueOnce(new ApiError('PUT', '/api/contents', 409, ''));
+      const theirs = structuredClone(notebookContent);
+      theirs.cells[0].source = source;
+      getNotebook.mockResolvedValue({ ...tab, content: theirs, hash: 'hash of theirs' });
+    }
+
+    it('brings in a cell only the file changed, and saves both', async () => {
+      renderWithSave();
       await waitFor(() => expect(sockets).toHaveLength(1));
       await screen.findByText('[0]:');
       fireEvent.click(screen.getAllByText('dispatch')[0]);
       await waitFor(() => expect(unsavedPaths()).toBe('notebook.ipynb'));
 
-      saveNotebook.mockRejectedValueOnce(new ApiError('PUT', '/api/contents', 409, ''));
-      const theirs = structuredClone(notebookContent);
-      theirs.cells[0].source = 'written by an agent';
-      getNotebook.mockResolvedValue({ ...tab, content: theirs, hash: 'hash of theirs' });
+      anAgentWrote('written by an agent');
       fireEvent.click(screen.getAllByText('dispatch')[1]);
-      await screen.findByText(`${tab.name} was not saved.`);
-    }
-
-    it('sends the version it read, writes nothing more, and stays unsaved', async () => {
-      await saveAfterAWriteOnDisk();
-
-      expect(saveNotebook).toHaveBeenCalledTimes(1);
-      expect(saveNotebook.mock.calls[0][2]).toBe('hash as read');
-      expect(unsavedPaths()).toBe('notebook.ipynb');
-    });
-
-    it('overwrites the version now on disk when asked to', async () => {
-      await saveAfterAWriteOnDisk();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Overwrite' }));
 
       await waitFor(() => expect(unsavedPaths()).toBe(''));
-      expect(saveNotebook.mock.calls[1][2]).toBe('hash of theirs');
+      expect(saveNotebook.mock.calls[0][2]).toBe('hash as read');
+      const [, written, hash] = saveNotebook.mock.calls[1];
+      expect(hash).toBe('hash of theirs');
+      expect(written.cells.map((cell: { source: string }) => cell.source)).toEqual([
+        'written by an agent',
+        '',
+      ]);
+    });
+
+    describe('when a cell changed on both sides', () => {
+      async function saveOverAConflict() {
+        renderWithSave();
+        await waitFor(() => expect(sockets).toHaveLength(1));
+        await screen.findByText('[0]:');
+        fireEvent.change(screen.getByDisplayValue('print("hi")'), {
+          target: { value: 'print("mine")' },
+        });
+        await waitFor(() => expect(unsavedPaths()).toBe('notebook.ipynb'));
+
+        anAgentWrote('print("theirs")');
+        fireEvent.click(screen.getAllByText('dispatch')[1]);
+        await screen.findByText(`${tab.name} was not saved.`);
+      }
+
+      it('writes nothing more, says so, and asks on the cell', async () => {
+        await saveOverAConflict();
+
+        expect(saveNotebook).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('Changed on both sides.')).toBeInTheDocument();
+        expect(unsavedPaths()).toBe('notebook.ipynb');
+      });
+
+      it('saves over the version now on disk once the reader keeps theirs', async () => {
+        await saveOverAConflict();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Keep mine' }));
+        fireEvent.click(screen.getAllByText('dispatch')[1]);
+
+        await waitFor(() => expect(unsavedPaths()).toBe(''));
+        expect(saveNotebook.mock.calls[1][2]).toBe('hash of theirs');
+        expect(saveNotebook.mock.calls[1][1].cells[0].source).toBe('print("mine")');
+      });
     });
   });
 });

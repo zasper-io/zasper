@@ -96,6 +96,7 @@ export default function MarkdownCell(props: CellProps) {
           </div>
         </div>
       )}
+      {props.diskNotice}
     </div>
   );
 }

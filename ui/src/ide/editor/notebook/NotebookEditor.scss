@@ -373,6 +373,29 @@ $cell-gutter: 64px;
   }
 }
 
+// A change on disk to one cell, said under its code: lined up with the code like the output, and clear
+// of the run time on the box's bottom border.
+.z-notice.cellDiskNotice {
+  margin: 12px 0 0 $cell-gutter;
+  border: 1px solid var(--z-border);
+  border-left: 2px solid var(--z-git-modified);
+  border-radius: 4px;
+  padding-left: 10px;
+
+  > .z-icon {
+    margin-top: 2px;
+    color: var(--z-git-modified);
+  }
+
+  &.is-conflict {
+    border-left-color: var(--z-git-conflict);
+
+    > .z-icon {
+      color: var(--z-git-conflict);
+    }
+  }
+}
+
 // The output area, below the cell's input. The left margin is the gutter above, so output
 // lines up with the code that produced it rather than with the execution count.
 .inner-text {

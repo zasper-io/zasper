@@ -19,6 +19,8 @@ interface NotebookCellsProps {
   focusedCellId: string | null;
   /** The kernel's `input()` prompt and the cell it is waiting on, when it is waiting. */
   prompt?: { cellId: string; content: KernelMessage };
+  /** What a change on disk asks of a cell, by cell id. */
+  diskNotices?: Record<string, React.ReactNode>;
 }
 
 /**
@@ -33,6 +35,7 @@ export default function NotebookCells({
   editingCellId,
   focusedCellId,
   prompt,
+  diskNotices,
 }: NotebookCellsProps) {
   if (!notebook.cells) {
     return null;
@@ -54,6 +57,7 @@ export default function NotebookCells({
             isFocused={focusedCellId === cell.id}
             isEditing={editingCellId === cell.id}
             prompt={prompt?.cellId === cell.id ? prompt.content : undefined}
+            diskNotice={diskNotices?.[cell.id]}
           />
         </React.Fragment>
       ))}
