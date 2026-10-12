@@ -10,6 +10,7 @@ import { cellMention, useAddMention } from './mentions';
 const listAgents = vi.fn();
 const listChats = vi.fn();
 const startChat = vi.fn();
+const startCommand = vi.fn();
 const listPastChats = vi.fn();
 const openPastChat = vi.fn();
 const undoTurn = vi.fn();
@@ -20,6 +21,7 @@ vi.mock('@/api', async (importOriginal) => ({
   listAgents: () => listAgents(),
   listChats: () => listChats(),
   startChat: (agent: string) => startChat(agent),
+  startCommand: (command: string) => startCommand(command),
   stopChat: () => Promise.resolve(),
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
   openPastChat: (chatId: string, id: string) => openPastChat(chatId, id),
@@ -68,9 +70,24 @@ describe('AgentPanel', () => {
   beforeEach(() => {
     FakeSocket.autoOpen = true;
     listAgents.mockResolvedValue([
-      { id: 'claude-code', name: 'Claude Code', installed: true, hint: 'npm i' },
-      { id: 'codex', name: 'Codex', installed: false, hint: 'install codex-acp' },
+      {
+        id: 'claude-code',
+        name: 'Claude Code',
+        vendor: 'Anthropic',
+        installed: true,
+        install: 'npm i claude',
+        then: 'Sign in.',
+      },
+      {
+        id: 'codex',
+        name: 'Codex',
+        vendor: 'OpenAI',
+        installed: false,
+        install: 'npm install -g codex-acp',
+        then: 'Sign in once by running codex.',
+      },
     ]);
+    startCommand.mockResolvedValue({ id: 'chat-2', agent: '/opt/bin/my-agent' });
     listChats.mockResolvedValue([]);
     startChat.mockResolvedValue({ id: 'chat-1', agent: 'claude-code' });
   });
@@ -82,10 +99,28 @@ describe('AgentPanel', () => {
       </Provider>
     );
 
-    const claude = await screen.findByRole('button', { name: /Claude Code/ });
+    const claude = await screen.findByRole('button', { name: 'Start Claude Code' });
     expect(claude).toBeEnabled();
-    expect(screen.getByRole('button', { name: /Codex/ })).toBeDisabled();
-    expect(screen.getByText('install codex-acp')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start Codex' })).not.toBeInTheDocument();
+    const missing = screen.getByRole('region', { name: 'Not installed' });
+    expect(missing).toHaveTextContent('npm install -g codex-acp');
+    expect(missing).toHaveTextContent('Sign in once by running codex.');
+  });
+
+  it('starts any other agent by the command that runs it, and names it by its program', async () => {
+    render(
+      <Provider>
+        <AgentPanel hidden={false} />
+      </Provider>
+    );
+    fireEvent.click(await screen.findByText('Use another ACP agent'));
+    fireEvent.change(screen.getByLabelText('The command that starts the agent'), {
+      target: { value: ' /opt/bin/my-agent --acp ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+
+    await waitFor(() => expect(startCommand).toHaveBeenCalledWith('/opt/bin/my-agent --acp'));
+    expect(await screen.findByText('my-agent')).toBeInTheDocument();
   });
 
   it('joins a chat started in another tab when it is opened', async () => {
@@ -114,7 +149,7 @@ describe('AgentPanel', () => {
         <AgentPanel hidden={false} />
       </Provider>
     );
-    await screen.findByRole('button', { name: /Claude Code/ });
+    await screen.findByRole('button', { name: 'Start Claude Code' });
     listChats.mockResolvedValue([{ id: 'chat-9', agent: 'claude-code' }]);
 
     fireEvent.focus(window);
@@ -128,7 +163,7 @@ describe('AgentPanel', () => {
         <AgentPanel hidden={false} />
       </Provider>
     );
-    fireEvent.click(await screen.findByRole('button', { name: /Claude Code/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
     await waitFor(() => expect(FakeSocket.latest?.url).toContain('/ws/agents/chats/chat-1'));
     // Connected: until then the server has not sent the log, and opening starts it again.
     await screen.findByText('Your own agent, your own subscription');
@@ -175,7 +210,7 @@ describe('AgentPanel', () => {
       </Provider>
     );
     FakeSocket.autoOpen = false;
-    fireEvent.click(await screen.findByRole('button', { name: /Claude Code/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
     const box = await screen.findByLabelText('Message to the agent');
     expect(screen.getByText('Connecting…')).toBeInTheDocument();
     fireEvent.change(box, { target: { value: 'too early' } });
@@ -191,7 +226,7 @@ describe('AgentPanel', () => {
         <AgentPanel hidden={false} />
       </Provider>
     );
-    fireEvent.click(await screen.findByRole('button', { name: /Claude Code/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
     await screen.findByText('Your own agent, your own subscription');
     const socket = FakeSocket.latest;
     socket.push({

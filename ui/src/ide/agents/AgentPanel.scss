@@ -53,7 +53,142 @@
   }
 }
 
-// The known agents: tree rows, so one is picked as a file is.
+// No chat yet: the agents to start, those to install, and any other by its command.
+.agentStart {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  color: var(--z-fg-default);
+  font-size: var(--z-ui-font-size);
+  line-height: 1.5;
+
+  p,
+  h3 {
+    margin: 0;
+  }
+
+  // Nested so it outranks the margin reset above: the note sits at the foot of the panel.
+  .agentStart-foot {
+    margin-top: auto;
+    color: var(--z-fg-subtle);
+    font-size: var(--z-ui-font-size-sm);
+  }
+}
+
+.agentStart-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  p {
+    color: var(--z-fg-muted);
+  }
+}
+
+.agentStart-starting {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  p {
+    color: var(--z-fg-muted);
+  }
+}
+
+.agentStart-section {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+
+  .z-label {
+    color: var(--z-fg-subtle);
+  }
+
+  > .z-button {
+    align-self: flex-start;
+  }
+}
+
+.agentCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+
+  .z-form-help {
+    margin: 0;
+  }
+}
+
+.agentCard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.agentCard-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  strong {
+    font-weight: 500;
+  }
+
+  span {
+    color: var(--z-fg-subtle);
+    font-size: var(--z-ui-font-size-sm);
+  }
+}
+
+// The launcher's command box, as the No kernels card draws it, with its copy button beside it.
+.agentCard-install {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  padding-left: 10px;
+  border-radius: 4px;
+  background-color: var(--z-bg-code);
+
+  // Wrapped rather than cut: the panel is narrower than most install commands. At the chrome's small
+  // size, which a code-sized line would tower over in a 300px panel.
+  code {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 6px 0;
+    font-family: var(--z-mono-font-family);
+    font-size: var(--z-ui-font-size-sm);
+    overflow-wrap: anywhere;
+  }
+}
+
+.agentStart-other {
+  summary {
+    color: var(--z-fg-accent);
+    cursor: pointer;
+  }
+
+  form {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .z-field {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+// Past conversations: tree rows, so one is picked as a file is.
 .agentPanel-agents,
 .agentTools {
   border: 1px solid var(--z-border);

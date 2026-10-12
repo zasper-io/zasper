@@ -8,7 +8,8 @@ nothing anywhere. For an agent that runs on its own and only uses Zasper's tools
 ## The panel
 
 The bot in the topbar opens the agent panel on the right of the editor, beside the file tree. With no
-chat it lists the agents Zasper knows, found or with how to install them; picking one starts it. The
+chat it lists the agents Zasper knows: those installed with a Start button, the others with the
+command that installs them and Check again; any other ACP agent starts by its command line. The
 conversation streams in as the agent works: its messages, its thinking folded away, a row per tool call
 that opens the file it touched, its plan, and each question it asks with its options as buttons. Enter
 sends, and the button becomes Stop while the agent works. A reload or a second tab shows the same chat.
@@ -86,7 +87,7 @@ and the row shows them as it does for a command run here.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/agents` | The agents Zasper knows: `id`, `name`, `installed`, `hint`. |
+| `GET` | `/api/agents` | The agents Zasper knows: `id`, `name`, `vendor`, `installed`, and `install` (the command that installs one) with `then` (what to do after). |
 | `GET` | `/api/agents/chats` | The chats running, each with `history` when its agent can list and open past conversations. |
 | `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. |
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |

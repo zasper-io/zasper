@@ -69,5 +69,6 @@ func TestTheAgentsKnownAreListedWithWhetherEachIsInstalled(t *testing.T) {
 	listed := decode[[]agents.Info](t, body)
 	require.NotEmpty(t, listed)
 	assert.Equal(t, "claude-code", listed[0].ID)
-	assert.NotEmpty(t, listed[0].Hint)
+	assert.NotEmpty(t, listed[0].Install)
+	assert.NotEmpty(t, listed[0].Vendor)
 }

@@ -13,10 +13,12 @@ import (
 
 // Agent is one the panel offers.
 type Agent struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	// What to do when it is not found.
-	Hint string `json:"hint"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Vendor string `json:"vendor"`
+	// The command that installs it, and what to do after.
+	Install string `json:"install"`
+	Then    string `json:"then"`
 	// Answers the command that starts it in ACP mode, and false when it is not installed.
 	command func() ([]string, bool)
 }
@@ -25,8 +27,10 @@ type Agent struct {
 type Info struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
+	Vendor    string `json:"vendor"`
 	Installed bool   `json:"installed"`
-	Hint      string `json:"hint"`
+	Install   string `json:"install"`
+	Then      string `json:"then"`
 }
 
 func found(name string) bool {
@@ -37,9 +41,11 @@ func found(name string) bool {
 // Known is every agent Zasper knows how to start.
 var Known = []Agent{
 	{
-		ID:   "claude-code",
-		Name: "Claude Code",
-		Hint: "npm install -g @agentclientprotocol/claude-agent-acp, and sign in once by running claude",
+		ID:      "claude-code",
+		Name:    "Claude Code",
+		Vendor:  "Anthropic",
+		Install: "npm install -g @agentclientprotocol/claude-agent-acp",
+		Then:    "Sign in once by running claude in a terminal.",
 		command: func() ([]string, bool) {
 			if found("claude-agent-acp") {
 				return []string{"claude-agent-acp"}, true
@@ -51,17 +57,21 @@ var Known = []Agent{
 		},
 	},
 	{
-		ID:   "gemini",
-		Name: "Gemini CLI",
-		Hint: "npm install -g @google/gemini-cli",
+		ID:      "gemini",
+		Name:    "Gemini CLI",
+		Vendor:  "Google",
+		Install: "npm install -g @google/gemini-cli",
+		Then:    "Sign in once by running gemini in a terminal.",
 		command: func() ([]string, bool) {
 			return []string{"gemini", "--experimental-acp"}, found("gemini")
 		},
 	},
 	{
-		ID:   "codex",
-		Name: "Codex",
-		Hint: "install codex-acp, the ACP adapter for Codex, alongside the codex CLI",
+		ID:      "codex",
+		Name:    "Codex",
+		Vendor:  "OpenAI",
+		Install: "npm install -g @zed-industries/codex-acp",
+		Then:    "Sign in once by running codex in a terminal.",
 		command: func() ([]string, bool) {
 			return []string{"codex-acp"}, found("codex-acp")
 		},
@@ -73,7 +83,7 @@ func Catalogue() []Info {
 	infos := make([]Info, len(Known))
 	for i, agent := range Known {
 		_, installed := agent.command()
-		infos[i] = Info{ID: agent.ID, Name: agent.Name, Installed: installed, Hint: agent.Hint}
+		infos[i] = Info{ID: agent.ID, Name: agent.Name, Vendor: agent.Vendor, Installed: installed, Install: agent.Install, Then: agent.Then}
 	}
 	return infos
 }

@@ -23,6 +23,7 @@ import {
   openPastChat,
   PastChat,
   startChat,
+  startCommand,
   stopChat,
   TurnFile,
   undoTurn,
@@ -62,16 +63,18 @@ const TOOL_ICONS: Record<string, IconName> = {
 export default function AgentPanel({ hidden }: { hidden: boolean }) {
   const [chat, setChat] = useAtom(agentChatAtom);
   const [agents, setAgents] = useState<AgentInfo[] | null>(null);
-  const [starting, setStarting] = useState<AgentInfo | null>(null);
+  /** The name of the agent starting. */
+  const [starting, setStarting] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [browsing, setBrowsing] = useState(false);
   const askTrust = useAskTrust();
 
-  useEffect(() => {
+  const findAgents = useCallback(() => {
     listAgents()
       .then(setAgents)
       .catch((failure: unknown) => setError(apiErrorMessage(failure)));
   }, []);
+  useEffect(findAgents, [findAgents]);
 
   /*
    * A chat already running is rejoined: after a reload, and when one was started in another tab, which
@@ -91,17 +94,19 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
     return () => window.removeEventListener('focus', rejoin);
   }, [hidden, hasChat, setChat]);
 
-  const start = async (agent: AgentInfo) => {
-    setStarting(agent);
+  /** Starts a known agent, or any other by its command line. */
+  const start = async (target: AgentInfo | string) => {
+    const name = typeof target === 'string' ? commandName(target) : target.name;
+    setStarting(name);
     setError('');
     try {
-      setChat(await startChat(agent.id));
+      setChat(await (typeof target === 'string' ? startCommand(target) : startChat(target.id)));
     } catch (failure) {
       if (isUntrusted(failure)) {
         askTrust({
           reason: 'other',
-          what: `start ${agent.name} in this folder`,
-          onTrusted: () => void start(agent),
+          what: `start ${name} in this folder`,
+          onTrusted: () => void start(target),
         });
       } else {
         setError(apiErrorMessage(failure));
@@ -142,14 +147,26 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
       ) : chat ? (
         <Conversation chat={chat} />
       ) : (
-        <Picker agents={agents} starting={starting} error={error} onStart={start} />
+        <Picker
+          agents={agents}
+          starting={starting}
+          error={error}
+          onStart={(target) => void start(target)}
+          onCheckAgain={findAgents}
+        />
       )}
     </aside>
   );
 }
 
 function nameOf(chat: AgentChat, agents: AgentInfo[] | null): string {
-  return agents?.find((agent) => agent.id === chat.agent)?.name ?? chat.agent;
+  return agents?.find((agent) => agent.id === chat.agent)?.name ?? commandName(chat.agent);
+}
+
+/** What a command line runs, by the program's own name rather than its whole path. */
+function commandName(command: string): string {
+  const program = command.trim().split(/\s+/)[0] ?? command;
+  return program.split('/').pop() || program;
 }
 
 /** The agent's past conversations in the project; picking one goes on in it. */
@@ -238,49 +255,125 @@ function History({ chatId, onOpened }: { chatId: string; onOpened: () => void })
 
 function Picker(props: {
   agents: AgentInfo[] | null;
-  starting: AgentInfo | null;
+  /** The name of the agent starting. */
+  starting: string | null;
   error: string;
-  onStart: (agent: AgentInfo) => void;
+  onStart: (target: AgentInfo | string) => void;
+  onCheckAgain: () => void;
 }) {
+  const [command, setCommand] = useState('');
   if (props.starting) {
     return (
-      <div className="agentPanel-empty">
-        <span className="z-spinner" role="status" aria-label="Starting" />
-        <p>
-          Starting {props.starting.name}. The first time, the agent is downloaded, which can take a
-          minute or two.
-        </p>
+      <div className="agentStart">
+        <div className="agentStart-starting">
+          <span className="z-spinner" role="status" aria-label="Starting" />
+          <div>
+            <h3 className="z-subheading">Starting {props.starting}</h3>
+            <p>The first start downloads the agent, which can take a minute or two.</p>
+          </div>
+        </div>
       </div>
     );
   }
+  const ready = (props.agents ?? []).filter((agent) => agent.installed);
+  const missing = (props.agents ?? []).filter((agent) => !agent.installed);
   return (
-    <div className="agentPanel-empty">
-      <p>
-        Pick an agent to work in this project. It runs as you, with your own subscription, and can
-        read and edit files, and read and run notebooks — asking first.
-      </p>
+    <div className="agentStart">
+      <div className="agentStart-intro">
+        <h3 className="z-subheading">Work with an agent</h3>
+        <p>
+          A coding agent you already use, working in this project. It asks before it changes
+          anything.
+        </p>
+      </div>
       {props.error && (
         <div className="z-notice z-notice-error">
           <Icon name="circle-alert" size={14} />
           <p>{props.error}</p>
         </div>
       )}
-      <div className="agentPanel-agents">
-        {(props.agents ?? []).map((agent) => (
+      {props.agents === null && !props.error && (
+        <span className="z-spinner" role="status" aria-label="Finding agents" />
+      )}
+      {ready.length > 0 && (
+        <section className="agentStart-section" aria-label="Ready">
+          <div className="z-label">Ready</div>
+          {ready.map((agent) => (
+            <div key={agent.id} className="agentCard">
+              <div className="agentCard-head">
+                <div className="agentCard-name">
+                  <strong>{agent.name}</strong>
+                  <span>{agent.vendor}</span>
+                </div>
+                <button
+                  type="button"
+                  className="z-button"
+                  aria-label={`Start ${agent.name}`}
+                  onClick={() => props.onStart(agent)}
+                >
+                  Start
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+      {missing.length > 0 && (
+        <section className="agentStart-section" aria-label="Not installed">
+          <div className="z-label">Not installed</div>
+          {missing.map((agent) => (
+            <div key={agent.id} className="agentCard">
+              <div className="agentCard-name">
+                <strong>{agent.name}</strong>
+                <span>{agent.vendor}</span>
+              </div>
+              <div className="agentCard-install">
+                <code>{agent.install}</code>
+                <IconButton
+                  icon="copy"
+                  label={`Copy the command that installs ${agent.name}`}
+                  onClick={() => void navigator.clipboard?.writeText(agent.install)}
+                />
+              </div>
+              <p className="z-form-help">{agent.then}</p>
+            </div>
+          ))}
           <button
             type="button"
-            key={agent.id}
-            className="panel-row"
-            disabled={!agent.installed}
-            title={agent.installed ? `Start ${agent.name}` : agent.hint}
-            onClick={() => props.onStart(agent)}
+            className="z-button z-button-secondary"
+            onClick={props.onCheckAgain}
           >
-            <Icon name="bot" />
-            <span className="panel-row-name">{agent.name}</span>
-            <span className="panel-row-meta">{agent.installed ? 'found' : agent.hint}</span>
+            Check again
           </button>
-        ))}
-      </div>
+        </section>
+      )}
+      <details className="agentStart-other">
+        <summary>Use another ACP agent</summary>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (command.trim() !== '') props.onStart(command.trim());
+          }}
+        >
+          <input
+            className="z-field"
+            value={command}
+            placeholder="my-agent --acp"
+            aria-label="The command that starts the agent"
+            onChange={(event) => setCommand(event.target.value)}
+          />
+          <button
+            type="submit"
+            className="z-button z-button-secondary"
+            disabled={command.trim() === ''}
+          >
+            Start
+          </button>
+        </form>
+      </details>
+      <p className="agentStart-foot">
+        Runs as you, on your own subscription. Zasper stores none of it.
+      </p>
     </div>
   );
 }
