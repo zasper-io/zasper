@@ -43,7 +43,7 @@ func idle(t *testing.T, parent string) zmq4.Msg {
 
 func TestOutputPublishedWithNobodyAttachedIsReplayedToTheNextClientOnce(t *testing.T) {
 	km := journalKernel()
-	km.BeginRun("m1", "cell-1", "print('hi')")
+	km.BeginRun("m1", "cell-1", "", "print('hi')")
 
 	publishAll(km,
 		iopub(t, "m1", "execute_input", map[string]interface{}{"execution_count": 3}),
@@ -70,7 +70,7 @@ func TestOutputPublishedWithNobodyAttachedIsReplayedToTheNextClientOnce(t *testi
 func TestARunAClientWatchedToTheEndIsNotReplayed(t *testing.T) {
 	km := journalKernel()
 	watching := km.Subscribe()
-	km.BeginRun("m1", "cell-1", "1")
+	km.BeginRun("m1", "cell-1", "", "1")
 
 	publishAll(km,
 		iopub(t, "m1", "stream", map[string]interface{}{"name": "stdout", "text": "x"}),
@@ -83,7 +83,7 @@ func TestARunAClientWatchedToTheEndIsNotReplayed(t *testing.T) {
 
 func TestAClientJoiningMidRunIsReplayedTheStartAndSentTheRest(t *testing.T) {
 	km := journalKernel()
-	km.BeginRun("m1", "cell-1", "train()")
+	km.BeginRun("m1", "cell-1", "", "train()")
 	km.publish(iopub(t, "m1", "stream", map[string]interface{}{"name": "stdout", "text": "epoch 1\n"}))
 
 	joined := km.Subscribe()
@@ -98,7 +98,7 @@ func TestAClientJoiningMidRunIsReplayedTheStartAndSentTheRest(t *testing.T) {
 
 func TestAClearThatWaitsIsReplacedByTheNextOutput(t *testing.T) {
 	km := journalKernel()
-	km.BeginRun("m1", "cell-1", "loop()")
+	km.BeginRun("m1", "cell-1", "", "loop()")
 
 	publishAll(km,
 		iopub(t, "m1", "stream", map[string]interface{}{"name": "stdout", "text": "10%"}),
@@ -125,14 +125,14 @@ func TestOnlyARunThatEndsWithNobodyAttachedIsReportedFinished(t *testing.T) {
 	var finished []Run
 	km.feed.finished = func(run Run) { finished = append(finished, run) }
 
-	km.BeginRun("alone", "cell-1", "1")
+	km.BeginRun("alone", "cell-1", "", "1")
 	publishAll(km,
 		iopub(t, "alone", "stream", map[string]interface{}{"name": "stdout", "text": "x"}),
 		idle(t, "alone"),
 	)
 
 	watching := km.Subscribe()
-	km.BeginRun("watched", "cell-2", "2")
+	km.BeginRun("watched", "cell-2", "", "2")
 	km.publish(idle(t, "watched"))
 	km.Unsubscribe(watching)
 
@@ -159,7 +159,7 @@ func TestAClientThatFallsBehindIsDropped(t *testing.T) {
 
 func TestAStreamOutgrowingItsLimitKeepsItsEnd(t *testing.T) {
 	km := journalKernel()
-	km.BeginRun("m1", "cell-1", "log()")
+	km.BeginRun("m1", "cell-1", "", "log()")
 
 	line := strings.Repeat("x", 1023) + "\n"
 	for i := 0; i < maxStreamBytes/len(line)+10; i++ {
@@ -193,7 +193,7 @@ func iopubAt(t *testing.T, parent, msgType, date string, content map[string]inte
 // A run keeps when the kernel took it up and when it went idle again, under JupyterLab's keys.
 func TestARunKeepsWhenItRan(t *testing.T) {
 	km := journalKernel()
-	km.BeginRun("m1", "cell-1", "train()")
+	km.BeginRun("m1", "cell-1", "", "train()")
 
 	publishAll(km,
 		iopubAt(t, "m1", "status", "2026-10-07T08:33:12.098Z", map[string]interface{}{"execution_state": "busy"}),
@@ -207,4 +207,50 @@ func TestARunKeepsWhenItRan(t *testing.T) {
 		"iopub.execute_input": "2026-10-07T08:33:12.104Z",
 		"shell.execute_reply": "2026-10-07T08:35:26.402Z",
 	}, run.Execution)
+}
+
+// sent decodes what a client was handed next.
+func sent(t *testing.T, subscription *Subscription) Message {
+	t.Helper()
+	var message Message
+	require.NoError(t, json.Unmarshal(<-subscription.Messages, &message))
+	return message
+}
+
+func TestEveryClientIsToldWhichCellARunsOutputIsFor(t *testing.T) {
+	km := journalKernel()
+	watching := km.Subscribe()
+	km.BeginRun("m1", "cell-1", "", "print('hi')")
+
+	publishAll(km,
+		iopub(t, "m1", "execute_input", map[string]interface{}{"execution_count": 1}),
+		iopub(t, "m1", "stream", map[string]interface{}{"name": "stdout", "text": "hi\n"}),
+		idle(t, "m1"),
+	)
+
+	for _, msgType := range []string{"execute_input", "stream", "status"} {
+		message := sent(t, watching)
+		assert.Equal(t, msgType, message.Header.MsgType)
+		assert.Equal(t, map[string]interface{}{"cellId": "cell-1"}, message.Metadata)
+	}
+}
+
+func TestARunSaysWhoAskedForItWhenTheyDid(t *testing.T) {
+	km := journalKernel()
+	watching := km.Subscribe()
+	km.BeginRun("m1", "cell-1", "claude-code", "1")
+
+	publishAll(km, iopub(t, "m1", "execute_input", map[string]interface{}{"execution_count": 1}))
+
+	assert.Equal(t, map[string]interface{}{"cellId": "cell-1", "client": "claude-code"}, sent(t, watching).Metadata)
+	assert.Equal(t, "claude-code", km.Subscribe().Replay.Runs[0].Client)
+}
+
+func TestAMessageNoRunAskedForIsLeftAsTheKernelSentIt(t *testing.T) {
+	km := journalKernel()
+	watching := km.Subscribe()
+
+	publishAll(km, iopub(t, "not-ours", "stream", map[string]interface{}{"name": "stdout", "text": "x"}))
+
+	assert.Equal(t, map[string]interface{}{}, sent(t, watching).Metadata)
 }

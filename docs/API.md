@@ -192,6 +192,23 @@ JupyterLab's `metadata.execution` keys. A client that does not know the message 
 ignore it. See
 [RUNS.md](RUNS.md).
 
+#### Running a cell from another client
+
+An agent, a script or a second tab can run a notebook's cells and have every open
+tab show the run in the right cell. Send the `execute_request` over this socket
+— not to the kernel over ZeroMQ, which Zasper never sees — with the cell's id in
+the request's metadata, and your name if you want the run attributed:
+
+```json
+{"metadata": {"cellId": "3f1c…", "client": "claude-code"}, ...}
+```
+
+Every message the kernel publishes in answer carries the same `cellId` and
+`client` in its `metadata`, whoever is watching. A run sent without a `cellId`
+still runs, and a tab places it by its code only when exactly one cell holds
+that code; otherwise it shows as the kernel being busy. Each run also carries
+`client` in the replay.
+
 ## Data connections
 
 The databases SQL cells run on. Passwords are never answered. See [SQL.md](SQL.md).

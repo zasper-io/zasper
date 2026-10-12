@@ -436,5 +436,6 @@ func beginRun(km *kernel.KernelManager, msg kernel.Message) {
 	code, _ := content["code"].(string)
 	metadata, _ := msg.Metadata.(map[string]interface{})
 	cellID, _ := metadata["cellId"].(string)
-	km.BeginRun(msg.Header.MsgID, cellID, code)
+	client, _ := metadata["client"].(string)
+	km.BeginRun(msg.Header.MsgID, cellID, client, code)
 }

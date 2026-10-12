@@ -23,8 +23,10 @@ const (
 
 // Run is one execute_request sent through Zasper, folded into the outputs nbformat stores for it.
 type Run struct {
-	MsgID          string                   `json:"msg_id"`
-	CellID         string                   `json:"cell_id"`
+	MsgID  string `json:"msg_id"`
+	CellID string `json:"cell_id"`
+	// Who sent the request, when it said: an agent's name, sent as `client` in the request's metadata.
+	Client         string                   `json:"client,omitempty"`
 	Code           string                   `json:"code"`
 	ExecutionCount interface{}              `json:"execution_count"`
 	Outputs        []map[string]interface{} `json:"outputs"`
@@ -110,8 +112,8 @@ func (km *KernelManager) Unsubscribe(subscription *Subscription) {
 }
 
 // BeginRun records an execute_request on its way to the kernel, so its output is kept whoever is
-// attached when it arrives.
-func (km *KernelManager) BeginRun(msgID, cellID, code string) {
+// attached when it arrives, and every client can tell which cell it is for and who asked.
+func (km *KernelManager) BeginRun(msgID, cellID, client, code string) {
 	if msgID == "" {
 		return
 	}
@@ -123,7 +125,7 @@ func (km *KernelManager) BeginRun(msgID, cellID, code string) {
 	if _, ok := f.runs[msgID]; ok {
 		return
 	}
-	f.runs[msgID] = &Run{MsgID: msgID, CellID: cellID, Code: code, Outputs: []map[string]interface{}{}}
+	f.runs[msgID] = &Run{MsgID: msgID, CellID: cellID, Client: client, Code: code, Outputs: []map[string]interface{}{}}
 	f.order = append(f.order, msgID)
 	if len(f.order) > maxRuns {
 		delete(f.runs, f.order[0])
@@ -146,7 +148,12 @@ func (km *KernelManager) publish(zmsg zmq4.Msg) string {
 		f.mu.Unlock()
 		return ""
 	}
+	// Looked up before the fold, which forgets a run its idle finishes.
+	run := f.runs[message.ParentHeader.MsgID]
 	finished := f.fold(message)
+	if run != nil {
+		stamp(message, run)
+	}
 
 	if len(f.subscribers) > 0 {
 		if payload := encodeForClient(message); payload != nil {
@@ -169,6 +176,29 @@ func (km *KernelManager) publish(zmsg zmq4.Msg) string {
 		notify(*finished)
 	}
 	return stateOf(message)
+}
+
+/*
+stamp writes the cell a message answers, and who asked for the run, into the message's metadata. A kernel
+does not copy a request's metadata onto what it publishes, so without this a client that did not send the
+request cannot tell which cell the output is for.
+*/
+func stamp(message *Message, run *Run) {
+	if run.CellID == "" && run.Client == "" {
+		return
+	}
+	metadata, _ := message.Metadata.(map[string]interface{})
+	stamped := make(map[string]interface{}, len(metadata)+2)
+	for key, value := range metadata {
+		stamped[key] = value
+	}
+	if run.CellID != "" {
+		stamped["cellId"] = run.CellID
+	}
+	if run.Client != "" {
+		stamped["client"] = run.Client
+	}
+	message.Metadata = stamped
 }
 
 func stateOf(message *Message) string {

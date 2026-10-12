@@ -57,9 +57,14 @@ kernel. Dropping is safe: the tab reconnects and is replayed what it lost.
 
 ## The run journal
 
-The relay calls `BeginRun(msgId, cellId, code)` for every non-silent `execute_request` before it
-reaches the kernel, so the run exists in the journal before its first output. The cell id comes from
-the request's `metadata.cellId`, which the editor already sends.
+The relay calls `BeginRun(msgId, cellId, client, code)` for every non-silent `execute_request` before
+it reaches the kernel, so the run exists in the journal before its first output. The cell id comes from
+the request's `metadata.cellId`, which the editor already sends, and the client from
+`metadata.client`, which an agent sends to be named.
+
+A kernel does not copy a request's metadata onto what it publishes, so the journal writes it back:
+every iopub message that answers a run carries the run's `cellId`, and `client` when there is one, in
+its `metadata`. That is how a tab lights the right cell for a run another tab or an agent asked for.
 
 Every iopub message whose `parent_header.msg_id` names a run is folded the way the editor folds it:
 

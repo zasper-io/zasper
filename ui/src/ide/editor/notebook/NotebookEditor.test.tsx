@@ -470,6 +470,25 @@ describe('NotebookEditor', () => {
     expect(screen.getByText('[0]:')).toBeInTheDocument();
   });
 
+  it('shows a run another client asked for in the cell the server says it is for', async () => {
+    render(<NotebookEditor data={tab} />);
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+    const stamped = (msgType: string, content: unknown) => ({
+      ...kernelMessage(msgType, 'an-agents-request', content),
+      metadata: { cellId: 'server-cell-id', client: 'claude-code' },
+    });
+
+    // Code this cell does not hold: the cell is found by the id the relay stamped, not by its source.
+    sockets[0].receive(stamped('execute_input', { execution_count: 9, code: 'print("edited")' }));
+    expect(await screen.findByLabelText('Running')).toBeInTheDocument();
+    sockets[0].receive(stamped('stream', { name: 'stdout', text: 'from the agent' }));
+    expect(await screen.findByText('from the agent')).toBeInTheDocument();
+
+    sockets[0].receive(stamped('status', { execution_state: 'idle' }));
+    expect(await screen.findByText('[9]:')).toBeInTheDocument();
+  });
+
   it("takes a change made on disk when nothing of the reader's own is unsaved", async () => {
     const onDiskUpdated = {
       ...structuredClone(notebookContent),

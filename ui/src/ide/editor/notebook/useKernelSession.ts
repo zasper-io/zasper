@@ -105,8 +105,8 @@ export function useKernelSession(
       onExternalExecute
     ) {
       const code = typeof message.content?.code === 'string' ? message.content.code : '';
-      // Empty for now: a kernel does not copy a request's metadata onto the execute_input it
-      // publishes, so this arrives only once Zasper's own relay stamps it on the way out.
+      // Stamped by Zasper's relay, since a kernel does not copy a request's metadata onto what it
+      // publishes. The code is the fallback for a notebook whose ids each tab makes up for itself.
       const targetCellId =
         typeof message.metadata?.cellId === 'string' ? message.metadata.cellId : undefined;
       const matchedCellId = onExternalExecute(code, targetCellId);

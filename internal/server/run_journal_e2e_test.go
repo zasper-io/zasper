@@ -138,3 +138,41 @@ func jsonEscape(text string) string {
 	encoded, _ := json.Marshal(text)
 	return string(encoded[1 : len(encoded)-1])
 }
+
+func TestAnotherSocketIsToldWhichCellARunsOutputIsFor(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+	socketURL := wsURL(t, srv, "/ws/kernels/"+created.Kernel.Id+"/channels") + "?session_id=" + created.Id
+
+	asking, _, err := websocket.DefaultDialer.Dial(socketURL, nil)
+	require.NoError(t, err)
+	defer asking.Close()
+	watching, _, err := websocket.DefaultDialer.Dial(socketURL, nil)
+	require.NoError(t, err)
+	defer watching.Close()
+	awaitReplay(t, asking)
+	awaitReplay(t, watching)
+
+	msgId := runCellOverSocket(t, asking, created.Id, "cell-1", "print('hi')")
+
+	require.NoError(t, watching.SetReadDeadline(time.Now().Add(30*time.Second)))
+	for {
+		_, raw, err := watching.ReadMessage()
+		require.NoError(t, err, "the other socket heard no output")
+		var message struct {
+			Header struct {
+				MsgType string `json:"msg_type"`
+			} `json:"header"`
+			ParentHeader struct {
+				MsgId string `json:"msg_id"`
+			} `json:"parent_header"`
+			Metadata map[string]interface{} `json:"metadata"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &message))
+		if message.Header.MsgType == "stream" && message.ParentHeader.MsgId == msgId {
+			assert.Equal(t, "cell-1", message.Metadata["cellId"])
+			return
+		}
+	}
+}
