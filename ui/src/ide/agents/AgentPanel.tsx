@@ -1,4 +1,4 @@
-import { KeyboardEvent, lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { KeyboardEvent, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 
 import {
@@ -18,7 +18,7 @@ import { projectDirAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import { useAskTrust } from '@/store/trust';
 import { lineDiff } from '@/ide/editor/notebookDiff/cellDiff';
-import { ChatItem, PlanEntry, ToolCall, ToolDiff } from './chatLog';
+import { ChatItem, PlanEntry, terminalText, ToolCall, ToolDiff } from './chatLog';
 import { useAgentChat } from './useAgentChat';
 import './AgentPanel.scss';
 
@@ -56,6 +56,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
       .then((running) => setChat((current) => current ?? running[0] ?? null))
       .catch(() => {});
   }, [setChat]);
+
 
   const start = async (agent: AgentInfo) => {
     setStarting(agent);
@@ -325,8 +326,10 @@ function Tools({ calls }: { calls: ToolCall[] }) {
   return (
     <div className="agentTools">
       {calls.map((call) => {
-        const hasOutput = call.output !== '' || call.diffs.length > 0;
+        const hasOutput =
+          call.output !== '' || call.diffs.length > 0 || (call.terminal?.output ?? '') !== '';
         const expanded = open.has(call.id);
+        const status = statusOf(call);
         return (
           <div key={call.id}>
             <button
@@ -341,22 +344,51 @@ function Tools({ calls }: { calls: ToolCall[] }) {
             >
               <Icon name={TOOL_ICONS[call.kind] ?? 'bot'} />
               <span className="panel-row-name">{call.title}</span>
-              <span className={`agentTools-status is-${call.status}`}>{statusOf(call.status)}</span>
+              <span className={`agentTools-status is-${status.tone}`}>{status.label}</span>
               {hasOutput && (
                 <Icon name={expanded ? 'chevron-down' : 'chevron-right'} className="z-icon-sm" />
               )}
             </button>
-            {expanded && (
-              <div className="agentTools-output">
-                {call.diffs.map((diff) => (
-                  <Diff key={diff.path} diff={diff} onOpen={() => openFile(diff.path)} />
-                ))}
-                {call.output !== '' && <pre>{call.output}</pre>}
-              </div>
-            )}
+            {expanded && <ToolOutput call={call} openFile={openFile} />}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function ToolOutput({ call, openFile }: { call: ToolCall; openFile: (path: string) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const printed = call.terminal?.output ?? '';
+  const running = call.terminal !== undefined && call.terminal.exit === undefined;
+  // A command still running is followed as it prints, unless the reader has scrolled up to read.
+  const following = useRef(true);
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (element !== null && running && following.current) {
+      element.scrollTop = element.scrollHeight;
+    }
+  }, [printed, running]);
+
+  return (
+    <div
+      ref={box}
+      className="agentTools-output"
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        following.current = element.scrollHeight - element.scrollTop - element.clientHeight < 8;
+      }}
+    >
+      {call.diffs.map((diff) => (
+        <Diff key={diff.path} diff={diff} onOpen={() => openFile(diff.path)} />
+      ))}
+      {call.output !== '' && <pre>{call.output}</pre>}
+      {printed !== '' && (
+        <pre>
+          {call.terminal?.cut && <span className="agentTools-cut">Earlier output not shown</span>}
+          {terminalText(printed)}
+        </pre>
+      )}
     </div>
   );
 }
@@ -383,16 +415,27 @@ function Diff({ diff, onOpen }: { diff: ToolDiff; onOpen: () => void }) {
   );
 }
 
-function statusOf(status: string): string {
-  switch (status) {
+/** What a row says of its call, and the colour it says it in: a command says how it ended. */
+function statusOf(call: ToolCall): { label: string; tone: string } {
+  const exit = call.terminal?.exit;
+  if (exit?.signal) {
+    return { label: `stopped (${exit.signal})`, tone: 'failed' };
+  }
+  if (exit?.code) {
+    return { label: `exit ${exit.code}`, tone: 'failed' };
+  }
+  switch (call.status) {
     case 'completed':
-      return 'done';
+      return { label: 'done', tone: call.status };
     case 'failed':
-      return 'failed';
+      return { label: 'failed', tone: call.status };
     case 'in_progress':
-      return 'running';
+      return {
+        label: call.elapsedSeconds ? `running ${Math.round(call.elapsedSeconds)}s` : 'running',
+        tone: call.status,
+      };
     default:
-      return 'waiting';
+      return { label: 'waiting', tone: call.status };
   }
 }
 

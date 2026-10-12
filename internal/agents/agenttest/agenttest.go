@@ -9,6 +9,7 @@ pipes with no agent installed.
 	ask    asks permission, and says which option was chosen
 	edit   asks permission to edit a file, and says which option was chosen
 	wait   says "waiting", then works until the turn is cancelled
+	run …  runs the rest of the line in a terminal of the editor's, and says how it ended and what it printed
 
 At the start of a session it writes the names of the MCP servers it was given to mcp-servers.txt.
 */
@@ -16,6 +17,7 @@ package agenttest
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,6 +69,10 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 		text = request.Prompt[0].Text.Text
 	}
 	session := request.SessionId
+	if command, ok := strings.CutPrefix(text, "run "); ok {
+		a.run(ctx, session, command)
+		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
+	}
 	switch text {
 	case "hello":
 		a.say(ctx, session, "Hello")
@@ -152,4 +158,42 @@ func (a *agent) SetSessionConfigOption(context.Context, acp.SetSessionConfigOpti
 
 func (a *agent) SetSessionMode(context.Context, acp.SetSessionModeRequest) (acp.SetSessionModeResponse, error) {
 	return acp.SetSessionModeResponse{}, nil
+}
+
+// run runs command in a terminal, shown in a tool call as an editor would, and releases it once it ends.
+func (a *agent) run(ctx context.Context, session acp.SessionId, command string) {
+	terminal, err := a.conn.CreateTerminal(ctx, acp.CreateTerminalRequest{SessionId: session, Command: command})
+	if err != nil {
+		a.say(ctx, session, "could not run: "+err.Error())
+		return
+	}
+	id := terminal.TerminalId
+	a.conn.SessionUpdate(ctx, acp.SessionNotification{SessionId: session, Update: acp.StartToolCall("run-1", command,
+		acp.WithStartKind(acp.ToolKindExecute), acp.WithStartStatus(acp.ToolCallStatusInProgress),
+		acp.WithStartContent([]acp.ToolCallContent{acp.ToolTerminalRef(id)}))})
+	exit, err := a.conn.WaitForTerminalExit(ctx, acp.WaitForTerminalExitRequest{SessionId: session, TerminalId: id})
+	if err != nil {
+		a.say(ctx, session, "could not wait: "+err.Error())
+		return
+	}
+	output, err := a.conn.TerminalOutput(ctx, acp.TerminalOutputRequest{SessionId: session, TerminalId: id})
+	if err != nil {
+		a.say(ctx, session, "could not read the output: "+err.Error())
+		return
+	}
+	a.conn.ReleaseTerminal(ctx, acp.ReleaseTerminalRequest{SessionId: session, TerminalId: id})
+	a.conn.SessionUpdate(ctx, acp.SessionNotification{SessionId: session, Update: acp.UpdateToolCall("run-1",
+		acp.WithUpdateStatus(acp.ToolCallStatusCompleted))})
+	ended := "signal " + deref(exit.Signal)
+	if exit.ExitCode != nil {
+		ended = fmt.Sprintf("exit %d", *exit.ExitCode)
+	}
+	a.say(ctx, session, ended+": "+output.Output)
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

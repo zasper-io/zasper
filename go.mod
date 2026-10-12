@@ -3,6 +3,7 @@ module github.com/zasper-io/zasper
 go 1.26.0
 
 require (
+	github.com/coder/acp-go-sdk v0.13.5
 	github.com/creack/pty v1.1.24
 	github.com/editorconfig/editorconfig-core-go/v2 v2.6.4
 	github.com/fsnotify/fsnotify v1.10.1
@@ -20,6 +21,7 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0-beta.24
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/mod v0.41.0
+	golang.org/x/sys v0.48.0
 )
 
 require (
@@ -29,7 +31,6 @@ require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/andybalholm/brotli v1.2.3 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
-	github.com/coder/acp-go-sdk v0.13.5 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
@@ -62,7 +63,6 @@ require (
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

@@ -68,6 +68,9 @@ type Spec struct {
 	Dir  string
 	// Talk to the process on its stdin and stdout, as an agent is, rather than logging its output.
 	KeepStdio bool
+	// Where both stdout and stderr go, interleaved as a terminal shows them, with nothing on stdin. The
+	// caller closes its own copy once Launch returns, so that a read sees the end when the output ends.
+	Output *os.File
 }
 
 // Launch starts a kernel in a process group of its own, so that interrupting or stopping it reaches what
@@ -82,6 +85,15 @@ func Launch(spec Spec) (*Process, error) {
 	cmd.Env = spec.Env
 	cmd.Dir = spec.Dir
 	setProcessGroup(cmd)
+
+	if spec.Output != nil {
+		cmd.Stdout = spec.Output
+		cmd.Stderr = spec.Output
+		if err := cmd.Start(); err != nil {
+			return nil, err
+		}
+		return reaped(cmd), nil
+	}
 
 	// Create pipes for standard input, output, and error
 	stdin, err := cmd.StdinPipe()
@@ -105,16 +117,7 @@ func Launch(spec Spec) (*Process, error) {
 		return nil, err
 	}
 
-	process := &Process{Pid: cmd.Process.Pid, process: cmd.Process, done: make(chan struct{})}
-	go func() {
-		state, err := cmd.Process.Wait()
-		if err != nil {
-			log.Debug().Err(err).Int("pid", process.Pid).Msg("could not wait for the kernel process")
-		}
-		process.state = state
-		close(process.done)
-	}()
-
+	process := reaped(cmd)
 	if spec.KeepStdio {
 		process.Stdin = stdin
 		process.Stdout = stdout
@@ -128,6 +131,20 @@ func Launch(spec Spec) (*Process, error) {
 	log.Debug().Msg("Process started successfully")
 
 	return process, nil
+}
+
+// reaped is the started cmd as a Process, waited on from the moment it starts.
+func reaped(cmd *exec.Cmd) *Process {
+	process := &Process{Pid: cmd.Process.Pid, process: cmd.Process, done: make(chan struct{})}
+	go func() {
+		state, err := cmd.Process.Wait()
+		if err != nil {
+			log.Debug().Err(err).Int("pid", process.Pid).Msg("could not wait for the kernel process")
+		}
+		process.state = state
+		close(process.done)
+	}()
+	return process
 }
 
 /*

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ChatEvent } from '@/api';
-import { foldChat } from './chatLog';
+import { foldChat, terminalText } from './chatLog';
 
 const said = (text: string): ChatEvent => ({
   type: 'update',
@@ -196,5 +196,97 @@ describe('foldChat', () => {
         { output: '3 passed', diffs: [{ path: '/p/a.py', oldText: 'x = 1', newText: 'x = 2' }] },
       ],
     });
+  });
+
+  describe('a command', () => {
+    const runs = (content: unknown[], _meta?: unknown): ChatEvent => ({
+      type: 'update',
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'c',
+        title: 'make',
+        kind: 'execute',
+        content,
+        _meta,
+      },
+    });
+
+    it('run in Zasper shows what it printed as it came, and how it ended', () => {
+      const view = foldChat([
+        { type: 'terminal', terminal: { id: 'T', output: 'one\n' } },
+        runs([{ type: 'terminal', terminalId: 'T' }]),
+        { type: 'terminal', terminal: { id: 'T', output: 'two\n' } },
+        { type: 'terminal', terminal: { id: 'T', exited: true, exit_code: 2 } },
+      ]);
+
+      expect(view.items[0]).toMatchObject({
+        calls: [
+          { terminal: { output: 'one\ntwo\n', cut: false, exit: { code: 2, signal: null } } },
+        ],
+      });
+    });
+
+    it('shows the end alone of an output too long to send', () => {
+      const view = foldChat([
+        runs([{ type: 'terminal', terminalId: 'T' }]),
+        { type: 'terminal', terminal: { id: 'T', output: 'start\n' } },
+        {
+          type: 'terminal',
+          terminal: { id: 'T', output: 'the end\n', cut: true, exited: true, exit_code: 0 },
+        },
+      ]);
+
+      expect(view.items[0]).toMatchObject({
+        calls: [{ terminal: { output: 'the end\n', cut: true } }],
+      });
+    });
+
+    it('run by Claude Code shows the output and exit it sends beside the call, and how long it has run', () => {
+      const view = foldChat([
+        runs([{ type: 'terminal', terminalId: 'c' }], { terminal_info: { terminal_id: 'c' } }),
+        {
+          type: 'update',
+          update: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 'c',
+            status: 'in_progress',
+            _meta: { claudeCode: { toolResponse: { elapsedTimeSeconds: 4 } } },
+          },
+        },
+        {
+          type: 'update',
+          update: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 'c',
+            _meta: { terminal_output: { terminal_id: 'c', data: 'built\n' } },
+          },
+        },
+        {
+          type: 'update',
+          update: {
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 'c',
+            status: 'completed',
+            _meta: { terminal_exit: { terminal_id: 'c', exit_code: 0, signal: null } },
+          },
+        },
+      ]);
+
+      expect(view.items[0]).toMatchObject({
+        calls: [
+          {
+            status: 'completed',
+            elapsedSeconds: 4,
+            terminal: { output: 'built\n', exit: { code: 0, signal: null } },
+          },
+        ],
+      });
+    });
+  });
+
+  it('reads a command’s output without its colours, and a redrawn line as it was left', () => {
+    expect(terminalText('\x1b[32mok\x1b[0m\r\n10%\r50%\r100%\n\x1b]0;title\x07done')).toBe(
+      'ok\n100%\ndone'
+    );
   });
 });

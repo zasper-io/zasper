@@ -23,7 +23,16 @@ export type AgentMode = 'ask' | 'edits' | 'all';
 /** One entry in a chat's log, as the server keeps it. See docs/AGENTS.md. */
 export interface ChatEvent {
   seq?: number;
-  type: 'user' | 'update' | 'permission' | 'answered' | 'turn_end' | 'error' | 'exited' | 'mode';
+  type:
+    | 'user'
+    | 'update'
+    | 'permission'
+    | 'answered'
+    | 'turn_end'
+    | 'error'
+    | 'exited'
+    | 'mode'
+    | 'terminal';
   text?: string;
   /** ACP's session/update, as the agent sent it. */
   update?: any;
@@ -38,6 +47,16 @@ export interface ChatEvent {
     auto?: boolean;
   };
   stop_reason?: string;
+  /** What a command the agent runs in Zasper printed since the last, and on the last, how it ended. */
+  terminal?: {
+    id: string;
+    output?: string;
+    exited?: boolean;
+    exit_code?: number;
+    signal?: string;
+    /** Not all of it was sent: `output` is the end of it alone. */
+    cut?: boolean;
+  };
 }
 
 export function listAgents(): Promise<AgentInfo[]> {

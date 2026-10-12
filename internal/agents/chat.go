@@ -37,6 +37,7 @@ Event is one entry in a chat's log, in the order things happened.
 	permission  the agent asks before doing something; answered by an `answered` with the same ID
 	answered    the option chosen, or none when the question was withdrawn; Auto when the chat's mode chose
 	mode        the chat's permission mode changed, to Text
+	terminal    what a command the agent runs in Zasper printed, and how it ended, in Terminal
 	turn_end    the agent has finished answering, with ACP's stop reason
 	error       something went wrong, in Text
 	exited      the agent's process has ended
@@ -48,6 +49,7 @@ type Event struct {
 	Update     json.RawMessage `json:"update,omitempty"`
 	Permission *Permission     `json:"permission,omitempty"`
 	StopReason string          `json:"stop_reason,omitempty"`
+	Terminal   *TerminalOutput `json:"terminal,omitempty"`
 }
 
 // Permission is a question the agent asks before acting, and its answer once there is one.
@@ -96,6 +98,7 @@ type Chat struct {
 	pending     map[string]chan string
 	answering   bool
 	exited      bool
+	terminals   map[string]*agentTerminal
 
 	conn    *acp.ClientSideConnection
 	session acp.SessionId
@@ -223,6 +226,7 @@ func (c *Chat) mode() string {
 // that can outlive it outside its process group, so they are found first and stopped by name.
 func (c *Chat) close() {
 	c.stop()
+	c.killTerminals()
 	if c.process == nil {
 		return
 	}
@@ -250,6 +254,7 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 		Mode:        ModeAsk,
 		subscribers: map[chan Event]struct{}{},
 		pending:     map[string]chan string{},
+		terminals:   map[string]*agentTerminal{},
 		process:     process,
 		stop:        stop,
 		files:       files,
@@ -272,7 +277,11 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 	if _, err := chat.conn.Initialize(ctx, acp.InitializeRequest{
 		ProtocolVersion: acp.ProtocolVersionNumber,
 		ClientCapabilities: acp.ClientCapabilities{
-			Fs: acp.FileSystemCapabilities{ReadTextFile: true, WriteTextFile: true},
+			Fs:       acp.FileSystemCapabilities{ReadTextFile: true, WriteTextFile: true},
+			Terminal: true,
+			// Claude Code runs its commands itself, and with this sends their output and exit code apart
+			// from the rest of the call, as it does for an editor that draws a terminal.
+			Meta: map[string]any{"terminal_output": true},
 		},
 	}); err != nil {
 		chat.close()

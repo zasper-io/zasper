@@ -3,7 +3,6 @@ package agents
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -11,9 +10,6 @@ import (
 	acp "github.com/coder/acp-go-sdk"
 	"github.com/google/uuid"
 )
-
-// errNoTerminals answers terminal requests, which this client does not offer yet.
-var errNoTerminals = errors.New("Zasper does not run terminal commands for agents yet")
 
 // chatClient is what the agent calls on the editor, for one chat.
 type chatClient struct{ chat *Chat }
@@ -114,22 +110,59 @@ func (c chatClient) WriteTextFile(_ context.Context, request acp.WriteTextFileRe
 	return acp.WriteTextFileResponse{}, c.chat.files.Write(rel, request.Content, c.chat.Agent)
 }
 
-func (chatClient) CreateTerminal(context.Context, acp.CreateTerminalRequest) (acp.CreateTerminalResponse, error) {
-	return acp.CreateTerminalResponse{}, errNoTerminals
+// CreateTerminal runs a command for the agent in the project, and streams what it prints to the panel.
+func (c chatClient) CreateTerminal(_ context.Context, request acp.CreateTerminalRequest) (acp.CreateTerminalResponse, error) {
+	dir := c.chat.root
+	if request.Cwd != nil && *request.Cwd != "" {
+		rel, err := c.inProject(*request.Cwd)
+		if err != nil {
+			return acp.CreateTerminalResponse{}, err
+		}
+		dir = filepath.Join(c.chat.root, rel)
+	}
+	terminal, err := c.chat.runTerminal(request, dir)
+	if err != nil {
+		return acp.CreateTerminalResponse{}, err
+	}
+	c.chat.addTerminal(terminal)
+	return acp.CreateTerminalResponse{TerminalId: terminal.id}, nil
 }
 
-func (chatClient) KillTerminal(context.Context, acp.KillTerminalRequest) (acp.KillTerminalResponse, error) {
-	return acp.KillTerminalResponse{}, errNoTerminals
+func (c chatClient) TerminalOutput(_ context.Context, request acp.TerminalOutputRequest) (acp.TerminalOutputResponse, error) {
+	terminal, err := c.chat.terminal(request.TerminalId)
+	if err != nil {
+		return acp.TerminalOutputResponse{}, err
+	}
+	return terminal.snapshot(), nil
 }
 
-func (chatClient) TerminalOutput(context.Context, acp.TerminalOutputRequest) (acp.TerminalOutputResponse, error) {
-	return acp.TerminalOutputResponse{}, errNoTerminals
+func (c chatClient) WaitForTerminalExit(ctx context.Context, request acp.WaitForTerminalExitRequest) (acp.WaitForTerminalExitResponse, error) {
+	terminal, err := c.chat.terminal(request.TerminalId)
+	if err != nil {
+		return acp.WaitForTerminalExitResponse{}, err
+	}
+	status, err := terminal.wait(ctx)
+	if err != nil {
+		return acp.WaitForTerminalExitResponse{}, err
+	}
+	return acp.WaitForTerminalExitResponse{ExitCode: status.ExitCode, Signal: status.Signal}, nil
 }
 
-func (chatClient) ReleaseTerminal(context.Context, acp.ReleaseTerminalRequest) (acp.ReleaseTerminalResponse, error) {
-	return acp.ReleaseTerminalResponse{}, errNoTerminals
+func (c chatClient) KillTerminal(_ context.Context, request acp.KillTerminalRequest) (acp.KillTerminalResponse, error) {
+	terminal, err := c.chat.terminal(request.TerminalId)
+	if err != nil {
+		return acp.KillTerminalResponse{}, err
+	}
+	terminal.kill()
+	return acp.KillTerminalResponse{}, nil
 }
 
-func (chatClient) WaitForTerminalExit(context.Context, acp.WaitForTerminalExitRequest) (acp.WaitForTerminalExitResponse, error) {
-	return acp.WaitForTerminalExitResponse{}, errNoTerminals
+// ReleaseTerminal stops the command if it is still running; what it printed stays in the panel.
+func (c chatClient) ReleaseTerminal(_ context.Context, request acp.ReleaseTerminalRequest) (acp.ReleaseTerminalResponse, error) {
+	terminal, ok := c.chat.releaseTerminal(request.TerminalId)
+	if !ok {
+		return acp.ReleaseTerminalResponse{}, errNoTerminal
+	}
+	terminal.kill()
+	return acp.ReleaseTerminalResponse{}, nil
 }

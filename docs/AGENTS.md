@@ -38,9 +38,13 @@ Every agent is given Zasper's own MCP server as `zasper`, so it can read and run
 | `session/request_permission` | Asks the reader, and waits for the answer or for the turn to be cancelled — unless the chat's mode covers it: *Allow edits* answers edits, moves and deletes, *Allow edits and commands* commands as well, each with the agent's allow-once option. |
 | `fs/read_text_file` | What a tab holds of the file when it has unsaved edits there, so the agent sees what the reader sees; otherwise the file on disk. |
 | `fs/write_text_file` | Writes it as a save does, and open tabs say the agent wrote it. |
-| `terminal/*` | Not offered yet: the agent runs commands its own way. |
+| `terminal/*` | Runs the command in the project, its output and errors together, and streams what it prints to its row in the panel as it comes, then how it ended. A command still running when the chat ends is stopped. |
 
 Paths outside the project are refused.
+
+Claude Code runs its commands itself rather than asking for a terminal. Zasper tells it that it shows
+terminal output (`_meta.terminal_output`), so it sends a command's output and exit code beside the call,
+and the row shows them as it does for a command run here.
 
 ## API
 
@@ -55,7 +59,9 @@ Paths outside the project are refused.
 Each event has a `seq` and a `type`: `user` (the reader's message, in `text`), `update` (what the agent
 streamed, exactly as ACP's `session/update` has it, in `update`), `permission` (a question, with an `id`
 and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `turn_end` (with
-ACP's `stop_reason`), `error` and `exited`.
+ACP's `stop_reason`), `error`, `exited`, and `terminal`: what a command run for the agent printed since
+the last, in `terminal.output` under its `terminal.id`. The last has `exited`, with `exit_code` or
+`signal`; past 256 KB the rest is not streamed, and the last has `cut` with the output's end alone.
 
 The client sends `{"type": "prompt", "text"}`, `{"type": "cancel"}`, and
 `{"type": "answer", "id", "option_id"}`, and `{"type": "mode", "mode"}` with `ask`, `edits` or `all`, which

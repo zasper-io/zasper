@@ -147,6 +147,13 @@
   }
 }
 
+.agentTools-cut {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--z-fg-subtle);
+  font-style: italic;
+}
+
 .agentDiff-file {
   display: block;
   padding: 4px 8px 0;

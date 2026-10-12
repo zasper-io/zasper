@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func setProcessGroup(cmd *exec.Cmd) {
@@ -76,4 +78,15 @@ func SignalTree(pids []int, kill bool) {
 	for _, pid := range pids {
 		syscall.Kill(pid, signal)
 	}
+}
+
+// Signal names the signal that ended a process that has exited, or is "" when it exited on its own.
+func (p *Process) Signal() string {
+	if !p.Exited() || p.state == nil {
+		return ""
+	}
+	if status, ok := p.state.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+		return unix.SignalName(status.Signal())
+	}
+	return ""
 }

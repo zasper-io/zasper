@@ -39,3 +39,6 @@ func (p *Process) Tree() []int { return nil }
 
 // SignalTree does nothing here.
 func SignalTree([]int, bool) {}
+
+// Signal is "": a process here is never reported as ended by a signal.
+func (p *Process) Signal() string { return "" }
