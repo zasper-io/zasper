@@ -8,6 +8,10 @@ project as its work tree. The project's own repository, if it has one, is never 
 no global or system configuration and no hooks, so a filter such as git-lfs or line-ending conversion
 never applies: a snapshot holds the bytes on disk. What .gitignore leaves out, the folders every walk
 skips, and files over maxFileBytes are not kept.
+
+A snapshot still wanted is pinned by a ref, under the running server's pid; Release drops a chat's and
+prunes what nothing pins any more. When a server starts, the pins of servers no longer running are
+dropped, and the stores of projects not snapshotted for staleAfter are removed whole.
 */
 package checkpoint
 
@@ -21,15 +25,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/zasper-io/zasper/internal/atomicfile"
 	"github.com/zasper-io/zasper/internal/content"
+	"github.com/zasper-io/zasper/internal/runtimeinfo"
 )
 
-// The largest file a snapshot keeps. A dataset written by a run is not something to copy on every turn.
-const maxFileBytes = 20 << 20
+const (
+	// The largest file a snapshot keeps. A dataset written by a run is not something to copy on every turn.
+	maxFileBytes = 20 << 20
+	// How long a project's store is kept after its last snapshot.
+	staleAfter = 30 * 24 * time.Hour
+)
 
 // ErrNoGit says there is no git binary to keep snapshots with.
 var ErrNoGit = errors.New("git is not installed")
@@ -47,6 +58,7 @@ type Store struct {
 var (
 	storesMu sync.Mutex
 	stores   = map[string]*Store{}
+	swept    sync.Once
 )
 
 // For is the store of the project at root, shared by everything in the server that snapshots it.
@@ -70,7 +82,37 @@ func For(root string) (*Store, error) {
 	sum := sha256.Sum256([]byte(root))
 	store := &Store{root: root, dir: filepath.Join(home, ".zasper", "checkpoints", hex.EncodeToString(sum[:8])), git: git}
 	stores[root] = store
+	swept.Do(func() { go sweep(filepath.Dir(store.dir), store.dir) })
 	return store, nil
+}
+
+// sweep removes the stores of projects not snapshotted for staleAfter, except keep.
+func sweep(dir, keep string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		path := filepath.Join(dir, entry.Name())
+		if !entry.IsDir() || path == keep {
+			continue
+		}
+		last, err := os.Stat(filepath.Join(path, "index"))
+		if err != nil {
+			last, err = os.Stat(path)
+		}
+		if err == nil && time.Since(last.ModTime()) > staleAfter {
+			os.RemoveAll(path)
+		}
+	}
+}
+
+// Dir is the store's own git directory.
+func (s *Store) Dir() string { return s.dir }
+
+// pins is where this server's pins are.
+func pins() string {
+	return fmt.Sprintf("refs/zasper/%d/", os.Getpid())
 }
 
 func (s *Store) run(ctx context.Context, stdin []byte, args ...string) ([]byte, error) {
@@ -119,11 +161,66 @@ func (s *Store) init(ctx context.Context) error {
 		return err
 	}
 	s.inited = true
-	return nil
+	return s.dropDeadPins(ctx)
 }
 
-// Snapshot records the project's files as they are now, and answers the tree that holds them.
-func (s *Store) Snapshot(ctx context.Context) (string, error) {
+// dropDeadPins drops the pins of servers that are no longer running: a crash leaves them behind.
+func (s *Store) dropDeadPins(ctx context.Context) error {
+	live := map[string]bool{strconv.Itoa(os.Getpid()): true}
+	if servers, err := runtimeinfo.List(); err == nil {
+		for _, server := range servers {
+			live[strconv.Itoa(server.PID)] = true
+		}
+	}
+	refs, err := s.run(ctx, nil, "for-each-ref", "--format=%(refname)", "refs/zasper/")
+	if err != nil {
+		return err
+	}
+	var dead []string
+	for _, ref := range strings.Fields(string(refs)) {
+		if pid, _, _ := strings.Cut(strings.TrimPrefix(ref, "refs/zasper/"), "/"); !live[pid] {
+			dead = append(dead, ref)
+		}
+	}
+	return s.drop(ctx, dead)
+}
+
+// drop deletes refs, and the objects only they kept.
+func (s *Store) drop(ctx context.Context, refs []string) error {
+	if len(refs) == 0 {
+		return nil
+	}
+	var commands bytes.Buffer
+	for _, ref := range refs {
+		fmt.Fprintf(&commands, "delete %s\n", ref)
+	}
+	if _, err := s.run(ctx, commands.Bytes(), "update-ref", "--stdin"); err != nil {
+		return err
+	}
+	_, err := s.run(ctx, nil, "prune", "--expire=now")
+	return err
+}
+
+// Release unpins the snapshots pinned under prefix, and removes what nothing else keeps.
+func (s *Store) Release(ctx context.Context, prefix string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.inited {
+		return nil
+	}
+	refs, err := s.run(ctx, nil, "for-each-ref", "--format=%(refname)", pins()+prefix+"/")
+	if err != nil {
+		return err
+	}
+	return s.drop(ctx, strings.Fields(string(refs)))
+}
+
+/*
+Snapshot records the project's files as they are now, and answers the tree that holds them. A pin, such
+as "<chat>/<turn>/before", keeps it until Release is given the start of the pin; with none it may go at
+the next prune.
+*/
+func (s *Store) Snapshot(ctx context.Context, pin string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.init(ctx); err != nil {
@@ -161,11 +258,17 @@ func (s *Store) Snapshot(ctx context.Context) (string, error) {
 			return "", err
 		}
 	}
-	tree, err := s.run(ctx, nil, "write-tree")
+	out, err := s.run(ctx, nil, "write-tree")
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(tree)), nil
+	tree := strings.TrimSpace(string(out))
+	if pin != "" {
+		if _, err := s.run(ctx, nil, "update-ref", pins()+pin, tree); err != nil {
+			return "", err
+		}
+	}
+	return tree, nil
 }
 
 // Change is one file that differs between two snapshots.

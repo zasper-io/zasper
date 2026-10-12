@@ -35,6 +35,12 @@ disk. What `.gitignore` leaves out, `node_modules`, `.venv` and the other folder
 `.zasper/`, and files over 20 MB are not kept. Without git, turns are not recorded. The first snapshot
 of a project reads every file, and is taken when the chat starts.
 
+A chat's snapshots are kept while it runs: each turn's two are pinned by a ref under the server's pid.
+When the chat ends, or opens a past conversation, they are let go and git prunes what nothing pins. A
+server that crashed leaves its pins behind; the next server to snapshot the project drops the pins of
+servers no longer running. A project not snapshotted for 30 days has its store removed whole. Deleting
+`~/.zasper/checkpoints/` by hand is safe: it loses the review and undo of the turns already taken.
+
 ## Agents
 
 | Agent | Started as | When it is not found |

@@ -177,7 +177,7 @@ func (c *Chat) Prompt(text string) error {
 
 	c.record(Event{Type: "user", Text: text})
 	go func() {
-		before := c.snapshot()
+		before := c.snapshot(fmt.Sprintf("%d/before", number))
 		answer, err := c.conn.Prompt(context.Background(), acp.PromptRequest{
 			SessionId: c.session,
 			Prompt:    []acp.ContentBlock{acp.TextBlock(text)},
@@ -248,6 +248,7 @@ func (c *Chat) close() {
 	c.mu.Unlock()
 	c.stop()
 	c.snapshotting.Wait()
+	c.releaseTurns()
 	c.killTerminals()
 	if c.process == nil {
 		return
@@ -326,7 +327,7 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 	}
 	chat.session = session.SessionId
 	// The first snapshot of a project reads every file in it, which is better done before the first turn.
-	go chat.snapshot()
+	go chat.snapshot("")
 	log.Debug().Str("chat", chat.ID).Strs("argv", argv).Msg("agent started")
 	return chat, nil
 }

@@ -3,6 +3,7 @@ package agents
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -114,4 +115,21 @@ func TestAnUndoOverAFileChangedSinceIsAskedFirst(t *testing.T) {
 
 	require.NoError(t, chat.Undo(context.Background(), 1, true))
 	assert.NoFileExists(t, made)
+}
+
+func TestAChatLetsGoOfItsTurnsSnapshotsWhenItStops(t *testing.T) {
+	manager, chat, _ := fakeChat(t)
+	require.NoError(t, chat.Prompt("write"))
+	waitFor(t, chat, turnEnded)
+	pinned := func() string {
+		refs, err := exec.Command("git", "--git-dir="+chat.checkpoints.Dir(), "for-each-ref", "--format=%(refname)").Output()
+		require.NoError(t, err)
+		return string(refs)
+	}
+	assert.Contains(t, pinned(), chat.ID+"/1/before")
+	assert.Contains(t, pinned(), chat.ID+"/1/after")
+
+	manager.Stop(chat.ID)
+
+	assert.Empty(t, pinned())
 }

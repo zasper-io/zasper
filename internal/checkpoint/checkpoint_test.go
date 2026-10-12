@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,13 +42,13 @@ func read(t *testing.T, root, path string) string {
 func TestTheChangesBetweenTwoSnapshotsAreListed(t *testing.T) {
 	store, root := project(t)
 	ctx := context.Background()
-	before, err := store.Snapshot(ctx)
+	before, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 
 	write(t, root, "a.py", "a = 2\n")
 	write(t, root, "new/c.py", "c = 3\n")
 	require.NoError(t, os.Remove(filepath.Join(root, "gone.txt")))
-	after, err := store.Snapshot(ctx)
+	after, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 
 	changes, err := store.Changes(ctx, before, after)
@@ -65,9 +66,9 @@ func TestTheChangesBetweenTwoSnapshotsAreListed(t *testing.T) {
 func TestNothingChangedIsNoChange(t *testing.T) {
 	store, _ := project(t)
 	ctx := context.Background()
-	before, err := store.Snapshot(ctx)
+	before, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
-	after, err := store.Snapshot(ctx)
+	after, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 
 	changes, err := store.Changes(ctx, before, after)
@@ -78,12 +79,12 @@ func TestNothingChangedIsNoChange(t *testing.T) {
 func TestRestoringPutsTheFilesBackAsTheyWere(t *testing.T) {
 	store, root := project(t)
 	ctx := context.Background()
-	before, err := store.Snapshot(ctx)
+	before, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 	write(t, root, "a.py", "a = 2\n")
 	write(t, root, "new/c.py", "c = 3\n")
 	require.NoError(t, os.Remove(filepath.Join(root, "gone.txt")))
-	after, err := store.Snapshot(ctx)
+	after, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 	changes, err := store.Changes(ctx, before, after)
 	require.NoError(t, err)
@@ -101,10 +102,10 @@ func TestRestoringPutsTheFilesBackAsTheyWere(t *testing.T) {
 func TestAFileChangedSinceIsNamed(t *testing.T) {
 	store, root := project(t)
 	ctx := context.Background()
-	before, err := store.Snapshot(ctx)
+	before, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 	write(t, root, "a.py", "a = 2\n")
-	after, err := store.Snapshot(ctx)
+	after, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 	changes, err := store.Changes(ctx, before, after)
 	require.NoError(t, err)
@@ -120,7 +121,7 @@ func TestIgnoredSkippedAndLargeFilesAreNotKept(t *testing.T) {
 	store, root := project(t)
 	ctx := context.Background()
 	write(t, root, ".gitignore", "*.log\n")
-	before, err := store.Snapshot(ctx)
+	before, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 
 	write(t, root, "run.log", "noise\n")
@@ -130,7 +131,7 @@ func TestIgnoredSkippedAndLargeFilesAreNotKept(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, big.Truncate(maxFileBytes+1))
 	big.Close()
-	after, err := store.Snapshot(ctx)
+	after, err := store.Snapshot(ctx, "")
 	require.NoError(t, err)
 
 	changes, err := store.Changes(ctx, before, after)
@@ -149,12 +150,77 @@ func TestTheProjectsOwnRepositoryIsLeftAlone(t *testing.T) {
 	git("add", "a.py")
 	status := git("status", "--porcelain")
 
-	_, err := store.Snapshot(context.Background())
+	_, err := store.Snapshot(context.Background(), "")
 	require.NoError(t, err)
 	write(t, root, "a.py", "a = 2\n")
-	_, err = store.Snapshot(context.Background())
+	_, err = store.Snapshot(context.Background(), "")
 	require.NoError(t, err)
 	write(t, root, "a.py", "a = 1\n")
 
 	assert.Equal(t, status, git("status", "--porcelain"))
+}
+
+// exists says whether the store still holds an object.
+func exists(store *Store, object string) bool {
+	_, err := store.run(context.Background(), nil, "cat-file", "-e", object)
+	return err == nil
+}
+
+func TestAPinnedSnapshotIsKeptUntilReleased(t *testing.T) {
+	store, root := project(t)
+	ctx := context.Background()
+	pinned, err := store.Snapshot(ctx, "chat-1/1/before")
+	require.NoError(t, err)
+	write(t, root, "a.py", "a = 2\n")
+	loose, err := store.Snapshot(ctx, "")
+	require.NoError(t, err)
+	write(t, root, "a.py", "a = 3\n")
+	_, err = store.Snapshot(ctx, "chat-2/1/before")
+	require.NoError(t, err)
+
+	require.NoError(t, store.Release(ctx, "chat-2"))
+
+	assert.True(t, exists(store, pinned), "another chat's snapshot went")
+	assert.False(t, exists(store, loose), "a snapshot nothing pins was kept")
+
+	require.NoError(t, store.Release(ctx, "chat-1"))
+	assert.False(t, exists(store, pinned))
+}
+
+func TestTheSnapshotsOfAServerNoLongerRunningAreDropped(t *testing.T) {
+	store, _ := project(t)
+	ctx := context.Background()
+	tree, err := store.Snapshot(ctx, "")
+	require.NoError(t, err)
+	// What a server that crashed leaves behind: pins under a pid nothing runs as.
+	_, err = store.run(ctx, nil, "update-ref", "refs/zasper/999999999/chat/1/before", tree)
+	require.NoError(t, err)
+
+	again, err := For(store.root)
+	require.NoError(t, err)
+	again.inited = false
+	_, err = again.Snapshot(ctx, "")
+	require.NoError(t, err)
+
+	refs, err := store.run(ctx, nil, "for-each-ref", "refs/zasper/")
+	require.NoError(t, err)
+	assert.Empty(t, string(refs))
+}
+
+func TestTheStoresOfProjectsLongUnusedAreRemoved(t *testing.T) {
+	dir := t.TempDir()
+	old, recent, keep := filepath.Join(dir, "old"), filepath.Join(dir, "recent"), filepath.Join(dir, "keep")
+	for _, store := range []string{old, recent, keep} {
+		require.NoError(t, os.MkdirAll(store, 0o700))
+		write(t, store, "index", "")
+	}
+	longAgo := time.Now().Add(-staleAfter - time.Hour)
+	require.NoError(t, os.Chtimes(filepath.Join(old, "index"), longAgo, longAgo))
+	require.NoError(t, os.Chtimes(filepath.Join(keep, "index"), longAgo, longAgo))
+
+	sweep(dir, keep)
+
+	assert.NoDirExists(t, old)
+	assert.DirExists(t, recent)
+	assert.DirExists(t, keep)
 }

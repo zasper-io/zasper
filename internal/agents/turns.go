@@ -27,8 +27,8 @@ type turn struct {
 	undone  bool
 }
 
-// snapshot records the project as it is now, or "" when there is no store or it failed.
-func (c *Chat) snapshot() string {
+// snapshot records the project as it is now, pinned as pin, or "" when there is no store or it failed.
+func (c *Chat) snapshot(pin string) string {
 	c.mu.Lock()
 	if c.checkpoints == nil || c.closing {
 		c.mu.Unlock()
@@ -39,7 +39,10 @@ func (c *Chat) snapshot() string {
 	defer c.snapshotting.Done()
 	ctx, cancel := context.WithTimeout(c.lifetime, snapshotBudget)
 	defer cancel()
-	tree, err := c.checkpoints.Snapshot(ctx)
+	if pin != "" {
+		pin = c.ID + "/" + pin
+	}
+	tree, err := c.checkpoints.Snapshot(ctx, pin)
 	if err != nil {
 		log.Warn().Err(err).Str("chat", c.ID).Msg("could not take a snapshot of the project")
 		return ""
@@ -49,7 +52,7 @@ func (c *Chat) snapshot() string {
 
 // endTurn records what the turn that began at before changed, when both snapshots could be taken.
 func (c *Chat) endTurn(number int, before string) {
-	after := c.snapshot()
+	after := c.snapshot(fmt.Sprintf("%d/after", number))
 	if before == "" || after == "" {
 		return
 	}
@@ -147,4 +150,16 @@ func (c *Chat) Undo(ctx context.Context, number int, anyway bool) error {
 	c.mu.Unlock()
 	c.record(Event{Type: "undone", Changes: &TurnChanges{Turn: number}})
 	return nil
+}
+
+// releaseTurns lets go of the snapshots of the chat's turns, which are no longer to be shown or undone.
+func (c *Chat) releaseTurns() {
+	if c.checkpoints == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), snapshotBudget)
+	defer cancel()
+	if err := c.checkpoints.Release(ctx, c.ID); err != nil {
+		log.Warn().Err(err).Str("chat", c.ID).Msg("could not let go of a chat's snapshots")
+	}
 }

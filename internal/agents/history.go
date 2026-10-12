@@ -88,6 +88,8 @@ func (c *Chat) Load(id string) error {
 	}
 	mode := c.Mode
 	c.mu.Unlock()
+	// Before any turn of the conversation opened, which numbers its turns from 1 again.
+	c.releaseTurns()
 
 	if mode != ModeAsk {
 		c.record(Event{Type: "mode", Text: mode})
