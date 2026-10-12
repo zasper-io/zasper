@@ -4,6 +4,7 @@ import { keymap } from '@codemirror/view';
 import { useAtomValue } from 'jotai';
 
 import IconButton from '@/ide/IconButton';
+import { Icon } from '@/ide/icons';
 import { editorSettingsAtom } from '@/store/settings';
 import { useTheme } from '@/themes/useTheme';
 import CellButtons from './CellButtons';
@@ -158,6 +159,11 @@ export default function CodeCell(props: CellProps) {
               cell.cell_type === 'code' && `[${queued ? '*' : (cell.execution_count ?? ' ')}]:`
             )}
           </span>
+          {props.ranBy && (
+            <span className="cell-agent" title={`Run by ${props.ranBy}`}>
+              <Icon name="bot" size={12} />
+            </span>
+          )}
         </div>
         {/* The cell's kind is set in its box's top border: the kernel's language, `raw` or `sql`. A
             SQL cell's head is the box's first line, so the box is drawn here rather than by the
@@ -184,7 +190,7 @@ export default function CodeCell(props: CellProps) {
             basicSetup={CODE_SETUP}
           />
           {cell.cell_type === 'code' && (
-            <CellTime timing={props.timing} isRunning={props.isRunning} />
+            <CellTime timing={props.timing} isRunning={props.isRunning} by={props.ranBy} />
           )}
         </div>
       </div>

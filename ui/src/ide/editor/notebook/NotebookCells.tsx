@@ -12,6 +12,8 @@ interface NotebookCellsProps {
   runningCellIds: ReadonlySet<string>;
   /** When each cell ran, as this page saw it; a cell missing here shows what its file records. */
   timings: Record<string, CellTiming>;
+  /** Who ran each cell, when an agent did. */
+  ranBy?: Record<string, string>;
   /** The cells whose output has been let past its height cap. */
   expandedOutputs: ReadonlySet<string>;
   /** The markdown cell whose source is open, if any. */
@@ -31,6 +33,7 @@ export default function NotebookCells({
   notebook,
   runningCellIds,
   timings,
+  ranBy,
   expandedOutputs,
   editingCellId,
   focusedCellId,
@@ -54,6 +57,7 @@ export default function NotebookCells({
             isRunning={runningCellIds.has(cell.id)}
             timing={timings[cell.id] ?? (cell.metadata?.execution as CellTiming | undefined)}
             isOutputExpanded={expandedOutputs.has(cell.id)}
+            ranBy={ranBy?.[cell.id]}
             isFocused={focusedCellId === cell.id}
             isEditing={editingCellId === cell.id}
             prompt={prompt?.cellId === cell.id ? prompt.content : undefined}

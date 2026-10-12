@@ -1,5 +1,6 @@
 import {
   ArrowDown,
+  Bot,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
@@ -225,6 +226,8 @@ export const ICONS = {
   timer: Timer,
   'circle-stop': CircleStop,
   'circle-check': CircleCheck,
+  // A cell an agent ran.
+  bot: Bot,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

@@ -23,6 +23,8 @@ export interface CellProps {
   prompt?: KernelMessage;
   /** When the cell last ran: as this page saw it, or else as the file records it. */
   timing?: CellTiming;
+  /** The agent that last ran this cell, when one did and named itself. */
+  ranBy?: string;
   /** What a change on disk to this cell asks of the reader, under its code. */
   diskNotice?: React.ReactNode;
 }

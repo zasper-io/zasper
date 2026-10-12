@@ -29,6 +29,8 @@ export function useCellOutputs(setNotebook: Dispatch<SetStateAction<NotebookMode
    * holds instead.
    */
   const [timings, setTimings] = useState<Record<string, CellTiming>>({});
+  /** Who ran each cell, when it was an agent that said who it was; a cell the reader ran is not here. */
+  const [ranBy, setRanBy] = useState<Record<string, string>>({});
   const recordTiming = useAtomValue(editorSettingsAtom).record_timing;
   // Read inside callbacks that must keep their identity: the kernel session holds on to them.
   const recording = useRef(recordTiming);
@@ -41,6 +43,7 @@ export function useCellOutputs(setNotebook: Dispatch<SetStateAction<NotebookMode
     (cellId: string) => {
       // A fresh run, so a clear left waiting by the last one is not waiting for anything any more.
       clearWaiting.current.delete(cellId);
+      setRanBy((previous) => withoutKey(previous, cellId));
       const sent = new Date().toISOString();
       setTimings((previous) => ({ ...previous, [cellId]: { sent } }));
       setNotebook((prevNotebook) => ({
@@ -84,6 +87,14 @@ export function useCellOutputs(setNotebook: Dispatch<SetStateAction<NotebookMode
       const replaceOutputs =
         cellId !== undefined && carriesOutput(message) && clearWaiting.current.delete(cellId);
 
+      if (cellId !== undefined && message.header.msg_type === 'execute_input') {
+        const client = message.metadata?.client;
+        setRanBy((previous) =>
+          typeof client === 'string' && client !== ''
+            ? { ...previous, [cellId]: client }
+            : withoutKey(previous, cellId)
+        );
+      }
       if (cellId !== undefined) {
         setTimings((previous) => {
           const next = nextTiming(previous[cellId], message);
@@ -122,5 +133,14 @@ export function useCellOutputs(setNotebook: Dispatch<SetStateAction<NotebookMode
     [setNotebook]
   );
 
-  return { markCellRunning, clearCellOutputs, applyMessage, applyReplay, timings };
+  return { markCellRunning, clearCellOutputs, applyMessage, applyReplay, timings, ranBy };
+}
+
+function withoutKey(record: Record<string, string>, key: string): Record<string, string> {
+  if (!(key in record)) {
+    return record;
+  }
+  const next = { ...record };
+  delete next[key];
+  return next;
 }

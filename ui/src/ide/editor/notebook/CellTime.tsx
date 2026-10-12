@@ -57,6 +57,8 @@ function dayOf(date: Date): string {
 interface CellTimeProps {
   timing: CellTiming | undefined;
   isRunning: boolean;
+  /** The agent running it, when one is. */
+  by?: string;
 }
 
 /**
@@ -65,7 +67,7 @@ interface CellTimeProps {
  * another says `queued`; one that has never run says nothing. The time runs from execute_input to
  * execute_reply, the kernel's own, and the tooltip adds when it ran and how long it waited first.
  */
-export default function CellTime({ timing, isRunning }: CellTimeProps) {
+export default function CellTime({ timing, isRunning, by }: CellTimeProps) {
   const tip = useTooltip();
   const started = timing?.['iopub.execute_input'];
   const finished = timing?.['shell.execute_reply'];
@@ -88,7 +90,8 @@ export default function CellTime({ timing, isRunning }: CellTimeProps) {
   if (running) {
     return (
       <span className="cellTime is-running" role="timer">
-        running · {formatElapsed(now - Date.parse(started))}
+        running · {by ? `${by} · ` : ''}
+        {formatElapsed(now - Date.parse(started))}
       </span>
     );
   }

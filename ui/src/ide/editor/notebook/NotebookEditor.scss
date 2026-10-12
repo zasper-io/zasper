@@ -244,6 +244,21 @@ $cell-gutter: 64px;
     height: 27px;
     padding-top: 5px;
     padding-right: 4px;
+    position: relative;
+  }
+
+  // An agent ran this cell: under the run button and the count, on the cell's second line, where
+  // nothing else in the gutter is. Its name is in the running time and the title.
+  .cell-agent {
+    position: absolute;
+    top: 30px;
+    right: 6px;
+    display: inline-flex;
+    color: var(--z-fg-subtle);
+  }
+
+  .cell-gutter.is-running .cell-agent {
+    color: var(--z-fg-accent);
   }
 
   .cell-run {

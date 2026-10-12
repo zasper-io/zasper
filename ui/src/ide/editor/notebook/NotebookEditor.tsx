@@ -754,6 +754,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
                     notebook={notebook}
                     runningCellIds={kernel.runningCellIds}
                     timings={cells.timings}
+                    ranBy={cells.ranBy}
                     expandedOutputs={cells.expandedOutputs}
                     editingCellId={cells.editingCellId}
                     focusedCellId={cells.focusedCellId}
