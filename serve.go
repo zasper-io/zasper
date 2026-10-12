@@ -13,6 +13,7 @@ import (
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
 	"github.com/zasper-io/zasper/internal/logging"
+	"github.com/zasper-io/zasper/internal/mcpbridge"
 	"github.com/zasper-io/zasper/internal/runtimeinfo"
 	"github.com/zasper-io/zasper/internal/server"
 	"github.com/zasper-io/zasper/internal/updates"
@@ -94,6 +95,7 @@ func startServer(cwd string, addresses []string, tracking bool, allowedHosts []s
 	if err != nil {
 		log.Warn().Err(err).Msg("could not record the server for `zasper mcp` to find")
 	}
+	go runtimeinfo.Sweep(mcpbridge.Alive(&http.Client{Timeout: time.Second}))
 
 	return &zasperServer{
 		runtimeFile: runtimeFile,

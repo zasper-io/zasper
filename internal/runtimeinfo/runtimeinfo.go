@@ -76,3 +76,30 @@ func List() ([]Info, error) {
 	}
 	return found, nil
 }
+
+// Sweep deletes the records of servers that no longer answer, which a crash or a kill leaves behind with
+// their access tokens in them.
+func Sweep(alive func(Info) bool) {
+	dir, err := Dir()
+	if err != nil {
+		return
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), "server-") || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var info Info
+		if json.Unmarshal(data, &info) != nil || info.URL == "" || !alive(info) {
+			os.Remove(path)
+		}
+	}
+}

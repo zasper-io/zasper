@@ -46,6 +46,8 @@ func New(app core.Application) *Server {
 	project := content.NewProject(app.HomeDir)
 	specs := kernelspec.NewCatalog(app.JupyterPath, app.HomeDir)
 	kernels := kernel.New(specs)
+	// Left by servers that were killed with their kernels running.
+	go kernel.SweepConnectionFiles()
 	sessions := session.New(project, kernels)
 	sessions.DefaultKernel(specs.PythonKernelName)
 
