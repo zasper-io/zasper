@@ -284,6 +284,37 @@ describe('foldChat', () => {
     });
   });
 
+  it('says a command Claude Code leaves pending is running, once nothing is asked of it', () => {
+    const start: ChatEvent[] = [
+      { type: 'user', text: 'test it' },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'c',
+          title: 'pytest',
+          kind: 'execute',
+          status: 'pending',
+          _meta: { terminal_info: { terminal_id: 'c' } },
+        },
+      },
+      {
+        type: 'permission',
+        permission: { id: 'q', request: { toolCall: { toolCallId: 'c' }, options: [] } },
+      },
+    ];
+    const status = (events: ChatEvent[]) =>
+      (foldChat(events).items[1] as { calls: { status: string }[] }).calls[0].status;
+
+    expect(status(start)).toBe('pending');
+    const answered: ChatEvent[] = [
+      ...start,
+      { type: 'answered', permission: { id: 'q', option_id: 'allow' } },
+    ];
+    expect(status(answered)).toBe('in_progress');
+    expect(status([...answered, { type: 'turn_end', stop_reason: 'cancelled' }])).toBe('pending');
+  });
+
   it('reads a command’s output without its colours, and a redrawn line as it was left', () => {
     expect(terminalText('\x1b[32mok\x1b[0m\r\n10%\r50%\r100%\n\x1b]0;title\x07done')).toBe(
       'ok\n100%\ndone'

@@ -77,6 +77,40 @@ describe('AgentPanel', () => {
     expect(screen.getByText('install codex-acp')).toBeInTheDocument();
   });
 
+  it('joins a chat started in another tab when it is opened', async () => {
+    listChats.mockClear();
+    const view = render(
+      <Provider>
+        <AgentPanel hidden />
+      </Provider>
+    );
+    await act(async () => {});
+    expect(listChats).not.toHaveBeenCalled();
+    listChats.mockResolvedValue([{ id: 'chat-9', agent: 'claude-code' }]);
+
+    view.rerender(
+      <Provider>
+        <AgentPanel hidden={false} />
+      </Provider>
+    );
+
+    await waitFor(() => expect(FakeSocket.latest?.url).toContain('/ws/agents/chats/chat-9'));
+  });
+
+  it('joins a chat started elsewhere when the window comes back to the front', async () => {
+    render(
+      <Provider>
+        <AgentPanel hidden={false} />
+      </Provider>
+    );
+    await screen.findByRole('button', { name: /Claude Code/ });
+    listChats.mockResolvedValue([{ id: 'chat-9', agent: 'claude-code' }]);
+
+    fireEvent.focus(window);
+
+    await waitFor(() => expect(FakeSocket.latest?.url).toContain('/ws/agents/chats/chat-9'));
+  });
+
   it('starts a chat, draws what the agent says, and sends the reader’s answers', async () => {
     render(
       <Provider>

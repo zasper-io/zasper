@@ -47,16 +47,29 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   const [error, setError] = useState('');
   const askTrust = useAskTrust();
 
-  // The agents installed, and a chat already running, rejoined after a reload.
   useEffect(() => {
     listAgents()
       .then(setAgents)
       .catch((failure: unknown) => setError(apiErrorMessage(failure)));
-    listChats()
-      .then((running) => setChat((current) => current ?? running[0] ?? null))
-      .catch(() => {});
-  }, [setChat]);
+  }, []);
 
+  /*
+   * A chat already running is rejoined: after a reload, and when one was started in another tab, which
+   * this one hears of when the panel is opened or the window comes back to the front.
+   */
+  const hasChat = chat !== null;
+  useEffect(() => {
+    if (hidden || hasChat) {
+      return;
+    }
+    const rejoin = () =>
+      listChats()
+        .then((running) => setChat((current) => current ?? running[0] ?? null))
+        .catch(() => {});
+    void rejoin();
+    window.addEventListener('focus', rejoin);
+    return () => window.removeEventListener('focus', rejoin);
+  }, [hidden, hasChat, setChat]);
 
   const start = async (agent: AgentInfo) => {
     setStarting(agent);

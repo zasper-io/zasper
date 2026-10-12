@@ -158,6 +158,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let mode: AgentMode = 'ask';
   const last = () => items[items.length - 1];
   const terminals = new Map<string, Terminal>();
+  /** The calls a question is open on, by the question's id. */
+  const asking = new Map<string, string>();
   const terminal = (id: string) => {
     let found = terminals.get(id);
     if (found === undefined) {
@@ -262,6 +264,9 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
       case 'permission': {
         const request = event.permission?.request;
+        if (request?.toolCall?.toolCallId) {
+          asking.set(event.permission?.id ?? '', request.toolCall.toolCallId);
+        }
         items.push({
           kind: 'permission',
           id: event.permission?.id ?? '',
@@ -274,6 +279,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
         const question = items.find(
           (item) => item.kind === 'permission' && item.id === event.permission?.id
         );
+        asking.delete(event.permission?.id ?? '');
         if (question?.kind === 'permission') {
           question.answer = event.permission?.option_id || null;
           question.auto = event.permission?.auto;
@@ -320,6 +326,18 @@ export function foldChat(events: ChatEvent[]): ChatView {
       for (const call of item.calls) {
         if (call.terminalId !== undefined) {
           call.terminal = terminals.get(call.terminalId);
+        }
+        // Claude Code leaves a command pending until it has finished. Once nothing is asked of it, it
+        // is running.
+        const asked = [...asking.values()].includes(call.id);
+        if (
+          call.terminal &&
+          !call.terminal.exit &&
+          call.status === 'pending' &&
+          answering &&
+          !asked
+        ) {
+          call.status = 'in_progress';
         }
       }
     }
