@@ -19,6 +19,12 @@ export interface AgentChat {
   history?: boolean;
 }
 
+/** A file a turn changed: A added, M modified, D deleted. */
+export interface TurnFile {
+  path: string;
+  status: string;
+}
+
 /** One of the agent's past conversations in the project. */
 export interface PastChat {
   id: string;
@@ -44,7 +50,9 @@ export interface ChatEvent {
     | 'error'
     | 'exited'
     | 'mode'
-    | 'terminal';
+    | 'terminal'
+    | 'changes'
+    | 'undone';
   text?: string;
   /** ACP's session/update, as the agent sent it. */
   update?: any;
@@ -59,6 +67,8 @@ export interface ChatEvent {
     auto?: boolean;
   };
   stop_reason?: string;
+  /** The files a turn changed, on `changes`; the turn taken back, on `undone`. */
+  changes?: { turn: number; files?: TurnFile[] };
   /** What a command the agent runs in Zasper printed since the last, and on the last, how it ended. */
   terminal?: {
     id: string;
@@ -102,5 +112,16 @@ export function openPastChat(chatId: string, id: string): Promise<void> {
   return requestEmpty(`/api/agents/chats/${encodeURIComponent(chatId)}/load`, {
     method: 'POST',
     body: { id },
+  });
+}
+
+/**
+ * Puts the files a turn changed back as they were before it. Rejects with a 409 whose body lists
+ * `changed`, the files changed since, unless `anyway` is set.
+ */
+export function undoTurn(chatId: string, turn: number, anyway = false): Promise<void> {
+  return requestEmpty(`/api/agents/chats/${encodeURIComponent(chatId)}/turns/${turn}/undo`, {
+    method: 'POST',
+    body: { anyway },
   });
 }

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '@/api';
 import { Provider } from '@/testing/Provider';
 import AgentPanel from './AgentPanel';
 
@@ -9,6 +10,7 @@ const listChats = vi.fn();
 const startChat = vi.fn();
 const listPastChats = vi.fn();
 const openPastChat = vi.fn();
+const undoTurn = vi.fn();
 
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api')>()),
@@ -18,6 +20,7 @@ vi.mock('@/api', async (importOriginal) => ({
   stopChat: () => Promise.resolve(),
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
   openPastChat: (chatId: string, id: string) => openPastChat(chatId, id),
+  undoTurn: (chatId: string, turn: number, anyway?: boolean) => undoTurn(chatId, turn, anyway),
 }));
 
 vi.mock('@/ide/editor/notebook/MarkdownRenderer', () => ({
@@ -271,6 +274,60 @@ describe('AgentPanel', () => {
 
       await screen.findByRole('button', { name: 'New chat' });
       expect(screen.queryByRole('button', { name: 'Past conversations' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('a turn’s changes', () => {
+    async function turnThatChanged() {
+      listChats.mockResolvedValue([{ id: 'chat-1', agent: 'claude-code' }]);
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      await screen.findByText('Your own agent, your own subscription');
+      FakeSocket.latest.push({ type: 'user', text: 'tidy it' });
+      FakeSocket.latest.push({
+        type: 'changes',
+        changes: {
+          turn: 1,
+          files: [
+            { path: 'prepare.py', status: 'M' },
+            { path: 'old.csv', status: 'D' },
+          ],
+        },
+      });
+      FakeSocket.latest.push({ type: 'turn_end', stop_reason: 'end_turn' });
+    }
+
+    it('lists the files it changed, and takes the turn back', async () => {
+      undoTurn.mockReset().mockResolvedValue(undefined);
+      await turnThatChanged();
+
+      expect(screen.getByText('2 files changed')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /prepare\.py/ })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Undo this turn' }));
+
+      await waitFor(() => expect(undoTurn).toHaveBeenCalledWith('chat-1', 1, false));
+      FakeSocket.latest.push({ type: 'undone', changes: { turn: 1 } });
+      expect(screen.getByText('Undone')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Undo this turn' })).not.toBeInTheDocument();
+    });
+
+    it('says which files changed since, and undoes over them only when asked', async () => {
+      undoTurn
+        .mockReset()
+        .mockRejectedValueOnce(
+          new ApiError('POST', '/undo', 409, JSON.stringify({ changed: ['prepare.py'] }))
+        )
+        .mockResolvedValue(undefined);
+      await turnThatChanged();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo this turn' }));
+
+      expect(await screen.findByText(/prepare\.py changed after this turn/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Undo anyway' }));
+      await waitFor(() => expect(undoTurn).toHaveBeenLastCalledWith('chat-1', 1, true));
     });
   });
 });

@@ -19,6 +19,7 @@ import (
 
 func TestAChatWithAnAgentRunsThroughTheAPIAndItsSocket(t *testing.T) {
 	t.Setenv("ZASPER_FAKE_AGENT", "1")
+	t.Setenv("HOME", t.TempDir())
 	srv, project, _ := serverFor(t, true)
 
 	status, body := call(t, srv, http.MethodPost, "/api/agents/chats", map[string]any{"command": os.Args[0] + " -test.run=^$"})

@@ -81,6 +81,7 @@ func (c *Chat) Load(id string) error {
 	}
 	c.answering = true
 	c.events = nil
+	c.turns = map[int]*turn{}
 	for subscriber := range c.subscribers {
 		delete(c.subscribers, subscriber)
 		close(subscriber)

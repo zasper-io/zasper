@@ -90,6 +90,8 @@ export type DiffTarget = {
   ref?: string;
   /** The name a renamed file had, so the original side is read from it rather than read as absent. */
   from?: string;
+  /** An agent's turn, when the comparison is the file before that turn against what it left. */
+  turn?: { chat: string; turn: number };
 };
 
 /**
@@ -189,6 +191,13 @@ export function getCommitDetail(hash: string): Promise<CommitDetail> {
  * clicked after the file behind it was committed or discarded elsewhere gets.
  */
 export function getDiff(target: DiffTarget): Promise<DiffDocuments> {
+  if (target.turn !== undefined) {
+    const { chat, turn } = target.turn;
+    return requestJson<DiffDocuments>(
+      `/api/agents/chats/${encodeURIComponent(chat)}/turns/${turn}/diff`,
+      { query: { path: target.path } }
+    );
+  }
   return requestJson<DiffDocuments>('/api/git/diff', {
     query: {
       path: target.path,

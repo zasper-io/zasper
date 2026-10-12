@@ -37,6 +37,8 @@ func (f *projectFiles) Write(path, content, client string) error {
 func fakeChat(t *testing.T) (*Manager, *Chat, *projectFiles) {
 	t.Helper()
 	t.Setenv("ZASPER_FAKE_AGENT", "1")
+	// A turn's snapshots are kept under HOME.
+	t.Setenv("HOME", t.TempDir())
 	root := t.TempDir()
 	files := &projectFiles{root: root, writers: map[string]string{}}
 	manager := New(root, files)

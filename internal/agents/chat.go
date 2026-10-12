@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
+	"github.com/zasper-io/zasper/internal/checkpoint"
 	"github.com/zasper-io/zasper/internal/kernel/launcher"
 )
 
@@ -38,6 +39,8 @@ Event is one entry in a chat's log, in the order things happened.
 	answered    the option chosen, or none when the question was withdrawn; Auto when the chat's mode chose
 	mode        the chat's permission mode changed, to Text
 	terminal    what a command the agent runs in Zasper printed, and how it ended, in Terminal
+	changes     the files the turn that has just ended changed, in Changes
+	undone      the files a turn changed were put back, the turn in Changes
 	turn_end    the agent has finished answering, with ACP's stop reason
 	error       something went wrong, in Text
 	exited      the agent's process has ended
@@ -50,6 +53,7 @@ type Event struct {
 	Permission *Permission     `json:"permission,omitempty"`
 	StopReason string          `json:"stop_reason,omitempty"`
 	Terminal   *TerminalOutput `json:"terminal,omitempty"`
+	Changes    *TurnChanges    `json:"changes,omitempty"`
 }
 
 // Permission is a question the agent asks before acting, and its answer once there is one.
@@ -101,6 +105,13 @@ type Chat struct {
 	answering   bool
 	exited      bool
 	terminals   map[string]*agentTerminal
+	// What each turn changed, by its number from 1; nil when no snapshot could be taken.
+	turns       map[int]*turn
+	checkpoints *checkpoint.Store
+	// Snapshots being taken, which a chat that is closing cancels and waits for.
+	snapshotting sync.WaitGroup
+	closing      bool
+	lifetime     context.Context
 
 	conn    *acp.ClientSideConnection
 	session acp.SessionId
@@ -160,14 +171,18 @@ func (c *Chat) Prompt(text string) error {
 		return ErrBusy
 	}
 	c.answering = true
+	number := len(c.turns) + 1
+	c.turns[number] = nil
 	c.mu.Unlock()
 
 	c.record(Event{Type: "user", Text: text})
 	go func() {
+		before := c.snapshot()
 		answer, err := c.conn.Prompt(context.Background(), acp.PromptRequest{
 			SessionId: c.session,
 			Prompt:    []acp.ContentBlock{acp.TextBlock(text)},
 		})
+		c.endTurn(number, before)
 		c.mu.Lock()
 		c.answering = false
 		c.mu.Unlock()
@@ -228,7 +243,11 @@ func (c *Chat) mode() string {
 // close stops the agent's process and everything it started. A launcher like npx hands off to children
 // that can outlive it outside its process group, so they are found first and stopped by name.
 func (c *Chat) close() {
+	c.mu.Lock()
+	c.closing = true
+	c.mu.Unlock()
 	c.stop()
+	c.snapshotting.Wait()
 	c.killTerminals()
 	if c.process == nil {
 		return
@@ -245,7 +264,7 @@ func (c *Chat) close() {
 }
 
 // start launches the agent in root and opens its session, with mcpServers as the tools it is given.
-func start(argv []string, agent, root string, files Files, mcpServers []acp.McpServer) (*Chat, error) {
+func start(argv []string, agent, root string, files Files, mcpServers []acp.McpServer, checkpoints *checkpoint.Store) (*Chat, error) {
 	process, err := launcher.Launch(launcher.Spec{Argv: argv, Env: os.Environ(), Dir: root, KeepStdio: true})
 	if err != nil {
 		return nil, fmt.Errorf("could not start %s: %w", argv[0], err)
@@ -258,6 +277,9 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 		subscribers: map[chan Event]struct{}{},
 		pending:     map[string]chan string{},
 		terminals:   map[string]*agentTerminal{},
+		turns:       map[int]*turn{},
+		checkpoints: checkpoints,
+		lifetime:    lifetime,
 		process:     process,
 		stop:        stop,
 		files:       files,
@@ -303,6 +325,8 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 		return nil, fmt.Errorf("%s could not start a session: %w", argv[0], err)
 	}
 	chat.session = session.SessionId
+	// The first snapshot of a project reads every file in it, which is better done before the first turn.
+	go chat.snapshot()
 	log.Debug().Str("chat", chat.ID).Strs("argv", argv).Msg("agent started")
 	return chat, nil
 }

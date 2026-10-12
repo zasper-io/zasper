@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 
+	"github.com/zasper-io/zasper/internal/checkpoint"
 	"github.com/zasper-io/zasper/internal/httpx"
 )
 
@@ -47,7 +49,7 @@ func (m *Manager) Start(id, custom string) (*Chat, error) {
 	if m.tools != nil {
 		servers = m.tools("", agent)
 	}
-	chat, err := start(argv, agent, m.root, m.files, servers)
+	chat, err := start(argv, agent, m.root, m.files, servers, m.checkpoints())
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +64,16 @@ func (m *Manager) get(id string) (*Chat, bool) {
 	defer m.mu.Unlock()
 	chat, ok := m.chats[id]
 	return chat, ok
+}
+
+// checkpoints is the project's snapshots, or nil without git: a turn's changes are then not recorded.
+func (m *Manager) checkpoints() *checkpoint.Store {
+	store, err := checkpoint.For(m.root)
+	if err != nil {
+		log.Warn().Err(err).Msg("a turn's changes will not be recorded")
+		return nil
+	}
+	return store
 }
 
 // Stop ends a chat and its agent.
@@ -182,6 +194,60 @@ func (m *Manager) LoadHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// DiffHandler answers GET /api/agents/chats/{chatId}/turns/{turn}/diff?path=: one file a turn changed,
+// before the turn and after it, in the shape of a git diff.
+func (m *Manager) DiffHandler(w http.ResponseWriter, req *http.Request) {
+	chat, number, ok := m.chatTurn(w, req)
+	if !ok {
+		return
+	}
+	diff, err := chat.Diff(req.Context(), number, req.URL.Query().Get("path"))
+	if err != nil {
+		httpx.SendErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+	httpx.SendJSON(w, http.StatusOK, diff)
+}
+
+// UndoHandler answers POST /api/agents/chats/{chatId}/turns/{turn}/undo with {"anyway"}: the files the
+// turn changed are put back. 409 with "changed" when some have changed since and anyway is not set.
+func (m *Manager) UndoHandler(w http.ResponseWriter, req *http.Request) {
+	chat, number, ok := m.chatTurn(w, req)
+	if !ok {
+		return
+	}
+	var body struct {
+		Anyway bool `json:"anyway"`
+	}
+	json.NewDecoder(req.Body).Decode(&body)
+	err := chat.Undo(req.Context(), number, body.Anyway)
+	var since *ChangedSince
+	switch {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.As(err, &since):
+		httpx.SendJSON(w, http.StatusConflict, map[string]any{"error": "changed", "message": err.Error(), "changed": since.Paths})
+	case errors.Is(err, ErrBusy):
+		httpx.SendErrorResponse(w, http.StatusConflict, err.Error())
+	default:
+		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+	}
+}
+
+func (m *Manager) chatTurn(w http.ResponseWriter, req *http.Request) (*Chat, int, bool) {
+	chat, ok := m.get(mux.Vars(req)["chatId"])
+	if !ok {
+		httpx.SendErrorResponse(w, http.StatusNotFound, "No such chat")
+		return nil, 0, false
+	}
+	number, err := strconv.Atoi(mux.Vars(req)["turn"])
+	if err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, "No such turn")
+		return nil, 0, false
+	}
+	return chat, number, true
 }
 
 // How long a chat's socket may take to take a message before the client is taken to have stalled.

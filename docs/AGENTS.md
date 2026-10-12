@@ -19,6 +19,22 @@ here). Picking one goes on in it: the agent replays it into the panel. What Zasp
 conversation and the agent did not keep — its questions and their answers, a command's live output —
 does not come back. Zasper keeps no history of its own.
 
+## A turn's changes
+
+When a turn ends, the files it changed are listed under it, each opening a diff of the file before the
+turn against what the turn left. **Undo this turn** puts them back as they were before it: a file it
+added is removed, one it deleted comes back. A file that has changed since the turn is named first, and
+put back only when the reader says to. Open tabs take the files back as they take any change on disk.
+
+The changes are found by snapshotting the project at the start and end of each turn, so every change
+counts, however it was made: the agent's own edits, a command it ran, a notebook tool — and an edit the
+reader made in the meantime. The snapshots are git trees in a repository of Zasper's own under
+`~/.zasper/checkpoints/`, with the project as its work tree; the project's own repository is never
+touched. git runs there with no global or system configuration and no hooks, so it stores the bytes on
+disk. What `.gitignore` leaves out, `node_modules`, `.venv` and the other folders every walk skips,
+`.zasper/`, and files over 20 MB are not kept. Without git, turns are not recorded. The first snapshot
+of a project reads every file, and is taken when the chat starts.
+
 ## Agents
 
 | Agent | Started as | When it is not found |
@@ -62,12 +78,16 @@ and the row shows them as it does for a command run here.
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |
 | `GET` | `/api/agents/chats/{id}/history?cursor=` | A page of the agent's past conversations in the project: `{"chats": [{id, title, updated, current}], "next"}`, through ACP's `session/list`. `400` for an agent that cannot. |
 | `POST` | `/api/agents/chats/{id}/load` | Go on in a past conversation, `{"id"}`, through `session/load`. The chat's log starts again with the replay, and every tab's socket is closed so it reconnects to the new log. `409` while the agent is answering. |
+| `GET` | `/api/agents/chats/{id}/turns/{turn}/diff?path=` | A file a turn changed, before and after the turn, in the shape of `/api/git/diff`. |
+| `POST` | `/api/agents/chats/{id}/turns/{turn}/undo` | Put back the files the turn changed. `409` with `changed`, the files changed since, unless `{"anyway": true}`. |
 | `GET` | `/ws/agents/chats/{id}` | **WebSocket.** The chat's log from the start, then each event as it happens. |
 
 Each event has a `seq` and a `type`: `user` (the reader's message, in `text`), `update` (what the agent
 streamed, exactly as ACP's `session/update` has it, in `update`), `permission` (a question, with an `id`
 and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `turn_end` (with
-ACP's `stop_reason`), `error`, `exited`, and `terminal`: what a command run for the agent printed since
+ACP's `stop_reason`), `error`, `exited`, `changes` (the files the turn that has just ended changed, `changes.turn` and
+`changes.files` with each `path` and `status` A, M or D), `undone` (a turn taken back, `changes.turn`),
+and `terminal`: what a command run for the agent printed since
 the last, in `terminal.output` under its `terminal.id`. The last has `exited`, with `exit_code` or
 `signal`; past 256 KB the rest is not streamed, and the last has `cut` with the output's end alone.
 

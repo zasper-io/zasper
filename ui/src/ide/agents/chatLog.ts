@@ -1,4 +1,4 @@
-import { AgentMode, ChatEvent } from '@/api';
+import { AgentMode, ChatEvent, TurnFile } from '@/api';
 
 /** A tool the agent called, as its calls and their updates have it so far. */
 export interface ToolCall {
@@ -58,7 +58,9 @@ export type ChatItem =
       /** The chat's mode answered it. */
       auto?: boolean;
     }
-  | { kind: 'note'; text: string; failed: boolean };
+  | { kind: 'note'; text: string; failed: boolean }
+  /** The files a turn changed, once it has ended; `undone` once they were put back. */
+  | { kind: 'changes'; turn: number; files: TurnFile[]; undone: boolean };
 
 export interface PlanEntry {
   content: string;
@@ -299,6 +301,23 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
       case 'mode':
         mode = (event.text as AgentMode) ?? 'ask';
+        break;
+      case 'changes':
+        if (event.changes) {
+          items.push({
+            kind: 'changes',
+            turn: event.changes.turn,
+            files: event.changes.files ?? [],
+            undone: false,
+          });
+        }
+        break;
+      case 'undone':
+        for (const item of items) {
+          if (item.kind === 'changes' && item.turn === event.changes?.turn) {
+            item.undone = true;
+          }
+        }
         break;
       case 'terminal': {
         const printed = event.terminal;

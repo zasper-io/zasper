@@ -13,6 +13,7 @@ import { useAtom, useAtomValue } from 'jotai';
 import {
   AgentChat,
   AgentInfo,
+  ApiError,
   apiErrorMessage,
   isUntrusted,
   listAgents,
@@ -22,6 +23,8 @@ import {
   PastChat,
   startChat,
   stopChat,
+  TurnFile,
+  undoTurn,
 } from '@/api';
 import IconButton from '@/ide/IconButton';
 import { Icon, IconName } from '@/ide/icons';
@@ -320,7 +323,7 @@ function Conversation({ chat }: { chat: AgentChat }) {
       </div>
       <div className="agentChat" aria-live="polite">
         {view.items.map((item, index) => (
-          <Item key={index} item={item} onAnswer={answer} />
+          <Item chatId={chat.id} key={index} item={item} onAnswer={answer} />
         ))}
         {view.plan.length > 0 && <Plan entries={view.plan} />}
         {view.answering && (
@@ -362,9 +365,11 @@ function Conversation({ chat }: { chat: AgentChat }) {
 }
 
 function Item({
+  chatId,
   item,
   onAnswer,
 }: {
+  chatId: string;
   item: ChatItem;
   onAnswer: (id: string, option: string) => void;
 }) {
@@ -424,6 +429,115 @@ function Item({
       );
     case 'note':
       return <p className={item.failed ? 'agentNote is-failed' : 'agentNote'}>{item.text}</p>;
+    case 'changes':
+      return (
+        <TurnChanges chatId={chatId} turn={item.turn} files={item.files} undone={item.undone} />
+      );
+  }
+}
+
+const STATUS_NAMES: Record<string, string> = { A: 'added', M: 'changed', D: 'deleted' };
+
+/** The files a turn changed, each opening its before and after, and the turn's undo. */
+function TurnChanges(props: { chatId: string; turn: number; files: TurnFile[]; undone: boolean }) {
+  const { openDiff } = useTabActions();
+  const [changedSince, setChangedSince] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const undo = async (anyway: boolean) => {
+    setBusy(true);
+    setError('');
+    try {
+      await undoTurn(props.chatId, props.turn, anyway);
+      setChangedSince(null);
+    } catch (failure) {
+      const changed = failure instanceof ApiError ? changedIn(failure) : null;
+      if (changed !== null) {
+        setChangedSince(changed);
+      } else {
+        setError(apiErrorMessage(failure));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const count = props.files.length;
+  return (
+    <div className="agentChanges">
+      <div className="agentChanges-head">
+        <span>{count === 1 ? '1 file changed' : `${count} files changed`}</span>
+        {props.undone ? (
+          <span className="agentChanges-undone">Undone</span>
+        ) : (
+          <button
+            type="button"
+            className="z-button z-button-secondary"
+            disabled={busy || changedSince !== null}
+            onClick={() => void undo(false)}
+          >
+            Undo this turn
+          </button>
+        )}
+      </div>
+      <div className="agentTools">
+        {props.files.map((file) => (
+          <button
+            type="button"
+            key={file.path}
+            className="panel-row"
+            title={`${file.path}: what the turn ${STATUS_NAMES[file.status] ?? 'changed'}`}
+            onClick={() =>
+              openDiff({ path: file.path, turn: { chat: props.chatId, turn: props.turn } })
+            }
+          >
+            <span className={`agentChanges-status is-${file.status}`}>{file.status}</span>
+            <span className="panel-row-name">{file.path}</span>
+          </button>
+        ))}
+      </div>
+      {changedSince !== null && (
+        <div className="z-notice">
+          <p>
+            {changedSince.join(', ')} changed after this turn. Undoing puts{' '}
+            {changedSince.length === 1 ? 'it' : 'them'} back as before the turn, and those later
+            changes are lost.
+          </p>
+          <span className="agentAsk-actions">
+            <button type="button" className="z-button" onClick={() => void undo(true)}>
+              Undo anyway
+            </button>
+            <button
+              type="button"
+              className="z-button z-button-secondary"
+              onClick={() => setChangedSince(null)}
+            >
+              Keep them
+            </button>
+          </span>
+        </div>
+      )}
+      {error && (
+        <div className="z-notice z-notice-error">
+          <Icon name="circle-alert" size={14} />
+          <p>{error}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The files a refused undo names as changed since the turn, or null for any other refusal. */
+function changedIn(failure: ApiError): string[] | null {
+  if (failure.status !== 409) {
+    return null;
+  }
+  try {
+    const body = JSON.parse(failure.body) as { changed?: unknown };
+    return Array.isArray(body.changed) ? (body.changed as string[]) : null;
+  } catch {
+    return null;
   }
 }
 

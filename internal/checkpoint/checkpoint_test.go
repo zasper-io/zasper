@@ -1,0 +1,160 @@
+package checkpoint
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// project makes a project with a few files and a store for it, kept under a home of the test's own.
+func project(t *testing.T) (*Store, string) {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	root := t.TempDir()
+	write(t, root, "a.py", "a = 1\n")
+	write(t, root, "data/b.csv", "x\n1\n")
+	write(t, root, "gone.txt", "bye\n")
+	store, err := For(root)
+	require.NoError(t, err)
+	return store, root
+}
+
+func write(t *testing.T, root, path, text string) {
+	t.Helper()
+	full := filepath.Join(root, path)
+	require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+	require.NoError(t, os.WriteFile(full, []byte(text), 0o644))
+}
+
+func read(t *testing.T, root, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, path))
+	require.NoError(t, err)
+	return string(data)
+}
+
+func TestTheChangesBetweenTwoSnapshotsAreListed(t *testing.T) {
+	store, root := project(t)
+	ctx := context.Background()
+	before, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+
+	write(t, root, "a.py", "a = 2\n")
+	write(t, root, "new/c.py", "c = 3\n")
+	require.NoError(t, os.Remove(filepath.Join(root, "gone.txt")))
+	after, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+
+	changes, err := store.Changes(ctx, before, after)
+	require.NoError(t, err)
+	var listed []string
+	for _, change := range changes {
+		listed = append(listed, change.Status+" "+change.Path)
+	}
+	assert.Equal(t, []string{"M a.py", "D gone.txt", "A new/c.py"}, listed)
+	old, err := store.Blob(ctx, changes[0].Before)
+	require.NoError(t, err)
+	assert.Equal(t, "a = 1\n", string(old))
+}
+
+func TestNothingChangedIsNoChange(t *testing.T) {
+	store, _ := project(t)
+	ctx := context.Background()
+	before, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+	after, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+
+	changes, err := store.Changes(ctx, before, after)
+	require.NoError(t, err)
+	assert.Empty(t, changes)
+}
+
+func TestRestoringPutsTheFilesBackAsTheyWere(t *testing.T) {
+	store, root := project(t)
+	ctx := context.Background()
+	before, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+	write(t, root, "a.py", "a = 2\n")
+	write(t, root, "new/c.py", "c = 3\n")
+	require.NoError(t, os.Remove(filepath.Join(root, "gone.txt")))
+	after, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+	changes, err := store.Changes(ctx, before, after)
+	require.NoError(t, err)
+
+	moved, err := store.Since(ctx, changes)
+	require.NoError(t, err)
+	assert.Empty(t, moved)
+	require.NoError(t, store.Restore(ctx, changes))
+
+	assert.Equal(t, "a = 1\n", read(t, root, "a.py"))
+	assert.Equal(t, "bye\n", read(t, root, "gone.txt"))
+	assert.NoFileExists(t, filepath.Join(root, "new/c.py"))
+}
+
+func TestAFileChangedSinceIsNamed(t *testing.T) {
+	store, root := project(t)
+	ctx := context.Background()
+	before, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+	write(t, root, "a.py", "a = 2\n")
+	after, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+	changes, err := store.Changes(ctx, before, after)
+	require.NoError(t, err)
+
+	write(t, root, "a.py", "a = 3\n")
+
+	moved, err := store.Since(ctx, changes)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"a.py"}, moved)
+}
+
+func TestIgnoredSkippedAndLargeFilesAreNotKept(t *testing.T) {
+	store, root := project(t)
+	ctx := context.Background()
+	write(t, root, ".gitignore", "*.log\n")
+	before, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+
+	write(t, root, "run.log", "noise\n")
+	write(t, root, "node_modules/x/index.js", "x\n")
+	write(t, root, ".zasper/state.json", "{}\n")
+	big, err := os.Create(filepath.Join(root, "big.bin"))
+	require.NoError(t, err)
+	require.NoError(t, big.Truncate(maxFileBytes+1))
+	big.Close()
+	after, err := store.Snapshot(ctx)
+	require.NoError(t, err)
+
+	changes, err := store.Changes(ctx, before, after)
+	require.NoError(t, err)
+	assert.Empty(t, changes)
+}
+
+func TestTheProjectsOwnRepositoryIsLeftAlone(t *testing.T) {
+	store, root := project(t)
+	git := func(args ...string) string {
+		out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput()
+		require.NoError(t, err, string(out))
+		return string(out)
+	}
+	git("init", "--quiet")
+	git("add", "a.py")
+	status := git("status", "--porcelain")
+
+	_, err := store.Snapshot(context.Background())
+	require.NoError(t, err)
+	write(t, root, "a.py", "a = 2\n")
+	_, err = store.Snapshot(context.Background())
+	require.NoError(t, err)
+	write(t, root, "a.py", "a = 1\n")
+
+	assert.Equal(t, status, git("status", "--porcelain"))
+}

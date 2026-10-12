@@ -17,6 +17,9 @@ interface DiffTabProps {
 
 /** What each side is, in the words git uses for it. */
 function sidesOf(target: DiffTarget): [string, string] {
+  if (target.turn !== undefined) {
+    return ['Before the turn', 'After it'];
+  }
   if (target.ref !== undefined) {
     const short = target.ref.slice(0, 7);
     return [`Parent of ${short}`, short];
@@ -35,7 +38,7 @@ function sidesOf(target: DiffTarget): [string, string] {
  * does not.
  */
 export default function DiffTab(props: DiffTabProps) {
-  const { path, staged, ref, from } = props.target;
+  const { path, staged, ref, from, turn } = props.target;
   const [documents, setDocuments] = useState<DiffDocuments | null>(null);
   const [error, setError] = useState<string>('');
   // Bumped by the button in the head. A diff is true as of when it was read, and the ordinary thing to
@@ -56,7 +59,7 @@ export default function DiffTab(props: DiffTabProps) {
   // them being looked at. A diff is active the moment `openDiff` opens it, so nothing about opening
   // one changes; the guard is what a restored tab waits behind.
   useEffect(() => {
-    const wanted = JSON.stringify([path, staged, ref, from, reloads]);
+    const wanted = JSON.stringify([path, staged, ref, from, turn, reloads]);
     if (!props.data.active || lastRead.current === wanted) {
       return;
     }
@@ -66,7 +69,7 @@ export default function DiffTab(props: DiffTabProps) {
 
     const read = async () => {
       try {
-        const answer = await getDiff({ path, staged, ref, from });
+        const answer = await getDiff({ path, staged, ref, from, turn });
         if (live) {
           setDocuments(answer);
           setError('');
@@ -85,7 +88,7 @@ export default function DiffTab(props: DiffTabProps) {
     return () => {
       live = false;
     };
-  }, [path, staged, ref, from, reloads, props.data.active]);
+  }, [path, staged, ref, from, turn, reloads, props.data.active]);
 
   const cells = documents?.notebook;
   const comparable =

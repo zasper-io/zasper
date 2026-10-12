@@ -305,3 +305,47 @@
     margin-left: auto;
   }
 }
+
+// The files a turn changed, under its answer.
+.agentChanges {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .z-notice p {
+    margin: 0;
+  }
+}
+
+.agentChanges-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--z-fg-default);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.agentChanges-undone {
+  color: var(--z-fg-subtle);
+}
+
+.agentChanges-status {
+  flex: 0 0 auto;
+  width: 1em;
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size-sm);
+  text-align: center;
+
+  &.is-A {
+    color: var(--z-git-added);
+  }
+
+  &.is-M {
+    color: var(--z-git-modified);
+  }
+
+  &.is-D {
+    color: var(--z-git-deleted);
+  }
+}

@@ -166,11 +166,17 @@ func getDiff(repo *git.Repository, root, path, from string, staged bool, ref str
 		return DiffResponse{}, &missingPath{path: path}
 	}
 
-	response := DiffResponse{Path: path}
-	if from != "" {
-		response.From = from
-	}
+	response := Compare(path, original, modified)
+	response.From = from
+	return response, nil
+}
 
+/*
+Compare is two versions of the file at path as a comparison to draw: a notebook as its cells, and a
+binary file or one too large to send as a flag saying so. An absent version is empty.
+*/
+func Compare(path string, original, modified []byte) DiffResponse {
+	response := DiffResponse{Path: path}
 	switch {
 	case len(original) > maxDiffBytes || len(modified) > maxDiffBytes:
 		response.TooLarge = true
@@ -182,14 +188,14 @@ func getDiff(repo *git.Repository, root, path, from string, staged bool, ref str
 				response.IsNotebook = true
 				response.Original, response.Modified = left, right
 				response.Notebook = &NotebookSides{Original: readSide(original), Modified: readSide(modified)}
-				return response, nil
+				return response
 			}
 			// Not a notebook this can read — a merge conflict left in the JSON, or a file with the
 			// extension and nothing else — so it is compared as the text it is.
 		}
 		response.Original, response.Modified = string(original), string(modified)
 	}
-	return response, nil
+	return response
 }
 
 // headContent is what the last commit holds at path, absent when nothing is committed yet.

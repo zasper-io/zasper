@@ -46,7 +46,13 @@ export interface OpenTab {
  */
 export function diffTabKey(target: DiffTarget): string {
   const against =
-    target.ref !== undefined ? target.ref : target.staged === true ? 'staged' : 'worktree';
+    target.turn !== undefined
+      ? `turn-${target.turn.chat}-${target.turn.turn}`
+      : target.ref !== undefined
+        ? target.ref
+        : target.staged === true
+          ? 'staged'
+          : 'worktree';
   return `diff:${against}:${target.path}`;
 }
 
@@ -258,11 +264,13 @@ export function useTabActions(): TabActions {
       // Which comparison, in the tab name: two diffs of one file are two tabs, and a strip of tabs all
       // called `notes.txt (diff)` cannot be told apart.
       const against =
-        target.ref !== undefined
-          ? target.ref.slice(0, 7)
-          : target.staged === true
-            ? 'staged'
-            : 'diff';
+        target.turn !== undefined
+          ? `turn ${target.turn.turn}`
+          : target.ref !== undefined
+            ? target.ref.slice(0, 7)
+            : target.staged === true
+              ? 'staged'
+              : 'diff';
       openTab({
         name: `${baseName(target.path)} (${against})`,
         path: diffTabKey(target),

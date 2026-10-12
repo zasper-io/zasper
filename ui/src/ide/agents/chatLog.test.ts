@@ -221,6 +221,19 @@ describe('foldChat', () => {
     expect(view.answering).toBe(false);
   });
 
+  it('lists the files a turn changed, and marks them once taken back', () => {
+    const changed: ChatEvent = {
+      type: 'changes',
+      changes: { turn: 1, files: [{ path: 'a.py', status: 'M' }] },
+    };
+    expect(foldChat([changed]).items).toEqual([
+      { kind: 'changes', turn: 1, files: [{ path: 'a.py', status: 'M' }], undone: false },
+    ]);
+    expect(foldChat([changed, { type: 'undone', changes: { turn: 1 } }]).items[0]).toMatchObject({
+      undone: true,
+    });
+  });
+
   describe('a command', () => {
     const runs = (content: unknown[], _meta?: unknown): ChatEvent => ({
       type: 'update',
