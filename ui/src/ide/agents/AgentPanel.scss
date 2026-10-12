@@ -79,6 +79,59 @@
   }
 }
 
+// An agent on its way up, in the middle of the panel.
+.agentStarting {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: var(--z-fg-default);
+  font-size: var(--z-ui-font-size);
+  line-height: 1.5;
+
+  h3,
+  p {
+    margin: 0;
+  }
+
+  .z-button {
+    margin-top: 8px;
+  }
+}
+
+.agentStarting-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border: 1px solid var(--z-border);
+  border-radius: 10px;
+  background: var(--z-bg-panel-alt);
+  color: var(--z-accent);
+}
+
+.agentStarting-meter {
+  width: 160px;
+}
+
+.agentStarting-time {
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.agentStarting-why {
+  max-width: 34ch;
+  color: var(--z-fg-muted);
+  font-size: var(--z-ui-font-size-sm);
+}
+
 .agentStart-intro {
   display: flex;
   flex-direction: column;

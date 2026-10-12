@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,8 +40,9 @@ func (m *Manager) GiveTools(tools func(chatID, agent string) []acp.McpServer) {
 	m.tools = tools
 }
 
-// Start starts an agent, the known one id or the custom command line, in a chat of its own.
-func (m *Manager) Start(id, custom string) (*Chat, error) {
+// Start starts an agent, the known one id or the custom command line, in a chat of its own. Cancelling
+// ctx, as a reader who gives up on a slow start does, stops the agent before its session opens.
+func (m *Manager) Start(ctx context.Context, id, custom string) (*Chat, error) {
 	argv, agent, ok := commandFor(id, custom)
 	if !ok {
 		return nil, fmt.Errorf("%q is not installed, or not an agent Zasper knows", id)
@@ -49,7 +51,7 @@ func (m *Manager) Start(id, custom string) (*Chat, error) {
 	if m.tools != nil {
 		servers = m.tools("", agent)
 	}
-	chat, err := start(argv, agent, m.root, m.files, servers, m.checkpoints())
+	chat, err := start(ctx, argv, agent, m.root, m.files, servers, m.checkpoints())
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +139,7 @@ func (m *Manager) StartHandler(w http.ResponseWriter, req *http.Request) {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
-	chat, err := m.Start(body.Agent, body.Command)
+	chat, err := m.Start(req.Context(), body.Agent, body.Command)
 	if err != nil {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return

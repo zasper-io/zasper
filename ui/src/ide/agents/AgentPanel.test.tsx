@@ -20,7 +20,7 @@ vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api')>()),
   listAgents: () => listAgents(),
   listChats: () => listChats(),
-  startChat: (agent: string) => startChat(agent),
+  startChat: (agent: string, signal?: AbortSignal) => startChat(agent, signal),
   startCommand: (command: string) => startCommand(command),
   stopChat: () => Promise.resolve(),
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
@@ -105,6 +105,30 @@ describe('AgentPanel', () => {
     const missing = screen.getByRole('region', { name: 'Not installed' });
     expect(missing).toHaveTextContent('npm install -g codex-acp');
     expect(missing).toHaveTextContent('Sign in once by running codex.');
+  });
+
+  it('shows an agent starting, and gives up on it when asked', async () => {
+    let signal: AbortSignal | undefined;
+    startChat.mockImplementationOnce(
+      (_agent: string, given?: AbortSignal) =>
+        new Promise((_resolve, reject) => {
+          signal = given;
+          given?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        })
+    );
+    render(
+      <Provider>
+        <AgentPanel hidden={false} />
+      </Provider>
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+
+    expect(await screen.findByRole('status', { name: 'Starting Claude Code' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(signal?.aborted).toBe(true);
+    expect(await screen.findByRole('button', { name: 'Start Claude Code' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('starts any other agent by the command that runs it, and names it by its program', async () => {

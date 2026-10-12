@@ -9,7 +9,8 @@ nothing anywhere. For an agent that runs on its own and only uses Zasper's tools
 
 The bot in the topbar opens the agent panel on the right of the editor, beside the file tree. With no
 chat it lists the agents Zasper knows: those installed with a Start button, the others with the
-command that installs them and Check again; any other ACP agent starts by its command line. The
+command that installs them and Check again; any other ACP agent starts by its command line. While an agent starts the panel shows how long it
+has taken, and Cancel gives up on it: the request ends and the server stops the agent's process. The
 conversation streams in as the agent works: its messages, its thinking folded away, a row per tool call
 that opens the file it touched, its plan, and each question it asks with its options as buttons. Enter
 sends, and the button becomes Stop while the agent works. A reload or a second tab shows the same chat.

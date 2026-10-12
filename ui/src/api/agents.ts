@@ -108,13 +108,14 @@ export function listChats(): Promise<AgentChat[]> {
 }
 
 /** Starts an agent in a chat of its own. The first start of one fetched by npx can take minutes. */
-export function startChat(agent: string): Promise<AgentChat> {
-  return requestJson<AgentChat>('/api/agents/chats', { method: 'POST', body: { agent } });
+/** Aborting `signal` gives up on the start, and the server stops the agent. */
+export function startChat(agent: string, signal?: AbortSignal): Promise<AgentChat> {
+  return requestJson<AgentChat>('/api/agents/chats', { method: 'POST', body: { agent }, signal });
 }
 
 /** Starts any other agent that speaks ACP, by the command line that runs it. */
-export function startCommand(command: string): Promise<AgentChat> {
-  return requestJson<AgentChat>('/api/agents/chats', { method: 'POST', body: { command } });
+export function startCommand(command: string, signal?: AbortSignal): Promise<AgentChat> {
+  return requestJson<AgentChat>('/api/agents/chats', { method: 'POST', body: { command }, signal });
 }
 
 export function stopChat(id: string): Promise<void> {

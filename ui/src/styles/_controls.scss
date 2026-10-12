@@ -289,4 +289,27 @@
   &.is-high > span {
     background: var(--z-status-warning);
   }
+
+  // Under way, with no amount to show: a short fill that crosses the track and comes round again.
+  &.is-indeterminate > span {
+    width: 35%;
+    animation: z-meter-sweep 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes z-meter-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(290%);
+  }
+}
+
+// Slowed rather than stopped, as the spinner is: a still bar reads as a stuck one.
+@media (prefers-reduced-motion: reduce) {
+  .z-meter.is-indeterminate > span {
+    animation-duration: 4s;
+  }
 }

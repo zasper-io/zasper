@@ -63,8 +63,8 @@ const TOOL_ICONS: Record<string, IconName> = {
 export default function AgentPanel({ hidden }: { hidden: boolean }) {
   const [chat, setChat] = useAtom(agentChatAtom);
   const [agents, setAgents] = useState<AgentInfo[] | null>(null);
-  /** The name of the agent starting. */
-  const [starting, setStarting] = useState<string | null>(null);
+  /** The agent starting, and how to give up on it. */
+  const [starting, setStarting] = useState<{ name: string; abort: AbortController } | null>(null);
   const [error, setError] = useState('');
   const [browsing, setBrowsing] = useState(false);
   const askTrust = useAskTrust();
@@ -97,12 +97,19 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   /** Starts a known agent, or any other by its command line. */
   const start = async (target: AgentInfo | string) => {
     const name = typeof target === 'string' ? commandName(target) : target.name;
-    setStarting(name);
+    const abort = new AbortController();
+    setStarting({ name, abort });
     setError('');
     try {
-      setChat(await (typeof target === 'string' ? startCommand(target) : startChat(target.id)));
+      setChat(
+        await (typeof target === 'string'
+          ? startCommand(target, abort.signal)
+          : startChat(target.id, abort.signal))
+      );
     } catch (failure) {
-      if (isUntrusted(failure)) {
+      if (abort.signal.aborted) {
+        // Given up on: back to the list, with nothing to say about it.
+      } else if (isUntrusted(failure)) {
         askTrust({
           reason: 'other',
           what: `start ${name} in this folder`,
@@ -149,7 +156,8 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
       ) : (
         <Picker
           agents={agents}
-          starting={starting}
+          starting={starting?.name ?? null}
+          onCancel={() => starting?.abort.abort()}
           error={error}
           onStart={(target) => void start(target)}
           onCheckAgain={findAgents}
@@ -253,6 +261,46 @@ function History({ chatId, onOpened }: { chatId: string; onOpened: () => void })
   );
 }
 
+// After this long a start is worth explaining: an agent fetched by npx downloads itself the first time.
+const SLOW_START_SECONDS = 5;
+
+/** An agent on its way up: the server says nothing until it is, so this counts the time rather than steps. */
+function Starting({ name, onCancel }: { name: string; onCancel: () => void }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const began = Date.now();
+    const tick = window.setInterval(
+      () => setSeconds(Math.floor((Date.now() - began) / 1000)),
+      1000
+    );
+    return () => window.clearInterval(tick);
+  }, []);
+
+  return (
+    <div className="agentStarting" role="status" aria-label={`Starting ${name}`}>
+      <span className="agentStarting-mark">
+        <Icon name="bot" size={20} />
+      </span>
+      <h3 className="z-subheading">Starting {name}</h3>
+      <div className="z-meter is-indeterminate agentStarting-meter">
+        <span />
+      </div>
+      <p className="agentStarting-time">
+        {seconds < 1 ? 'Opening a session in this project' : `${seconds}s`}
+      </p>
+      {seconds >= SLOW_START_SECONDS && (
+        <p className="agentStarting-why">
+          The first start downloads the agent, which can take a minute or two. After that it opens
+          in seconds.
+        </p>
+      )}
+      <button type="button" className="z-button z-button-secondary" onClick={onCancel}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 function Picker(props: {
   agents: AgentInfo[] | null;
   /** The name of the agent starting. */
@@ -260,20 +308,11 @@ function Picker(props: {
   error: string;
   onStart: (target: AgentInfo | string) => void;
   onCheckAgain: () => void;
+  onCancel: () => void;
 }) {
   const [command, setCommand] = useState('');
   if (props.starting) {
-    return (
-      <div className="agentStart">
-        <div className="agentStart-starting">
-          <span className="z-spinner" role="status" aria-label="Starting" />
-          <div>
-            <h3 className="z-subheading">Starting {props.starting}</h3>
-            <p>The first start downloads the agent, which can take a minute or two.</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <Starting name={props.starting} onCancel={props.onCancel} />;
   }
   const ready = (props.agents ?? []).filter((agent) => agent.installed);
   const missing = (props.agents ?? []).filter((agent) => !agent.installed);

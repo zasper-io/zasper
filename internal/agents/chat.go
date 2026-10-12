@@ -274,7 +274,7 @@ func (c *Chat) close() {
 }
 
 // start launches the agent in root and opens its session, with mcpServers as the tools it is given.
-func start(argv []string, agent, root string, files Files, mcpServers []acp.McpServer, checkpoints *checkpoint.Store) (*Chat, error) {
+func start(asked context.Context, argv []string, agent, root string, files Files, mcpServers []acp.McpServer, checkpoints *checkpoint.Store) (*Chat, error) {
 	process, err := launcher.Launch(launcher.Spec{Argv: argv, Env: os.Environ(), Dir: root, KeepStdio: true})
 	if err != nil {
 		return nil, fmt.Errorf("could not start %s: %w", argv[0], err)
@@ -309,6 +309,9 @@ func start(argv []string, agent, root string, files Files, mcpServers []acp.McpS
 
 	ctx, cancel := context.WithTimeout(lifetime, startBudget)
 	defer cancel()
+	// Whoever asked for the start may give up on it; the handshake then ends, and the agent with it.
+	stopAsking := context.AfterFunc(asked, cancel)
+	defer stopAsking()
 	initialized, err := chat.conn.Initialize(ctx, acp.InitializeRequest{
 		ProtocolVersion: acp.ProtocolVersionNumber,
 		ClientCapabilities: acp.ClientCapabilities{

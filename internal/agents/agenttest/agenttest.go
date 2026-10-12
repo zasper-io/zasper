@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	acp "github.com/coder/acp-go-sdk"
 )
@@ -43,6 +44,10 @@ type agent struct {
 }
 
 func (a *agent) Initialize(context.Context, acp.InitializeRequest) (acp.InitializeResponse, error) {
+	if os.Getenv("ZASPER_FAKE_AGENT_SLOW") != "" {
+		// An agent npx is still downloading: it says nothing for a long while.
+		time.Sleep(time.Minute)
+	}
 	return acp.InitializeResponse{ProtocolVersion: acp.ProtocolVersionNumber, AgentCapabilities: acp.AgentCapabilities{
 		LoadSession:         true,
 		SessionCapabilities: acp.SessionCapabilities{List: &acp.SessionListCapabilities{}},

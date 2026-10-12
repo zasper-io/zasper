@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -42,7 +43,7 @@ func fakeChat(t *testing.T) (*Manager, *Chat, *projectFiles) {
 	root := t.TempDir()
 	files := &projectFiles{root: root, writers: map[string]string{}}
 	manager := New(root, files)
-	chat, err := manager.Start("", os.Args[0]+" -test.run=^$")
+	chat, err := manager.Start(context.Background(), "", os.Args[0]+" -test.run=^$")
 	require.NoError(t, err)
 	t.Cleanup(manager.StopAll)
 	return manager, chat, files
@@ -209,7 +210,7 @@ func TestStoppingAChatStopsItsAgent(t *testing.T) {
 func TestAnAgentThatIsNotInstalledSaysSo(t *testing.T) {
 	manager := New(t.TempDir(), &projectFiles{writers: map[string]string{}})
 
-	_, err := manager.Start("no-such-agent", "")
+	_, err := manager.Start(context.Background(), "no-such-agent", "")
 
 	assert.ErrorContains(t, err, "not installed")
 }
@@ -248,4 +249,22 @@ func TestAModeThatDoesNotCoverAToolStillAsks(t *testing.T) {
 	assert.False(t, allows(ModeAll, acp.ToolKindRead))
 	_, chat, _ := fakeChat(t)
 	assert.Error(t, chat.SetMode("anything"))
+}
+
+func TestGivingUpOnAStartStopsTheAgent(t *testing.T) {
+	t.Setenv("ZASPER_FAKE_AGENT", "1")
+	t.Setenv("ZASPER_FAKE_AGENT_SLOW", "1")
+	t.Setenv("HOME", t.TempDir())
+	manager := New(t.TempDir(), &projectFiles{root: t.TempDir(), writers: map[string]string{}})
+	ctx, giveUp := context.WithCancel(context.Background())
+	time.AfterFunc(300*time.Millisecond, giveUp)
+
+	began := time.Now()
+	_, err := manager.Start(ctx, "", os.Args[0]+" -test.run=^$")
+
+	assert.Error(t, err)
+	assert.Less(t, time.Since(began), 10*time.Second, "the start went on after it was given up")
+	manager.mu.Lock()
+	assert.Empty(t, manager.chats)
+	manager.mu.Unlock()
 }
