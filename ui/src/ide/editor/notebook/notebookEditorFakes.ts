@@ -51,7 +51,8 @@ export async function apiModule() {
       createSession(path, name, type, kernelspec),
     deleteSession: (id: string) => deleteSession(id),
     interruptKernel: vi.fn(),
-    getKernel: (id: string) => getKernel(id),
+    // With no answer set, a kernel the server has not yet heard describe itself.
+    getKernel: (id: string) => getKernel(id) ?? Promise.resolve({ id, name: 'python3' }),
     ApiError: client.ApiError,
     saveNotebook: (path: string, notebook: unknown, hash?: string) =>
       saveNotebook(path, notebook, hash),

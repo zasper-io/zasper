@@ -19,6 +19,7 @@ import (
 
 	"github.com/zasper-io/zasper/internal/kernel/launcher"
 	"github.com/zasper-io/zasper/internal/kernelspec"
+	"github.com/zasper-io/zasper/internal/models"
 )
 
 // KernelManager is one running kernel. The store holds it by pointer, and everything but its activity is
@@ -55,6 +56,7 @@ type activity struct {
 	lastActivity   string
 	executionState string
 	connections    int
+	info           *models.KernelInfo
 }
 
 // RFC 3339, because the browser reads it: `new Date` cannot parse Go's own time format.
@@ -88,6 +90,27 @@ func (km *KernelManager) Status() (lastActivity, executionState string, connecti
 	defer km.activity.mu.Unlock()
 
 	return km.activity.lastActivity, km.activity.executionState, km.activity.connections
+}
+
+// Info answers what the kernel said about itself, nil until its first kernel_info_reply.
+func (km *KernelManager) Info() *models.KernelInfo {
+	km.activity.mu.Lock()
+	defer km.activity.mu.Unlock()
+
+	return km.activity.info
+}
+
+func (km *KernelManager) recordInfo(reply *Message) {
+	content, _ := reply.Content.(map[string]interface{})
+	info := &models.KernelInfo{}
+	info.ProtocolVersion, _ = content["protocol_version"].(string)
+	info.Implementation, _ = content["implementation"].(string)
+	info.ImplementationVersion, _ = content["implementation_version"].(string)
+	info.LanguageInfo, _ = content["language_info"].(map[string]interface{})
+
+	km.activity.mu.Lock()
+	defer km.activity.mu.Unlock()
+	km.activity.info = info
 }
 
 /*

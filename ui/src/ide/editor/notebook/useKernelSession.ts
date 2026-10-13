@@ -5,8 +5,10 @@ import {
   apiErrorMessage,
   createSession,
   deleteSession,
+  getKernel,
   interruptKernel,
   isUntrusted,
+  LanguageInfoMetadata,
   NotebookMetadata,
   Session,
   sessionForPath,
@@ -67,6 +69,33 @@ export function useKernelSession(
   // until the kernelspecs have arrived.
   const kernelDisplayName = kernelspecs[kernelName]?.spec?.display_name;
   const kernelLanguage = kernelspecs[kernelName]?.spec?.language;
+
+  /*
+   * The language as the running kernel describes it, which a save writes into the file as Jupyter does.
+   * Asked of the server once the kernel has said anything, since the server keeps its kernel_info_reply.
+   */
+  const [languageInfo, setLanguageInfo] = useState<LanguageInfoMetadata>();
+  const infoAskedOf = useRef<string>();
+  const kernelId = session?.kernel.id;
+  useEffect(() => {
+    setLanguageInfo(undefined);
+  }, [kernelId]);
+  function askForLanguageInfo() {
+    if (!kernelId || infoAskedOf.current === kernelId) return;
+    infoAskedOf.current = kernelId;
+    getKernel(kernelId)
+      .then((model) => {
+        if (model.info?.language_info) {
+          setLanguageInfo(model.info.language_info);
+        } else {
+          // Not kept yet: the next status message asks again.
+          infoAskedOf.current = undefined;
+        }
+      })
+      .catch(() => {
+        infoAskedOf.current = undefined;
+      });
+  }
 
   const prompt = useInputPrompt();
   const socket = useKernelSocket(
@@ -148,6 +177,7 @@ export function useKernelSession(
     }
     if (message.header.msg_type === 'status') {
       setKernelStatus(message.content.execution_state);
+      askForLanguageInfo();
     }
     if (
       cellId &&
@@ -315,6 +345,7 @@ export function useKernelSession(
     kernelName,
     kernelDisplayName,
     kernelLanguage,
+    languageInfo,
     kernelStatus,
     runningCellIds: requests.runningCellIds,
     connection: socket.connection,

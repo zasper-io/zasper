@@ -175,6 +175,10 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           ...(kernel.kernelLanguage ? { language: kernel.kernelLanguage } : {}),
         };
       }
+      // Replaced whole, as Jupyter does: it is the running kernel's account of its language.
+      if (kernel.languageInfo) {
+        metadata.language_info = kernel.languageInfo;
+      }
     }
     written.metadata = metadata;
     return written;

@@ -156,6 +156,7 @@ func kernelModel(km *KernelManager) models.KernelModel {
 		LastActivity:   lastActivity,
 		ExecutionState: executionState,
 		Connections:    connections,
+		Info:           km.Info(),
 	}
 }
 

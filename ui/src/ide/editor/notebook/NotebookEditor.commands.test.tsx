@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Provider } from '@/testing/Provider';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +10,7 @@ import {
   createSession,
   deleteSession,
   FakeSocket,
+  getKernel,
   getNotebook,
   RecordedSocket,
   resetIds,
@@ -22,6 +23,7 @@ import {
   dispatched,
   Dispatcher,
   installedKernelspecs,
+  kernelMessage,
   notebookContent,
   session,
   tab,
@@ -74,6 +76,7 @@ describe('NotebookEditor commands', () => {
     );
     saveNotebook.mockReset();
     saveNotebook.mockResolvedValue(undefined);
+    getKernel.mockReset();
   });
 
   function socketFor(path: string): RecordedSocket {
@@ -229,6 +232,38 @@ describe('NotebookEditor commands', () => {
     expect(saved.metadata.widgets).toEqual({ state: {} });
     // The one key the editor owns: the kernel actually attached, as nbformat spells it.
     expect(saved.metadata.kernelspec).toEqual({ name: 'python3', display_name: 'python3' });
+  });
+
+  // As Jupyter does: the running kernel's own account of its language replaces whatever the file had.
+  it('saves the language_info the running kernel gave', async () => {
+    const languageInfo = { name: 'julia', file_extension: '.jl', mimetype: 'application/julia' };
+    getKernel.mockResolvedValue({ ...session.kernel, info: { language_info: languageInfo } });
+    getNotebook.mockResolvedValue({
+      name: tab.name,
+      type: tab.type,
+      path: tab.path,
+      content: {
+        ...structuredClone(notebookContent),
+        metadata: { language_info: { name: 'python' } },
+      },
+    });
+
+    render(
+      <Provider>
+        <NotebookEditor data={tab} />
+        <Dispatcher id="notebook:save" />
+      </Provider>
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByText('[0]:');
+    act(() => sockets[0].receive(kernelMessage('status', 'any', { execution_state: 'idle' })));
+    await waitFor(() => expect(getKernel).toHaveBeenCalledWith(session.kernel.id));
+    await act(async () => {});
+
+    dispatch();
+
+    await waitFor(() => expect(saveNotebook).toHaveBeenCalled());
+    expect(saveNotebook.mock.calls[0][1].metadata.language_info).toEqual(languageInfo);
   });
 
   // A notebook written by Jupyter records more under kernelspec than a name: rebuilding the object

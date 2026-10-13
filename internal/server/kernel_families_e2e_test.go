@@ -67,6 +67,10 @@ func TestEveryKernelFamilyRunsAndStops(t *testing.T) {
 			assert.Equal(t, "ok", status)
 			assert.Contains(t, output, "hi-42")
 
+			info := awaitKernelInfo(t, srv, created.Kernel.Id)
+			assert.NotEmpty(t, info.ProtocolVersion)
+			assert.NotEmpty(t, info.LanguageInfo["name"], "the kernel's language_info was not kept")
+
 			status, _ = runToIdle(t, conn, created.Id, family.fail, 30*time.Second)
 			assert.Equal(t, "error", status, "a failing cell was reported as %q", status)
 
@@ -108,6 +112,19 @@ func TestEveryKernelFamilyRunsAndStops(t *testing.T) {
 			assert.Empty(t, decode[[]models.KernelModel](t, body))
 		})
 	}
+}
+
+// awaitKernelInfo waits for /api/kernels/{id} to carry what the kernel said about itself.
+func awaitKernelInfo(t *testing.T, srv *httptest.Server, kernelId string) models.KernelInfo {
+	t.Helper()
+
+	var info *models.KernelInfo
+	require.Eventually(t, func() bool {
+		status, body := call(t, srv, http.MethodGet, "/api/kernels/"+kernelId, nil)
+		info = decode[models.KernelModel](t, body).Info
+		return status == http.StatusOK && info != nil
+	}, 10*time.Second, 100*time.Millisecond, "the kernel's kernel_info_reply was never kept")
+	return *info
 }
 
 // interruptARunningCell runs code that would take a minute and interrupts it.

@@ -1,5 +1,6 @@
 import { Kernel, KernelspecsState } from '@/store/kernels';
 import { requestBlob, requestEmpty, requestJson, requestText } from './client';
+import { LanguageInfoMetadata } from './notebook';
 
 export async function listKernelspecs(): Promise<KernelspecsState> {
   const res = await requestJson<{ kernelspecs?: KernelspecsState }>('/api/kernelspecs');
@@ -49,6 +50,16 @@ export interface KernelModel extends Kernel {
   execution_state: string;
   /** Clients this server is forwarding to, which is 0 for a kernel whose notebook has been closed. */
   connections: number;
+  /** Zasper's own: what the kernel said about itself once it was up. Absent until it has. */
+  info?: KernelInfo;
+}
+
+/** The part of a kernel's kernel_info_reply that says what it is. */
+export interface KernelInfo {
+  protocol_version: string;
+  implementation: string;
+  implementation_version: string;
+  language_info: LanguageInfoMetadata;
 }
 
 /**

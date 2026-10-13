@@ -48,7 +48,8 @@ func watchKernelActivity(ctx context.Context, km *KernelManager) {
 }
 
 /*
-nudgeUntilPublished asks a kernel to answer something, and stops as soon as the watch above hears it.
+nudgeUntilPublished asks a kernel what it is until the watch above hears it publish, and keeps the first
+kernel_info_reply: the kernel's own account of its protocol version, implementation and language.
 
 A kernel publishes nothing until it is spoken to, so a watch on its own would leave a kernel reported as
 "starting" for as long as it ran. The client handshake asks the same question, but it goes with the
@@ -60,6 +61,21 @@ func nudgeUntilPublished(ctx context.Context, km *KernelManager, published <-cha
 	id := zmq4.SocketIdentity(fmt.Sprintf("watch-%s", uuid.New().String()))
 	shell := km.ConnectionInfo.ConnectShell(ctx, id)
 	defer shell.Close()
+
+	answered := make(chan struct{})
+	go func() {
+		for {
+			zmsg, err := shell.Recv()
+			if err != nil {
+				return
+			}
+			if reply, ok := km.Session.decode(zmsg, "shell"); ok && reply.Header.MsgType == "kernel_info_reply" {
+				km.recordInfo(reply)
+				close(answered)
+				return
+			}
+		}
+	}()
 
 	ask := func() {
 		// Debug, not error: a send that fails here is the kernel going away, which the watch reports.
@@ -73,10 +89,13 @@ func nudgeUntilPublished(ctx context.Context, km *KernelManager, published <-cha
 	retry := time.NewTicker(watchNudgeInterval)
 	defer retry.Stop()
 
-	for {
+	// Each is set to nil as it arrives, so it is not waited for twice.
+	for published != nil || answered != nil {
 		select {
 		case <-published:
-			return
+			published = nil
+		case <-answered:
+			answered = nil
 		case <-retry.C:
 			ask()
 		case <-deadline:
