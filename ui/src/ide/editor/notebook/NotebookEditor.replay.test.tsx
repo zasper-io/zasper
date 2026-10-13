@@ -110,6 +110,21 @@ describe('NotebookEditor, given the runs it missed', () => {
     await waitFor(() => expect(spinning(container)).toBe(false));
   });
 
+  // IRkernel aborts what is queued behind an error and sends no idle for it: the reply is the end.
+  it('stops spinning a cell whose run the kernel aborted', async () => {
+    const { container } = await openNotebook();
+    act(() => sockets[0].receive(replay([])));
+    act(() => runButton(container).click());
+    await screen.findByText('[*]:');
+
+    act(() =>
+      sockets[0].receive(kernelMessage('execute_reply', firstRequestId, { status: 'aborted' }))
+    );
+
+    await waitFor(() => expect(screen.queryByText('[*]:')).toBeNull());
+    expect(spinning(container)).toBe(false);
+  });
+
   it('asks again for an input() raised while nobody was looking, and sends the answer', async () => {
     await openNotebook();
     const prompt = {

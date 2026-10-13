@@ -68,6 +68,10 @@ func (km *KernelManager) readShell(ctx context.Context, shell zmq4.Socket) {
 			continue
 		}
 		parent := message.ParentHeader.MsgID
+		if content, _ := message.Content.(map[string]interface{}); message.Header.MsgType == "execute_reply" &&
+			content["status"] == "aborted" {
+			km.abortRun(parent)
+		}
 		sockets.mu.Lock()
 		reply := sockets.replies[parent]
 		if message.Header.MsgType == "execute_reply" {

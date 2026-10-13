@@ -82,6 +82,11 @@ export function useKernelRequests(
       }
       if (message.header.msg_type === 'execute_reply' && requestId) {
         awaitingReply.current.delete(requestId);
+        // A request the kernel aborted, as IRkernel does with what is queued behind an error, ends
+        // with this reply: no busy or idle comes for it.
+        if (message.content?.status === 'aborted' && executingCells.current.delete(requestId)) {
+          syncRunningCells();
+        }
       }
       // Idle means the kernel has finished running the request: the cell stops spinning, though its
       // reply may still be on its way.

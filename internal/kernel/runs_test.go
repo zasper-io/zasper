@@ -141,6 +141,23 @@ func TestOnlyARunThatEndsWithNobodyAttachedIsReportedFinished(t *testing.T) {
 	assert.Equal(t, "x", finished[0].Outputs[0]["text"])
 }
 
+// IRkernel aborts what is queued behind an error with a reply and no idle: the run still ends.
+func TestARunTheKernelAbortedEndsWithoutAnIdle(t *testing.T) {
+	km := journalKernel()
+	km.BeginRun("queued", "cell-1", "", "1")
+	done := km.awaitRun("queued")
+
+	km.abortRun("queued")
+
+	select {
+	case run := <-done:
+		assert.True(t, run.Done)
+	default:
+		t.Fatal("whoever waited on the run was not told it ended")
+	}
+	assert.Empty(t, km.Subscribe().Replay.Runs, "an aborted run is not replayed as still running")
+}
+
 func TestAClientThatFallsBehindIsDropped(t *testing.T) {
 	km := journalKernel()
 	stalled := km.Subscribe()

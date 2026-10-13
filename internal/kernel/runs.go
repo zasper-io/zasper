@@ -380,6 +380,28 @@ func (f *feed) inputAnswered() {
 	}
 }
 
+/*
+abortRun finishes a run the kernel refused without running it, as one does with what is queued behind an
+error: its execute_reply says `aborted`, and no busy or idle follows to end it. Nothing ran, so there is
+nothing to keep.
+*/
+func (km *KernelManager) abortRun(msgID string) {
+	f := &km.feed
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	run := f.runs[msgID]
+	if run == nil || run.Done {
+		return
+	}
+	run.Done = true
+	if waiter, ok := f.waiters[msgID]; ok {
+		waiter <- run.snapshot()
+		delete(f.waiters, msgID)
+	}
+	f.forget(msgID)
+}
+
 func (f *feed) forget(msgID string) {
 	f.dropDisplays(msgID)
 	delete(f.runs, msgID)
