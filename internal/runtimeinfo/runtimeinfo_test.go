@@ -3,6 +3,7 @@ package runtimeinfo
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,9 @@ func TestARecordIsWrittenForTheUserAloneAndSweptOnceItsServerIsGone(t *testing.T
 	require.NoError(t, err)
 	stat, err := os.Stat(path)
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o600), stat.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		assert.Equal(t, os.FileMode(0o600), stat.Mode().Perm())
+	}
 	listed, err := List()
 	require.NoError(t, err)
 	assert.Equal(t, []Info{{URL: "http://127.0.0.1:1", Token: "secret", Project: "/work", PID: 42}}, listed)

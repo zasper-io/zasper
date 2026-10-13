@@ -158,7 +158,8 @@ func (p *projectWatch) want(subscriber *watchSubscriber, paths []string) {
 	subscriber.wants = map[string]struct{}{}
 	for _, path := range paths {
 		clean := filepath.ToSlash(filepath.Clean(path))
-		if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../") {
+		if clean == "." || filepath.IsAbs(clean) || strings.HasPrefix(clean, "/") || clean == ".." ||
+			strings.HasPrefix(clean, "../") {
 			continue
 		}
 		subscriber.wants[clean] = struct{}{}

@@ -140,7 +140,7 @@ func TestAPathOutsideTheProjectIsRefused(t *testing.T) {
 	_, chat, _ := fakeChat(t)
 	client := chatClient{chat}
 
-	_, err := client.inProject("/etc/passwd")
+	_, err := client.inProject(filepath.Join(filepath.Dir(chat.root), "elsewhere.txt"))
 	assert.ErrorContains(t, err, "outside the project")
 	_, err = client.inProject("relative.txt")
 	assert.ErrorContains(t, err, "absolute")
