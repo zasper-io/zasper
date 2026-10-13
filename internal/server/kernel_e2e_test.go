@@ -711,6 +711,35 @@ func TestInterruptStopsARunningCell(t *testing.T) {
 	}
 }
 
+// A request a notebook sends on control reaches the kernel's control socket, so it is answered while a cell
+// is still running rather than queued behind it.
+func TestAControlRequestIsAnsweredWhileACellRuns(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+	conn := kernelSocket(t, srv, created)
+	running := executeOverSocket(t, conn, created.Id, "import time; time.sleep(60)")
+	awaitMessage(t, conn, running, "execute_input", 30*time.Second)
+	// ipykernel answers interrupt_request itself, whatever its kernelspec's interrupt_mode.
+	time.Sleep(time.Second)
+
+	interrupt := uuid.New().String()
+	require.NoError(t, conn.WriteJSON(map[string]any{
+		"channel": "control",
+		"header": map[string]any{
+			"msg_id": interrupt, "msg_type": "interrupt_request", "session": created.Id,
+			"username": "test", "version": kernel.ProtocolVersion,
+			"date": time.Now().UTC().Format(time.RFC3339),
+		},
+		"parent_header": map[string]any{}, "metadata": map[string]any{}, "content": map[string]any{},
+	}))
+
+	awaitMessage(t, conn, interrupt, "interrupt_reply", 10*time.Second)
+	content := awaitMessage(t, conn, running, "error", 10*time.Second)
+	assert.Equal(t, "KeyboardInterrupt", content["ename"])
+}
+
 // messageInterruptKernelspec installs a copy of name's kernelspec that asks to be interrupted by message,
 // and answers with the copy's name and the Jupyter root to start the server with.
 func messageInterruptKernelspec(t *testing.T, name string) (string, string) {

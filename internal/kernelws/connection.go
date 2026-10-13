@@ -382,9 +382,12 @@ func (kwsConn *Connection) handleIncomingMessage(incomingMsg []byte) {
 		return
 	}
 
-	if msg.Channel == "stdin" {
-		kwsConn.Session.SendStreamMsg(kwsConn.Channels["stdin"], msg)
-	} else {
+	// Control is the kernel's way past a busy shell: an interrupt_request or debug_request sent on shell
+	// waits behind the very cell it is about.
+	switch msg.Channel {
+	case "stdin", "control":
+		kwsConn.Session.SendStreamMsg(kwsConn.Channels[msg.Channel], msg)
+	default:
 		kwsConn.Session.SendStreamMsg(kwsConn.Channels["shell"], msg)
 	}
 }
