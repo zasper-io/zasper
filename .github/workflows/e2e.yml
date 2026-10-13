@@ -99,7 +99,8 @@ jobs:
 
       - name: Install the Ruby kernel
         run: |
-          sudo apt-get install -y libzmq5
+          # ffi-rzmq loads libzmq.so, which only the -dev package links.
+          sudo apt-get install -y libzmq3-dev
           gem install iruby
           iruby register --force
 

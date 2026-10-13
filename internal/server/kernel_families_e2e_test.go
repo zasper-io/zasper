@@ -73,9 +73,14 @@ func TestEveryKernelFamilyRunsAndStops(t *testing.T) {
 			if family.sleep != "" {
 				interruptARunningCell(t, srv, conn, created, family.sleep)
 
-				// IRkernel aborts the first request after an interrupt that follows an error.
+				// IRkernel aborts what arrives just after an interrupt that follows an error, for longer
+				// on a slow machine, so ask again after a pause.
 				status, output = runToIdle(t, conn, created.Id, family.print, 30*time.Second)
-				if status == "aborted" {
+				for range 10 {
+					if status != "aborted" {
+						break
+					}
+					time.Sleep(500 * time.Millisecond)
 					status, output = runToIdle(t, conn, created.Id, family.print, 30*time.Second)
 				}
 				assert.Equal(t, "ok", status, "the kernel did not survive the interrupt")
