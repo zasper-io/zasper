@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -45,6 +46,12 @@ it fails with a fork/exec error. Python because these tests execute Python and r
 */
 func requireKernel(t *testing.T) string {
 	t.Helper()
+	return requireKernelOf(t, "python")
+}
+
+// requireKernelOf is requireKernel for a kernel whose spec names any of languages, compared ignoring case.
+func requireKernelOf(t *testing.T, languages ...string) string {
+	t.Helper()
 
 	specs := kernelspec.NewCatalog(jupyterpaths.Dirs(), "").Specs()
 
@@ -57,7 +64,9 @@ func requireKernel(t *testing.T) string {
 
 	for _, name := range names {
 		spec := specs[name].Spec
-		if spec.Language != "python" || len(spec.Argv) == 0 {
+		if len(spec.Argv) == 0 || !slices.ContainsFunc(languages, func(l string) bool {
+			return strings.EqualFold(l, spec.Language)
+		}) {
 			continue
 		}
 		if _, err := exec.LookPath(spec.Argv[0]); err != nil {
@@ -66,7 +75,7 @@ func requireKernel(t *testing.T) string {
 		return name
 	}
 
-	t.Skip("no runnable Python kernelspec is installed")
+	t.Skipf("no runnable %s kernelspec is installed", languages[0])
 	return ""
 }
 
