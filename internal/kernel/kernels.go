@@ -101,6 +101,7 @@ func (k *Kernels) Start(dir string, kernelName string, env map[string]string) (s
 	// Not the request's context: the watch lasts as long as the kernel, and whatever stops it cancels it.
 	watching, stopWatching := context.WithCancel(context.Background())
 	km.stopWatching = stopWatching
+	km.lifetime = watching
 
 	km.feed.finished = func(run Run) {
 		for _, handler := range k.runFinishedHandlers {

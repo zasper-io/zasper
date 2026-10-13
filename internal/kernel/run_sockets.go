@@ -29,9 +29,15 @@ type runSockets struct {
 	replies map[string]func([]byte)
 }
 
-// serveRuns dials the kernel's own shell and stdin and reads both, for as long as ctx lasts.
+// How long an aborted run waits for its kernel's own idle before it is ended without one.
+const abortGrace = 2 * time.Second
+
+// serveRuns dials the kernel's own shell and stdin once it is up, and reads both for as long as ctx lasts.
 func (km *KernelManager) serveRuns(ctx context.Context) {
 	sockets := km.runSockets()
+	if !km.waitUp(ctx) {
+		return
+	}
 	id := zmq4.SocketIdentity(fmt.Sprintf("runs-%s", km.KernelId))
 	shell := km.ConnectionInfo.ConnectShell(ctx, id)
 	stdin := km.ConnectionInfo.ConnectStdin(ctx, id)
@@ -68,9 +74,12 @@ func (km *KernelManager) readShell(ctx context.Context, shell zmq4.Socket) {
 			continue
 		}
 		parent := message.ParentHeader.MsgID
+		// ipykernel follows an aborted reply with an idle of its own, a moment later, and that is what
+		// should end the run: it may by then have nobody attached, which decides whether it is replayed.
+		// The grace is for a kernel that sends no idle at all.
 		if content, _ := message.Content.(map[string]interface{}); message.Header.MsgType == "execute_reply" &&
 			content["status"] == "aborted" {
-			km.abortRun(parent)
+			time.AfterFunc(abortGrace, func() { km.abortRun(parent) })
 		}
 		sockets.mu.Lock()
 		reply := sockets.replies[parent]
@@ -101,7 +110,8 @@ func (km *KernelManager) readStdin(ctx context.Context, stdin zmq4.Socket) {
 
 /*
 Execute sends a run on the kernel's own shell, recording it in the journal first. reply, when not nil, is
-told the run's execute_reply. It waits for the sockets to be dialled, up to KernelStartupBudget.
+told the run's execute_reply. It waits for the sockets to be dialled, which is for the kernel to be up,
+for as long as the kernel lives.
 */
 func (km *KernelManager) Execute(request Message, cellID, client string, reply func([]byte)) error {
 	return km.execute(request, cellID, client, reply, false)
@@ -111,7 +121,7 @@ func (km *KernelManager) execute(request Message, cellID, client string, reply f
 	sockets := km.runSockets()
 	select {
 	case <-sockets.ready:
-	case <-time.After(KernelStartupBudget):
+	case <-km.Lifetime().Done():
 		return ErrKernelNotReady
 	}
 	content, _ := request.Content.(map[string]interface{})

@@ -14,30 +14,31 @@ import (
 )
 
 /*
-How long a dial keeps trying, and how long between tries.
+How a dial waits for a kernel's ports.
 
-StartKernel returns as soon as the kernel process has been spawned, so the sockets below are dialled at
-a kernel that has very likely not bound its ports yet — and zmq4 does not come back to a refused
-endpoint later. It retries ten times a quarter of a second apart and then hands back a socket with
-nothing behind it and no way to get anything: the connection is silently dead, which is worse than
-slow. Two and a half seconds is less than a cold interpreter takes to import ipykernel, so the budget
-here is the one the handshake in channels.go spends waiting for the kernel to answer. A dial still
-failing at the end of it is cut short anyway when the client goes, since the retry loop watches the
-socket's context.
+zmq4 dials once, retrying a refused endpoint a set number of times, and then hands back a socket with
+nothing behind it and no way to get anything: the connection is silently dead. A kernel binds its ports
+whenever it is ready to, which for a cold JVM, Julia or .NET kernel is well past any fixed budget. So
+the server's own watch on a kernel dials patiently, retrying until the kernel binds or its context ends
+with the kernel, and everything else waits for that watch to hear the kernel (KernelManager.Up) before
+dialling at all. By then the ports are bound, and dialBudget is only for a channel the kernel does not
+have, such as IRuby's control.
 */
 const (
 	dialRetryInterval = 250 * time.Millisecond
-	// KernelStartupBudget is how long a client connection waits for its kernel to bind its ports and
-	// answer, before giving up and carrying on without it.
-	KernelStartupBudget = 30 * time.Second
+	dialBudget        = 5 * time.Second
+	// AnswerBudget is how long a client waits for a kernel that is up to answer it, before carrying on
+	// without an answer: the client then sees a kernel that does not answer, which is what it has.
+	AnswerBudget = 30 * time.Second
 )
 
-// dialOptions is the retry budget above, plus whatever else the socket asking for it needs.
-func dialOptions(opts ...zmq4.Option) []zmq4.Option {
-	return append(opts,
-		zmq4.WithDialerRetry(dialRetryInterval),
-		zmq4.WithDialerMaxRetries(int(KernelStartupBudget/dialRetryInterval)),
-	)
+// dialOptions is the retry policy above, plus whatever else the socket asking for it needs.
+func dialOptions(patient bool, opts ...zmq4.Option) []zmq4.Option {
+	retries := int(dialBudget / dialRetryInterval)
+	if patient {
+		retries = -1
+	}
+	return append(opts, zmq4.WithDialerRetry(dialRetryInterval), zmq4.WithDialerMaxRetries(retries))
 }
 
 // Connection is where a kernel's sockets are: the transport, the address and a port per channel.
@@ -149,69 +150,44 @@ func (conn *Connection) makeURL(channel string, port int) string {
 	return fmt.Sprintf("%s://%s-%d", conn.Transport, conn.IP, port)
 }
 
-func (conn *Connection) ConnectShell(ctx context.Context, id zmq4.SocketIdentity) zmq4.Socket {
-	channel := "shell"
-	url := conn.makeURL(channel, conn.ShellPort)
-	socket := zmq4.NewDealer(ctx, dialOptions(zmq4.WithID(id))...)
-	err := socket.Dial(url)
-	if err != nil {
-		log.Error().Msgf("could not dial: %v", err)
+// dial connects socket to one of the kernel's channels. A socket that failed to dial is one nothing ever
+// comes out of, so it is reported, unless the context ended first: then nobody wants it any more.
+func (conn *Connection) dial(ctx context.Context, socket zmq4.Socket, channel string, port int) zmq4.Socket {
+	if err := socket.Dial(conn.makeURL(channel, port)); err != nil && ctx.Err() == nil {
+		log.Error().Str("channel", channel).Msgf("could not dial: %v", err)
 	}
 	return socket
+}
 
+// The Connect methods dial a kernel that is already up: see KernelManager.Up.
+func (conn *Connection) ConnectShell(ctx context.Context, id zmq4.SocketIdentity) zmq4.Socket {
+	return conn.connectShell(ctx, id, false)
+}
+
+func (conn *Connection) connectShell(ctx context.Context, id zmq4.SocketIdentity, patient bool) zmq4.Socket {
+	return conn.dial(ctx, zmq4.NewDealer(ctx, dialOptions(patient, zmq4.WithID(id))...), "shell", conn.ShellPort)
 }
 
 func (conn *Connection) ConnectControl(ctx context.Context) zmq4.Socket {
-	channel := "control"
-	url := conn.makeURL(channel, conn.ControlPort)
-	socket := zmq4.NewDealer(ctx, dialOptions()...)
-	err := socket.Dial(url)
-	if err != nil {
-		log.Error().Msgf("could not dial: %v", err)
-	}
-	return socket
+	return conn.dial(ctx, zmq4.NewDealer(ctx, dialOptions(false)...), "control", conn.ControlPort)
 }
 
 func (conn *Connection) ConnectIopub(ctx context.Context) zmq4.Socket {
-	channel := "iopub"
+	return conn.connectIopub(ctx, false)
+}
 
-	url := conn.makeURL(channel, conn.IopubPort)
-	socket := zmq4.NewSub(ctx, dialOptions()...)
-	err := socket.SetOption(zmq4.OptionSubscribe, "")
-	if err != nil {
+func (conn *Connection) connectIopub(ctx context.Context, patient bool) zmq4.Socket {
+	socket := zmq4.NewSub(ctx, dialOptions(patient)...)
+	if err := socket.SetOption(zmq4.OptionSubscribe, ""); err != nil {
 		log.Error().Msgf("could not subscribe: %v", err)
 	}
-	// Reported like the rest of them: a socket that failed to dial is one no output ever comes out of,
-	// and this is the channel every cell's output arrives on.
-	if err := socket.Dial(url); err != nil {
-		log.Error().Msgf("could not dial: %v", err)
-	}
-	return socket
-
+	return conn.dial(ctx, socket, "iopub", conn.IopubPort)
 }
 
 func (conn *Connection) ConnectStdin(ctx context.Context, id zmq4.SocketIdentity) zmq4.Socket {
-	channel := "stdin"
-	url := conn.makeURL(channel, conn.StdinPort)
-	socket := zmq4.NewDealer(ctx, dialOptions(zmq4.WithID(id))...)
-	err := socket.Dial(url)
-
-	if err != nil {
-		log.Error().Msgf("could not dial: %v", err)
-	}
-
-	return socket
-
+	return conn.dial(ctx, zmq4.NewDealer(ctx, dialOptions(false, zmq4.WithID(id))...), "stdin", conn.StdinPort)
 }
 
 func (conn *Connection) ConnectHb(ctx context.Context) zmq4.Socket {
-	channel := "hb"
-	url := conn.makeURL(channel, conn.HbPort)
-	socket := zmq4.NewReq(ctx, dialOptions()...)
-	err := socket.Dial(url)
-
-	if err != nil {
-		log.Error().Msgf("could not dial: %v", err)
-	}
-	return socket
+	return conn.dial(ctx, zmq4.NewReq(ctx, dialOptions(false)...), "hb", conn.HbPort)
 }

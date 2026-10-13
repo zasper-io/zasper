@@ -41,6 +41,13 @@ type KernelManager struct {
 
 	// Stops the activity watcher. Held here so that whoever takes the kernel out of the store can stop it.
 	stopWatching context.CancelFunc
+	// Lasts as long as the kernel: done once it has stopped or exited.
+	lifetime context.Context
+
+	// Closed once the kernel has been heard from: see Up.
+	up       chan struct{}
+	upOnce   sync.Once
+	markOnce sync.Once
 
 	activity activity
 	feed     feed
@@ -90,6 +97,41 @@ func (km *KernelManager) Status() (lastActivity, executionState string, connecti
 	defer km.activity.mu.Unlock()
 
 	return km.activity.lastActivity, km.activity.executionState, km.activity.connections
+}
+
+/*
+Up is closed once the kernel has published anything: its ports are bound and it is listening, so a socket
+dialled at it now connects at once. However long the kernel takes to get there, which for a cold JVM or
+Julia kernel can be minutes, the server's own watch waits for it.
+*/
+func (km *KernelManager) Up() <-chan struct{} {
+	km.upOnce.Do(func() { km.up = make(chan struct{}) })
+	return km.up
+}
+
+func (km *KernelManager) markUp() {
+	km.Up()
+	km.markOnce.Do(func() { close(km.up) })
+}
+
+// Lifetime is done once the kernel has stopped or exited. A manager built outside Kernels.Start has none.
+func (km *KernelManager) Lifetime() context.Context {
+	if km.lifetime == nil {
+		return context.Background()
+	}
+	return km.lifetime
+}
+
+// waitUp waits for the kernel to be up, and answers false if ctx or the kernel ended first.
+func (km *KernelManager) waitUp(ctx context.Context) bool {
+	select {
+	case <-km.Up():
+		return true
+	case <-ctx.Done():
+		return false
+	case <-km.Lifetime().Done():
+		return false
+	}
 }
 
 // Info answers what the kernel said about itself, nil until its first kernel_info_reply.

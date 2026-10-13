@@ -17,8 +17,7 @@ import (
 	"github.com/go-zeromq/zmq4"
 )
 
-// How often the handshake asks the kernel again. Its overall budget is kernel.KernelStartupBudget, the same one
-// a dial spends: both are waiting for the same kernel to come up.
+// How often the handshake asks the kernel again, within kernel.AnswerBudget.
 const nudgeRetryInterval = 500 * time.Millisecond
 
 type Connection struct {
@@ -239,6 +238,16 @@ func (kwsConn *Connection) Prepare(sessionId string) {
 }
 
 func (kwsConn *Connection) Connect() {
+	// The server's own watch is what waits for a kernel slow to start, for as long as it takes; dialled
+	// before the kernel is up, these sockets would only be waiting too.
+	select {
+	case <-kwsConn.KernelManager.Up():
+	case <-kwsConn.Context.Done():
+		return
+	case <-kwsConn.KernelManager.Lifetime().Done():
+		return
+	}
+
 	log.Debug().Msg("creating stream")
 	kwsConn.createStream()
 
@@ -302,7 +311,7 @@ func (kwsConn *Connection) nudge() {
 	}
 	ask()
 
-	deadline := time.After(kernel.KernelStartupBudget)
+	deadline := time.After(kernel.AnswerBudget)
 	retry := time.NewTicker(nudgeRetryInterval)
 	defer retry.Stop()
 
@@ -322,7 +331,7 @@ func (kwsConn *Connection) nudge() {
 			ask()
 		case <-deadline:
 			log.Warn().Msgf("kernel %s did not answer within %s; using the connection anyway",
-				kwsConn.KernelId, kernel.KernelStartupBudget)
+				kwsConn.KernelId, kernel.AnswerBudget)
 			return
 		case <-kwsConn.Context.Done():
 			return

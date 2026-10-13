@@ -30,6 +30,9 @@ func (km *KernelManager) Evaluate(ctx context.Context, client, code string) (Run
 }
 
 func (km *KernelManager) run(ctx context.Context, cellID, client, code string, scratch bool) (Run, error) {
+	if !km.waitUp(ctx) {
+		return Run{}, ErrKernelNotReady
+	}
 	shell := km.ConnectionInfo.ConnectShell(ctx, zmq4.SocketIdentity("run-"+newID()))
 	defer shell.Close()
 

@@ -224,11 +224,13 @@ func TestCellsQueuedBehindAnErrorAreNotLeftRunning(t *testing.T) {
 	require.NoError(t, err)
 	awaitReplay(t, conn)
 
-	failing := runCellOverSocket(t, conn, created.Id, "cell-1", "import time; time.sleep(1); raise ValueError('stop')")
+	failing := runCellOverSocket(t, conn, created.Id, "cell-1", "import time; time.sleep(2); raise ValueError('stop')")
 	queued := runCellOverSocket(t, conn, created.Id, "cell-2", "print('never')")
-	awaitOutputOrErrorFrom(t, conn, failing)
+	// Gone while the first cell still sleeps, so the error and the abort behind it both happen with no tab
+	// attached. Waiting for the error first raced the kernel, which aborts the queued cell at once.
+	awaitMessage(t, conn, failing, "execute_input", 30*time.Second)
 	require.NoError(t, conn.Close())
-	time.Sleep(3 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	again, _, err := websocket.DefaultDialer.Dial(socketURL, nil)
 	require.NoError(t, err)
@@ -241,29 +243,6 @@ func TestCellsQueuedBehindAnErrorAreNotLeftRunning(t *testing.T) {
 	assert.True(t, replayed[queued].Done, "the queued run is still running after the kernel went idle")
 	assert.Empty(t, replayed[queued].Outputs, "the queued cell ran")
 	assert.True(t, replayed[failing].Done)
-}
-
-// awaitOutputOrErrorFrom reads until the run answering msgId has published an error.
-func awaitOutputOrErrorFrom(t *testing.T, conn *websocket.Conn, msgId string) {
-	t.Helper()
-
-	require.NoError(t, conn.SetReadDeadline(time.Now().Add(30*time.Second)))
-	for {
-		_, raw, err := conn.ReadMessage()
-		require.NoError(t, err, "the run published no error")
-		var message struct {
-			Header struct {
-				MsgType string `json:"msg_type"`
-			} `json:"header"`
-			ParentHeader struct {
-				MsgId string `json:"msg_id"`
-			} `json:"parent_header"`
-		}
-		require.NoError(t, json.Unmarshal(raw, &message))
-		if message.Header.MsgType == "error" && message.ParentHeader.MsgId == msgId {
-			return
-		}
-	}
 }
 
 func TestAPromptRaisedWithNoTabAttachedIsReplayedAndCanBeAnswered(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -80,14 +81,13 @@ func requireKernelOf(t *testing.T, languages ...string) string {
 }
 
 /*
-slowKernelspec installs a kernelspec that waits before launching `name`'s kernel, and answers with its
-name and the Jupyter root to start the server with.
+slowKernelspec installs a kernelspec that waits seconds before launching `name`'s kernel, and answers
+with its name and the Jupyter root to start the server with.
 
-The wait stands in for a cold machine, or an interpreter that imports something large before ipykernel
-runs: the process is spawned at once and binds its ports six seconds later, so every dial and every
-message in between lands on nothing.
+The wait stands in for a cold machine, or a JVM or Julia kernel compiling before it binds: the process is
+spawned at once and binds its ports later, so every dial and every message in between lands on nothing.
 */
-func slowKernelspec(t *testing.T, name string) (string, string) {
+func slowKernelspec(t *testing.T, name string, seconds int) (string, string) {
 	t.Helper()
 
 	spec := kernelspec.NewCatalog(jupyterpaths.Dirs(), "").Specs()[name].Spec
@@ -99,7 +99,7 @@ func slowKernelspec(t *testing.T, name string) (string, string) {
 
 	// The real argv is passed through as positional arguments, `{connection_file}` among them: the
 	// launcher fills it in wherever it is.
-	argv := append([]string{"/bin/sh", "-c", "sleep 6; exec \"$@\"", "sh"}, spec.Argv...)
+	argv := append([]string{"/bin/sh", "-c", fmt.Sprintf("sleep %d; exec \"$@\"", seconds), "sh"}, spec.Argv...)
 	kernelJson, err := json.Marshal(map[string]any{
 		"argv": argv, "display_name": "slow python", "language": "python",
 	})
@@ -414,10 +414,12 @@ published its result to a subscription that did not exist yet — ZeroMQ drops w
 to — so the notebook waited forever for output that had already been thrown away.
 
 The request is sent the moment the socket opens, which is a user running a cell on a notebook that has
-just been opened, and the whole point is that it is sent long before the kernel exists.
+just been opened, and the whole point is that it is sent long before the kernel exists. Thirty-five
+seconds because that is past the 30 every dial used to give up after, which a cold Julia or JVM kernel
+needs; nothing waits a fixed time for a kernel to come up any more.
 */
 func TestAKernelSlowToStartStillAnswersTheFirstCellRun(t *testing.T) {
-	kernelName, jupyterRoot := slowKernelspec(t, requireKernel(t))
+	kernelName, jupyterRoot := slowKernelspec(t, requireKernel(t), 35)
 	srv, project := testServer(t, jupyterRoot)
 
 	created := startSession(t, srv, project, kernelName, "notes.ipynb")
@@ -429,8 +431,8 @@ func TestAKernelSlowToStartStillAnswersTheFirstCellRun(t *testing.T) {
 
 	msgId := executeOverSocket(t, conn, created.Id, "1 + 1")
 
-	// Room for the kernel's own six seconds on top of what a kernel start costs anyway.
-	result := awaitExecuteResult(t, conn, msgId, 60*time.Second)
+	// Room for the kernel's own wait on top of what a kernel start costs anyway.
+	result := awaitExecuteResult(t, conn, msgId, 90*time.Second)
 	data, ok := result["data"].(map[string]any)
 	require.True(t, ok, "the result carried no data: %v", result)
 	assert.Equal(t, "2", data["text/plain"])

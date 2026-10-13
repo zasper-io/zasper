@@ -243,6 +243,9 @@ func (km *KernelManager) ask(ctx context.Context, code, expression string, into 
 	if !strings.EqualFold(km.Spec.Language, "python") {
 		return ErrNotInspectable
 	}
+	if !km.waitUp(ctx) {
+		return ErrKernelNotReady
+	}
 
 	shell := km.ConnectionInfo.ConnectShell(ctx, zmq4.SocketIdentity("inspect-"+newID()))
 	defer shell.Close()

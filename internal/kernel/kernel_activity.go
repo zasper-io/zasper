@@ -12,17 +12,23 @@ import (
 	"github.com/go-zeromq/zmq4"
 )
 
-// How often a kernel that has published nothing yet is asked again, within KernelStartupBudget.
-const watchNudgeInterval = 500 * time.Millisecond
+const (
+	// How often a kernel that has published nothing yet is asked again.
+	watchNudgeInterval = 500 * time.Millisecond
+	// How long loading the inspector into a kernel that is up may take.
+	helperTimeout = 30 * time.Second
+)
 
 /*
 watchKernelActivity subscribes to a kernel's iopub for as long as the kernel runs. It is the kernel's only
 iopub subscription: /api/kernels reads what the kernel is doing from it, the run journal keeps output
-from it while no browser is attached, and every client's iopub is fanned out from it.
+from it while no browser is attached, and every client's iopub is fanned out from it. The first thing it
+hears marks the kernel up, which everything else that dials the kernel waits for.
 */
 func watchKernelActivity(ctx context.Context, km *KernelManager) {
-	// Dialling waits for the kernel to bind its ports, which is why this runs on a goroutine of its own.
-	socket := km.ConnectionInfo.ConnectIopub(ctx)
+	// Patient: dialling waits for the kernel to bind its ports, however long that takes, which is why
+	// this runs on a goroutine of its own.
+	socket := km.ConnectionInfo.connectIopub(ctx, true)
 	defer socket.Close()
 
 	published := make(chan struct{})
@@ -41,6 +47,7 @@ func watchKernelActivity(ctx context.Context, km *KernelManager) {
 		if !heard {
 			heard = true
 			close(published)
+			km.markUp()
 			go loadHelper(ctx, km)
 		}
 		km.recordActivity(km.publish(zmsg))
@@ -59,7 +66,7 @@ never say anything about. jupyter_server nudges from the server side for the sam
 func nudgeUntilPublished(ctx context.Context, km *KernelManager, published <-chan struct{}) {
 	// A socket of its own, so the reply to a request no client made is not taken for an answer to one.
 	id := zmq4.SocketIdentity(fmt.Sprintf("watch-%s", uuid.New().String()))
-	shell := km.ConnectionInfo.ConnectShell(ctx, id)
+	shell := km.ConnectionInfo.connectShell(ctx, id, true)
 	defer shell.Close()
 
 	answered := make(chan struct{})
@@ -85,11 +92,11 @@ func nudgeUntilPublished(ctx context.Context, km *KernelManager, published <-cha
 	}
 	ask()
 
-	deadline := time.After(KernelStartupBudget)
 	retry := time.NewTicker(watchNudgeInterval)
 	defer retry.Stop()
 
-	// Each is set to nil as it arrives, so it is not waited for twice.
+	// For as long as the kernel lives: one slow to start is still starting, not gone. Each is set to nil
+	// as it arrives, so it is not waited for twice.
 	for published != nil || answered != nil {
 		select {
 		case <-published:
@@ -98,9 +105,6 @@ func nudgeUntilPublished(ctx context.Context, km *KernelManager, published <-cha
 			answered = nil
 		case <-retry.C:
 			ask()
-		case <-deadline:
-			log.Debug().Msgf("kernel %s published nothing within %s", km.KernelId, KernelStartupBudget)
-			return
 		case <-ctx.Done():
 			return
 		}
@@ -121,7 +125,7 @@ func loadHelper(ctx context.Context, km *KernelManager) {
 	if !strings.EqualFold(km.Spec.Language, "python") {
 		return
 	}
-	ctx, cancel := context.WithTimeout(ctx, KernelStartupBudget)
+	ctx, cancel := context.WithTimeout(ctx, helperTimeout)
 	defer cancel()
 	if err := km.LoadHelper(ctx); err != nil && ctx.Err() == nil {
 		log.Debug().Err(err).Msgf("could not load the inspector into kernel %s", km.KernelId)
