@@ -98,7 +98,7 @@ func slowKernelspec(t *testing.T, name string) (string, string) {
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 
 	// The real argv is passed through as positional arguments, `{connection_file}` among them: the
-	// launcher replaces that one by exact match on an element, wherever it is.
+	// launcher fills it in wherever it is.
 	argv := append([]string{"/bin/sh", "-c", "sleep 6; exec \"$@\"", "sh"}, spec.Argv...)
 	kernelJson, err := json.Marshal(map[string]any{
 		"argv": argv, "display_name": "slow python", "language": "python",

@@ -122,6 +122,37 @@ func TestTheConnectionFileIsFilledIntoTheCommand(t *testing.T) {
 	assert.Equal(t, "{connection_file}", km.Spec.Argv[2], "the kernelspec itself is not rewritten")
 }
 
+// jupyter_client fills a field wherever it is in an argument, and leaves a name it does not know alone.
+func TestEveryFieldIsFilledInsideAnArgumentToo(t *testing.T) {
+	t.Parallel()
+	resourceDir := filepath.Join("/opt/conda", "share", "jupyter", "kernels", "sparkmagic")
+	km := &KernelManager{
+		ConnectionFile: "/run/kernel-1.json",
+		Spec: kernelspec.KernelSpecJsonData{
+			Argv: []string{
+				"/opt/conda/bin/sparkmagic", "--f={connection_file}", "--logo={resource_dir}/logo.png",
+				"--home={prefix}", "--keep={unknown}",
+			},
+			ResourceDir: resourceDir,
+		},
+	}
+
+	assert.Equal(t, []string{
+		"/opt/conda/bin/sparkmagic", "--f=/run/kernel-1.json", "--logo=" + resourceDir + "/logo.png",
+		"--home=/opt/conda", "--keep={unknown}",
+	}, km.argv())
+}
+
+// A spec outside an install, such as one in the user's data dir, has no prefix to fill in.
+func TestAPrefixIsFilledOnlyForASpecInsideAnInstall(t *testing.T) {
+	t.Parallel()
+	km := &KernelManager{Spec: kernelspec.KernelSpecJsonData{
+		Argv:        []string{"/bin/kernel", "{prefix}"},
+		ResourceDir: filepath.Join("/home/me", "Library", "Jupyter", "kernels", "k"),
+	}}
+	assert.Equal(t, []string{"/bin/kernel", "{prefix}"}, km.argv())
+}
+
 func TestAnIpykernelStartsWithItsFolderOffSysPath(t *testing.T) {
 	t.Parallel()
 	launch := []string{"/py", "-Xfrozen_modules=off", "-m", "ipykernel_launcher", "-f", "{connection_file}"}

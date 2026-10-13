@@ -168,17 +168,33 @@ func (km *KernelManager) launchSpec() launcher.Spec {
 
 var barePython = regexp.MustCompile(`^python(\d+(\.\d+)?)?$`)
 
+// jupyter_client's format_kernel_cmd pattern. A name it does not know is left as written.
+var argvField = regexp.MustCompile(`\{([A-Za-z0-9_]+)\}`)
+
 /*
-argv is the kernelspec's command line with the connection file filled in. A bare python is the Python the
-spec was installed by, the nearest Zasper has to the sys.executable jupyter_client uses; PATH's is the
-guess only when that cannot be told.
+argv is the kernelspec's command line with its fields filled in, anywhere in an argument as jupyter_client
+does: `--f={connection_file}` as well as `{connection_file}` alone. `{prefix}` is the install the spec
+belongs to, which is the sys.prefix jupyter_client would have run from it.
+
+A bare python is the Python the spec was installed by, the nearest Zasper has to the sys.executable
+jupyter_client uses; PATH's is the guess only when that cannot be told.
 */
 func (km *KernelManager) argv() []string {
+	fields := map[string]string{"connection_file": km.ConnectionFile}
+	if km.Spec.ResourceDir != "" {
+		fields["resource_dir"] = km.Spec.ResourceDir
+	}
+	if prefix := kernelspec.Prefix(km.Spec.ResourceDir); prefix != "" {
+		fields["prefix"] = prefix
+	}
 	cmd := slices.Clone(km.Spec.Argv)
 	for i, arg := range cmd {
-		if arg == "{connection_file}" {
-			cmd[i] = km.ConnectionFile
-		}
+		cmd[i] = argvField.ReplaceAllStringFunc(arg, func(field string) string {
+			if value, ok := fields[field[1:len(field)-1]]; ok {
+				return value
+			}
+			return field
+		})
 	}
 	if len(cmd) == 0 {
 		return cmd

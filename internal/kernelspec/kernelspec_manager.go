@@ -352,6 +352,18 @@ func isKernelDir(path string) bool {
 
 var macUserBase = regexp.MustCompile(`/Library/Python/(\d+\.\d+)$`)
 
+// Prefix answers the install a spec belongs to, <prefix>/share/jupyter/kernels/<name>, or "" for a spec
+// kept anywhere else, such as the user's own data dir.
+func Prefix(resourceDir string) string {
+	kernels := filepath.Dir(resourceDir)
+	data := filepath.Dir(kernels)
+	share := filepath.Dir(data)
+	if filepath.Base(kernels) != "kernels" || filepath.Base(data) != "jupyter" || filepath.Base(share) != "share" {
+		return ""
+	}
+	return filepath.Dir(share)
+}
+
 /*
 Interpreter answers the Python that installed the spec in resourceDir, or "" when that cannot be told.
 
@@ -364,13 +376,10 @@ Two layouts say whose a spec is: <prefix>/share/jupyter, where prefix is a Pytho
 and macOS's per-version user base, ~/Library/Python/<version>/share/jupyter.
 */
 func Interpreter(resourceDir string) string {
-	kernels := filepath.Dir(resourceDir)
-	data := filepath.Dir(kernels)
-	share := filepath.Dir(data)
-	if filepath.Base(kernels) != "kernels" || filepath.Base(data) != "jupyter" || filepath.Base(share) != "share" {
+	prefix := Prefix(resourceDir)
+	if prefix == "" {
 		return ""
 	}
-	prefix := filepath.Dir(share)
 
 	var candidates []string
 	if isPythonPrefix(prefix) {
