@@ -155,7 +155,10 @@ func TestARunTheKernelAbortedEndsWithoutAnIdle(t *testing.T) {
 	default:
 		t.Fatal("whoever waited on the run was not told it ended")
 	}
-	assert.Empty(t, km.Subscribe().Replay.Runs, "an aborted run is not replayed as still running")
+	replayed := km.Subscribe().Replay.Runs
+	require.Len(t, replayed, 1, "nobody saw it end, so the next client is told")
+	assert.True(t, replayed[0].Done)
+	assert.Empty(t, km.Subscribe().Replay.Runs, "and told once")
 }
 
 func TestAClientThatFallsBehindIsDropped(t *testing.T) {

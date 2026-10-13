@@ -304,19 +304,25 @@ func (f *feed) fold(message *Message) *Run {
 			return nil
 		}
 		run.timed("shell.execute_reply", message.Header.Date)
-		run.Done = true
-		if waiter, ok := f.waiters[run.MsgID]; ok {
-			waiter <- run.snapshot()
-			delete(f.waiters, run.MsgID)
-		}
-		if !run.missed || run.scratch {
-			f.forget(run.MsgID)
-			return nil
-		}
-		if len(f.subscribers) == 0 {
-			finished := run.snapshot()
-			return &finished
-		}
+		return f.finish(run)
+	}
+	return nil
+}
+
+// finish ends a run, and answers it when it ended with nobody attached to see the end.
+func (f *feed) finish(run *Run) *Run {
+	run.Done = true
+	if waiter, ok := f.waiters[run.MsgID]; ok {
+		waiter <- run.snapshot()
+		delete(f.waiters, run.MsgID)
+	}
+	if !run.missed || run.scratch {
+		f.forget(run.MsgID)
+		return nil
+	}
+	if len(f.subscribers) == 0 {
+		finished := run.snapshot()
+		return &finished
 	}
 	return nil
 }
@@ -382,24 +388,27 @@ func (f *feed) inputAnswered() {
 
 /*
 abortRun finishes a run the kernel refused without running it, as one does with what is queued behind an
-error: its execute_reply says `aborted`, and no busy or idle follows to end it. Nothing ran, so there is
-nothing to keep.
+error: its execute_reply says `aborted`. ipykernel follows that with an idle, which would end it anyway;
+IRkernel sends nothing more, and without this the cell ran for ever.
 */
 func (km *KernelManager) abortRun(msgID string) {
 	f := &km.feed
 	f.mu.Lock()
-	defer f.mu.Unlock()
-
 	run := f.runs[msgID]
 	if run == nil || run.Done {
+		f.mu.Unlock()
 		return
 	}
-	run.Done = true
-	if waiter, ok := f.waiters[msgID]; ok {
-		waiter <- run.snapshot()
-		delete(f.waiters, msgID)
+	if len(f.subscribers) == 0 {
+		run.missed = true
 	}
-	f.forget(msgID)
+	finished := f.finish(run)
+	notify := f.finished
+	f.mu.Unlock()
+
+	if finished != nil && notify != nil {
+		notify(*finished)
+	}
 }
 
 func (f *feed) forget(msgID string) {
