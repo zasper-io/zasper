@@ -153,8 +153,23 @@ func TestASpecsEnvIsRead(t *testing.T) {
 	spec, err := catalog.Spec("ir")
 
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{"R_HOME": "/opt/R", "PATH": "/opt/R/bin:${PATH}"}, spec.Env)
+	assert.Equal(t, SpecEnv{"R_HOME": "/opt/R", "PATH": "/opt/R/bin:${PATH}"}, spec.Env)
 	assert.Equal(t, []string{"R", "--slave", "-f", "{connection_file}"}, spec.Argv)
+}
+
+// An unquoted number or boolean in env is its text, rather than a reason to hide the kernel.
+func TestASpecsEnvMayHoldNumbersAndBooleans(t *testing.T) {
+	catalog, kernels := jupyterPath(t)
+	kernelDir(t, kernels, "julia", `{
+  "argv": ["julia", "{connection_file}"],
+  "display_name": "Julia",
+  "env": {"JULIA_NUM_THREADS": 4, "JULIA_DEBUG": false, "NAME": "x", "UNSET": null}
+}`)
+
+	spec, err := catalog.Spec("julia")
+
+	require.NoError(t, err)
+	assert.Equal(t, SpecEnv{"JULIA_NUM_THREADS": "4", "JULIA_DEBUG": "false", "NAME": "x"}, spec.Env)
 }
 
 /*

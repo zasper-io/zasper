@@ -1,6 +1,7 @@
 package jupyterpaths
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -169,4 +170,35 @@ func TestWindowsLocalAppDataComesFromTheEnvironment(t *testing.T) {
 
 	assert.Equal(t, "/localappdata", localAppData("windows", home, env(map[string]string{"LOCALAPPDATA": "/localappdata"})))
 	assert.Equal(t, filepath.Join(home, "AppData", "Local"), localAppData("windows", home, env(nil)))
+}
+
+// An environment that is not active still has its kernels found: the ones conda lists, then the ones
+// found under the usual roots.
+func TestEveryCondaEnvironmentsKernelsAreFound(t *testing.T) {
+	home := "/home/me"
+	listed := "/home/me/miniconda3\n/data/envs/r\n/home/me/miniconda3/conda-bld/pkg_1/_build_env\n\n"
+	readFile := func(path string) ([]byte, error) {
+		assert.Equal(t, filepath.Join(home, ".conda", "environments.txt"), path)
+		return []byte(listed), nil
+	}
+	glob := fakeGlob(map[string][]string{
+		filepath.Join(home, "micromamba", "envs", "*"): {"/home/me/micromamba/envs/cpp"},
+		filepath.Join(home, "miniforge3", "envs", "*"): {"/home/me/miniforge3/envs/julia"},
+		filepath.Join("/opt/mamba", "envs", "*"):       {"/opt/mamba/envs/scala"},
+	})
+
+	paths := condaEnvPaths(home, env(map[string]string{"MAMBA_ROOT_PREFIX": "/opt/mamba"}), readFile, glob)
+
+	assert.Equal(t, []string{
+		filepath.Join("/home/me/miniconda3", "share", "jupyter"),
+		filepath.Join("/data/envs/r", "share", "jupyter"),
+		filepath.Join("/home/me/micromamba/envs/cpp", "share", "jupyter"),
+		filepath.Join("/home/me/miniforge3/envs/julia", "share", "jupyter"),
+		filepath.Join("/opt/mamba/envs/scala", "share", "jupyter"),
+	}, paths)
+}
+
+func TestNoCondaMeansNoCondaPaths(t *testing.T) {
+	missing := func(string) ([]byte, error) { return nil, os.ErrNotExist }
+	assert.Empty(t, condaEnvPaths("/home/me", env(nil), missing, noGlob))
 }

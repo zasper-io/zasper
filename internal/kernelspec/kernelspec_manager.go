@@ -29,9 +29,30 @@ type KernelSpecJsonData struct {
 	Metadata      interface{}       `json:"metadata"`
 	Name          string            `json:"name"`
 	Mimetype      string            `json:"mimetype"`
-	Env           map[string]string `json:"env,omitempty"`
+	Env           SpecEnv           `json:"env,omitempty"`
 	ResourceDir   string            `json:"resource_dir"`
 	InterruptMode string            `json:"interrupt_mode"`
+}
+
+// SpecEnv is a kernelspec's env. A number or a boolean written without quotes is taken as its text:
+// refusing it hid the whole kernel, with nothing to say why.
+type SpecEnv map[string]string
+
+func (env *SpecEnv) UnmarshalJSON(data []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*env = SpecEnv{}
+	for name, value := range raw {
+		switch value := value.(type) {
+		case string:
+			(*env)[name] = value
+		case float64, bool:
+			(*env)[name] = fmt.Sprint(value)
+		}
+	}
+	return nil
 }
 
 type KspecData struct {

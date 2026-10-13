@@ -55,7 +55,48 @@ func Dirs() []string {
 	}
 	pythonVersion, _ := getPythonVersion()
 	fallback := fallbackJupyterPath(runtime.GOOS, homeDir, os.Getenv, pythonVersion, globPaths)
-	return uniquePaths(append(jupyterCLIPaths(), fallback...))
+	paths := append(jupyterCLIPaths(), fallback...)
+	return uniquePaths(append(paths, condaEnvPaths(homeDir, os.Getenv, os.ReadFile, globPaths)...))
+}
+
+/*
+condaEnvPaths is every conda environment's data directory, active or not, after everything else.
+
+IRkernel and xeus kernels are usually installed into an environment of their own, and their kernelspecs
+stay inside it: only `jupyter --paths` run from that environment would find them. conda lists every
+environment it creates in ~/.conda/environments.txt, wherever it put it; the globs are for environments
+made before that file existed, and for micromamba, which does not write it.
+*/
+func condaEnvPaths(home string, getenv func(string) string, readFile func(string) ([]byte, error), glob func(string) []string) []string {
+	var prefixes []string
+	if listed, err := readFile(filepath.Join(home, ".conda", "environments.txt")); err == nil {
+		for _, line := range strings.Split(string(listed), "\n") {
+			// conda-build's throwaway environments are listed too.
+			if prefix := strings.TrimSpace(line); prefix != "" && !strings.Contains(prefix, "conda-bld") {
+				prefixes = append(prefixes, prefix)
+			}
+		}
+	}
+
+	roots := []string{
+		filepath.Join(home, "micromamba"),
+		filepath.Join(home, ".local", "share", "mamba"),
+	}
+	for _, distribution := range []string{"anaconda3", "miniconda3", "miniforge3", "mambaforge"} {
+		roots = append(roots, filepath.Join(home, distribution))
+	}
+	if root := getenv("MAMBA_ROOT_PREFIX"); root != "" {
+		roots = append(roots, root)
+	}
+	for _, root := range roots {
+		prefixes = append(prefixes, glob(filepath.Join(root, "envs", "*"))...)
+	}
+
+	paths := make([]string, 0, len(prefixes))
+	for _, prefix := range prefixes {
+		paths = append(paths, filepath.Join(prefix, "share", "jupyter"))
+	}
+	return paths
 }
 
 // jupyterCLIPaths is `jupyter --paths --json`'s data directories, or nil without a `jupyter`.
