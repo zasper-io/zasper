@@ -1,4 +1,4 @@
-//go:build !unix
+//go:build !unix && !windows
 
 package launcher
 
@@ -8,7 +8,13 @@ import (
 	"os/exec"
 )
 
-func setProcessGroup(cmd *exec.Cmd) {}
+type platform struct{}
+
+func prepare(*exec.Cmd) (*platform, error) { return &platform{}, nil }
+
+func (*platform) started(*os.Process) {}
+
+func (*platform) release() {}
 
 // Interrupt is not supported without Unix signals.
 func (p *Process) Interrupt() error {

@@ -4,6 +4,7 @@ package launcher
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -12,9 +13,17 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func setProcessGroup(cmd *exec.Cmd) {
+// platform holds nothing on Unix: the process group is the handle on everything the kernel starts.
+type platform struct{}
+
+func prepare(cmd *exec.Cmd) (*platform, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	return &platform{}, nil
 }
+
+func (*platform) started(*os.Process) {}
+
+func (*platform) release() {}
 
 // Interrupt sends SIGINT to the kernel's process group.
 func (p *Process) Interrupt() error {

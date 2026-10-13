@@ -25,6 +25,8 @@ type Process struct {
 	done    chan struct{}
 	// Written once, before done is closed.
 	state *os.ProcessState
+	// What this platform signals the process with, in place of a process group where it has none.
+	platform *platform
 }
 
 // Done is closed once the process has exited and been reaped.
@@ -84,15 +86,19 @@ func Launch(spec Spec) (*Process, error) {
 	cmd := exec.Command(spec.Argv[0], spec.Argv[1:]...)
 	cmd.Env = spec.Env
 	cmd.Dir = spec.Dir
-	setProcessGroup(cmd)
+	plat, err := prepare(cmd)
+	if err != nil {
+		return nil, err
+	}
 
 	if spec.Output != nil {
 		cmd.Stdout = spec.Output
 		cmd.Stderr = spec.Output
 		if err := cmd.Start(); err != nil {
+			plat.release()
 			return nil, err
 		}
-		return reaped(cmd), nil
+		return reaped(cmd, plat), nil
 	}
 
 	// Create pipes for standard input, output, and error
@@ -114,10 +120,11 @@ func Launch(spec Spec) (*Process, error) {
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		log.Error().Msgf("Error starting command: %v", err)
+		plat.release()
 		return nil, err
 	}
 
-	process := reaped(cmd)
+	process := reaped(cmd, plat)
 	if spec.KeepStdio {
 		process.Stdin = stdin
 		process.Stdout = stdout
@@ -134,14 +141,16 @@ func Launch(spec Spec) (*Process, error) {
 }
 
 // reaped is the started cmd as a Process, waited on from the moment it starts.
-func reaped(cmd *exec.Cmd) *Process {
-	process := &Process{Pid: cmd.Process.Pid, process: cmd.Process, done: make(chan struct{})}
+func reaped(cmd *exec.Cmd, plat *platform) *Process {
+	plat.started(cmd.Process)
+	process := &Process{Pid: cmd.Process.Pid, process: cmd.Process, done: make(chan struct{}), platform: plat}
 	go func() {
 		state, err := cmd.Process.Wait()
 		if err != nil {
 			log.Debug().Err(err).Int("pid", process.Pid).Msg("could not wait for the kernel process")
 		}
 		process.state = state
+		plat.release()
 		close(process.done)
 	}()
 	return process

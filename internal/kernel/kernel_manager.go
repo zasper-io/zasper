@@ -220,7 +220,8 @@ func (km *KernelManager) releasePorts() {
 func (km *KernelManager) launchSpec() launcher.Spec {
 	env := kernelEnv(os.Environ(), km.Spec.Env)
 	// ipykernel exits once the process JPY_PARENT_PID names has gone, so a server that crashes leaves no
-	// kernels running. A Windows kernel reads it as a handle, not a pid.
+	// kernels running. A Windows kernel reads it as a handle, not a pid; there the kernel's job object,
+	// which closes with the server, does the same.
 	if runtime.GOOS != "windows" {
 		env = append(env, "JPY_PARENT_PID="+strconv.Itoa(os.Getpid()))
 	}
