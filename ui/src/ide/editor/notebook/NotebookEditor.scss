@@ -483,6 +483,13 @@ $cell-gutter: 64px;
     background: var(--z-bg-figure);
   }
 
+  // A PDF in the browser's viewer, which has no size of its own to take.
+  .output-pdf {
+    display: block;
+    width: 100%;
+    height: 480px;
+  }
+
   // Tells consecutive outputs from one cell apart without changing the tint.
   > * + * {
     margin-top: 6px;
@@ -494,7 +501,7 @@ $cell-gutter: 64px;
 // distributions and lines are the tint's own hue and lost their contrast on it, as a tab draws them; the
 // table pandas printed, whose rows read as shaded on it; and a figure, whose white plate (--z-bg-figure)
 // sat in a tinted frame.
-.inner-text:has(.dataGrid.is-in-cell, table.dataframe, img, .output-svg) {
+.inner-text:has(.dataGrid.is-in-cell, table.dataframe, img, .output-svg, .output-pdf) {
   background: var(--z-bg-editor);
   border: 1px solid var(--z-border);
 }

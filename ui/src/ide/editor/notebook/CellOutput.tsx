@@ -96,6 +96,31 @@ const LatexOutput = ({ latex }: { latex: string }) => {
   );
 };
 
+/**
+ * A `text/markdown` bundle, which xeus kernels, Deno and IJulia send, sometimes with no `text/plain` beside
+ * it. The markdown cells' renderer, which sanitises what it is given, so a notebook from elsewhere is safe.
+ */
+const MarkdownOutput = ({ source }: { source: string }) => {
+  const Renderer = useContext(MarkdownRendererContext);
+  return (
+    <Suspense fallback={null}>
+      <div className="output-markdown">
+        <Renderer source={source} />
+      </div>
+    </Suspense>
+  );
+};
+
+/** An `application/pdf` bundle, in the browser's own viewer, which keeps a PDF's scripts to itself. */
+const PdfOutput = ({ data }: { data: string }) => (
+  <object
+    className="output-pdf"
+    data={`data:application/pdf;base64,${data}`}
+    type="application/pdf"
+    aria-label="PDF output"
+  />
+);
+
 interface OutputBundlesProps {
   outputs: NotebookOutput[];
   widgets: WidgetSource | null;
@@ -107,7 +132,8 @@ interface OutputBundlesProps {
 
 /**
  * A list of output bundles, each dispatched on the richest representation the kernel sent, in
- * Jupyter's preference order: widget, plotly figure, HTML, LaTeX, SVG, image, then plain text.
+ * Jupyter's preference order: widget, plotly figure, HTML, Markdown, LaTeX, SVG, image, PDF, then plain
+ * text.
  *
  * Exported because a cell is not the only place outputs are shown: ipywidgets' Output widget holds
  * some of its own, and renders them through here so that they look like every other output.
@@ -169,10 +195,14 @@ export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesPr
         if (outputData) {
           const {
             'text/html': htmlContent,
+            'text/markdown': markdownContent,
             'text/latex': latexContent,
             'image/svg+xml': svgContent,
             'image/png': pngContent,
             'image/jpeg': jpegContent,
+            'image/gif': gifContent,
+            'image/webp': webpContent,
+            'application/pdf': pdfContent,
             'text/plain': textPlainData,
             'application/vnd.jupyter.widget-view+json': widgetData,
             'application/vnd.plotly.v1+json': plotlyFigure,
@@ -211,6 +241,10 @@ export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesPr
             return <HTMLOutput key={index} html={htmlContent} trusted={trusted} />;
           }
 
+          if (markdownContent) {
+            return <MarkdownOutput key={index} source={markdownContent} />;
+          }
+
           if (latexContent) {
             return <LatexOutput key={index} latex={latexContent} />;
           }
@@ -234,6 +268,18 @@ export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesPr
 
           if (jpegContent) {
             return <ImageOutput key={index} mime="image/jpeg" data={jpegContent} />;
+          }
+
+          if (gifContent) {
+            return <ImageOutput key={index} mime="image/gif" data={gifContent} />;
+          }
+
+          if (webpContent) {
+            return <ImageOutput key={index} mime="image/webp" data={webpContent} />;
+          }
+
+          if (pdfContent) {
+            return <PdfOutput key={index} data={pdfContent} />;
           }
 
           if (textPlainData) {

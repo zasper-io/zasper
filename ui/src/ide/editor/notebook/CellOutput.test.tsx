@@ -124,7 +124,48 @@ describe('OutputBundles', () => {
     await waitFor(() => expect(container.querySelector('.katex')).not.toBeNull());
   });
 
-  // The three above must not reach this fallback, or they look unsupported.
+  // xeus kernels, Deno and IJulia send markdown, sometimes with nothing beside it.
+  it('renders text/markdown', async () => {
+    const { container } = show({ 'text/markdown': '**bold** and a [link](https://example.com)' });
+
+    await waitFor(() => expect(container.querySelector('.output-markdown strong')).not.toBeNull());
+    expect(container.querySelector('.output-markdown a')).toHaveAttribute(
+      'href',
+      'https://example.com'
+    );
+  });
+
+  it('sanitises text/markdown from a notebook file', async () => {
+    const { container } = show({
+      'text/markdown': "kept <img src=x onerror=\"document.body.setAttribute('data-ran-md', '')\">",
+    });
+
+    await waitFor(() =>
+      expect(container.querySelector('.output-markdown')).toHaveTextContent('kept')
+    );
+    expect(container.querySelector('[onerror]')).toBeNull();
+    expect(ran('md')).toBe(false);
+  });
+
+  it('renders image/gif as an image', () => {
+    show({ 'image/gif': PIXEL, 'text/plain': '<IPython.core.display.Image object>' });
+
+    expect(screen.getByAltText('cell output')).toHaveAttribute(
+      'src',
+      `data:image/gif;base64,${PIXEL}`
+    );
+  });
+
+  it('shows application/pdf in the browser’s viewer', () => {
+    show({ 'application/pdf': 'JVBERi0=', 'text/plain': '<PDF object>' });
+
+    expect(screen.getByLabelText('PDF output')).toHaveAttribute(
+      'data',
+      'data:application/pdf;base64,JVBERi0='
+    );
+  });
+
+  // The ones above must not reach this fallback, or they look unsupported.
   it('falls back to text/plain for a bundle it cannot render', () => {
     show({ 'application/octet-stream': 'x', 'text/plain': 'a plain description' });
 
