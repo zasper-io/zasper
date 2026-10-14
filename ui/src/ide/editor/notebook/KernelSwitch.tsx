@@ -20,6 +20,13 @@ export interface KernelDeath {
   output: string;
 }
 
+// A kernel's last lines end with why it died, so the output opens at its end.
+function scrollToEnd(output: HTMLPreElement | null) {
+  if (output) {
+    output.scrollTop = output.scrollHeight;
+  }
+}
+
 function KernelSwitcher(props: ModalProps) {
   const [kernelspecs] = useAtom<KernelspecsState>(kernelspecsAtom);
 
@@ -71,10 +78,12 @@ function KernelSwitcher(props: ModalProps) {
           </div>
           <div className="modal-body">
             {props.died ? (
-              <div className="update-kernel-popup modal-error" role="alert">
+              <div className="update-kernel-popup modal-error is-death" role="alert">
                 <p>{props.died.message} Start it again, or pick another kernel below.</p>
                 {props.died.output !== '' && (
-                  <pre className="modal-error-output">{props.died.output}</pre>
+                  <pre className="modal-error-output" ref={scrollToEnd}>
+                    {props.died.output}
+                  </pre>
                 )}
               </div>
             ) : (

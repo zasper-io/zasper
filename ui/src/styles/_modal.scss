@@ -161,6 +161,11 @@
   padding-top: 0;
 }
 
+// A kernel that died: the sentence above what it printed, not beside it.
+.modal-error.is-death {
+  flex-direction: column;
+}
+
 // The last lines a kernel that died printed: its own words, in its own font, not in error red.
 .modal-error-output {
   margin: 8px 0 0;
