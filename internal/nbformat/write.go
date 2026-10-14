@@ -105,9 +105,12 @@ func normalizeCell(cell map[string]interface{}, minor int, takenIDs map[string]b
 		if _, ok := sliceValue(cell["outputs"]); !ok {
 			cell["outputs"] = []interface{}{}
 		}
-		if _, ok := cell["execution_count"]; !ok {
-			// Present and null, not absent: the format requires the key on a code cell, and null is
-			// how it says the cell has not run.
+		// Present and null, not absent: the format requires the key on a code cell, and null is how it
+		// says the cell has not run. A negative count is the editor's mark for a cell still queued,
+		// which the format does not allow either.
+		if count, present := cell["execution_count"]; !present {
+			cell["execution_count"] = nil
+		} else if n, ok := intValue(count); ok && n < 0 {
 			cell["execution_count"] = nil
 		}
 		outputs, _ := sliceValue(cell["outputs"])

@@ -123,6 +123,8 @@ describe('NotebookEditor, given the runs it missed', () => {
 
     await waitFor(() => expect(screen.queryByText('[*]:')).toBeNull());
     expect(spinning(container)).toBe(false);
+    // The queued mark, -1, is never shown as a count.
+    expect(screen.getByText('[ ]:')).toBeInTheDocument();
   });
 
   it('asks again for an input() raised while nobody was looking, and sends the answer', async () => {

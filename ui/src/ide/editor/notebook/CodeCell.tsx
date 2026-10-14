@@ -120,8 +120,10 @@ export default function CodeCell(props: CellProps) {
     ]
   );
 
-  // A submitted cell holds -1 until the kernel's execute_input gives it its count.
+  // A submitted cell holds -1 until the kernel's execute_input gives it its count. A kernel that died
+  // first leaves the -1 behind on a cell that is no longer running, which has no count to show.
   const queued = props.isRunning && cell.execution_count === -1;
+  const count = cell.execution_count === -1 ? null : cell.execution_count;
   const running = props.isRunning && !queued;
   const gutterClass = running
     ? 'cell-gutter is-running'
@@ -156,7 +158,7 @@ export default function CodeCell(props: CellProps) {
               // reader has to be told.
               <span className="z-spinner" role="status" aria-label="Running" />
             ) : (
-              cell.cell_type === 'code' && `[${queued ? '*' : (cell.execution_count ?? ' ')}]:`
+              cell.cell_type === 'code' && `[${queued ? '*' : (count ?? ' ')}]:`
             )}
           </span>
           {props.ranBy && (
@@ -212,7 +214,7 @@ export default function CodeCell(props: CellProps) {
             tables={{
               kernelId: editor.kernelId,
               notebookPath: editor.notebookPath,
-              executionCount: cell.execution_count,
+              executionCount: count,
               variable: printedName(cell.source),
               insertBelow: (source) => editor.insertCodeAfter(cell.id, source),
             }}

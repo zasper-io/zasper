@@ -286,6 +286,31 @@ func TestNormalizeGivesEveryCellAnID(t *testing.T) {
 	}
 }
 
+// The editor marks a queued cell -1, and a kernel that died before answering leaves the mark behind. The
+// format has no negative counts: a cell that never got one has not run.
+func TestNormalizeWritesANegativeCountAsNotRun(t *testing.T) {
+	code := func(count interface{}) map[string]interface{} {
+		return map[string]interface{}{"cell_type": "code", "source": "", "metadata": map[string]interface{}{},
+			"outputs": []interface{}{}, "execution_count": count}
+	}
+	doc := Document{
+		"nbformat": 4, "nbformat_minor": 5, "metadata": map[string]interface{}{},
+		"cells": []interface{}{code(json.Number("-1")), code(json.Number("3")), code(nil)},
+	}
+
+	cells := Normalize(doc).Cells()
+
+	if cells[0]["execution_count"] != nil {
+		t.Errorf("a queued cell was written with count %v", cells[0]["execution_count"])
+	}
+	if count, _ := intValue(cells[1]["execution_count"]); count != 3 {
+		t.Errorf("a real count was lost: %v", cells[1]["execution_count"])
+	}
+	if cells[2]["execution_count"] != nil {
+		t.Errorf("a cell that never ran gained a count: %v", cells[2]["execution_count"])
+	}
+}
+
 func TestNormalizeFillsInRequiredOutputFields(t *testing.T) {
 	doc := Document{
 		"nbformat": 4, "nbformat_minor": 5, "metadata": map[string]interface{}{},
