@@ -127,6 +127,24 @@ func (k *Catalog) SetupStatusHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 /*
+KernelForLanguage is the kernel to start for a notebook that names no kernel but says what language it is
+in: PythonKernelName for Python or for no language at all, and otherwise the first by name of that
+language that can start. "" when none is installed.
+*/
+func (k *Catalog) KernelForLanguage(language string) string {
+	if language == "" || strings.EqualFold(language, "python") {
+		return k.PythonKernelName()
+	}
+	specs := k.Specs()
+	for _, name := range slices.Sorted(maps.Keys(specs)) {
+		if spec := specs[name].Spec; strings.EqualFold(spec.Language, language) && canStart(spec) {
+			return name
+		}
+	}
+	return ""
+}
+
+/*
 PythonKernelName is the Python kernel to start when one is needed and no notebook says which. It runs the
 Python a file runs with — the one chosen in Settings, else the project's own — whether that is offered as
 project-venv or by a kernelspec installed for it; then python3, then the first Python by name. A spec

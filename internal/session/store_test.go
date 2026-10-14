@@ -7,7 +7,30 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/zasper-io/zasper/internal/models"
+	"github.com/zasper-io/zasper/internal/nbformat"
 )
+
+// A notebook that names no kernel is given one for the language it says it is in.
+func TestANotebookNamingNoKernelRunsOnOneForItsLanguage(t *testing.T) {
+	s := testSessions(t)
+	var asked []string
+	s.DefaultKernel(func(language string) string {
+		asked = append(asked, language)
+		return "kernel-for-" + language
+	})
+	doc := func(metadata string) nbformat.Document {
+		parsed, err := nbformat.Unmarshal([]byte(`{"cells": [], "metadata": ` + metadata + `, "nbformat": 4, "nbformat_minor": 5}`))
+		assert.NoError(t, err)
+		return parsed
+	}
+
+	assert.Equal(t, "ir", s.kernelFor(doc(`{"kernelspec": {"name": "ir"}}`)), "a kernel the notebook names is the one")
+	assert.Empty(t, asked)
+	assert.Equal(t, "kernel-for-R", s.kernelFor(doc(`{"language_info": {"name": "R"}, "kernelspec": {"language": "julia"}}`)),
+		"the language the kernel recorded comes first")
+	assert.Equal(t, "kernel-for-julia", s.kernelFor(doc(`{"kernelspec": {"language": "julia"}}`)))
+	assert.Equal(t, "kernel-for-", s.kernelFor(doc(`{}`)))
+}
 
 func withSessions(t *testing.T, given ...models.SessionModel) *Sessions {
 	t.Helper()

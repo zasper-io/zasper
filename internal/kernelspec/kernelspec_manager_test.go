@@ -157,6 +157,17 @@ func TestASpecsEnvIsRead(t *testing.T) {
 	assert.Equal(t, []string{"R", "--slave", "-f", "{connection_file}"}, spec.Argv)
 }
 
+// A notebook that names no kernel but is in R runs on an R kernel, not on Python.
+func TestAKernelIsFoundForALanguage(t *testing.T) {
+	catalog, kernels := jupyterPath(t)
+	kernelDir(t, kernels, "ir", `{"argv": ["R", "--slave", "{connection_file}"], "display_name": "R", "language": "R"}`)
+	kernelDir(t, kernels, "julia-1.13", `{"argv": ["julia", "{connection_file}"], "display_name": "Julia", "language": "julia"}`)
+
+	assert.Equal(t, "ir", catalog.KernelForLanguage("r"))
+	assert.Equal(t, "julia-1.13", catalog.KernelForLanguage("Julia"))
+	assert.Equal(t, "", catalog.KernelForLanguage("haskell"), "none is installed")
+}
+
 // An unquoted number or boolean in env is its text, rather than a reason to hide the kernel.
 func TestASpecsEnvMayHoldNumbersAndBooleans(t *testing.T) {
 	catalog, kernels := jupyterPath(t)

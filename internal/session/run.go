@@ -70,14 +70,20 @@ func codeCell(doc nbformat.Document, cellID string) (string, bool) {
 	return "", false
 }
 
-// kernelFor is the kernel the notebook names, or the default when it names none.
+// kernelFor is the kernel the notebook names, or one for the language it is in when it names none: an R
+// notebook with no kernelspec ran on Python.
 func (s *Sessions) kernelFor(doc nbformat.Document) string {
 	spec, _ := doc.Metadata()["kernelspec"].(map[string]interface{})
 	if name, _ := spec["name"].(string); name != "" {
 		return name
 	}
+	info, _ := doc.Metadata()["language_info"].(map[string]interface{})
+	language, _ := info["name"].(string)
+	if language == "" {
+		language, _ = spec["language"].(string)
+	}
 	if s.defaultKernel != nil {
-		return s.defaultKernel()
+		return s.defaultKernel(language)
 	}
 	return ""
 }

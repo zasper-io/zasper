@@ -33,7 +33,7 @@ export function kernelToStart(
   const saved =
     typeof metadata.kernelspec === 'string' ? metadata.kernelspec : metadata.kernelspec?.name;
   if (saved === undefined || saved === '' || saved === NO_KERNEL) {
-    return NO_KERNEL;
+    return onlyKernelFor(notebookLanguageOf(metadata), installed);
   }
 
   // Ask rather than fail: a notebook written elsewhere can name a kernel that is not installed here.
@@ -43,4 +43,28 @@ export function kernelToStart(
   }
 
   return saved;
+}
+
+/** The language a notebook says it is in, as the kernel recorded it, else as its kernelspec does. */
+function notebookLanguageOf(metadata: NotebookMetadata): string {
+  const fromInfo = metadata.language_info?.name;
+  if (typeof fromInfo === 'string' && fromInfo.trim() !== '') {
+    return fromInfo.trim();
+  }
+  const spec = metadata.kernelspec;
+  return typeof spec === 'object' && spec !== null ? (spec.language ?? '').trim() : '';
+}
+
+/**
+ * The one installed kernel in `language`, for a notebook that names no kernel but says what it is in.
+ * More than one is a choice of environment, which is the reader's, and none is no answer: both ask.
+ */
+function onlyKernelFor(language: string, installed: KernelspecsState): string {
+  if (language === '') {
+    return NO_KERNEL;
+  }
+  const matching = Object.keys(installed).filter(
+    (name) => installed[name].spec?.language?.toLowerCase() === language.toLowerCase()
+  );
+  return matching.length === 1 ? matching[0] : NO_KERNEL;
 }

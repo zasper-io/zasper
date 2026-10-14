@@ -39,6 +39,39 @@ describe('kernelToStart', () => {
     expect(kernelToStart('none', { kernelspec: 'none' }, installed('python3'))).toBe('none');
   });
 
+  // A notebook written elsewhere can say its language and name no kernel: an R notebook ran on Python.
+  describe('when the notebook names no kernel but says its language', () => {
+    const languages = (...specs: [string, string][]): KernelspecsState =>
+      Object.fromEntries(
+        specs.map(([name, language]) => [
+          name,
+          { name, spec: { display_name: name, language }, resources: {} },
+        ])
+      );
+
+    it('starts the one installed kernel in that language', () => {
+      const kernels = languages(['python3', 'python'], ['ir', 'R'], ['julia-1.13', 'julia']);
+      expect(kernelToStart('none', { language_info: { name: 'R' } }, kernels)).toBe('ir');
+      expect(
+        kernelToStart(
+          'none',
+          { kernelspec: { name: '', display_name: '', language: 'julia' } },
+          kernels
+        )
+      ).toBe('julia-1.13');
+    });
+
+    it('asks when more than one is, which is a choice of environment', () => {
+      const kernels = languages(['python3', 'python'], ['venv', 'python']);
+      expect(kernelToStart('none', { language_info: { name: 'python' } }, kernels)).toBe('none');
+    });
+
+    it('asks when none is', () => {
+      const kernels = languages(['python3', 'python']);
+      expect(kernelToStart('none', { language_info: { name: 'R' } }, kernels)).toBe('none');
+    });
+  });
+
   it('asks when the kernel the notebook names is not installed', () => {
     expect(kernelToStart('none', python3, installed('deno'))).toBe('none');
   });

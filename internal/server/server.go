@@ -54,7 +54,7 @@ func New(app core.Application) *Server {
 	// Left by servers that were killed with their kernels running.
 	go kernel.SweepConnectionFiles()
 	sessions := session.New(project, kernels)
-	sessions.DefaultKernel(specs.PythonKernelName)
+	sessions.DefaultKernel(specs.KernelForLanguage)
 
 	s := &Server{
 		app:           app,
