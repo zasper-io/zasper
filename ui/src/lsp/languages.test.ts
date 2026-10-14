@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fileUri, pathOfUri, serverLanguageFor } from './languages';
+import { fileUri, notebookLanguageFor, pathOfUri, serverLanguageFor } from './languages';
 
 describe('serverLanguageFor', () => {
   it('names the server and the document language a file is opened with', () => {
@@ -15,6 +15,32 @@ describe('serverLanguageFor', () => {
   it('knows no server for a file it has no language for', () => {
     expect(serverLanguageFor('notes.txt')).toBeNull();
     expect(serverLanguageFor('Makefile')).toBeNull();
+  });
+
+  it('serves the JVM, .NET, shell, SQL and Haskell files', () => {
+    expect(serverLanguageFor('Main.java')?.server).toBe('java');
+    expect(serverLanguageFor('build.sc')?.server).toBe('scala');
+    expect(serverLanguageFor('App.kt')?.server).toBe('kotlin');
+    expect(serverLanguageFor('Program.cs')?.server).toBe('csharp');
+    expect(serverLanguageFor('run.sh')).toEqual({ server: 'shell', languageId: 'shellscript' });
+    expect(serverLanguageFor('q.sql')?.server).toBe('sql');
+    expect(serverLanguageFor('Main.hs')?.server).toBe('haskell');
+  });
+});
+
+describe('notebookLanguageFor', () => {
+  it('serves a notebook whose cells, one after another, are a source file', () => {
+    expect(notebookLanguageFor('c++')?.language.server).toBe('c');
+    expect(notebookLanguageFor('shell')).toEqual({
+      language: { server: 'shell', languageId: 'shellscript' },
+      extension: 'sh',
+    });
+  });
+
+  // A Java cell is a snippet: as one file, nearly every line would be marked wrong.
+  it('serves no notebook whose cells are snippets', () => {
+    expect(notebookLanguageFor('java')).toBeNull();
+    expect(notebookLanguageFor('kotlin')).toBeNull();
   });
 });
 

@@ -71,6 +71,29 @@ var Languages = []Language{
 	{ID: "julia", Name: "Julia", Servers: []Server{
 		{Name: "LanguageServer.jl", Command: []string{"julia", "--startup-file=no", "--history-file=no", "-e", "using LanguageServer; runserver()"}, Install: `julia -e 'using Pkg; Pkg.add("LanguageServer")'`, Needs: "the LanguageServer.jl package"},
 	}},
+	// None of these is ReadsOnly: the JVM and .NET servers run the project's build to resolve it, sqls
+	// connects to the databases a project's config names, and the rest are not known not to run anything.
+	{ID: "java", Name: "Java", Servers: []Server{
+		{Name: "jdtls", Command: []string{"jdtls"}, Install: "brew install jdtls"},
+	}},
+	{ID: "scala", Name: "Scala", Servers: []Server{
+		{Name: "metals", Command: []string{"metals"}, Install: "cs install metals"},
+	}},
+	{ID: "kotlin", Name: "Kotlin", Servers: []Server{
+		{Name: "kotlin-language-server", Command: []string{"kotlin-language-server"}, Install: "brew install kotlin-language-server"},
+	}},
+	{ID: "csharp", Name: "C#", Servers: []Server{
+		{Name: "csharp-ls", Command: []string{"csharp-ls"}, Install: "dotnet tool install --global csharp-ls"},
+	}},
+	{ID: "shell", Name: "Shell", Servers: []Server{
+		{Name: "bash-language-server", Command: []string{"bash-language-server", "start"}, Install: "npm install -g bash-language-server"},
+	}},
+	{ID: "sql", Name: "SQL", Servers: []Server{
+		{Name: "sqls", Command: []string{"sqls"}, Install: "go install github.com/sqls-server/sqls@latest"},
+	}},
+	{ID: "haskell", Name: "Haskell", Servers: []Server{
+		{Name: "haskell-language-server", Command: []string{"haskell-language-server-wrapper", "--lsp"}, Install: "ghcup install hls"},
+	}},
 }
 
 func languageByID(id string) (Language, bool) {

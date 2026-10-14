@@ -26,6 +26,16 @@ const BY_EXTENSION: Record<string, ServerLanguage> = {
   hpp: { server: 'c', languageId: 'cpp' },
   r: { server: 'r', languageId: 'r' },
   jl: { server: 'julia', languageId: 'julia' },
+  java: { server: 'java', languageId: 'java' },
+  scala: { server: 'scala', languageId: 'scala' },
+  sc: { server: 'scala', languageId: 'scala' },
+  kt: { server: 'kotlin', languageId: 'kotlin' },
+  kts: { server: 'kotlin', languageId: 'kotlin' },
+  cs: { server: 'csharp', languageId: 'csharp' },
+  sh: { server: 'shell', languageId: 'shellscript' },
+  bash: { server: 'shell', languageId: 'shellscript' },
+  sql: { server: 'sql', languageId: 'sql' },
+  hs: { server: 'haskell', languageId: 'haskell' },
 };
 
 /** The server language for a file name, or null for a file no server Zasper knows serves. */
@@ -57,7 +67,11 @@ export function pathOfUri(root: string, uri: string): string | null {
   return absolute.slice(normalised.length + 1);
 }
 
-/** A kernel's language, as `language_info.name` spells it, to the extension its source files have. */
+/*
+ * A kernel's language, as `language_info.name` spells it, to the extension its source files have. Only
+ * the languages whose cells, run one after another, are a source file: a Java or Kotlin cell is a
+ * snippet, and a server given them as one file would mark nearly every line wrong.
+ */
 const KERNEL_EXTENSIONS: Record<string, string> = {
   python: 'py',
   r: 'r',
@@ -68,6 +82,8 @@ const KERNEL_EXTENSIONS: Record<string, string> = {
   javascript: 'js',
   c: 'c',
   'c++': 'cpp',
+  shell: 'sh',
+  sql: 'sql',
 };
 
 /** The server for a notebook's cells, with the extension its virtual document is named with. */
