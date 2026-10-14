@@ -30,17 +30,19 @@ describe('serverLanguageFor', () => {
 
 describe('notebookLanguageFor', () => {
   it('serves a notebook whose cells, one after another, are a source file', () => {
-    expect(notebookLanguageFor('c++')?.language.server).toBe('c');
+    expect(notebookLanguageFor('python')?.language.server).toBe('python');
     expect(notebookLanguageFor('shell')).toEqual({
       language: { server: 'shell', languageId: 'shellscript' },
       extension: 'sh',
     });
   });
 
-  // A Java cell is a snippet: as one file, nearly every line would be marked wrong.
+  // A Java or C++ cell is a snippet: as one file, nearly every line would be marked wrong.
   it('serves no notebook whose cells are snippets', () => {
     expect(notebookLanguageFor('java')).toBeNull();
     expect(notebookLanguageFor('kotlin')).toBeNull();
+    expect(notebookLanguageFor('c')).toBeNull();
+    expect(notebookLanguageFor('c++')).toBeNull();
   });
 });
 

@@ -69,8 +69,9 @@ export function pathOfUri(root: string, uri: string): string | null {
 
 /*
  * A kernel's language, as `language_info.name` spells it, to the extension its source files have. Only
- * the languages whose cells, run one after another, are a source file: a Java or Kotlin cell is a
- * snippet, and a server given them as one file would mark nearly every line wrong.
+ * the languages whose cells, run one after another, are a source file. A Java, Kotlin, C or C++ cell is
+ * a snippet, `std::cout << x;` at the top level, and a server given them as one file marks nearly every
+ * line wrong: clangd did, on every xeus-cpp notebook.
  */
 const KERNEL_EXTENSIONS: Record<string, string> = {
   python: 'py',
@@ -80,8 +81,6 @@ const KERNEL_EXTENSIONS: Record<string, string> = {
   rust: 'rs',
   typescript: 'ts',
   javascript: 'js',
-  c: 'c',
-  'c++': 'cpp',
   shell: 'sh',
   sql: 'sql',
 };
