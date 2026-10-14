@@ -245,6 +245,8 @@ func (kwsConn *Connection) Connect() {
 	case <-kwsConn.Context.Done():
 		return
 	case <-kwsConn.KernelManager.Lifetime().Done():
+		// Stopped before it was up: nothing will ever be said on this socket, so the client is told now.
+		kwsConn.Close()
 		return
 	}
 

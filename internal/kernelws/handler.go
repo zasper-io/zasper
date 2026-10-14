@@ -128,6 +128,12 @@ func (h *Handler) HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 	// Registered before it is connected: connecting dials five sockets at a kernel that may still be
 	// starting, and a kernel killed in that window would otherwise leave the client socket open forever.
 	h.addConnection(kernelId, &kernelConnection)
+	// Stopped between the lookup above and the line before, its connections were closed without this one.
+	if _, running := h.kernels.Get(kernelId); !running {
+		h.removeConnection(kernelId, &kernelConnection)
+		kernelConnection.Close()
+		return
+	}
 
 	kernelConnection.Prepare(sessionId)
 	kernelConnection.Connect()
