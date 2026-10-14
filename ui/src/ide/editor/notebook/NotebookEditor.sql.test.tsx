@@ -148,6 +148,35 @@ describe('a SQL cell in a notebook', () => {
     expect(JSON.parse(sockets[0].sent[0]).content.code).toBe(sqlSource);
   });
 
+  // Run All sent a Python cell straight past the SQL cell above it, whose connection was still being
+  // handed over: the kernel ran the cell that reads the frame before the one that makes it.
+  it('sends a cell run after a SQL cell only once the SQL cell has gone', async () => {
+    let handedOver: () => void = () => {};
+    prepareConnection.mockReturnValue(
+      new Promise((resolve) => (handedOver = () => resolve({ ok: true })))
+    );
+    const { container } = renderNotebook(
+      [],
+      [{ cell_type: 'code', id: 'reads-it', source: 'df_orders.head()', outputs: [], metadata: {} }]
+    );
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    await screen.findByRole('button', { name: 'Run on analytics' });
+    const runButtons = container.querySelectorAll<HTMLButtonElement>('.cell-run');
+
+    fireEvent.click(runButtons[0]);
+    fireEvent.click(runButtons[1]);
+    await act(async () => {});
+    expect(sockets[0].sent).toHaveLength(0);
+
+    await act(async () => handedOver());
+
+    await waitFor(() => expect(sockets[0].sent).toHaveLength(2));
+    expect(sockets[0].sent.map((sent) => JSON.parse(sent).content.code)).toEqual([
+      sqlSource,
+      'df_orders.head()',
+    ]);
+  });
+
   it('says where its rows came from, and Load all counts them before it runs it without its limit', async () => {
     countRows.mockResolvedValue({ rows: 48_210 });
     renderNotebook([

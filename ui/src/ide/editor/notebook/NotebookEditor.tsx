@@ -255,25 +255,41 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   const heldRuns = useRef<{ source: string; cellId: string }[]>([]);
   const kernelId = kernel.session?.kernel.id;
   /*
+   * Runs still waiting to be sent, and the last of them. A SQL cell's run waits on a request to the server,
+   * and every run after it waits behind it: the kernel runs cells in the order it is sent them, and Run All
+   * sent a Python cell straight past the SQL cell that makes the frame it reads.
+   */
+  const sendsPending = useRef(0);
+  const lastSend = useRef<Promise<void>>(Promise.resolve());
+  /*
    * Sends a run. A SQL cell's connection is handed to the kernel first, password and all, from the server:
    * the notebook names a connection and never holds its credentials. See docs/SQL.md.
    */
   const send = useCallback(
     (source: string, cellId: string) => {
       const sql = parseSqlCell(source);
-      if (sql === null || sql.connection === DATAFRAMES || kernelId === undefined) {
+      const connection =
+        sql === null || sql.connection === DATAFRAMES || kernelId === undefined
+          ? null
+          : sql.connection;
+      if (connection === null && sendsPending.current === 0) {
         markCellRunning(cellId);
         sendExecuteRequest(source, cellId);
         return;
       }
-      prepareConnection(kernelId, sql.connection)
+      sendsPending.current += 1;
+      lastSend.current = lastSend.current
+        .then(() => (connection === null ? undefined : prepareConnection(kernelId!, connection)))
         .then(() => {
           markCellRunning(cellId);
           sendExecuteRequest(source, cellId);
         })
-        .catch((error) =>
-          toast.error(`Could not use ${sql.connection}: ${apiErrorMessage(error)}`)
-        );
+        .catch((error) => {
+          toast.error(`Could not use ${connection}: ${apiErrorMessage(error)}`);
+        })
+        .finally(() => {
+          sendsPending.current -= 1;
+        });
     },
     [kernelId, markCellRunning, sendExecuteRequest]
   );
