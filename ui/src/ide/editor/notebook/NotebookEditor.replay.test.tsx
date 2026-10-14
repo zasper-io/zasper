@@ -212,6 +212,36 @@ describe('NotebookEditor, given the runs it missed', () => {
     expect(createSession).toHaveBeenCalledTimes(1);
   });
 
+  it('says why its kernel died, with what the kernel printed last, and does not reconnect', async () => {
+    const { container } = await openNotebook();
+    act(() => sockets[0].receive(replay([])));
+    act(() => runButton(container).click());
+    await screen.findByText('[*]:');
+    getKernel.mockRejectedValue(
+      new ApiError(
+        'GET',
+        '/api/kernels/kernel-1',
+        410,
+        JSON.stringify({
+          error: 'Gone',
+          message: 'The kernel stopped before it was ready: it exited with code 3.',
+          output: 'error: no such flag NOTFOUND',
+        })
+      )
+    );
+
+    act(() => sockets[0].drop());
+
+    const alert = await screen.findByRole('alert', {}, { timeout: 3000 });
+    expect(alert).toHaveTextContent(
+      'The kernel stopped before it was ready: it exited with code 3.'
+    );
+    expect(alert).toHaveTextContent('error: no such flag NOTFOUND');
+    expect(screen.queryByText('[*]:')).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(sockets).toHaveLength(1);
+  });
+
   it('rejoins the kernel that replaced its own, as after a restart from elsewhere', async () => {
     await openNotebook();
     const restarted = {

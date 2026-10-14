@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -91,10 +92,76 @@ func (k *Kernels) watchForExit(km *KernelManager) {
 		return
 	}
 	log.Warn().Str("kernel", km.KernelId).Int("exit_code", process.ExitCode()).Msg("kernel exited on its own")
+	k.recordDeath(km, Death{
+		Up:       isClosed(km.Up()),
+		ExitCode: process.ExitCode(),
+		Signal:   process.Signal(),
+		Output:   process.FinalOutput(time.Second),
+	})
 
 	k.notifyDisconnect(km.KernelId)
 	stopWatchingKernel(km)
 	km.stop()
+}
+
+// Death is what is known of a kernel that exited on its own, for the notebook it ran to be told why.
+type Death struct {
+	// Up says whether it had answered at all: one that never did failed to start.
+	Up       bool
+	ExitCode int
+	// The signal that ended it, "" when it exited.
+	Signal string
+	// Its last lines of output, where a kernel says what went wrong.
+	Output string
+}
+
+// Message says in a sentence what happened.
+func (d Death) Message() string {
+	what := "The kernel stopped unexpectedly"
+	if !d.Up {
+		what = "The kernel stopped before it was ready"
+	}
+	switch {
+	case d.Signal != "":
+		return fmt.Sprintf("%s: it was ended by %s.", what, d.Signal)
+	case d.ExitCode >= 0:
+		return fmt.Sprintf("%s: it exited with code %d.", what, d.ExitCode)
+	}
+	return what + "."
+}
+
+// The deaths kept, newest last: enough for every notebook open at the time to ask.
+const keptDeaths = 50
+
+func (k *Kernels) recordDeath(km *KernelManager, death Death) {
+	k.deathsMu.Lock()
+	defer k.deathsMu.Unlock()
+	if k.deaths == nil {
+		k.deaths = map[string]Death{}
+	}
+	k.deaths[km.KernelId] = death
+	k.deathOrder = append(k.deathOrder, km.KernelId)
+	if len(k.deathOrder) > keptDeaths {
+		delete(k.deaths, k.deathOrder[0])
+		k.deathOrder = k.deathOrder[1:]
+	}
+}
+
+// DeathOf answers why a kernel that exited on its own did, when it is one of the last few.
+func (k *Kernels) DeathOf(kernelId string) (Death, bool) {
+	k.deathsMu.Lock()
+	defer k.deathsMu.Unlock()
+	death, ok := k.deaths[kernelId]
+	return death, ok
+}
+
+func isClosed(ch <-chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
 }
 
 // StopAll stops every kernel at once, since each can take a few seconds to shut down cleanly.

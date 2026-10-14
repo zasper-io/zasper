@@ -678,12 +678,41 @@ func TestAKernelThatExitsOnItsOwnIsLetGo(t *testing.T) {
 	executeOverSocket(t, conn, created.Id, "import os; os._exit(1)")
 	awaitClosed(t, conn, 15*time.Second)
 
-	status, _ := call(t, srv, http.MethodGet, "/api/kernels/"+created.Kernel.Id, nil)
-	assert.Equal(t, http.StatusNotFound, status)
+	// Gone, and saying why, so the notebook can tell its reader rather than just losing its kernel.
+	status, body := call(t, srv, http.MethodGet, "/api/kernels/"+created.Kernel.Id, nil)
+	assert.Equal(t, http.StatusGone, status)
+	assert.Equal(t, "The kernel stopped unexpectedly: it exited with code 1.",
+		decode[map[string]string](t, body)["message"])
 
-	status, body := call(t, srv, http.MethodGet, "/api/sessions", nil)
+	status, body = call(t, srv, http.MethodGet, "/api/sessions", nil)
 	require.Equal(t, http.StatusOK, status)
 	assert.Empty(t, decode[map[string]models.SessionModel](t, body))
+}
+
+// A kernel that dies before it is ready says so, with the last thing it printed, which is where it says why.
+func TestAKernelThatDiesOnStartSaysWhy(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "kernels", "broken")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	kernelJson, err := json.Marshal(map[string]any{
+		"argv":         []string{"/bin/sh", "-c", "echo 'loading the kernel' >&2; echo 'error: no such flag NOTFOUND' >&2; exit 3", "{connection_file}"},
+		"display_name": "broken", "language": "c",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kernel.json"), kernelJson, 0o644))
+	srv, project := testServer(t, root)
+
+	created := startSession(t, srv, project, "broken", "notes.ipynb")
+
+	var gone []byte
+	require.Eventually(t, func() bool {
+		status, body := call(t, srv, http.MethodGet, "/api/kernels/"+created.Kernel.Id, nil)
+		gone = body
+		return status == http.StatusGone
+	}, 10*time.Second, 100*time.Millisecond, "the dead kernel was never reported gone")
+	died := decode[map[string]string](t, gone)
+	assert.Equal(t, "The kernel stopped before it was ready: it exited with code 3.", died["message"])
+	assert.Equal(t, "loading the kernel\nerror: no such flag NOTFOUND", died["output"])
 }
 
 // A running cell stops when its kernel is interrupted: by SIGINT, or by message when the kernelspec asks.

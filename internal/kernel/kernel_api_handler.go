@@ -28,10 +28,20 @@ func (k *Kernels) ResourcesHandler(w http.ResponseWriter, req *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, k.Resources(req.Context()))
 }
 
-// GetHandler answers one running kernel.
+/*
+GetHandler answers one running kernel. One that exited on its own is 410 Gone rather than 404, with why:
+the notebook it ran is told, rather than left showing a kernel that silently went away.
+*/
 func (k *Kernels) GetHandler(w http.ResponseWriter, req *http.Request) {
-	kernel, err := k.model(mux.Vars(req)["kernelId"])
+	kernelId := mux.Vars(req)["kernelId"]
+	kernel, err := k.model(kernelId)
 	if err != nil {
+		if death, ok := k.DeathOf(kernelId); ok {
+			httpx.SendJSON(w, http.StatusGone, map[string]string{
+				"error": http.StatusText(http.StatusGone), "message": death.Message(), "output": death.Output,
+			})
+			return
+		}
 		httpx.SendErrorResponse(w, http.StatusNotFound, fmt.Sprintf("Error getting kernel: %v", err))
 		return
 	}

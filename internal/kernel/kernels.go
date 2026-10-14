@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	"github.com/google/uuid"
 
@@ -28,6 +29,11 @@ type Kernels struct {
 	resources *resources.Sampler
 	// Refuses a start in a folder that is not trusted. Nil starts anything.
 	allowStart func() error
+
+	// Why the last few kernels that exited on their own did, by kernel id.
+	deathsMu   sync.Mutex
+	deaths     map[string]Death
+	deathOrder []string
 }
 
 // New starts kernels from the kernelspecs in specs.

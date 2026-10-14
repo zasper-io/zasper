@@ -161,6 +161,20 @@
   padding-top: 0;
 }
 
+// The last lines a kernel that died printed: its own words, in its own font, not in error red.
+.modal-error-output {
+  margin: 8px 0 0;
+  padding: 8px;
+  max-height: 12em;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size-sm);
+  color: var(--z-fg-default);
+  background: var(--z-bg-field);
+}
+
 // The upload dialog: a drop zone, the pickers, and a row per file.
 .uploadBody {
   padding: 16px;

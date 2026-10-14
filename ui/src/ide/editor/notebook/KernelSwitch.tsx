@@ -10,7 +10,14 @@ interface ModalProps {
   kernelName: string;
   /** Why the last kernel failed to start, '' when this is an ordinary switch. */
   error: string;
+  /** The kernel that was running exited on its own: why, and the last lines it printed. */
+  died?: KernelDeath | null;
   changeKernel: (kernel: string) => void;
+}
+
+export interface KernelDeath {
+  message: string;
+  output: string;
 }
 
 function KernelSwitcher(props: ModalProps) {
@@ -34,7 +41,7 @@ function KernelSwitcher(props: ModalProps) {
       ? 'none'
       : (kernelspecs[props.kernelName]?.spec?.display_name ?? props.kernelName);
 
-  const hasError = props.error !== '';
+  const hasError = props.error !== '' || !!props.died;
   const title = hasError
     ? 'Kernel Error'
     : props.kernelName === NO_KERNEL
@@ -63,14 +70,23 @@ function KernelSwitcher(props: ModalProps) {
             </button>
           </div>
           <div className="modal-body">
-            {hasError && (
+            {props.died ? (
               <div className="update-kernel-popup modal-error" role="alert">
-                <p>
-                  The kernel could not be started. Pick another one below.
-                  <br />
-                  {props.error}
-                </p>
+                <p>{props.died.message} Start it again, or pick another kernel below.</p>
+                {props.died.output !== '' && (
+                  <pre className="modal-error-output">{props.died.output}</pre>
+                )}
               </div>
+            ) : (
+              hasError && (
+                <div className="update-kernel-popup modal-error" role="alert">
+                  <p>
+                    The kernel could not be started. Pick another one below.
+                    <br />
+                    {props.error}
+                  </p>
+                </div>
+              )
             )}
             <div className="update-kernel-popup">
               <div className="update-kernel-popup-right">

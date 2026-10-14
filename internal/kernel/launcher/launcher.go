@@ -7,6 +7,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -27,6 +30,54 @@ type Process struct {
 	state *os.ProcessState
 	// What this platform signals the process with, in place of a process group where it has none.
 	platform *platform
+
+	// The last lines the process wrote, which is where a kernel that dies says why.
+	outputMu sync.Mutex
+	output   []string
+	// The readers of its stdout and stderr, done once both streams have ended.
+	streams sync.WaitGroup
+}
+
+const (
+	keptLines      = 30
+	keptLineLength = 500
+)
+
+// Output answers the last lines the process wrote to its stdout and stderr, oldest first.
+func (p *Process) Output() string {
+	p.outputMu.Lock()
+	defer p.outputMu.Unlock()
+	return strings.Join(p.output, "\n")
+}
+
+/*
+FinalOutput is Output once what the process wrote last has been read, waiting no longer than within. A
+process can exit before its last lines are through the pipe, and those are the lines that say why it
+died; but a child it left running holds the pipe open, so the wait has to end.
+*/
+func (p *Process) FinalOutput(within time.Duration) string {
+	read := make(chan struct{})
+	go func() {
+		p.streams.Wait()
+		close(read)
+	}()
+	select {
+	case <-read:
+	case <-time.After(within):
+	}
+	return p.Output()
+}
+
+func (p *Process) keep(line string) {
+	if len(line) > keptLineLength {
+		line = line[:keptLineLength] + "…"
+	}
+	p.outputMu.Lock()
+	defer p.outputMu.Unlock()
+	p.output = append(p.output, line)
+	if len(p.output) > keptLines {
+		p.output = p.output[len(p.output)-keptLines:]
+	}
 }
 
 // Done is closed once the process has exited and been reaped.
@@ -131,9 +182,11 @@ func Launch(spec Spec) (*Process, error) {
 	} else {
 		// A kernel is spoken to over ZMQ, not stdin, so closing the pipe is all that is wanted here.
 		stdin.Close()
-		go pipeToLog(stdout, "stdout", process.Pid)
+		process.streams.Add(1)
+		go process.pipeToLog(stdout, "stdout")
 	}
-	go pipeToLog(stderr, "stderr", process.Pid)
+	process.streams.Add(1)
+	go process.pipeToLog(stderr, "stderr")
 
 	log.Debug().Msg("Process started successfully")
 
@@ -162,12 +215,15 @@ pipeToLog drains one of a kernel's output streams into the log, at debug and tag
 These two streams used to be io.Copy'd straight into the server's own stdout and stderr, which is why
 an ordinary run was interrupted by ipykernel's "Ctrl-C will not work" banner, unlabelled and in the
 middle of the server's own lines. The output is kept rather than dropped because a kernel that dies
-on startup prints its traceback here and nowhere else — it just sits behind --debug now.
+on startup prints its traceback here and nowhere else — it sits behind --debug, and its last lines are
+kept on the process, for the notebook to be told.
 */
-func pipeToLog(stream io.Reader, name string, pid int) {
+func (p *Process) pipeToLog(stream io.Reader, name string) {
+	defer p.streams.Done()
 	scanner := bufio.NewScanner(stream)
 	for scanner.Scan() {
-		log.Debug().Int("pid", pid).Str("stream", name).Msg(scanner.Text())
+		log.Debug().Int("pid", p.Pid).Str("stream", name).Msg(scanner.Text())
+		p.keep(scanner.Text())
 	}
 	// A read error here means the kernel is gone, which the caller finds out about by other means.
 }

@@ -745,6 +745,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
                 <KernelSwitcher
                   kernelName={kernel.kernelName}
                   error={kernel.kernelError}
+                  died={kernel.kernelDied}
                   toggleKernelSwitcher={kernel.toggleKernelSwitcher}
                   changeKernel={kernel.changeKernel}
                 />

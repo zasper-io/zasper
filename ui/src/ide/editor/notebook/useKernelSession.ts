@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import {
+  ApiError,
   apiErrorMessage,
   createSession,
   deleteSession,
@@ -20,6 +21,7 @@ import { FileTab } from '@/store/tabState';
 import { WidgetBridge } from '@/ide/widgets/widgetBridge';
 
 import { kernelToStart, NO_KERNEL } from './kernelChoice';
+import { KernelDeath } from './KernelSwitch';
 import { decodeBuffers, KernelMessage, PlacedRun, ReplayedRun } from './kernelMessages';
 import { useInputPrompt } from './useInputPrompt';
 import { useKernelReconnect } from './useKernelReconnect';
@@ -48,6 +50,8 @@ export function useKernelSession(
    * in a dialog of its own: a failure and "choose a kernel" are the same moment.
    */
   const [kernelError, setKernelError] = useState<string>('');
+  // The kernel this tab was on exited on its own: why, for the picker to say. Null while it has not.
+  const [kernelDied, setKernelDied] = useState<KernelDeath | null>(null);
   /*
    * The kernel this tab would have started, held back because the folder is not trusted. It starts once the
    * folder is: see docs/TRUST.md. Null when nothing is held back.
@@ -121,6 +125,14 @@ export function useKernelSession(
           }
         })
         .catch((error: unknown) => console.error('Could not rejoin the notebook’s kernel:', error));
+    },
+    // It exited on its own: nothing it was running will report back, and there is no session left to
+    // rejoin. The picker says why, and picking the same kernel starts it again.
+    (why) => {
+      requests.forgetRunningCells();
+      setSession(null);
+      setKernelDied(deathFrom(why));
+      setShowKernelSwitcher(true);
     }
   );
 
@@ -205,6 +217,7 @@ export function useKernelSession(
     async (path: string, name: string, type: string, kernelspec: string) => {
       setKernelName(kernelspec);
       setKernelError('');
+      setKernelDied(null);
 
       if (kernelspec === NO_KERNEL) {
         setShowKernelSwitcher(true);
@@ -353,6 +366,7 @@ export function useKernelSession(
     showKernelSwitcher,
     toggleKernelSwitcher,
     kernelError,
+    kernelDied,
     /** No kernel, because the folder is not trusted. */
     restricted: restrictedKernel !== null,
     showPrompt: prompt.showPrompt,
@@ -373,3 +387,15 @@ export function useKernelSession(
 }
 
 export type KernelSession = ReturnType<typeof useKernelSession>;
+
+/** The server's 410 for a kernel that exited on its own: a sentence, and the last lines it printed. */
+function deathFrom(why: ApiError): KernelDeath {
+  let output = '';
+  try {
+    const parsed = JSON.parse(why.body) as { output?: unknown };
+    output = typeof parsed.output === 'string' ? parsed.output : '';
+  } catch {
+    // The message alone, then.
+  }
+  return { message: apiErrorMessage(why), output };
+}
