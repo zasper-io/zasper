@@ -47,7 +47,7 @@ import { useRegisterCommands, useRunCommand } from '@/commands/registry';
 import { useEditorCommandKeymap } from '@/commands/useEditorCommandKeymap';
 import { useNotebookCommands } from './notebookCommands';
 import { useKernelSession } from './useKernelSession';
-import { useCellLanguage } from './useCellLanguage';
+import { cellLanguageOf, useCellLanguage } from './useCellLanguage';
 import { useNotebookExport } from './export/useNotebookExport';
 import ExportDialog from './export/ExportDialog';
 import { exportFilename } from './export/exportFormats';
@@ -104,10 +104,14 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
   // The attached kernel's language first, then what the file says it was written in.
   const savedKernelspec = notebook.metadata.kernelspec;
-  const languageName =
-    kernel.kernelLanguage ??
-    notebook.metadata.language_info?.name ??
-    (typeof savedKernelspec === 'object' ? savedKernelspec?.language : undefined);
+  const languageName = cellLanguageOf([
+    kernel.languageInfo?.codemirror_mode,
+    kernel.languageInfo?.name,
+    kernel.kernelLanguage,
+    notebook.metadata.language_info?.codemirror_mode,
+    notebook.metadata.language_info?.name,
+    typeof savedKernelspec === 'object' ? savedKernelspec?.language : undefined,
+  ]);
   const cellLanguage = useCellLanguage(languageName);
   const cellLanguageName = languageName?.trim().toLowerCase() || 'python';
 
