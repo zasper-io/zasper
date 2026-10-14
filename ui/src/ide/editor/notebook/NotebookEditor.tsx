@@ -531,8 +531,17 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
   // The notebook as it is on screen, not as it is on disk: an export carries unsaved edits and the
   // output the kernel produced a moment ago, which is the whole reason the conversion is in the
   // browser rather than in the server.
+  // With the running kernel's language_info, as a save would write it: a script export is named by its
+  // file_extension, and a notebook not saved since the kernel started does not have it yet.
+  const exported = useMemo(
+    () =>
+      kernel.languageInfo
+        ? { ...notebook, metadata: { ...notebook.metadata, language_info: kernel.languageInfo } }
+        : notebook,
+    [notebook, kernel.languageInfo]
+  );
   const exportNotebook = useNotebookExport({
-    notebook,
+    notebook: exported,
     name: data.name,
     kernelLanguage: kernel.kernelLanguage,
     kernelDisplayName: kernel.kernelDisplayName,

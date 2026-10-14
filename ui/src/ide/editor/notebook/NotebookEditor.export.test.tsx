@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Provider } from '@/testing/Provider';
@@ -8,13 +8,14 @@ import {
   createSession,
   deleteSession,
   FakeSocket,
+  getKernel,
   getNotebook,
   resetIds,
   saveNotebook,
   sessionForPath,
   sockets,
 } from './notebookEditorFakes';
-import { notebookContent, session, tab } from './notebookEditorTestKit';
+import { kernelMessage, notebookContent, session, tab } from './notebookEditorTestKit';
 
 vi.mock('@/api', async () => (await import('./notebookEditorFakes')).apiModule());
 vi.mock('uuid', async () => ({ v4: (await import('./notebookEditorFakes')).nextId }));
@@ -59,6 +60,7 @@ describe('NotebookEditor export', () => {
     deleteSession.mockResolvedValue(undefined);
     saveNotebook.mockReset();
     saveNotebook.mockResolvedValue(undefined);
+    getKernel.mockReset();
   });
 
   /** The menu's own rows. `role="menuitem"` tells "Markdown" here from the cell-type option above. */
@@ -98,6 +100,23 @@ describe('NotebookEditor export', () => {
     await waitFor(() => expect(saveAs).toHaveBeenCalled());
     expect(saveAs.mock.calls[0][1]).toBe('notebook.md');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  // The running kernel names the extension, before any save has written its language_info into the file.
+  it('names a script by the running kernel’s file extension', async () => {
+    getKernel.mockResolvedValue({
+      ...session.kernel,
+      info: { language_info: { name: 'julia', file_extension: '.jl' } },
+    });
+    await openExportMenu();
+    act(() => sockets[0].receive(kernelMessage('status', 'any', { execution_state: 'idle' })));
+    await waitFor(() => expect(getKernel).toHaveBeenCalled());
+    await act(async () => {});
+
+    fireEvent.click(row('Script'));
+
+    await waitFor(() => expect(saveAs).toHaveBeenCalled());
+    expect(saveAs.mock.calls[0][1]).toBe('notebook.jl');
   });
 
   // Option D: HTML is the one format with something to leave out, so it is the one that asks.
