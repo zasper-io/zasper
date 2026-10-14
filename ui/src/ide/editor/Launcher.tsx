@@ -14,6 +14,8 @@ import {
   startEnvironmentSetup,
 } from '@/api';
 import { useAtom, useAtomValue } from 'jotai';
+import { LanguageDescription } from '@codemirror/language';
+import { languages } from '@codemirror/language-data';
 import { Kernelspec, kernelspecsAtom, kernelspecsStatusAtom } from '@/store/kernels';
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
 import { folderOf, recentFilesAtom } from '@/store/recentFiles';
@@ -75,17 +77,43 @@ interface KernelGroup {
   names: string[];
 }
 
+/** A kernelspec's language as CodeMirror names it, so `cpp` and `C++17` are one language: C++. */
+function languageOf(spec: Kernelspec): string {
+  const language = spec.spec.language?.trim() ?? '';
+  return LanguageDescription.matchLanguageName(languages, language, true)?.name ?? language;
+}
+
+/*
+ * The project's own environment, then the Pythons, then a group for each language that has more than one
+ * kernel (a conda environment of xeus kernels brings six C++ standards), and one more for the languages
+ * that have a single kernel each, which would otherwise be a heading a line.
+ */
 function groupKernels(kernelspecs: Record<string, Kernelspec>): KernelGroup[] {
-  const names = Object.keys(kernelspecs);
-  const project = names.filter((name) => name === PROJECT_KERNEL_NAME);
-  const isPython = (name: string) =>
-    name !== PROJECT_KERNEL_NAME && kernelspecs[name].spec.language?.toLowerCase() === 'python';
-  const python = names.filter(isPython).sort();
-  const others = names.filter((name) => name !== PROJECT_KERNEL_NAME && !isPython(name)).sort();
+  const names = Object.keys(kernelspecs)
+    .filter((name) => name !== PROJECT_KERNEL_NAME)
+    .sort();
+  const byLanguage = new Map<string, string[]>();
+  for (const name of names) {
+    const language = languageOf(kernelspecs[name]);
+    byLanguage.set(language, [...(byLanguage.get(language) ?? []), name]);
+  }
+  const python = byLanguage.get('Python') ?? [];
+  byLanguage.delete('Python');
+  const shared = [...byLanguage.entries()]
+    .filter(([language, kernels]) => language !== '' && kernels.length > 1)
+    .sort(([left], [right]) => left.localeCompare(right));
+  const alone = [...byLanguage.entries()]
+    .filter(([language, kernels]) => language === '' || kernels.length === 1)
+    .flatMap(([, kernels]) => kernels)
+    .sort();
   return [
-    { label: 'This project', names: project },
+    {
+      label: 'This project',
+      names: PROJECT_KERNEL_NAME in kernelspecs ? [PROJECT_KERNEL_NAME] : [],
+    },
     { label: 'Python', names: python },
-    { label: 'Other languages', names: others },
+    ...shared.map(([language, kernels]) => ({ label: language, names: kernels })),
+    { label: 'Other languages', names: alone },
   ].filter((group) => group.names.length > 0);
 }
 
@@ -105,8 +133,8 @@ const Launcher: React.FC<LauncherProps> = ({ data }) => {
     .filter((file) => openTabs[file.path] === undefined)
     .slice(0, RECENT_SHOWN);
 
-  // The project's own environment first, then the Pythons, then a group for everything else: ten
-  // kernelspecs is an ordinary laptop, and one to a line they run past the foot of the pane.
+  // Grouped, because ten kernelspecs is an ordinary laptop, and one to a line they run past the foot of
+  // the pane: see groupKernels.
   const groups = useMemo(() => groupKernels(kernelspecs), [kernelspecs]);
   // A restricted folder's own .venv is not offered by the server, and is shown locked here so that the
   // reason it is missing is on the page: see docs/TRUST.md.

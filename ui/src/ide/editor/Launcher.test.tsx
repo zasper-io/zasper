@@ -139,6 +139,32 @@ describe('Launcher', () => {
     expect(row('Python 3.12 (.venv)').className).toContain('is-project');
   });
 
+  // A conda environment of xeus kernels brings one per C++ standard, which buried R in a list of them.
+  it('gives a language with several kernels a group of its own, under its own name', () => {
+    const spec = (name: string, display: string, language: string) => ({
+      [name]: { name, spec: { display_name: display, language }, resources: {} },
+    });
+    renderLauncher({
+      ...spec('python3', 'Python 3 (ipykernel)', 'python'),
+      ...spec('xcpp17', 'C++17', 'cpp'),
+      ...spec('xcpp20', 'C++20', 'C++20'),
+      ...spec('ir', 'R', 'R'),
+      ...spec('julia-1.13', 'Julia 1.13', 'julia'),
+    });
+
+    const groups = [...document.querySelectorAll('.launcher-group')].map((label) => ({
+      label: label.textContent,
+      rows: [...(label.nextElementSibling?.querySelectorAll('.launcher-row-label') ?? [])].map(
+        (row) => row.textContent
+      ),
+    }));
+    expect(groups).toEqual([
+      { label: 'Python', rows: ['Python 3 (ipykernel)'] },
+      { label: 'C++', rows: ['C++17', 'C++20'] },
+      { label: 'Other languages', rows: ['R', 'Julia 1.13'] },
+    ]);
+  });
+
   it('opens a notebook on the kernel whose row was clicked', async () => {
     renderLauncher();
 
