@@ -464,8 +464,9 @@ $cell-gutter: 64px;
   // error output is `.output-error` below. The margin reset above still names it, because a library's
   // HTML output can contain one.
 
-  // pandas' "1240 rows × 5 columns" under its table. The app's own notes in an output are not that line.
-  p:not(.dataGrid-static-note, .dataChart-note, .z-note) {
+  // pandas' "1240 rows × 5 columns" under its table. The app's own notes in an output are not that line,
+  // and neither is the prose of a text/markdown output.
+  p:not(.dataGrid-static-note, .dataChart-note, .z-note, .output-markdown p) {
     color: var(--z-fg-muted);
     font-weight: 700;
   }
