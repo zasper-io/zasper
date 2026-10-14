@@ -139,7 +139,7 @@ func TestEveryFieldIsFilledInsideAnArgumentToo(t *testing.T) {
 
 	assert.Equal(t, []string{
 		"/opt/conda/bin/sparkmagic", "--f=/run/kernel-1.json", "--logo=" + resourceDir + "/logo.png",
-		"--home=/opt/conda", "--keep={unknown}",
+		"--home=" + filepath.FromSlash("/opt/conda"), "--keep={unknown}",
 	}, km.argv())
 }
 
@@ -188,7 +188,16 @@ func TestABareCommandTheEnvironmentLacksIsLeftToThePath(t *testing.T) {
 	spec := km.launchSpec()
 
 	assert.Equal(t, "deno", spec.Argv[0])
-	assert.Equal(t, len(kernelEnv(os.Environ(), nil))+1, len(spec.Env), "PATH was added to")
+	paths := func(env []string) int {
+		count := 0
+		for _, entry := range env {
+			if name, _, _ := strings.Cut(entry, "="); strings.EqualFold(name, "PATH") {
+				count++
+			}
+		}
+		return count
+	}
+	assert.Equal(t, paths(os.Environ()), paths(spec.Env), "PATH was added to")
 }
 
 // A spec outside an install, such as one in the user's data dir, has no prefix to fill in.

@@ -121,19 +121,26 @@ func (p *Process) Terminate() error {
 	return p.Kill()
 }
 
-// Kill ends the kernel and everything in its job.
+// Kill ends the kernel and everything in its job. The job holds the kernel too, so once it has ended there
+// is nothing left to kill: TerminateProcess on what it already ended answers "Access is denied".
 func (p *Process) Kill() error {
 	if err := p.validPid(); err != nil {
 		return err
 	}
 	if p.platform != nil {
 		p.platform.mu.Lock()
+		ended := false
 		if p.platform.job != 0 {
-			if err := windows.TerminateJobObject(p.platform.job, 1); err != nil {
+			err := windows.TerminateJobObject(p.platform.job, 1)
+			if err != nil {
 				log.Debug().Err(err).Int("pid", p.Pid).Msg("could not end the kernel's job")
 			}
+			ended = err == nil
 		}
 		p.platform.mu.Unlock()
+		if ended {
+			return nil
+		}
 	}
 	if err := p.process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return err
