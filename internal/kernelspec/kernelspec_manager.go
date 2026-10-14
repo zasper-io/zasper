@@ -352,6 +352,28 @@ func isKernelDir(path string) bool {
 
 var macUserBase = regexp.MustCompile(`/Library/Python/(\d+\.\d+)$`)
 
+/*
+BinDirs answers the folders an install keeps its executables in, for a spec inside one: <prefix>/bin, or
+on Windows the three conda puts on PATH when it activates an environment. Only folders that exist.
+*/
+func BinDirs(resourceDir string) []string {
+	prefix := Prefix(resourceDir)
+	if prefix == "" {
+		return nil
+	}
+	candidates := []string{filepath.Join(prefix, "bin")}
+	if runtime.GOOS == "windows" {
+		candidates = []string{prefix, filepath.Join(prefix, "Scripts"), filepath.Join(prefix, "Library", "bin")}
+	}
+	var dirs []string
+	for _, dir := range candidates {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs
+}
+
 // Prefix answers the install a spec belongs to, <prefix>/share/jupyter/kernels/<name>, or "" for a spec
 // kept anywhere else, such as the user's own data dir.
 func Prefix(resourceDir string) string {

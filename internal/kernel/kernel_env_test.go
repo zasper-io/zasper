@@ -143,6 +143,54 @@ func TestEveryFieldIsFilledInsideAnArgumentToo(t *testing.T) {
 	}, km.argv())
 }
 
+// conda's IRkernel spec runs a bare `R`: found in an environment that is not active, it is that
+// environment's R, with the environment first on PATH, as activating it would have it.
+func TestABareCommandIsTheOneInTheSpecsOwnEnvironment(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("a Windows environment keeps its executables in other folders, with an extension")
+	}
+	env := t.TempDir()
+	resourceDir := filepath.Join(env, "share", "jupyter", "kernels", "ir")
+	require.NoError(t, os.MkdirAll(resourceDir, 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(env, "bin"), 0o755))
+	r := filepath.Join(env, "bin", "R")
+	require.NoError(t, os.WriteFile(r, []byte("#!/bin/sh\n"), 0o755))
+	km := &KernelManager{Spec: kernelspec.KernelSpecJsonData{
+		Argv:        []string{"R", "--slave", "-e", "IRkernel::main()", "--args", "{connection_file}"},
+		ResourceDir: resourceDir,
+	}}
+
+	spec := km.launchSpec()
+
+	assert.Equal(t, r, spec.Argv[0])
+	// The last PATH is the one the kernel gets: os/exec keeps the last of duplicate keys.
+	path := ""
+	for _, entry := range spec.Env {
+		if strings.HasPrefix(entry, "PATH=") {
+			path = entry
+		}
+	}
+	assert.True(t, strings.HasPrefix(path, "PATH="+filepath.Join(env, "bin")+string(os.PathListSeparator)),
+		"the environment is not first on the kernel's PATH: %s", path)
+}
+
+// A command the spec's environment does not have is left to the PATH, which is left alone.
+func TestABareCommandTheEnvironmentLacksIsLeftToThePath(t *testing.T) {
+	t.Parallel()
+	env := t.TempDir()
+	resourceDir := filepath.Join(env, "share", "jupyter", "kernels", "deno")
+	require.NoError(t, os.MkdirAll(filepath.Join(env, "bin"), 0o755))
+	km := &KernelManager{Spec: kernelspec.KernelSpecJsonData{
+		Argv: []string{"deno", "jupyter", "--kernel", "--conn", "{connection_file}"}, ResourceDir: resourceDir,
+	}}
+
+	spec := km.launchSpec()
+
+	assert.Equal(t, "deno", spec.Argv[0])
+	assert.Equal(t, len(kernelEnv(os.Environ(), nil))+1, len(spec.Env), "PATH was added to")
+}
+
 // A spec outside an install, such as one in the user's data dir, has no prefix to fill in.
 func TestAPrefixIsFilledOnlyForASpecInsideAnInstall(t *testing.T) {
 	t.Parallel()

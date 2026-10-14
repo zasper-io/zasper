@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"slices"
@@ -218,7 +219,7 @@ func (km *KernelManager) releasePorts() {
 
 // launchSpec is the command line, environment and folder the kernel is started with.
 func (km *KernelManager) launchSpec() launcher.Spec {
-	env := kernelEnv(os.Environ(), km.Spec.Env)
+	env := km.environmentPath(kernelEnv(os.Environ(), km.Spec.Env))
 	// ipykernel exits once the process JPY_PARENT_PID names has gone, so a server that crashes leaves no
 	// kernels running. A Windows kernel reads it as a handle, not a pid; there the kernel's job object,
 	// which closes with the server, does the same.
@@ -271,8 +272,48 @@ func (km *KernelManager) argv() []string {
 		} else if cmd[0] == "python3" || cmd[0] == "python" {
 			cmd[0] = getPython()
 		}
+	} else if command := km.environmentCommand(cmd[0]); command != "" {
+		cmd[0] = command
 	}
 	return safePath(cmd)
+}
+
+/*
+environmentCommand answers a bare command as the environment the spec is installed in has it, or "".
+
+conda's IRkernel spec runs a bare `R`, written for an activated environment: found in an environment
+that is not active, it ran whichever R the server's PATH had, or none at all. A Python spec is not
+looked up here: its interpreter is found by ResolvedInterpreter.
+*/
+func (km *KernelManager) environmentCommand(command string) string {
+	if command == "" || strings.ContainsAny(command, `/\`) {
+		return ""
+	}
+	for _, dir := range kernelspec.BinDirs(km.Spec.ResourceDir) {
+		if found, err := exec.LookPath(filepath.Join(dir, command)); err == nil {
+			return found
+		}
+	}
+	return ""
+}
+
+// environmentPath puts the spec's environment first on PATH when its command came from there, so what
+// the kernel runs in turn, as R runs its own tools, comes from the same environment, as activating it would.
+func (km *KernelManager) environmentPath(env []string) []string {
+	if len(km.Spec.Argv) == 0 || km.environmentCommand(km.Spec.Argv[0]) == "" {
+		return env
+	}
+	path := ""
+	for _, entry := range env {
+		if name, value, ok := strings.Cut(entry, "="); ok && strings.EqualFold(name, "PATH") {
+			path = value
+		}
+	}
+	dirs := kernelspec.BinDirs(km.Spec.ResourceDir)
+	if path != "" {
+		dirs = append(dirs, path)
+	}
+	return append(env, "PATH="+strings.Join(dirs, string(os.PathListSeparator)))
 }
 
 /*
