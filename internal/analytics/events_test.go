@@ -227,6 +227,27 @@ func TestNormalizeLanguageNeverEchoesItsInput(t *testing.T) {
 	}
 }
 
+// The spec's language reads kernels whose names say nothing, and is held to the list as a name is.
+func TestKernelLanguageTakesTheSpecsOwnLanguage(t *testing.T) {
+	tests := []struct {
+		specLanguage, kernelName, want string
+	}{
+		{"go", "gonb", "go"},
+		{"scala", "almond", "scala"},
+		{"R", "zasper-tutorials-r", "r"},
+		{"shell", "bash", "bash"},
+		// Not on the list: the name decides, as before, and the spec's value never travels.
+		{"cpp", "xcpp17", "other"},
+		{"anna-secret", "python3", "python"},
+		{"", "julia-1.13", "julia"},
+	}
+	for _, test := range tests {
+		if got := KernelLanguage(test.specLanguage, test.kernelName); got != test.want {
+			t.Errorf("KernelLanguage(%q, %q) = %q, want %q", test.specLanguage, test.kernelName, got, test.want)
+		}
+	}
+}
+
 // Nothing is sent before SetUpPostHogClient has run, which is what makes --tracking=false mean no
 // network rather than a dropped payload.
 func TestTrackIsInertWhenDisabled(t *testing.T) {

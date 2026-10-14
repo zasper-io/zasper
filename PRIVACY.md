@@ -47,8 +47,9 @@ And the values those properties may take:
   file without one, or `other`. A name is mapped onto that list, never checked against it, so
   `q3-forecast-acme.xlsx` is reported as `other` and nothing else.
 - **`kernel_language`** — `python`, `r`, `julia`, `go`, `javascript`, `typescript`, `scala`, `ruby`,
-  `rust`, `bash`, `sql`, `haskell`, or `other`. Mapped from the kernelspec name the same way, so a
-  conda environment named after you reports `other`.
+  `rust`, `bash`, `sql`, `haskell`, or `other`. The kernelspec's own `language` when it is one of
+  these, otherwise mapped from the kernelspec name the same way, so a conda environment named after
+  you reports `other`.
 - **`operation`** — `stage`, `unstage`, `discard`, `commit`, `checkout`, `branch_delete`, `fetch`,
   `pull`, `push`, `init`. Read-only git calls are not counted at all.
 - **`command_id`** — the command's own id, such as `notebook:run-cell-and-advance`. These are

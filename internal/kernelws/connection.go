@@ -379,7 +379,7 @@ func (kwsConn *Connection) handleIncomingMessage(incomingMsg []byte) {
 	// source going anywhere near a property.
 	if msg.Header.MsgType == "execute_request" {
 		analytics.Track(analytics.EventCodeCellExecuted, map[string]interface{}{
-			"kernel_language": analytics.NormalizeLanguage(kwsConn.KernelManager.KernelName),
+			"kernel_language": analytics.KernelLanguage(kwsConn.KernelManager.Spec.Language, kwsConn.KernelManager.KernelName),
 		})
 		// On the kernel's own shell rather than this tab's, so an input() prompt reaches the server
 		// even once the tab has gone. Its reply comes back here, off the reading loop.

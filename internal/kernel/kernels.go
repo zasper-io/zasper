@@ -46,6 +46,18 @@ func (k *Kernels) RequireTrust(check func() error) {
 	k.allowStart = check
 }
 
+// SpecLanguage answers the language the kernelspec name says its kernels are in, "" when nothing says.
+func (k *Kernels) SpecLanguage(name string) string {
+	if k == nil || k.specs == nil {
+		return ""
+	}
+	spec, err := k.specs.Spec(name)
+	if err != nil {
+		return ""
+	}
+	return spec.Language
+}
+
 // Get answers the manager for a running kernel.
 func (k *Kernels) Get(kernelId string) (*KernelManager, bool) {
 	return k.running.Get(kernelId)

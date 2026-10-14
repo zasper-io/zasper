@@ -25,7 +25,7 @@ func (s *Sessions) Create(req models.SessionModel) (models.SessionModel, error) 
 
 	// Counted here because this is the one place both answers are visible: how often opening a notebook
 	// gets a fresh kernel versus rejoining one that is already running.
-	language := analytics.NormalizeLanguage(req.Kernel.Name)
+	language := analytics.KernelLanguage(s.kernels.SpecLanguage(req.Kernel.Name), req.Kernel.Name)
 
 	if session, ok := s.runningSessionFor(req); ok {
 		log.Debug().Msgf("session %s is already running %s", session.Id, session.Path)

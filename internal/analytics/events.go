@@ -240,6 +240,23 @@ func NormalizeExtension(name string) string {
 	return "other"
 }
 
+/*
+KernelLanguage is the language a kernel reports: its kernelspec's own `language` when that is on the
+allowlist, which reads gonb, almond and xcpp right where their names say nothing, and otherwise what
+NormalizeLanguage makes of its name. The spec's language is a value of the kernel's author's choosing
+too, so it is only ever checked against the list, never passed on.
+*/
+func KernelLanguage(specLanguage, kernelName string) string {
+	language := strings.ToLower(strings.TrimSpace(specLanguage))
+	if language == "shell" {
+		language = "bash"
+	}
+	if _, ok := kernelLanguages.values[language]; ok && language != "other" {
+		return language
+	}
+	return NormalizeLanguage(kernelName)
+}
+
 // NormalizeLanguage maps a kernelspec name onto the language allowlist. Kernelspec names are
 // user-controlled — a conda environment is named by whoever made it — so an unrecognised one has to
 // collapse to "other" rather than travel.

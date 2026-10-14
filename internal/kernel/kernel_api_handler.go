@@ -66,7 +66,7 @@ func (k *Kernels) InterruptHandler(w http.ResponseWriter, req *http.Request) {
 
 	language := "other"
 	if km, ok := k.Get(kernelId); ok {
-		language = analytics.NormalizeLanguage(km.KernelName)
+		language = analytics.KernelLanguage(km.Spec.Language, km.KernelName)
 	}
 	analytics.Track(analytics.EventKernelInterrupted, map[string]interface{}{
 		"kernel_language": language,
