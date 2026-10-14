@@ -88,8 +88,8 @@ jobs:
       - name: Install the Go kernel
         run: |
           go install github.com/janpfeifer/gonb@v0.11.5
-          go install golang.org/x/tools/cmd/goimports@latest
-          go install golang.org/x/tools/gopls@latest
+          go install golang.org/x/tools/cmd/goimports@v0.52.0
+          go install golang.org/x/tools/gopls@v0.23.0
           gonb --install
 
       - name: Set up Ruby
