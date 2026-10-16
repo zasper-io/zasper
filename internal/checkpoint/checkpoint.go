@@ -319,9 +319,16 @@ func (s *Store) Blob(ctx context.Context, blob string) ([]byte, error) {
 	return s.run(ctx, nil, "cat-file", "blob", blob)
 }
 
+// errOutside refuses a path that is not a file in the project: absolute, or climbing out with "..".
+var errOutside = errors.New("not a path inside the project")
+
 // Read is the file at path as it is on disk now, and false when there is none.
 func (s *Store) Read(path string) ([]byte, bool, error) {
-	data, err := os.ReadFile(filepath.Join(s.root, filepath.FromSlash(path)))
+	local := filepath.FromSlash(path)
+	if !filepath.IsLocal(local) {
+		return nil, false, errOutside
+	}
+	data, err := os.ReadFile(filepath.Join(s.root, local))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, false, nil
 	}
@@ -330,7 +337,11 @@ func (s *Store) Read(path string) ([]byte, bool, error) {
 
 // Hash is the blob a file now on disk would be, or "" when there is no file.
 func (s *Store) Hash(ctx context.Context, path string) (string, error) {
-	full := filepath.Join(s.root, filepath.FromSlash(path))
+	local := filepath.FromSlash(path)
+	if !filepath.IsLocal(local) {
+		return "", errOutside
+	}
+	full := filepath.Join(s.root, local)
 	if _, err := os.Lstat(full); errors.Is(err, os.ErrNotExist) {
 		return "", nil
 	}

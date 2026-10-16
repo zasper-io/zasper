@@ -78,20 +78,20 @@ func parsePS(out string) []Process {
 		if len(fields) != 4 {
 			continue
 		}
-		var numbers [4]int64
+		// Ids as int, the size they are kept in, so a 32-bit build never narrows one that does not fit.
+		var ids [3]int
 		ok := true
-		for i, field := range fields {
-			value, err := strconv.ParseInt(field, 10, 64)
+		for i, field := range fields[:3] {
+			value, err := strconv.Atoi(field)
 			if err != nil || value < 0 {
 				ok = false
 				break
 			}
-			numbers[i] = value
+			ids[i] = value
 		}
-		if ok {
-			processes = append(processes, Process{
-				Pid: int(numbers[0]), Ppid: int(numbers[1]), Pgid: int(numbers[2]), RSS: uint64(numbers[3]) * 1024,
-			})
+		rss, err := strconv.ParseUint(fields[3], 10, 64)
+		if ok && err == nil {
+			processes = append(processes, Process{Pid: ids[0], Ppid: ids[1], Pgid: ids[2], RSS: rss * 1024})
 		}
 	}
 	return processes

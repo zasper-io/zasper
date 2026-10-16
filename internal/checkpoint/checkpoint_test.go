@@ -224,3 +224,13 @@ func TestTheStoresOfProjectsLongUnusedAreRemoved(t *testing.T) {
 	assert.DirExists(t, recent)
 	assert.DirExists(t, keep)
 }
+
+func TestAPathOutsideTheProjectIsRefused(t *testing.T) {
+	store, _ := project(t)
+	for _, path := range []string{"../outside.txt", "/etc/passwd", "a/../../b"} {
+		_, _, err := store.Read(path)
+		assert.ErrorIs(t, err, errOutside, path)
+		_, err = store.Hash(context.Background(), path)
+		assert.ErrorIs(t, err, errOutside, path)
+	}
+}
