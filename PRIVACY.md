@@ -71,6 +71,47 @@ Nothing is fetched for ipywidgets' own widgets, or for a notebook without widget
 `~/.zasper/config.json` as `widget_cdn_enabled`. Widgets from other libraries then say they cannot
 be shown.
 
+## Coding agents
+
+The agent panel runs a coding agent you already have, such as Claude Code, Gemini CLI or Codex. It is
+yours, not Zasper's: it is signed in with your own account, uses your own subscription or key, and
+sends what you give it to its own provider under that provider's terms. Zasper is not a party to that,
+holds no key, and stores no copy of the conversation.
+
+What the agent is given, and so what its provider may receive:
+
+- What you type to it, and what you mention: a file, which it reads for itself, or a cell's source or
+  an output's text, sent as it is on screen, unsaved edits included
+- Whatever it reads in the project. It runs as you, in the project folder, and can read what you can.
+  A file open in a tab with unsaved edits is given to it as the tab holds it
+- Through Zasper's own tools, which every agent is given: your notebooks' cells and outputs, the
+  kernels and their variables, and the results of code it runs in them
+- The output of commands it runs
+
+What Zasper keeps, all of it on your machine:
+
+- **The conversation**, in the server's memory, so a reload or a second tab shows it. It is gone when
+  the chat ends or the server stops. An agent's history of its past conversations is its own, kept
+  where the agent keeps it — Claude Code under `~/.claude/` — and Zasper only asks the agent for it.
+- **Snapshots of the project's files**, under `~/.zasper/checkpoints/`, which are what list and undo
+  the files a turn changed. They hold copies of your files as they were before and after each turn —
+  not what `.gitignore` leaves out, not `node_modules`, `.venv` and the like, and nothing over 20 MB.
+  When a chat ends its snapshots are deleted; the store keeps one copy of each file as it last saw it,
+  so that the next snapshot is quick, until the project has gone 30 days unused and the whole store is
+  removed. The folder is readable only by you, and deleting it by hand is safe.
+- **A record of the running server** in `~/.zasper/runtime/`, with its address, its project folder and
+  its access token, so that `zasper mcp` can reach it. Readable only by you, and removed when the
+  server stops; a crash leaves one behind, which the next server removes.
+
+The one request the panel makes on its own: starting Claude Code when only `claude` is installed runs
+`npx -y @agentclientprotocol/claude-agent-acp`, which downloads that adapter from the npm registry the
+first time. Install it once with `npm install -g @agentclientprotocol/claude-agent-acp` and nothing is
+fetched.
+
+None of this is in the usage data above. No event says that a chat was started, which agent was used,
+or anything about what was said. A command run from the palette or a button, such as
+`notebook:add-cell-to-chat`, is counted by its id like any other command, and that is all.
+
 ## Your anonymous ID
 
 A random 21-character string, generated on first run and stored in `~/.zasper/config.json` as
