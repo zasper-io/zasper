@@ -1,4 +1,5 @@
 import { atom, useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { track } from '@/telemetry/client';
 
 import { deleteKernel, DiffTarget, logApiError } from '@/api';
 import { trackTabOpened } from '@/telemetry';
@@ -261,6 +262,10 @@ export function useTabActions(): TabActions {
     activateTab: (path: string) => setFileTabs((previous) => withActive(previous, path)),
 
     openDiff: (target: DiffTarget) => {
+      track('diff_opened', {
+        against: target.turn !== undefined ? 'turn' : 'git',
+        notebook: target.path.endsWith('.ipynb'),
+      });
       // Which comparison, in the tab name: two diffs of one file are two tabs, and a strip of tabs all
       // called `notes.txt (diff)` cannot be told apart.
       const against =
@@ -311,6 +316,7 @@ export function useTabActions(): TabActions {
     },
 
     openDiskCompare: (path: string) => {
+      track('diff_opened', { against: 'disk', notebook: path.endsWith('.ipynb') });
       openTab({
         name: `${baseName(path)} (on disk)`,
         path: diskCompareTabKey(path),

@@ -11,7 +11,12 @@ export type TelemetryEventName =
   | 'notebook_opened'
   | 'file_opened'
   | 'command_executed'
-  | 'theme_changed';
+  | 'theme_changed'
+  | 'agent_changes_undone'
+  | 'chart_created'
+  | 'sql_cell_run'
+  | 'disk_change_resolved'
+  | 'diff_opened';
 
 export interface TelemetryEvent {
   event: TelemetryEventName;
@@ -121,4 +126,36 @@ const COMMAND_ID = /^[a-z][a-z0-9]*:[a-z0-9-]{1,32}$/;
 
 export function isReportableCommandId(id: string): boolean {
   return COMMAND_ID.test(id);
+}
+
+/** Kept in step with connectionTypes in internal/analytics/events.go. */
+const CONNECTION_TYPES = new Set([
+  'postgresql',
+  'mysql',
+  'sqlite',
+  'duckdb',
+  'snowflake',
+  'bigquery',
+  'redshift',
+  'databricks',
+  'clickhouse',
+  'url',
+]);
+
+/**
+ * A SQL cell's connection as reported: its type when Zasper supports it, `none` for the kernel's own
+ * DataFrames, `other` for anything else. Never the connection's name, which is the user's.
+ */
+export function connectionType(type: string): string {
+  if (type === '' || type === 'dataframes') {
+    return 'none';
+  }
+  return CONNECTION_TYPES.has(type) ? type : 'other';
+}
+
+/** Kept in step with the chart kinds in internal/analytics/events.go. */
+const CHART_KINDS = new Set(['histogram', 'bar', 'line', 'scatter', 'box']);
+
+export function chartKind(kind: string): string {
+  return CHART_KINDS.has(kind) ? kind : 'other';
 }

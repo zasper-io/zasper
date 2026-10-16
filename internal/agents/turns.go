@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/checkpoint"
 	"github.com/zasper-io/zasper/internal/gitclient"
 )
@@ -53,16 +54,17 @@ func (c *Chat) snapshot(pin string) string {
 	return tree
 }
 
-// endTurn records what the turn that began at before changed, when both snapshots could be taken.
-func (c *Chat) endTurn(number int, before string) {
+// endTurn records what the turn that began at before changed, when both snapshots could be taken, and
+// answers how many files that was.
+func (c *Chat) endTurn(number int, before string) int {
 	after := c.snapshot(fmt.Sprintf("%d/after", number))
 	if before == "" || after == "" {
-		return
+		return 0
 	}
 	changes, err := c.checkpoints.Changes(context.Background(), before, after)
 	if err != nil {
 		log.Warn().Err(err).Str("chat", c.ID).Msg("could not list what a turn changed")
-		return
+		return 0
 	}
 	c.mu.Lock()
 	c.turns[number] = &turn{changes: changes, undone: map[string]bool{}}
@@ -70,6 +72,7 @@ func (c *Chat) endTurn(number int, before string) {
 	if len(changes) > 0 {
 		c.record(Event{Type: "changes", Changes: &TurnChanges{Turn: number, Files: changes}})
 	}
+	return len(changes)
 }
 
 func (c *Chat) turnChanges(number int) (*turn, error) {
@@ -191,6 +194,11 @@ func (c *Chat) Undo(ctx context.Context, number int, anyway bool, paths ...strin
 	}
 	c.mu.Unlock()
 	c.record(Event{Type: "undone", Changes: &TurnChanges{Turn: number, Files: undoing}})
+	scope := "turn"
+	if len(paths) > 0 {
+		scope = "file"
+	}
+	analytics.Track(analytics.EventAgentChangesUndone, map[string]interface{}{"scope": scope})
 	return nil
 }
 

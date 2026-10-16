@@ -60,6 +60,9 @@ import { useNotebookReveal } from './useNotebookReveal';
 import { useStableCallback } from './useStableCallback';
 import { useNotebookFind } from './useNotebookFind';
 import { cellMention, outputMention, useAddMention } from '@/ide/agents/mentions';
+import { connectionsAtom } from '@/store/connections';
+import { track } from '@/telemetry/client';
+import { connectionType } from '@/telemetry/events';
 
 interface NotebookEditorProps {
   data: FileTab;
@@ -297,6 +300,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     },
     [kernelId, markCellRunning, sendExecuteRequest]
   );
+  const connections = useAtomValue(connectionsAtom);
   const submitCell = useCallback(
     (source: string, cellId: string) => {
       if (kernel.restricted) {
@@ -308,9 +312,25 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
         });
         return;
       }
+      const sql = parseSqlCell(source);
+      if (sql !== null) {
+        const type =
+          sql.connection === DATAFRAMES
+            ? DATAFRAMES
+            : (connections?.connections.find((each) => each.name === sql.connection)?.type ?? '');
+        track('sql_cell_run', { connection_type: connectionType(type) });
+      }
       send(source, cellId);
     },
-    [send, kernel.restricted, kernel.kernelDisplayName, kernel.kernelName, askTrust, data.name]
+    [
+      send,
+      kernel.restricted,
+      kernel.kernelDisplayName,
+      kernel.kernelName,
+      askTrust,
+      data.name,
+      connections,
+    ]
   );
   useEffect(() => {
     if (kernel.connection?.readyState !== WebSocket.OPEN || heldRuns.current.length === 0) {

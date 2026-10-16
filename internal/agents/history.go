@@ -7,6 +7,8 @@ import (
 	"time"
 
 	acp "github.com/coder/acp-go-sdk"
+
+	"github.com/zasper-io/zasper/internal/analytics"
 )
 
 // How long an agent may take to replay a past conversation.
@@ -107,5 +109,6 @@ func (c *Chat) Load(id string) error {
 		c.record(Event{Type: "error", Text: fmt.Sprintf("could not open that conversation: %v", err)})
 		return err
 	}
+	analytics.Track(analytics.EventAgentConversationReopened, map[string]interface{}{"agent": analytics.AgentKind(c.Agent)})
 	return nil
 }

@@ -16,6 +16,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/content"
 	"github.com/zasper-io/zasper/internal/kernel"
 	"github.com/zasper-io/zasper/internal/kernelspec"
@@ -51,6 +52,7 @@ func New(deps Deps) *mcp.Server {
 			"and run as it happens, in the cell it is for. Cells are named by id: read a notebook before changing it.",
 	})
 	t := tools{deps}
+	server.AddReceivingMiddleware(countToolCalls)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_notebooks",
 		Description: "The notebooks in the project, and whether each has a kernel running.",
@@ -104,6 +106,16 @@ func New(deps Deps) *mcp.Server {
 		Description: "A dataframe or array in the notebook's kernel: its columns, their types and statistics, and its first rows.",
 	}, t.describeDataframe)
 	return server
+}
+
+// countToolCalls counts each tool an agent calls, by name and nothing else.
+func countToolCalls(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+		if call, ok := req.(*mcp.CallToolRequest); ok && call.Params != nil {
+			analytics.Track(analytics.EventMCPToolCalled, map[string]interface{}{"tool": analytics.MCPTool(call.Params.Name)})
+		}
+		return next(ctx, method, req)
+	}
 }
 
 // Handler serves the MCP server over streamable HTTP, answering in plain JSON.

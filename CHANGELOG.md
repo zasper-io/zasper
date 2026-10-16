@@ -87,6 +87,10 @@ run nothing until you trust them.
 
 ### Changed
 
+- **Usage data counts the new features**: the agent panel, Zasper's MCP tools, folder trust, SQL
+  cells, charts, changes resolved against disk and diffs, by kind and in buckets, never by name or
+  content. [PRIVACY.md](PRIVACY.md) lists every event and every value it can carry, and turning usage
+  data off turns them off too.
 - **The status bar takes the theme's hue** in dark themes.
 - **More room between cells**, and Shift-Enter keeps the next cell in view.
 

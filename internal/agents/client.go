@@ -9,6 +9,8 @@ import (
 
 	acp "github.com/coder/acp-go-sdk"
 	"github.com/google/uuid"
+
+	"github.com/zasper-io/zasper/internal/analytics"
 )
 
 // chatClient is what the agent calls on the editor, for one chat.
@@ -35,6 +37,7 @@ func (c chatClient) RequestPermission(ctx context.Context, request acp.RequestPe
 			if option.Kind == acp.PermissionOptionKindAllowOnce {
 				c.chat.record(Event{Type: "permission", Permission: &Permission{ID: id, Request: &request}})
 				c.chat.record(Event{Type: "answered", Permission: &Permission{ID: id, OptionID: string(option.OptionId), Auto: true}})
+				analytics.Track(analytics.EventAgentPermissionAnswered, map[string]interface{}{"answered_by": "mode", "allowed": true})
 				return acp.RequestPermissionResponse{Outcome: acp.RequestPermissionOutcome{
 					Selected: &acp.RequestPermissionOutcomeSelected{OptionId: option.OptionId},
 				}}, nil
@@ -54,6 +57,13 @@ func (c chatClient) RequestPermission(ctx context.Context, request acp.RequestPe
 		if !ok || option == "" {
 			return cancelled, nil
 		}
+		allowed := false
+		for _, offered := range request.Options {
+			if string(offered.OptionId) == option {
+				allowed = offered.Kind == acp.PermissionOptionKindAllowOnce || offered.Kind == acp.PermissionOptionKindAllowAlways
+			}
+		}
+		analytics.Track(analytics.EventAgentPermissionAnswered, map[string]interface{}{"answered_by": "reader", "allowed": allowed})
 		return acp.RequestPermissionResponse{Outcome: acp.RequestPermissionOutcome{
 			Selected: &acp.RequestPermissionOutcomeSelected{OptionId: acp.PermissionOptionId(option)},
 		}}, nil

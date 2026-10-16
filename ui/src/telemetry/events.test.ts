@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isReportableCommandId, normalizeExtension } from './events';
+import { chartKind, connectionType, isReportableCommandId, normalizeExtension } from './events';
 
 describe('normalizeExtension', () => {
   it('reports the extensions worth telling apart', () => {
@@ -72,5 +72,21 @@ describe('isReportableCommandId', () => {
     expect(isReportableCommandId('Notebook:RunCell')).toBe(false);
     expect(isReportableCommandId('notebook:run.cell')).toBe(false);
     expect(isReportableCommandId('')).toBe(false);
+  });
+});
+
+describe('connectionType', () => {
+  it('reports a type Zasper supports, and never a connection name', () => {
+    expect(connectionType('duckdb')).toBe('duckdb');
+    expect(connectionType('dataframes')).toBe('none');
+    expect(connectionType('')).toBe('none');
+    expect(connectionType('anna-warehouse')).toBe('other');
+  });
+});
+
+describe('chartKind', () => {
+  it('reports a kind the data grid draws, and nothing else', () => {
+    expect(chartKind('scatter')).toBe('scatter');
+    expect(chartKind('pie')).toBe('other');
   });
 });

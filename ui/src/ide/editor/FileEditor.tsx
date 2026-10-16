@@ -69,6 +69,7 @@ import { detectLineEnding, formatFor, indentationOf, saveRulesOf, tidyChanges } 
 import languageFor, { lazyLanguageFor, lazyLanguageNamed, PLAIN_TEXT } from './language';
 import { changeBetween } from './textChange';
 import { zoomAwareTooltips } from './tooltipParent';
+import { track } from '@/telemetry/client';
 
 // The notebook's renderer, and its code-splitting boundary: see MarkdownRenderer.tsx.
 const MarkdownRenderer = lazy(() => import('./notebook/MarkdownRenderer'));
@@ -562,10 +563,14 @@ export default function FileEditor(props: FileEditorProps) {
   }, [props.data.active, takeChangeFromDisk]);
 
   // The band comes down and the editor stays unsaved, so the next save writes it.
-  const keepMine = useCallback(() => setConflict(null), []);
+  const keepMine = useCallback(() => {
+    setConflict(null);
+    track('disk_change_resolved', { choice: 'mine', scope: 'file' });
+  }, []);
   const overwrite = useCallback(() => {
     setConflict(null);
     save.current();
+    track('disk_change_resolved', { choice: 'mine', scope: 'file' });
   }, []);
 
   // An edit like any other, so undo brings the reader's version back.
@@ -578,6 +583,7 @@ export default function FileEditor(props: FileEditorProps) {
     savedDoc.current = theirs;
     adoptLineEnding(conflict);
     setConflict(null);
+    track('disk_change_resolved', { choice: 'theirs', scope: 'file' });
     editor.dispatch({ changes: changeBetween(editor.state.doc.toString(), theirs.toString()) });
   }, [conflict, adoptLineEnding]);
 

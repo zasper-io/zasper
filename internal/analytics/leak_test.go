@@ -100,6 +100,15 @@ func TestNothingIdentifyingReachesTheWire(t *testing.T) {
 	Track(EventGitOperation, map[string]interface{}{"operation": "commit"})
 	Track(EventCommandExecuted, map[string]interface{}{"command_id": "notebook:run-cell-and-advance"})
 	Track(EventThemeChanged, map[string]interface{}{"theme_id": "teal-dark"})
+	// An agent started by its own command line, a tool a client made up, a connection named after
+	// its owner: each mapped onto its list, so none of the names travels.
+	Track(EventAgentChatStarted, map[string]interface{}{"agent": AgentKind("/Users/anna/bin/acme-agent --acp")})
+	Track(EventAgentTurnEnded, map[string]interface{}{
+		"agent": AgentKind("claude-code"), "stop_reason": "end_turn", "files_changed": Bucket(4), "mentions": Bucket(2),
+	})
+	Track(EventMCPToolCalled, map[string]interface{}{"tool": MCPTool("acme_forecast_lookup")})
+	Track(EventSQLCellRun, map[string]interface{}{"connection_type": ConnectionType("anna-acme-warehouse")})
+	Track(EventAgentChangesUndone, map[string]interface{}{"scope": "file"})
 
 	// Blocks until the queue has drained, which is what makes the assertions below meaningful.
 	CloseClient()

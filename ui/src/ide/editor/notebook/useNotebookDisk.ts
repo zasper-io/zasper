@@ -13,6 +13,7 @@ import { changeBetween } from '@/ide/editor/textChange';
 import { DiskConflicts, HeldChanges, mergeFromDisk } from './diskMerge';
 import { stringifyNotebook } from './useNotebookDocument';
 import { NotebookCells } from './useNotebookCells';
+import { track } from '@/telemetry/client';
 
 /** What a version on disk did to the open notebook. */
 type Reconciled =
@@ -264,6 +265,7 @@ export function useNotebookDisk(
     (cellId: string) => {
       const { [cellId]: _answered, ...rest } = conflictsRef.current;
       setAllConflicts(rest);
+      track('disk_change_resolved', { choice: 'mine', scope: 'cell' });
     },
     [setAllConflicts]
   );
@@ -277,6 +279,7 @@ export function useNotebookDisk(
       const notebook = cellsRef.current.notebook;
       const { [cellId]: _answered, ...rest } = conflictsRef.current;
       setAllConflicts(rest);
+      track('disk_change_resolved', { choice: 'theirs', scope: 'cell' });
       show(
         {
           ...notebook,
@@ -301,13 +304,20 @@ export function useNotebookDisk(
   );
 
   const keepAllMine = useCallback(() => {
+    if (wholeConflict !== null) {
+      track('disk_change_resolved', { choice: 'mine', scope: 'file' });
+    }
+    Object.keys(conflictsRef.current).forEach(() =>
+      track('disk_change_resolved', { choice: 'mine', scope: 'cell' })
+    );
     setWholeConflict(null);
     setAllConflicts({});
-  }, [setAllConflicts]);
+  }, [wholeConflict, setAllConflicts]);
 
   const takeAllTheirs = useCallback(async () => {
     if (wholeConflict !== null) {
       setWholeConflict(null);
+      track('disk_change_resolved', { choice: 'theirs', scope: 'file' });
       await cellsRef.current.loadNotebook(tab.path);
       return;
     }
