@@ -103,6 +103,21 @@ func TestValidateAcceptsTheCatalogue(t *testing.T) {
 		{EventCommandExecuted, map[string]interface{}{"command_id": "notebook:run-cell-and-advance"}},
 		{EventGitOperation, map[string]interface{}{"operation": "commit"}},
 		{EventThemeChanged, map[string]interface{}{"theme_id": "teal-dark"}},
+		{EventAgentChatStarted, map[string]interface{}{"agent": "claude-code"}},
+		{EventAgentStartFailed, map[string]interface{}{"agent": "other", "reason": "cancelled"}},
+		{EventAgentTurnEnded, map[string]interface{}{
+			"agent": "gemini", "stop_reason": "end_turn", "files_changed": Bucket(3), "mentions": Bucket(0),
+		}},
+		{EventAgentPermissionAnswered, map[string]interface{}{"answered_by": "mode", "allowed": true}},
+		{EventAgentModeChanged, map[string]interface{}{"mode": "edits"}},
+		{EventAgentConversationReopened, map[string]interface{}{"agent": "codex"}},
+		{EventAgentChangesUndone, map[string]interface{}{"scope": "cell"}},
+		{EventMCPToolCalled, map[string]interface{}{"tool": "run_cell"}},
+		{EventFolderTrustChanged, map[string]interface{}{"trusted": false}},
+		{EventSQLCellRun, map[string]interface{}{"connection_type": "duckdb"}},
+		{EventChartCreated, map[string]interface{}{"kind": "scatter"}},
+		{EventDiskChangeResolved, map[string]interface{}{"choice": "theirs", "scope": "cell"}},
+		{EventDiffOpened, map[string]interface{}{"against": "turn", "notebook": true}},
 	}
 
 	for _, test := range tests {
@@ -257,4 +272,21 @@ func TestTrackIsInertWhenDisabled(t *testing.T) {
 	// The assertion is that this neither panics nor reaches a nil client.
 	Track(EventServerStarted, nil)
 	Track(EventFileOpened, map[string]interface{}{"extension": "py"})
+}
+
+func TestAnAgentOrToolNamedByTheUserIsReportedAsOther(t *testing.T) {
+	for _, name := range []string{"/Users/anna/bin/my-agent", "acme-internal-agent --acp", ""} {
+		if got := AgentKind(name); got != "other" {
+			t.Errorf("AgentKind(%q) = %q, want other", name, got)
+		}
+	}
+	if got := AgentKind("claude-code"); got != "claude-code" {
+		t.Errorf("AgentKind(claude-code) = %q", got)
+	}
+	if got := MCPTool("exfiltrate_secrets"); got != "other" {
+		t.Errorf("MCPTool kept a name it does not know: %q", got)
+	}
+	if got := ConnectionType("acme-warehouse"); got != "other" {
+		t.Errorf("ConnectionType kept a type it does not know: %q", got)
+	}
 }

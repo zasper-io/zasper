@@ -22,6 +22,8 @@ import ColumnHeader from './ColumnHeader';
 import FilterBar from './FilterBar';
 import { displayValue } from './filters';
 import './DataGrid.scss';
+import { track } from '@/telemetry/client';
+import { chartKind } from '@/telemetry/events';
 
 const TAB_PAGE = 100;
 // A tab draws the rows in view and this many more each way, and keeps this many pages read.
@@ -87,6 +89,15 @@ export default function DataGrid(props: DataGridProps) {
   const [hidden, setHidden] = useState<number[]>(props.initialView?.hidden ?? []);
   const [widths, setWidths] = useState<Record<number, number>>(props.initialView?.widths ?? {});
   const [chart, setChart] = useState<ChartSpec | null>(props.initialView?.chart ?? null);
+  // Each chart drawn, by its kind: when one is made, or turned into another kind. A chart restored with
+  // the grid's saved view was counted when it was made.
+  const counted = useRef(props.initialView?.chart?.kind);
+  useEffect(() => {
+    if (chart !== null && chart.kind !== counted.current) {
+      track('chart_created', { kind: chartKind(chart.kind) });
+    }
+    counted.current = chart?.kind;
+  }, [chart]);
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(PAGE_SIZES[0]);
   const [table, setTable] = useState<RowsPage | null>(null);

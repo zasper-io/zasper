@@ -27,6 +27,21 @@ const (
 	EventCommandExecuted EventType = "command_executed"
 	EventGitOperation    EventType = "git_operation"
 	EventThemeChanged    EventType = "theme_changed"
+
+	EventAgentChatStarted          EventType = "agent_chat_started"
+	EventAgentStartFailed          EventType = "agent_start_failed"
+	EventAgentTurnEnded            EventType = "agent_turn_ended"
+	EventAgentPermissionAnswered   EventType = "agent_permission_answered"
+	EventAgentModeChanged          EventType = "agent_mode_changed"
+	EventAgentConversationReopened EventType = "agent_conversation_reopened"
+	EventAgentChangesUndone        EventType = "agent_changes_undone"
+	EventMCPToolCalled             EventType = "mcp_tool_called"
+
+	EventFolderTrustChanged EventType = "folder_trust_changed"
+	EventSQLCellRun         EventType = "sql_cell_run"
+	EventChartCreated       EventType = "chart_created"
+	EventDiskChangeResolved EventType = "disk_change_resolved"
+	EventDiffOpened         EventType = "diff_opened"
 )
 
 // What a property value is allowed to be. There is deliberately no free-text kind: the whole point
@@ -101,6 +116,25 @@ var fileExtensions = enum(
 	"lock", "env", "gitignore", "dockerfile", "makefile",
 )
 
+// The agents Zasper knows by id, and "other" for any started by its own command line, which is the
+// user's and never travels.
+var agentKinds = enum("claude-code", "gemini", "codex", "other")
+
+// ACP's stop reasons, and "error" for a turn the agent failed.
+var agentStopReasons = enum("end_turn", "cancelled", "max_tokens", "max_turn_requests", "refusal", "error", "other")
+
+// The tools Zasper's MCP server offers (internal/mcpserver).
+var mcpTools = enum(
+	"list_notebooks", "read_notebook", "edit_notebook", "run_cell", "run_all", "run_code",
+	"restart_kernel", "list_kernelspecs", "interrupt_kernel", "list_variables", "describe_dataframe", "other",
+)
+
+// The connection types a SQL cell can use (internal/connections), "none" for the kernel's own.
+var connectionTypes = enum(
+	"postgresql", "mysql", "sqlite", "duckdb", "snowflake", "bigquery", "redshift", "databricks",
+	"clickhouse", "url", "none", "other",
+)
+
 // The catalogue. An event not named here, or a property not named under its event, does not travel.
 var eventRegistry = map[EventType]map[string]propSpec{
 	EventServerStarted:  {},
@@ -125,6 +159,68 @@ var eventRegistry = map[EventType]map[string]propSpec{
 	EventCommandExecuted: {"command_id": {kind: propSlug}},
 	EventGitOperation:    {"operation": gitOperations},
 	EventThemeChanged:    {"theme_id": themeIDs},
+
+	// What an agent is asked and what it answers never travel: which agent, how a turn ended, and how
+	// many files it changed and things it was pointed at, as buckets.
+	EventAgentChatStarted: {"agent": agentKinds},
+	EventAgentStartFailed: {
+		"agent":  agentKinds,
+		"reason": enum("not_installed", "cancelled", "failed"),
+	},
+	EventAgentTurnEnded: {
+		"agent":         agentKinds,
+		"stop_reason":   agentStopReasons,
+		"files_changed": {kind: propBucket},
+		"mentions":      {kind: propBucket},
+	},
+	EventAgentPermissionAnswered: {
+		"answered_by": enum("reader", "mode"),
+		"allowed":     {kind: propBool},
+	},
+	EventAgentModeChanged:          {"mode": enum("ask", "edits", "all")},
+	EventAgentConversationReopened: {"agent": agentKinds},
+	EventAgentChangesUndone:        {"scope": enum("turn", "file", "block", "cell")},
+	EventMCPToolCalled:             {"tool": mcpTools},
+
+	EventFolderTrustChanged: {"trusted": {kind: propBool}},
+	EventSQLCellRun:         {"connection_type": connectionTypes},
+	EventChartCreated:       {"kind": enum("histogram", "bar", "line", "scatter", "box", "other")},
+	EventDiskChangeResolved: {
+		"choice": enum("mine", "theirs"),
+		"scope":  enum("file", "cell"),
+	},
+	EventDiffOpened: {
+		"against":  enum("git", "disk", "turn"),
+		"notebook": {kind: propBool},
+	},
+}
+
+// AgentKind is how an agent is reported: its id when it is one Zasper knows, and "other" for a command
+// line, which is the user's own.
+func AgentKind(agent string) string {
+	if _, ok := agentKinds.values[agent]; ok {
+		return agent
+	}
+	return "other"
+}
+
+// MCPTool is a tool's name when it is one of Zasper's, and "other" for anything a client made up.
+func MCPTool(name string) string {
+	if _, ok := mcpTools.values[name]; ok {
+		return name
+	}
+	return "other"
+}
+
+// ConnectionType is a connection's type when it is one Zasper supports.
+func ConnectionType(kind string) string {
+	if kind == "" {
+		return "none"
+	}
+	if _, ok := connectionTypes.values[kind]; ok {
+		return kind
+	}
+	return "other"
 }
 
 // KnownEvent reports whether an event name is in the catalogue.

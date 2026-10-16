@@ -89,6 +89,8 @@ const NOT_FILES = new Set([
   'help',
   'settings',
   'whats-new',
+  // A diff is counted as diff_opened, by what it compares, rather than as a file named "a.py (diff)".
+  'diff',
   'disk-diff',
   'search-preview',
   'lsp-log',

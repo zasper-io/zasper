@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/checkpoint"
 	"github.com/zasper-io/zasper/internal/httpx"
 )
@@ -45,6 +46,9 @@ func (m *Manager) GiveTools(tools func(chatID, agent string) []acp.McpServer) {
 func (m *Manager) Start(ctx context.Context, id, custom string) (*Chat, error) {
 	argv, agent, ok := commandFor(id, custom)
 	if !ok {
+		analytics.Track(analytics.EventAgentStartFailed, map[string]interface{}{
+			"agent": analytics.AgentKind(id), "reason": "not_installed",
+		})
 		return nil, fmt.Errorf("%q is not installed, or not an agent Zasper knows", id)
 	}
 	var servers []acp.McpServer
@@ -53,8 +57,16 @@ func (m *Manager) Start(ctx context.Context, id, custom string) (*Chat, error) {
 	}
 	chat, err := start(ctx, argv, agent, m.root, m.files, servers, m.checkpoints())
 	if err != nil {
+		reason := "failed"
+		if ctx.Err() != nil {
+			reason = "cancelled"
+		}
+		analytics.Track(analytics.EventAgentStartFailed, map[string]interface{}{
+			"agent": analytics.AgentKind(agent), "reason": reason,
+		})
 		return nil, err
 	}
+	analytics.Track(analytics.EventAgentChatStarted, map[string]interface{}{"agent": analytics.AgentKind(agent)})
 	m.mu.Lock()
 	m.chats[chat.ID] = chat
 	m.mu.Unlock()

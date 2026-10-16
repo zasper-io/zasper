@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/checkpoint"
 	"github.com/zasper-io/zasper/internal/kernel/launcher"
 )
@@ -191,10 +192,15 @@ func (c *Chat) Prompt(text string, mentions ...Mention) error {
 			SessionId: c.session,
 			Prompt:    blocks,
 		})
-		c.endTurn(number, before)
+		changed := c.endTurn(number, before)
 		c.mu.Lock()
 		c.answering = false
 		c.mu.Unlock()
+		stopReason := "error"
+		if err == nil {
+			stopReason = string(answer.StopReason)
+		}
+		c.trackTurn(stopReason, changed, len(mentions))
 		if err != nil {
 			c.record(Event{Type: "error", Text: err.Error()})
 			return
@@ -240,7 +246,29 @@ func (c *Chat) SetMode(mode string) error {
 	c.Mode = mode
 	c.mu.Unlock()
 	c.record(Event{Type: "mode", Text: mode})
+	analytics.Track(analytics.EventAgentModeChanged, map[string]interface{}{"mode": mode})
 	return nil
+}
+
+// trackTurn counts a turn that has ended: how, and how many files and mentions it had, never what.
+func (c *Chat) trackTurn(stopReason string, filesChanged, mentions int) {
+	analytics.Track(analytics.EventAgentTurnEnded, turnEvent(c.Agent, stopReason, filesChanged, mentions))
+}
+
+func turnEvent(agent, stopReason string, filesChanged, mentions int) map[string]interface{} {
+	switch acp.StopReason(stopReason) {
+	case acp.StopReasonEndTurn, acp.StopReasonCancelled, acp.StopReasonMaxTokens, acp.StopReasonMaxTurnRequests, acp.StopReasonRefusal:
+	default:
+		if stopReason != "error" {
+			stopReason = "other"
+		}
+	}
+	return map[string]interface{}{
+		"agent":         analytics.AgentKind(agent),
+		"stop_reason":   stopReason,
+		"files_changed": analytics.Bucket(filesChanged),
+		"mentions":      analytics.Bucket(mentions),
+	}
 }
 
 func (c *Chat) mode() string {

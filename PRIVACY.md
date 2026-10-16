@@ -40,6 +40,19 @@ Go library adds its own name and version, the Go version Zasper was built with, 
 | `git_operation` | A git action succeeds | `operation` |
 | `command_executed` | A command runs, from the palette, a key, or a button | `command_id` |
 | `theme_changed` | You pick a theme in Settings | `theme_id` |
+| `agent_chat_started` | A coding agent starts in the agent panel | `agent` |
+| `agent_start_failed` | One does not | `agent`, `reason` |
+| `agent_turn_ended` | An agent finishes answering a message | `agent`, `stop_reason`, `files_changed`, `mentions` |
+| `agent_permission_answered` | An agent's question to go ahead is answered | `answered_by`, `allowed` |
+| `agent_mode_changed` | A chat's permission mode is changed | `mode` |
+| `agent_conversation_reopened` | A past conversation is opened again | `agent` |
+| `agent_changes_undone` | A turn's changes are undone | `scope` |
+| `mcp_tool_called` | An agent calls one of Zasper's MCP tools | `tool` |
+| `folder_trust_changed` | A folder is trusted, or no longer | `trusted` |
+| `sql_cell_run` | A SQL cell is run | `connection_type` |
+| `chart_created` | A data grid is drawn as a chart | `kind` |
+| `disk_change_resolved` | You choose between your edits and a change made on disk | `choice`, `scope` |
+| `diff_opened` | A diff opens: git's, a file against disk, or an agent's turn | `against`, `notebook` |
 
 And the values those properties may take:
 
@@ -55,7 +68,23 @@ And the values those properties may take:
 - **`command_id`** — the command's own id, such as `notebook:run-cell-and-advance`. These are
   identifiers written in Zasper's source, never anything you typed.
 - **`theme_id`** — one of the eight themes that ship with Zasper.
-- **`uptime_bucket`, `duration_bucket`** — a range rather than a number: `0`, `1`, `2-5`, `6-10`,
+- **`agent`** — `claude-code`, `gemini`, `codex`, or `other` for an agent started by its own command
+  line, which is never sent.
+- **`reason`** — `not_installed`, `cancelled` or `failed`.
+- **`stop_reason`** — how a turn ended, as the agent says: `end_turn`, `cancelled`, `max_tokens`,
+  `max_turn_requests`, `refusal`, `error`, or `other`.
+- **`files_changed`, `mentions`** — how many files the turn changed and how many things the message
+  pointed the agent at, as buckets. Never which files, or what.
+- **`answered_by`** — `reader` or `mode`. **`allowed`**, **`trusted`**, **`notebook`** — true or false.
+- **`mode`** — `ask`, `edits` or `all`.
+- **`scope`** — for an undo, `turn`, `file`, `block` or `cell`; for a change made on disk, `file` or
+  `cell`. **`choice`** — `mine` or `theirs`.
+- **`tool`** — one of Zasper's eleven MCP tools by its name (`read_notebook`, `run_cell`, …), or `other`.
+- **`connection_type`** — the connection's type as Zasper names it (`postgresql`, `duckdb`, `url`, …),
+  `none` for the kernel's own DataFrames, or `other`. Never the connection's name.
+- **`kind`** — `histogram`, `bar`, `line`, `scatter`, `box`, or `other`.
+- **`against`** — `git`, `disk` or `turn`.
+- **`uptime_bucket`, `duration_bucket`, `files_changed`, `mentions`** — a range rather than a number: `0`, `1`, `2-5`, `6-10`,
   `11-25`, `26-50`, `51-100`, `100+`, in minutes.
 
 ## Widget libraries
@@ -108,9 +137,10 @@ The one request the panel makes on its own: starting Claude Code when only `clau
 first time. Install it once with `npm install -g @agentclientprotocol/claude-agent-acp` and nothing is
 fetched.
 
-None of this is in the usage data above. No event says that a chat was started, which agent was used,
-or anything about what was said. A command run from the palette or a button, such as
-`notebook:add-cell-to-chat`, is counted by its id like any other command, and that is all.
+The usage data above counts that a chat started and with which kind of agent, how each turn ended
+and how many files it changed, how questions were answered, and which of Zasper's tools were called.
+Nothing that was said travels: no message, no answer, no file name, no tool's arguments or result, and
+no agent started by its own command line, which is reported as `other`.
 
 ## Your anonymous ID
 

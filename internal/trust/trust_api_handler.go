@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/httpx"
 )
 
@@ -33,6 +34,7 @@ func (g *Gate) TrustHandler(w http.ResponseWriter, req *http.Request) {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	analytics.Track(analytics.EventFolderTrustChanged, map[string]interface{}{"trusted": true})
 	httpx.SendJSON(w, http.StatusOK, g.State())
 }
 
@@ -47,6 +49,7 @@ func (g *Gate) ForgetHandler(w http.ResponseWriter, req *http.Request) {
 		httpx.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	analytics.Track(analytics.EventFolderTrustChanged, map[string]interface{}{"trusted": false})
 	httpx.SendJSON(w, http.StatusOK, g.State())
 }
 

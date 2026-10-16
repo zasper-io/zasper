@@ -14,6 +14,7 @@ import {
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { FileTab } from '@/store/tabState';
+import { track } from '@/telemetry/client';
 import BreadCrumb from './BreadCrumb';
 import NotebookDiff from './notebookDiff/NotebookDiff';
 import { CellDiff, NotebookDiff as NotebookDiffResult, revertCell } from './notebookDiff/cellDiff';
@@ -134,6 +135,7 @@ export default function DiffTab(props: DiffTabProps) {
           saveFile(path, content, onDisk.current).then((hash) => {
             onDisk.current = hash;
             setWriteError('');
+            track('agent_changes_undone', { scope: 'block' });
           }, notWritten);
         };
 
@@ -150,6 +152,7 @@ export default function DiffTab(props: DiffTabProps) {
             const cells = revertCell(read.content.cells, comparison, change);
             onDisk.current = await saveNotebook(path, { ...read.content, cells }, onDisk.current);
             setWriteError('');
+            track('agent_changes_undone', { scope: 'cell' });
             setReloads((count) => count + 1);
           };
           write().catch(notWritten);

@@ -4,6 +4,110 @@ All notable changes to Zasper are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Zasper follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] — 2026-10-16
+
+2.1.0 brings coding agents into Zasper. The agent you already use — Claude Code, Gemini CLI or Codex —
+works in a panel beside your notebooks, can read, edit and run them through Zasper's own tools, and
+every change it makes can be reviewed and undone. Underneath that, a notebook now takes changes made to
+its file while it is open, cell by cell, and a run started anywhere reaches its cell. There is also a
+variables panel with a data grid that turns into a chart, SQL cells, a notebook diff, and folders that
+run nothing until you trust them.
+
+### Upgrading from 2.0.0
+
+- **A folder runs nothing until you trust it.** The first time you open a folder, Zasper asks whether
+  you trust its authors. Until you do, it is restricted: every file and saved output can be read, but
+  no kernel, `.venv`, language server that runs code or git hook starts. A folder you trust is
+  remembered. `zasper --trust` trusts the folder for one run, which is what a script or a server you
+  run unattended wants. [docs/TRUST.md](docs/TRUST.md) has the whole table.
+- **The watch socket says which files changed.** `/api/contents/watch` sends
+  `{"changed": [{"path", "hash"}]}` where it sent the bare string `reload`, which it now sends only
+  when too many files changed at once to list. A script that waited for `reload` should treat any
+  message as a change. See [docs/API.md](docs/API.md).
+- **A save can be refused.** `PUT /api/contents` takes the `hash` a read served, and answers `409` when
+  the file has changed since, rather than writing over it. A save without a `hash` writes as before.
+
+### Added
+
+**Coding agents** — see [docs/AGENTS.md](docs/AGENTS.md) and [docs/MCP.md](docs/MCP.md)
+
+- **The agent panel**, on the right of the editor. Start Claude Code, Gemini CLI, Codex or any agent that
+  speaks the Agent Client Protocol; those not installed show the command that installs them. The
+  conversation is kept on the server, so a reload or a second tab shows it, and an agent's past
+  conversations in the project can be opened again.
+- **Zasper's tools for every agent**, over MCP: list, read and edit notebooks cell by cell, run a cell,
+  run all, run code to inspect a kernel, list variables and describe a DataFrame. `zasper mcp` gives
+  the same tools to an agent that runs on its own, in a terminal.
+- **Permission modes**: ask every time, allow edits, or allow edits and commands.
+- **Commands the agent runs** show their output and exit code in their row, live where the agent lets
+  Zasper run them.
+- **Review and undo a turn.** The files a turn changed are listed under it. Each opens a diff, with an
+  undo for every changed block, or for every changed cell of a notebook; a file, or the whole turn, can
+  be undone at once. Edits, commands and notebook tools all count, whoever made them.
+- **Mentions.** `@` finds a file, including one `.gitignore` leaves out, and a cell's menu adds the
+  cell or its output to the next message, unsaved edits included.
+- **A cell an agent ran or edited** carries its mark, and its name while it runs.
+
+**Notebooks**
+
+- **A notebook takes changes made to its file while it is open**, cell by cell. A cell you are typing
+  in is left until you leave it, and a cell both sides changed asks which to keep, on the cell.
+- **A run started anywhere reaches its cell**: from another tab, from an agent, or with no tab open at
+  all. Output is kept on the server and replayed into a tab that opens later, and `input()` waits for a
+  tab to answer it.
+- **A notebook diff**, cell by cell, with outputs and metadata, for git's changes and a file changed on
+  disk.
+- **Run time** beside each cell, and its run button and execution count always shown side by side.
+- **Outputs**: `text/markdown`, GIF, WebP and PDF.
+- **A notebook naming no kernel** starts one for the language it is written in, and cells take their
+  language from the running kernel.
+- **A dead kernel says why**, with the last lines it printed.
+
+**Data**
+
+- **A variables panel** for the running kernel, and a data grid for a DataFrame: hide, move and resize
+  columns, export the ones you choose to CSV, and turn the grid into a chart — and the chart into the
+  code that draws it.
+- **Compact DataFrame grids in cell output**, with each column's statistics on hover.
+- **SQL cells** on connections Zasper manages, whose result is a DataFrame the next cells can use.
+  Interrupt cancels a running query.
+- **Each kernel's memory and GPU memory**, shown as it runs.
+
+**Kernels and languages**
+
+- **Kernels in any conda environment** are found, and a kernelspec's `{connection_file}`,
+  `{resource_dir}` and `{prefix}` are filled anywhere in its command, as Jupyter fills them.
+- **Language servers for Java, Scala, Kotlin, C#, shell, SQL and Haskell.**
+- **The launcher groups a language's kernels** when it has several.
+- **Windows**: interrupting a kernel works, and stopping one stops everything it started.
+
+**And**
+
+- **What's new**, as a tab after an upgrade.
+
+### Changed
+
+- **Usage data counts the new features**: the agent panel, Zasper's MCP tools, folder trust, SQL
+  cells, charts, changes resolved against disk and diffs, by kind and in buckets, never by name or
+  content. [PRIVACY.md](PRIVACY.md) lists every event and every value it can carry, and turning usage
+  data off turns them off too.
+- **The status bar takes the theme's hue** in dark themes.
+- **More room between cells**, and Shift-Enter keeps the next cell in view.
+
+### Fixed
+
+- A notebook's kernel no longer imports modules that happen to sit beside the notebook as it starts.
+- Run All no longer sends a cell before the SQL cell above it has finished.
+- A display updated in place shows its latest frame, live and replayed.
+- A kernel slow to start is waited for however long it takes, not 30 seconds.
+- A run the kernel aborted ends cleanly, and is saved even when nobody saw it end.
+- A notebook's control messages reach a busy kernel.
+- A cell whose kernel died before answering shows no execution count, and saves none.
+- A conda kernel's command runs from its own environment.
+- Connection files left by a server that was killed are cleaned up by the next one.
+- A markdown output's prose is no longer drawn as a table's row count.
+- C and C++ notebooks no longer get errors from clangd, which reads a cell as a whole file.
+
 ## [2.0.0] — 2026-09-22
 
 2.0.0 is a major release because two parts of the documented API changed
