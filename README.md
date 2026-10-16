@@ -35,8 +35,17 @@ browser, on your own machine or on a server you share.
 
 - **Notebooks** on any Jupyter kernel, with Plotly, ipywidgets, HTML and Markdown with LaTeX
   rendered inline. A save is byte-for-byte what Jupyter would have written.
-- **Editor, terminal and version control** in the same window as your notebooks.
+- **Coding agents** in a panel beside your notebooks: Claude Code, Gemini CLI, Codex or any agent
+  that speaks the Agent Client Protocol, with Zasper's tools to read, edit and run notebooks, and
+  every change it makes reviewed and undone from the panel. See [Coding agents](#coding-agents).
+- **Data**: a variables panel for the running kernel, DataFrames as a grid that becomes a chart,
+  and SQL cells on the databases you connect.
+- **A notebook that keeps up**: a change made to its file while it is open is taken in cell by cell,
+  and a run started anywhere — another tab, an agent, no tab at all — reaches its cell.
+- **Editor, terminal and version control** in the same window as your notebooks, with notebook
+  diffs cell by cell.
 - **Command palette** that finds files and every command in one search.
+- **Trusted folders**: a folder you open runs no code until you trust it.
 - **Light and dark themes**, and window zoom.
 - **Self-hosting** built in: every session is protected by an access token.
 
@@ -73,6 +82,7 @@ browser, on your own machine or on a server you share.
 - [Self-hosting](#self-hosting)
 - [Jupyter kernels](#jupyter-kernels)
 - [Language servers](#language-servers)
+- [Coding agents](#coding-agents)
 - [Notebook compatibility](#notebook-compatibility)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Configuration](#configuration)
@@ -181,7 +191,7 @@ $ zasper
      ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
 
                     Zasper Server
-                Version: 1.0.0
+                Version: 2.1.0
 ----------------------------------------------------------
  ✅ Server started successfully!
  📡 Bound to:            127.0.0.1:8048
@@ -324,6 +334,31 @@ when you want a type checker's opinion on code you maintain.
 See [docs/LANGUAGE-SERVERS.md](docs/LANGUAGE-SERVERS.md) for those modes, what each server is told,
 and what to do when a correct line is squiggled.
 
+## Coding agents
+
+The agent panel, on the right of the editor (the bot in the top bar), runs a coding agent you
+already have: Claude Code, Gemini CLI, Codex, or any other that speaks the
+[Agent Client Protocol](https://agentclientprotocol.com). It is signed in with your own account and
+uses your own subscription; Zasper holds no key and sends nothing anywhere.
+
+- **Zasper's tools** for every agent, with no setup: list, read and edit notebooks cell by cell, run
+  cells and whole notebooks, inspect a kernel's variables and DataFrames.
+- **Mentions**: `@` points the agent at a file, and a cell's menu adds the cell or its output to the
+  next message.
+- **Permission modes**: ask every time, allow edits, or allow edits and commands.
+- **Review and undo**: the files each turn changed are listed under it, with a diff per file and an
+  undo for a block, a cell, a file or the whole turn.
+- **Past conversations** in the project can be opened again.
+
+An agent that runs on its own, in a terminal, gets the same tools from `zasper mcp`:
+
+```sh
+claude mcp add zasper -- zasper mcp
+```
+
+[docs/AGENTS.md](docs/AGENTS.md) covers the panel and [docs/MCP.md](docs/MCP.md) the tools.
+[PRIVACY.md](PRIVACY.md#coding-agents) says what an agent is given and what Zasper keeps.
+
 ## Notebook compatibility
 
 Zasper reads and writes the `.ipynb` format directly. Two guarantees are worth stating outright:
@@ -348,6 +383,9 @@ Zasper reads and writes the `.ipynb` format directly. Two guarantees are worth s
 | `image/svg+xml` | ✅ |
 | `text/latex` | ✅ |
 | `image/jpeg` | ✅ |
+| `text/markdown` | ✅ |
+| `image/gif`, `image/webp` | ✅ |
+| `application/pdf` | ✅ |
 
 `text/latex` — what SymPy emits under `init_printing()` — is typeset with KaTeX, the same renderer
 markdown cells use. `image/svg+xml`, which graphviz and networkx produce and which matplotlib
@@ -479,8 +517,9 @@ it up to date. The first launch after an upgrade opens the new version's release
 The server writes logs to standard output. Run it with `--debug` to raise the log level.
 
 Zasper sends a small amount of anonymous usage data: counts of things like notebooks opened, cells
-run and terminals started. It never sends file names, paths, code, project names, your username or
-your IP address, and there is no session recording or autocapture.
+run, terminals started and which kind of coding agent was used. It never sends file names, paths,
+code, project names, anything said to or by an agent, your username or your IP address, and there
+is no session recording or autocapture.
 [PRIVACY.md](PRIVACY.md) lists every event and every property, and explains how the allowlist that
 enforces it works. To turn tracking off:
 
@@ -514,10 +553,10 @@ covers the development workflow.
 
 ## Roadmap
 
-- Rendering for the outputs listed as *not yet* under [What renders](#what-renders), first after
-  1.0.
+- Built-in AI features that need no agent: explain and fix a cell's error, generate a cell, inline
+  completion, with your own API key.
+- Extensions, including agents, tools and model providers contributed by them.
 - Support for data apps, beyond Jupyter notebooks.
-- Easier integration with existing tools.
 - Zasper Hub, for self-hosted deployment in the cloud.
 
 ## Documentation
@@ -540,6 +579,12 @@ covers the development workflow.
   in the status bar and the Jupyter info panel, and how it is measured on each platform.
 - [docs/SQL.md](docs/SQL.md): SQL cells and data connections — the magic a SQL cell is saved as,
   where connections and their passwords are kept, and the Data panel.
+- [docs/CHARTS.md](docs/CHARTS.md): a DataFrame's grid as a chart, counted in the kernel, and the
+  code that draws it.
+- [docs/AGENTS.md](docs/AGENTS.md): the agent panel — which agents it starts, what they can ask of
+  Zasper, and how a turn's changes are reviewed and undone.
+- [docs/MCP.md](docs/MCP.md): Zasper's MCP server and `zasper mcp`, the tools any agent can use on
+  your notebooks and kernels.
 - [PRIVACY.md](PRIVACY.md): what anonymous usage data is collected, event by event.
 - [PUBLISHING.md](PUBLISHING.md): how releases are cut.
 
