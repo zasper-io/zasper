@@ -66,6 +66,7 @@ func TestAFileATurnChangedIsShownBeforeAndAfter(t *testing.T) {
 	assert.Equal(t, "written by the agent\n", diff.Modified)
 	assert.False(t, diff.ChangedSince)
 	assert.Equal(t, sha256Hex("written by the agent\n"), diff.Hash, "not the hash a save is checked against")
+	assert.False(t, diff.Added)
 
 	// The right side is the file as it is now, so putting back one part composes with the next.
 	require.NoError(t, os.WriteFile(filepath.Join(files.root, "notes.txt"), []byte("edited since\n"), 0o644))

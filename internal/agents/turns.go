@@ -93,6 +93,8 @@ type TurnDiff struct {
 	Hash string `json:"hash,omitempty"`
 	// The file has changed since the turn ended, and the right side holds those changes too.
 	ChangedSince bool `json:"changedSince,omitempty"`
+	// The turn made the file: there is nothing for a part of it to be put back to.
+	Added bool `json:"added,omitempty"`
 }
 
 // Diff is one file a turn changed, as it was before the turn and as it is now.
@@ -119,7 +121,11 @@ func (c *Chat) Diff(ctx context.Context, number int, path string) (TurnDiff, err
 		if err != nil {
 			return TurnDiff{}, err
 		}
-		diff := TurnDiff{DiffResponse: gitclient.Compare(path, before, now), ChangedSince: blob != change.After}
+		diff := TurnDiff{
+			DiffResponse: gitclient.Compare(path, before, now),
+			ChangedSince: blob != change.After,
+			Added:        change.Before == "",
+		}
 		if exists {
 			sum := sha256.Sum256(now)
 			diff.Hash = hex.EncodeToString(sum[:])

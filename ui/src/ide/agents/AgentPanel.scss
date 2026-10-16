@@ -42,6 +42,11 @@
 .agentPanel-empty {
   display: flex;
   flex-direction: column;
+
+  // A button is as wide as its words, as the launcher's are: stretched, Show more reads as a bar.
+  > .z-button {
+    align-self: flex-start;
+  }
   gap: 12px;
   padding: 12px;
   color: var(--z-fg-default);

@@ -67,6 +67,8 @@ export type DiffDocuments = {
   hash?: string;
   /** An agent's turn: the file changed after the turn, and the right side holds that too. */
   changedSince?: boolean;
+  /** An agent's turn made the file. */
+  added?: boolean;
   /** A notebook's two sides as cells, for the cell-by-cell diff; an absent side is null. */
   notebook?: { original: NotebookDiffSide | null; modified: NotebookDiffSide | null };
 };

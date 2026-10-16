@@ -123,8 +123,9 @@ export default function DiffTab(props: DiffTabProps) {
     setReloads((count) => count + 1);
   };
 
+  // A file the turn made, or one it removed, is put back whole, by the file's own undo in the panel.
   const revertText =
-    turn === undefined || documents === null
+    turn === undefined || documents === null || documents.added || documents.hash === undefined
       ? undefined
       : (text: string) => {
           const content = documents.modified.includes('\r\n')
@@ -137,7 +138,7 @@ export default function DiffTab(props: DiffTabProps) {
         };
 
   const revertCellChange =
-    turn === undefined
+    turn === undefined || documents === null || documents.added || documents.hash === undefined
       ? undefined
       : (change: CellDiff, comparison: NotebookDiffResult) => {
           const write = async () => {
