@@ -2,6 +2,8 @@ package agents
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/zasper-io/zasper/internal/checkpoint"
 )
 
 // turnChangesIn is what the log says turns changed, by turn. The file the fake agent writes as its
@@ -60,6 +64,15 @@ func TestAFileATurnChangedIsShownBeforeAndAfter(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "mine\n", diff.Original)
 	assert.Equal(t, "written by the agent\n", diff.Modified)
+	assert.False(t, diff.ChangedSince)
+	assert.Equal(t, sha256Hex("written by the agent\n"), diff.Hash, "not the hash a save is checked against")
+
+	// The right side is the file as it is now, so putting back one part composes with the next.
+	require.NoError(t, os.WriteFile(filepath.Join(files.root, "notes.txt"), []byte("edited since\n"), 0o644))
+	diff, err = chat.Diff(context.Background(), 1, "notes.txt")
+	require.NoError(t, err)
+	assert.Equal(t, "edited since\n", diff.Modified)
+	assert.True(t, diff.ChangedSince)
 	_, err = chat.Diff(context.Background(), 1, "untouched.txt")
 	assert.Error(t, err)
 }
@@ -79,4 +92,17 @@ func TestAChatLetsGoOfItsTurnsSnapshotsWhenItStops(t *testing.T) {
 	manager.Stop(chat.ID)
 
 	assert.Empty(t, pinned())
+}
+
+func paths(changes []checkpoint.Change) []string {
+	var found []string
+	for _, change := range changes {
+		found = append(found, change.Path)
+	}
+	return found
+}
+
+func sha256Hex(text string) string {
+	sum := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(sum[:])
 }

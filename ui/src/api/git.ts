@@ -63,6 +63,10 @@ export type DiffDocuments = {
   isNotebook: boolean;
   /** The same for a file the server would not send, so the tab can say why it is empty. */
   tooLarge: boolean;
+  /** An agent's turn: the hash the right side, the file on disk now, has; absent when it is gone. */
+  hash?: string;
+  /** An agent's turn: the file changed after the turn, and the right side holds that too. */
+  changedSince?: boolean;
   /** A notebook's two sides as cells, for the cell-by-cell diff; an absent side is null. */
   notebook?: { original: NotebookDiffSide | null; modified: NotebookDiffSide | null };
 };

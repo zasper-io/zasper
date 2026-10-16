@@ -319,6 +319,15 @@ func (s *Store) Blob(ctx context.Context, blob string) ([]byte, error) {
 	return s.run(ctx, nil, "cat-file", "blob", blob)
 }
 
+// Read is the file at path as it is on disk now, and false when there is none.
+func (s *Store) Read(path string) ([]byte, bool, error) {
+	data, err := os.ReadFile(filepath.Join(s.root, filepath.FromSlash(path)))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, false, nil
+	}
+	return data, err == nil, err
+}
+
 // Hash is the blob a file now on disk would be, or "" when there is no file.
 func (s *Store) Hash(ctx context.Context, path string) (string, error) {
 	full := filepath.Join(s.root, filepath.FromSlash(path))

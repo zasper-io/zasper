@@ -2,6 +2,8 @@ package agents
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -24,7 +26,8 @@ type TurnChanges struct {
 // turn is one of the reader's messages and the agent's answer to it, with the files it changed.
 type turn struct {
 	changes []checkpoint.Change
-	undone  bool
+	// The files put back, by path.
+	undone map[string]bool
 }
 
 // snapshot records the project as it is now, pinned as pin, or "" when there is no store or it failed.
@@ -62,7 +65,7 @@ func (c *Chat) endTurn(number int, before string) {
 		return
 	}
 	c.mu.Lock()
-	c.turns[number] = &turn{changes: changes}
+	c.turns[number] = &turn{changes: changes, undone: map[string]bool{}}
 	c.mu.Unlock()
 	if len(changes) > 0 {
 		c.record(Event{Type: "changes", Changes: &TurnChanges{Turn: number, Files: changes}})
@@ -82,28 +85,48 @@ func (c *Chat) turnChanges(number int) (*turn, error) {
 	return found, nil
 }
 
-// Diff is one file a turn changed, as it was before the turn and as the turn left it.
-func (c *Chat) Diff(ctx context.Context, number int, path string) (gitclient.DiffResponse, error) {
+// TurnDiff is a file a turn changed: as it was before the turn, against the file on disk now, so that
+// putting back a part of it composes with putting back another.
+type TurnDiff struct {
+	gitclient.DiffResponse
+	// What a save of the right side is checked against; "" when the file is gone.
+	Hash string `json:"hash,omitempty"`
+	// The file has changed since the turn ended, and the right side holds those changes too.
+	ChangedSince bool `json:"changedSince,omitempty"`
+}
+
+// Diff is one file a turn changed, as it was before the turn and as it is now.
+func (c *Chat) Diff(ctx context.Context, number int, path string) (TurnDiff, error) {
 	found, err := c.turnChanges(number)
 	if err != nil {
-		return gitclient.DiffResponse{}, err
+		return TurnDiff{}, err
 	}
 	for _, change := range found.changes {
 		if change.Path != path {
 			continue
 		}
-		var sides [2][]byte
-		for i, blob := range []string{change.Before, change.After} {
-			if blob == "" {
-				continue
-			}
-			if sides[i], err = c.checkpoints.Blob(ctx, blob); err != nil {
-				return gitclient.DiffResponse{}, err
+		var before []byte
+		if change.Before != "" {
+			if before, err = c.checkpoints.Blob(ctx, change.Before); err != nil {
+				return TurnDiff{}, err
 			}
 		}
-		return gitclient.Compare(path, sides[0], sides[1]), nil
+		now, exists, err := c.checkpoints.Read(path)
+		if err != nil {
+			return TurnDiff{}, err
+		}
+		blob, err := c.checkpoints.Hash(ctx, path)
+		if err != nil {
+			return TurnDiff{}, err
+		}
+		diff := TurnDiff{DiffResponse: gitclient.Compare(path, before, now), ChangedSince: blob != change.After}
+		if exists {
+			sum := sha256.Sum256(now)
+			diff.Hash = hex.EncodeToString(sum[:])
+		}
+		return diff, nil
 	}
-	return gitclient.DiffResponse{}, fmt.Errorf("turn %d did not change %s", number, path)
+	return TurnDiff{}, fmt.Errorf("turn %d did not change %s", number, path)
 }
 
 // ChangedSince is the refusal of an undo whose files have changed after the turn: Paths are those files.
@@ -113,28 +136,39 @@ func (e *ChangedSince) Error() string {
 	return fmt.Sprintf("%d of the files have changed since", len(e.Paths))
 }
 
-var errUndone = errors.New("that turn has already been taken back")
+var errUndone = errors.New("those changes have already been put back")
 
 /*
-Undo puts the files a turn changed back as they were before it. A file that has changed after the turn
-is refused with ChangedSince unless anyway is set, which puts it back regardless.
+Undo puts files a turn changed back as they were before it: those at paths, or every one not put back
+yet when there are none. A file that has changed after the turn is refused with ChangedSince unless
+anyway is set, which puts it back regardless.
 */
-func (c *Chat) Undo(ctx context.Context, number int, anyway bool) error {
+func (c *Chat) Undo(ctx context.Context, number int, anyway bool, paths ...string) error {
 	found, err := c.turnChanges(number)
 	if err != nil {
 		return err
 	}
+	wanted := map[string]bool{}
+	for _, path := range paths {
+		wanted[path] = true
+	}
 	c.mu.Lock()
-	busy, undone := c.answering, found.undone
+	busy := c.answering
+	var undoing []checkpoint.Change
+	for _, change := range found.changes {
+		if !found.undone[change.Path] && (len(paths) == 0 || wanted[change.Path]) {
+			undoing = append(undoing, change)
+		}
+	}
 	c.mu.Unlock()
 	switch {
-	case undone:
-		return errUndone
 	case busy:
 		return ErrBusy
+	case len(undoing) == 0:
+		return errUndone
 	}
 	if !anyway {
-		moved, err := c.checkpoints.Since(ctx, found.changes)
+		moved, err := c.checkpoints.Since(ctx, undoing)
 		if err != nil {
 			return err
 		}
@@ -142,13 +176,15 @@ func (c *Chat) Undo(ctx context.Context, number int, anyway bool) error {
 			return &ChangedSince{Paths: moved}
 		}
 	}
-	if err := c.checkpoints.Restore(ctx, found.changes); err != nil {
+	if err := c.checkpoints.Restore(ctx, undoing); err != nil {
 		return err
 	}
 	c.mu.Lock()
-	found.undone = true
+	for _, change := range undoing {
+		found.undone[change.Path] = true
+	}
 	c.mu.Unlock()
-	c.record(Event{Type: "undone", Changes: &TurnChanges{Turn: number}})
+	c.record(Event{Type: "undone", Changes: &TurnChanges{Turn: number, Files: undoing}})
 	return nil
 }
 

@@ -39,6 +39,8 @@ export interface Mention {
 export interface TurnFile {
   path: string;
   status: string;
+  /** Put back as it was before the turn. */
+  undone?: boolean;
 }
 
 /** One of the agent's past conversations in the project. */
@@ -140,12 +142,17 @@ export function openPastChat(chatId: string, id: string): Promise<void> {
 }
 
 /**
- * Puts the files a turn changed back as they were before it. Rejects with a 409 whose body lists
- * `changed`, the files changed since, unless `anyway` is set.
+ * Puts the files a turn changed back as they were before it: those at `paths`, or every one not put back
+ * yet. Rejects with a 409 whose body lists `changed`, the files changed since, unless `anyway` is set.
  */
-export function undoTurn(chatId: string, turn: number, anyway = false): Promise<void> {
+export function undoTurn(
+  chatId: string,
+  turn: number,
+  anyway = false,
+  paths?: string[]
+): Promise<void> {
   return requestEmpty(`/api/agents/chats/${encodeURIComponent(chatId)}/turns/${turn}/undo`, {
     method: 'POST',
-    body: { anyway },
+    body: { anyway, paths },
   });
 }

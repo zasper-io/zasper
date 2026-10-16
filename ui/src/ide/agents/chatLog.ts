@@ -312,18 +312,24 @@ export function foldChat(events: ChatEvent[]): ChatView {
           items.push({
             kind: 'changes',
             turn: event.changes.turn,
-            files: event.changes.files ?? [],
+            files: (event.changes.files ?? []).map((file) => ({ ...file, undone: false })),
             undone: false,
           });
         }
         break;
-      case 'undone':
+      // The files put back, or, in a log from before files could be put back one by one, all of them.
+      case 'undone': {
+        const named = event.changes?.files?.map((file) => file.path);
         for (const item of items) {
           if (item.kind === 'changes' && item.turn === event.changes?.turn) {
-            item.undone = true;
+            for (const file of item.files) {
+              file.undone = file.undone || named === undefined || named.includes(file.path);
+            }
+            item.undone = item.files.every((file) => file.undone);
           }
         }
         break;
+      }
       case 'terminal': {
         const printed = event.terminal;
         if (printed === undefined) break;

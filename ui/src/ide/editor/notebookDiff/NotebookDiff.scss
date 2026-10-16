@@ -229,3 +229,8 @@
   font-size: var(--z-ui-font-size);
   cursor: pointer;
 }
+
+// Undoing one cell's change, at the end of its head, in a diff whose right side can be written.
+.nbDiff-revert {
+  margin-left: auto;
+}

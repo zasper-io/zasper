@@ -25,7 +25,8 @@ vi.mock('@/api', async (importOriginal) => ({
   stopChat: () => Promise.resolve(),
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
   openPastChat: (chatId: string, id: string) => openPastChat(chatId, id),
-  undoTurn: (chatId: string, turn: number, anyway?: boolean) => undoTurn(chatId, turn, anyway),
+  undoTurn: (chatId: string, turn: number, anyway?: boolean, paths?: string[]) =>
+    undoTurn(chatId, turn, anyway, paths),
   searchFiles: (query: string, ignored?: boolean, inPaths?: boolean) =>
     searchFiles(query, ignored, inPaths),
 }));
@@ -370,13 +371,28 @@ describe('AgentPanel', () => {
       await turnThatChanged();
 
       expect(screen.getByText('2 files changed')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /prepare\.py/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'prepare.py' })).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Undo this turn' }));
 
-      await waitFor(() => expect(undoTurn).toHaveBeenCalledWith('chat-1', 1, false));
+      await waitFor(() => expect(undoTurn).toHaveBeenCalledWith('chat-1', 1, false, undefined));
       FakeSocket.latest.push({ type: 'undone', changes: { turn: 1 } });
       expect(screen.getByText('Undone')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Undo this turn' })).not.toBeInTheDocument();
+    });
+
+    it('puts back one file of the turn on its own', async () => {
+      undoTurn.mockReset().mockResolvedValue(undefined);
+      await turnThatChanged();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo the turn’s change to old.csv' }));
+
+      await waitFor(() => expect(undoTurn).toHaveBeenCalledWith('chat-1', 1, false, ['old.csv']));
+      FakeSocket.latest.push({
+        type: 'undone',
+        changes: { turn: 1, files: [{ path: 'old.csv', status: 'D' }] },
+      });
+      expect(screen.getByText('undone')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Undo this turn' })).toBeInTheDocument();
     });
 
     it('says which files changed since, and undoes over them only when asked', async () => {
@@ -392,7 +408,7 @@ describe('AgentPanel', () => {
 
       expect(await screen.findByText(/prepare\.py changed after this turn/)).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Undo anyway' }));
-      await waitFor(() => expect(undoTurn).toHaveBeenLastCalledWith('chat-1', 1, true));
+      await waitFor(() => expect(undoTurn).toHaveBeenLastCalledWith('chat-1', 1, true, undefined));
     });
   });
 

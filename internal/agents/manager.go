@@ -213,18 +213,19 @@ func (m *Manager) DiffHandler(w http.ResponseWriter, req *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, diff)
 }
 
-// UndoHandler answers POST /api/agents/chats/{chatId}/turns/{turn}/undo with {"anyway"}: the files the
-// turn changed are put back. 409 with "changed" when some have changed since and anyway is not set.
+// UndoHandler answers POST /api/agents/chats/{chatId}/turns/{turn}/undo with {"anyway", "paths"}: the
+// files the turn changed are put back, those at paths or else all of them. 409 with "changed" when some have changed since and anyway is not set.
 func (m *Manager) UndoHandler(w http.ResponseWriter, req *http.Request) {
 	chat, number, ok := m.chatTurn(w, req)
 	if !ok {
 		return
 	}
 	var body struct {
-		Anyway bool `json:"anyway"`
+		Anyway bool     `json:"anyway"`
+		Paths  []string `json:"paths"`
 	}
 	json.NewDecoder(req.Body).Decode(&body)
-	err := chat.Undo(req.Context(), number, body.Anyway)
+	err := chat.Undo(req.Context(), number, body.Anyway, body.Paths...)
 	var since *ChangedSince
 	switch {
 	case err == nil:

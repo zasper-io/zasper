@@ -427,3 +427,42 @@ export function outputsAsText(cell: DiffCell | undefined): string | null {
   }
   return parts.join('');
 }
+
+/**
+ * The cells of the notebook a comparison's right side is, with one change undone: an added cell taken
+ * out, a removed one put back after the cell it followed, an edited one given its old source, outputs
+ * and metadata under its own id. A move is not undone: the cell stays where it went.
+ */
+export function revertCell<T extends { id?: string }>(
+  cells: T[],
+  comparison: NotebookDiff,
+  change: CellDiff
+): T[] {
+  const next = [...cells];
+  if (change.old === undefined) {
+    next.splice(change.new!.index, 1);
+    return next;
+  }
+  const { outputs, metadata, execution_count, source, cell_type, id } = change.old.cell;
+  const restored = {
+    cell_type,
+    source,
+    outputs: outputs ?? [],
+    metadata: metadata ?? {},
+    execution_count,
+  };
+  if (change.new === undefined) {
+    const at = comparison.cells.indexOf(change);
+    const before = comparison.cells
+      .slice(0, at)
+      .reverse()
+      .find((each) => each.new !== undefined);
+    next.splice(before === undefined ? 0 : before.new!.index + 1, 0, {
+      ...restored,
+      id,
+    } as unknown as T);
+    return next;
+  }
+  next[change.new.index] = { ...next[change.new.index], ...restored } as T;
+  return next;
+}

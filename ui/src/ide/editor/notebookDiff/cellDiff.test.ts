@@ -7,6 +7,7 @@ import {
   matchCells,
   NotebookSide,
   outputsAsText,
+  revertCell,
 } from './cellDiff';
 
 const code = (source: string, extra: Partial<DiffCell> = {}): DiffCell => ({
@@ -158,5 +159,43 @@ describe('outputsAsText', () => {
         })
       )
     ).toBeNull();
+  });
+});
+
+describe('revertCell', () => {
+  const before = side([
+    code('a = 1', { id: 'a' }),
+    code('b = 2', { id: 'b' }),
+    code('c = 3', { id: 'c' }),
+  ]);
+  const after = side([
+    code('a = 10', { id: 'a', outputs: [{ output_type: 'stream', text: '10' }] }),
+    code('c = 3', { id: 'c' }),
+    code('d = 4', { id: 'd' }),
+  ]);
+  const comparison = diffNotebooks(before, after);
+  const undo = (id: string) =>
+    revertCell(
+      after.cells,
+      comparison,
+      comparison.cells.find((each) => (each.new ?? each.old)!.cell.id === id)!
+    ).map((cell) => `${cell.id}:${cell.source}`);
+
+  it('gives an edited cell its old source and outputs, under its own id', () => {
+    const cells = revertCell(
+      after.cells,
+      comparison,
+      comparison.cells.find((each) => each.change === 'edited')!
+    );
+    expect(cells[0]).toMatchObject({ id: 'a', source: 'a = 1', outputs: [] });
+    expect(undo('a')).toEqual(['a:a = 1', 'c:c = 3', 'd:d = 4']);
+  });
+
+  it('takes an added cell out', () => {
+    expect(undo('d')).toEqual(['a:a = 10', 'c:c = 3']);
+  });
+
+  it('puts a removed cell back after the cell it followed', () => {
+    expect(undo('b')).toEqual(['a:a = 10', 'b:b = 2', 'c:c = 3', 'd:d = 4']);
   });
 });

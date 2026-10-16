@@ -221,13 +221,48 @@ describe('foldChat', () => {
     expect(view.answering).toBe(false);
   });
 
+  it('marks the files of a turn put back one at a time, and the turn once all are', () => {
+    const changed: ChatEvent = {
+      type: 'changes',
+      changes: {
+        turn: 1,
+        files: [
+          { path: 'a.py', status: 'M' },
+          { path: 'b.py', status: 'A' },
+        ],
+      },
+    };
+    const one: ChatEvent = {
+      type: 'undone',
+      changes: { turn: 1, files: [{ path: 'a.py', status: 'M' }] },
+    };
+    const other: ChatEvent = {
+      type: 'undone',
+      changes: { turn: 1, files: [{ path: 'b.py', status: 'A' }] },
+    };
+
+    expect(foldChat([changed, one]).items[0]).toMatchObject({
+      undone: false,
+      files: [
+        { path: 'a.py', undone: true },
+        { path: 'b.py', undone: false },
+      ],
+    });
+    expect(foldChat([changed, one, other]).items[0]).toMatchObject({ undone: true });
+  });
+
   it('lists the files a turn changed, and marks them once taken back', () => {
     const changed: ChatEvent = {
       type: 'changes',
       changes: { turn: 1, files: [{ path: 'a.py', status: 'M' }] },
     };
     expect(foldChat([changed]).items).toEqual([
-      { kind: 'changes', turn: 1, files: [{ path: 'a.py', status: 'M' }], undone: false },
+      {
+        kind: 'changes',
+        turn: 1,
+        files: [{ path: 'a.py', status: 'M', undone: false }],
+        undone: false,
+      },
     ]);
     expect(foldChat([changed, { type: 'undone', changes: { turn: 1 } }]).items[0]).toMatchObject({
       undone: true,

@@ -1,11 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { apiErrorMessage, DiffDocuments, DiffTarget, getDiff } from '@/api';
+import {
+  ApiError,
+  apiErrorMessage,
+  DiffDocuments,
+  DiffTarget,
+  getDiff,
+  getNotebook,
+  isSaveConflict,
+  saveFile,
+  saveNotebook,
+} from '@/api';
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { FileTab } from '@/store/tabState';
 import BreadCrumb from './BreadCrumb';
 import NotebookDiff from './notebookDiff/NotebookDiff';
+import { CellDiff, NotebookDiff as NotebookDiffResult, revertCell } from './notebookDiff/cellDiff';
 import { useMergeView } from './useMergeView';
 import './DiffTab.scss';
 
@@ -18,7 +29,7 @@ interface DiffTabProps {
 /** What each side is, in the words git uses for it. */
 function sidesOf(target: DiffTarget): [string, string] {
   if (target.turn !== undefined) {
-    return ['Before the turn', 'After it'];
+    return ['Before the turn', 'Now'];
   }
   if (target.ref !== undefined) {
     const short = target.ref.slice(0, 7);
@@ -93,11 +104,62 @@ export default function DiffTab(props: DiffTabProps) {
   const cells = documents?.notebook;
   const comparable =
     documents !== null && !documents.isBinary && !documents.tooLarge && cells === undefined;
+  /*
+   * An agent's turn compares the file before it with the file on disk now, and a change can be undone
+   * from here: written straight to disk, checked against the version shown, so that undoing one part
+   * and then another composes, and an edit made meanwhile elsewhere is never written over unseen.
+   */
+  const onDisk = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    onDisk.current = documents?.hash;
+  }, [documents]);
+  const [writeError, setWriteError] = useState('');
+  const notWritten = (failure: unknown) => {
+    setWriteError(
+      isSaveConflict(failure)
+        ? 'The file changed on disk, so nothing was written. This is how it is now.'
+        : apiErrorMessage(failure)
+    );
+    setReloads((count) => count + 1);
+  };
+
+  const revertText =
+    turn === undefined || documents === null
+      ? undefined
+      : (text: string) => {
+          const content = documents.modified.includes('\r\n')
+            ? text.replace(/\r?\n/g, '\r\n')
+            : text;
+          saveFile(path, content, onDisk.current).then((hash) => {
+            onDisk.current = hash;
+            setWriteError('');
+          }, notWritten);
+        };
+
+  const revertCellChange =
+    turn === undefined
+      ? undefined
+      : (change: CellDiff, comparison: NotebookDiffResult) => {
+          const write = async () => {
+            const read = await getNotebook(path);
+            if (read.hash !== onDisk.current) {
+              notWritten(new ApiError('PUT', '/api/contents', 409, 'changed'));
+              return;
+            }
+            const cells = revertCell(read.content.cells, comparison, change);
+            onDisk.current = await saveNotebook(path, { ...read.content, cells }, onDisk.current);
+            setWriteError('');
+            setReloads((count) => count + 1);
+          };
+          write().catch(notWritten);
+        };
+
   useMergeView(
     container,
     comparable ? documents.original : null,
     comparable ? documents.modified : null,
-    path
+    path,
+    revertText
   );
 
   const [left, right] = sidesOf(props.target);
@@ -168,6 +230,20 @@ export default function DiffTab(props: DiffTabProps) {
             <p>{error}</p>
           </div>
         )}
+        {writeError !== '' && (
+          <div className="z-notice z-notice-error">
+            <Icon name="circle-alert" size={14} />
+            <p>{writeError}</p>
+          </div>
+        )}
+        {documents?.changedSince === true && (
+          <div className="z-notice">
+            <p>
+              This file changed after the turn, so Now holds those changes too. Undoing a change
+              puts back the part the turn changed, as it was before it.
+            </p>
+          </div>
+        )}
         {unchanged && (
           <div className="z-notice">
             <p>No changes.</p>
@@ -181,6 +257,7 @@ export default function DiffTab(props: DiffTabProps) {
             sides={[left, right]}
             outputsOpen={outputsOpen}
             metadataOpen={metadataOpen}
+            onRevert={revertCellChange}
           />
         ) : (
           <div className="diff-body" ref={container} />

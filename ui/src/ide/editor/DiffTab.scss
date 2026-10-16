@@ -38,6 +38,23 @@
   .cm-mergeView {
     height: 100%;
 
+    // The column between the sides that holds a change's undo, in an agent's turn: as wide as the
+    // icon button drawn there, which is dimmed until the pointer is on it, as a row's actions are.
+    .cm-merge-revert {
+      width: 26px;
+    }
+
+    .cm-merge-undo {
+      width: 22px;
+      height: 22px;
+      color: var(--z-fg-muted);
+
+      &:hover {
+        background: var(--z-bg-row-selected);
+        color: var(--z-fg-accent);
+      }
+    }
+
     // What a change is, said the way the source control panel beside it says the same thing. This was
     // the one place in the app where added and removed were not --z-git-added and --z-git-deleted:
     // @codemirror/merge answers its own, and answers it four times — a brown and a green at 8% under

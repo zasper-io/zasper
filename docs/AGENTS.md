@@ -32,9 +32,12 @@ does not come back. Zasper keeps no history of its own.
 ## A turn's changes
 
 When a turn ends, the files it changed are listed under it, each opening a diff of the file before the
-turn against what the turn left. **Undo this turn** puts them back as they were before it: a file it
-added is removed, one it deleted comes back. A file that has changed since the turn is named first, and
-put back only when the reader says to. Open tabs take the files back as they take any change on disk.
+turn against the file on disk now. **Undo this turn** puts them back as they were before it: a file it
+added is removed, one it deleted comes back; each file's own undo puts back that file alone. In the
+diff, each changed block of a text file, and each changed cell of a notebook, has its own undo, which
+writes the file straight away, checked against the version shown. A file that has changed since the
+turn is named first, and put back only when the reader says to. Open tabs take the files back as they
+take any change on disk.
 
 The changes are found by snapshotting the project at the start and end of each turn, so every change
 counts, however it was made: the agent's own edits, a command it ran, a notebook tool — and an edit the
@@ -94,8 +97,8 @@ and the row shows them as it does for a command run here.
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |
 | `GET` | `/api/agents/chats/{id}/history?cursor=` | A page of the agent's past conversations in the project: `{"chats": [{id, title, updated, current}], "next"}`, through ACP's `session/list`. `400` for an agent that cannot. |
 | `POST` | `/api/agents/chats/{id}/load` | Go on in a past conversation, `{"id"}`, through `session/load`. The chat's log starts again with the replay, and every tab's socket is closed so it reconnects to the new log. `409` while the agent is answering. |
-| `GET` | `/api/agents/chats/{id}/turns/{turn}/diff?path=` | A file a turn changed, before and after the turn, in the shape of `/api/git/diff`. |
-| `POST` | `/api/agents/chats/{id}/turns/{turn}/undo` | Put back the files the turn changed. `409` with `changed`, the files changed since, unless `{"anyway": true}`. |
+| `GET` | `/api/agents/chats/{id}/turns/{turn}/diff?path=` | A file a turn changed, before the turn against the file now, in the shape of `/api/git/diff`, with `hash` (the file now, as a save is checked against) and `changedSince` (it changed after the turn). |
+| `POST` | `/api/agents/chats/{id}/turns/{turn}/undo` | Put back the files the turn changed, those in `paths` or else all of them. `409` with `changed`, the files changed since, unless `{"anyway": true}`. The `undone` event names the files put back. |
 | `GET` | `/ws/agents/chats/{id}` | **WebSocket.** The chat's log from the start, then each event as it happens. |
 
 Each event has a `seq` and a `type`: `user` (the reader's message, in `text`), `update` (what the agent

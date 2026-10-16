@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { OutputBundles } from '@/ide/editor/notebook/CellOutput';
 import { Icon } from '@/ide/icons';
+import IconButton from '@/ide/IconButton';
 import {
   CellDiff,
   DiffCell,
   DiffLine,
   diffNotebooks,
   lineDiff,
+  NotebookDiff as NotebookDiffResult,
   NotebookSide,
   outputsAsText,
   personalMetadata,
@@ -23,6 +25,8 @@ interface NotebookDiffProps {
   /** The strip's switches: every output change open, every metadata change open. */
   outputsOpen: boolean;
   metadataOpen: boolean;
+  /** Undoes one cell's change, when the right side is a file that can be written. */
+  onRevert?: (change: CellDiff, comparison: NotebookDiffResult) => void;
 }
 
 const KIND_LABEL: Record<string, string> = { code: 'Code', markdown: 'Markdown', raw: 'Raw' };
@@ -187,11 +191,13 @@ function Card({
   sides,
   outputsOpen,
   metadataOpen,
+  onRevert,
 }: {
   cell: CellDiff;
   sides: [string, string];
   outputsOpen: boolean;
   metadataOpen: boolean;
+  onRevert?: () => void;
 }) {
   const [outputs, setOutputs] = useState(outputsOpen);
   const [metadata, setMetadata] = useState(metadataOpen);
@@ -226,6 +232,14 @@ function Card({
         <span className="nbDiff-place z-tabular">{place(cell)}</span>
         <strong>{KIND_LABEL[subject.cell_type] ?? subject.cell_type}</strong>
         <span className={`nbDiff-state is-${cell.change}`}>{stateOf(cell)}</span>
+        {onRevert && cell.change !== 'unchanged' && cell.change !== 'moved' && (
+          <IconButton
+            icon="undo-2"
+            className="nbDiff-revert"
+            label={`Undo the change to cell ${place(cell)}`}
+            onClick={onRevert}
+          />
+        )}
       </div>
       <Lines lines={lines} />
       {cell.outputsChanged && (
@@ -388,6 +402,7 @@ export default function NotebookDiff(props: NotebookDiffProps) {
             sides={sides}
             outputsOpen={outputsOpen}
             metadataOpen={metadataOpen}
+            onRevert={props.onRevert && (() => props.onRevert?.(block.cell, comparison))}
           />
         )
       )}

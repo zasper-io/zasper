@@ -518,6 +518,12 @@
   color: var(--z-fg-subtle);
 }
 
+// A file put back: still there to open, to see what the turn had done to it.
+.agentTools .panel-row.is-undone .panel-row-label {
+  color: var(--z-fg-subtle);
+  text-decoration: line-through;
+}
+
 .agentChanges-status {
   flex: 0 0 auto;
   width: 1em;

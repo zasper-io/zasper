@@ -754,20 +754,23 @@ const STATUS_NAMES: Record<string, string> = { A: 'added', M: 'changed', D: 'del
 /** The files a turn changed, each opening its before and after, and the turn's undo. */
 function TurnChanges(props: { chatId: string; turn: number; files: TurnFile[]; undone: boolean }) {
   const { openDiff } = useTabActions();
-  const [changedSince, setChangedSince] = useState<string[] | null>(null);
+  /** The files changed after the turn, and which files the undo asked over them was for. */
+  const [changedSince, setChangedSince] = useState<{ files: string[]; asked?: string[] } | null>(
+    null
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const undo = async (anyway: boolean) => {
+  const undo = async (anyway: boolean, paths?: string[]) => {
     setBusy(true);
     setError('');
     try {
-      await undoTurn(props.chatId, props.turn, anyway);
+      await undoTurn(props.chatId, props.turn, anyway, paths);
       setChangedSince(null);
     } catch (failure) {
       const changed = failure instanceof ApiError ? changedIn(failure) : null;
       if (changed !== null) {
-        setChangedSince(changed);
+        setChangedSince({ files: changed, asked: paths });
       } else {
         setError(apiErrorMessage(failure));
       }
@@ -796,29 +799,47 @@ function TurnChanges(props: { chatId: string; turn: number; files: TurnFile[]; u
       </div>
       <div className="agentTools">
         {props.files.map((file) => (
-          <button
-            type="button"
-            key={file.path}
-            className="panel-row"
-            title={`${file.path}: what the turn ${STATUS_NAMES[file.status] ?? 'changed'}`}
-            onClick={() =>
-              openDiff({ path: file.path, turn: { chat: props.chatId, turn: props.turn } })
-            }
-          >
+          <div key={file.path} className={file.undone ? 'panel-row is-undone' : 'panel-row'}>
             <span className={`agentChanges-status is-${file.status}`}>{file.status}</span>
-            <span className="panel-row-name">{file.path}</span>
-          </button>
+            <button
+              type="button"
+              className="panel-row-name"
+              title={`${file.path}: what the turn ${STATUS_NAMES[file.status] ?? 'changed'}`}
+              onClick={() =>
+                openDiff({ path: file.path, turn: { chat: props.chatId, turn: props.turn } })
+              }
+            >
+              <span className="panel-row-label">{file.path}</span>
+            </button>
+            <span className="panel-row-actions">
+              {file.undone ? (
+                <span className="agentChanges-undone">undone</span>
+              ) : (
+                <IconButton
+                  icon="undo-2"
+                  className="panel-row-action"
+                  label={`Undo the turn’s change to ${file.path}`}
+                  disabled={busy || changedSince !== null}
+                  onClick={() => void undo(false, [file.path])}
+                />
+              )}
+            </span>
+          </div>
         ))}
       </div>
       {changedSince !== null && (
         <div className="z-notice">
           <p>
-            {changedSince.join(', ')} changed after this turn. Undoing puts{' '}
-            {changedSince.length === 1 ? 'it' : 'them'} back as before the turn, and those later
-            changes are lost.
+            {changedSince.files.join(', ')} changed after this turn. Undoing puts{' '}
+            {changedSince.files.length === 1 ? 'it' : 'them'} back as before the turn, and those
+            later changes are lost.
           </p>
           <span className="agentAsk-actions">
-            <button type="button" className="z-button" onClick={() => void undo(true)}>
+            <button
+              type="button"
+              className="z-button"
+              onClick={() => void undo(true, changedSince.asked)}
+            >
               Undo anyway
             </button>
             <button

@@ -45,7 +45,10 @@ func TestUndoingATurnPutsItsFilesBack(t *testing.T) {
 	assert.Equal(t, "mine\n", string(data))
 	assert.FileExists(t, filepath.Join(files.root, "made.txt"), "an earlier turn was undone too")
 	events := chatEvents(chat)
-	assert.Equal(t, Event{Seq: len(events), Type: "undone", Changes: &TurnChanges{Turn: 2}}, events[len(events)-1])
+	last := events[len(events)-1]
+	assert.Equal(t, "undone", last.Type)
+	assert.Equal(t, 2, last.Changes.Turn)
+	assert.Equal(t, []string{"notes.txt"}, paths(last.Changes.Files))
 	assert.ErrorIs(t, chat.Undo(context.Background(), 2, false), errUndone)
 }
 
@@ -65,4 +68,20 @@ func TestAnUndoOverAFileChangedSinceIsAskedFirst(t *testing.T) {
 
 	require.NoError(t, chat.Undo(context.Background(), 1, true))
 	assert.NoFileExists(t, made)
+}
+
+func TestOneFileOfATurnIsPutBackOnItsOwn(t *testing.T) {
+	_, chat, files := fakeChat(t)
+	require.NoError(t, chat.Prompt("run echo a > a.txt; echo b > b.txt"))
+	waitFor(t, chat, turnEnded)
+
+	require.NoError(t, chat.Undo(context.Background(), 1, false, "a.txt"))
+
+	assert.NoFileExists(t, filepath.Join(files.root, "a.txt"))
+	assert.FileExists(t, filepath.Join(files.root, "b.txt"))
+	assert.ErrorIs(t, chat.Undo(context.Background(), 1, false, "a.txt"), errUndone)
+
+	require.NoError(t, chat.Undo(context.Background(), 1, false))
+	assert.NoFileExists(t, filepath.Join(files.root, "b.txt"))
+	assert.ErrorIs(t, chat.Undo(context.Background(), 1, false), errUndone)
 }
