@@ -59,6 +59,17 @@ function buildServer() {
     stdio: 'inherit',
     env: realEnv,
   });
+  // The agent the agent panel's journey starts: scripted, so it needs no agent installed or signed in.
+  execFileSync(
+    'go',
+    [
+      'build',
+      '-o',
+      path.join(path.dirname(binary), 'fake-agent'),
+      './internal/agents/agenttest/fakeagent',
+    ],
+    { cwd: repo, stdio: 'inherit', env: realEnv }
+  );
 }
 
 function resetWorkspace() {

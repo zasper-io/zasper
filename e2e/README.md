@@ -52,6 +52,7 @@ machine; with none installed anywhere, the specs that need a kernel skip rather 
 | `tabs` | closing an unsaved tab asks, and all three answers do what they say |
 | `palette` | a real `Ctrl-Shift-P`, a filter, and the command runs |
 | `terminal` | a real shell in the project directory |
+| `agents` | an agent started from the panel changes a file, which is put back on screen and on disk; a slow start is cancelled. The agent is `agenttest`'s scripted one, built beside the server, so no agent need be installed |
 | `layout` | every control is big enough to click, no row overflows its panel, and a state resolves to something visible |
 
 ## House rules

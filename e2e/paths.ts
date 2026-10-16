@@ -12,6 +12,8 @@ export const workspace = join(e2eRoot, '.tmp');
 export const homeDir = join(workspace, 'home');
 export const projectDir = join(workspace, 'project');
 export const serverBinary = join(workspace, 'zasper');
+/** agenttest's scripted agent, which prepare.cjs builds beside the server. */
+export const fakeAgentBinary = join(workspace, 'fake-agent');
 
 export const fixtureProject = join(e2eRoot, 'fixtures', 'project');
 
