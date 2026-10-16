@@ -237,3 +237,15 @@ func TestIgnoredFilesAreOfferedOnlyWhenAskedForAndAfterTheRest(t *testing.T) {
 	}
 	assert.Equal(t, []string{"readings.py false", "data/readings.csv true", "out/readings-2.csv true"}, offered)
 }
+
+func TestAFolderInTheQueryFindsTheFilesInItWhenPathsAreAskedFor(t *testing.T) {
+	h, _ := projectWith(t, "data/raw.csv", "notes/data.md", "src/main.py")
+
+	_, byName := suggest(t, h, "data")
+	assert.Equal(t, []string{"notes/data.md"}, byName)
+
+	_, byPath := suggest(t, h, "data&match=path")
+	assert.Equal(t, []string{"notes/data.md", "data/raw.csv"}, byPath)
+	_, nested := suggest(t, h, "data/ra&match=path")
+	assert.Equal(t, []string{"data/raw.csv"}, nested)
+}

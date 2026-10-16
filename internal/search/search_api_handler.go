@@ -133,7 +133,8 @@ func walkProject(root string, withIgnored bool) []projectFile {
 }
 
 // Files answers the project's files whose name contains the query, whatever its case. With ignored=true,
-// what .gitignore leaves out is offered too, marked so and after the rest.
+// what .gitignore leaves out is offered too, marked so and after the rest; with match=path, a file whose
+// path contains it is offered after those whose name does.
 func (h *Handler) Files(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("query")
 	if query == "" {
@@ -145,14 +146,30 @@ func (h *Handler) Files(w http.ResponseWriter, r *http.Request) {
 	// disagree about whether `README` and `readme` are the same word is a bug report.
 	needle := strings.ToLower(query)
 	withIgnored := r.URL.Query().Get("ignored") == "true"
+	inPaths := r.URL.Query().Get("match") == "path"
 	files := h.projectFiles(withIgnored)
+	// A file whose name matches comes before one whose folders alone do, and both before what
+	// .gitignore leaves out.
+	rank := func(file projectFile) int {
+		switch {
+		case strings.Contains(strings.ToLower(file.name), needle):
+			return 0
+		case inPaths && strings.Contains(strings.ToLower(file.path), needle):
+			return 1
+		}
+		return -1
+	}
 	suggestions := []models.ContentModel{}
-	for _, ignored := range []bool{false, true} {
+	type pass struct {
+		ignored bool
+		rank    int
+	}
+	for _, wanted := range []pass{{false, 0}, {false, 1}, {true, 0}, {true, 1}} {
 		for _, file := range files {
 			if len(suggestions) == maxSuggestions {
 				break
 			}
-			if file.ignored != ignored || !strings.Contains(strings.ToLower(file.name), needle) {
+			if file.ignored != wanted.ignored || rank(file) != wanted.rank {
 				continue
 			}
 			suggestions = append(suggestions, models.ContentModel{

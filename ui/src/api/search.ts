@@ -3,11 +3,15 @@ import { ContentEntry } from './contents';
 
 /**
  * Returns the files whose name contains `query`. With `ignored`, what .gitignore leaves out too, marked
- * `ignored` and after the rest.
+ * `ignored` and after the rest; with `inPaths`, files whose folders match, after those whose name does.
  */
-export function searchFiles(query: string, ignored = false): Promise<ContentEntry[]> {
+export function searchFiles(
+  query: string,
+  ignored = false,
+  inPaths = false
+): Promise<ContentEntry[]> {
   return requestJson<ContentEntry[]>('/api/files', {
-    query: { query, ignored: ignored ? true : undefined },
+    query: { query, ignored: ignored ? true : undefined, match: inPaths ? 'path' : undefined },
   });
 }
 

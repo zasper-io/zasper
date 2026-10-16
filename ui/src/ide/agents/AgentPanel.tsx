@@ -134,7 +134,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   return (
     <aside className="agentPanel" hidden={hidden} aria-label="Agent">
       <div className="agentPanel-title">
-        <span className="z-label">{chat ? nameOf(chat, agents) : 'Agent'}</span>
+        <span className="z-label">{chat ? nameOf(chat, agents) : (starting?.name ?? 'Agent')}</span>
         {chat && (
           <span className="agentPanel-actions">
             {chat.history && (
@@ -689,7 +689,7 @@ function FilePicker(props: {
   onClose: () => void;
   field: React.RefObject<HTMLTextAreaElement | null>;
 }) {
-  const matches = useFileMatches(props.query, true).slice(0, PICKER_SIZE);
+  const matches = useFileMatches(props.query, true, true).slice(0, PICKER_SIZE);
   const [chosen, setChosen] = useState(0);
   const { onPick, onClose } = props;
 

@@ -26,7 +26,8 @@ vi.mock('@/api', async (importOriginal) => ({
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
   openPastChat: (chatId: string, id: string) => openPastChat(chatId, id),
   undoTurn: (chatId: string, turn: number, anyway?: boolean) => undoTurn(chatId, turn, anyway),
-  searchFiles: (query: string, ignored?: boolean) => searchFiles(query, ignored),
+  searchFiles: (query: string, ignored?: boolean, inPaths?: boolean) =>
+    searchFiles(query, ignored, inPaths),
 }));
 
 vi.mock('@/ide/editor/notebook/MarkdownRenderer', () => ({
@@ -124,6 +125,7 @@ describe('AgentPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
 
     expect(await screen.findByRole('status', { name: 'Starting Claude Code' })).toBeInTheDocument();
+    expect(screen.getByText('Claude Code', { selector: '.z-label' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(signal?.aborted).toBe(true);
@@ -427,7 +429,7 @@ describe('AgentPanel', () => {
       type(field, 'clean @rea');
       const ignored = await screen.findByRole('option', { name: /readings\.csv/ });
       // What .gitignore leaves out is offered too: a dataset often is.
-      expect(searchFiles).toHaveBeenLastCalledWith('rea', true);
+      expect(searchFiles).toHaveBeenLastCalledWith('rea', true, true);
       expect(ignored).toHaveClass('is-ignored');
       fireEvent.keyDown(field, { key: 'ArrowDown' });
       fireEvent.keyDown(field, { key: 'ArrowDown' });
