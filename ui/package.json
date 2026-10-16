@@ -45,7 +45,7 @@
     "ansi_up": "^6.0.6",
     "dompurify": "^3.4.16",
     "jotai": "^2.20.3",
-    "katex": "^0.16.47",
+    "katex": "^0.18.11",
     "lodash": "^4.17.21",
     "lucide-react": "^1.41.0",
     "marked": "^15.0.12",
@@ -65,6 +65,7 @@
     "uuid": "14.0.2"
   },
   "overrides": {
+    "katex": "$katex",
     "style-to-js": "^1.1.21"
   },
   "devDependencies": {
