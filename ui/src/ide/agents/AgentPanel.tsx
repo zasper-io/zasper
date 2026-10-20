@@ -574,7 +574,8 @@ function Item({
       return (
         <div className="agentMsg">
           <Suspense fallback={<p>{item.text}</p>}>
-            <MarkdownRenderer source={item.text} />
+            {/* An answer about fares quotes prices; single dollars are money here, not maths. */}
+            <MarkdownRenderer source={item.text} singleDollarMath={false} />
           </Suspense>
         </div>
       );

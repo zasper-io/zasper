@@ -73,4 +73,27 @@ describe('MarkdownRenderer', () => {
     expect(container.querySelector('table td')).not.toBeNull();
     expect(container.querySelector('input[type="checkbox"]')).not.toBeNull();
   });
+
+  // An agent's answer about fares: two prices on one line must stay prices, not one formula between them.
+  it('reads single dollars as money when single-dollar maths is off', () => {
+    const answer =
+      "Staten Island's $60.16 average comes from 67 trips; a $4.50 fare moves it a lot.";
+    const { container } = render(<MarkdownRenderer source={answer} singleDollarMath={false} />);
+
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.textContent).toContain('$60.16 average comes from 67 trips; a $4.50 fare');
+  });
+
+  it('still renders double dollars and \\(x\\) as maths when single-dollar maths is off', () => {
+    const source = 'Energy is $$E = mc^2$$, and \\(\\sigma\\) is the spread.';
+    const { container } = render(<MarkdownRenderer source={source} singleDollarMath={false} />);
+
+    expect(container.querySelectorAll('.katex').length).toBe(2);
+  });
+
+  it('reads single dollars as maths by default, as Jupyter does', () => {
+    const { container } = render(<MarkdownRenderer source={'The mean is $\\mu$.'} />);
+
+    expect(container.querySelector('.katex')).not.toBeNull();
+  });
 });

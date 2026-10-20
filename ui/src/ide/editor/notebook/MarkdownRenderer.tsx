@@ -38,17 +38,30 @@ export interface MarkdownRendererProps {
    * which is what the export needs (export/toHtml.tsx): it cannot link to a font.
    */
   katexOutput?: 'htmlAndMathml' | 'mathml';
+  /**
+   * Whether `$x$` is maths, as in Jupyter (the default). Off where the text is prose that talks about
+   * money, such as an agent's answer: "$60.16 … $4.50" would otherwise set everything between the two
+   * prices as one formula. `$$x$$`, `\\(x\\)` and `\\[x\\]` stay maths either way.
+   */
+  singleDollarMath?: boolean;
 }
 
-const MarkdownRenderer = ({ source, katexOutput }: MarkdownRendererProps) => {
+const MarkdownRenderer = ({
+  source,
+  katexOutput,
+  singleDollarMath = true,
+}: MarkdownRendererProps) => {
   // `remark-math` reads `$x$` and nothing else; Jupyter's notebooks are full of `\\(x\\)`.
-  const text = useMemo(() => normalizeMathDelimiters(source), [source]);
+  const text = useMemo(
+    () => normalizeMathDelimiters(source, singleDollarMath ? '$' : '$$'),
+    [source, singleDollarMath]
+  );
 
   return (
     // The styling hook: markdown emits h1/table/blockquote with no classes for NotebookEditor.scss.
     <div className="zasper-markdown">
       <Markdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: singleDollarMath }]]}
         rehypePlugins={[
           rehypeRaw,
           [rehypeSanitize, schema],
