@@ -16,26 +16,27 @@
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 
 /** `\(x\)` and `\\(x\\)`, and the same for the display pair. Lazy, so `\(a\) and \(b\)` is two. */
-const PAIRS: { pattern: RegExp; delimiter: string }[] = [
-  { pattern: /\\\\\((.+?)\\\\\)/gs, delimiter: '$' },
-  { pattern: /\\\\\[(.+?)\\\\\]/gs, delimiter: '$$' },
-  { pattern: /\\\((.+?)\\\)/gs, delimiter: '$' },
-  { pattern: /\\\[(.+?)\\\]/gs, delimiter: '$$' },
+const PAIRS: { pattern: RegExp; display: boolean }[] = [
+  { pattern: /\\\\\((.+?)\\\\\)/gs, display: false },
+  { pattern: /\\\\\[(.+?)\\\\\]/gs, display: true },
+  { pattern: /\\\((.+?)\\\)/gs, display: false },
+  { pattern: /\\\[(.+?)\\\]/gs, display: true },
 ];
 
 /** Inline code spans, which are kept exactly as written. */
 const CODE_SPAN = /(`+[^`]*`+)/g;
 
-function rewriteProse(text: string): string {
+function rewriteProse(text: string, inline: string): string {
   return text
     .split(CODE_SPAN)
-    .map((part, index) => (index % 2 === 1 ? part : rewrite(part)))
+    .map((part, index) => (index % 2 === 1 ? part : rewrite(part, inline)))
     .join('');
 }
 
-function rewrite(text: string): string {
+function rewrite(text: string, inline: string): string {
   let out = text;
-  for (const { pattern, delimiter } of PAIRS) {
+  for (const { pattern, display } of PAIRS) {
+    const delimiter = display ? '$$' : inline;
     // A function replacement, because `$` in a replacement string is a group reference: writing the
     // dollars literally would silently insert the match instead.
     out = out.replace(pattern, (_, inner: string) => `${delimiter}${inner}${delimiter}`);
@@ -43,7 +44,11 @@ function rewrite(text: string): string {
   return out;
 }
 
-export function normalizeMathDelimiters(source: string): string {
+/**
+ * `inline` is what `\(x\)` becomes: `$` for remark-math's defaults, `$$` where single dollars are not
+ * maths (the agent panel), since remark-math still reads two or more dollars on one line as inline maths.
+ */
+export function normalizeMathDelimiters(source: string, inline: '$' | '$$' = '$'): string {
   // Segment first, rewrite second. A display pair almost always spans lines — `\\[` on one, the maths
   // on the next — so the rewrite has to see a whole run of prose at once; a line at a time would only
   // ever find the inline pairs.
@@ -53,7 +58,7 @@ export function normalizeMathDelimiters(source: string): string {
 
   const flush = () => {
     if (prose.length > 0) {
-      out.push(rewriteProse(prose.join('\n')));
+      out.push(rewriteProse(prose.join('\n'), inline));
       prose = [];
     }
   };
