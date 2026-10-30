@@ -1,6 +1,6 @@
 // Which representation of an output bundle is shown, for the types a kernel sends as something
 // other than text. The bundles below are the shapes IPython's `display()` actually emits.
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { NotebookOutput } from '@/api';
@@ -67,13 +67,73 @@ describe('OutputBundles from a notebook file', () => {
 });
 
 describe('OutputBundles from a running kernel', () => {
-  // Bokeh and similar libraries ship markup plus a bootstrap script.
-  it('runs the scripts in text/html', () => {
-    showFromKernel({
-      'text/html': "<script>document.body.setAttribute('data-ran-kernel', '')</script>",
+  // Bokeh and similar libraries ship markup plus a bootstrap script. It runs, but in a frame whose
+  // origin is no one's: in the page, it would act as whoever is looking at the notebook.
+  it('runs the scripts in text/html in a sandboxed frame, not in the page', () => {
+    const script = "<script>document.body.setAttribute('data-ran-kernel', '')</script>";
+    const { container } = showFromKernel({ 'text/html': `<div id="plot"></div>${script}` });
+
+    const frame = container.querySelector('iframe.output-sandbox');
+    expect(frame).not.toBeNull();
+    expect(frame?.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(frame?.getAttribute('srcdoc')).toContain(script);
+    expect(container.querySelector('script')).toBeNull();
+    expect(ran('kernel')).toBe(false);
+  });
+
+  it('runs an event handler in image/svg+xml in a sandboxed frame too', () => {
+    const { container } = showFromKernel({
+      'image/svg+xml':
+        '<svg xmlns="http://www.w3.org/2000/svg" onload="window.ranFromKernel = true"><circle r="4" /></svg>',
     });
 
-    expect(ran('kernel')).toBe(true);
+    expect(container.querySelector('iframe.output-sandbox')?.getAttribute('srcdoc')).toContain(
+      'onload'
+    );
+    expect(container.querySelector('[onload]')).toBeNull();
+  });
+
+  // A DataFrame, or any markup with nothing to run, stays in the page, where the notebook's styles reach it.
+  it('shows markup with nothing to run in the page', () => {
+    const { container } = showFromKernel({
+      'text/html':
+        '<style scoped>th { text-align: right; }</style><table class="dataframe"><tr><th>a</th></tr></table>',
+    });
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(container.querySelector('table.dataframe th')).not.toBeNull();
+  });
+
+  it('takes the frame’s height from the frame alone', () => {
+    const { container } = showFromKernel({ 'text/html': '<script>1</script>' });
+    const frame = container.querySelector('iframe.output-sandbox') as HTMLIFrameElement;
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', { data: { zasperOutputHeight: 9999 }, source: window })
+      );
+    });
+    expect(frame.style.height).toBe('0px');
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { zasperOutputHeight: 120.4 },
+          source: frame.contentWindow,
+        })
+      );
+    });
+    expect(frame.style.height).toBe('121px');
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { zasperOutputHeight: 1e9 },
+          source: frame.contentWindow,
+        })
+      );
+    });
+    expect(frame.style.height).toBe('4000px');
   });
 });
 

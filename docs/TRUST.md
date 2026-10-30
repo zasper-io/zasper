@@ -129,5 +129,9 @@ Both broke a trusted folder too, whenever it had a file named like a standard mo
 
 ## Not covered
 
-- **A trusted folder's kernel trusts everything it is sent.** A live kernel's HTML outputs run their
-  scripts, and widget code it names is loaded from jsdelivr; trust is the gate in front of both.
+- **A trusted folder's kernel trusts everything it is sent.** A live kernel's HTML and SVG outputs run
+  their scripts, and widget code it names is loaded from jsdelivr; trust is the gate in front of both.
+  The outputs' scripts run in a sandboxed frame (`SandboxedOutput.tsx`) whose origin is no one's, so
+  they cannot read the page, its cookies or the server's API; an output with nothing to run is shown in
+  the page. Widget code still runs in the page. Outputs saved in a notebook file never run, trusted or
+  not: they are sanitised.

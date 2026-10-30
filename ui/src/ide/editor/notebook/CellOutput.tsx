@@ -1,13 +1,4 @@
-import {
-  ComponentType,
-  createContext,
-  lazy,
-  Suspense,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
+import { ComponentType, createContext, lazy, Suspense, useContext, useMemo } from 'react';
 import { AnsiUp } from 'ansi_up';
 import DOMPurify from 'dompurify';
 
@@ -21,6 +12,7 @@ import DataFrameOutput, { OutputTables } from './DataFrameOutput';
 import { hasMathDelimiters } from './mathDelimiters';
 import { isProducedHere } from './outputTrust';
 import PlotlyOutput from './PlotlyOutput';
+import { SandboxContext, SandboxedOutput } from './SandboxedOutput';
 
 // The boundary Cell.tsx keeps for markdown cells, for the same reason: katex and the markdown
 // pipeline are the heaviest thing in the notebook, and an output only needs them when it is LaTeX.
@@ -34,43 +26,63 @@ const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
 export const MarkdownRendererContext =
   createContext<ComponentType<MarkdownRendererProps>>(MarkdownRenderer);
 
+// What DOMPurify takes out that would have run: the elements that run or load code, and below,
+// event handlers and `javascript:` addresses.
+const RUNNABLE = new Set(['SCRIPT', 'IFRAME', 'FRAME', 'OBJECT', 'EMBED', 'BASE', 'META', 'LINK']);
+
+function runnable(removed: (typeof DOMPurify.removed)[number]): boolean {
+  if ('element' in removed) {
+    return (
+      removed.element instanceof Element && RUNNABLE.has(removed.element.nodeName.toUpperCase())
+    );
+  }
+  const { name, value } = removed.attribute ?? { name: '', value: '' };
+  return /^on/i.test(name) || name === 'srcdoc' || /^\s*javascript:/i.test(value);
+}
+
 /**
- * An HTML output bundle. dangerouslySetInnerHTML does not run scripts, and libraries such as Bokeh ship
- * markup plus a bootstrap script, so a trusted output's scripts are re-created to run. An untrusted one,
- * read from a notebook file, is sanitised instead: its scripts would run as the signed-in user.
+ * Markup with anything that could run taken out, and whether any of it was there to take: a script, a
+ * frame, an event handler, a `javascript:` link. Not what DOMPurify drops for being unknown, such as
+ * the `scoped` on a DataFrame's `<style>`, which would otherwise send every table to a frame.
  */
-const HTMLOutput = ({ html, trusted }: { html: string; trusted: boolean }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  // FORCE_BODY keeps a leading <style>, which is how a DataFrame's HTML starts.
-  const markup = useMemo(
-    () => (trusted ? html : DOMPurify.sanitize(html, { FORCE_BODY: true })),
-    [html, trusted]
-  );
+function sanitise(markup: string, config: Parameters<typeof DOMPurify.sanitize>[1]) {
+  const clean = DOMPurify.sanitize(markup, config) as string;
+  return { clean, scripted: DOMPurify.removed.some(runnable) };
+}
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !trusted) return;
+// FORCE_BODY keeps a leading <style>, which is how a DataFrame's HTML starts.
+const sanitiseHtml = (html: string) => sanitise(html, { FORCE_BODY: true });
+const sanitiseSvg = (svg: string) =>
+  sanitise(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
 
-    const scripts = container.querySelectorAll('script');
-    scripts.forEach((oldScript) => {
-      const newScript = document.createElement('script');
-      if (oldScript.src) {
-        newScript.src = oldScript.src;
-      } else {
-        newScript.text = oldScript.textContent || '';
-      }
-      Array.from(oldScript.attributes).forEach((attr) =>
-        newScript.setAttribute(attr.name, attr.value)
-      );
-      oldScript.parentNode?.replaceChild(newScript, oldScript);
-    });
-  }, [markup, trusted]);
-
-  return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: markup }} />;
+/**
+ * Markup from a kernel or a file, shown in the page once nothing in it can run. What a running kernel
+ * sent and needs its scripts, as Bokeh's does, runs in a sandboxed frame instead, never in the page,
+ * where it would act as whoever is looking. What a notebook file brought is only ever sanitised: it
+ * was chosen by whoever wrote the file.
+ */
+const MarkupOutput = ({
+  markup,
+  trusted,
+  sanitiser,
+  className,
+}: {
+  markup: string;
+  trusted: boolean;
+  sanitiser: (markup: string) => { clean: string; scripted: boolean };
+  className?: string;
+}) => {
+  const sandbox = useContext(SandboxContext);
+  const { clean, scripted } = useMemo(() => sanitiser(markup), [markup, sanitiser]);
+  if (trusted && scripted && sandbox) {
+    return <SandboxedOutput markup={markup} />;
+  }
+  return <div className={className} dangerouslySetInnerHTML={{ __html: clean }} />;
 };
 
-const sanitiseSvg = (svg: string) =>
-  DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } });
+const HTMLOutput = ({ html, trusted }: { html: string; trusted: boolean }) => (
+  <MarkupOutput markup={html} trusted={trusted} sanitiser={sanitiseHtml} />
+);
 
 /** A base64 image bundle. png and jpeg differ only in the mime type the data URL names. */
 const ImageOutput = ({ mime, data }: { mime: string; data: string }) => (
@@ -254,10 +266,12 @@ export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesPr
           // markup on the same terms as the text/html above it.
           if (svgContent) {
             return (
-              <div
+              <MarkupOutput
                 key={index}
+                markup={svgContent}
+                trusted={trusted}
+                sanitiser={sanitiseSvg}
                 className="output-svg"
-                dangerouslySetInnerHTML={{ __html: trusted ? svgContent : sanitiseSvg(svgContent) }}
               />
             );
           }

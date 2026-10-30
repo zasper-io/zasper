@@ -491,6 +491,14 @@ $cell-gutter: 64px;
     height: 480px;
   }
 
+  // Markup that runs its scripts, in a frame of its own (SandboxedOutput.tsx). As wide as the output, and
+  // as tall as the frame says it is, on the output's own tint, since the frame is transparent.
+  .output-sandbox {
+    display: block;
+    width: 100%;
+    border: 0;
+  }
+
   // Tells consecutive outputs from one cell apart without changing the tint.
   > * + * {
     margin-top: 6px;

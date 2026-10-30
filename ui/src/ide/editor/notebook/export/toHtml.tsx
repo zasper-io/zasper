@@ -5,6 +5,7 @@ import { NotebookCell, NotebookModel, NotebookOutput } from '@/api';
 
 import { MarkdownRendererContext, OutputBundles } from '../CellOutput';
 import MarkdownRenderer, { type MarkdownRendererProps } from '../MarkdownRenderer';
+import { SandboxContext } from '../SandboxedOutput';
 import { cellSource, joinOutputLines, notebookLanguage } from './exportFormats';
 import { escapeHtml, highlightSource } from './exportHighlight';
 import { exportStylesheet } from './exportStyles';
@@ -208,23 +209,26 @@ const ExportedNotebook = ({
   cells: PreparedCell[];
   options: Required<Pick<HtmlExportOptions, 'title' | 'includeCode'>> & { kernel?: string };
 }) => (
-  // The eager renderer, for the LaTeX outputs inside OutputBundles: a static render cannot suspend.
+  // The eager renderer, for the LaTeX outputs inside OutputBundles: a static render cannot suspend. And
+  // no frames for markup that runs scripts: the export removes every script anyway, and keeps the rest.
   <MarkdownRendererContext.Provider value={StaticMarkdown}>
-    <main className={options.includeCode ? 'zx-page' : 'zx-page zx-outputs-only'}>
-      <h1 className="zx-title">{options.title}</h1>
-      <p className="zx-meta">
-        {options.kernel === undefined
-          ? 'Exported from Zasper'
-          : `Exported from Zasper · ${options.kernel}`}
-      </p>
-      {cells.map((prepared) => (
-        <ExportedCell
-          key={prepared.cell.id}
-          prepared={prepared}
-          includeCode={options.includeCode}
-        />
-      ))}
-    </main>
+    <SandboxContext.Provider value={false}>
+      <main className={options.includeCode ? 'zx-page' : 'zx-page zx-outputs-only'}>
+        <h1 className="zx-title">{options.title}</h1>
+        <p className="zx-meta">
+          {options.kernel === undefined
+            ? 'Exported from Zasper'
+            : `Exported from Zasper · ${options.kernel}`}
+        </p>
+        {cells.map((prepared) => (
+          <ExportedCell
+            key={prepared.cell.id}
+            prepared={prepared}
+            includeCode={options.includeCode}
+          />
+        ))}
+      </main>
+    </SandboxContext.Provider>
   </MarkdownRendererContext.Provider>
 );
 

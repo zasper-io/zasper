@@ -51,6 +51,7 @@ machine; with none installed anywhere, the specs that need a kernel skip rather 
 | `basepath` | under `--base-url`, as a hub serves it: the app, its API, a terminal's websocket, its sign-in and its cookie stay under the path, and nothing outside it is served |
 | `filebrowser` | create, rename, delete — on screen and on disk |
 | `notebook` | a cell runs against a real kernel, and its output survives a save and a reload |
+| `outputsandbox` | a kernel's HTML output runs its script in a sandboxed frame: its origin is no one's and the page is out of its reach |
 | `tabs` | closing an unsaved tab asks, and all three answers do what they say |
 | `palette` | a real `Ctrl-Shift-P`, a filter, and the command runs |
 | `terminal` | a real shell in the project directory |
