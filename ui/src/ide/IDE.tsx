@@ -27,6 +27,7 @@ import EditorDock from './editor/EditorDock';
 import LanguageServerBridge from '../lsp/LanguageServerBridge';
 import TrustController from './trust/TrustController';
 import DataPanel from './sidebar/dataPanel/DataPanel';
+import { BasePath } from '@/config';
 import { useLoadConnections } from '@/store/connections';
 import TrustDialog from './trust/TrustDialog';
 import StatusBar from './statusBar/StatusBar';
@@ -209,7 +210,7 @@ function IDE() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         markSignedOut();
-        window.location.href = '/login';
+        window.location.href = `${BasePath}/login`;
         return;
       }
       throw error;

@@ -22,12 +22,12 @@ var version string
 // printBanner announces the server to whoever is reading. A person at a terminal gets the banner;
 // output that is being collected as JSON gets the same facts as one structured line, because ASCII
 // art in a log collector is neither readable nor parseable.
-func printBanner(address string, accessToken string, version string, tracking bool, update updates.Status) {
+func printBanner(address string, appURL string, accessToken string, version string, tracking bool, update updates.Status) {
 	if !logging.Console() {
 		log.Info().
 			Str("version", version).
 			Str("addr", address).
-			Str("url", browsableURL(address)).
+			Str("url", appURL).
 			// Without it a headless run has no way to authenticate, which is the same trade Jupyter makes.
 			Str("access_token", accessToken).
 			Bool("tracking", tracking).
@@ -55,9 +55,9 @@ func printBanner(address string, accessToken string, version string, tracking bo
 	// Both lines, because they differ the moment --host is widened: the bind says who can reach the
 	// server, the URL is the one a browser on this machine can actually open.
 	fmt.Printf(" 📡 Bound to:            %s\n", address)
-	fmt.Printf(" 🖥️  Webapp available at: %s\n", browsableURL(address))
+	fmt.Printf(" 🖥️  Webapp available at: %s\n", appURL)
 	fmt.Printf(" 🔐 Server Access Token: %s\n", accessToken)
-	fmt.Printf(" 🔗 Sign in with:        %s\n", loginURL(address, accessToken))
+	fmt.Printf(" 🔗 Sign in with:        %s\n", loginURL(appURL, accessToken))
 	if notice := updateNotice(update); notice != nil {
 		fmt.Println("----------------------------------------------------------")
 		fmt.Printf(" ⬆️  %s\n", bold(notice[0], logging.Color()))
@@ -170,10 +170,11 @@ func listenAddress(host, port string) string {
 	return net.JoinHostPort(host, strings.TrimPrefix(port, ":"))
 }
 
-// loginURL is the link that signs a browser in on arrival, `/?token=` as in Jupyter. The server never
-// reads it: the frontend trades the token at /auth/login and takes it back out of the address bar.
-func loginURL(address, accessToken string) string {
-	return browsableURL(address) + "/?token=" + url.QueryEscape(accessToken)
+// loginURL is the link to the app at appURL that signs a browser in on arrival, `/?token=` as in Jupyter.
+// The server never reads it: the frontend trades the token at /auth/login and takes it back out of the
+// address bar.
+func loginURL(appURL, accessToken string) string {
+	return appURL + "/?token=" + url.QueryEscape(accessToken)
 }
 
 // browsableURL turns a bind address into one a browser on this machine can open. 0.0.0.0 and :: are

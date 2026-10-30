@@ -38,17 +38,24 @@ type Auth struct {
 	key     []byte
 	revoked *revokedSessions
 	logins  *loginLimiter
+	// Where the server is served from, "/" or a path such as /user/prasun/: the sign-in page's redirects
+	// go under it, and the session cookie is sent only below it.
+	base string
 }
 
-// New builds the gate for a server whose access token is accessToken.
-func New(accessToken string) *Auth {
+// New builds the gate for a server whose access token is accessToken, served at base.
+func New(accessToken, base string) *Auth {
 	// The label keeps this key distinct from any other use the same token is ever put to.
 	key := sha256.Sum256([]byte("zasper/session-key\x00" + accessToken))
+	if base == "" {
+		base = "/"
+	}
 	return &Auth{
 		accessToken: accessToken,
 		key:         key[:],
 		revoked:     newRevokedSessions(),
 		logins:      newLoginLimiter(),
+		base:        base,
 	}
 }
 
@@ -202,11 +209,13 @@ type LoginResponse struct {
 	RedirectPath string `json:"redirect_path"`
 }
 
-func sessionCookieFor(r *http.Request, value string, maxAge int) *http.Cookie {
+// sessionCookieFor is the session cookie, below the server's base path only: two servers a hub puts on
+// one host, at /user/prasun/ and /user/bob/, each get their own.
+func (a *Auth) sessionCookieFor(r *http.Request, value string, maxAge int) *http.Cookie {
 	return &http.Cookie{
 		Name:     sessionCookie,
 		Value:    value,
-		Path:     "/",
+		Path:     a.base,
 		MaxAge:   maxAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
@@ -266,7 +275,8 @@ func (a *Auth) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, sessionCookieFor(r, tokenString, int(sessionLifetime.Seconds())))
+	http.SetCookie(w, a.sessionCookieFor(r, tokenString, int(sessionLifetime.Seconds())))
+	// The frontend's router is told the base path itself, so "/" is the IDE wherever the server is.
 	httpx.SendJSON(w, http.StatusOK, LoginResponse{Token: tokenString, RedirectPath: "/"})
 }
 
@@ -285,6 +295,6 @@ func (a *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 		a.revoked.add(s.id, s.expires)
 	}
 
-	http.SetCookie(w, sessionCookieFor(r, "", -1))
+	http.SetCookie(w, a.sessionCookieFor(r, "", -1))
 	w.WriteHeader(http.StatusNoContent)
 }

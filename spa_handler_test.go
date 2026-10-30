@@ -49,3 +49,27 @@ func TestEveryOtherAddressIsTheAppRevalidatedEachTime(t *testing.T) {
 		})
 	}
 }
+
+func TestThePageIsServedWithItsBasePath(t *testing.T) {
+	files := fstest.MapFS{
+		"index.html": {Data: []byte(`<head><base href="/" /><script src="./assets/index.js"></script></head>`)},
+	}
+	handler := newSpaHandler(files, "/user/prasun/")
+
+	for _, path := range []string{"/", "/login", "/some/deep/link"} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+
+		assert.Equal(t, http.StatusOK, recorder.Code, path)
+		assert.Equal(t, `<head><base href="/user/prasun/" /><script src="./assets/index.js"></script></head>`, recorder.Body.String(), path)
+		assert.Equal(t, "no-cache", recorder.Header().Get("Cache-Control"), path)
+		assert.Contains(t, recorder.Header().Get("Content-Type"), "text/html", path)
+	}
+}
+
+func TestAtTheRootThePageIsAsBuilt(t *testing.T) {
+	page := `<head><base href="/" /></head>`
+	recorder := httptest.NewRecorder()
+	newSpaHandler(fstest.MapFS{"index.html": {Data: []byte(page)}}, "/").ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	assert.Equal(t, page, recorder.Body.String())
+}

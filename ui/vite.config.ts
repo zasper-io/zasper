@@ -4,6 +4,9 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  // Relative, so the built page's scripts, styles and assets resolve against its <base>, which the
+  // server sets to wherever it is served from: / on its own, /user/prasun/ behind a hub.
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {

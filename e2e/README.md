@@ -26,7 +26,8 @@ Both halves run on every pull request — see [.github/workflows/e2e.yml](../.gi
 where CI installs `ipykernel` so that nothing skips.
 
 The server is built and started for you (see `playwright.config.ts` and `prepare.cjs`) on port 8099, so
-a `make dev` on 8048 can keep running alongside.
+a `make dev` on 8048 can keep running alongside. A second one, on 8098 with `--base-url /user/prasun/`, is
+for `basepath` alone.
 
 ## What a run touches
 
@@ -47,6 +48,7 @@ machine; with none installed anywhere, the specs that need a kernel skip rather 
 | Spec | Journey |
 | --- | --- |
 | `boot` | the app loads, the tree is the project the server was started in, the console is clean |
+| `basepath` | under `--base-url`, as a hub serves it: the app, its API, a terminal's websocket, its sign-in and its cookie stay under the path, and nothing outside it is served |
 | `filebrowser` | create, rename, delete — on screen and on disk |
 | `notebook` | a cell runs against a real kernel, and its output survives a save and a reload |
 | `tabs` | closing an unsaved tab asks, and all three answers do what they say |

@@ -34,6 +34,9 @@ type Application struct {
 	AccessToken string
 	// --trust: the project is trusted for this run, without asking and without writing it down.
 	Trust bool
+	// --base-url: where the server is served from, "/" or a path such as /user/prasun/, with a slash at
+	// each end.
+	BasePath string
 }
 
 // NewApplication settles what a server for the project at cwd starts with.
@@ -62,6 +65,7 @@ func NewApplication(version string, cwd string) Application {
 		UserName:    GetUsername(),
 		OSName:      runtime.GOOS,
 		JupyterPath: jupyterpaths.Dirs(),
+		BasePath:    "/",
 	}
 }
 

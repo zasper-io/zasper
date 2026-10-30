@@ -21,5 +21,13 @@ export const fixtureProject = join(e2eRoot, 'fixtures', 'project');
 export const port = 8099;
 export const baseURL = `http://localhost:${port}`;
 
+/**
+ * A second server on the same project, under a path as a hub serves one: `--base-url /user/prasun/`. Only
+ * basepath.spec.ts talks to it.
+ */
+export const basePathPort = 8098;
+export const basePath = '/user/prasun/';
+export const basePathURL = `http://localhost:${basePathPort}${basePath}`;
+
 /** Pinned through ZASPER_ACCESS_TOKEN, so the specs can sign in the way the startup link does. */
 export const accessToken = 'e2e-access-token';

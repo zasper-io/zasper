@@ -58,7 +58,7 @@ func New(app core.Application) *Server {
 
 	s := &Server{
 		app:           app,
-		auth:          auth.New(app.AccessToken),
+		auth:          auth.New(app.AccessToken, app.BasePath),
 		content:       content.NewHandler(project),
 		git:           gitclient.NewHandler(project.Root()),
 		search:        search.NewHandler(project),

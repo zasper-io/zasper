@@ -9,6 +9,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      What every relative link on the page, and every address the app builds (src/config.ts), is
+      under. The server writes its --base-url here, such as /user/prasun/ behind a hub (spa_handler.go
+      looks for this exact element), so the links below are relative, not from the root.
+    -->
+    <base href="/" />
 
     <!--
       Icons, generated from assets/brand/favicon.svg in the prototype by its scripts/genicons.mjs.
@@ -16,15 +22,15 @@
       is preferred where supported, the PNGs cover the rest, and apple-touch-icon is a PNG because
       iOS will not take an .ico — it was pointed at one here, so the home-screen icon never resolved.
     -->
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
-    <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" />
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="manifest.json" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -38,6 +38,7 @@ func main() {
 	noBrowser := flag.Bool("no-browser", false, "do not open the app in a browser on startup")
 	allowHost := flag.String("allow-host", "", "other host names a server on loopback answers to, comma-separated, such as a reverse proxy's")
 	trustFolder := flag.Bool("trust", false, "trust the project folder for this run: its kernels, .venv and language servers start without asking")
+	baseURL := flag.String("base-url", "", "the path to serve the app under, such as /user/prasun/ behind a hub; ZASPER_BASE_URL too")
 
 	flag.Parse()
 
@@ -70,21 +71,26 @@ func main() {
 		log.Fatal().Err(err).Msg("--allow-host and ZASPER_ALLOWED_HOSTS take host names")
 	}
 
+	base, err := httpx.BasePath(*baseURL, os.Getenv("ZASPER_BASE_URL"))
+	if err != nil {
+		log.Fatal().Err(err).Msg("--base-url and ZASPER_BASE_URL take a path")
+	}
+
 	// Channel for graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	// Bind before announcing, so that a port that is already taken is the only thing printed.
 	address := listenAddress(*host, *port)
-	zasper, err := startServer(*cwd, []string{address}, resolveTracking(*tracking), allowedHosts, *trustFolder)
+	zasper, err := startServer(*cwd, []string{address}, resolveTracking(*tracking), allowedHosts, *trustFolder, base)
 	if err != nil {
 		log.Fatal().Err(err).Str("addr", address).Msg("could not listen; is a server already running on this port?")
 	}
 
-	printBanner(zasper.address, zasper.accessToken, version, zasper.tracking, zasper.updates.Status())
+	printBanner(zasper.address, zasper.url, zasper.accessToken, version, zasper.tracking, zasper.updates.Status())
 
 	if shouldOpenBrowser(*noBrowser, logging.Console(), runtime.GOOS, os.Getenv) {
-		launchBrowser(loginURL(zasper.address, zasper.accessToken))
+		launchBrowser(loginURL(zasper.url, zasper.accessToken))
 	}
 
 	select {

@@ -6,12 +6,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/core"
+	"github.com/zasper-io/zasper/internal/httpx"
 	"github.com/zasper-io/zasper/internal/logging"
 	"github.com/zasper-io/zasper/internal/mcpbridge"
 	"github.com/zasper-io/zasper/internal/runtimeinfo"
@@ -23,7 +25,9 @@ import (
 // one; only what they do around it differs.
 type zasperServer struct {
 	// address is what the listener actually bound, so a port of 0 comes back as the real port.
-	address     string
+	address string
+	// url is where a browser on this machine opens the app: the bound address and the base path.
+	url         string
 	accessToken string
 	tracking    bool
 	// The file that tells programs on this machine, such as `zasper mcp`, where the server is.
@@ -38,21 +42,23 @@ type zasperServer struct {
 }
 
 /*
-startServer binds the first of addresses it can and serves the app for the project in cwd.
+startServer binds the first of addresses it can and serves the app for the project in cwd, at base: "/"
+or a path such as /user/prasun/, below which every route, page and cookie is.
 
 It returns once the listener is bound, not once the first request is served: a request that arrives
 before Serve is running waits in the listener's backlog, so the caller can open a page straight away.
 */
-func startServer(cwd string, addresses []string, tracking bool, allowedHosts []string, trustProject bool) (*zasperServer, error) {
+func startServer(cwd string, addresses []string, tracking bool, allowedHosts []string, trustProject bool, base string) (*zasperServer, error) {
 	// Before anything writes config.json, which is how a first run is told from an upgrade.
 	updates.MarkFirstRun(version)
 
 	app := core.NewApplication(version, cwd)
 	app.Trust = trustProject
+	app.BasePath = base
 	zasper := server.New(app)
 	checker := newUpdateChecker()
 	zasper.UseUpdates(checker)
-	router := zasper.Router(getSpaHandler())
+	router := httpx.UnderBase(base, zasper.Router(getSpaHandler(base)))
 
 	// Anonymous usage tracking. It is what tells me whether anyone is actually using Zasper, which is
 	// most of what keeps me maintaining it. Nothing that identifies a person or names a file leaves
@@ -74,6 +80,7 @@ func startServer(cwd string, addresses []string, tracking bool, allowedHosts []s
 		return nil, err
 	}
 	bound := listener.Addr().String()
+	appURL := browsableURL(bound) + strings.TrimSuffix(base, "/")
 
 	httpServer := &http.Server{
 		Handler: server.WithRequestLogging(log.Logger, logging.AccessLog(), appHandler(router, bound, allowedHosts)),
@@ -90,7 +97,7 @@ func startServer(cwd string, addresses []string, tracking bool, allowedHosts []s
 	go checker.Run(checks)
 
 	runtimeFile, err := runtimeinfo.Write(runtimeinfo.Info{
-		URL: browsableURL(bound), Token: app.AccessToken, Project: app.HomeDir, PID: os.Getpid(),
+		URL: appURL, Token: app.AccessToken, Project: app.HomeDir, PID: os.Getpid(),
 	})
 	if err != nil {
 		log.Warn().Err(err).Msg("could not record the server for `zasper mcp` to find")
@@ -100,6 +107,7 @@ func startServer(cwd string, addresses []string, tracking bool, allowedHosts []s
 	return &zasperServer{
 		runtimeFile: runtimeFile,
 		address:     bound,
+		url:         appURL,
 		accessToken: app.AccessToken,
 		tracking:    tracking,
 		serving:     serving,

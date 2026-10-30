@@ -41,7 +41,7 @@ func (a *Auth) pageSession(r *http.Request) (live bool, ended string) {
 /*
 PageGate decides between the IDE and the sign-in page before any HTML is sent, so a browser with a dead
 session is never shown the IDE first. The access-token link, `/?token=…`, goes through: that is how it
-signs in.
+signs in. Paths are the server's own, below its base path, which its redirects go back under.
 */
 func (a *Auth) PageGate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,7 @@ func (a *Auth) PageGate(next http.Handler) http.Handler {
 				break
 			}
 			if live, ended := a.pageSession(r); !live {
-				target := "/login"
+				target := a.base + "login"
 				if ended != "" {
 					target += "?reason=" + ended
 				}
@@ -66,12 +66,12 @@ func (a *Auth) PageGate(next http.Handler) http.Handler {
 		case "/login":
 			live, ended := a.pageSession(r)
 			if live {
-				http.Redirect(w, r, "/", http.StatusFound)
+				http.Redirect(w, r, a.base, http.StatusFound)
 				return
 			}
 			// The session-ended notice and the IDE's own 401 both arrive here without one.
 			if ended != "" && !r.URL.Query().Has("reason") {
-				http.Redirect(w, r, "/login?reason="+ended, http.StatusFound)
+				http.Redirect(w, r, a.base+"login?reason="+ended, http.StatusFound)
 				return
 			}
 		}

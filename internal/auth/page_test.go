@@ -34,7 +34,7 @@ func TestTheIDEPageIsSentOnlyToALiveSession(t *testing.T) {
 		{"live", signedWith(t, a.key, validClaims()), ""},
 		{"no cookie", "", "/login"},
 		{"not a token", "garbage", "/login"},
-		{"server restarted", signedWith(t, New("the-old-token").key, validClaims()), "/login?reason=restarted"},
+		{"server restarted", signedWith(t, New("the-old-token", "/").key, validClaims()), "/login?reason=restarted"},
 		{"expired", signedWith(t, a.key, expired), "/login?reason=expired"},
 		{"signed out", signedWith(t, a.key, signedOut), "/login?reason=signed-out"},
 	}
@@ -67,7 +67,7 @@ func TestTheSignInPageSendsALiveSessionToTheIDE(t *testing.T) {
 
 func TestTheSignInPageIsToldWhyWhenNobodySaid(t *testing.T) {
 	a := gate(t, "the-token")
-	restarted := signedWith(t, New("the-old-token").key, validClaims())
+	restarted := signedWith(t, New("the-old-token", "/").key, validClaims())
 
 	bare := pageRequest(a, http.MethodGet, "/login", restarted)
 	assert.Equal(t, http.StatusFound, bare.Code)
@@ -94,4 +94,25 @@ func TestARefusedTokenStillAnswersInvalidToken(t *testing.T) {
 
 	assert.EqualError(t, err, "invalid token")
 	assert.ErrorIs(t, err, jwt.ErrTokenSignatureInvalid)
+}
+
+func TestUnderABasePathTheSignInPageAndItsCookieStayUnderIt(t *testing.T) {
+	t.Parallel()
+	a := New("the-token", "/user/prasun/")
+
+	none := pageRequest(a, http.MethodGet, "/", "")
+	assert.Equal(t, "/user/prasun/login", none.Header().Get("Location"))
+
+	restarted := pageRequest(a, http.MethodGet, "/", signedWith(t, New("the-old-token", "/user/prasun/").key, validClaims()))
+	assert.Equal(t, "/user/prasun/login?reason=restarted", restarted.Header().Get("Location"))
+
+	live := pageRequest(a, http.MethodGet, "/login", signedWith(t, a.key, validClaims()))
+	assert.Equal(t, "/user/prasun/", live.Header().Get("Location"))
+
+	signedIn := signIn(t, a, "the-token", "192.0.2.1")
+	assert.Equal(t, "/user/prasun/", sessionCookieIn(t, signedIn).Path)
+
+	out := httptest.NewRecorder()
+	a.Logout(out, httptest.NewRequest(http.MethodPost, "/auth/logout", nil))
+	assert.Equal(t, "/user/prasun/", sessionCookieIn(t, out).Path, "a cookie is only cleared at the path it was set at")
 }

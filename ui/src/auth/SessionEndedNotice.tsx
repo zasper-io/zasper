@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { getInfo, watchSession } from '@/api';
+import { BasePath } from '@/config';
 import { Icon } from '@/ide/icons';
 import { markSignedOut } from './signedIn';
 
@@ -50,7 +51,7 @@ export default function SessionEndedNotice() {
       <button
         type="button"
         className="z-button z-button-secondary z-notice-action"
-        onClick={() => window.open('/login', '_blank', 'noopener')}
+        onClick={() => window.open(`${BasePath}/login`, '_blank', 'noopener')}
       >
         Sign in
       </button>

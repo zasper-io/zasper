@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { JSX, lazy, Suspense, useEffect, useState } from 'react';
 
 import { login, logApiError } from '@/api';
+import { BasePath } from '@/config';
 import { isSignedIn, markSignedIn } from '@/auth/signedIn';
 
 // Both route components load on demand, so the two screens don't pay for each
@@ -62,7 +63,7 @@ export default function RouteConfig() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={BasePath || undefined}>
       {/* No fallback markup: the route chunk is the first thing rendered, so
           anything here would only flash. */}
       <Suspense fallback={null}>

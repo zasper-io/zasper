@@ -13,8 +13,15 @@ const devHost = 'localhost:8048';
 
 const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
-export const BaseApiUrl = isDev ? `http://${devHost}` : '';
+// Where the server serves the app, as the <base> it writes into index.html says: '' at the root, or a
+// path such as /user/prasun when a hub puts each person's server under one (`zasper --base-url`). Every
+// address the app builds, the router's included, starts with it.
+export const BasePath = new URL(document.baseURI).pathname.replace(/\/$/, '');
 
-export const BaseWebSocketUrl = isDev ? `ws://${devHost}` : `${wsScheme}://${window.location.host}`;
+export const BaseApiUrl = isDev ? `http://${devHost}` : BasePath;
+
+export const BaseWebSocketUrl = isDev
+  ? `ws://${devHost}`
+  : `${wsScheme}://${window.location.host}${BasePath}`;
 
 export const WsBaseUrl = `${BaseWebSocketUrl}/api/kernels/`;

@@ -12,11 +12,11 @@ import (
 //go:embed ui/build/*
 var staticFiles embed.FS
 
-func getSpaHandler() http.Handler {
+func getSpaHandler(base string) http.Handler {
 	files, err := fs.Sub(staticFiles, "ui/build")
 	if err != nil {
 		// Only a mistyped directory above can cause this, and every build would fail on its first page.
 		panic(err)
 	}
-	return spaHandler{files: files}
+	return newSpaHandler(files, base)
 }

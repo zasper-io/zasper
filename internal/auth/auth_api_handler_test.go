@@ -48,7 +48,7 @@ func gate(t *testing.T, token string) *Auth {
 	t.Helper()
 	t.Parallel()
 
-	return New(token)
+	return New(token, "/")
 }
 
 func requestWith(header string) *http.Request {
@@ -242,10 +242,10 @@ func TestSessionKeyFollowsAccessToken(t *testing.T) {
 	assert.Equal(t, "1", userID)
 
 	// The same token derives the same key, so a session outlives a restart that pins it.
-	_, err = New("the-first-token").userFromToken(session)
+	_, err = New("the-first-token", "/").userFromToken(session)
 	assert.NoError(t, err)
 
-	_, err = New("a-different-token").userFromToken(session)
+	_, err = New("a-different-token", "/").userFromToken(session)
 	assert.Error(t, err)
 }
 
