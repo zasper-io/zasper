@@ -34,18 +34,18 @@ parts:
       # Both toolchains are downloaded by version and checked against their published SHA-256, rather than
       # piping NodeSource's setup script into bash and trusting an unchecked Go tarball. snap.yml builds
       # natively on amd64 and arm64, so those are the architectures listed.
-      GO_VERSION=1.26.8
+      GO_VERSION=1.26.10
       NODE_VERSION=22.23.2
       case "$(dpkg --print-architecture)" in
         amd64)
           GO_ARCH=amd64
-          GO_SHA256=d0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b
+          GO_SHA256=ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5
           NODE_ARCH=x64
           NODE_SHA256=d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307
           ;;
         arm64)
           GO_ARCH=arm64
-          GO_SHA256=211ffced9dcb9633a55eac6364816ec0ddd951389a740e88fa8b3337971bdda0
+          GO_SHA256=3f4227ce7b206a513e794f1393adb473a07b46e94d18bd15d1c684bbb7319797
           NODE_ARCH=arm64
           NODE_SHA256=fff4078c5def658577f92c88db7db3bc0072924bfb93fe52c1e744a54e94abb8
           ;;
