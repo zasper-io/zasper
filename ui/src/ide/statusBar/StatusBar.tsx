@@ -84,7 +84,7 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
     activeTab?.type === 'file' && formats[activeTab.path] !== undefined ? activeTab.path : null;
 
   return (
-    <div className="statusBar">
+    <footer className="statusBar">
       <div className="leftStatus">
         {/* First: it is what this window is, before anything in it. */}
         <RestrictedStatus />
@@ -163,6 +163,6 @@ export default function StatusBar({ onBranchClick }: StatusBarProps) {
         <ZoomStatus />
         <UpdateStatus />
       </div>
-    </div>
+    </footer>
   );
 }

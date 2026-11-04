@@ -14,7 +14,7 @@ import {
   widgetCdnAtom,
 } from '../store/settings';
 
-import NavigationPanel from './sidebar/navigationPanel/NavigationPanel';
+import NavigationPanel, { NAV_ITEMS } from './sidebar/navigationPanel/NavigationPanel';
 import FileBrowser from './sidebar/fileBrowser/FileBrowser';
 import ContentPanel from './editor/ContentPanel';
 import TabIndex from './tabs/TabIndex';
@@ -327,7 +327,11 @@ function IDE() {
             onExpand={() => setSidebarOpen(true)}
           >
             <div className="navigation">
-              <div className="sideBar" data-region="sidebar">
+              <aside
+                className="sideBar"
+                data-region="sidebar"
+                aria-label={NAV_ITEMS.find((item) => item.name === activePanel)?.label}
+              >
                 <FileBrowser hidden={activePanel !== 'fileBrowser'} reloadCount={reloadCount} />
                 <SearchPanel hidden={activePanel !== 'searchPanel'} />
                 <DataPanel hidden={activePanel !== 'dataPanel'} />
@@ -336,7 +340,7 @@ function IDE() {
                   hidden={activePanel !== 'gitPanel'}
                   reveal={() => showPanel('gitPanel')}
                 />
-              </div>
+              </aside>
             </div>
           </Panel>
           <PanelResizeHandle className="panelResizeHandle" />
@@ -344,10 +348,10 @@ function IDE() {
             {/* The panel under the editor , closed to nothing until it is asked for. */}
             <PanelGroup direction="vertical">
               <Panel id="editor-area" order={1} minSize={30}>
-                <div className="main-content" data-region="editor">
+                <main className="main-content" data-region="editor">
                   <TabIndex onShowFileBrowser={() => showPanel('fileBrowser')} />
                   <ContentPanel />
-                </div>
+                </main>
               </Panel>
               <PanelResizeHandle
                 className="panelResizeHandle is-between-rows"

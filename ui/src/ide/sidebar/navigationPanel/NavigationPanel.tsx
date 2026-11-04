@@ -17,7 +17,7 @@ interface NavigationPanelProps {
 // whole control rather than a marker beside a word.
 const RAIL_ICON_SIZE = 20;
 
-const NAV_ITEMS: { name: PanelName; label: string; icon: IconName }[] = [
+export const NAV_ITEMS: { name: PanelName; label: string; icon: IconName }[] = [
   { name: 'fileBrowser', label: 'File explorer', icon: 'files' },
   { name: 'searchPanel', label: 'Search', icon: 'search' },
   { name: 'gitPanel', label: 'Source control', icon: 'git-branch' },
@@ -31,7 +31,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
   const { openHelp, openSettings } = useTabActions();
 
   return (
-    <div className="navigation-list" data-region="rail">
+    <nav className="navigation-list" data-region="rail" aria-label="Panels">
       {NAV_ITEMS.map((item) => (
         <RailButton
           key={item.name}
@@ -51,7 +51,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
         className="navButton-last"
         onClick={() => openHelp()}
       />
-    </div>
+    </nav>
   );
 };
 

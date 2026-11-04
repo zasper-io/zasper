@@ -76,7 +76,7 @@ function Login() {
   };
 
   return (
-    <div className="login-root">
+    <main className="login-root">
       <section className="login-page">
         <div className="login-hero">
           <Link to="/" className="login-hero-brand">
@@ -164,7 +164,7 @@ function Login() {
         </div>
       </section>
       <ToastContainer />
-    </div>
+    </main>
   );
 }
 

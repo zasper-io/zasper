@@ -110,7 +110,7 @@ export default function Topbar({
   return (
     // A three-part flex row, not a 12-column grid: the two side groups flex equally, so the
     // search box is centred on the window rather than on whatever the columns leave.
-    <div className="topBar">
+    <header className="topBar">
       <div className="topBar-side">
         {/* Not an <img>: which wordmark file to use depends on whether the topbar is
             dark or light, which comes from --z-logo so that no component has to branch
@@ -171,7 +171,7 @@ export default function Topbar({
         <span className="userName">{userName}</span>
         <LogoutButton />
       </div>
-    </div>
+    </header>
   );
 }
 
