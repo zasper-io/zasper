@@ -75,7 +75,9 @@ describe('OutputBundles from a running kernel', () => {
 
     const frame = container.querySelector('iframe.output-sandbox');
     expect(frame).not.toBeNull();
-    expect(frame?.getAttribute('sandbox')).toBe('allow-scripts');
+    const sandbox = frame?.getAttribute('sandbox')?.split(' ');
+    expect(sandbox).toContain('allow-scripts');
+    expect(sandbox).not.toContain('allow-same-origin');
     expect(frame?.getAttribute('srcdoc')).toContain(script);
     expect(container.querySelector('script')).toBeNull();
     expect(ran('kernel')).toBe(false);

@@ -57,7 +57,9 @@ function frameDocument(markup: string, look: string): string {
     '<!doctype html><html><head><meta charset="utf-8">',
     // Links open in a new tab: the frame may not navigate itself or the IDE.
     '<base target="_blank">',
-    `<style>html,body{margin:0;background:transparent}body{${look}}</style>`,
+    // As tall as what is in it. A standalone page such as Bokeh's sets `height: 100%`, which in a frame
+    // sized from its document's height keeps both at 0.
+    `<style>html,body{margin:0;background:transparent;height:auto!important}body{${look}}</style>`,
     REPORT_HEIGHT,
     '</head><body>',
     markup,
@@ -71,6 +73,11 @@ function frameDocument(markup: string, look: string): string {
  * scripts cannot read this page, its cookies or the server's API, where they would otherwise run as
  * whoever is looking at the notebook. That matters most behind a hub, where every server is under one
  * host: a script in one server's output could otherwise act in another's.
+ *
+ * Downloads, popups and dialogs are allowed for a chart's own menu, such as Vega's Save as PNG and Open
+ * in Vega Editor, or Bokeh's save, which asks for a filename with `prompt()`, and for links. A popup
+ * escapes the sandbox, or the page it opens would be blank: it is a window of its own, at its own origin
+ * or at this frame's, so it cannot reach the page either.
  *
  * The frame has no height of its own, so its first script reports one, and only a message from this
  * frame's window is taken as it.
@@ -99,7 +106,7 @@ export function SandboxedOutput({ markup }: { markup: string }) {
       ref={frameRef}
       className="output-sandbox"
       title="Output"
-      sandbox="allow-scripts"
+      sandbox="allow-scripts allow-downloads allow-modals allow-popups allow-popups-to-escape-sandbox"
       srcDoc={doc}
       style={{ height }}
     />

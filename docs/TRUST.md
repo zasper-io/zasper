@@ -133,5 +133,7 @@ Both broke a trusted folder too, whenever it had a file named like a standard mo
   their scripts, and widget code it names is loaded from jsdelivr; trust is the gate in front of both.
   The outputs' scripts run in a sandboxed frame (`SandboxedOutput.tsx`) whose origin is no one's, so
   they cannot read the page, its cookies or the server's API; an output with nothing to run is shown in
-  the page. Widget code still runs in the page. Outputs saved in a notebook file never run, trusted or
-  not: they are sanitised.
+  the page. The frame may offer a download, open a window and ask with `prompt()`, which a chart's own
+  menu does: the window opens outside the sandbox, at its own origin, and cannot reach the page either.
+  Widget code still runs in the page. Outputs saved in a notebook file never run, trusted or not: they
+  are sanitised.
