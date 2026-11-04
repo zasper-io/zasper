@@ -28,6 +28,7 @@ import { sqlCellExtensions } from './sqlEditor';
 import SqlCellHead from './SqlCellHead';
 import CellTime from './CellTime';
 import { useSqlSchema } from './useSqlSchema';
+import { useOverflows } from './useOverflows';
 import { zoomAwareTooltips } from '../tooltipParent';
 
 /** The name a cell's last line is when it is nothing else: what a chart's code can be written against. */
@@ -55,6 +56,7 @@ export default function CodeCell(props: CellProps) {
   const cellTabIndents = useAtomValue(editorSettingsAtom).cell_tab_indents;
   const { keepView } = useCellView(cell.id);
   const box = useCellBox(cell.id, isFocused);
+  const [outputRef, outputScrolls] = useOverflows<HTMLDivElement>();
   const leaveCell = useLeaveCellKeymap(cell.id, false);
   // Taken once: @uiw/react-codemirror focuses the editor whenever `autoFocus` turns true, not only when
   // it is made, which would pull every cell the focus moves to into edit mode. A cell made focused — one
@@ -210,7 +212,15 @@ export default function CodeCell(props: CellProps) {
       {/* Only when there is something to show — .inner-text has padding and a background,
           so an empty one is a tinted strip under every un-run cell. */}
       {cell.outputs && cell.outputs.length > 0 && (
-        <div className={props.isOutputExpanded ? 'inner-text is-expanded' : 'inner-text'}>
+        <div
+          ref={outputRef}
+          className={props.isOutputExpanded ? 'inner-text is-expanded' : 'inner-text'}
+          role="group"
+          aria-label={`Output of cell ${props.index + 1}`}
+          // A Tab stop only while it scrolls: the arrow keys and Page Down need it focused to move it,
+          // and Safari will not focus a scrolling box that is not.
+          tabIndex={outputScrolls ? 0 : undefined}
+        >
           <CellOutput
             data={cell}
             widgets={editor.widgets}

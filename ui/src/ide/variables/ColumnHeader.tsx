@@ -39,6 +39,8 @@ interface ColumnHeaderProps {
 }
 
 const MIN_WIDTH = 48;
+/** How far Left or Right on a focused column edge moves it. */
+const RESIZE_STEP = 16;
 const DRAGGED = 'application/x-zasper-column';
 
 function MenuAction({
@@ -206,6 +208,19 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
 
   const sized = width === undefined ? undefined : { width, minWidth: width, maxWidth: width };
 
+  // The keyboard's half of the drag: Left and Right on the focused edge, a step at a time. The width
+  // it starts from is the column as drawn until it has been sized once.
+  const drawnWidth = () =>
+    width ?? (header.current?.getBoundingClientRect().width ?? MIN_WIDTH) / currentZoomFactor();
+  const resizeByKey = (event: React.KeyboardEvent) => {
+    const step =
+      event.key === 'ArrowRight' ? RESIZE_STEP : event.key === 'ArrowLeft' ? -RESIZE_STEP : 0;
+    if (step !== 0) {
+      event.preventDefault();
+      props.onResize(Math.max(MIN_WIDTH, drawnWidth() + step));
+    }
+  };
+
   return (
     <th
       ref={header}
@@ -251,11 +266,17 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
       <Distribution profile={profile} anchor={shape.anchorProps} />
       {profile !== undefined && <Tooltip tip={shape} label={shapeTip(profile)} />}
       <span className="dataGrid-missing">{missing > 0 ? `${missing}% missing` : ''}</span>
+      {/* A focusable separator is a widget (ARIA 1.2), which jsx-a11y does not know. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <span
         className="dataGrid-resize"
         role="separator"
         aria-orientation="vertical"
         aria-label={`Resize ${name}`}
+        tabIndex={0}
+        aria-valuemin={MIN_WIDTH}
+        aria-valuenow={Math.round(drawnWidth())}
+        onKeyDown={resizeByKey}
         onPointerDown={startResize}
       />
       {open && (

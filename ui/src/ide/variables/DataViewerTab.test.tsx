@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createStore, Provider } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -215,6 +215,33 @@ describe('DataViewerTab', () => {
 
     expect(firstHeader()).toBe('label');
     expect(secondRow()).toBe('row 1');
+  });
+
+  // Only a click could select a cell, so the arrows and Mod-C had nothing to start from by keyboard.
+  it('starts on the first cell when the keyboard arrives in the grid', async () => {
+    const { container } = renderTab();
+    await screen.findByText('row 1');
+
+    act(() => (container.querySelector('.dataGrid-scroll') as HTMLElement).focus());
+
+    expect(container.querySelector('td.is-selected')?.textContent).toBe('0');
+  });
+
+  it('resizes a column from the keyboard, a step at a time and no narrower than the floor', async () => {
+    renderTab();
+    await screen.findByText('row 1');
+    const edge = screen.getByRole('separator', { name: 'Resize label' });
+    const header = screen.getByTitle('label (object)').closest('th') as HTMLElement;
+
+    // jsdom draws the column 0px wide, so the first step lands on the 48px floor.
+    fireEvent.keyDown(edge, { key: 'ArrowRight' });
+    expect(header.style.width).toBe('48px');
+    fireEvent.keyDown(edge, { key: 'ArrowRight' });
+    expect(header.style.width).toBe('64px');
+    expect(edge).toHaveAttribute('aria-valuenow', '64');
+    fireEvent.keyDown(edge, { key: 'ArrowLeft' });
+    fireEvent.keyDown(edge, { key: 'ArrowLeft' });
+    expect(header.style.width).toBe('48px');
   });
 
   it('resizes a column by its edge', async () => {

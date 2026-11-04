@@ -52,6 +52,13 @@
     outline-offset: -1px;
   }
 
+  // With the keyboard in the grid, the selected cell is where its keys go, so it wears the app's ring;
+  // the 1px accent above is under 3:1 against a dark cell.
+  .dataGrid-scroll:focus-visible td.is-selected {
+    outline: 2px solid var(--z-focus-ring);
+    outline-offset: -2px;
+  }
+
   &.is-tab {
     flex: 1 1 auto;
     min-height: 0;

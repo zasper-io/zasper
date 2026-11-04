@@ -487,7 +487,18 @@ export default function DataGrid(props: DataGridProps) {
             className="dataGrid-scroll"
             ref={scroller}
             hidden={chart !== null}
-            tabIndex={-1}
+            // A Tab stop, and arriving by keyboard picks the first cell, so the arrows and Mod-C have a
+            // cell to start from; until now only a click could make one. Functional, because a click
+            // selects its cell and then focuses this, and that selection is the one to keep.
+            tabIndex={0}
+            onFocus={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                event.currentTarget.matches(':focus-visible')
+              ) {
+                setSelected((current) => current ?? { row: 0, column: 0 });
+              }
+            }}
             onKeyDown={onKeyDown}
             onScroll={mode === 'tab' ? onScroll : undefined}
           >

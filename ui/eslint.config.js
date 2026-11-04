@@ -54,6 +54,13 @@ export default [
       'react/display-name': 'off',
       'jsx-a11y/label-has-associated-control': 'off',
       'jsx-a11y/no-autofocus': 'off',
+      // Two roles the rule counts as non-interactive that are focusable on purpose: an output `group`
+      // that scrolls, which axe's scrollable-region-focusable asks to be a Tab stop, and a column's
+      // resize `separator`, which ARIA 1.2 makes a widget once it is focusable.
+      'jsx-a11y/no-noninteractive-tabindex': [
+        'warn',
+        { tags: [], roles: ['tabpanel', 'group', 'separator'], allowExpressionValues: true },
+      ],
     },
   },
 ];
