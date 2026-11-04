@@ -54,7 +54,7 @@ function usePageLook(): string {
 
 function frameDocument(markup: string, look: string): string {
   return [
-    '<!doctype html><html><head><meta charset="utf-8">',
+    '<!doctype html><html lang="en"><head><meta charset="utf-8">',
     // Links open in a new tab: the frame may not navigate itself or the IDE.
     '<base target="_blank">',
     // As tall as what is in it. A standalone page such as Bokeh's sets `height: 100%`, which in a frame
@@ -105,7 +105,7 @@ export function SandboxedOutput({ markup }: { markup: string }) {
     <iframe
       ref={frameRef}
       className="output-sandbox"
-      title="Output"
+      title="HTML output"
       sandbox="allow-scripts allow-downloads allow-modals allow-popups allow-popups-to-escape-sandbox"
       srcDoc={doc}
       style={{ height }}

@@ -143,16 +143,22 @@ describe('OutputBundles', () => {
   it('renders image/png as an image', () => {
     show({ 'image/png': PIXEL, 'text/plain': '<IPython.core.display.Image object>' });
 
-    expect(screen.getByAltText('cell output')).toHaveAttribute(
+    expect(screen.getByAltText('Image output')).toHaveAttribute(
       'src',
       `data:image/png;base64,${PIXEL}`
     );
   });
 
+  it("describes an image by its text/plain, when that says more than the object's class", () => {
+    show({ 'image/png': PIXEL, 'text/plain': '<Figure size 640x480 with 1 Axes>' });
+
+    expect(screen.getByRole('img')).toHaveAccessibleName('<Figure size 640x480 with 1 Axes>');
+  });
+
   it('renders image/jpeg as an image', () => {
     show({ 'image/jpeg': PIXEL, 'text/plain': '<IPython.core.display.Image object>' });
 
-    expect(screen.getByAltText('cell output')).toHaveAttribute(
+    expect(screen.getByAltText('Image output')).toHaveAttribute(
       'src',
       `data:image/jpeg;base64,${PIXEL}`
     );
@@ -212,7 +218,7 @@ describe('OutputBundles', () => {
   it('renders image/gif as an image', () => {
     show({ 'image/gif': PIXEL, 'text/plain': '<IPython.core.display.Image object>' });
 
-    expect(screen.getByAltText('cell output')).toHaveAttribute(
+    expect(screen.getByAltText('Image output')).toHaveAttribute(
       'src',
       `data:image/gif;base64,${PIXEL}`
     );

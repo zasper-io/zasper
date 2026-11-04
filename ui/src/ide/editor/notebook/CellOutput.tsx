@@ -85,12 +85,25 @@ const HTMLOutput = ({ html, trusted }: { html: string; trusted: boolean }) => (
   <MarkupOutput markup={html} trusted={trusted} sanitiser={sanitiseHtml} />
 );
 
-/** A base64 image bundle. png and jpeg differ only in the mime type the data URL names. */
-const ImageOutput = ({ mime, data }: { mime: string; data: string }) => (
+/**
+ * A base64 image bundle. png and jpeg differ only in the mime type the data URL names.
+ *
+ * Described by the bundle's own `text/plain` when it has one — matplotlib's is "<Figure size 640x480
+ * with 1 Axes>" — which says more than the "cell output" every image here used to be.
+ */
+const ImageOutput = ({ mime, data, text }: { mime: string; data: string; text?: string }) => (
   <div>
-    <img src={`data:${mime};base64,${data}`} alt="cell output" />
+    <img src={`data:${mime};base64,${data}`} alt={describeImage(text)} />
   </div>
 );
+
+// A repr that only names its class — `<IPython.core.display.Image object>` — describes nothing.
+const BARE_REPR = /^<[\w.]+ object( at 0x[0-9a-f]+)?>$/;
+
+function describeImage(text: string | string[] | undefined): string {
+  const plain = (Array.isArray(text) ? text.join('') : (text ?? '')).trim();
+  return plain === '' || BARE_REPR.test(plain) ? 'Image output' : plain.slice(0, 200);
+}
 
 /**
  * A `text/latex` bundle — SymPy under `init_printing()`, and IPython's `Latex` and `Math`.
@@ -290,19 +303,27 @@ export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesPr
           }
 
           if (pngContent) {
-            return <ImageOutput key={index} mime="image/png" data={pngContent} />;
+            return (
+              <ImageOutput key={index} mime="image/png" data={pngContent} text={textPlainData} />
+            );
           }
 
           if (jpegContent) {
-            return <ImageOutput key={index} mime="image/jpeg" data={jpegContent} />;
+            return (
+              <ImageOutput key={index} mime="image/jpeg" data={jpegContent} text={textPlainData} />
+            );
           }
 
           if (gifContent) {
-            return <ImageOutput key={index} mime="image/gif" data={gifContent} />;
+            return (
+              <ImageOutput key={index} mime="image/gif" data={gifContent} text={textPlainData} />
+            );
           }
 
           if (webpContent) {
-            return <ImageOutput key={index} mime="image/webp" data={webpContent} />;
+            return (
+              <ImageOutput key={index} mime="image/webp" data={webpContent} text={textPlainData} />
+            );
           }
 
           if (pdfContent) {
