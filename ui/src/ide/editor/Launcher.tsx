@@ -27,6 +27,7 @@ import ConfirmShutdownDialog from '@/ide/sidebar/jupyterInfoPanel/ConfirmShutdow
 import { RunningKernel, useJupyterInfo } from '@/ide/sidebar/jupyterInfoPanel/useJupyterInfo';
 import IconButton from '@/ide/IconButton';
 import { FileMark, Icon } from '../icons';
+import KernelStatusDot, { kernelStatusWord } from '../KernelStatusDot';
 
 /** Rows in the Recent section: enough to recognise the work, not a file browser. */
 const RECENT_SHOWN = 6;
@@ -306,9 +307,12 @@ const Running: React.FC<{ hidden: boolean }> = ({ hidden }) => {
               >
                 {/* The slot is there either way, so the names line up down both lists. */}
                 <span className="panel-row-dot">
-                  <span className={`kernelStatus kernelStatus-sm ks-${kernel.execution_state}`} />
+                  <KernelStatusDot state={kernel.execution_state} small />
                 </span>
                 <span className="panel-row-label">{label}</span>
+                <span className="z-visually-hidden">
+                  , {kernelStatusWord(kernel.execution_state)}
+                </span>
               </button>
               {/* The count is the fact with no other way in: nothing is listening to this kernel. */}
               {kernel.connections === 0 && <span className="panel-row-meta">no tab</span>}

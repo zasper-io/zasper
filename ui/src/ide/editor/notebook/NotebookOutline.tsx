@@ -2,6 +2,7 @@ import IconButton from '@/ide/IconButton';
 
 import { headingKey, NotebookHeading, sectionOfCell } from './notebookHeadings';
 import './NotebookOutline.scss';
+import KernelStatusDot from '@/ide/KernelStatusDot';
 
 interface NotebookOutlineProps {
   headings: NotebookHeading[];
@@ -54,10 +55,10 @@ export default function NotebookOutline(props: NotebookOutlineProps) {
               >
                 <span className="panel-row-label">{heading.text}</span>
                 {busy.has(index) && (
-                  <span
-                    className="kernelStatus kernelStatus-sm ks-busy"
-                    title="The running cell is in here"
-                  />
+                  <>
+                    <KernelStatusDot state="busy" small />
+                    <span className="z-visually-hidden">, running</span>
+                  </>
                 )}
               </button>
             </li>

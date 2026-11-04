@@ -47,6 +47,7 @@ import { useRegisterCommands, useRunCommand } from '@/commands/registry';
 import { useEditorCommandKeymap } from '@/commands/useEditorCommandKeymap';
 import { useNotebookCommands } from './notebookCommands';
 import { useKernelSession } from './useKernelSession';
+import { useNotebookAnnouncer } from './useNotebookAnnouncer';
 import { cellLanguageOf, useCellLanguage } from './useCellLanguage';
 import { useNotebookExport } from './export/useNotebookExport';
 import ExportDialog from './export/ExportDialog';
@@ -459,6 +460,11 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     }
   }, []);
 
+  const announcement = useNotebookAnnouncer(
+    cells.notebook.cells,
+    kernel.runningCellIds,
+    kernel.kernelStatus
+  );
   const kernelStatusRef = useRef(kernel.kernelStatus);
   kernelStatusRef.current = kernel.kernelStatus;
   const kernelIdle = useCallback(() => kernelStatusRef.current === 'idle', []);
@@ -764,6 +770,9 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
               onClose={() => setFinding(false)}
             />
           )}
+          <div className="z-visually-hidden" role="status">
+            {announcement}
+          </div>
           <div className="notebook-split">
             <div className="notebook-body" ref={notebookBody}>
               {restartIntent !== null && (

@@ -6,6 +6,7 @@ import IconButton from '@/ide/IconButton';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 import ContextMenu from '@/ide/sidebar/contextMenu/ContextMenu';
+import KernelStatusDot, { kernelStatusWord } from '@/ide/KernelStatusDot';
 
 interface NbButtonsProps {
   /** Dispatches a command by id — see notebookCommands.ts for the ids. */
@@ -167,8 +168,9 @@ function NbButtons(props: NbButtonsProps) {
           onClick={() => props.run('notebook:change-kernel')}
           {...kernelTip.anchorProps}
         >
-          <span className={`kernelStatus ks-${props.kernelStatus}`} />
+          <KernelStatusDot state={props.kernelStatus} />
           {props.kernelDisplayName ?? props.kernelName}
+          <span className="z-visually-hidden">, {kernelStatusWord(props.kernelStatus)}</span>
         </button>
       )}
       <Tooltip

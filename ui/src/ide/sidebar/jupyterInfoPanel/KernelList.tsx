@@ -6,6 +6,7 @@ import { describeProcesses, formatMemory } from '@/ide/resources/memory';
 import { KernelspecsState } from '@/store/kernels';
 import { fullDate, relativeDate, shortAgo } from '../dates';
 import { RunningKernel } from './useJupyterInfo';
+import KernelStatusDot, { kernelStatusWord } from '@/ide/KernelStatusDot';
 
 interface KernelListProps {
   kernels: RunningKernel[];
@@ -103,9 +104,10 @@ function KernelRow({ kernel, label, status, usage, disabled, ...props }: KernelR
       >
         {/* The slot is there either way, so the names line up down the list. */}
         <span className="panel-row-dot">
-          {status !== '' && <span className={`kernelStatus kernelStatus-sm ks-${status}`} />}
+          {status !== '' && <KernelStatusDot state={status} small />}
         </span>
         <span className="panel-row-label">{label}</span>
+        {status !== '' && <span className="z-visually-hidden">, {kernelStatusWord(status)}</span>}
         {/* Which file this kernel is for — the thing the panel could never say while it read
             atoms instead of the server's sessions. */}
         {path !== undefined && <span className="panel-row-meta">{path}</span>}
