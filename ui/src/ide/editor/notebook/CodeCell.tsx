@@ -100,11 +100,13 @@ export default function CodeCell(props: CellProps) {
   // Memoized for the reason CELL_SETUP gives.
   const extensions = useMemo(
     () => [
+      // First: its Escape for a completion still being fetched has to be asked before the completion's
+      // own, which sits at the same precedence, and within one precedence the order here is the order.
+      leaveCell,
       // A SQL cell's completion is the schema's, not the Python language server's or the kernel's.
       ...(sqlLanguage !== null ? [sqlLanguage] : [cellLanguage, intelligence]),
       popupPlacement,
       Prec.highest(keymap.of(cellTabIndents ? tabIndentKeymap : tabCompletionKeymap)),
-      leaveCell,
       findExtension,
       commandKeymap,
     ],
@@ -133,7 +135,7 @@ export default function CodeCell(props: CellProps) {
 
   return (
     <div {...box}>
-      <CellButtons run={editor.run} cellType={cell.cell_type} />
+      <CellButtons run={editor.run} cellType={cell.cell_type} isFocused={isFocused} />
 
       <div className="inner-content">
         {/* The run button and the count, both always shown. While the kernel is on this cell the
@@ -147,6 +149,7 @@ export default function CodeCell(props: CellProps) {
               label={running ? 'Interrupt Kernel' : queued ? 'Queued' : 'Run Cell'}
               name={running ? 'Interrupt Kernel' : `Run cell ${props.index + 1}`}
               disabled={queued}
+              tabIndex={isFocused ? undefined : -1}
               onClick={() =>
                 running ? editor.interruptKernel() : editor.submitCell(cell.source, cellId)
               }

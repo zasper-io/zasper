@@ -72,3 +72,22 @@ test('a dialog keeps the keyboard until it is answered, then gives it back', asy
   await expect(dialog).toHaveCount(0);
   await expect(row).toBeFocused();
 });
+
+test("only the focused cell's controls are in the Tab order", async ({ page }) => {
+  await openApp(page);
+  await treeRow(page, 'analysis.ipynb').click();
+  const picker = page.locator('.modal').filter({ hasText: 'Select Kernel' });
+  await expect(picker).toBeVisible();
+  await picker.getByRole('button', { name: 'Close' }).click();
+  await expect(page.locator('.single-line')).toHaveCount(2);
+
+  // Each gap's insert buttons and each cell's toolbar and run button used to be stops of their own,
+  // about eight per cell before Tab reached anything past the notebook.
+  const stray = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('.notebook-body button, .notebook-body [tabindex]')]
+      .filter((e) => e.tabIndex >= 0 && !(e as HTMLButtonElement).disabled)
+      .filter((e) => !e.closest('.activeCell') && !e.closest('.cell-insert.is-end'))
+      .map((e) => e.getAttribute('aria-label') ?? e.textContent?.trim() ?? e.className)
+  );
+  expect(stray).toEqual([]);
+});

@@ -51,7 +51,7 @@ export default function MarkdownCell(props: CellProps) {
 
   return (
     <div {...box}>
-      <CellButtons run={editor.run} cellType={cell.cell_type} />
+      <CellButtons run={editor.run} cellType={cell.cell_type} isFocused={isFocused} />
       {isEditing ? (
         <div className="inner-content">
           {/* A markdown cell has no execution count, but it still needs the gutter a code cell's

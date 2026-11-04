@@ -47,6 +47,8 @@ function CellInsert(props: CellInsertProps) {
           key={kind}
           type="button"
           className="cell-insert-button"
+          // Hidden until hovered, so out of the Tab order too: a keyboard adds a cell with the chords.
+          tabIndex={props.isEnd === true ? undefined : -1}
           onClick={() => addCellAt(props.index, kind)}
         >
           <Icon name="plus" size={12} />

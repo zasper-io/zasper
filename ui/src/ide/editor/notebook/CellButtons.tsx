@@ -15,6 +15,11 @@ interface CellButtonsProps {
   run: (id: string) => void;
   /** The cell's type, so the menu can mark which of the three it currently is. */
   cellType: NotebookCell['cell_type'];
+  /**
+   * Whether this is the cell with the focus. Only its buttons are in the Tab order: three per cell down
+   * a notebook was most of what Tab had to walk through, and arrowing to a cell brings its own in.
+   */
+  isFocused: boolean;
 }
 
 /**
@@ -132,6 +137,7 @@ function CellButtons(props: CellButtonsProps) {
           icon={button.icon}
           label={button.title}
           disabled={!isEnabled(button.id)}
+          tabIndex={props.isFocused ? undefined : -1}
           onClick={() => props.run(button.id)}
         />
       ))}
@@ -140,6 +146,7 @@ function CellButtons(props: CellButtonsProps) {
         ref={menuButton}
         type="button"
         className="z-icon-button"
+        tabIndex={props.isFocused ? undefined : -1}
         onClick={openMenu}
         aria-haspopup="menu"
         aria-expanded={menuAt !== null}

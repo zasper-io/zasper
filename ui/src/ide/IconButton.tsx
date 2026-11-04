@@ -25,6 +25,8 @@ interface IconButtonProps {
   size?: number;
   /** A count or a dot drawn beside the glyph — the sync actions and the kernel's status light. */
   children?: ReactNode;
+  /** -1 to keep it out of the Tab order, for a control repeated down a list, such as a cell's. */
+  tabIndex?: number;
 }
 
 /**
@@ -52,6 +54,7 @@ export default function IconButton({
   expanded,
   size,
   children,
+  tabIndex,
 }: IconButtonProps) {
   const tip = useTooltip();
   const classNames = className === undefined ? 'z-icon-button' : `z-icon-button ${className}`;
@@ -65,6 +68,7 @@ export default function IconButton({
         aria-pressed={pressed}
         aria-expanded={expanded}
         disabled={disabled}
+        tabIndex={tabIndex}
         onClick={onClick}
         {...tip.anchorProps}
       >

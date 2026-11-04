@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { closeCompletion, completionStatus } from '@codemirror/autocomplete';
 import { Prec } from '@codemirror/state';
 import { indentLess, indentMore } from '@codemirror/commands';
 import { getIndentUnit, indentString } from '@codemirror/language';
@@ -92,31 +93,36 @@ function onLastLine(view: EditorView): boolean {
  */
 export function useLeaveCellKeymap(cellId: string, renderOnEscape: boolean) {
   const { focusNextCell, focusPreviousCell, focusCellBox, endEditing } = useNotebookEditor();
-  return useMemo(
-    () => [
+  return useMemo(() => {
+    const leave = () => {
+      if (renderOnEscape) {
+        endEditing();
+      }
+      focusCellBox(cellId);
+      return true;
+    };
+    return [
+      // A completion that has been asked for and not answered is nothing on screen, but it is still the
+      // completion's Escape, so leaving took two: Tab asks the kernel, and the first Escape went on
+      // cancelling a request nobody could see. Cancel it and leave in one.
+      Prec.highest(
+        keymap.of([
+          {
+            key: 'Escape',
+            run: (view) =>
+              completionStatus(view.state) === 'pending' && (closeCompletion(view), leave()),
+          },
+        ])
+      ),
       Prec.high(
         keymap.of([
           { key: 'ArrowDown', run: (view) => onLastLine(view) && (focusNextCell(false), true) },
           { key: 'ArrowUp', run: (view) => onFirstLine(view) && (focusPreviousCell(), true) },
         ])
       ),
-      Prec.low(
-        keymap.of([
-          {
-            key: 'Escape',
-            run: () => {
-              if (renderOnEscape) {
-                endEditing();
-              }
-              focusCellBox(cellId);
-              return true;
-            },
-          },
-        ])
-      ),
-    ],
-    [cellId, renderOnEscape, focusNextCell, focusPreviousCell, focusCellBox, endEditing]
-  );
+      Prec.low(keymap.of([{ key: 'Escape', run: leave }])),
+    ];
+  }, [cellId, renderOnEscape, focusNextCell, focusPreviousCell, focusCellBox, endEditing]);
 }
 
 /**
