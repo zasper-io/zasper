@@ -12,11 +12,11 @@ the event on its way up. It did — see FileBrowser.test.tsx, which presses Esca
 */
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Tooltip from './Tooltip';
-import { useDismissOnEscape, useDismissOnPressOutside, useTooltip } from './overlays';
+import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys, useTooltip } from './overlays';
 
 function Escapable({ onDismiss, active }: { onDismiss: () => void; active?: boolean }) {
   useDismissOnEscape(onDismiss, active);
@@ -90,6 +90,81 @@ describe('useDismissOnEscape', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(onDismiss).not.toHaveBeenCalled();
+  });
+});
+
+function Menu({ onClose }: { onClose: () => void }) {
+  const keys = useMenuKeys(onClose);
+  return (
+    <ul role="menu" {...keys}>
+      <li role="none">
+        <button type="button" role="menuitem" disabled>
+          Paste
+        </button>
+      </li>
+      {['Rename', 'Duplicate', 'Download', 'Delete'].map((label) => (
+        <li key={label} role="none">
+          <button type="button" role="menuitem">
+            {label}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Opener() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Open
+      </button>
+      {open && <Menu onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+describe('useMenuKeys', () => {
+  const item = (name: string) => screen.getByRole('menuitem', { name });
+
+  it('opens on the first item that can be picked, and goes round with the arrows', () => {
+    render(<Menu onClose={vi.fn()} />);
+    expect(item('Rename')).toHaveFocus();
+
+    fireEvent.keyDown(item('Rename'), { key: 'ArrowDown' });
+    expect(item('Duplicate')).toHaveFocus();
+    fireEvent.keyDown(item('Duplicate'), { key: 'End' });
+    expect(item('Delete')).toHaveFocus();
+    fireEvent.keyDown(item('Delete'), { key: 'ArrowDown' });
+    expect(item('Rename')).toHaveFocus();
+    fireEvent.keyDown(item('Rename'), { key: 'ArrowUp' });
+    expect(item('Delete')).toHaveFocus();
+    fireEvent.keyDown(item('Delete'), { key: 'Home' });
+    expect(item('Rename')).toHaveFocus();
+  });
+
+  it('goes to the next item starting with a typed letter', () => {
+    render(<Menu onClose={vi.fn()} />);
+    fireEvent.keyDown(item('Rename'), { key: 'd' });
+    expect(item('Duplicate')).toHaveFocus();
+    fireEvent.keyDown(item('Duplicate'), { key: 'd' });
+    expect(item('Download')).toHaveFocus();
+    fireEvent.keyDown(item('Download'), { key: 'd' });
+    expect(item('Delete')).toHaveFocus();
+  });
+
+  it('closes on Tab, and gives the focus back to what opened it', async () => {
+    render(<Opener />);
+    const opener = screen.getByRole('button', { name: 'Open' });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(item('Rename')).toHaveFocus();
+
+    fireEvent.keyDown(item('Rename'), { key: 'Tab' });
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 });
 

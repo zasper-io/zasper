@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
-import { useDismissOnEscape, useDismissOnPressOutside, useTooltip } from '@/ide/overlays';
+import {
+  useDismissOnEscape,
+  useDismissOnPressOutside,
+  useMenuKeys,
+  useTooltip,
+} from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 
 import {
@@ -63,6 +68,7 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
   const open = pending === null;
   useDismissOnEscape(onClose, open);
   useDismissOnPressOutside(menu, onClose, open);
+  const menuKeys = useMenuKeys(onClose, { focusFirst: false });
 
   const wanted = filter.trim();
   const matching = branches.filter((branch) =>
@@ -114,6 +120,11 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
         disabled={disabled}
         onChange={(event) => setFilter(event.target.value)}
         onKeyDown={(event) => {
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            menu.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus();
+            return;
+          }
           if (event.key !== 'Enter') {
             return;
           }
@@ -138,7 +149,7 @@ export default function BranchMenu({ status, busy, run, onClose }: BranchMenuPro
         </div>
       )}
 
-      <ul className="z-overlay-list git-branch-list" role="menu">
+      <ul className="z-overlay-list git-branch-list" role="menu" {...menuKeys}>
         {canCreate && (
           <li className="panel-row" role="none">
             <button

@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ColumnKind, ColumnProfile, RowSort } from '@/api';
 import { Icon, IconName } from '@/ide/icons';
-import { useDismissOnEscape, useDismissOnPressOutside, useTooltip } from '@/ide/overlays';
+import {
+  useDismissOnEscape,
+  useDismissOnPressOutside,
+  useMenuKeys,
+  useTooltip,
+} from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 import { currentZoomFactor } from '@/zoom';
 import Distribution from './Distribution';
@@ -143,6 +148,7 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
   const close = () => setOpen(false);
   useDismissOnEscape(close, open);
   useDismissOnPressOutside(header, close, open);
+  const menuKeys = useMenuKeys(close);
 
   // Fixed rather than absolute: a cell's output box scrolls, and a menu inside it would be clipped by it.
   // A scroll anywhere would leave it pointing at nothing, so one closes it.
@@ -254,7 +260,7 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
       />
       {open && (
         <div className="z-overlay z-menu dataGrid-menu" style={at}>
-          <ul className="z-overlay-list" role="menu" aria-label={`Column ${name}`}>
+          <ul className="z-overlay-list" role="menu" aria-label={`Column ${name}`} {...menuKeys}>
             {queryable && (
               <>
                 <MenuAction

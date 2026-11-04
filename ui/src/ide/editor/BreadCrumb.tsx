@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
 
 import { ContentEntry, getDirectory } from '@/api';
-import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
 import FileMark from '@/ide/icons/FileMark';
 import { DocumentSymbol, kindGlyph, symbolSiblings } from '@/lsp/symbols';
 import { baseName } from '@/paths';
@@ -43,6 +43,7 @@ export default function BreadCrumb(props: BreadCrumbProps) {
 
   useDismissOnEscape(() => setOpen(null), open !== null);
   useDismissOnPressOutside(bar, () => setOpen(null), open !== null);
+  const menuKeys = useMenuKeys(() => setOpen(null));
 
   // A folder's contents are read when its crumb is pressed, not before: the bar is drawn above every
   // editor, and a listing per open file is a request nobody asked for.
@@ -133,6 +134,7 @@ export default function BreadCrumb(props: BreadCrumbProps) {
           style={{ left: open.left }}
           role="menu"
           aria-label="Folder"
+          {...menuKeys}
         >
           <div className="z-overlay-list">
             {listing.length === 0 ? (
@@ -175,6 +177,7 @@ export default function BreadCrumb(props: BreadCrumbProps) {
           style={{ left: open.left }}
           role="menu"
           aria-label="Symbols"
+          {...menuKeys}
         >
           <div className="z-overlay-list">
             {siblings.length === 0 ? (

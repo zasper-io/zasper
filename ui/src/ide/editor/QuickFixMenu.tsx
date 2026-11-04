@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 
 import { Icon } from '@/ide/icons';
-import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
 import { CodeAction } from '@/lsp/codeActions';
 
 interface QuickFixMenuProps {
@@ -25,6 +25,7 @@ export default function QuickFixMenu(props: QuickFixMenuProps) {
   const menu = useRef<HTMLDivElement>(null);
   useDismissOnEscape(props.onClose);
   useDismissOnPressOutside(menu, props.onClose);
+  const menuKeys = useMenuKeys(props.onClose);
 
   const fixes = props.actions.filter(isFix);
   const refactors = props.actions.filter((action) => !isFix(action));
@@ -41,7 +42,7 @@ export default function QuickFixMenu(props: QuickFixMenuProps) {
       role="menu"
       aria-label="Quick fix"
     >
-      <div className="z-overlay-list">
+      <div className="z-overlay-list" {...menuKeys}>
         {groups.map((group) => (
           <React.Fragment key={group.label}>
             <div className="z-overlay-group z-label">

@@ -3,7 +3,7 @@ import { useAtomValue } from 'jotai';
 
 import { DATAFRAMES } from '@/api';
 import { Icon } from '@/ide/icons';
-import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
 import { connectionsAtom, useOpenConnectionDialog } from '@/store/connections';
 import { SqlCell } from './sqlCell';
 import './SqlCellHead.scss';
@@ -43,6 +43,7 @@ export default function SqlCellHead({ cell, onChange }: SqlCellHeadProps) {
   const picker = useRef<HTMLDivElement>(null);
   useDismissOnEscape(() => setOpen(false), open);
   useDismissOnPressOutside(picker, () => setOpen(false), open);
+  const menuKeys = useMenuKeys(() => setOpen(false));
   useEffect(() => setName(cell.out), [cell.out]);
 
   const connections = list?.connections ?? [];
@@ -117,7 +118,7 @@ export default function SqlCellHead({ cell, onChange }: SqlCellHeadProps) {
         </button>
         {open && (
           <div className="z-overlay z-menu sqlCell-menu">
-            <ul className="z-overlay-list" role="menu">
+            <ul className="z-overlay-list" role="menu" {...menuKeys}>
               {group('project', 'This project')}
               {group('user', 'Yours')}
               {connections.length > 0 && <li className="z-overlay-separator" role="separator" />}

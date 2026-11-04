@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Icon, IconName } from '@/ide/icons';
-import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
 import { currentZoomFactor } from '@/zoom';
 import './ContextMenu.scss';
 
@@ -85,6 +85,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
   // A menu is not a question, so both halves of the family's dismissal rule apply to it.
   useDismissOnEscape(onClose);
   useDismissOnPressOutside(menu, onClose);
+  const menuKeys = useMenuKeys(onClose);
 
   const handleClick = (action: MenuItem['action']) => {
     action(path);
@@ -110,7 +111,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
 
   return (
     <div className="z-overlay z-menu context-menu" ref={menu} style={position}>
-      <ul className="z-overlay-list" role="menu">
+      <ul className="z-overlay-list" role="menu" {...menuKeys}>
         {items.map((item, index) => (
           <React.Fragment key={index}>
             {index === firstApart && index > 0 && (

@@ -20,6 +20,7 @@ BranchMenu does exactly that while its delete dialog is up.
 */
 import {
   FocusEventHandler,
+  KeyboardEvent as ReactKeyboardEvent,
   PointerEventHandler,
   RefObject,
   useCallback,
@@ -83,6 +84,96 @@ export function useDismissOnPressOutside(
     window.addEventListener('mousedown', dismiss);
     return () => window.removeEventListener('mousedown', dismiss);
   }, [active, onDismiss, within]);
+}
+
+const MENU_ITEM = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]';
+
+function enabledItems(menu: HTMLElement): HTMLElement[] {
+  return [...menu.querySelectorAll<HTMLElement>(MENU_ITEM)].filter(
+    (item) => !item.hasAttribute('disabled') && item.getAttribute('aria-disabled') !== 'true'
+  );
+}
+
+/**
+ * The keyboard half of a menu, for the element that carries `role="menu"`: spread what this returns on
+ * it. Every menu in the app had the role and none of the keys, so a menu opened from the keyboard could
+ * be seen and not used.
+ *
+ * Opening moves the focus to the first item the user can pick; Up and Down go round, Home and End go to
+ * the ends, a letter goes to the next item starting with it, and Tab closes. Closing gives the focus
+ * back to what had it before the menu opened — a frame later, and only if nothing else took it, so an
+ * item that opens a rename box or a dialog keeps the focus it moved. Escape and a press outside stay
+ * with `useDismissOnEscape` and `useDismissOnPressOutside`, which every menu already calls.
+ *
+ * A callback ref, because most of these menus are rendered only while open: it runs as the element
+ * arrives and as it goes, which is exactly opening and closing. `focusFirst: false` is for a menu
+ * that opens with a field of its own focused, such as the branch filter.
+ */
+export function useMenuKeys(onClose: () => void, { focusFirst = true } = {}) {
+  const opener = useRef<HTMLElement | null>(null);
+  const latestClose = useRef(onClose);
+  useEffect(() => {
+    latestClose.current = onClose;
+  });
+
+  const ref = useCallback(
+    (menu: HTMLElement | null) => {
+      if (menu !== null) {
+        opener.current = document.activeElement as HTMLElement | null;
+        if (focusFirst) {
+          enabledItems(menu)[0]?.focus();
+        }
+        return;
+      }
+      const back = opener.current;
+      opener.current = null;
+      requestAnimationFrame(() => {
+        if (document.activeElement === document.body && back?.isConnected) {
+          back.focus();
+        }
+      });
+    },
+    [focusFirst]
+  );
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    const items = enabledItems(event.currentTarget);
+    if (items.length === 0) {
+      return;
+    }
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    const go = (index: number) => {
+      event.preventDefault();
+      items[(index + items.length) % items.length].focus();
+    };
+    switch (event.key) {
+      case 'ArrowDown':
+        return go(at + 1);
+      case 'ArrowUp':
+        return go(at === -1 ? items.length - 1 : at - 1);
+      case 'Home':
+        return go(0);
+      case 'End':
+        return go(items.length - 1);
+      case 'Tab':
+        event.preventDefault();
+        latestClose.current();
+        return;
+    }
+    if (event.key.length === 1 && event.key.trim() !== '' && !event.ctrlKey && !event.metaKey) {
+      const letter = event.key.toLowerCase();
+      const after = [...items.slice(at + 1), ...items.slice(0, at + 1)];
+      const match = after.find((item) =>
+        (item.textContent ?? '').trim().toLowerCase().startsWith(letter)
+      );
+      if (match) {
+        event.preventDefault();
+        match.focus();
+      }
+    }
+  };
+
+  return { ref, onKeyDown };
 }
 
 /**

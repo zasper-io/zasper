@@ -1,7 +1,7 @@
 import React, { ReactNode, useRef, useState } from 'react';
 
 import { Icon, IconName } from '@/ide/icons';
-import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
+import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
 
 interface StatusPickerProps {
   /** What the bar shows, which is the current value. */
@@ -21,6 +21,7 @@ export function StatusPicker({ label, spokenLabel, menuClassName, children }: St
   const close = () => setOpen(false);
   useDismissOnEscape(close, open);
   useDismissOnPressOutside(picker, close, open);
+  const menuKeys = useMenuKeys(close);
 
   return (
     <div className="statusItem statusPicker" ref={picker}>
@@ -36,7 +37,7 @@ export function StatusPicker({ label, spokenLabel, menuClassName, children }: St
       </button>
       {open && (
         <div className={`z-overlay z-menu statusMenu ${menuClassName ?? ''}`.trim()}>
-          <ul className="z-overlay-list" role="menu">
+          <ul className="z-overlay-list" role="menu" {...menuKeys}>
             {children(close)}
           </ul>
         </div>
