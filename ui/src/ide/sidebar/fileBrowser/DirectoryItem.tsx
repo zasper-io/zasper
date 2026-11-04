@@ -136,6 +136,19 @@ const DirectoryItem = ({
     setMenuPosition({ xPos: e.clientX, yPos: e.clientY });
   };
 
+  // Shift-F10 and the menu key raise the event on the focused `li` rather than on the row inside it,
+  // and with no pointer to open at, so the menu goes under the row.
+  const handleMenuKey = (e: React.MouseEvent<HTMLLIElement>) => {
+    if (e.target !== e.currentTarget || rowRef.current === null) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    selection.ensureSelected(path);
+    const box = rowRef.current.getBoundingClientRect();
+    setMenuPosition({ xPos: box.left, yPos: box.bottom + 2 });
+  };
+
   return (
     <li
       ref={focusRow.ref}
@@ -151,6 +164,7 @@ const DirectoryItem = ({
         focusRow.onFocus(event);
         tip.focusProps.onFocus(event);
       }}
+      onContextMenu={handleMenuKey}
     >
       <a
         ref={rowRef}

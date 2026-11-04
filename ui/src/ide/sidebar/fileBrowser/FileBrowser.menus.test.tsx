@@ -63,6 +63,20 @@ describe('FileBrowser', () => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
+    // Shift-F10 and the menu key fire on the focused treeitem, not on the row inside it, at (0, 0). It
+    // used to fall through to the tree's background and open the project root's menu.
+    it("opens the row's own menu from the keyboard", async () => {
+      await renderBrowser();
+
+      for (const name of ['notes.txt', 'src']) {
+        fireEvent.contextMenu(row(name).closest('li') as HTMLElement, { clientX: 0, clientY: 0 });
+
+        // The root's menu has no Rename.
+        expect(within(screen.getByRole('menu')).getByText('Rename')).toBeInTheDocument();
+        fireEvent.keyDown(window, { key: 'Escape' });
+      }
+    });
+
     it('closes when something else is pressed', async () => {
       await renderBrowser();
       fireEvent.contextMenu(row('notes.txt'));

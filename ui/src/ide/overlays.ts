@@ -32,20 +32,30 @@ import {
 /**
  * Escape, while `active`. A dialog passes `false` while its write is in flight: the request has already
  * gone, and taking the dialog away would only hide the thing it is waiting for.
+ *
+ * The callback is read through a ref, so a caller passing a new one every render keeps one listener.
+ * Re-adding it each render lost an Escape: a row's tooltip listened first, its hiding re-rendered the
+ * row and swapped the row's menu listener out mid-dispatch, and a listener removed during a dispatch is
+ * not called — so a menu opened from the keyboard took two presses to close.
  */
 export function useDismissOnEscape(onDismiss: () => void, active = true): void {
+  const latest = useRef(onDismiss);
+  useEffect(() => {
+    latest.current = onDismiss;
+  });
+
   useEffect(() => {
     if (!active) {
       return;
     }
     const dismiss = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onDismiss();
+        latest.current();
       }
     };
     window.addEventListener('keydown', dismiss);
     return () => window.removeEventListener('keydown', dismiss);
-  }, [active, onDismiss]);
+  }, [active]);
 }
 
 /**

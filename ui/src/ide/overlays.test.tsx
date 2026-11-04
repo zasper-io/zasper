@@ -10,7 +10,8 @@ What is deliberately *not* asserted here is where the key was pressed, because t
 hooks cannot see: they listen on the window, and something between the overlay and the window can stop
 the event on its way up. It did — see FileBrowser.test.tsx, which presses Escape at the dialog.
 */
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +46,27 @@ describe('useDismissOnEscape', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  // A row's tooltip and the menu opened from it: the tooltip's dismissal re-renders the row, which hands
+  // the menu a new callback while the same Escape is still being dispatched. A browser renders between
+  // two listeners of one event; flushSync is how a test does.
+  it('is not lost when another overlay re-renders it during the same Escape', () => {
+    const closed = vi.fn();
+    function Row() {
+      const [tooltip, setTooltip] = useState(true);
+      return (
+        <>
+          {tooltip && <Escapable onDismiss={() => flushSync(() => setTooltip(false))} />}
+          <Escapable onDismiss={() => closed()} />
+        </>
+      );
+    }
+    render(<Row />);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(closed).toHaveBeenCalledTimes(1);
   });
 
   // A dialog mid-write, and the outer menu of two open overlays.
