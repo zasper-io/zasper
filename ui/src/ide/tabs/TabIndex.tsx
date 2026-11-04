@@ -22,6 +22,7 @@ import {
   CLOSE_COMMANDS,
   CloseScope,
   keepsTarget,
+  neighbourTab,
   TAB_COMMANDS,
   tabFilePath,
   tabsToClose,
@@ -64,6 +65,14 @@ function TabMark({ tab }: { tab: FileTab }) {
   return <FileMark name={file} className="tabIcon" />;
 }
 
+/** What a tab being dragged carries, so that a file dragged in from the tree is not taken for one. */
+const TAB_DRAG = 'application/x-zasper-tab';
+
+// How near an end of the strip a dragged tab scrolls it, and by how much at each dragover, which the
+// browser repeats while the pointer rests.
+const DRAG_EDGE = 32;
+const DRAG_STEP = 12;
+
 interface TabIndexProps {
   /** Brings the file explorer into view, for Reveal in File Explorer. */
   onShowFileBrowser: () => void;
@@ -79,7 +88,7 @@ interface PendingClose {
 export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   const fileTabsState = useAtomValue(fileTabsAtom);
   const activePath = useAtomValue(activeTabPathAtom);
-  const { activateTab, closeTabs, reopenClosedTab } = useTabActions();
+  const { activateTab, closeTabs, reopenClosedTab, moveTab } = useTabActions();
   const closedTabs = useAtomValue(closedTabsAtom);
   const unsavedTabs = useAtomValue(unsavedTabsAtom);
   const revealInTree = useRevealInTree();
@@ -87,6 +96,58 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState('');
   const [menu, setMenu] = React.useState<{ key: string; xPos: number; yPos: number } | null>(null);
+  const strip = React.useRef<HTMLDivElement>(null);
+  const order = Object.keys(fileTabsState);
+  const tabCount = order.length;
+  // The tab being dragged, and the one it is over.
+  const [drag, setDrag] = React.useState<{ from: string; over: string | null } | null>(null);
+  // Bumped by Move Tab Left and Right, whose tab is the one in front and has to stay in view. A drag
+  // does not bump it: scrolling back to the front tab would undo where the pointer just put the strip.
+  const [moved, setMoved] = React.useState(0);
+
+  // The tab in front is scrolled into view, however it got there: opened at the end of a strip wider than
+  // the window, chosen from the palette, or left in front by a close. As little as shows it, and on the
+  // strip alone: scrollIntoView would scroll the panes around it too.
+  React.useLayoutEffect(() => {
+    const header = strip.current;
+    const tab = header?.querySelector('.tab.is-active');
+    if (!header || !tab) {
+      return;
+    }
+    const view = header.getBoundingClientRect();
+    const box = tab.getBoundingClientRect();
+    // Whole pixels, rounded out: a tab is fractionally wide, and scrollLeft rounds down, which left the
+    // last fraction of a pixel of the tab under the edge.
+    if (box.left < view.left) {
+      header.scrollLeft -= Math.ceil(view.left - box.left);
+    } else if (box.right > view.right) {
+      header.scrollLeft += Math.ceil(box.right - view.right);
+    }
+  }, [activePath, tabCount, moved]);
+
+  // A mouse wheel turns up and down, and the strip only goes sideways, so on the strip it scrolls
+  // sideways without Shift. A trackpad's sideways swipe is left to the browser. Not onWheel: React's is
+  // passive, and the page must not also take the turn.
+  React.useEffect(() => {
+    const header = strip.current;
+    if (!header) {
+      return;
+    }
+    const onWheel = (event: WheelEvent) => {
+      if (
+        Math.abs(event.deltaY) <= Math.abs(event.deltaX) ||
+        header.scrollWidth <= header.clientWidth
+      ) {
+        return;
+      }
+      event.preventDefault();
+      // Firefox can count a turn in lines rather than pixels.
+      header.scrollLeft +=
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * 16 : event.deltaY;
+    };
+    header.addEventListener('wheel', onWheel, { passive: false });
+    return () => header.removeEventListener('wheel', onWheel);
+  }, []);
 
   // Tabs with nothing unsaved close at once. The unsaved ones are asked about in one prompt, however
   // many there are: discarding the work has to be an answer, not a side effect of the click.
@@ -194,8 +255,82 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
         }
       },
     },
+    ...(
+      [
+        ['tab:move-left', -1],
+        ['tab:move-right', 1],
+      ] as const
+    ).map(([id, step]) => ({
+      ...TAB_COMMANDS[id],
+      isEnabled: () => neighbourTab(fileTabsState, activePath, step) !== null,
+      execute: () => {
+        const target = neighbourTab(fileTabsState, activePath, step);
+        if (target !== null) {
+          moveTab(activePath, target);
+          setMoved((count) => count + 1);
+        }
+      },
+    })),
   ];
   useRegisterCommands(commands);
+
+  // A tab dropped on another takes its place: after it when it came from the left, before it when it came
+  // from the right. The bar is drawn on that side.
+  const dropSide = (key: string): 'before' | 'after' | undefined => {
+    if (drag === null || drag.over !== key) {
+      return undefined;
+    }
+    return order.indexOf(key) > order.indexOf(drag.from) ? 'after' : 'before';
+  };
+
+  const dragProps = (key: string): TabDragProps => ({
+    onDragStart: (event) => {
+      event.dataTransfer.setData(TAB_DRAG, key);
+      event.dataTransfer.effectAllowed = 'move';
+      setDrag({ from: key, over: null });
+    },
+    onDragOver: (event) => {
+      if (drag === null || key === drag.from || fileTabsState[key]?.type === 'launcher') {
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      if (drag.over !== key) {
+        setDrag({ ...drag, over: key });
+      }
+    },
+    onDragLeave: (event) => {
+      // Leaving the tab for its own button or cross is not leaving it.
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+        return;
+      }
+      setDrag((current) => (current?.over === key ? { ...current, over: null } : current));
+    },
+    onDrop: (event) => {
+      if (drag === null || drag.over !== key) {
+        return;
+      }
+      event.preventDefault();
+      moveTab(drag.from, key);
+      setDrag(null);
+    },
+    onDragEnd: () => setDrag(null),
+  });
+
+  // A tab dragged toward an end of a strip wider than the window scrolls it, so a tab can be taken to a
+  // place out of sight.
+  const scrollWhileDragging = (event: React.DragEvent<HTMLDivElement>) => {
+    if (drag === null) {
+      return;
+    }
+    const header = event.currentTarget;
+    const box = header.getBoundingClientRect();
+    if (event.clientX < box.left + DRAG_EDGE) {
+      header.scrollLeft -= DRAG_STEP;
+    } else if (event.clientX > box.right - DRAG_EDGE) {
+      header.scrollLeft += DRAG_STEP;
+    }
+  };
 
   const menuItems = (key: string) => {
     const closes = CLOSE_COMMANDS.map(({ id, scope }) => {
@@ -224,7 +359,7 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   };
 
   return (
-    <div className="tabHeader">
+    <div className="tabHeader" ref={strip} onDragOver={scrollWhileDragging}>
       <ul className="tabList">
         {Object.keys(fileTabsState).map((key) => (
           // Keyed by path, as the tab content is: by index, closing a tab moves every tab after it
@@ -239,6 +374,9 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
               requestClose([key]);
             }}
             onMenu={(xPos, yPos) => setMenu({ key, xPos, yPos })}
+            drop={dropSide(key)}
+            isDragged={drag?.from === key}
+            drag={dragProps(key)}
           />
         ))}
       </ul>
@@ -264,6 +402,11 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   );
 }
 
+type TabDragProps = Pick<
+  React.DOMAttributes<HTMLLIElement>,
+  'onDragStart' | 'onDragOver' | 'onDragLeave' | 'onDrop' | 'onDragEnd'
+>;
+
 interface TabProps {
   tab: FileTab;
   isDirty: boolean;
@@ -271,6 +414,10 @@ interface TabProps {
   onClose: (event: React.MouseEvent) => void;
   /** Opens the tab menu at a point in client coordinates. */
   onMenu: (xPos: number, yPos: number) => void;
+  /** The side a tab being dragged over this one will land on. */
+  drop?: 'before' | 'after';
+  isDragged: boolean;
+  drag: TabDragProps;
 }
 
 /**
@@ -281,7 +428,7 @@ interface TabProps {
  * tells two `main.py` apart. Whether it is unsaved goes on a second line rather than on the dot: the
  * dot is inside the tab, so a tooltip of its own would open on top of this one.
  */
-function Tab({ tab, isDirty, onActivate, onClose, onMenu }: TabProps) {
+function Tab({ tab, isDirty, onActivate, onClose, onMenu, drop, isDragged, drag }: TabProps) {
   const tip = useTooltip();
   // A path names a file; the Launcher's, Help's and Settings' keys are not paths.
   const label = [
@@ -314,10 +461,23 @@ function Tab({ tab, isDirty, onActivate, onClose, onMenu }: TabProps) {
   };
 
   return (
-    <li className="tab-item" role="presentation">
+    <li
+      className={[
+        'tab-item',
+        drop === 'before' ? 'is-drop-before' : '',
+        drop === 'after' ? 'is-drop-after' : '',
+        isDragged ? 'is-dragged' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      role="presentation"
+      {...drag}
+    >
       <button
         type="button"
         className={tab.active ? 'tab is-active' : 'tab'}
+        // The Launcher stays first, so it is the one tab that cannot be picked up.
+        draggable={tab.type !== 'launcher'}
         onClick={onActivate}
         onContextMenu={handleContextMenu}
         aria-haspopup="menu"

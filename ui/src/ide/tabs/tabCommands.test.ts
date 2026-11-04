@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FileTab, FileTabDict } from '@/store/tabState';
-import { tabFilePath, tabsToClose } from './tabCommands';
+import { withMoved, type FileTab, type FileTabDict } from '@/store/tabState';
+import { neighbourTab, tabFilePath, tabsToClose } from './tabCommands';
 
 function tab(path: string, type = 'file'): FileTab {
   return {
@@ -60,5 +60,44 @@ describe('tabFilePath', () => {
   it('is null for the tabs that are not a file', () => {
     expect(tabFilePath(tab('Launcher', 'launcher'))).toBeNull();
     expect(tabFilePath(tab('zasper:help', 'help'))).toBeNull();
+  });
+});
+
+describe('withMoved', () => {
+  const order = (tabs: FileTabDict) => Object.keys(tabs);
+
+  it('puts a tab moved right after the one it was dropped on, and one moved left before it', () => {
+    expect(order(withMoved(strip, 'a.txt', 'Settings'))).toEqual([
+      'Launcher',
+      'b.py',
+      'Settings',
+      'a.txt',
+    ]);
+    expect(order(withMoved(strip, 'Settings', 'a.txt'))).toEqual([
+      'Launcher',
+      'Settings',
+      'a.txt',
+      'b.py',
+    ]);
+  });
+
+  it('keeps the Launcher first', () => {
+    expect(withMoved(strip, 'Launcher', 'b.py')).toBe(strip);
+    expect(withMoved(strip, 'b.py', 'Launcher')).toBe(strip);
+  });
+
+  it('leaves the strip alone for a tab dropped on itself or one that is not open', () => {
+    expect(withMoved(strip, 'b.py', 'b.py')).toBe(strip);
+    expect(withMoved(strip, 'gone.py', 'b.py')).toBe(strip);
+  });
+});
+
+describe('neighbourTab', () => {
+  it('is the tab beside it, but never the Launcher or past an end', () => {
+    expect(neighbourTab(strip, 'b.py', -1)).toBe('a.txt');
+    expect(neighbourTab(strip, 'b.py', 1)).toBe('Settings');
+    expect(neighbourTab(strip, 'a.txt', -1)).toBeNull();
+    expect(neighbourTab(strip, 'Settings', 1)).toBeNull();
+    expect(neighbourTab(strip, 'Launcher', 1)).toBeNull();
   });
 });

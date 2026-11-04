@@ -18,6 +18,7 @@ import {
   FileTabDict,
   tabGroupsAtom,
   withActive,
+  withMoved,
   withoutTabs,
 } from './tabState';
 
@@ -124,6 +125,8 @@ export interface TabActions {
   closeDeleted: (path: string) => void;
   /** After a rename on disk: moves the affected tabs, so a save goes to the file that now exists. */
   renameTab: (oldPath: string, newPath: string) => void;
+  /** Moves a tab to where `target` is in the strip: see `withMoved`. */
+  moveTab: (path: string, target: string) => void;
 }
 
 /**
@@ -406,6 +409,10 @@ export function useTabActions(): TabActions {
         });
         return next;
       });
+    },
+
+    moveTab: (path: string, target: string) => {
+      setFileTabs((previous) => withMoved(previous, path, target));
     },
   };
 }

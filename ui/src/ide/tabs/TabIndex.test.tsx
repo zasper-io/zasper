@@ -1,10 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useAtomValue } from 'jotai';
 import { Provider } from '@/testing/Provider';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import TabIndex from './TabIndex';
+import { useRunCommand } from '@/commands/registry';
 import { useCommandKeymap } from '@/commands/useCommandKeymap';
 import { ApiError } from '@/api/client';
 import { NotebookKernelMap, notebookKernelMapAtom } from '@/store/kernels';
@@ -81,8 +82,13 @@ function Keys() {
   return null;
 }
 
+function Runner({ onReady }: { onReady: (run: (id: string) => boolean) => void }) {
+  onReady(useRunCommand());
+  return null;
+}
+
 /** Launcher, `notes.txt` in front, `prepare.py` and a terminal, with the keyboard dispatcher mounted. */
-function renderStrip(unsaved: Record<string, SaveTab> = {}) {
+function renderStrip(unsaved: Record<string, SaveTab> = {}, extra?: React.ReactNode) {
   return render(
     <Provider
       initialValues={[
@@ -100,6 +106,7 @@ function renderStrip(unsaved: Record<string, SaveTab> = {}) {
     >
       <TabIndex onShowFileBrowser={() => {}} />
       <Keys />
+      {extra}
     </Provider>
   );
 }
@@ -385,6 +392,142 @@ describe('TabIndex', () => {
 
       expect(tabForDemo()).not.toBeInTheDocument();
       expect(deleteKernel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('a strip wider than the window', () => {
+    // jsdom lays nothing out: the strip shows 300px, every tab is 100px wide in strip order, and
+    // scrollLeft is what the strip was moved by.
+    function layOut() {
+      let scrolled = 0;
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement
+      ) {
+        if (this.classList.contains('tabHeader')) {
+          return DOMRect.fromRect({ x: 0, width: 300, height: 30 });
+        }
+        const items = Array.from(document.querySelectorAll('.tab-item'));
+        const index = items.indexOf(this.closest('.tab-item') as Element);
+        return DOMRect.fromRect({ x: index * 100 - scrolled, width: 100, height: 30 });
+      });
+      const strip = document.querySelector('.tabHeader') as HTMLElement;
+      Object.defineProperty(strip, 'scrollLeft', {
+        get: () => scrolled,
+        set: (value: number) => {
+          scrolled = value;
+        },
+      });
+      return () => scrolled;
+    }
+
+    it('scrolls the tab brought to the front into view, and no further', () => {
+      renderStrip();
+      const scrolled = layOut();
+
+      fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
+      expect(scrolled()).toBe(100);
+
+      fireEvent.click(screen.getByRole('button', { name: /prepare\.py/ }));
+      expect(scrolled()).toBe(100);
+
+      fireEvent.click(screen.getByRole('button', { name: /Launcher/ }));
+      expect(scrolled()).toBe(0);
+      vi.restoreAllMocks();
+    });
+
+    it('scrolls sideways under a mouse wheel turned up or down, once the tabs overflow', () => {
+      renderStrip();
+      const scrolled = layOut();
+      const strip = document.querySelector('.tabHeader') as HTMLElement;
+      const overflow = (scrollWidth: number) => {
+        Object.defineProperty(strip, 'scrollWidth', { configurable: true, value: scrollWidth });
+        Object.defineProperty(strip, 'clientWidth', { configurable: true, value: 300 });
+      };
+
+      overflow(300);
+      fireEvent.wheel(strip, { deltaY: 120 });
+      expect(scrolled()).toBe(0);
+
+      overflow(400);
+      const turned = fireEvent.wheel(strip, { deltaY: 120 });
+      expect(scrolled()).toBe(120);
+      expect(turned).toBe(false);
+
+      fireEvent.wheel(strip, { deltaY: 5, deltaX: 40 });
+      expect(scrolled()).toBe(120);
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe('reordering', () => {
+    const order = () =>
+      Array.from(document.querySelectorAll('.tab-item .tabName')).map((name) => name.textContent);
+    const item = (name: RegExp) =>
+      screen.getByRole('button', { name }).closest('.tab-item') as HTMLElement;
+    // jsdom has no DataTransfer; what the strip asks of one is this much.
+    const dataTransfer = () => {
+      const data: Record<string, string> = {};
+      return {
+        setData: (type: string, value: string) => {
+          data[type] = value;
+        },
+        getData: (type: string) => data[type] ?? '',
+        get types() {
+          return Object.keys(data);
+        },
+        effectAllowed: '',
+        dropEffect: '',
+      };
+    };
+
+    it('drops a tab dragged right after the tab it is let go on, with a bar on that side', () => {
+      renderStrip();
+      const transfer = dataTransfer();
+
+      fireEvent.dragStart(item(/notes\.txt/), { dataTransfer: transfer });
+      fireEvent.dragOver(item(/Settings/), { dataTransfer: transfer });
+      expect(item(/Settings/)).toHaveClass('is-drop-after');
+      expect(item(/notes\.txt/)).toHaveClass('is-dragged');
+
+      fireEvent.drop(item(/Settings/), { dataTransfer: transfer });
+      expect(order()).toEqual(['Launcher', 'prepare.py', 'Settings', 'notes.txt']);
+      expect(document.querySelector('.is-drop-after, .is-dragged')).toBeNull();
+    });
+
+    it('does not take a drop on the Launcher, which stays first', () => {
+      renderStrip();
+      const transfer = dataTransfer();
+
+      fireEvent.dragStart(item(/prepare\.py/), { dataTransfer: transfer });
+      fireEvent.dragOver(item(/Launcher/), { dataTransfer: transfer });
+      fireEvent.drop(item(/Launcher/), { dataTransfer: transfer });
+
+      expect(order()).toEqual(['Launcher', 'notes.txt', 'prepare.py', 'Settings']);
+      expect(screen.getByRole('button', { name: /Launcher/ })).toHaveAttribute(
+        'draggable',
+        'false'
+      );
+    });
+
+    it('moves the tab in front a step with Move Tab Right, and not past the end', () => {
+      let run: (id: string) => boolean = () => false;
+      renderStrip({}, <Runner onReady={(runCommand) => (run = runCommand)} />);
+
+      act(() => {
+        run('tab:move-right');
+      });
+      expect(order()).toEqual(['Launcher', 'prepare.py', 'notes.txt', 'Settings']);
+      act(() => {
+        run('tab:move-right');
+      });
+      act(() => {
+        run('tab:move-right');
+      });
+      expect(order()).toEqual(['Launcher', 'prepare.py', 'Settings', 'notes.txt']);
+      act(() => {
+        run('tab:move-left');
+      });
+      expect(order()).toEqual(['Launcher', 'prepare.py', 'notes.txt', 'Settings']);
     });
   });
 });

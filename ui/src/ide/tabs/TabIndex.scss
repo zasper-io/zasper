@@ -21,6 +21,13 @@
   min-height: 30px;
   overflow-x: auto;
   background: var(--z-bg-topbar);
+  // The strip's own chrome under its scrollbar, as the terminal does for its surface: the app's track is
+  // measured against a pale panel, and drew a white band across the bottom of a coloured strip.
+  --z-scrollbar-track: var(--z-bg-topbar);
+  // The thumb under the pointer or being dragged, two steps up the ramp from the light themes' --a-600,
+  // and the theme's own hue on a dark theme's near-black thumb. Only the strip's bar can show it: see
+  // `_base.scss`.
+  --z-scrollbar-thumb-hover: var(--a-400);
 }
 
 .tabList {
@@ -44,10 +51,39 @@
 // is the other way to do this, and it is the wrong one: the strip is `min-height` so that a scrollbar
 // can make it taller, and a stretched tab would give that scrollbar its own height instead.
 .tab-item {
+  position: relative;
   display: flex;
   min-height: 30px;
   font-size: var(--z-ui-font-size);
   line-height: 20px;
+}
+
+// Where a dragged tab will land: a bar in the strip's own ink, over the 1px gap on the side it goes to.
+// Not `.is-drop-target`'s accent outline, which on a strip that is the accent is not there to see.
+.tab-item.is-drop-before::before,
+.tab-item.is-drop-after::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  z-index: 1;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--z-fg-on-chrome);
+  pointer-events: none;
+}
+
+.tab-item.is-drop-before::before {
+  left: -2px;
+}
+
+.tab-item.is-drop-after::after {
+  right: -2px;
+}
+
+// The tab in the pointer's hand, left in place until it lands.
+.tab-item.is-dragged .tab {
+  opacity: 0.5;
 }
 
 .tab {

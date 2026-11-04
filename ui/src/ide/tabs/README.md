@@ -29,6 +29,11 @@ is that object's insertion order. Two consequences worth holding on to: a tab is
 everywhere, and anything rebuilding the dictionary has to rebuild it _in order_ — which is why
 `renameTab` constructs a new object rather than reassigning a key.
 
+Reordering is the same move on purpose. Dragging a tab onto another, or Move Tab Left and Right in
+the palette, rebuilds the dictionary through `withMoved` in `store/tabState.ts`: the tab takes the
+place of the one it lands on, after it when it came from the left and before it otherwise, which is
+how a column is moved in the data grid. The Launcher can be neither picked up nor landed in front of.
+
 `type` decides which editor is rendered, in [../editor/Editor.tsx](../editor/Editor.tsx): a `file`
 whose extension is `png` gets the image editor, everything else the code editor.
 

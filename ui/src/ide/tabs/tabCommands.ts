@@ -20,6 +20,9 @@ export const TAB_COMMANDS = defineCommands({
   'tab:reopen': { ...TAB, label: 'Reopen Closed Tab', keys: ['Alt-Shift-t'] },
   'tab:copy-path': { ...TAB, label: 'Copy Path' },
   'tab:reveal': { ...TAB, label: 'Reveal in File Explorer' },
+  // No chord: Alt-Shift with an arrow selects by word in every editor.
+  'tab:move-left': { ...TAB, label: 'Move Tab Left' },
+  'tab:move-right': { ...TAB, label: 'Move Tab Right' },
 });
 
 /** Which tabs a close takes, measured from the tab it was asked on. */
@@ -94,4 +97,18 @@ export function tabFilePath(tab: FileTab): string | null {
     return searchPreviewPath(tab.path);
   }
   return tab.diff?.path ?? tab.path;
+}
+
+/**
+ * The tab a tab moves onto one step left or right, which `withMoved` swaps it with; null at either end,
+ * and next to the Launcher, which stays first.
+ */
+export function neighbourTab(tabs: FileTabDict, key: string, step: -1 | 1): string | null {
+  const order = Object.keys(tabs);
+  const at = order.indexOf(key);
+  const next = order[at + step];
+  if (at === -1 || next === undefined || tabs[key].type === 'launcher') {
+    return null;
+  }
+  return tabs[next].type === 'launcher' ? null : next;
 }

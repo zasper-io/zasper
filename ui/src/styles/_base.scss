@@ -146,7 +146,8 @@ select {
 /* ===== Scrollbars ===== */
 //
 // One API. Don't add `::-webkit-scrollbar` rules: Chromium ignores those pseudo-elements
-// entirely once the standard properties are set on the same element.
+// entirely once the standard properties are set on the same element. The tab strip, below, is the one
+// exception, and it unsets the standard properties to make it.
 //
 // The two properties are not alike, whatever this comment said before it was measured: only
 // `scrollbar-color` inherits. `scrollbar-width` computes to `auto` on <body> and on everything below
@@ -164,12 +165,43 @@ select {
 
 // Said twice, and it has to be. `scrollbar-color` inherits its *computed* value, so the two custom
 // properties were substituted back at :root: a scope that redefines them for its own surface — which
-// _tokens.scss does for the terminal, the one panel that is dark in every theme — never reaches the
-// scrollbar unless the declaration is repeated where the new values are in scope. The rule is here
-// rather than beside .terminalContainer's own rule so that both halves of the scrollbar API stay in
-// one place; anything else that redefines the two tokens needs a line here too.
-.terminalContainer {
+// _tokens.scss does for the terminal, the one panel that is dark in every theme, and TabIndex.scss for
+// the tab strip — never reaches the scrollbar unless the declaration is repeated where the new values
+// are in scope. The rule is here rather than beside .terminalContainer's own rule so that both halves
+// of the scrollbar API stay in one place; anything else that redefines the two tokens needs a line here
+// too.
+.terminalContainer,
+.tabHeader {
   scrollbar-color: var(--z-scrollbar-thumb) var(--z-scrollbar-track);
+}
+
+// The tab strip's bar at 6px, its thumb the whole of it, as the design prototype draws it. `thin` is the
+// browser's size, not ours: Chrome on macOS makes it an 11px track with a narrow thumb in the middle,
+// which on a 30px strip is mostly padding. Only the WebKit pseudo-elements take a size, and Chromium
+// reads them only where the standard properties are `auto`, so this unsets them for the browsers that
+// have the pseudo-elements. Firefox has none, and keeps `thin` in the strip's colours from the rule
+// above. Styling the pseudo-elements also keeps the bar shown on a Mac whose scrollbars otherwise hide
+// until they move.
+@supports selector(::-webkit-scrollbar) {
+  .tabHeader {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+
+  .tabHeader::-webkit-scrollbar {
+    height: 6px;
+    background: var(--z-scrollbar-track);
+  }
+
+  .tabHeader::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: var(--z-scrollbar-thumb);
+  }
+
+  .tabHeader::-webkit-scrollbar-thumb:hover,
+  .tabHeader::-webkit-scrollbar-thumb:active {
+    background: var(--z-scrollbar-thumb-hover);
+  }
 }
 
 // The three content surfaces, at one size. Zoom is what scales them, and it moves every length in

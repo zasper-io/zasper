@@ -137,6 +137,30 @@ export const activeTabPathAtom = atom<string>((get) => {
 });
 
 /**
+ * `tabs` with `path` moved to where `target` is: after it when it moves right, before it when it moves
+ * left, as a column dropped on another takes its place. The order is the dictionary's, so it is rebuilt.
+ * The Launcher neither moves nor has anything put in front of it.
+ */
+export function withMoved(tabs: FileTabDict, path: string, target: string): FileTabDict {
+  const order = Object.keys(tabs);
+  const from = order.indexOf(path);
+  const to = order.indexOf(target);
+  if (from === -1 || to === -1 || from === to) {
+    return tabs;
+  }
+  if (tabs[path].type === 'launcher' || tabs[target].type === 'launcher') {
+    return tabs;
+  }
+  order.splice(from, 1);
+  order.splice(to, 0, path);
+  const next: FileTabDict = {};
+  order.forEach((key) => {
+    next[key] = tabs[key];
+  });
+  return next;
+}
+
+/**
  * `tabs` without `paths`, and with something still in front. Shared by closing tabs and by deleting a
  * file out of every half, which owe the same answer.
  */
