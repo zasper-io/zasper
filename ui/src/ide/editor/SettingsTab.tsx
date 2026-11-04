@@ -1,11 +1,10 @@
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'react-toastify';
 
 import {
   apiErrorMessage,
   checkForUpdates,
-  DataConnection,
   EditorSettings,
   forgetTrustedFolder,
   getLanguageServers,
@@ -24,8 +23,7 @@ import { useEditorSettings } from '@/store/editorSettingsActions';
 import { telemetryAtom, themeAtom, widgetCdnAtom } from '@/store/settings';
 import { zasperVersionAtom } from '@/store/serverInfo';
 import { TrustAsk, trustAtom, useAskTrust } from '@/store/trust';
-import { connectionsAtom, useOpenConnectionDialog } from '@/store/connections';
-import { engineName } from './notebook/SqlCellHead';
+import { panelRequestAtom } from '@/store/editorRequests';
 import { describeUpdateCheck, updateStatusAtom } from '@/store/updates';
 import { FileTab } from '@/store/tabState';
 import { setEnabled, track } from '@/telemetry';
@@ -56,10 +54,8 @@ const TYPE_CHECKING_MODES = ['off', 'basic', 'standard', 'strict'];
 export default function SettingsTab({ data }: SettingsTabProps) {
   const [query, setQuery] = useState('');
   const search = useRef<HTMLInputElement>(null);
-  const openConnectionDialog = useOpenConnectionDialog();
-  const settings = useSettings((connection) =>
-    openConnectionDialog(connection === 'new' ? {} : { editing: connection })
-  );
+  const requestPanel = useSetAtom(panelRequestAtom);
+  const settings = useSettings(() => requestPanel('dataPanel'));
 
   useEffect(() => {
     if (data.active) {
@@ -108,7 +104,7 @@ export default function SettingsTab({ data }: SettingsTabProps) {
   );
 }
 
-function useSettings(editConnection: (connection: DataConnection | 'new') => void): Setting[] {
+function useSettings(openDataPanel: () => void): Setting[] {
   const [theme, setTheme] = useAtom(themeAtom);
   const [telemetry, setTelemetry] = useAtom(telemetryAtom);
   const [widgetCdn, setWidgetCdn] = useAtom(widgetCdnAtom);
@@ -119,7 +115,6 @@ function useSettings(editConnection: (connection: DataConnection | 'new') => voi
   const [updates, setUpdates] = useAtom(updateStatusAtom);
   const [checking, setChecking] = useState(false);
   const [trust, setTrust] = useAtom(trustAtom);
-  const connectionList = useAtomValue(connectionsAtom);
   const askTrust = useAskTrust();
 
   // Answered with the state that follows, which is what the rows are drawn from.
@@ -639,7 +634,7 @@ function useSettings(editConnection: (connection: DataConnection | 'new') => voi
       words: 'cdn jsdelivr ipywidgets bqplot ipyleaflet',
       control: <Checkbox id="settings-widget-cdn" checked={widgetCdn} onChange={changeWidgetCdn} />,
     },
-    ...connectionSettings(connectionList?.connections ?? [], editConnection),
+    ...connectionSettings(openDataPanel),
     ...trustSettings(trust, askTrust, changeTrust),
     {
       id: 'settings-check-updates',
@@ -676,55 +671,28 @@ function useSettings(editConnection: (connection: DataConnection | 'new') => voi
   ];
 }
 
-/** Settings → Data connections: each connection, and adding one. See docs/SQL.md. */
-function connectionSettings(
-  connections: DataConnection[],
-  edit: (connection: DataConnection | 'new') => void
-): Setting[] {
-  const rows: Setting[] = connections.map((connection, index) => ({
-    id: `settings-connection-${index}`,
-    group: 'Data connections',
-    name: connection.name,
-    help: [
-      engineName(connection.type),
-      connection.path ??
-        connection.url ??
-        [connection.host, connection.port].filter(Boolean).join(':') +
-          (connection.database ? `/${connection.database}` : ''),
-      connection.scope === 'project' ? 'this project' : 'yours',
-    ]
-      .filter(Boolean)
-      .join(' · '),
-    words: `connection sql database ${connection.type} ${connection.host ?? ''}`,
-    control: (
-      <button
-        id={`settings-connection-${index}`}
-        type="button"
-        className="z-button z-button-secondary"
-        onClick={() => edit(connection)}
-      >
-        Edit
-      </button>
-    ),
-  }));
-  rows.push({
-    id: 'settings-connection-add',
-    group: 'Data connections',
-    name: 'Add a connection',
-    help: 'PostgreSQL, MySQL, SQLite, DuckDB, Snowflake, BigQuery, Redshift, Databricks, ClickHouse, or any SQLAlchemy URL. A SQL cell runs on it in the kernel, with the driver installed there.',
-    words: 'connection sql database add postgres mysql sqlite duckdb snowflake bigquery',
-    control: (
-      <button
-        id="settings-connection-add"
-        type="button"
-        className="z-button"
-        onClick={() => edit('new')}
-      >
-        Add…
-      </button>
-    ),
-  });
-  return rows;
+/** Settings → Data connections: where they went, so a search for one still finds it. See docs/SQL.md. */
+function connectionSettings(openDataPanel: () => void): Setting[] {
+  return [
+    {
+      id: 'settings-connections',
+      group: 'Data connections',
+      name: 'Data connections are in the Data panel',
+      help: 'Add, edit and remove them there, beside their tables.',
+      words:
+        'connection sql database add edit remove postgres mysql sqlite duckdb snowflake bigquery',
+      control: (
+        <button
+          id="settings-connections"
+          type="button"
+          className="z-button z-button-secondary"
+          onClick={openDataPanel}
+        >
+          Open the Data panel
+        </button>
+      ),
+    },
+  ];
 }
 
 /** When a folder was trusted, as a reader would say it. */

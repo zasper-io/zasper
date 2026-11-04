@@ -50,8 +50,8 @@ commented `# %% [sql]` block. The Markdown export writes it as a fence tagged `s
 ## Connections
 
 **Add a connection** opens over whatever tab is in front, from a SQL cell's connection picker, the Data
-panel's **+**, the palette's **Add a Data Connection** or Settings → Data connections. It starts with
-where the data is:
+panel's **Add a connection** or **+**, or the palette's **Add a Data Connection**. It starts with where
+the data is:
 
 - **Paste a connection string**, any SQLAlchemy URL. It fills in the engine's form, and its password is
   taken out for the keychain. `postgres://`, which hosts still hand out, is read as `postgresql://`. A URL
@@ -65,7 +65,8 @@ where the data is:
 The form's name is filled in from the database or file and can be changed. **Share with this project**
 keeps it for **this project** in `<project>/.zasper/connections.json`; unchecked, it is kept for **all
 your projects** in `~/.zasper/connections.json`. A project's connection with the same name as one of
-yours wins. Settings → Data connections lists them, and **Edit** opens the same form with **Remove**.
+yours wins. They are edited and removed in the Data panel (see [The Data panel](#the-data-panel));
+Settings → Data connections only points there.
 
 | Type       | Described by                         | Driver installed in the kernel  |
 | ---------- | ------------------------------------ | ------------------------------- |
@@ -150,6 +151,11 @@ The panel lists every connection. Opening one reads its schemas and tables, and 
 its columns and their types. **Query** on a table adds a SQL cell below the current one in the notebook
 in front, reading the first hundred rows. The cell's dataframe takes a name no other cell writes. Under
 **Dataframes** are the frames the front notebook's kernel holds, read again after each of its runs.
+
+A connection's row says where it points and whose it is when hovered. Its pencil opens the form to edit
+it. Its right-click menu has **Edit**, **Refresh**, which reads its tables again, and **Remove**, which
+asks first: a project's connection goes for everyone who pulls the change, one of yours from all your
+projects, and the password with it. SQL cells that run on a removed connection are left as they are.
 
 Reading a connection needs a kernel, and the panel works without a notebook open, so it starts one of
 its own. It runs the same Python a file is run with: the one chosen in Settings, otherwise the project's

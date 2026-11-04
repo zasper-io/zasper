@@ -1,5 +1,7 @@
 import { atom } from 'jotai';
 
+import type { PanelName } from '@/ide/sidebar/types';
+
 /**
  * A line the reader asked for, from the palette's `:42`.
  *
@@ -22,3 +24,9 @@ export const editorPulseAtom = atom(0);
  * table". That notebook's editor carries it out and clears it.
  */
 export const insertCellRequestAtom = atom<{ path: string; source: string } | null>(null);
+
+/**
+ * A sidebar panel to bring forward, from somewhere the IDE's own callbacks do not reach: Settings'
+ * "Open the Data panel". The IDE shows it and clears this.
+ */
+export const panelRequestAtom = atom<PanelName | null>(null);

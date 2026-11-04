@@ -1,17 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
+import { toast } from 'react-toastify';
 
 import {
   apiErrorMessage,
   DATAFRAMES,
   DataConnection,
+  deleteConnection,
   readColumns,
   readSchema,
   SqlColumns,
   SqlSchema,
   SqlTable,
 } from '@/api';
+import ConfirmDialog from '@/ide/ConfirmDialog';
 import IconButton from '@/ide/IconButton';
+import { useTooltip } from '@/ide/overlays';
+import Tooltip from '@/ide/Tooltip';
 import { Icon } from '@/ide/icons';
 import { engineName } from '@/ide/editor/notebook/SqlCellHead';
 import { sqlHeader, sqlName } from '@/ide/editor/notebook/sqlCell';
@@ -25,9 +30,24 @@ import { insertCellRequestAtom } from '@/store/editorRequests';
 import { finishedRunsAtom, notebookKernelMapAtom } from '@/store/kernels';
 import { fileTabsAtom } from '@/store/tabState';
 import { useAskTrust, useRestricted } from '@/store/trust';
+import ContextMenu from '../contextMenu/ContextMenu';
 import PanelSection from '../jupyterInfoPanel/PanelSection';
 import { PanelProps } from '../types';
 import './DataPanel.scss';
+
+/** What a connection's row has no width for: where it points, and whose it is. */
+function describeConnection(connection: DataConnection): string[] {
+  const where =
+    connection.path ||
+    connection.url ||
+    [connection.host, connection.port].filter(Boolean).join(':') +
+      (connection.database ? `/${connection.database}` : '');
+  const whose = connection.scope === 'project' ? "This project's" : 'Yours, in every project';
+  return [
+    where || (connection.type === 'duckdb' ? 'In memory' : ''),
+    connection.has_password ? `${whose} · password in the keychain` : whose,
+  ].filter(Boolean);
+}
 
 /**
  * The Data panel: the data connections, down to their tables and columns, and the dataframes the kernel
@@ -139,6 +159,14 @@ function ConnectionNode({
   const [open, setOpen] = useState(false);
   const [schema, setSchema] = useState<SqlSchema | null>(null);
   const [failure, setFailure] = useState('');
+  const [menu, setMenu] = useState<{ xPos: number; yPos: number } | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const setList = useSetAtom(connectionsAtom);
+  const openConnectionDialog = useOpenConnectionDialog();
+  const rowRef = useRef<HTMLDivElement>(null);
+  const tip = useTooltip(true, rowRef);
+  const edit = () => openConnectionDialog({ editing: connection });
 
   const read = useCallback(() => {
     readSchema(connection.name)
@@ -170,17 +198,100 @@ function ConnectionNode({
     }
   };
 
+  const refresh = () => {
+    if (restricted) {
+      onTrust();
+      return;
+    }
+    setSchema(null);
+    setFailure('');
+    setOpen(true);
+    read();
+  };
+
+  const remove = async () => {
+    setRemoving(true);
+    try {
+      setList(await deleteConnection(connection.scope, connection.name));
+    } catch (error) {
+      toast.error(apiErrorMessage(error));
+      setRemoving(false);
+      setAsking(false);
+    }
+  };
+
+  const menuItems = [
+    { label: 'Edit', icon: 'pencil' as const, action: edit },
+    { label: 'Refresh', icon: 'refresh-cw' as const, action: refresh },
+    { label: 'Remove', icon: 'trash-2' as const, action: () => setAsking(true), danger: true },
+  ];
+
   const schemas = schema?.schemas ?? [];
   return (
     <li>
-      <div className="panel-row">
+      <div
+        ref={rowRef}
+        className="panel-row"
+        {...tip.hoverProps}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setMenu({ xPos: event.clientX, yPos: event.clientY });
+        }}
+      >
         <button type="button" className="panel-row-name" aria-expanded={open} onClick={toggle}>
           <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
           <Icon name="database" />
           <span className="panel-row-label">{connection.name}</span>
         </button>
         <span className="panel-row-meta">{engineName(connection.type)}</span>
+        <span className="panel-row-actions">
+          <IconButton
+            icon="pencil"
+            className="panel-row-action"
+            label={`Edit ${connection.name}`}
+            size={12}
+            onClick={edit}
+          />
+        </span>
       </div>
+      <Tooltip tip={tip} label={describeConnection(connection)} />
+      {menu && (
+        <ContextMenu
+          xPos={menu.xPos}
+          yPos={menu.yPos}
+          items={menuItems}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      {asking && (
+        <ConfirmDialog
+          title={`Remove ${connection.name}?`}
+          confirmLabel="Remove"
+          busyLabel="Removing…"
+          busy={removing}
+          onConfirm={() => void remove()}
+          onCancel={() => setAsking(false)}
+        >
+          <div className="update-kernel-popup">
+            <p>
+              <strong>{connection.name}</strong>{' '}
+              {connection.scope === 'project' ? (
+                <>
+                  is this project&apos;s, in <code>.zasper/connections.json</code>: removing it
+                  removes it for everyone who pulls the change.
+                </>
+              ) : (
+                <>
+                  is yours, in <code>~/.zasper/connections.json</code>: removing it removes it from
+                  every project of yours.
+                </>
+              )}{' '}
+              {connection.has_password && 'Your password for it is deleted from the keychain. '}
+              SQL cells that run on it stay as they are and say it is not set up.
+            </p>
+          </div>
+        </ConfirmDialog>
+      )}
       {open && (
         <ul className="z-list-plain dataTree-children">
           {failure !== '' && <li className="dataTree-note is-error">{failure}</li>}
@@ -311,6 +422,7 @@ function TableNode({ connection, schema, table, insertInto, kernel }: TableNodeP
           <span className="panel-row-actions">
             <IconButton
               icon="code"
+              size={12}
               className="panel-row-action"
               label={`Query ${table.name} in a new SQL cell`}
               onClick={query}

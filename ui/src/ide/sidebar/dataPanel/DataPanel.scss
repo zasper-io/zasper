@@ -50,3 +50,9 @@
   font-size: var(--z-ui-font-size-sm);
   box-shadow: none;
 }
+
+// A row's actions at the tree's scale, 12px as its chevrons are, and apart from the meta: at 16px and
+// 4px from "SQLite" the pencil read as a second, heavier meta rather than as something to press.
+.dataTree .panel-row-actions {
+  margin-left: 8px;
+}

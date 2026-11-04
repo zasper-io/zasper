@@ -36,6 +36,7 @@ import StatusBar from './statusBar/StatusBar';
 import './IDE.scss';
 import { fileBrowserReloadCountAtom } from '@/store/fileBrowser';
 import { searchFocusRequestAtom } from '@/store/projectSearch';
+import { panelRequestAtom } from '@/store/editorRequests';
 import { agentPanelOpenAtom } from '@/store/agents';
 import { dockOpenAtom, dockTabAtom } from '@/store/languageServers';
 import {
@@ -106,6 +107,13 @@ function IDE() {
   }, []);
 
   const { openSettings, showTerminals } = useTabActions();
+  const [panelRequest, setPanelRequest] = useAtom(panelRequestAtom);
+  useEffect(() => {
+    if (panelRequest !== null) {
+      showPanel(panelRequest);
+      setPanelRequest(null);
+    }
+  }, [panelRequest, setPanelRequest, showPanel]);
   const openConnectionDialog = useOpenConnectionDialog();
   const [, setSearchFocus] = useAtom(searchFocusRequestAtom);
   const [dockOpen, setDockOpen] = useAtom(dockOpenAtom);
