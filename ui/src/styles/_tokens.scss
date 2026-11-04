@@ -188,6 +188,9 @@
   // --- Launcher -----------------------------------------------------------
   --z-bg-launcher-tile: #f3f2f6;
   --z-bg-launcher-tile-hover: #e3e1e9;
+  // A secondary button is pressed like a tile, so it takes the tile's fill.
+  --z-bg-button-secondary: var(--z-bg-launcher-tile);
+  --z-bg-button-secondary-hover: var(--z-bg-launcher-tile-hover);
 
   // --- Foreground ---------------------------------------------------------
   --z-fg-default: #393939;
@@ -475,6 +478,8 @@
 
   --z-bg-launcher-tile: #272727;
   --z-bg-launcher-tile-hover: #353535;
+  --z-bg-button-secondary: var(--z-bg-launcher-tile);
+  --z-bg-button-secondary-hover: var(--z-bg-launcher-tile-hover);
 
   --z-fg-default: #e2e2e2;
   --z-fg-editor: #d7d7d7;

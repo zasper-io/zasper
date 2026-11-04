@@ -162,6 +162,8 @@ $dark-panel: #272727;
   // pane, which is the invisible edge that token exists to fix.
   --z-bg-launcher-tile: var(--a-50);
   --z-bg-launcher-tile-hover: var(--a-100);
+  --z-bg-button-secondary: var(--z-bg-launcher-tile);
+  --z-bg-button-secondary-hover: var(--z-bg-launcher-tile-hover);
   // The row's edge, and it belongs to the hue like everything else here. It was --z-border-strong,
   // the one border token that is a literal grey: a teal window drew grey outlines around teal chips,
   // and an orange one drew the same grey. One step deeper than the fill, so the edge is the same
@@ -256,6 +258,8 @@ $dark-panel: #272727;
     // the theme, and an edge one step up from it.
     --z-bg-launcher-tile: #{tint(map.get($ramp, '700'), 22%)};
     --z-bg-launcher-tile-hover: #{tint(map.get($ramp, '600'), 30%)};
+    --z-bg-button-secondary: var(--z-bg-launcher-tile);
+    --z-bg-button-secondary-hover: var(--z-bg-launcher-tile-hover);
     --z-border-launcher-tile: #{tint(map.get($ramp, '500'), 34%)};
   }
 }
