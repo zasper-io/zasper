@@ -57,6 +57,7 @@ machine; with none installed anywhere, the specs that need a kernel skip rather 
 | `terminal` | a real shell in the project directory |
 | `agents` | an agent started from the panel changes a file, which is put back on screen and on disk; a slow start is cancelled. The agent is `agenttest`'s scripted one, built beside the server, so no agent need be installed |
 | `layout` | every control is big enough to click, no row overflows its panel, and a state resolves to something visible |
+| `a11y` | axe-core on twelve screens in a light and a dark theme, plus sign-in, against `a11y-baseline.json`: a new violation fails, and so does a fixed one still listed. `UPDATE_A11Y_BASELINE=1 npx playwright test a11y` rewrites the baseline |
 
 ## House rules
 
