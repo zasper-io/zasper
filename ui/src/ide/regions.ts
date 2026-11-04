@@ -36,19 +36,29 @@ function isShown(element: HTMLElement): boolean {
   return box.width > 0 && box.height > 0 && element.closest('[hidden], .is-hidden') === null;
 }
 
-/** Where the focus goes on arriving in a region: where it was last, or its first control. */
-function landingIn(region: HTMLElement): HTMLElement {
+/**
+ * Arrives in a region: where the focus was last, or its first control.
+ *
+ * The remembered element is tried rather than measured. A terminal's input is a textarea xterm sizes
+ * from its font, so for the first frames after a terminal opens it is 0x0 while being exactly where the
+ * keyboard was; `focus()` refusing is the test that matters, and it refuses whatever is hidden.
+ */
+function focusIn(region: HTMLElement): void {
   const remembered = lastFocused.get(region.dataset.region ?? '');
-  if (remembered?.isConnected && region.contains(remembered) && isShown(remembered)) {
-    return remembered;
+  if (remembered?.isConnected && region.contains(remembered)) {
+    remembered.focus();
+    if (document.activeElement === remembered) {
+      return;
+    }
   }
   const first = [...region.querySelectorAll<HTMLElement>(TABBABLE)].find(isShown);
   if (first) {
-    return first;
+    first.focus();
+    return;
   }
   // A region with nothing to press still takes the focus, so a screen reader says where it is.
   region.tabIndex = -1;
-  return region;
+  region.focus();
 }
 
 /** Moves the focus `step` regions on from the one that has it, wrapping round. */
@@ -65,7 +75,7 @@ export function focusRegion(step: 1 | -1): void {
   const at = current ? shown.indexOf(current) : -1;
   // From outside every region, F6 goes to the first and Shift-F6 to the last.
   const next = at === -1 ? (step === 1 ? 0 : shown.length - 1) : at + step;
-  landingIn(shown[(next + shown.length) % shown.length]).focus();
+  focusIn(shown[(next + shown.length) % shown.length]);
 }
 
 /** Remembers, per region, what last had the focus in it. Mounted once, in IDE.tsx. */

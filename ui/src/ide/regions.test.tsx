@@ -69,6 +69,22 @@ describe('focusRegion', () => {
     expect(screen.getByRole('button', { name: 'First cell' })).toHaveFocus();
   });
 
+  // xterm sizes its input from the font, so for a few frames after a terminal opens it is 0x0. Shift-F6
+  // then landed on the dock's first tab rather than back in the shell.
+  it('comes back to a remembered element even while it has no size', () => {
+    render(<Window />);
+    const shell = screen.getByRole('textbox', { name: 'Terminal input' });
+    vi.mocked(Element.prototype.getBoundingClientRect).mockImplementation(function (this: Element) {
+      return (this === shell ? { width: 0, height: 0 } : { width: 10, height: 10 }) as DOMRect;
+    });
+    shell.focus();
+
+    focusRegion(1);
+    focusRegion(-1);
+
+    expect(shell).toHaveFocus();
+  });
+
   it('comes back to what had the focus in a region, not to its first control', () => {
     render(<Window />);
     screen.getByRole('button', { name: 'Second cell' }).focus();
