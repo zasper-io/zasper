@@ -281,7 +281,7 @@ The databases SQL cells run on. Passwords are never answered. See [SQL.md](SQL.m
 | `POST` | `/api/connections/schema` | `{"name", "kernel"?}`: `schemas`, each `name`, `default` and `tables` (`name`, `kind` of `table`, `view` or `dataframe`, and `rows` for a dataframe), or `error`. Asks the Data panel's own kernel unless `kernel` names one; `dataframes` is the frames of the kernel named. |
 | `POST` | `/api/connections/columns` | `{"name", "schema", "table", "kernel"?}`: `columns`, each `name` and `type`, or `error`. |
 | `POST` | `/api/connections/count` | `{"kernel", "name", "query"}`: how many rows a SQL cell's query answers, counted in the notebook's kernel before Load all. `rows`, or `rows: null` and `error`, which is also the answer after 10 seconds, when the kernel cancels the count. |
-| `POST` | `/api/connections/test` | `{"connection", "password"?, "kernel"?}`: connect with a connection as a form holds it, saved or not. `ok`, `version`, `ms`, or `error` and `missing`, the package to install. |
+| `POST` | `/api/connections/test` | `{"connection", "password"?, "kernel"?}`: connect with a connection as a form holds it, saved or not. `ok`, `version`, `ms`, or `error` and `missing`, the package to install; and `kernel`, the kernel that answered, which is where to install it. |
 
 `prepare`, `schema`, `columns`, `count` and `test` run code in a kernel: `403` (`untrusted`) in a folder that is not
 trusted, `409` when the kernel named is not running or no Python kernel is installed. `error` with
@@ -326,6 +326,7 @@ a repository's own config can make git run commands. See [TRUST.md](TRUST.md).
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/files` | Filename suggestions for the command palette, `?query=`. `&ignored=true` adds what `.gitignore` leaves out, marked `ignored` and after the rest (up to 100,000 such files; `node_modules`, `.venv` and the like stay out). |
+| `GET` | `/api/files/databases` | The project's SQLite and DuckDB files (`.db`, `.sqlite`, `.sqlite3`, `.duckdb`), up to 50, as `path`, `type` and `size`, including what `.gitignore` leaves out. None is opened. |
 | `POST` | `/api/search` | Search file contents. The answer is newline-delimited JSON: one object per file as it is found, then a summary. Closing the request cancels the search. |
 | `POST` | `/api/search/buffer` | Search text the client sends for one file, such as an editor's unsaved contents, with the same engine. |
 | `POST` | `/api/search/preview` | A text file as it is on disk and as a replace would leave it: `{"original", "replaced"}`. |

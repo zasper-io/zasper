@@ -25,3 +25,28 @@
     color: var(--z-status-error);
   }
 }
+
+// No connections: the sentence, then the one thing to do about it.
+.dataPanel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-bottom: 12px;
+
+  .z-form-help {
+    margin: 0;
+  }
+}
+
+// Adding another, under the connections there are: a button that says so, where the header's + alone
+// went unseen. The accent, as the empty panel's is: it is the panel's one action.
+.dataPanel-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 8px 16px;
+  padding: 1px 10px;
+  font-size: var(--z-ui-font-size-sm);
+  box-shadow: none;
+}

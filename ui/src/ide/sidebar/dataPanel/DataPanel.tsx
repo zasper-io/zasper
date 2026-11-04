@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 
 import {
@@ -14,21 +14,20 @@ import {
 import IconButton from '@/ide/IconButton';
 import { Icon } from '@/ide/icons';
 import { engineName } from '@/ide/editor/notebook/SqlCellHead';
-import { sqlHeader } from '@/ide/editor/notebook/sqlCell';
-import { connectionsAtom, useLoadConnections } from '@/store/connections';
+import { sqlHeader, sqlName } from '@/ide/editor/notebook/sqlCell';
+import {
+  addedConnectionAtom,
+  connectionsAtom,
+  useLoadConnections,
+  useOpenConnectionDialog,
+} from '@/store/connections';
 import { insertCellRequestAtom } from '@/store/editorRequests';
 import { finishedRunsAtom, notebookKernelMapAtom } from '@/store/kernels';
 import { fileTabsAtom } from '@/store/tabState';
 import { useAskTrust, useRestricted } from '@/store/trust';
-import { useTabActions } from '@/store/tabActions';
 import PanelSection from '../jupyterInfoPanel/PanelSection';
 import { PanelProps } from '../types';
 import './DataPanel.scss';
-
-/** A name as SQL reads it: quoted only when it has to be. */
-function sqlName(name: string): string {
-  return /^[a-z_][a-z0-9_]*$/.test(name) ? name : `"${name.replace(/"/g, '""')}"`;
-}
 
 /**
  * The Data panel: the data connections, down to their tables and columns, and the dataframes the kernel
@@ -40,7 +39,8 @@ export default function DataPanel({ hidden }: PanelProps) {
   const load = useLoadConnections();
   const restricted = useRestricted();
   const askTrust = useAskTrust();
-  const { openSettings } = useTabActions();
+  const openConnectionDialog = useOpenConnectionDialog();
+  const added = useAtomValue(addedConnectionAtom);
   const tabs = useAtomValue(fileTabsAtom);
   const kernels = useAtomValue(notebookKernelMapAtom);
   const [refreshes, setRefreshes] = useState(0);
@@ -59,30 +59,43 @@ export default function DataPanel({ hidden }: PanelProps) {
     <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
       <div className="content-head">
         <div className="z-label">Data</div>
-        <IconButton icon="plus" label="Add a connection" onClick={() => openSettings()} />
+        <IconButton icon="plus" label="Add a connection" onClick={() => openConnectionDialog()} />
         <IconButton icon="refresh-cw" label="Refresh" onClick={() => setRefreshes((n) => n + 1)} />
       </div>
       <div className="content-inner dataPanel">
         <PanelSection title="Connections" count={connections.length}>
           {connections.length === 0 ? (
-            <div className="panel-section-body">
-              <p className="z-note">
-                No connections yet. Add one to run SQL against a database, or query the
-                kernel&apos;s dataframes with a SQL cell on Dataframes.
+            <div className="panel-section-body dataPanel-empty">
+              <p className="z-note">No connections yet.</p>
+              <button type="button" className="z-button" onClick={() => openConnectionDialog()}>
+                Add a connection
+              </button>
+              <p className="z-form-help">
+                Or choose <em>Dataframes</em> in a SQL cell to query the kernel&apos;s own.
               </p>
             </div>
           ) : (
-            <ul className="z-list-plain dataTree">
-              {connections.map((connection) => (
-                <ConnectionNode
-                  key={`${connection.scope}:${connection.name}:${refreshes}`}
-                  connection={connection}
-                  restricted={restricted}
-                  onTrust={() => askTrust({ reason: 'other', what: `read ${connection.name}` })}
-                  insertInto={notebook?.path}
-                />
-              ))}
-            </ul>
+            <>
+              <ul className="z-list-plain dataTree">
+                {connections.map((connection) => (
+                  <ConnectionNode
+                    key={`${connection.scope}:${connection.name}:${refreshes}`}
+                    connection={connection}
+                    startOpen={connection.name === added}
+                    restricted={restricted}
+                    onTrust={() => askTrust({ reason: 'other', what: `read ${connection.name}` })}
+                    insertInto={notebook?.path}
+                  />
+                ))}
+              </ul>
+              <button
+                type="button"
+                className="z-button dataPanel-add"
+                onClick={() => openConnectionDialog()}
+              >
+                <Icon name="plus" size={12} /> Add a connection
+              </button>
+            </>
           )}
         </PanelSection>
 
@@ -108,16 +121,42 @@ export default function DataPanel({ hidden }: PanelProps) {
 
 interface ConnectionNodeProps {
   connection: DataConnection;
+  /** Opened on its tables as it appears: the connection just added. */
+  startOpen?: boolean;
   restricted: boolean;
   onTrust: () => void;
   insertInto?: string;
 }
 
 /** One connection: its schemas and tables, read when it is first opened. */
-function ConnectionNode({ connection, restricted, onTrust, insertInto }: ConnectionNodeProps) {
+function ConnectionNode({
+  connection,
+  startOpen = false,
+  restricted,
+  onTrust,
+  insertInto,
+}: ConnectionNodeProps) {
   const [open, setOpen] = useState(false);
   const [schema, setSchema] = useState<SqlSchema | null>(null);
   const [failure, setFailure] = useState('');
+
+  const read = useCallback(() => {
+    readSchema(connection.name)
+      .then((answer) => {
+        setSchema(answer);
+        setFailure(answer.error ?? '');
+      })
+      .catch((error) => setFailure(apiErrorMessage(error)));
+  }, [connection.name]);
+
+  useEffect(() => {
+    if (startOpen && !restricted) {
+      setOpen(true);
+      read();
+    }
+    // Once, as the row appears; opening it later is the reader's.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggle = () => {
     if (restricted) {
@@ -127,12 +166,7 @@ function ConnectionNode({ connection, restricted, onTrust, insertInto }: Connect
     const next = !open;
     setOpen(next);
     if (next && schema === null) {
-      readSchema(connection.name)
-        .then((answer) => {
-          setSchema(answer);
-          setFailure(answer.error ?? '');
-        })
-        .catch((error) => setFailure(apiErrorMessage(error)));
+      read();
     }
   };
 

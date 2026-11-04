@@ -297,5 +297,12 @@ func (h *Handler) TestHandler(w http.ResponseWriter, req *http.Request) {
 		httpx.SendErrorResponse(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	httpx.SendJSON(w, http.StatusOK, answer)
+	// With the kernel that answered, which is where a missing driver has to be installed: the Data
+	// panel's own, when the form named none.
+	httpx.SendJSON(w, http.StatusOK, testAnswer{SQLTest: answer, Kernel: km.KernelId})
+}
+
+type testAnswer struct {
+	kernel.SQLTest
+	Kernel string `json:"kernel"`
 }

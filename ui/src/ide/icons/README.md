@@ -2,12 +2,13 @@
 
 One icon set, one size, and one place a glyph is chosen.
 
-| File           | What it is                                                                                                             |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `icons.ts`     | The table. Every glyph the app can draw, keyed by its Lucide name, with a comment saying what each one took over from. |
-| `Icon.tsx`     | The only way an icon reaches the screen. Takes a name from the table and a size.                                       |
-| `FileMark.tsx` | What stands in front of a file name: a coloured two- or three-letter mark, or an icon where letters would say nothing. |
-| `index.ts`     | The public surface. Import from `@/ide/icons`, never from a file in here.                                              |
+| File               | What it is                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `icons.ts`         | The table. Every glyph the app can draw, keyed by its Lucide name, with a comment saying what each one took over from.  |
+| `Icon.tsx`         | The only way an icon reaches the screen. Takes a name from the table and a size.                                        |
+| `FileMark.tsx`     | What stands in front of a file name: a coloured two- or three-letter mark, or an icon where letters would say nothing.  |
+| `DatabaseLogo.tsx` | A database's own mark, in its brand's colour, from `databaseLogos.ts` (Simple Icons, CC0; the marks are their owners'). |
+| `index.ts`         | The public surface. Import from `@/ide/icons`, never from a file in here.                                               |
 
 ## Why there is a table
 

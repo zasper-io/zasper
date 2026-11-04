@@ -147,6 +147,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 
 	// search
 	apiRouter.HandleFunc("/files", s.search.Files).Methods("GET")
+	apiRouter.HandleFunc("/files/databases", s.search.DatabaseFiles).Methods("GET")
 	apiRouter.HandleFunc("/search", s.search.Search).Methods("POST")
 	apiRouter.HandleFunc("/search/preview", s.search.Preview).Methods("POST")
 	apiRouter.HandleFunc("/search/replace", s.search.Replace).Methods("POST")

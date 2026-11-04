@@ -334,6 +334,21 @@
   --z-mark-cpp: #e91050; // from #f34b7d, 3.44:1
   --z-mark-java: #a46a17; // from #b07219, 3.99:1
 
+  // --- Database marks -----------------------------------------------------
+  // Each engine's own hue, as Simple Icons records it, for the marks in Add a connection. A brand's,
+  // not a theme's, so only SQLite's navy is stepped for dark. DuckDB's and ClickHouse's yellows never
+  // sit on the tile: each is drawn on --z-db-black, as their own marks are.
+  --z-db-postgresql: #4169e1;
+  --z-db-mysql: #4479a1;
+  --z-db-sqlite: #003b57;
+  --z-db-duckdb: #fff000;
+  --z-db-snowflake: #29b5e8;
+  --z-db-bigquery: #669df6;
+  --z-db-databricks: #ff3621;
+  --z-db-clickhouse: #ffcc01;
+  --z-db-sqlalchemy: #d71f00;
+  --z-db-black: #000000;
+
   // --- Login ----------------------------------------------------------------
   // /login's hero, the left half of the page. Taken off the accent ramp in _accents.scss; this is the
   // purple it was, and the last place in the app it survives.
@@ -542,6 +557,9 @@
   --z-mark-c: #8d8d8d;
   --z-mark-cpp: #f35181;
   --z-mark-java: #c37e1c;
+
+  // SQLite's navy is 1.2:1 on a dark tile; a lighter blue of the same hue is 3.2:1.
+  --z-db-sqlite: #0f80cc;
 
   // Drop shadows barely read against dark surfaces, so lean on them harder.
   --z-shadow-low: 0 2px 6px rgba(0, 0, 0, 0.4);

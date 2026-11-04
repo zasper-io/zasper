@@ -28,8 +28,9 @@ import LanguageServerBridge from '../lsp/LanguageServerBridge';
 import TrustController from './trust/TrustController';
 import DataPanel from './sidebar/dataPanel/DataPanel';
 import { BasePath } from '@/config';
-import { useLoadConnections } from '@/store/connections';
+import { useLoadConnections, useOpenConnectionDialog } from '@/store/connections';
 import TrustDialog from './trust/TrustDialog';
+import { ConnectionDialogHost } from './connections/ConnectionDialog';
 import StatusBar from './statusBar/StatusBar';
 
 import './IDE.scss';
@@ -105,6 +106,7 @@ function IDE() {
   }, []);
 
   const { openSettings, showTerminals } = useTabActions();
+  const openConnectionDialog = useOpenConnectionDialog();
   const [, setSearchFocus] = useAtom(searchFocusRequestAtom);
   const [dockOpen, setDockOpen] = useAtom(dockOpenAtom);
   const [agentOpen, setAgentOpen] = useAtom(agentPanelOpenAtom);
@@ -147,6 +149,7 @@ function IDE() {
         execute: toggleSidebar,
       },
       { ...APP_COMMANDS['view:settings'], execute: () => openSettings() },
+      { ...APP_COMMANDS['data:add-connection'], execute: () => openConnectionDialog() },
       {
         ...APP_COMMANDS['view:search'],
         isEnabled: () => isMac || !terminalHasFocus(),
@@ -184,6 +187,7 @@ function IDE() {
     [
       toggleSidebar,
       openSettings,
+      openConnectionDialog,
       showPanel,
       setSearchFocus,
       setDockOpen,
@@ -294,6 +298,7 @@ function IDE() {
       <LanguageServerBridge />
       <TrustController />
       <TrustDialog />
+      <ConnectionDialogHost />
       <div className="editor-container">
         {/* Outside the resizable group, so hiding the sidebar leaves the rail — and the way back —
             on screen. The activity bar reads the same state it writes, so its highlight and the

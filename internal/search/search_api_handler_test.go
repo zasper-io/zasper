@@ -249,3 +249,20 @@ func TestAFolderInTheQueryFindsTheFilesInItWhenPathsAreAskedFor(t *testing.T) {
 	_, nested := suggest(t, h, "data/ra&match=path")
 	assert.Equal(t, []string{"data/raw.csv"}, nested)
 }
+
+func TestDatabaseFilesAreOfferedIgnoredOrNotButNotFromGeneratedFolders(t *testing.T) {
+	h, dir := projectWith(t, "data/local.db", "warehouse.DuckDB", "notes.sqlite3", ".venv/lib/cache.db", "readme.md")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("data/\n"), 0o644))
+
+	recorder := httptest.NewRecorder()
+	h.DatabaseFiles(recorder, httptest.NewRequest(http.MethodGet, "/api/files/databases", nil))
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var found []DatabaseFile
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &found))
+	assert.ElementsMatch(t, []DatabaseFile{
+		{Path: "data/local.db", Type: "sqlite", Size: 1},
+		{Path: "warehouse.DuckDB", Type: "duckdb", Size: 1},
+		{Path: "notes.sqlite3", Type: "sqlite", Size: 1},
+	}, found)
+}

@@ -7,6 +7,8 @@ import { FileMark, Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 import { baseName } from '@/paths';
+import { databaseFileType } from '@/ide/connections/connectionString';
+import { useQueryDatabaseFile } from '@/ide/connections/useQueryDatabaseFile';
 import { problemsAtom } from '@/store/languageServers';
 import { activeTabPathAtom } from '@/store/tabState';
 import ContextMenu from '../contextMenu/ContextMenu';
@@ -60,8 +62,19 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
     stillness: true,
   });
   const { copyTo, copyPath, download } = useContentActions();
+  const queryDatabaseFile = useQueryDatabaseFile();
 
   const menuItems = [
+    // A database file's first verb: query it, which adds it as a connection if it is not one.
+    ...(scope.length === 1 && databaseFileType(path) !== undefined
+      ? [
+          {
+            label: 'Query in a SQL Cell',
+            icon: 'code' as const,
+            action: () => void queryDatabaseFile(path),
+          },
+        ]
+      : []),
     // Renaming is one row's business; the rest of the menu is the selection's.
     ...(scope.length > 1
       ? []

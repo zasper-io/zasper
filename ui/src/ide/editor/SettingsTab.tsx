@@ -24,8 +24,7 @@ import { useEditorSettings } from '@/store/editorSettingsActions';
 import { telemetryAtom, themeAtom, widgetCdnAtom } from '@/store/settings';
 import { zasperVersionAtom } from '@/store/serverInfo';
 import { TrustAsk, trustAtom, useAskTrust } from '@/store/trust';
-import { connectionsAtom } from '@/store/connections';
-import ConnectionDialog from './ConnectionDialog';
+import { connectionsAtom, useOpenConnectionDialog } from '@/store/connections';
 import { engineName } from './notebook/SqlCellHead';
 import { describeUpdateCheck, updateStatusAtom } from '@/store/updates';
 import { FileTab } from '@/store/tabState';
@@ -57,10 +56,10 @@ const TYPE_CHECKING_MODES = ['off', 'basic', 'standard', 'strict'];
 export default function SettingsTab({ data }: SettingsTabProps) {
   const [query, setQuery] = useState('');
   const search = useRef<HTMLInputElement>(null);
-  // The connection the dialog is open on: null for none, 'new' to add one.
-  const [connectionDialog, setConnectionDialog] = useState<DataConnection | 'new' | null>(null);
-  const [connections, setConnections] = useAtom(connectionsAtom);
-  const settings = useSettings(setConnectionDialog);
+  const openConnectionDialog = useOpenConnectionDialog();
+  const settings = useSettings((connection) =>
+    openConnectionDialog(connection === 'new' ? {} : { editing: connection })
+  );
 
   useEffect(() => {
     if (data.active) {
@@ -89,14 +88,6 @@ export default function SettingsTab({ data }: SettingsTabProps) {
         onChange={(event) => setQuery(event.target.value)}
       />
       {groups.size === 0 && <p className="z-note">No setting matches “{query.trim()}”.</p>}
-      {connectionDialog !== null && (
-        <ConnectionDialog
-          editing={connectionDialog === 'new' ? undefined : connectionDialog}
-          types={connections?.types ?? []}
-          onSaved={setConnections}
-          onClose={() => setConnectionDialog(null)}
-        />
-      )}
       {[...groups].map(([group, rows]) => (
         <section key={group} aria-label={group}>
           <h3 className="z-label settings-tab-group">{group}</h3>

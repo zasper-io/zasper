@@ -1,0 +1,179 @@
+// Add a connection: where the data is, then the form for it. Drawn in zasper-prototype's
+// story-sql.html, "Adding a connection, redrawn".
+.connectionDialog-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connectionDialog-body {
+  padding: 14px 16px 12px;
+
+  .z-form-label {
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .z-form-help {
+    margin-top: 4px;
+
+    &.is-error {
+      color: var(--z-status-error);
+    }
+  }
+}
+
+// A URL is code: the face it is written in, at the width it is given.
+.connectionDialog-url {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--z-mono-font-family);
+}
+
+.connectionDialog-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 12px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-top: 1px solid var(--z-border);
+  }
+}
+
+// The launcher's tile at a fifth of its height: ten engines are read at once, not scrolled.
+.connectionDialog-engines {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.connectionDialog-engine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid var(--z-border);
+  border-radius: 6px;
+  background: var(--z-bg-launcher-tile);
+  color: var(--z-fg-default);
+  font: inherit;
+  font-size: var(--z-ui-font-size-sm);
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--z-bg-launcher-tile-hover);
+  }
+
+  &:focus-visible {
+    border-color: var(--z-fg-accent);
+  }
+}
+
+.connectionDialog-filesTitle {
+  margin: 16px 0 4px;
+}
+
+.connectionDialog-files {
+  margin: 0 -16px;
+
+  .panel-row {
+    padding: 0 16px;
+  }
+
+  .panel-row-meta {
+    margin-left: auto;
+  }
+}
+
+// A row's own button, so it is the row's size: 18px in the 22px row, set in the small size beside the
+// meta it follows.
+.connectionDialog-fileAdd {
+  height: 18px;
+  margin-left: 10px;
+  padding: 0 8px;
+  font-size: var(--z-ui-font-size-sm);
+  line-height: 16px;
+  box-shadow: none;
+}
+
+// Where the form's fields came from.
+.connectionDialog-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 0;
+  font-size: var(--z-ui-font-size);
+}
+
+.connectionDialog-from {
+  color: var(--z-fg-subtle);
+}
+
+.connectionDialog-form {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px 16px 16px;
+
+  .z-form-help {
+    margin: -4px 0 0;
+  }
+}
+
+.connectionDialog-host {
+  display: flex;
+  gap: 6px;
+
+  .z-field:first-child {
+    flex: 1 1 auto;
+  }
+}
+
+.connectionDialog-port {
+  width: 70px;
+}
+
+.connectionDialog-keychain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+// What Connect said, between the form and its buttons.
+.connectionDialog-outcome {
+  margin: 0 0 16px;
+  border-top: 1px solid var(--z-border);
+
+  &.z-note {
+    height: auto;
+    padding: 6px 16px;
+  }
+
+  &.z-notice {
+    align-items: center;
+    border-bottom: 1px solid var(--z-border);
+  }
+
+  .z-notice-action {
+    height: auto;
+    padding: 1px 10px;
+    box-shadow: none;
+  }
+}
+
+// Not an answer to the dialog — going back, saving untested, removing — so apart from the ones that are.
+.connectionDialog-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+}

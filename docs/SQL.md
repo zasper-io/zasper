@@ -1,7 +1,7 @@
 # SQL cells and data connections
 
 A SQL cell runs a query and leaves its answer in the kernel as a dataframe, which the next Python cell
-can use. It runs on a **connection**, a database you have described once in Settings, or on
+can use. It runs on a **connection**, a database you have described once, or on
 **Dataframes**, the pandas and polars frames the kernel already holds. The **Data panel** lists both,
 down to their tables and columns.
 
@@ -49,9 +49,23 @@ commented `# %% [sql]` block. The Markdown export writes it as a fence tagged `s
 
 ## Connections
 
-Settings → Data connections adds, edits and removes them. Each one is kept for **this project** in
-`<project>/.zasper/connections.json`, or for **all your projects** in `~/.zasper/connections.json`. A
-project's connection with the same name as one of yours wins.
+**Add a connection** opens over whatever tab is in front, from a SQL cell's connection picker, the Data
+panel's **+**, the palette's **Add a Data Connection** or Settings → Data connections. It starts with
+where the data is:
+
+- **Paste a connection string**, any SQLAlchemy URL. It fills in the engine's form, and its password is
+  taken out for the keychain. `postgres://`, which hosts still hand out, is read as `postgresql://`. A URL
+  with a driver of its own, or with options the form has no field for, such as `?sslmode=require`, is
+  kept as a URL connection.
+- **Choose the database**, which opens its form empty.
+- **Database files in this project**: the project's `.db`, `.sqlite`, `.sqlite3` and `.duckdb` files,
+  five at most, including those `.gitignore` leaves out. **Add** makes one a connection with no second
+  step. They are found by name and size: none is opened. With none, the section is not shown.
+
+The form's name is filled in from the database or file and can be changed. **Share with this project**
+keeps it for **this project** in `<project>/.zasper/connections.json`; unchecked, it is kept for **all
+your projects** in `~/.zasper/connections.json`. A project's connection with the same name as one of
+yours wins. Settings → Data connections lists them, and **Edit** opens the same form with **Remove**.
 
 | Type       | Described by                         | Driver installed in the kernel  |
 | ---------- | ------------------------------------ | ------------------------------- |
@@ -69,8 +83,14 @@ project's connection with the same name as one of yours wins.
 A file path that is not absolute is read from the project's root. Everything except SQLite and DuckDB
 goes through SQLAlchemy, which the kernel also needs.
 
-**Test** in the dialog connects with what the form holds, saved or not, and says which server answered
-and how quickly.
+**Connect** tests the connection in the Data panel's kernel (see [The Data panel](#the-data-panel)), then
+saves it. When the connection fails, the dialog shows the database's own message, with **Save anyway**.
+When the kernel lacks the driver, **Install and connect** installs it there and tries again. Once the
+connection is saved, the SQL cell that asked for it runs on it, and the Data panel shows it open on its
+tables.
+
+A database file's menu in the file tree has **Query in a SQL Cell**. It adds the file as a project
+connection if it is not one, and puts a SQL cell reading its first table in the notebook in front.
 
 ### Passwords
 
@@ -143,8 +163,9 @@ The cell editor completes table and column names from the same reading, in the c
 
 Running a SQL cell, testing a connection and reading one in the Data panel all run code in a kernel,
 so in a restricted folder they ask for trust first, as Run does (see [TRUST.md](TRUST.md)). The panel
-still lists connections by name, and Settings can still add, edit and remove them: those only read and
-write `connections.json`.
+still lists connections by name, and they can still be added, edited and removed: those only read and
+write `connections.json`. **Connect** says the folder is not trusted, with **Trust…** and **Save without
+connecting**.
 
 ## Outside Zasper
 

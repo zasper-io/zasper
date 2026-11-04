@@ -1,0 +1,58 @@
+// Each engine in its brand's colour. DuckDB's mark is a disc with its head and bill cut out, so it is
+// black with the yellow showing through; ClickHouse's bars are yellow on the black square they are
+// drawn on. Both because yellow on a light surface is 1.1:1.
+.databaseLogo {
+  flex: 0 0 auto;
+}
+
+.databaseLogo-postgresql {
+  color: var(--z-db-postgresql);
+}
+
+.databaseLogo-mysql {
+  color: var(--z-db-mysql);
+}
+
+.databaseLogo-sqlite {
+  color: var(--z-db-sqlite);
+}
+
+.databaseLogo-snowflake {
+  color: var(--z-db-snowflake);
+}
+
+.databaseLogo-bigquery {
+  color: var(--z-db-bigquery);
+}
+
+.databaseLogo-databricks {
+  color: var(--z-db-databricks);
+}
+
+.databaseLogo-url {
+  color: var(--z-db-sqlalchemy);
+}
+
+.databaseLogo-duckdb {
+  border-radius: 50%;
+  background: var(--z-db-duckdb);
+  color: var(--z-db-black);
+}
+
+.databaseLogo-clickhouse {
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: var(--z-db-black);
+  color: var(--z-db-clickhouse);
+}
+
+.databaseLogo.is-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--z-fg-default);
+  font-family: var(--z-mono-font-family);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}

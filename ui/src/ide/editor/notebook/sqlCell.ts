@@ -53,6 +53,11 @@ export function parseSqlCell(source: string): SqlCell | null {
   };
 }
 
+/** A name as SQL reads it: quoted only when it has to be. */
+export function sqlName(name: string): string {
+  return /^[a-z_][a-z0-9_]*$/.test(name) ? name : `"${name.replace(/"/g, '""')}"`;
+}
+
 /** The magic line for a cell. */
 export function sqlHeader({
   connection,

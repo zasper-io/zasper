@@ -4,8 +4,7 @@ import { useAtomValue } from 'jotai';
 import { DATAFRAMES } from '@/api';
 import { Icon } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside } from '@/ide/overlays';
-import { connectionsAtom } from '@/store/connections';
-import { useTabActions } from '@/store/tabActions';
+import { connectionsAtom, useOpenConnectionDialog } from '@/store/connections';
 import { SqlCell } from './sqlCell';
 import './SqlCellHead.scss';
 
@@ -38,7 +37,7 @@ interface SqlCellHeadProps {
  */
 export default function SqlCellHead({ cell, onChange }: SqlCellHeadProps) {
   const list = useAtomValue(connectionsAtom);
-  const { openSettings } = useTabActions();
+  const openConnectionDialog = useOpenConnectionDialog();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(cell.out);
   const picker = useRef<HTMLDivElement>(null);
@@ -143,7 +142,8 @@ export default function SqlCellHead({ cell, onChange }: SqlCellHeadProps) {
                   role="menuitem"
                   onClick={() => {
                     setOpen(false);
-                    openSettings();
+                    // The cell that asked runs on what is added.
+                    openConnectionDialog({ onAdded: (connection) => onChange({ connection }) });
                   }}
                 >
                   <Icon name="plus" size={12} />

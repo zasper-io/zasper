@@ -34,6 +34,7 @@ type projectFile struct {
 	name     string
 	path     string
 	modified time.Time
+	size     int64
 	// What .gitignore leaves out, in a listing that includes it.
 	ignored bool
 }
@@ -126,7 +127,7 @@ func walkProject(root string, withIgnored bool) []projectFile {
 		if err != nil {
 			return nil
 		}
-		files = append(files, projectFile{name: entry.Name(), path: filepath.ToSlash(relative), modified: info.ModTime(), ignored: ignored})
+		files = append(files, projectFile{name: entry.Name(), path: filepath.ToSlash(relative), modified: info.ModTime(), size: info.Size(), ignored: ignored})
 		return nil
 	})
 	return files
@@ -182,6 +183,35 @@ func (h *Handler) Files(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httpx.SendJSON(w, http.StatusOK, suggestions)
+}
+
+// The files a data connection can be, by extension, and the type of connection each is.
+var databaseExtensions = map[string]string{".db": "sqlite", ".sqlite": "sqlite", ".sqlite3": "sqlite", ".duckdb": "duckdb"}
+
+const maxDatabaseFiles = 50
+
+// DatabaseFile is a SQLite or DuckDB file in the project, which Add a connection offers in one click.
+type DatabaseFile struct {
+	Path string `json:"path"`
+	Type string `json:"type"`
+	Size int64  `json:"size"`
+}
+
+// DatabaseFiles answers the project's database files, by name and size alone: none is opened. What
+// .gitignore leaves out is included, since a database file usually is.
+func (h *Handler) DatabaseFiles(w http.ResponseWriter, r *http.Request) {
+	found := []DatabaseFile{}
+	for _, file := range h.projectFiles(true) {
+		kind, ok := databaseExtensions[strings.ToLower(filepath.Ext(file.name))]
+		if !ok {
+			continue
+		}
+		found = append(found, DatabaseFile{Path: file.path, Type: kind, Size: file.size})
+		if len(found) == maxDatabaseFiles {
+			break
+		}
+	}
+	httpx.SendJSON(w, http.StatusOK, found)
 }
 
 func fileType(name string) string {

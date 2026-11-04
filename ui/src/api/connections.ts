@@ -82,6 +82,8 @@ export interface SqlTest extends SqlProblem {
   ok: boolean;
   version?: string;
   ms?: number;
+  /** The kernel that answered, where a missing driver is installed. */
+  kernel?: string;
 }
 
 /** A connection's schemas and tables, read through `kernel`, or the Data panel's own when it is absent. */
@@ -128,6 +130,18 @@ export function testConnection(
     method: 'POST',
     body: { connection, password, kernel },
   });
+}
+
+/** A SQLite or DuckDB file in the project, which Add a connection offers in one click. */
+export interface DatabaseFile {
+  path: string;
+  type: 'sqlite' | 'duckdb';
+  size: number;
+}
+
+/** The project's database files, by name and size: none is opened. */
+export function listDatabaseFiles(): Promise<DatabaseFile[]> {
+  return requestJson<DatabaseFile[]>('/api/files/databases');
 }
 
 export interface Installed {
