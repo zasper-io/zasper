@@ -109,21 +109,6 @@
   color: var(--z-fg-on-chrome);
   font: inherit;
 
-  // The close cross inherits the tab's colour, which is the point of drawing icons in
-  // `currentColor`: --z-fg-subtle is picked to sit on a *panel*, and on a coloured tab it comes out
-  // at 1.16:1. The markup carries `on-chrome` for the other half of that, which is the hover: the
-  // strip is a coloured surface, and --z-bg-menu-hover is a light grey that reads as a hole cut in
-  // it. --z-bg-hover-on-chrome is the white wash the prototype draws, and every other button on
-  // chrome in the app — a dialog's close, the file browser's banner — already asks for it.
-  //
-  // 18px, and the one stated exception to `.z-icon-button`'s 22px: the cross has to fit inside the
-  // tab beside a name, and a 22px box would set the strip's height instead of the label doing it.
-  .tab-close {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-  }
-
   // A file-type mark says what the file is, but the tab strip is the one surface where its hue is not
   // readable — every theme's strip is the accent's own dark step. On a tab the mark is lettering only.
   .file-mark {
@@ -148,8 +133,32 @@
   background: currentColor;
 }
 
-.tab:hover {
+// The item rather than the tab, so the cross drawn over the tab's edge lights it too.
+.tab-item:hover .tab {
   background: var(--z-bg-tab-hover);
+}
+
+// A sibling of the tab, for the reason TabIndex.tsx gives, drawn over the room the tab keeps for it on
+// its right: 8px of edge, the 18px cross, and the 6px gap the tab's other parts have between them.
+//
+// 18px, and the one stated exception to `.z-icon-button`'s 22px: the cross has to fit inside the tab
+// beside a name, and a 22px box would set the strip's height instead of the label doing it.
+//
+// `on-chrome` in the markup gives it the strip's ink and hover: --z-fg-subtle is picked to sit on a
+// panel and on a coloured tab comes out at 1.16:1, and --z-bg-menu-hover is a light grey that reads as
+// a hole cut in the strip. --z-bg-hover-on-chrome is the white wash every button on chrome asks for.
+.tab-item.is-closable .tab {
+  padding-right: 32px;
+}
+
+.tab-close {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  cursor: pointer;
 }
 
 .tab.is-active {

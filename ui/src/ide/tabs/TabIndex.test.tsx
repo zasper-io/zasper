@@ -112,7 +112,7 @@ function renderStrip(unsaved: Record<string, SaveTab> = {}, extra?: React.ReactN
 }
 
 function openMenu(tabName: RegExp) {
-  fireEvent.contextMenu(screen.getByRole('button', { name: tabName }));
+  fireEvent.contextMenu(screen.getByRole('tab', { name: tabName }));
 }
 
 function menuRow(label: string): HTMLElement {
@@ -125,7 +125,7 @@ function tabNames(): string[] {
 
 /** The `notes.txt` tab, or null once it is closed. By role: the prompt names the file too. */
 function tabForNotes(): HTMLElement | null {
-  return screen.queryByRole('button', { name: /notes\.txt/ });
+  return screen.queryByRole('tab', { name: /notes\.txt/ });
 }
 
 /** Clicks the close cross on the `notes.txt` tab. */
@@ -181,7 +181,7 @@ describe('TabIndex', () => {
       fireEvent.click(menuRow('Close Others'));
 
       expect(tabNames()).toEqual(['Launcher', 'prepare.py']);
-      expect(screen.getByRole('button', { name: /prepare\.py/ })).toHaveClass('is-active');
+      expect(screen.getByRole('tab', { name: /prepare\.py/ })).toHaveClass('is-active');
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
@@ -367,7 +367,7 @@ describe('TabIndex', () => {
     }
 
     function tabForDemo(): HTMLElement | null {
-      return screen.queryByRole('button', { name: /demo\.ipynb/ });
+      return screen.queryByRole('tab', { name: /demo\.ipynb/ });
     }
 
     // The behaviour JupyterLab has: the tab goes, the kernel stays, and reopening the notebook joins
@@ -424,13 +424,13 @@ describe('TabIndex', () => {
       renderStrip();
       const scrolled = layOut();
 
-      fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
+      fireEvent.click(screen.getByRole('tab', { name: /Settings/ }));
       expect(scrolled()).toBe(100);
 
-      fireEvent.click(screen.getByRole('button', { name: /prepare\.py/ }));
+      fireEvent.click(screen.getByRole('tab', { name: /prepare\.py/ }));
       expect(scrolled()).toBe(100);
 
-      fireEvent.click(screen.getByRole('button', { name: /Launcher/ }));
+      fireEvent.click(screen.getByRole('tab', { name: /Launcher/ }));
       expect(scrolled()).toBe(0);
       vi.restoreAllMocks();
     });
@@ -463,7 +463,7 @@ describe('TabIndex', () => {
     const order = () =>
       Array.from(document.querySelectorAll('.tab-item .tabName')).map((name) => name.textContent);
     const item = (name: RegExp) =>
-      screen.getByRole('button', { name }).closest('.tab-item') as HTMLElement;
+      screen.getByRole('tab', { name }).closest('.tab-item') as HTMLElement;
     // jsdom has no DataTransfer; what the strip asks of one is this much.
     const dataTransfer = () => {
       const data: Record<string, string> = {};
@@ -503,10 +503,7 @@ describe('TabIndex', () => {
       fireEvent.drop(item(/Launcher/), { dataTransfer: transfer });
 
       expect(order()).toEqual(['Launcher', 'notes.txt', 'prepare.py', 'Settings']);
-      expect(screen.getByRole('button', { name: /Launcher/ })).toHaveAttribute(
-        'draggable',
-        'false'
-      );
+      expect(screen.getByRole('tab', { name: /Launcher/ })).toHaveAttribute('draggable', 'false');
     });
 
     it('moves the tab in front a step with Move Tab Right, and not past the end', () => {
@@ -528,6 +525,48 @@ describe('TabIndex', () => {
         run('tab:move-left');
       });
       expect(order()).toEqual(['Launcher', 'prepare.py', 'notes.txt', 'Settings']);
+    });
+  });
+
+  describe('the keyboard', () => {
+    const tab = (name: RegExp) => screen.getByRole('tab', { name });
+
+    it('is a tab list, with only the tab in front a Tab stop', () => {
+      renderStrip();
+      expect(screen.getByRole('tablist', { name: 'Open files' })).toBeInTheDocument();
+      expect(tab(/notes\.txt/)).toHaveAttribute('aria-selected', 'true');
+      expect(tab(/notes\.txt/)).toHaveAttribute('tabindex', '0');
+      expect(tab(/prepare\.py/)).toHaveAttribute('aria-selected', 'false');
+      expect(tab(/prepare\.py/)).toHaveAttribute('tabindex', '-1');
+    });
+
+    // The focus moves and the tab in front does not, so walking past a notebook does not open it.
+    it('goes along the strip with the arrows, Home and End, without bringing anything forward', () => {
+      renderStrip();
+      tab(/notes\.txt/).focus();
+
+      fireEvent.keyDown(tab(/notes\.txt/), { key: 'ArrowRight' });
+      expect(tab(/prepare\.py/)).toHaveFocus();
+      fireEvent.keyDown(tab(/prepare\.py/), { key: 'End' });
+      expect(tab(/Settings/)).toHaveFocus();
+      fireEvent.keyDown(tab(/Settings/), { key: 'ArrowRight' });
+      expect(tab(/Launcher/)).toHaveFocus();
+      fireEvent.keyDown(tab(/Launcher/), { key: 'ArrowLeft' });
+      expect(tab(/Settings/)).toHaveFocus();
+      fireEvent.keyDown(tab(/Settings/), { key: 'Home' });
+      expect(tab(/Launcher/)).toHaveFocus();
+
+      expect(tab(/notes\.txt/)).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('closes the focused tab on Delete, and leaves the focus on the one in front after', () => {
+      renderStrip();
+      tab(/notes\.txt/).focus();
+
+      fireEvent.keyDown(tab(/notes\.txt/), { key: 'Delete' });
+
+      expect(screen.queryByRole('tab', { name: /notes\.txt/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { selected: true })).toHaveFocus();
     });
   });
 });

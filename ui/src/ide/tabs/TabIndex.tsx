@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { diskComparePath } from '@/store/diskChanges';
 import { searchPreviewPath } from '@/store/projectSearch';
 import { closedTabsAtom } from '@/store/tabActions';
-import { activeTabPathAtom, fileTabsAtom, FileTab } from '@/store/tabState';
+import { activeTabPathAtom, fileTabsAtom, FileTab, focusedGroupAtom } from '@/store/tabState';
 import { useTabActions } from '@/store/tabActions';
 import { unsavedTabsAtom } from '@/store/unsavedState';
 import './TabIndex.scss';
@@ -27,6 +27,7 @@ import {
   tabFilePath,
   tabsToClose,
 } from './tabCommands';
+import { tabIds } from './tabIds';
 import UnsavedChangesDialog from './UnsavedChangesDialog';
 
 /**
@@ -97,6 +98,10 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   const [saveError, setSaveError] = React.useState('');
   const [menu, setMenu] = React.useState<{ key: string; xPos: number; yPos: number } | null>(null);
   const strip = React.useRef<HTMLDivElement>(null);
+  const group = useAtomValue(focusedGroupAtom);
+  // Set by a close from the strip itself, so the focus goes to the tab that is in front afterwards
+  // rather than to the page: the tab it was on has gone.
+  const refocus = React.useRef(false);
   const order = Object.keys(fileTabsState);
   const tabCount = order.length;
   // The tab being dragged, and the one it is over.
@@ -124,6 +129,34 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
       header.scrollLeft += Math.ceil(box.right - view.right);
     }
   }, [activePath, tabCount, moved]);
+
+  React.useEffect(() => {
+    if (refocus.current) {
+      refocus.current = false;
+      strip.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
+    }
+  }, [tabCount]);
+
+  // Left and Right go along the strip, Home and End to its ends; the focus moves and the tab in front
+  // does not, so walking past a notebook does not open it. Enter or Space then brings one forward.
+  const moveFocus = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const tabs = [...(strip.current?.querySelectorAll<HTMLElement>('[role="tab"]') ?? [])];
+    const at = tabs.indexOf(event.currentTarget);
+    const to =
+      event.key === 'ArrowRight'
+        ? (at + 1) % tabs.length
+        : event.key === 'ArrowLeft'
+          ? (at - 1 + tabs.length) % tabs.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? tabs.length - 1
+              : -1;
+    if (to !== -1) {
+      event.preventDefault();
+      tabs[to].focus();
+    }
+  };
 
   // A mouse wheel turns up and down, and the strip only goes sideways, so on the strip it scrolls
   // sideways without Shift. A trackpad's sideways swipe is left to the browser. Not onWheel: React's is
@@ -360,19 +393,21 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
 
   return (
     <div className="tabHeader" ref={strip} onDragOver={scrollWhileDragging}>
-      <ul className="tabList">
+      <ul className="tabList" role="tablist" aria-label="Open files">
         {Object.keys(fileTabsState).map((key) => (
           // Keyed by path, as the tab content is: by index, closing a tab moves every tab after it
           // into the DOM node of its neighbour.
           <Tab
             key={key}
             tab={fileTabsState[key]}
+            ids={tabIds(group, key)}
             isDirty={unsavedTabs[key] !== undefined}
             onActivate={() => activateTab(key)}
-            onClose={(event) => {
-              event.stopPropagation();
+            onClose={() => {
+              refocus.current = true;
               requestClose([key]);
             }}
+            onKeyDown={moveFocus}
             onMenu={(xPos, yPos) => setMenu({ key, xPos, yPos })}
             drop={dropSide(key)}
             isDragged={drag?.from === key}
@@ -409,9 +444,13 @@ type TabDragProps = Pick<
 
 interface TabProps {
   tab: FileTab;
+  /** This tab's id and its pane's: see tabIds.ts. */
+  ids: { tab: string; panel: string };
   isDirty: boolean;
   onActivate: () => void;
-  onClose: (event: React.MouseEvent) => void;
+  onClose: () => void;
+  /** The strip's arrow keys, which need every tab and so are the strip's. */
+  onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
   /** Opens the tab menu at a point in client coordinates. */
   onMenu: (xPos: number, yPos: number) => void;
   /** The side a tab being dragged over this one will land on. */
@@ -428,7 +467,18 @@ interface TabProps {
  * tells two `main.py` apart. Whether it is unsaved goes on a second line rather than on the dot: the
  * dot is inside the tab, so a tooltip of its own would open on top of this one.
  */
-function Tab({ tab, isDirty, onActivate, onClose, onMenu, drop, isDragged, drag }: TabProps) {
+function Tab({
+  tab,
+  ids,
+  isDirty,
+  onActivate,
+  onClose,
+  onKeyDown,
+  onMenu,
+  drop,
+  isDragged,
+  drag,
+}: TabProps) {
   const tip = useTooltip();
   // A path names a file; the Launcher's, Help's and Settings' keys are not paths.
   const label = [
@@ -464,6 +514,7 @@ function Tab({ tab, isDirty, onActivate, onClose, onMenu, drop, isDragged, drag 
     <li
       className={[
         'tab-item',
+        tab.name !== 'Launcher' ? 'is-closable' : '',
         drop === 'before' ? 'is-drop-before' : '',
         drop === 'after' ? 'is-drop-after' : '',
         isDragged ? 'is-dragged' : '',
@@ -475,12 +526,26 @@ function Tab({ tab, isDirty, onActivate, onClose, onMenu, drop, isDragged, drag 
     >
       <button
         type="button"
+        role="tab"
+        id={ids.tab}
+        aria-selected={tab.active}
+        aria-controls={ids.panel}
+        // Only the tab in front is a Tab stop; the arrows go along the rest.
+        tabIndex={tab.active ? 0 : -1}
         className={tab.active ? 'tab is-active' : 'tab'}
         // The Launcher stays first, so it is the one tab that cannot be picked up.
         draggable={tab.type !== 'launcher'}
         onClick={onActivate}
         onContextMenu={handleContextMenu}
-        aria-haspopup="menu"
+        onKeyDown={(event) => {
+          // The tab pattern's Delete, for every tab but the Launcher, which has no close.
+          if (event.key === 'Delete' && tab.name !== 'Launcher') {
+            event.preventDefault();
+            onClose();
+            return;
+          }
+          onKeyDown(event);
+        }}
         {...tip.anchorProps}
       >
         <TabMark tab={tab} />
@@ -492,20 +557,21 @@ function Tab({ tab, isDirty, onActivate, onClose, onMenu, drop, isDragged, drag 
             ellipsis for room, and until now nothing on the strip said it at all — the first a
             tab told anyone was the dialog that opens when it is closed. */}
         {isDirty && <span className="tab-dirty" role="img" aria-label="Unsaved changes" />}
-        {tab.name !== 'Launcher' && (
-          // The handler is on the span rather than on the icon: an <Icon> is a glyph and
-          // takes no events, and a <button> cannot be nested in the tab's own button. Its name is
-          // `aria-label` and not a tooltip for the same reason the dot's is.
-          <span
-            className="z-icon-button on-chrome tab-close"
-            role="button"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <Icon name="x" size={12} />
-          </span>
-        )}
       </button>
+      {tab.name !== 'Launcher' && (
+        // Beside the tab rather than in it — a button inside a button is not one a keyboard or a
+        // screen reader can reach — and drawn over its right edge. Hidden from both: a tab list holds
+        // only tabs, and the keyboard's close is Delete on the tab, or Alt-W.
+        <button
+          type="button"
+          className="z-icon-button on-chrome tab-close"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={onClose}
+        >
+          <Icon name="x" size={12} />
+        </button>
+      )}
       <Tooltip tip={tip} label={label} />
     </li>
   );

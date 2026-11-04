@@ -2,7 +2,6 @@
   "login": [],
   "teal-dark context menu": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  .panel-row[role=\"none\"]:nth-child(1) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
     "target-size  .panel-row[role=\"none\"]:nth-child(2) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
@@ -15,12 +14,10 @@
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-dark data": [
-    "list  .tabList",
     "page-has-heading-one  html"
   ],
   "teal-dark file editor": [
     "aria-input-field-name  .cm-content",
-    "list  .tabList",
     "page-has-heading-one  html",
     "scrollable-region-focusable  .cm-scroller",
     "target-size  button[aria-label=\"New file\"]",
@@ -29,7 +26,6 @@
   ],
   "teal-dark help": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -38,14 +34,12 @@
   "teal-dark kernel picker": [
     "aria-input-field-name  .cm-content",
     "label-content-name-mismatch  .problemCounts",
-    "list  .tabList",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-dark launcher": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -54,7 +48,6 @@
   "teal-dark notebook": [
     "aria-input-field-name  .cm-content",
     "label-content-name-mismatch  .problemCounts",
-    "list  .tabList",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
     "target-size  button[aria-label=\"New notebook\"]"
@@ -62,7 +55,6 @@
   "teal-dark palette": [
     "color-contrast  #palette-options-0 > .panel-row-meta",
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -70,24 +62,20 @@
   ],
   "teal-dark search": [
     "label-content-name-mismatch  button[aria-label=\"Whole word\"]",
-    "list  .tabList",
     "page-has-heading-one  html"
   ],
   "teal-dark settings": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-dark source control": [
-    "list  .tabList",
     "page-has-heading-one  html"
   ],
   "teal-dark terminal": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -95,7 +83,6 @@
   ],
   "teal-light context menu": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  .panel-row[role=\"none\"]:nth-child(1) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
     "target-size  .panel-row[role=\"none\"]:nth-child(2) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
@@ -108,12 +95,10 @@
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-light data": [
-    "list  .tabList",
     "page-has-heading-one  html"
   ],
   "teal-light file editor": [
     "aria-input-field-name  .cm-content",
-    "list  .tabList",
     "page-has-heading-one  html",
     "scrollable-region-focusable  .cm-scroller",
     "target-size  button[aria-label=\"New file\"]",
@@ -122,7 +107,6 @@
   ],
   "teal-light help": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -131,14 +115,12 @@
   "teal-light kernel picker": [
     "aria-input-field-name  .cm-content",
     "label-content-name-mismatch  .problemCounts",
-    "list  .tabList",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-light launcher": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -147,7 +129,6 @@
   "teal-light notebook": [
     "aria-input-field-name  .cm-content",
     "label-content-name-mismatch  .problemCounts",
-    "list  .tabList",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
     "target-size  button[aria-label=\"New notebook\"]"
@@ -155,7 +136,6 @@
   "teal-light palette": [
     "color-contrast  #palette-options-0 > .panel-row-meta",
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -163,24 +143,20 @@
   ],
   "teal-light search": [
     "label-content-name-mismatch  button[aria-label=\"Whole word\"]",
-    "list  .tabList",
     "page-has-heading-one  html"
   ],
   "teal-light settings": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-light source control": [
-    "list  .tabList",
     "page-has-heading-one  html"
   ],
   "teal-light terminal": [
     "color-contrast  .file-mark-notebook",
-    "list  .tabList",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",

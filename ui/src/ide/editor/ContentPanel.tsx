@@ -2,6 +2,7 @@ import React from 'react';
 import Editor from './Editor';
 import { useAtomValue } from 'jotai';
 import { tabGroupsAtom } from '@/store/tabState';
+import { tabIds } from '@/ide/tabs/tabIds';
 
 /**
  * Every open tab, mounted.
@@ -26,6 +27,9 @@ export default function ContentPanel() {
           <div
             key={`${group.id}:${key}`}
             className={group.tabs[key].active ? 'tab-pane' : 'tab-pane is-hidden'}
+            role="tabpanel"
+            id={tabIds(group.id, key).panel}
+            aria-labelledby={tabIds(group.id, key).tab}
           >
             <Editor data={group.tabs[key]} />
           </div>

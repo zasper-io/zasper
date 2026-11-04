@@ -103,7 +103,7 @@ test('a running kernel is named with its notebook, and shut down from the panel'
    * state the rest of this journey is about: a kernel running with nothing in this window on it.
    */
   await expect(toolbarButton(page, 'Run Cell')).toBeVisible();
-  const notebookTab = page.locator('.tabHeader .tab', { hasText: NOTEBOOK });
+  const notebookTab = page.locator('.tabHeader .tab-item', { hasText: NOTEBOOK });
   await notebookTab.locator('.tab-close').click();
   await expect(notebookTab).toHaveCount(0);
 

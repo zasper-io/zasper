@@ -702,12 +702,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
 
   return (
     <div className="tab-surface">
-      <div
-        className={data.active ? 'editor-pane' : 'editor-pane is-hidden'}
-        id="profile"
-        role="tabpanel"
-        aria-labelledby="profile-tab"
-      >
+      <div className={data.active ? 'editor-pane' : 'editor-pane is-hidden'}>
         <BreadCrumb path={data.path} />
         {disk.wholeConflict !== null ? (
           <DiskChangeBand
