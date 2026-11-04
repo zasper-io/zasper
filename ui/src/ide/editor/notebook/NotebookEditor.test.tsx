@@ -826,7 +826,7 @@ describe('NotebookEditor', () => {
 
     sockets[0].receive(kernelMessage('input_request', requestId, { prompt: 'name: ' }));
 
-    const box = await screen.findByPlaceholderText('Type something and press Enter');
+    const box = await screen.findByLabelText('name:');
     fireEvent.change(box, { target: { value: 'Ada' } });
     fireEvent.keyDown(box, { key: 'Enter' });
 

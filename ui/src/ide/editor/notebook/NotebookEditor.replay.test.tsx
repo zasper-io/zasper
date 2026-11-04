@@ -141,7 +141,7 @@ describe('NotebookEditor, given the runs it missed', () => {
         replay([run({ msg_id: 'waiting-1', done: false, outputs: [], input_request: prompt })])
       )
     );
-    const box = await screen.findByPlaceholderText('Type something and press Enter');
+    const box = await screen.findByLabelText('name?');
     fireEvent.change(box, { target: { value: 'Ada' } });
     fireEvent.keyDown(box, { key: 'Enter' });
 

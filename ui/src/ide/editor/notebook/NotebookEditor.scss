@@ -411,6 +411,25 @@ $cell-gutter: 64px;
   }
 }
 
+// The reply box for `input()`, on the output's left edge. The prompt is the kernel's text, so it is in
+// the code's font, as Jupyter prints it.
+.cell-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0 $cell-gutter;
+
+  label {
+    font-family: var(--z-mono-font-family);
+    white-space: pre;
+  }
+
+  .z-field {
+    flex: 1;
+    max-width: 420px;
+  }
+}
+
 // The output area, below the cell's input. The left margin is the gutter above, so output
 // lines up with the code that produced it rather than with the execution count.
 .inner-text {
