@@ -21,6 +21,7 @@
   min-height: 30px;
   overflow-x: auto;
   background: var(--z-bg-topbar);
+  --z-focus-ring: var(--z-fg-on-chrome);
   // The strip's own chrome under its scrollbar, as the terminal does for its surface: the app's track is
   // measured against a pale panel, and drew a white band across the bottom of a coloured strip.
   --z-scrollbar-track: var(--z-bg-topbar);
@@ -84,6 +85,11 @@
 // The tab in the pointer's hand, left in place until it lands.
 .tab-item.is-dragged .tab {
   opacity: 0.5;
+}
+
+// Inside the tab: the strip scrolls, and its overflow would cut a ring drawn outside.
+.tab:focus-visible {
+  outline-offset: -2px;
 }
 
 .tab {

@@ -123,6 +123,7 @@
 // white and the panel hover would read as a hole cut in the bar.
 .z-icon-button.on-chrome {
   color: var(--z-fg-on-chrome);
+  --z-focus-ring: var(--z-fg-on-chrome);
 }
 
 .z-icon-button.on-chrome:hover:not(:disabled) {

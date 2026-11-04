@@ -205,11 +205,11 @@ $cell-gutter: 64px;
     scroll-margin-top: $cell-gap;
   }
 
-  // Command mode puts the keyboard on the cell's box, and Chromium rings a focused box in its own
-  // blue. The cell already says which one it is — the accent left edge below — so the ring is a
-  // second marker in a colour the app does not use, drawn around the whole cell.
-  .single-line:focus,
-  .single-line:focus-visible {
+  // Command mode puts the keyboard on the cell's box. A click there shows nothing more than the accent
+  // left edge below; arriving by keyboard — Escape out of the editor, an arrow from the cell above —
+  // shows the app's ring as well, since the edge looks the same in edit and command mode and is 1.0:1
+  // against an inactive cell's in some dark themes.
+  .single-line:focus:not(:focus-visible) {
     outline: none;
   }
 

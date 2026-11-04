@@ -81,6 +81,7 @@
   height: 22px;
   background-color: var(--z-bg-statusbar);
   color: var(--z-fg-on-chrome);
+  --z-focus-ring: var(--z-fg-on-chrome);
   font-size: var(--z-ui-font-size-sm);
   padding: 0 10px;
 }

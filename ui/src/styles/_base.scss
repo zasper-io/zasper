@@ -73,6 +73,15 @@ body,
   list-style: none;
 }
 
+// The one focus ring. Before this every control wore Chromium's 1px `rgb(0, 95, 204)`, which is 2.5:1 on a
+// dark panel and 1.1:1 on the tab strip. Outside the control, so it is measured against what the control
+// sits on rather than its own fill; rows and tabs, which fill a scrolling box edge to edge and would have
+// it clipped, draw it inside instead.
+:focus-visible {
+  outline: 2px solid var(--z-focus-ring);
+  outline-offset: 1px;
+}
+
 // Read by a screen reader and drawn nowhere: a live region's announcement, or the word a coloured mark
 // stands for. Not `display: none` or `visibility: hidden`, which take it out of the accessibility tree
 // as well.

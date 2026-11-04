@@ -68,6 +68,7 @@
   height: 36px;
   background-color: var(--z-bg-topbar);
   color: var(--z-fg-on-chrome);
+  --z-focus-ring: var(--z-fg-on-chrome);
   padding: 0 8px;
 
   // The wordmark and the user menu. `flex: 1 1 0` on both — an equal share of whatever the

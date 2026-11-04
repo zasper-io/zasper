@@ -244,6 +244,11 @@
   // lightens it rather than inheriting this.
   --z-fg-accent: #583bd8;
   --z-fg-serial-no: #473990;
+  // The keyboard's "you are here", drawn by `:focus-visible` in _base.scss. The accent as ink by
+  // default, which clears 3:1 on every surface a control sits on; chrome surfaces and filled rows
+  // restate it as their own ink, since no one colour clears both a pale panel and a coloured bar.
+  // Measured in themes/contrast.test.ts.
+  --z-focus-ring: var(--z-fg-accent);
 
   // --- Scrollbars ---------------------------------------------------------
   --z-scrollbar-thumb: #8f54a0;

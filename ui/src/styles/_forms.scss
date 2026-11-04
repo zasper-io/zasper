@@ -106,6 +106,12 @@
   border-color: var(--z-accent);
 }
 
+// And the ring the select itself gives up above, on the box that draws the control.
+.z-select:has(select:focus-visible) {
+  outline: 2px solid var(--z-focus-ring);
+  outline-offset: 1px;
+}
+
 // The one checkbox in the app: the force half of deleting a branch. Native, because a hand-drawn box is a
 // thing to keep working with a keyboard for one use, and the OS's own is the right size at the wrong one —
 // 13px text beside a 16px box that took the OS's blue in all nine themes until `accent-color`.
