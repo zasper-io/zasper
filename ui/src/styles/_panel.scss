@@ -470,6 +470,12 @@
   align-self: center;
 }
 
+// Any other icon standing in a name, for the same reason: on the baseline it stood 3px above the label,
+// in the Data panel's tree and in every context menu alike.
+.panel-row-name > .z-icon {
+  align-self: center;
+}
+
 // The dot's place in a row, held whether or not there is a dot to draw. A kernel this window knows
 // nothing about gets no dot, and without the slot its name would start 14px left of the one above.
 .panel-row-dot {
