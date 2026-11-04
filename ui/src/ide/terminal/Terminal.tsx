@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useMemo, useState } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { AttachAddon } from '@xterm/addon-attach';
@@ -12,6 +12,7 @@ import './xterm.css';
 import { websocketUrl } from '@/api';
 import { APP_COMMANDS } from '@/commands/appCommands';
 import { chordMatches } from '@/commands/keys';
+import { editorSettingsAtom } from '@/store/settings';
 import { terminalInputAtom } from '@/store/terminals';
 import { terminalTheme } from './theme';
 
@@ -87,6 +88,17 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
     fitAddon.fit();
   }, [fitAddon]);
 
+  // Read through a ref when the terminal is made, and set on it when the setting changes, so turning it
+  // on does not cost the shells already running.
+  const screenReader = useAtomValue(editorSettingsAtom).terminal_screen_reader;
+  const screenReaderRef = useRef(screenReader);
+  screenReaderRef.current = screenReader;
+  useEffect(() => {
+    if (xtermRef.current !== null) {
+      xtermRef.current.options.screenReaderMode = screenReader;
+    }
+  }, [screenReader]);
+
   useEffect(() => {
     if (terminalRef.current == null || !fontsReady) return;
 
@@ -106,6 +118,7 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
       fontFamily: mono,
       fontSize: cellFontSize(terminalRef.current),
       allowProposedApi: true,
+      screenReaderMode: screenReaderRef.current,
     });
     xtermRef.current = terminal;
 

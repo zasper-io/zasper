@@ -469,6 +469,20 @@ function useSettings(openDataPanel: () => void): Setting[] {
         />
       ),
     },
+    {
+      id: 'settings-terminal-screen-reader',
+      group: 'Terminal',
+      name: 'Screen reader mode',
+      help: 'What a terminal prints is read out by a screen reader. Applies to the terminals already open, too.',
+      words: 'accessibility screen reader voiceover nvda xterm',
+      control: (
+        <Checkbox
+          id="settings-terminal-screen-reader"
+          checked={editor.terminal_screen_reader}
+          onChange={(terminal_screen_reader) => changeEditor({ terminal_screen_reader })}
+        />
+      ),
+    },
     ...(interpreters === null
       ? []
       : [

@@ -248,6 +248,9 @@ type EditorSettings struct {
 	InlayHints bool `json:"inlay_hints"`
 	// Which bindings the file editor takes: "default", "vim" or "emacs".
 	Keymap string `json:"keymap"`
+	// xterm's screen reader mode: what a terminal prints is put where a screen reader reads it. Off by
+	// default, as in VS Code, since it costs a hidden copy of the screen's rows.
+	TerminalScreenReader bool `json:"terminal_screen_reader"`
 	// Write when each cell ran into its metadata.execution, as JupyterLab's Record timing does. On unless
 	// turned off, so a pointer: settings saved before it existed have no key, and that means on.
 	RecordTiming *bool `json:"record_timing"`
