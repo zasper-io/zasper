@@ -52,6 +52,33 @@ func TestAConnectionIsKeptWithoutItsPassword(t *testing.T) {
 	assert.Equal(t, "hunter2", store.SpecFor(list[0], nil).Password)
 }
 
+func TestAPastedURLsPasswordGoesToTheKeychain(t *testing.T) {
+	store, project, _, keys := storeIn(t)
+	warehouse := Connection{Name: "warehouse", Type: "url", URL: "postgresql+psycopg://me:p%40ss@db.internal:5432/analytics?sslmode=require", Scope: ScopeProject}
+	require.NoError(t, store.Save(warehouse, "", nil))
+
+	data, err := os.ReadFile(filepath.Join(project, ".zasper", "connections.json"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "p%40ss", "the file is committed with the project")
+	assert.Equal(t, "p@ss", keys["connection:"+project+":warehouse"])
+	found, _ := store.Find("warehouse")
+	assert.Equal(t, "postgresql+psycopg://me@db.internal:5432/analytics?sslmode=require", found.URL)
+
+	warehouse.URL = "trino://:token@host/catalog"
+	require.NoError(t, store.Save(warehouse, "", ptr("typed")))
+	found, _ = store.Find("warehouse")
+	assert.Equal(t, "trino://host/catalog", found.URL)
+	assert.Equal(t, "typed", keys["connection:"+project+":warehouse"], "the Password field wins over the URL")
+
+	warehouse.URL = "sqlite:///data/local.db"
+	require.NoError(t, store.Save(warehouse, "", nil))
+	found, _ = store.Find("warehouse")
+	assert.Equal(t, "sqlite:///data/local.db", found.URL, "a URL with no password is kept as typed")
+
+	warehouse.URL = "postgresql://me:50%off@host/db"
+	assert.Error(t, store.Save(warehouse, "", nil), "unreadable, so it may be hiding a password")
+}
+
 func TestSavingWithoutAPasswordKeepsTheOneStored(t *testing.T) {
 	store, project, _, keys := storeIn(t)
 	c := Connection{Name: "analytics", Type: "postgresql", Host: "h", Scope: ScopeProject}

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -190,6 +191,26 @@ func Validate(c Connection) error {
 	return nil
 }
 
+// withoutPassword is a URL with its password taken out, and the password, which goes to the secrets store:
+// a pasted URL often carries one, and connections.json is committed. A URL that cannot be read is refused,
+// since what it might be hiding cannot be taken out of it.
+func withoutPassword(address string) (string, string, error) {
+	u, err := url.Parse(address)
+	if err != nil {
+		return "", "", fmt.Errorf("the URL could not be read, so its password could not be kept out of connections.json; give the password on its own: %w", err)
+	}
+	password, ok := u.User.Password()
+	if !ok {
+		return address, "", nil
+	}
+	if name := u.User.Username(); name != "" {
+		u.User = url.User(name)
+	} else {
+		u.User = nil
+	}
+	return u.String(), password, nil
+}
+
 // Save writes c into its scope, replacing previous (a name, for a rename) or c.Name. A nil password
 // leaves the stored one as it is; an empty one removes it.
 func (s *Store) Save(c Connection, previous string, password *string) error {
@@ -198,6 +219,16 @@ func (s *Store) Save(c Connection, previous string, password *string) error {
 	}
 	if c.Scope != ScopeProject && c.Scope != ScopeUser {
 		return errors.New("a connection is kept for this project or for all of yours")
+	}
+	if c.Type == "url" {
+		address, inURL, err := withoutPassword(c.URL)
+		if err != nil {
+			return err
+		}
+		c.URL = address
+		if inURL != "" && (password == nil || *password == "") {
+			password = &inURL
+		}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

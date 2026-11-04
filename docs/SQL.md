@@ -79,6 +79,10 @@ shared. Each person who opens the project types their own password once. The pas
 system keychain: macOS's Keychain, Windows' Credential Manager, or the Secret Service on Linux, under
 the service `zasper`.
 
+A SQLAlchemy URL with a password in it, as one is often pasted, is kept without it: the password goes
+to the keychain, unless the Password field gives one, which wins. A URL Zasper cannot read is refused
+rather than written as it is, since what it hides cannot be taken out of it.
+
 A machine with no keychain to ask, such as a headless server or a container, keeps passwords in
 `~/.zasper/secrets.json` instead, readable by its owner alone (`0600`). A keychain that has not answered
 within 20 seconds is treated the same way. macOS's waits indefinitely when it cannot ask anyone to unlock
