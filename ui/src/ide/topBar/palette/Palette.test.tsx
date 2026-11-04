@@ -166,6 +166,59 @@ describe('Palette', () => {
     expect(screen.getByText('Open File').parentElement).toHaveClass('is-selected');
   });
 
+  // The combobox pattern: the field keeps the focus and points at the row the arrows reached, which is
+  // what a screen reader reads out as the selection moves.
+  it('is a combobox over a listbox, pointing at the selected option', () => {
+    renderPalette({ initialQuery: '>' });
+    const field = screen.getByRole('combobox', { name: 'Search files and commands' });
+    const listbox = screen.getByRole('listbox', { name: 'Results' });
+    expect(field).toHaveAttribute('aria-controls', listbox.id);
+    expect(field).toHaveAttribute('aria-expanded', 'true');
+
+    const commands = within(listbox).getByRole('group', { name: 'Commands' });
+    const options = within(commands).getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      expect.stringContaining('Open File'),
+      expect.stringContaining('Save File'),
+      expect.stringContaining('Close File'),
+    ]);
+    expect(field).toHaveAttribute('aria-activedescendant', options[0].id);
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    expect(field).toHaveAttribute('aria-activedescendant', options[1].id);
+    expect(options[1]).toHaveAttribute('aria-selected', 'true');
+    expect(options[0]).toHaveAttribute('aria-selected', 'false');
+
+    fireEvent.keyDown(field, { key: 'PageDown' });
+    expect(field).toHaveAttribute('aria-activedescendant', options[2].id);
+    fireEvent.keyDown(field, { key: 'PageUp' });
+    expect(field).toHaveAttribute('aria-activedescendant', options[0].id);
+  });
+
+  it('says how many rows there are, and when there are none', () => {
+    renderPalette({ initialQuery: '>' });
+    expect(screen.getByRole('status')).toHaveTextContent('3 results');
+
+    fireEvent.change(input(), { target: { value: '>no such command' } });
+    expect(screen.getByRole('status')).toHaveTextContent('No results');
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-activedescendant');
+  });
+
+  it('gives the focus back to what opened it when it closes', async () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+
+    const { unmount } = renderPalette({ initialQuery: '>' });
+    expect(input()).toHaveFocus();
+    unmount();
+
+    await waitFor(() => expect(opener).toHaveFocus());
+    opener.remove();
+  });
+
   it('runs the command the arrow keys reached on Enter, then closes', () => {
     const onClose = vi.fn();
     renderPalette({ initialQuery: '>', onClose });

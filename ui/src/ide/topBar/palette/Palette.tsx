@@ -37,6 +37,9 @@ export const SYMBOLS_IN_PROJECT = '#';
  */
 const SHARED_CAP = 6;
 
+/** Rows PageUp and PageDown move by: about what the list shows at once. */
+const PAGE = 10;
+
 /** One row of the list: the kinds are what Enter can do. */
 type PaletteRow =
   | { kind: 'command'; command: Command }
@@ -65,6 +68,12 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
   // The first match is selected from the start, so typing a query and pressing Enter runs it.
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const { openTab } = useTabActions();
+  // Fixed rather than useId(): there is one palette, and a generated id would change with render order
+  // and with it every option's selector in e2e/a11y-baseline.json.
+  const listId = 'palette-options';
+  const optionId = (index: number) => `${listId}-${index}`;
+  // What had the focus before the field took it, read during the first render, before autoFocus moves it.
+  const [opener] = useState(() => document.activeElement as HTMLElement | null);
 
   const commandsOnly = query.startsWith(COMMANDS_ONLY);
   const linesOnly = query.startsWith(LINES_ONLY);
@@ -177,21 +186,69 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
     onClose();
   };
 
+  // The list scrolls and the field keeps the focus, so nothing else brings an arrowed-to row into view.
+  useEffect(() => {
+    document.getElementById(`${listId}-${selectedIndex}`)?.scrollIntoView?.({ block: 'nearest' });
+  }, [listId, selectedIndex]);
+
+  // Back to where it came from once the palette has gone, unless what it ran put the focus somewhere of
+  // its own. A frame later, because the field being removed is what drops the focus to the body.
+  useEffect(
+    () => () => {
+      requestAnimationFrame(() => {
+        if (document.activeElement === document.body && opener?.isConnected) {
+          opener.focus();
+        }
+      });
+    },
+    [opener]
+  );
+
+  const move = (by: number) =>
+    setSelectedIndex((index) => Math.min(Math.max(index + by, 0), rows.length - 1));
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
-      setSelectedIndex((index) => Math.min(index + 1, rows.length - 1));
+      move(1);
     } else if (e.key === 'ArrowUp') {
-      setSelectedIndex((index) => Math.max(index - 1, 0));
+      move(-1);
+    } else if (e.key === 'PageDown') {
+      e.preventDefault();
+      move(PAGE);
+    } else if (e.key === 'PageUp') {
+      e.preventDefault();
+      move(-PAGE);
     } else if (e.key === 'Enter' && selectedIndex >= 0 && selectedIndex < rows.length) {
       activate(rows[selectedIndex]);
     }
   };
+
+  /**
+   * A row as the combobox pattern has it: an option the field points at with aria-activedescendant,
+   * so arrowing announces the row while the focus stays in the field.
+   */
+  const option = (index: number, disabled: boolean, onActivate: () => void) => ({
+    id: optionId(index),
+    role: 'option',
+    'aria-selected': selectedIndex === index,
+    'aria-disabled': disabled || undefined,
+    className: rowClass(selectedIndex === index, disabled),
+    onClick: onActivate,
+  });
+
+  const selected = selectedIndex >= 0 && selectedIndex < rows.length;
 
   return (
     <div className="z-overlay palette">
       <input
         type="text"
         className="palette-input"
+        role="combobox"
+        aria-label="Search files and commands"
+        aria-autocomplete="list"
+        aria-expanded={rows.length > 0}
+        aria-controls={listId}
+        aria-activedescendant={selected ? optionId(selectedIndex) : undefined}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -202,13 +259,10 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
       />
       {/* One scrolling box over both sections, so a long command list does not push the files out
           of reach of the wheel. Empty when nothing matches, which .palette-list:not(:empty) reads. */}
-      <div className="palette-list">
+      <div className="palette-list" id={listId} role="listbox" aria-label="Results">
         {line !== null && (
           <Section title="Editor" shown={1} found={1}>
-            <li
-              className={rowClass(selectedIndex === 0, false)}
-              onClick={() => activate({ kind: 'line', line })}
-            >
+            <li {...option(0, false, () => activate({ kind: 'line', line }))}>
               <span className="panel-row-label">Go to line {line}</span>
               {/* Which file it is a line of: the palette is over the window, not over the editor. */}
               <span className="panel-row-meta">{openTabs[activePath]?.name ?? ''}</span>
@@ -219,8 +273,9 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
           {shownCommands.map((command, index) => (
             <li
               key={command.id}
-              className={rowClass(selectedIndex === commandsFrom + index, isDisabled(command))}
-              onClick={() => activate({ kind: 'command', command })}
+              {...option(commandsFrom + index, isDisabled(command), () =>
+                activate({ kind: 'command', command })
+              )}
             >
               <span className="panel-row-label">{command.label}</span>
               <span className="panel-row-meta">{command.description ?? command.category}</span>
@@ -238,8 +293,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
           {shownSymbols.map((symbol, index) => (
             <li
               key={`${symbol.path}:${symbol.line}:${symbol.character}:${symbol.name}`}
-              className={rowClass(selectedIndex === symbolsFrom + index, false)}
-              onClick={() => activate({ kind: 'symbol', symbol })}
+              {...option(symbolsFrom + index, false, () => activate({ kind: 'symbol', symbol }))}
             >
               <span className="panel-row-name">
                 <span className="palette-kind">{kindGlyph(symbol.kind)}</span>
@@ -253,8 +307,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
           {shownFiles.map((file, index) => (
             <li
               key={file.path}
-              className={rowClass(selectedIndex === filesFrom + index, false)}
-              onClick={() => activate({ kind: 'file', file })}
+              {...option(filesFrom + index, false, () => activate({ kind: 'file', file }))}
             >
               <span className="panel-row-label">{file.name}</span>
               {/* Where it is, and nothing when that is nowhere: a file in the project root has a
@@ -267,8 +320,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
           {recent.map((file, index) => (
             <li
               key={file.path}
-              className={rowClass(selectedIndex === recentFrom + index, false)}
-              onClick={() => activate({ kind: 'recent', file })}
+              {...option(recentFrom + index, false, () => activate({ kind: 'recent', file }))}
             >
               {/* A mark here and not on a file match: these rows are a list to read down rather than
                   the answer to something that was typed. Inside the name, as on the Launcher, because
@@ -282,9 +334,17 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
           ))}
         </Section>
       </div>
+      {/* Outside the list, which has to be :empty when nothing matches. */}
+      <div className="z-visually-hidden" role="status">
+        {query === '' && rows.length === 0 ? '' : resultCount(rows.length)}
+      </div>
     </div>
   );
 };
+
+function resultCount(count: number): string {
+  return count === 0 ? 'No results' : `${count} ${count === 1 ? 'result' : 'results'}`;
+}
 
 interface SectionProps {
   title: string;
@@ -301,17 +361,21 @@ interface SectionProps {
  * capped section says so rather than quietly dropping matches.
  */
 function Section({ title, shown, found, children }: SectionProps) {
+  // From the title, for the same reason the list's id is fixed.
+  const id = `palette-group-${title.toLowerCase().replace(/\W+/g, '-')}`;
   if (shown === 0) {
     return null;
   }
   return (
-    <>
-      <div className="z-overlay-group z-label">
+    <div role="group" aria-labelledby={id}>
+      <div id={id} className="z-overlay-group z-label">
         <span>{title}</span>
         {found > shown && <span className="panel-section-count">{`${shown} of ${found}`}</span>}
       </div>
-      <ul className="z-overlay-list">{children}</ul>
-    </>
+      <ul className="z-overlay-list" role="presentation">
+        {children}
+      </ul>
+    </div>
   );
 }
 

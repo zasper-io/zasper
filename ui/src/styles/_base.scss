@@ -73,6 +73,21 @@ body,
   list-style: none;
 }
 
+// Read by a screen reader and drawn nowhere: a live region's announcement, or the word a coloured mark
+// stands for. Not `display: none` or `visibility: hidden`, which take it out of the accessibility tree
+// as well.
+.z-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 a {
   text-decoration: none;
   display: inline-block;
