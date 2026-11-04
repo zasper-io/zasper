@@ -67,6 +67,7 @@ import { useTelemetry } from '../telemetry';
 import { markSignedOut } from '../auth/signedIn';
 import SessionEndedNotice from '../auth/SessionEndedNotice';
 import ServerDisconnectedDialog from './ServerDisconnectedDialog';
+import { useRegionMemory } from './regions';
 import { allowWidgetCdn } from './widgets/cdnLoader';
 
 function IDE() {
@@ -210,6 +211,7 @@ function IDE() {
   // The application's only keyboard dispatcher, and the window-level commands. Everything else
   // contributes to the same registry from its own tab.
   useCommandKeymap();
+  useRegionMemory();
   useRegisterCommands(useAppCommands());
   useRegisterCommands(windowCommands);
   useRegisterCommands(useHelpCommands());
@@ -325,7 +327,7 @@ function IDE() {
             onExpand={() => setSidebarOpen(true)}
           >
             <div className="navigation">
-              <div className="sideBar">
+              <div className="sideBar" data-region="sidebar">
                 <FileBrowser hidden={activePanel !== 'fileBrowser'} reloadCount={reloadCount} />
                 <SearchPanel hidden={activePanel !== 'searchPanel'} />
                 <DataPanel hidden={activePanel !== 'dataPanel'} />
@@ -342,7 +344,7 @@ function IDE() {
             {/* The panel under the editor , closed to nothing until it is asked for. */}
             <PanelGroup direction="vertical">
               <Panel id="editor-area" order={1} minSize={30}>
-                <div className="main-content">
+                <div className="main-content" data-region="editor">
                   <TabIndex onShowFileBrowser={() => showPanel('fileBrowser')} />
                   <ContentPanel />
                 </div>

@@ -132,7 +132,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   };
 
   return (
-    <aside className="agentPanel" hidden={hidden} aria-label="Agent">
+    <aside className="agentPanel" data-region="agent" hidden={hidden} aria-label="Agent">
       <div className="agentPanel-title">
         <span className="z-label">{chat ? nameOf(chat, agents) : (starting?.name ?? 'Agent')}</span>
         {chat && (

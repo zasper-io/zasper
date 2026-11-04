@@ -31,7 +31,7 @@ const NavigationPanel: React.FC<NavigationPanelProps> = ({ activePanel, setActiv
   const { openHelp, openSettings } = useTabActions();
 
   return (
-    <div className="navigation-list">
+    <div className="navigation-list" data-region="rail">
       {NAV_ITEMS.map((item) => (
         <RailButton
           key={item.name}

@@ -58,6 +58,7 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
   return (
     <section
       className="editorDock"
+      data-region="dock"
       aria-label="Problems, references, variables and terminals"
       hidden={hidden}
     >

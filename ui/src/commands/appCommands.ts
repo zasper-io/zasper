@@ -3,6 +3,7 @@ import { useSetAtom } from 'jotai';
 
 import { zoomLevelAtom } from '@/zoom/atoms';
 import { clampZoomLevel } from '@/zoom';
+import { focusRegion } from '@/ide/regions';
 import { defineCommands } from './define';
 import { Command } from './types';
 
@@ -30,6 +31,9 @@ export const APP_COMMANDS = defineCommands({
   // Ctrl on mac too, as in VS Code: ⌘` is the system's own window switch, and a shell has no use for
   // Ctrl-` that anyone relies on, so this one works with the terminal focused.
   'view:terminal': { ...view, label: 'Toggle Terminal', keys: ['Ctrl-`'] },
+  // The way out of a terminal or an editor, which keep Tab for themselves. See ide/regions.ts.
+  'view:next-region': { ...view, label: 'Focus Next Region', keys: ['F6'] },
+  'view:previous-region': { ...view, label: 'Focus Previous Region', keys: ['Shift-F6'] },
   'data:add-connection': { category: 'Data', scope: 'app', label: 'Add a Data Connection' },
 });
 
@@ -54,6 +58,8 @@ export function useAppCommands(): Command[] {
         execute: () => setZoomLevel((level) => clampZoomLevel(level - 1)),
       },
       { ...APP_COMMANDS['view:zoom-reset'], execute: () => setZoomLevel(0) },
+      { ...APP_COMMANDS['view:next-region'], execute: () => focusRegion(1) },
+      { ...APP_COMMANDS['view:previous-region'], execute: () => focusRegion(-1) },
     ],
     [setZoomLevel]
   );

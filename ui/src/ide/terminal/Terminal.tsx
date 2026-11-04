@@ -117,9 +117,14 @@ export default function TerminalView({ id, cwd }: TerminalViewProps) {
     // Attach terminal to DOM
     terminal.open(terminalRef.current);
     terminal.focus();
-    // The toggle is a chord the window takes even here, so xterm must not also send it to the shell.
+    // Chords the window takes even here, so xterm must not also send them to the shell: the toggle, and
+    // F6, which is the keyboard's one way out of a terminal (ide/regions.ts).
+    const windowKeys = ['view:terminal', 'view:next-region', 'view:previous-region'] as const;
     terminal.attachCustomKeyEventHandler(
-      (event) => !(APP_COMMANDS['view:terminal'].keys ?? []).some((key) => chordMatches(key, event))
+      (event) =>
+        !windowKeys.some((id) =>
+          (APP_COMMANDS[id].keys ?? []).some((key) => chordMatches(key, event))
+        )
     );
 
     // Handle resize events
