@@ -52,25 +52,27 @@ export default function ExportDialog(props: ExportDialogProps) {
         </>
       }
     >
-      <div className="modal-choice">
-        <label className="z-checkbox">
-          <input
-            type="checkbox"
-            checked={includeCode}
-            onChange={(event) => setIncludeCode(event.target.checked)}
-          />
-          Include the code
-        </label>
-      </div>
-      <div className="modal-choice">
-        <label className="z-checkbox">
-          <input
-            type="checkbox"
-            checked={includeOutputs}
-            onChange={(event) => setIncludeOutputs(event.target.checked)}
-          />
-          Include the outputs
-        </label>
+      <div className="export-dialog-options">
+        <div className="modal-choice">
+          <label className="z-checkbox">
+            <input
+              type="checkbox"
+              checked={includeCode}
+              onChange={(event) => setIncludeCode(event.target.checked)}
+            />
+            Include the code
+          </label>
+        </div>
+        <div className="modal-choice">
+          <label className="z-checkbox">
+            <input
+              type="checkbox"
+              checked={includeOutputs}
+              onChange={(event) => setIncludeOutputs(event.target.checked)}
+            />
+            Include the outputs
+          </label>
+        </div>
       </div>
       <p className="export-dialog-note">
         Saved as <code>{props.filename}</code>. Figures become still images and widgets become their

@@ -1022,6 +1022,12 @@ table.dataframe tbody tr:hover {
   background-color: var(--z-bg-danger) !important;
 }
 
+// The export dialog's two checkboxes, inset from the header as from the sides: `.modal-choice` pads only
+// below, since it was written to follow a question, and this dialog opens on the choices themselves.
+.export-dialog-options {
+  padding-top: 16px;
+}
+
 // The sentence under the export dialog's two checkboxes — the one thing that has to be said about an
 // exported page, and what a menu row had nowhere to put.
 .export-dialog-note {
