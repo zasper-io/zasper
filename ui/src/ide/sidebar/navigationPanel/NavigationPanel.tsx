@@ -86,6 +86,8 @@ function RailButton({ icon, label, isActive, className, onClick }: RailButtonPro
         type="button"
         className={classes.join(' ')}
         aria-label={label}
+        // The open panel's, said as well as drawn: `.active` was the only thing marking it.
+        aria-current={isActive === true || undefined}
         onClick={onClick}
         {...tip.anchorProps}
       >

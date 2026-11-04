@@ -528,6 +528,15 @@ describe('TabIndex', () => {
     });
   });
 
+  it('names the file in front in the window title, with a dot while it is unsaved', () => {
+    const { unmount } = renderStrip();
+    expect(document.title).toBe('notes.txt — Zasper');
+    unmount();
+
+    renderStrip({ 'notes.txt': vi.fn() });
+    expect(document.title).toBe('● notes.txt — Zasper');
+  });
+
   describe('the keyboard', () => {
     const tab = (name: RegExp) => screen.getByRole('tab', { name });
 

@@ -88,7 +88,7 @@ describe('GitPanel', () => {
 
     expect(await screen.findByText('Staged')).toBeInTheDocument();
     expect(screen.getByText('Changes')).toBeInTheDocument();
-    expect(screen.getByText('Untracked')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Untracked/ })).toBeInTheDocument();
     // One path, two sections, because the two halves of the index disagree: a staged file that is not
     // further modified still belongs in both.
     expect(screen.getByLabelText('Unstage src/notes.txt')).toBeInTheDocument();

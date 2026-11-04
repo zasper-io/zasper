@@ -28,6 +28,8 @@ export default function RowName({ name, rename }: RowNameProps) {
       // What is on disk, which is only worth showing while the box is empty: after a create that is
       // the server's `untitled.ipynb`, and with it greyed there the extension to type is not a guess.
       placeholder={name}
+      // The placeholder is not a name, and is gone once anything is typed.
+      aria-label={`Rename ${name}`}
       onKeyDown={(event: React.KeyboardEvent) => {
         if (event.key === 'Enter') {
           rename.submit();

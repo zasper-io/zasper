@@ -92,6 +92,17 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
   const { activateTab, closeTabs, reopenClosedTab, moveTab } = useTabActions();
   const closedTabs = useAtomValue(closedTabsAtom);
   const unsavedTabs = useAtomValue(unsavedTabsAtom);
+
+  // The window's title names what is in front, as an editor's does: it is the first thing a screen
+  // reader says on arriving in the window, and the one place a switcher of windows shows. Unsaved is a
+  // dot, as on the tab. With the Launcher in front, or nothing, it is the app's name alone.
+  const front = fileTabsState[activePath];
+  const frontName = front === undefined || front.type === 'launcher' ? null : front.name;
+  const frontDirty = unsavedTabs[activePath] !== undefined;
+  React.useEffect(() => {
+    document.title =
+      frontName === null ? 'Zasper' : `${frontDirty ? '● ' : ''}${frontName} — Zasper`;
+  }, [frontName, frontDirty]);
   const revealInTree = useRevealInTree();
   const [pendingClose, setPendingClose] = React.useState<PendingClose | null>(null);
   const [saving, setSaving] = React.useState(false);

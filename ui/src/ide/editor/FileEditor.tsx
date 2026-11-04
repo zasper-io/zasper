@@ -757,8 +757,11 @@ export default function FileEditor(props: FileEditorProps) {
     [settings, indentWithTabs, tabSize]
   );
 
+  // Named for the file: CodeMirror's content is a textbox, otherwise announced as just "edit text".
+  const editorName = useMemo(() => EditorView.contentAttributes.of({ 'aria-label': name }), [name]);
   const extensions = useMemo(
     () => [
+      editorName,
       ...(language === null ? [] : [language]),
       ...(keymapExtension === null ? [] : [keymapExtension]),
       settingsExtension,
@@ -774,6 +777,7 @@ export default function FileEditor(props: FileEditorProps) {
       ...(served && settings.inlay_hints ? [inlayHints()] : []),
     ],
     [
+      editorName,
       serverExtension,
       served,
       settings.inlay_hints,

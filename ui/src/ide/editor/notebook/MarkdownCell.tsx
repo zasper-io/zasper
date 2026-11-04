@@ -9,6 +9,8 @@ import CellButtons from './CellButtons';
 import {
   CellProps,
   MARKDOWN_SETUP,
+  cellEditorName,
+  cellName,
   useCellBox,
   useCellView,
   useLeaveCellKeymap,
@@ -29,7 +31,8 @@ export default function MarkdownCell(props: CellProps) {
   const { updateCellSource, findExtension, commandKeymap } = editor;
   const theme = useTheme();
   const { keepView } = useCellView(cell.id);
-  const box = useCellBox(cell.id, isFocused);
+  const box = useCellBox(cell.id, isFocused, cellName(props.index, 'markdown'));
+  const editorName = useMemo(() => cellEditorName(props.index), [props.index]);
   const leaveCell = useLeaveCellKeymap(cell.id, true);
 
   const cellId = cell.id;
@@ -41,8 +44,8 @@ export default function MarkdownCell(props: CellProps) {
   const popupPlacement = useMemo(() => zoomAwareTooltips(), []);
   // Memoized for the reason CELL_SETUP gives.
   const extensions = useMemo(
-    () => [MARKDOWN_LANGUAGE, popupPlacement, leaveCell, findExtension, commandKeymap],
-    [popupPlacement, leaveCell, findExtension, commandKeymap]
+    () => [MARKDOWN_LANGUAGE, popupPlacement, leaveCell, editorName, findExtension, commandKeymap],
+    [popupPlacement, leaveCell, editorName, findExtension, commandKeymap]
   );
 
   // Focus selects; editing is asked for. An empty cell is the exception — rendered, it is nothing at

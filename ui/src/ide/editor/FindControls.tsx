@@ -49,7 +49,10 @@ export default function FindControls(props: FindControlsProps) {
         onChange={(event) => props.onSearch(event.target.value)}
         onKeyDown={props.onFieldKeyDown}
       />
-      <span className="find-count">{props.count}</span>
+      {/* Said as it changes, so a search typed blind still says whether it found anything. */}
+      <span className="find-count" role="status">
+        {props.count}
+      </span>
       <span className="find-actions">
         <IconButton icon="chevron-up" label="Previous match" onClick={props.onPrevious} />
         <IconButton icon="chevron-down" label="Next match" onClick={props.onNext} />

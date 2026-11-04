@@ -143,12 +143,26 @@ export function useCellView(cellId: string) {
   return { view, keepView };
 }
 
+/** A cell's name, for its box: "Cell 3, code, run 5". */
+export function cellName(index: number, kind: string, count?: number | null): string {
+  const run = count === undefined ? '' : count === null ? ', not run' : `, run ${count}`;
+  return `Cell ${index + 1}, ${kind}${run}`;
+}
+
+/**
+ * A cell's editor, named: CodeMirror's content is a textbox, and nine of them in a notebook were all
+ * announced as "edit text". Memoized by the caller, since a new extension rebuilds the editor.
+ */
+export function cellEditorName(index: number) {
+  return EditorView.contentAttributes.of({ 'aria-label': `Source of cell ${index + 1}` });
+}
+
 /**
  * The props of a cell's own box: the element that holds the keyboard in command mode, which the
  * dispatcher recognises by `data-command-mode`. Only the focused cell is in the Tab order — a roving
  * tabindex — so Tab leaves the notebook rather than walking every cell in it.
  */
-export function useCellBox(cellId: string, isFocused: boolean) {
+export function useCellBox(cellId: string, isFocused: boolean, name: string) {
   const { registerCellBox, focusCell } = useNotebookEditor();
   const ref = useCallback(
     (box: HTMLDivElement | null) => registerCellBox(cellId, box),
@@ -157,6 +171,11 @@ export function useCellBox(cellId: string, isFocused: boolean) {
   return {
     ref,
     tabIndex: isFocused ? 0 : -1,
+    // What a screen reader says on arriving in command mode, where the focus is on this box: which cell,
+    // what kind, and whether it has run. The kind was only ever CSS `content`, which is not read.
+    role: 'group',
+    'aria-label': name,
+    'aria-current': isFocused || undefined,
     'data-command-mode': '',
     className: isFocused ? 'single-line activeCell' : 'single-line',
     onFocus: () => focusCell(cellId),

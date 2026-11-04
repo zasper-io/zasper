@@ -73,6 +73,8 @@ export default function ProblemsPanel() {
               <span className={`problemIcon is-${row.severity}`}>
                 <Icon name={ICONS[row.severity]} size={12} />
               </span>
+              {/* What the icon's shape and colour say, for whoever gets neither. */}
+              <span className="z-visually-hidden">{row.severity}: </span>
               <span className="panel-row-label">{row.message}</span>
               <span className="panel-row-meta">{[source, where].filter(Boolean).join(' · ')}</span>
             </button>

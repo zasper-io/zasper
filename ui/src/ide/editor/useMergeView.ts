@@ -85,9 +85,15 @@ export function useMergeView(
           reverted.current?.(update.state.doc.toString());
         }
       });
+      // Named, or the two sides are two unnamed textboxes that say nothing of which is which.
+      const named = (side: string) =>
+        EditorView.contentAttributes.of({ 'aria-label': `${baseName(path)}, ${side}` });
       view = new MergeView({
-        a: { doc: original, extensions: readOnly },
-        b: { doc: modified, extensions: reverts ? [...readOnly, told] : readOnly },
+        a: { doc: original, extensions: [...readOnly, named('before')] },
+        b: {
+          doc: modified,
+          extensions: [...readOnly, named('after'), ...(reverts ? [told] : [])],
+        },
         parent,
         gutter: true,
         highlightChanges: true,

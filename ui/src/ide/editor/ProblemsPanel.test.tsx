@@ -66,9 +66,10 @@ describe('ProblemsPanel', () => {
       .getAllByRole('button')
       .filter((button) => button.classList.contains('panel-row-name'));
     expect(rows.map((row) => row.textContent)).toEqual([
-      'could be simplercmd/helper.go 1:1',
-      'undefined: nmecompiler UndeclaredName · main.go 11:23',
-      'unnecessary use of fmt.Sprintfsimplifyrange · main.go 10:13',
+      // The severity first, as a screen reader hears it: the icon says it to the eye only.
+      'info: could be simplercmd/helper.go 1:1',
+      'error: undefined: nmecompiler UndeclaredName · main.go 11:23',
+      'warning: unnecessary use of fmt.Sprintfsimplifyrange · main.go 10:13',
     ]);
   });
 

@@ -17,7 +17,6 @@
     "page-has-heading-one  html"
   ],
   "teal-dark file editor": [
-    "aria-input-field-name  .cm-content",
     "page-has-heading-one  html",
     "scrollable-region-focusable  .cm-scroller",
     "target-size  button[aria-label=\"New file\"]",
@@ -32,7 +31,6 @@
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-dark kernel picker": [
-    "aria-input-field-name  .cm-content",
     "label-content-name-mismatch  .problemCounts",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -46,7 +44,6 @@
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-dark notebook": [
-    "aria-input-field-name  .cm-content",
     "label-content-name-mismatch  .problemCounts",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -98,7 +95,6 @@
     "page-has-heading-one  html"
   ],
   "teal-light file editor": [
-    "aria-input-field-name  .cm-content",
     "page-has-heading-one  html",
     "scrollable-region-focusable  .cm-scroller",
     "target-size  button[aria-label=\"New file\"]",
@@ -113,7 +109,6 @@
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-light kernel picker": [
-    "aria-input-field-name  .cm-content",
     "label-content-name-mismatch  .problemCounts",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",
@@ -127,7 +122,6 @@
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-light notebook": [
-    "aria-input-field-name  .cm-content",
     "label-content-name-mismatch  .problemCounts",
     "target-size  button[aria-label=\"New file\"]",
     "target-size  button[aria-label=\"New folder\"]",

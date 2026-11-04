@@ -15,6 +15,8 @@ import {
   CellProps,
   CODE_SETUP,
   tabIndentKeymap,
+  cellEditorName,
+  cellName,
   useCellBox,
   useCellView,
   useLeaveCellKeymap,
@@ -55,7 +57,18 @@ export default function CodeCell(props: CellProps) {
   const theme = useTheme();
   const cellTabIndents = useAtomValue(editorSettingsAtom).cell_tab_indents;
   const { keepView } = useCellView(cell.id);
-  const box = useCellBox(cell.id, isFocused);
+  const kind =
+    cell.cell_type === 'raw' ? 'raw' : parseSqlCell(cell.source) !== null ? 'SQL' : 'code';
+  const box = useCellBox(
+    cell.id,
+    isFocused,
+    cellName(
+      props.index,
+      kind,
+      cell.cell_type === 'code' && cell.execution_count !== -1 ? cell.execution_count : undefined
+    )
+  );
+  const editorName = useMemo(() => cellEditorName(props.index), [props.index]);
   const [outputRef, outputScrolls] = useOverflows<HTMLDivElement>();
   const leaveCell = useLeaveCellKeymap(cell.id, false);
   // Taken once: @uiw/react-codemirror focuses the editor whenever `autoFocus` turns true, not only when
@@ -105,6 +118,7 @@ export default function CodeCell(props: CellProps) {
       // First: its Escape for a completion still being fetched has to be asked before the completion's
       // own, which sits at the same precedence, and within one precedence the order here is the order.
       leaveCell,
+      editorName,
       // A SQL cell's completion is the schema's, not the Python language server's or the kernel's.
       ...(sqlLanguage !== null ? [sqlLanguage] : [cellLanguage, intelligence]),
       popupPlacement,
@@ -119,6 +133,7 @@ export default function CodeCell(props: CellProps) {
       popupPlacement,
       cellTabIndents,
       leaveCell,
+      editorName,
       findExtension,
       commandKeymap,
     ]

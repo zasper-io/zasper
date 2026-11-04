@@ -136,7 +136,9 @@ function ChangeRow({ change, side, disabled, actions, onSelect }: ChangeRowProps
           className={`change-badge change-badge-${letter === '?' ? 'untracked' : letter}`}
           {...letterTip.anchorProps}
         >
-          {letter}
+          {/* The letter for the eye and the word for a screen reader, which read the letter bare. */}
+          <span aria-hidden="true">{letter}</span>
+          <span className="z-visually-hidden">{MEANING[letter] ?? letter}</span>
         </span>
         <Tooltip tip={letterTip} label={MEANING[letter] ?? letter} />
       </span>
