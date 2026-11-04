@@ -10,6 +10,7 @@ import type { MarkdownRendererProps } from './MarkdownRenderer';
 
 import DataFrameOutput, { OutputTables } from './DataFrameOutput';
 import { hasMathDelimiters } from './mathDelimiters';
+import { bokehMarkup, isBokehScript, isBokehTarget } from './bokehOutput';
 import { isProducedHere } from './outputTrust';
 import PlotlyOutput from './PlotlyOutput';
 import { SandboxContext, SandboxedOutput } from './SandboxedOutput';
@@ -157,6 +158,7 @@ export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesPr
   // to --z-ansi-* is in NotebookEditor.scss. Bold, faint, italic, underline and 24-bit colour stay
   // inline: a colour rather than a slot.
   ansi_up.use_classes = true;
+  const sandbox = useContext(SandboxContext);
 
   return (
     <>
@@ -182,6 +184,17 @@ export const OutputBundles = ({ outputs, widgets, tables, sql }: OutputBundlesPr
 
         const { text, 'text/plain': textPlain, data: outputData } = output;
         const trusted = isProducedHere(output);
+
+        // Bokeh's HTML is drawn in the frame of the script after it, and nothing of either runs
+        // unless a kernel sent it here.
+        if (isBokehTarget(outputs, index)) {
+          return null;
+        }
+        if (isBokehScript(output)) {
+          return trusted && sandbox ? (
+            <SandboxedOutput key={index} markup={bokehMarkup(outputs, index)} />
+          ) : null;
+        }
 
         if (text) {
           const textHtml = ansi_up.ansi_to_html(text);

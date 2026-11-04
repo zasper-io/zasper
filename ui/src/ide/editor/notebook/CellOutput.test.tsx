@@ -234,3 +234,67 @@ describe('OutputBundles', () => {
     expect(screen.getByText('a plain description')).toBeInTheDocument();
   });
 });
+
+// The two pairs Bokeh 3.4 sends, abridged: `output_notebook()`, then `show(p)`.
+describe('Bokeh outputs', () => {
+  const loading = {
+    output_type: 'display_data',
+    data: { 'text/html': '<span id="load-1">Loading BokehJS ...</span>' },
+  };
+  const loader = {
+    output_type: 'display_data',
+    data: {
+      'application/javascript': 'loadForClassicNotebook()',
+      'application/vnd.bokehjs_load.v0+json': 'load()',
+    },
+  };
+  const root = {
+    output_type: 'display_data',
+    data: { 'text/html': '<div id="el-1" data-root-id="p1001" style="display: contents;"></div>' },
+  };
+  const chart = {
+    output_type: 'display_data',
+    data: {
+      'application/javascript':
+        'const docs_json = {"d":{"version":"3.4.3","title":"</script>"}}; embed(docs_json)',
+      'application/vnd.bokehjs_exec.v0+json': '',
+    },
+    metadata: { 'application/vnd.bokehjs_exec.v0+json': { id: 'p1001' } },
+  };
+  const frames = (outputs: object[]) =>
+    render(
+      <OutputBundles outputs={outputs as NotebookOutput[]} widgets={null} />
+    ).container.querySelectorAll('iframe.output-sandbox');
+
+  it('runs each script in one frame with the HTML before it', () => {
+    const outputs = [loading, loader, root, chart].map((each) => markProducedHere({ ...each }));
+    const [load, plot] = Array.from(frames(outputs)).map((f) => f.getAttribute('srcdoc') ?? '');
+
+    expect(frames(outputs)).toHaveLength(2);
+    expect(load).toContain('Loading BokehJS');
+    expect(load).toContain('<script>load()</script>');
+    expect(load).not.toContain('loadForClassicNotebook');
+    expect(plot).toContain('data-root-id="p1001"');
+    expect(plot).toContain('src="https://cdn.bokeh.org/bokeh/release/bokeh-3.4.3.min.js"');
+    expect(plot).toContain('src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-3.4.3.min.js"');
+    expect(plot).toContain('"title":"<\\/script>"');
+    expect(plot.indexOf('bokeh-3.4.3.min.js')).toBeLessThan(plot.indexOf('embed(docs_json)'));
+  });
+
+  it('shows neither half from a notebook file', () => {
+    const { container } = render(
+      <OutputBundles outputs={[loading, loader, root, chart] as NotebookOutput[]} widgets={null} />
+    );
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(container.textContent).toBe('');
+  });
+
+  it('leaves HTML that no Bokeh script follows to itself', () => {
+    const other = { ...chart, metadata: { 'application/vnd.bokehjs_exec.v0+json': { id: 'p2' } } };
+    const outputs = [root, other].map((each) => markProducedHere({ ...each }));
+    const [plot] = Array.from(frames(outputs)).map((f) => f.getAttribute('srcdoc') ?? '');
+
+    expect(plot).not.toContain('data-root-id');
+  });
+});
