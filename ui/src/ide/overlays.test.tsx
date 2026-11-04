@@ -16,7 +16,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Tooltip from './Tooltip';
-import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys, useTooltip } from './overlays';
+import {
+  useDismissOnEscape,
+  useDismissOnPressOutside,
+  useMenuKeys,
+  useModalFocus,
+  useTooltip,
+} from './overlays';
 
 function Escapable({ onDismiss, active }: { onDismiss: () => void; active?: boolean }) {
   useDismissOnEscape(onDismiss, active);
@@ -164,6 +170,74 @@ describe('useMenuKeys', () => {
     fireEvent.keyDown(item('Rename'), { key: 'Tab' });
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+});
+
+function Dialog({ autoFocusLast = false }: { autoFocusLast?: boolean }) {
+  const modal = useModalFocus();
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Delete" {...modal}>
+      <button type="button">Close</button>
+      <button type="button">Cancel</button>
+      <button type="button" autoFocus={autoFocusLast}>
+        Delete
+      </button>
+    </div>
+  );
+}
+
+function DialogOpener() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Delete notes.txt
+      </button>
+      {open && (
+        <>
+          <Dialog />
+          <button type="button" onClick={() => setOpen(false)}>
+            Answer
+          </button>
+        </>
+      )}
+    </>
+  );
+}
+
+describe('useModalFocus', () => {
+  const button = (name: string) => screen.getByRole('button', { name });
+
+  it('takes the focus in, unless a control of its own already has', () => {
+    const { unmount } = render(<Dialog />);
+    expect(button('Close')).toHaveFocus();
+    unmount();
+
+    render(<Dialog autoFocusLast />);
+    expect(button('Delete')).toHaveFocus();
+  });
+
+  it('keeps Tab and Shift-Tab inside', () => {
+    render(<Dialog />);
+    button('Delete').focus();
+    fireEvent.keyDown(button('Delete'), { key: 'Tab' });
+    expect(button('Close')).toHaveFocus();
+
+    fireEvent.keyDown(button('Close'), { key: 'Tab', shiftKey: true });
+    expect(button('Delete')).toHaveFocus();
+  });
+
+  it('gives the focus back to what opened it', async () => {
+    render(<DialogOpener />);
+    const opener = button('Delete notes.txt');
+    opener.focus();
+    fireEvent.click(opener);
+    expect(button('Close')).toHaveFocus();
+
+    fireEvent.click(button('Answer'));
+    (document.activeElement as HTMLElement).blur();
+
     await waitFor(() => expect(opener).toHaveFocus());
   });
 });

@@ -1,7 +1,7 @@
 import React, { ReactNode, useId } from 'react';
 
 import { Icon } from '@/ide/icons';
-import { useDismissOnEscape } from '@/ide/overlays';
+import { useDismissOnEscape, useModalFocus } from '@/ide/overlays';
 
 /** Names them, up to a point: a list can be long, and a dialog taller than the window is no use. */
 export function summariseNames(names: string[]): string {
@@ -36,9 +36,10 @@ export default function ConfirmDialog(props: ConfirmDialogProps) {
   const titleId = useId();
 
   useDismissOnEscape(onCancel, !busy);
+  const modal = useModalFocus();
 
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} {...modal}>
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-head" id={titleId}>

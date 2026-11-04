@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
-import { useDismissOnEscape } from '@/ide/overlays';
+import { useDismissOnEscape, useModalFocus } from '@/ide/overlays';
 import { KernelspecsState, kernelspecsAtom } from '@/store/kernels';
 import { NO_KERNEL } from './kernelChoice';
 
@@ -58,9 +58,16 @@ function KernelSwitcher(props: ModalProps) {
   // Escape leaves the notebook with the kernel it already has, which for a failure to start is none —
   // the toolbar's kernel name is the way back in, so this is a dismissal and not a decision avoided.
   useDismissOnEscape(props.toggleKernelSwitcher);
+  const modal = useModalFocus();
 
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="kernelSwitchTitle">
+    <div
+      className="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="kernelSwitchTitle"
+      {...modal}
+    >
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           {/* Red-headed when this was raised by a failure rather than asked for. */}
@@ -108,6 +115,8 @@ function KernelSwitcher(props: ModalProps) {
                     <div className="z-select">
                       <select
                         id="kernelSwitchSelect"
+                        // The question the dialog asks, rather than its close cross.
+                        autoFocus
                         onChange={(e) => setSelectedKernel(e.target.value)}
                         value={selectedKernel}
                       >

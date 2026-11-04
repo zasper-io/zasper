@@ -176,6 +176,89 @@ export function useMenuKeys(onClose: () => void, { focusFirst = true } = {}) {
   return { ref, onKeyDown };
 }
 
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+  'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// The last thing the focus was on outside every dialog: by the time a dialog's ref runs, its own
+// autoFocus has already moved the focus in, so the opener has to have been noted before — from the
+// start, since the first dialog is opened from something focused before any dialog existed.
+let lastOutsideDialogs: HTMLElement | null = null;
+if (typeof document !== 'undefined') {
+  document.addEventListener(
+    'focusin',
+    (event) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('[aria-modal="true"]') === null) {
+        lastOutsideDialogs = target;
+      }
+    },
+    true
+  );
+}
+
+/**
+ * The focus half of a modal dialog, for the element carrying `aria-modal`: spread what this returns
+ * on it. The dialogs here are `div`s, so the browser did none of this and Tab walked out into the IDE
+ * behind the backdrop.
+ *
+ * Opening puts the focus inside, on the first control, unless one of the dialog's own takes it with
+ * autoFocus (ConfirmDialog's Cancel does); Tab and Shift-Tab go round inside; closing gives it back to
+ * what had it before, if that is still there and nothing else has taken the focus. Escape stays with
+ * `useDismissOnEscape`, which every dialog calls with its own idea of when it may be dismissed.
+ *
+ * Not native `<dialog>`: `showModal()` would put the dialog in the top layer, above the toasts that are
+ * meant to stay above it, and a dialog's Escape there is the browser's rather than the dialog's.
+ */
+export function useModalFocus() {
+  const opener = useRef<HTMLElement | null>(null);
+
+  const ref = useCallback((dialog: HTMLElement | null) => {
+    if (dialog !== null) {
+      opener.current = lastOutsideDialogs;
+      if (!dialog.contains(document.activeElement)) {
+        const first = dialog.querySelector<HTMLElement>(TABBABLE);
+        if (first !== null) {
+          first.focus();
+        } else {
+          dialog.tabIndex = -1;
+          dialog.focus();
+        }
+      }
+      return;
+    }
+    const back = opener.current;
+    opener.current = null;
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body && back?.isConnected) {
+        back.focus();
+      }
+    });
+  }, []);
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Tab') {
+      return;
+    }
+    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>(TABBABLE)];
+    if (controls.length === 0) {
+      event.preventDefault();
+      return;
+    }
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return { ref, onKeyDown };
+}
+
 /**
  * How long a pointer has to rest on something before it is asking about it. A native `title` waits
  * about a second, which is long enough that most people never find out the label is there; 400ms is

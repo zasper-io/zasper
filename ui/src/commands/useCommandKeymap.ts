@@ -27,6 +27,11 @@ export function useCommandKeymap(): void {
       if (isModifierKey(event.key)) {
         return;
       }
+      // A dialog is a question: Alt-W closing the tab behind a delete confirmation, or Ctrl-` opening a
+      // terminal under it, answers something nobody asked.
+      if (document.querySelector('[aria-modal="true"]') !== null) {
+        return;
+      }
       // Nothing without a real modifier may be stolen from a text field, and CodeMirror's editable
       // surface is a contenteditable, so this is what keeps typing in a cell from firing commands.
       // A function key types nothing, so F1 still reaches Help from inside a cell.

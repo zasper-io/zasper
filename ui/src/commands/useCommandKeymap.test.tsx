@@ -56,6 +56,20 @@ describe('useCommandKeymap', () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it('fires nothing behind a modal dialog', () => {
+    const execute = vi.fn();
+    mount([command({ keys: ['Ctrl-s'], execute })]);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('aria-modal', 'true');
+    document.body.append(dialog);
+
+    const event = press('s', { ctrlKey: true });
+    dialog.remove();
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it('leaves chords nobody claimed alone', () => {
     mount([command({ keys: ['Mod-s'], execute: () => {} })]);
 

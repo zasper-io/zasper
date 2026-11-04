@@ -47,3 +47,28 @@ test('F6 leaves a code editor, and comes back to where the caret was', async ({ 
   await page.keyboard.press('Shift+F6');
   await expect(editor).toBeFocused();
 });
+
+test('a dialog keeps the keyboard until it is answered, then gives it back', async ({ page }) => {
+  await openApp(page);
+  const row = treeRow(page, 'notes.txt');
+  await row.focus();
+
+  await page.keyboard.press('Delete');
+  const dialog = page.getByRole('dialog');
+  // Cancel, so the destructive answer is not one Enter away.
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+
+  // Round and round inside, never out into the IDE behind the backdrop.
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => !!document.activeElement?.closest('[aria-modal]'))).toBe(true);
+  }
+
+  // A chord meant for the window does nothing behind it.
+  await page.keyboard.press('Control+`');
+  await expect(page.locator('.terminalArea')).toHaveCount(0);
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(row).toBeFocused();
+});

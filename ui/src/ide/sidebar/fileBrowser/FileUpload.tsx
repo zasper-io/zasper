@@ -3,7 +3,7 @@ import { useAtom } from 'jotai';
 import { Icon } from '@/ide/icons';
 import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
-import { useDismissOnEscape } from '@/ide/overlays';
+import { useDismissOnEscape, useModalFocus } from '@/ide/overlays';
 
 import { uploadRequestAtom } from './atoms';
 import { PendingUpload, pendingFromDrop, pendingFromFiles } from './uploads';
@@ -41,6 +41,7 @@ function FileUpload() {
   // underneath already closes it while files are going up, and what has arrived stays arrived.
   const close = useCallback(() => setRequest(null), [setRequest]);
   useDismissOnEscape(close);
+  const modal = useModalFocus();
 
   const choose = (event: React.ChangeEvent<HTMLInputElement>) => {
     queue.add(pendingFromFiles(event.target.files));
@@ -55,7 +56,7 @@ function FileUpload() {
   };
 
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-label="Upload">
+    <div className="modal" role="dialog" aria-modal="true" aria-label="Upload" {...modal}>
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-head">
@@ -90,7 +91,8 @@ function FileUpload() {
               <div className="uploadPickers">
                 <label>
                   Files
-                  <input type="file" multiple onChange={choose} />
+                  {/* The question the dialog asks, rather than its close cross. */}
+                  <input type="file" multiple onChange={choose} autoFocus />
                 </label>
                 <label>
                   Folder
