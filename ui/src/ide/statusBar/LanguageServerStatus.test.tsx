@@ -83,7 +83,7 @@ describe('LanguageServerStatus', () => {
   it('says there is no server, and what to install', () => {
     renderItem('prepare.py');
 
-    fireEvent.click(screen.getByRole('button', { name: 'No Python language server' }));
+    fireEvent.click(screen.getByRole('button', { name: 'No server for Python' }));
 
     expect(screen.getByText('pip install basedpyright')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Copy the command' })).toBeInTheDocument();

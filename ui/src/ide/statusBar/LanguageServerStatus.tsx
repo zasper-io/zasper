@@ -92,7 +92,8 @@ export default function LanguageServerStatus({ fileName, server }: LanguageServe
             <span className="serverDot is-missing" /> No server
           </>
         }
-        spokenLabel={`No ${info.name} language server`}
+        // Starting with what the button says, so a voice-control user can say it (WCAG 2.5.3).
+        spokenLabel={`No server for ${info.name}`}
       >
         {(close) => (
           <>
