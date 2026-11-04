@@ -157,7 +157,7 @@ func (km *KernelManager) recordInfo(reply *Message) {
 }
 
 /*
-start launches the kernel: it reads the kernelspec, takes five ports, writes the connection file and
+start launches the kernel: it reads the kernelspec, takes five ports or sockets, writes the connection file and
 starts the process. The spec is read first, so that a kernel that cannot start leaves nothing to clean up,
 and a launch that fails gives back its ports and its file.
 */
@@ -171,14 +171,21 @@ func (km *KernelManager) start(specs *kernelspec.Catalog) error {
 	}
 	km.Spec = spec
 
-	// Every port or none: a connection file with a 0 in it starts a kernel on a port no client dials.
-	for _, port := range km.ports() {
-		assigned, err := findAvailablePort()
-		if err != nil {
-			km.releasePorts()
-			return fmt.Errorf("no port for the kernel's channels: %w", err)
+	if address := ipcAddress(spec.Argv, km.KernelId); address != "" {
+		km.ConnectionInfo.Transport, km.ConnectionInfo.IP = "ipc", address
+		for i, port := range km.ports() {
+			*port = i + 1
 		}
-		*port = assigned
+	} else {
+		// Every port or none: a connection file with a 0 in it starts a kernel on a port no client dials.
+		for _, port := range km.ports() {
+			assigned, err := findAvailablePort()
+			if err != nil {
+				km.releasePorts()
+				return fmt.Errorf("no port for the kernel's channels: %w", err)
+			}
+			*port = assigned
+		}
 	}
 	if err := km.writeConnectionFile(km.ConnectionFile); err != nil {
 		km.releasePorts()
@@ -196,11 +203,12 @@ func (km *KernelManager) start(specs *kernelspec.Catalog) error {
 	return nil
 }
 
-// stop shuts the process down, gives back its ports and deletes its connection file, which carries the
-// kernel's signing key.
+// stop shuts the process down, gives back its ports or deletes its sockets, and deletes its connection
+// file, which carries the kernel's signing key.
 func (km *KernelManager) stop() {
 	shutdownProcess(km)
 	km.releasePorts()
+	km.ConnectionInfo.removeSockets()
 	removeConnectionFile(km.ConnectionFile)
 }
 
@@ -210,6 +218,9 @@ func (km *KernelManager) ports() []*int {
 }
 
 func (km *KernelManager) releasePorts() {
+	if km.ConnectionInfo.Transport == "ipc" {
+		return
+	}
 	for _, port := range km.ports() {
 		if *port != 0 {
 			releasePort(*port)
@@ -324,13 +335,22 @@ folder before importing anything. Not -P, which Python 3.11 added and an older o
 the folder back once it is up, so a cell can still import a module beside the notebook.
 */
 func safePath(cmd []string) []string {
-	launcher := slices.Index(cmd, "-m")
-	if launcher < 1 || launcher+1 >= len(cmd) || !strings.HasPrefix(cmd[launcher+1], "ipykernel") {
+	launcher := ipykernelModule(cmd)
+	if launcher < 0 {
 		return cmd
 	}
 	safe := slices.Clone(cmd[:launcher])
 	safe = append(safe, "-c", fmt.Sprintf(safeLaunch, cmd[launcher+1]))
 	return append(safe, cmd[launcher+2:]...)
+}
+
+// ipykernelModule is where a command line's `-m ipykernel…` is, or -1 for a kernel that is not ipykernel.
+func ipykernelModule(cmd []string) int {
+	launcher := slices.Index(cmd, "-m")
+	if launcher < 1 || launcher+1 >= len(cmd) || !strings.HasPrefix(cmd[launcher+1], "ipykernel") {
+		return -1
+	}
+	return launcher
 }
 
 // safeLaunch runs a module as `python -m` would, after taking the working directory off sys.path. Only an

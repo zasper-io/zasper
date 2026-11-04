@@ -318,6 +318,14 @@ uv run python -m ipykernel install --user --name=my-project
 
 Once registered, the environment appears in the Launcher and in each notebook's kernel picker.
 
+### How Zasper reaches a kernel
+
+On macOS and Linux, a Python kernel (ipykernel) is reached through Unix sockets in
+`~/.zasper/runtime`, which only your account can open. Other kernels, and every kernel on Windows, use
+ports on `127.0.0.1`, which any account on the machine can reach: on a machine you share, someone else
+could read what those kernels send, though not run code in them. A Python kernel uses ports too when
+the folder cannot hold a socket, such as on an SMB share, or its path is too long for one.
+
 ## Language servers
 
 Errors as you type, completion, hover, go to definition and formatting come from a language server

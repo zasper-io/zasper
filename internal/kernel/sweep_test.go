@@ -25,7 +25,7 @@ func TestOnlyTheConnectionFilesOfKernelsGoneAreSwept(t *testing.T) {
 	broken := write("kernel-broken.json", `not json`, time.Hour)
 	other := write("server-1.json", `{}`, time.Hour)
 
-	sweepConnectionFiles(dir, time.Now(), func(_ string, port int) bool { return port == 2222 })
+	sweepConnectionFiles(dir, time.Now(), func(_ *Connection, port int) bool { return port == 2222 })
 
 	assert.NoFileExists(t, gone)
 	assert.NoFileExists(t, broken)

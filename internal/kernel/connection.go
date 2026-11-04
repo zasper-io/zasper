@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
-
+	"net"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/go-zeromq/zmq4"
 	"github.com/rs/zerolog/log"
@@ -142,18 +146,84 @@ func (km *KernelManager) writeConnectionFile(connectionFile string) error {
 	return nil
 }
 
-func (conn *Connection) makeURL(channel string, port int) string {
-
-	if conn.Transport == "tcp" {
-		return fmt.Sprintf("tcp://%s:%d", conn.IP, port)
+// endpoint is a channel's address as net dials it: a port on IP, or with IPC the socket `<IP>-<port>`.
+func (conn *Connection) endpoint(port int) (network, address string) {
+	if conn.Transport == "ipc" {
+		return "unix", fmt.Sprintf("%s-%d", conn.IP, port)
 	}
-	return fmt.Sprintf("%s://%s-%d", conn.Transport, conn.IP, port)
+	return "tcp", net.JoinHostPort(conn.IP, strconv.Itoa(port))
+}
+
+func (conn *Connection) makeURL(port int) string {
+	network, address := conn.endpoint(port)
+	if network == "unix" {
+		return "ipc://" + address
+	}
+	return "tcp://" + address
+}
+
+// removeSockets deletes an IPC kernel's socket files, which a kernel that was killed leaves behind.
+func (conn *Connection) removeSockets() {
+	if conn.Transport != "ipc" {
+		return
+	}
+	for _, port := range []int{conn.ShellPort, conn.IopubPort, conn.StdinPort, conn.HbPort, conn.ControlPort} {
+		if port != 0 {
+			_, address := conn.endpoint(port)
+			os.Remove(address)
+		}
+	}
+}
+
+/*
+ipcAddress is where an ipykernel's sockets go, as Unix sockets in the runtime folder, or "" for TCP. Every
+account on a machine can reach a port on 127.0.0.1, so on one people share, as under ZasperHub, anyone
+could subscribe to someone else's iopub and read their code and output; the folder is its owner's alone.
+
+Only ipykernel: almond, IRuby and Deno's kernel never start over IPC. Not on Windows, nor where the
+folder is the shared temp dir, cannot hold a socket, such as on SMB, or is too deep for a socket's address.
+*/
+func ipcAddress(argv []string, kernelId string) string {
+	if runtime.GOOS == "windows" || ipykernelModule(argv) < 0 {
+		return ""
+	}
+	dir := runtimeDir()
+	address := filepath.Join(dir, "kernel-"+strings.ReplaceAll(kernelId, "-", "")[:12])
+	if dir == os.TempDir() || len(address)+len("-5") > maxSocketPath() || !holdsSockets(dir) {
+		return ""
+	}
+	return address
+}
+
+// The longest path a Unix socket's address takes, less its NUL: sun_path is 108 bytes on Linux, 104 on
+// macOS and the BSDs.
+func maxSocketPath() int {
+	if runtime.GOOS == "linux" {
+		return 107
+	}
+	return 103
+}
+
+var socketDirs sync.Map
+
+func holdsSockets(dir string) bool {
+	if holds, seen := socketDirs.Load(dir); seen {
+		return holds.(bool)
+	}
+	probe := filepath.Join(dir, "probe-"+strconv.Itoa(os.Getpid()))
+	os.Remove(probe)
+	listener, err := net.Listen("unix", probe)
+	if err == nil {
+		listener.Close()
+	}
+	socketDirs.Store(dir, err == nil)
+	return err == nil
 }
 
 // dial connects socket to one of the kernel's channels. A socket that failed to dial is one nothing ever
 // comes out of, so it is reported, unless the context ended first: then nobody wants it any more.
 func (conn *Connection) dial(ctx context.Context, socket zmq4.Socket, channel string, port int) zmq4.Socket {
-	if err := socket.Dial(conn.makeURL(channel, port)); err != nil && ctx.Err() == nil {
+	if err := socket.Dial(conn.makeURL(port)); err != nil && ctx.Err() == nil {
 		log.Error().Str("channel", channel).Msgf("could not dial: %v", err)
 	}
 	return socket

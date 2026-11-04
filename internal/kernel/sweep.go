@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +24,7 @@ func SweepConnectionFiles() {
 	sweepConnectionFiles(runtimeDir(), time.Now(), listening)
 }
 
-func sweepConnectionFiles(dir string, now time.Time, alive func(ip string, port int) bool) {
+func sweepConnectionFiles(dir string, now time.Time, alive func(conn *Connection, port int) bool) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -45,9 +44,18 @@ func sweepConnectionFiles(dir string, now time.Time, alive func(ip string, port 
 		if err != nil {
 			continue
 		}
-		var connection ConnectionFileData
-		if json.Unmarshal(data, &connection) == nil && connection.ShellPort != 0 && alive(connection.IP, connection.ShellPort) {
+		var file ConnectionFileData
+		parsed := json.Unmarshal(data, &file) == nil
+		connection := &Connection{IP: file.IP, Transport: file.Transport, ShellPort: file.ShellPort,
+			IopubPort: file.IopubPort, StdinPort: file.StdinPort, HbPort: file.HbPort, ControlPort: file.ControlPort}
+		if connection.IP == "" {
+			connection.IP = "127.0.0.1"
+		}
+		if parsed && connection.ShellPort != 0 && alive(connection, connection.ShellPort) {
 			continue
+		}
+		if parsed {
+			connection.removeSockets()
 		}
 		if os.Remove(path) == nil {
 			swept++
@@ -58,11 +66,9 @@ func sweepConnectionFiles(dir string, now time.Time, alive func(ip string, port 
 	}
 }
 
-func listening(ip string, port int) bool {
-	if ip == "" {
-		ip = "127.0.0.1"
-	}
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(ip, strconv.Itoa(port)), 200*time.Millisecond)
+func listening(connection *Connection, port int) bool {
+	network, address := connection.endpoint(port)
+	conn, err := net.DialTimeout(network, address, 200*time.Millisecond)
 	if err != nil {
 		return false
 	}
