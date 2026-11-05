@@ -58,6 +58,7 @@ machine; with none installed anywhere, the specs that need a kernel skip rather 
 | `agents` | an agent started from the panel changes a file, which is put back on screen and on disk; a slow start is cancelled. The agent is `agenttest`'s scripted one, built beside the server, so no agent need be installed |
 | `layout` | every control is big enough to click, no row overflows its panel, and a state resolves to something visible |
 | `keyboard` | F6 gets out of a real terminal and a real code editor, which keep Tab for themselves, and Shift-F6 comes back to where the focus was; a dialog keeps Tab inside, blocks the window's chords, and gives the focus back on Escape |
+| `forcedcolors` | under Windows High Contrast, as Chromium emulates it: the open file and its tab still stand out, and a dialog keeps its edge and the words on its buttons |
 | `a11y` | axe-core on twelve screens in a light and a dark theme, plus sign-in, against `a11y-baseline.json`: a new violation fails, and so does a fixed one still listed. `UPDATE_A11Y_BASELINE=1 npx playwright test a11y` rewrites the baseline |
 
 ## House rules

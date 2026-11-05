@@ -86,4 +86,14 @@
 // accent fill an active row takes would claim this row is the thing on screen.
 .outline-row.is-selected {
   background: var(--z-bg-row-selected);
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    background: Highlight;
+
+    &,
+    & * {
+      color: HighlightText;
+    }
+  }
 }

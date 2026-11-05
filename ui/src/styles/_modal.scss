@@ -80,6 +80,12 @@
   // as a white box. It is the only one of these declarations that predates the partial's removal.
   background-color: var(--z-bg-modal);
   color: var(--z-fg-default);
+
+  // A forced palette paints the dialog, its header and the page behind it all Canvas, and drops the
+  // shadow, so its edge and its header's are the only ones left to draw.
+  @media (forced-colors: active) {
+    border: 1px solid CanvasText;
+  }
 }
 
 .modal-head {
@@ -95,6 +101,10 @@
   padding: 0 32px;
   text-align: center;
   border-radius: 6px 6px 0px 0px;
+
+  @media (forced-colors: active) {
+    border-bottom: 1px solid CanvasText;
+  }
 }
 
 // Place only: it is a `.z-icon-button.on-chrome` at the call sites, so the box, the ink and the hover

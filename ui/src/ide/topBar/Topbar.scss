@@ -100,6 +100,12 @@
     width: 71px;
     margin-left: 4px;
     background: var(--z-logo) left center / contain no-repeat;
+
+    // The white file vanishes on a forced light canvas, so the mark becomes a cut-out in its ink.
+    @media (forced-colors: active) {
+      background: CanvasText;
+      mask: var(--z-logo) left center / contain no-repeat;
+    }
   }
 
   // Shrinks below 420px on a narrow window but never grows past it, so the box stays a

@@ -11,6 +11,15 @@
   box-sizing: border-box;
   background: var(--z-accent);
   box-shadow: var(--z-shadow-wide);
+
+  // On Highlight (_accents.scss), like the system's own default button. The two variants below have
+  // fills of their own, and take the forced palette's button colours back.
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    color: HighlightText;
+    box-shadow: none;
+  }
 }
 
 .z-button:hover {
@@ -35,6 +44,10 @@
   background: var(--z-bg-button-secondary);
   border-color: var(--z-fg-subtle);
   color: var(--z-fg-default);
+
+  @media (forced-colors: active) {
+    forced-color-adjust: auto;
+  }
 }
 
 .z-button-secondary:hover {
@@ -48,6 +61,11 @@
 .z-button-danger {
   background: var(--z-bg-danger);
   border-color: var(--z-bg-danger);
+
+  @media (forced-colors: active) {
+    forced-color-adjust: auto;
+    color: ButtonText;
+  }
 }
 
 .z-button-danger:hover {
@@ -158,6 +176,11 @@
   width: 12px;
   border-radius: 6px;
   border: 1px solid var(--z-border-kernel-status);
+
+  // The state is its fill, and a forced palette would make every one of them Canvas.
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+  }
 }
 
 // For a 22px sidebar row, where the toolbar's dot is too much. What centres it is the
@@ -285,6 +308,10 @@
     display: block;
     height: 100%;
     background: var(--z-accent);
+  }
+
+  @media (forced-colors: active) {
+    outline: 1px solid CanvasText;
   }
 
   &.is-high > span {

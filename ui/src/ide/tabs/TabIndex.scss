@@ -131,6 +131,10 @@
   height: 6px;
   border-radius: 3px;
   background: currentColor;
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+  }
 }
 
 // The item rather than the tab, so the cross drawn over the tab's edge lights it too.
@@ -166,6 +170,16 @@
   // The one thing that says "this one" without spending a colour, and what keeps the strip readable
   // in a theme whose two tab steps are a single ramp step apart.
   font-weight: 500;
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    background: Highlight;
+
+    &,
+    & * {
+      color: HighlightText;
+    }
+  }
 }
 
 // The mark, icon or logo in front of a tab's name — see TabMark in TabIndex.tsx. No margin: the tab

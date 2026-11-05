@@ -97,6 +97,10 @@
   margin-right: 8px;
   background: var(--z-fg-icon);
   clip-path: polygon(100% 0%, 0 0%, 50% 100%);
+
+  @media (forced-colors: active) {
+    background: CanvasText;
+  }
 }
 
 // What `.z-field:focus` is for a field. This was `select:focus + .focus`, an "interim solution until

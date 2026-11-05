@@ -280,6 +280,16 @@
       // pointer, both still need to show through a selection.
       .file-list li a.is-selected {
         background: var(--z-bg-row-selected);
+
+        @media (forced-colors: active) {
+          forced-color-adjust: none;
+          background: Highlight;
+
+          &,
+          & * {
+            color: HighlightText;
+          }
+        }
       }
 
       .file-list li a:hover {
@@ -361,6 +371,17 @@
         color: var(--z-fg-on-accent);
         // The ring is drawn inside the row, on the accent: --z-fg-accent there is the fill's own colour.
         --z-focus-ring: var(--z-fg-on-accent);
+
+        // The accent is Highlight here (_accents.scss), and text on it would sit on a Canvas backplate.
+        @media (forced-colors: active) {
+          forced-color-adjust: none;
+          --z-focus-ring: HighlightText;
+
+          &,
+          & * {
+            color: HighlightText;
+          }
+        }
       }
 
       // The two surfaces where a mark's own colour is wrong: a hovered or open row is filled with

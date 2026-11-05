@@ -263,3 +263,17 @@ $dark-panel: #272727;
     --z-border-launcher-tile: #{tint(map.get($ramp, '500'), 34%)};
   }
 }
+
+// Windows High Contrast, or any forced palette. The fills above become Canvas and every ink the
+// system's text colour, so what the accent marks — the open file, a primary button, the active cell's
+// edge, the current panel — is no longer told from the rest. A system colour is the one author colour a
+// forced palette keeps, so the accent becomes the system's selection colour; the rules that fill with
+// it put HighlightText on it themselves. Last in the file and as specific as the theme blocks, so that
+// it outranks all of them.
+@media (forced-colors: active) {
+  :root[data-theme] {
+    --z-accent: Highlight;
+    --z-accent-hover: Highlight;
+    --z-accent-active: Highlight;
+  }
+}

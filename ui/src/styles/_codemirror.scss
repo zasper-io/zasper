@@ -168,6 +168,15 @@
 #cm-tooltip-host .cm-tooltip-autocomplete > ul > li[aria-selected] {
   background: var(--z-accent);
   color: var(--z-fg-on-accent);
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+
+    &,
+    & * {
+      color: HighlightText;
+    }
+  }
 }
 
 // What the typed prefix matched, which the base theme draws by underlining. Weight instead: an
@@ -305,6 +314,12 @@
 // where the colour goes and not a colour itself.
 @mixin severity-mark($shape) {
   background-color: currentColor;
+
+  // A forced palette makes every fill Canvas, which leaves no mark at all; the shape still says which.
+  @media (forced-colors: active) {
+    background-color: CanvasText;
+  }
+
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E#{$shape}%3C/svg%3E")
     center / contain no-repeat;
 }

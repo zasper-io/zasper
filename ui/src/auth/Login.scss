@@ -196,6 +196,11 @@
   font: inherit;
   font-weight: 500;
   cursor: pointer;
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    color: HighlightText;
+  }
 }
 
 .login-form > button:hover {
