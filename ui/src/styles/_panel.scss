@@ -134,15 +134,15 @@
       // was three <img> files with their white baked in, an `invert(1)` filter to undo it, and an
       // exception for the Jupyter mark — which is 150px square where the others were ~16px, and
       // shrank its own button to 0px wide in this flex row.
-      // No gap: five buttons in a 240px banner, and each one already carries 3px of space around
-      // its glyph. The hover square is what separates them, which is more legible than 4px of
-      // banner between two icons that have no edges of their own.
+      // 2px, so the 22px buttons' centres are 24px apart, which is WCAG 2.5.8's spacing for a
+      // target under 24px. No more: the hover square is what separates them, which is more legible
+      // than banner between two icons that have no edges of their own.
       .projectButtons {
         flex: 0 0 auto;
         color: var(--z-fg-on-chrome);
         display: flex;
         align-items: center;
-        gap: 0;
+        gap: 2px;
       }
     }
 

@@ -1,157 +1,67 @@
 {
   "login": [],
   "teal-dark context menu": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  .panel-row[role=\"none\"]:nth-child(1) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(2) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(3) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(4) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(5) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(6) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
-  "teal-dark data": [
-    "page-has-heading-one  html"
-  ],
+  "teal-dark data": [],
   "teal-dark file editor": [
-    "page-has-heading-one  html",
-    "scrollable-region-focusable  .cm-scroller",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "scrollable-region-focusable  .cm-scroller"
   ],
   "teal-dark help": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
   "teal-dark kernel picker": [
-    "label-content-name-mismatch  .problemCounts",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "label-content-name-mismatch  .problemCounts"
   ],
   "teal-dark launcher": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
   "teal-dark notebook": [
-    "label-content-name-mismatch  .problemCounts",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "label-content-name-mismatch  .problemCounts"
   ],
   "teal-dark palette": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
   "teal-dark search": [
-    "label-content-name-mismatch  button[aria-label=\"Whole word\"]",
-    "page-has-heading-one  html"
+    "label-content-name-mismatch  button[aria-label=\"Whole word\"]"
   ],
   "teal-dark settings": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
-  "teal-dark source control": [
-    "page-has-heading-one  html"
-  ],
+  "teal-dark source control": [],
   "teal-dark terminal": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
   "teal-light context menu": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  .panel-row[role=\"none\"]:nth-child(1) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(2) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(3) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(4) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(5) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  .panel-row[role=\"none\"]:nth-child(6) > .panel-row-name[role=\"menuitem\"][type=\"button\"]",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
-  "teal-light data": [
-    "page-has-heading-one  html"
-  ],
+  "teal-light data": [],
   "teal-light file editor": [
-    "page-has-heading-one  html",
-    "scrollable-region-focusable  .cm-scroller",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "scrollable-region-focusable  .cm-scroller"
   ],
   "teal-light help": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
   "teal-light kernel picker": [
-    "label-content-name-mismatch  .problemCounts",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "label-content-name-mismatch  .problemCounts"
   ],
   "teal-light launcher": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
   "teal-light notebook": [
-    "label-content-name-mismatch  .problemCounts",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "label-content-name-mismatch  .problemCounts"
   ],
   "teal-light palette": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
   "teal-light search": [
-    "label-content-name-mismatch  button[aria-label=\"Whole word\"]",
-    "page-has-heading-one  html"
+    "label-content-name-mismatch  button[aria-label=\"Whole word\"]"
   ],
   "teal-light settings": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ],
-  "teal-light source control": [
-    "page-has-heading-one  html"
-  ],
+  "teal-light source control": [],
   "teal-light terminal": [
-    "color-contrast  .file-mark-notebook",
-    "page-has-heading-one  html",
-    "target-size  button[aria-label=\"New file\"]",
-    "target-size  button[aria-label=\"New folder\"]",
-    "target-size  button[aria-label=\"New notebook\"]"
+    "color-contrast  .file-mark-notebook"
   ]
 }

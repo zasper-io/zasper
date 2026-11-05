@@ -136,6 +136,17 @@
   z-index: var(--z-layer-menu);
 }
 
+// 24px, two over a panel's row, so each item is a 24px target (WCAG 2.5.8): menu rows sit flush, so
+// nothing else can give them the room. The item fills its row, where it was the height of its text, 18px.
+.z-menu .panel-row {
+  height: 24px;
+}
+
+.z-menu .panel-row > .panel-row-name {
+  align-self: stretch;
+  align-items: center;
+}
+
 // A tooltip: a label under whatever it labels, and the only overlay nobody opened. It stands in for a
 // native `title=`, which delays about a second, never appears for a keyboard at all, cannot be styled,
 // and renders a multi-line label as newlines in the operating system's own box.
