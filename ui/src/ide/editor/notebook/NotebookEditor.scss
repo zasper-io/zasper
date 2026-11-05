@@ -207,11 +207,10 @@ $cell-gutter: 64px;
     scroll-margin-top: $cell-gap;
   }
 
-  // Command mode puts the keyboard on the cell's box. A click there shows nothing more than the accent
-  // left edge below; arriving by keyboard — Escape out of the editor, an arrow from the cell above —
-  // shows the app's ring as well, since the edge looks the same in edit and command mode and is 1.0:1
-  // against an inactive cell's in some dark themes.
-  .single-line:focus:not(:focus-visible) {
+  // Command mode puts the keyboard on the cell's box. The accent left edge below already says which
+  // cell it is, so the ring would be a second marker drawn around the whole cell.
+  .single-line:focus,
+  .single-line:focus-visible {
     outline: none;
   }
 
@@ -436,7 +435,9 @@ $cell-gutter: 64px;
 // lines up with the code that produced it rather than with the execution count.
 .inner-text {
   margin: 8px 0 0 $cell-gutter;
-  padding: 6px 10px;
+  // 2px of the left padding is the edge, which the active cell colours below, so the text stays put.
+  padding: 6px 10px 6px 8px;
+  border-left: 2px solid transparent;
   overflow: auto;
   position: relative;
   background: var(--z-bg-cell-output);
@@ -534,6 +535,13 @@ $cell-gutter: 64px;
 .inner-text:has(.dataGrid.is-in-cell, table.dataframe, img, .output-svg, .output-pdf) {
   background: var(--z-bg-editor);
   border: 1px solid var(--z-border);
+  border-left-width: 2px;
+}
+
+// The active cell's accent edge, carried down from its code box. Three classes, to beat the `:has()`
+// above.
+.single-line.activeCell .inner-text {
+  border-left-color: var(--z-accent);
 }
 
 // Past the cap, for an output worth reading in full. The button that sets it is in the cell toolbar.
