@@ -597,7 +597,8 @@ function Tab({
           <Icon name="x" size={12} />
         </button>
       )}
-      <Tooltip tip={tip} label={label} />
+      {/* Only a path the name does not already say; the dot names the unsaved changes. */}
+      <Tooltip tip={tip} label={label} description={label[0] === tab.name ? '' : label[0]} />
     </li>
   );
 }

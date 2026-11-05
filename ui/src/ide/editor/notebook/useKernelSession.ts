@@ -336,9 +336,22 @@ export function useKernelSession(
 
     // Without this a cell interrupted by the restart keeps its spinner for the rest of the session.
     forgetRunningCells();
+    // The old socket closes with its session, and the `disconnected` it would report is this restart.
+    socket.connection.onclose = () => {};
+    setKernelStatus('restarting');
     await deleteSession(session.id);
     await startSession(tab.path, tab.name, tab.type, kernelName);
-  }, [session, startSession, tab.path, tab.name, tab.type, kernelName, forgetRunningCells]);
+  }, [
+    session,
+    socket.connection,
+    setKernelStatus,
+    startSession,
+    tab.path,
+    tab.name,
+    tab.type,
+    kernelName,
+    forgetRunningCells,
+  ]);
 
   const reconnectKernel = () => {
     if (session) {

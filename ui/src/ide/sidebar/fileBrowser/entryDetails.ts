@@ -40,7 +40,19 @@ export const ROW_TOOLTIP_DELAY_MS = 2000;
 
 /** The row's tooltip: the full path, and whatever else is known about the entry. */
 export function describeEntry(entry: ContentEntry): string {
-  const parts = [entry.path];
+  return [entry.path, ...entryFacts(entry, true)].join(' · ');
+}
+
+/**
+ * What a screen reader is told after the row's name: the tooltip without the path, which the tree
+ * already says by where the row is, and without read-only, which the lock's own name says.
+ */
+export function entryDescription(entry: ContentEntry): string {
+  return entryFacts(entry, false).join(' · ');
+}
+
+function entryFacts(entry: ContentEntry, readOnly: boolean): string[] {
+  const parts: string[] = [];
 
   // A directory's size is the size of the directory itself, which means nothing to a reader.
   if (entry.type !== 'directory' && entry.size !== undefined) {
@@ -50,14 +62,13 @@ export function describeEntry(entry: ContentEntry): string {
   if (modified !== '') {
     parts.push(`modified ${modified}`);
   }
-  if (entry.writable === false) {
+  if (readOnly && entry.writable === false) {
     parts.push('read-only');
   }
   if (entry.ignored === true) {
     parts.push('ignored by git');
   }
-
-  return parts.join(' · ');
+  return parts;
 }
 
 /**

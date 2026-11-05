@@ -196,12 +196,14 @@ describe('Palette', () => {
     expect(field).toHaveAttribute('aria-activedescendant', options[0].id);
   });
 
-  it('says how many rows there are, and when there are none', () => {
+  it('says how many rows there are, and when there are none, once the typing pauses', async () => {
     renderPalette({ initialQuery: '>' });
     expect(screen.getByRole('status')).toHaveTextContent('3 results');
 
+    fireEvent.change(input(), { target: { value: '>no such' } });
     fireEvent.change(input(), { target: { value: '>no such command' } });
-    expect(screen.getByRole('status')).toHaveTextContent('No results');
+    expect(screen.getByRole('status')).toHaveTextContent('3 results');
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('No results'));
     expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-activedescendant');
   });

@@ -75,7 +75,8 @@ export default function IconButton({
         <Icon name={icon} size={size} />
         {children}
       </button>
-      <Tooltip tip={tip} label={label} />
+      {/* The label is the name, or the toggle's other state, and neither is a description. */}
+      <Tooltip tip={tip} label={label} description="" />
     </>
   );
 }

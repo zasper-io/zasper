@@ -16,6 +16,11 @@ interface TooltipProps {
    * carry a path; see `.z-tooltip-oneline`.
    */
   oneLine?: boolean;
+  /**
+   * What a screen reader is told, where it is not every line: a line that is the anchor's own name is
+   * said twice otherwise. Empty for nothing.
+   */
+  description?: string;
 }
 
 /** Between the anchor's edge and the box, and between the box and the window's. */
@@ -30,7 +35,7 @@ const GAP = 4;
  * because the coordinates are the window's while the layout this renders into is scaled. A tooltip that
  * runs off the bottom of the screen is worse than none, since nothing can be scrolled to reach it.
  */
-export default function Tooltip({ tip, label, oneLine = false }: TooltipProps) {
+export default function Tooltip({ tip, label, oneLine = false, description }: TooltipProps) {
   const box = useRef<HTMLDivElement>(null);
   const { anchor } = tip;
   const [at, setAt] = useState({ top: 0, left: 0 });
@@ -61,7 +66,7 @@ export default function Tooltip({ tip, label, oneLine = false }: TooltipProps) {
   return (
     <div
       ref={box}
-      id={tip.id}
+      id={description === undefined ? tip.id : undefined}
       role="tooltip"
       aria-hidden="true"
       className={oneLine ? 'z-overlay z-tooltip z-tooltip-oneline' : 'z-overlay z-tooltip'}
@@ -72,6 +77,11 @@ export default function Tooltip({ tip, label, oneLine = false }: TooltipProps) {
           {line}
         </span>
       ))}
+      {description !== undefined && (
+        <span id={tip.id} hidden>
+          {description}
+        </span>
+      )}
     </div>
   );
 }

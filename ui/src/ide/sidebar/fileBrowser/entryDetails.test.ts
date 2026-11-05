@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { describeEntry, formatSize, formatWhen, rowClassName } from './entryDetails';
+import {
+  describeEntry,
+  entryDescription,
+  formatSize,
+  formatWhen,
+  rowClassName,
+} from './entryDetails';
 import { ContentEntry } from '@/api';
 
 function entry(overrides: Partial<ContentEntry>): ContentEntry {
@@ -50,6 +56,18 @@ describe('describeEntry', () => {
 
   it("leaves out a directory's own size, which says nothing about what is in it", () => {
     expect(describeEntry(entry({ type: 'directory', path: 'src', size: 96 }))).toBe('src');
+  });
+});
+
+describe('entryDescription', () => {
+  it('says neither the path nor read-only, which the row already says', () => {
+    const description = entryDescription(
+      entry({ size: 2048, last_modified: '2026-01-02T03:04:05Z', writable: false, ignored: true })
+    );
+
+    expect(description).not.toContain('docs/notes.txt');
+    expect(description).not.toContain('read-only');
+    expect(description).toMatch(/^2 kB · modified .* · ignored by git$/);
   });
 });
 

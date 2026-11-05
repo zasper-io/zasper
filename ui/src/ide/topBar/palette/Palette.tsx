@@ -240,6 +240,7 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
   });
 
   const selected = selectedIndex >= 0 && selectedIndex < rows.length;
+  const count = useSettled(query === '' && rows.length === 0 ? '' : resultCount(rows.length));
 
   return (
     <div className="z-overlay palette">
@@ -339,11 +340,26 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
       </div>
       {/* Outside the list, which has to be :empty when nothing matches. */}
       <div className="z-visually-hidden" role="status">
-        {query === '' && rows.length === 0 ? '' : resultCount(rows.length)}
+        {count}
       </div>
     </div>
   );
 };
+
+/**
+ * `text` once it has stopped changing for a moment. The count changes at every keystroke, and a screen
+ * reader queues each change: typing "restart" was four counts read out one after another.
+ */
+function useSettled(text: string): string {
+  const [settled, setSettled] = useState(text);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettled(text), SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [text]);
+  return settled;
+}
+
+const SETTLE_MS = 500;
 
 function resultCount(count: number): string {
   return count === 0 ? 'No results' : `${count} ${count === 1 ? 'result' : 'results'}`;

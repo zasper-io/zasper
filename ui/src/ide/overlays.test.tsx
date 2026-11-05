@@ -264,14 +264,14 @@ describe('useDismissOnPressOutside', () => {
   });
 });
 
-function Labelled({ active }: { active?: boolean }) {
+function Labelled({ active, description }: { active?: boolean; description?: string }) {
   const tip = useTooltip(active);
   return (
     <>
       <button type="button" {...tip.anchorProps}>
         anchor
       </button>
-      <Tooltip tip={tip} label={['first line', 'second line']} />
+      <Tooltip tip={tip} label={['first line', 'second line']} description={description} />
     </>
   );
 }
@@ -311,6 +311,19 @@ describe('useTooltip', () => {
     expect(anchor()).toHaveAttribute('aria-describedby', tip.id);
     // Hidden from the tree, so it is no part of a name, and still the anchor's description.
     expect(anchor()).toHaveAccessibleDescription(/second line/);
+  });
+
+  it('describes the anchor with only what it is told to, where a line repeats the name', () => {
+    const { unmount } = render(<Labelled description="second line" />);
+    tabTo(anchor());
+    expect(screen.getByRole('tooltip', { hidden: true })).toHaveTextContent('first line');
+    expect(anchor()).toHaveAccessibleDescription('second line');
+    unmount();
+
+    render(<Labelled description="" />);
+    tabTo(anchor());
+    expect(screen.getByRole('tooltip', { hidden: true })).toHaveTextContent('first line');
+    expect(anchor()).toHaveAccessibleDescription('');
   });
 
   // Clicking a control focuses it too, and a box that opens on a click is in the way of whatever the

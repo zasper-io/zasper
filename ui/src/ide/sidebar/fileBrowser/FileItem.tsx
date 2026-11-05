@@ -14,7 +14,12 @@ import { activeTabPathAtom } from '@/store/tabState';
 import ContextMenu from '../contextMenu/ContextMenu';
 import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 import RowName from './RowName';
-import { describeEntry, ROW_TOOLTIP_DELAY_MS, rowClassName } from './entryDetails';
+import {
+  describeEntry,
+  entryDescription,
+  ROW_TOOLTIP_DELAY_MS,
+  rowClassName,
+} from './entryDetails';
 import { useClipboard } from './useClipboard';
 import { useContentActions } from './useContentActions';
 import { useDragSource } from './useDragDrop';
@@ -163,7 +168,12 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
           </span>
         )}
       </a>
-      <Tooltip tip={tip} label={describeEntry(content)} oneLine />
+      <Tooltip
+        tip={tip}
+        label={describeEntry(content)}
+        description={entryDescription(content)}
+        oneLine
+      />
       {/* A sibling of the row, not a child of it: inside the link, a click on a menu item counted
           as a click on the file. */}
       {menuPosition && (

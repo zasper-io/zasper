@@ -14,7 +14,12 @@ import FileItem from './FileItem';
 import RowName from './RowName';
 import TreeStatus from './TreeStatus';
 import { uploadRequestAtom } from './atoms';
-import { describeEntry, ROW_TOOLTIP_DELAY_MS, rowClassName } from './entryDetails';
+import {
+  describeEntry,
+  entryDescription,
+  ROW_TOOLTIP_DELAY_MS,
+  rowClassName,
+} from './entryDetails';
 import { useClipboard } from './useClipboard';
 import { useContentActions } from './useContentActions';
 import { useDragSource, useDropTarget } from './useDragDrop';
@@ -197,7 +202,7 @@ const DirectoryItem = ({
           </span>
         )}
       </a>
-      <Tooltip tip={tip} label={describeEntry(data)} oneLine />
+      <Tooltip tip={tip} label={describeEntry(data)} description={entryDescription(data)} oneLine />
       {menuPosition && (
         <ContextMenu
           xPos={menuPosition.xPos}
