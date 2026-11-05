@@ -29,10 +29,15 @@ const REPORT_HEIGHT = `<script>(function(){
   addEventListener('load',send);
 })()</script>`;
 
-/** The theme's text colour and font, which a frame's document does not inherit from the page. */
+/**
+ * The theme's text colour and font, which a frame's document does not inherit from the page, and its
+ * colour scheme: a frame whose scheme differs from the page's is drawn on an opaque canvas, white
+ * behind a dark theme, and the transparent background below does nothing.
+ */
 function pageLook(): string {
   const page = getComputedStyle(document.body);
-  return `color:${page.color};font-family:${page.fontFamily};font-size:${page.fontSize}`;
+  const scheme = page.colorScheme || 'normal';
+  return `html{color-scheme:${scheme}}body{color:${page.color};font-family:${page.fontFamily};font-size:${page.fontSize}}`;
 }
 
 /**
@@ -59,7 +64,7 @@ function frameDocument(markup: string, look: string): string {
     '<base target="_blank">',
     // As tall as what is in it. A standalone page such as Bokeh's sets `height: 100%`, which in a frame
     // sized from its document's height keeps both at 0.
-    `<style>html,body{margin:0;background:transparent;height:auto!important}body{${look}}</style>`,
+    `<style>html,body{margin:0;background:transparent;height:auto!important}${look}</style>`,
     REPORT_HEIGHT,
     '</head><body>',
     markup,

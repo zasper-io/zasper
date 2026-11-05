@@ -100,6 +100,10 @@
 }
 
 :root {
+  // What the browser draws itself in — a select's popup, a date picker, a scrollbar it styles — follows
+  // the polarity rather than staying light.
+  color-scheme: light;
+
   // --- Surfaces -----------------------------------------------------------
   --z-bg-app: #e4e4e5;
   --z-bg-content: #e4e4e5;
@@ -201,6 +205,8 @@
   // 4.5:1. Every foreground token now clears AA against the surface it is used
   // on; keep it that way when adding a theme.
   --z-fg-subtle: #767676;
+  // A field's hint. Muted, not subtle: subtle is under 4.5:1 on a field's fill in both polarities.
+  --z-fg-placeholder: var(--z-fg-muted);
   --z-fg-on-accent: #ffffff;
   // Text and icons on the purple chrome — topbar, status bar, project banner,
   // editor tab strip, command palette. A theme with light chrome flips this to a
@@ -445,6 +451,7 @@
 }
 
 [data-theme='dark'] {
+  color-scheme: dark;
   --z-bg-app: #000000;
   --z-bg-content: #3e3e3e;
   --z-bg-panel: #272727;
@@ -505,6 +512,7 @@
   --z-fg-editor: #d7d7d7;
   --z-fg-muted: #a8a8a8;
   --z-fg-subtle: #969696; // was #8b8b8b, 4.38:1 on --z-bg-panel; now 5.05:1
+  --z-fg-placeholder: #aaaaaa; // muted is 4.498:1 on --z-bg-field; this is 4.60
   --z-fg-icon: #e2e2e2;
   --z-fg-field: #e2e2e2;
 

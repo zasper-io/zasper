@@ -82,6 +82,13 @@ body,
   outline-offset: 1px;
 }
 
+// Every field but the palette's took the browser's own #a9a9a9, 2.2:1 on a light field. Firefox also
+// dims a placeholder to 54%, which `opacity` undoes.
+::placeholder {
+  color: var(--z-fg-placeholder);
+  opacity: 1;
+}
+
 // Read by a screen reader and drawn nowhere: a live region's announcement, or the word a coloured mark
 // stands for. Not `display: none` or `visibility: hidden`, which take it out of the accessibility tree
 // as well.
@@ -113,6 +120,16 @@ a {
   transition:
     background-color 0.3s ease-in-out,
     color 0.3s ease-in-out;
+}
+
+// A link in running text is told from the words around it by more than its colour (WCAG 1.4.1): the
+// accent is 1.2–2.3:1 against body text, and the sign-in page's links take the text's own colour. Inline,
+// so that a long one wraps with them. A link standing on its own — a tree row, a footer's nav — keeps
+// none.
+:is(p, li, td, blockquote) a[href] {
+  display: inline;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 // Changing the theme rewrites every colour token at once, and the transition above is the only one in

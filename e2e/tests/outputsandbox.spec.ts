@@ -61,4 +61,11 @@ test("an output's script runs in a sandboxed frame, out of the page's reach", as
   await expect(page.locator('#where')).toHaveCount(0);
   const box = await page.locator('iframe.output-sandbox').boundingBox();
   expect(box?.height ?? 0).toBeGreaterThan(10);
+
+  // A frame whose colour scheme is not the page's is drawn on an opaque canvas: white, under the dark
+  // themes' light text.
+  const scheme = (e: Element) => getComputedStyle(e).colorScheme;
+  expect(await frame.locator('html').evaluate(scheme)).toBe(
+    await page.locator('html').evaluate(scheme)
+  );
 });
