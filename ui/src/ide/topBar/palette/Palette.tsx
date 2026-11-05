@@ -219,6 +219,9 @@ const Palette: React.FC<PaletteProps> = ({ commands, initialQuery, onClose }) =>
       e.preventDefault();
       move(-PAGE);
     } else if (e.key === 'Enter' && selectedIndex >= 0 && selectedIndex < rows.length) {
+      // Or the key's own press lands wherever the command put the focus: Restart Kernel's dialog
+      // focuses Cancel, and the same Enter pressed it, so the question was gone before it was seen.
+      e.preventDefault();
       activate(rows[selectedIndex]);
     }
   };

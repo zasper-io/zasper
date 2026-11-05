@@ -76,6 +76,7 @@ export default function LanguageStatus({ path, fileName }: LanguageStatusProps) 
     } else if (event.key === 'ArrowUp') {
       setSelected((index) => Math.max(index - 1, 0));
     } else if (event.key === 'Enter' && shown[selected] !== undefined) {
+      event.preventDefault();
       choose(shown[selected].name);
     }
   };

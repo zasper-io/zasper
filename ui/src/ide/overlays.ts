@@ -187,17 +187,33 @@ const TABBABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
   'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-// The last thing the focus was on outside every dialog: by the time a dialog's ref runs, its own
+/** What Tab stops at inside `root`: a button with `tabindex="-1"` matches the selector and is not one. */
+function tabbable(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(TABBABLE)].filter(
+    (element) => element.tabIndex >= 0
+  );
+}
+
+// The last few things the focus was on outside every dialog: by the time a dialog's ref runs, its own
 // autoFocus has already moved the focus in, so the opener has to have been noted before — from the
-// start, since the first dialog is opened from something focused before any dialog existed.
-let lastOutsideDialogs: HTMLElement | null = null;
+// start, since the first dialog is opened from something focused before any dialog existed. A few
+// rather than one, because what opened a dialog can be gone by the time it closes: the palette's field,
+// after a command run from it asks a question.
+const outsideDialogs: HTMLElement[] = [];
 if (typeof document !== 'undefined') {
   document.addEventListener(
     'focusin',
     (event) => {
       const target = event.target as HTMLElement;
       if (target.closest('[aria-modal="true"]') === null) {
-        lastOutsideDialogs = target;
+        const at = outsideDialogs.indexOf(target);
+        if (at !== -1) {
+          outsideDialogs.splice(at, 1);
+        }
+        outsideDialogs.push(target);
+        if (outsideDialogs.length > 8) {
+          outsideDialogs.shift();
+        }
       }
     },
     true
@@ -211,21 +227,22 @@ if (typeof document !== 'undefined') {
  *
  * Opening puts the focus inside, on the first control, unless one of the dialog's own takes it with
  * autoFocus (ConfirmDialog's Cancel does); Tab and Shift-Tab go round inside; closing gives it back to
- * what had it before, if that is still there and nothing else has taken the focus. Escape stays with
+ * what had it before, or the last thing before that which is still there, unless something else has
+ * taken the focus. Escape stays with
  * `useDismissOnEscape`, which every dialog calls with its own idea of when it may be dismissed.
  *
  * Not native `<dialog>`: `showModal()` would put the dialog in the top layer, above the toasts that are
  * meant to stay above it, and a dialog's Escape there is the browser's rather than the dialog's.
  */
 export function useModalFocus() {
-  const opener = useRef<HTMLElement | null>(null);
+  const openers = useRef<HTMLElement[]>([]);
 
   const ref = useCallback((dialog: HTMLElement | null) => {
     if (dialog !== null) {
-      opener.current = lastOutsideDialogs;
+      openers.current = [...outsideDialogs];
       if (!dialog.contains(document.activeElement)) {
-        const first = dialog.querySelector<HTMLElement>(TABBABLE);
-        if (first !== null) {
+        const first = tabbable(dialog)[0];
+        if (first !== undefined) {
           first.focus();
         } else {
           dialog.tabIndex = -1;
@@ -234,10 +251,11 @@ export function useModalFocus() {
       }
       return;
     }
-    const back = opener.current;
-    opener.current = null;
+    const candidates = openers.current;
+    openers.current = [];
     requestAnimationFrame(() => {
-      if (document.activeElement === document.body && back?.isConnected) {
+      const back = candidates.findLast((element) => element.isConnected);
+      if (document.activeElement === document.body && back !== undefined) {
         back.focus();
       }
     });
@@ -247,7 +265,7 @@ export function useModalFocus() {
     if (event.key !== 'Tab') {
       return;
     }
-    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>(TABBABLE)];
+    const controls = tabbable(event.currentTarget);
     if (controls.length === 0) {
       event.preventDefault();
       return;

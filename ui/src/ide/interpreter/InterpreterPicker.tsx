@@ -87,6 +87,7 @@ export default function InterpreterPicker({
     } else if (event.key === 'ArrowUp') {
       setSelected((index) => Math.max(index - 1, 0));
     } else if (event.key === 'Enter' && shown[selected] !== undefined) {
+      event.preventDefault();
       pick(shown[selected]);
     }
   };

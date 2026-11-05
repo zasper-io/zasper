@@ -51,7 +51,10 @@ function focusIn(region: HTMLElement): void {
       return;
     }
   }
-  const first = [...region.querySelectorAll<HTMLElement>(TABBABLE)].find(isShown);
+  // Not a roving list's other items, which are buttons too: the tab strip's are -1 but the one in front.
+  const first = [...region.querySelectorAll<HTMLElement>(TABBABLE)].find(
+    (element) => element.tabIndex >= 0 && isShown(element)
+  );
   if (first) {
     first.focus();
     return;
