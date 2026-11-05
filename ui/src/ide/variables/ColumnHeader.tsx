@@ -224,6 +224,7 @@ export default function ColumnHeader(props: ColumnHeaderProps) {
   return (
     <th
       ref={header}
+      aria-sort={sorted === null ? undefined : sorted.descending ? 'descending' : 'ascending'}
       className={['dataGrid-column', sorted ? 'is-sorted' : '', dropping ? 'is-drop-target' : '']
         .filter(Boolean)
         .join(' ')}

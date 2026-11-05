@@ -67,7 +67,8 @@ import { useTelemetry } from '../telemetry';
 import { markSignedOut } from '../auth/signedIn';
 import SessionEndedNotice from '../auth/SessionEndedNotice';
 import ServerDisconnectedDialog from './ServerDisconnectedDialog';
-import { useRegionMemory } from './regions';
+import { focusRegionNamed, hasFocusIn, useRegionMemory } from './regions';
+import { ANNOUNCER_ID } from './announce';
 import { allowWidgetCdn } from './widgets/cdnLoader';
 
 function IDE() {
@@ -90,13 +91,22 @@ function IDE() {
   const sidebarRef = useRef<ImperativePanelHandle>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const toggleSidebar = useCallback(() => {
+  // `focus` for the keyboard's Mod-B, which goes to the sidebar it shows; the top bar's button keeps
+  // the focus, so a second press puts it away again.
+  const toggleSidebar = useCallback((focus = false) => {
     const sidebar = sidebarRef.current;
     if (sidebar === null) return;
     if (sidebar.isCollapsed()) {
       sidebar.expand();
+      if (focus) {
+        focusRegionNamed('sidebar');
+      }
     } else {
+      const hadFocus = hasFocusIn('sidebar');
       sidebar.collapse();
+      if (hadFocus) {
+        focusRegionNamed('editor');
+      }
     }
   }, []);
 
@@ -145,7 +155,12 @@ function IDE() {
       if (dockHasBeenOpen.current) dock.expand();
       else dock.resize(33);
     } else if (!dockOpen && !dock.isCollapsed()) {
+      // Hidden with the keyboard in it, the focus would drop to the page.
+      const hadFocus = hasFocusIn('dock');
       dock.collapse();
+      if (hadFocus) {
+        focusRegionNamed('editor');
+      }
     }
   }, [dockOpen]);
 
@@ -155,7 +170,22 @@ function IDE() {
         ...APP_COMMANDS['view:toggle-sidebar'],
         // Off mac this is Ctrl-B, which a shell reads as back-a-character.
         isEnabled: () => isMac || !terminalHasFocus(),
-        execute: toggleSidebar,
+        execute: () => toggleSidebar(true),
+      },
+      {
+        ...APP_COMMANDS['view:focus-explorer'],
+        execute: () => {
+          showPanel('fileBrowser');
+          focusRegionNamed('sidebar');
+        },
+      },
+      {
+        ...APP_COMMANDS['view:focus-terminal'],
+        isEnabled: () => terminalsAvailable,
+        execute: () => {
+          showTerminals();
+          focusRegionNamed('dock');
+        },
       },
       { ...APP_COMMANDS['view:settings'], execute: () => openSettings() },
       { ...APP_COMMANDS['data:add-connection'], execute: () => openConnectionDialog() },
@@ -299,7 +329,7 @@ function IDE() {
     <div className="editor">
       <Topbar
         sidebarOpen={sidebarOpen}
-        onToggleSidebar={toggleSidebar}
+        onToggleSidebar={() => toggleSidebar()}
         agentOpen={agentOpen}
         onToggleAgent={() => setAgentOpen((open) => !open)}
       />
@@ -404,6 +434,7 @@ function IDE() {
       {/* The IDE's only toast host. Until now the one container lived in Login, so every toast()
           raised from inside the IDE — a failed commit, a failed save — rendered nowhere at all. */}
       <ToastContainer position="bottom-right" autoClose={4000} newestOnTop />
+      <div id={ANNOUNCER_ID} className="z-visually-hidden" role="status" />
     </div>
   );
 }

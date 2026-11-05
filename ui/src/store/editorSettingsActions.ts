@@ -1,6 +1,7 @@
 import { atom, useAtomValue, useSetAtom } from 'jotai';
+import { toast } from 'react-toastify';
 
-import { EditorSettings, logApiError, saveEditorSettings } from '@/api';
+import { apiErrorMessage, EditorSettings, saveEditorSettings } from '@/api';
 
 import { editorSettingsAtom } from './settings';
 
@@ -9,7 +10,9 @@ import { editorSettingsAtom } from './settings';
 const changeEditorSettingsAtom = atom(null, (get, set, change: Partial<EditorSettings>) => {
   const next = { ...get(editorSettingsAtom), ...change };
   set(editorSettingsAtom, next);
-  saveEditorSettings(next).catch(logApiError('Error saving the editor settings:'));
+  saveEditorSettings(next).catch((error: unknown) => {
+    toast.error(`Could not save the editor settings: ${apiErrorMessage(error)}`);
+  });
 });
 
 /** The editor settings, and a change to some of them: applied at once, and saved whole. */

@@ -141,7 +141,7 @@ export default function SearchPanel({ hidden }: PanelProps) {
   return (
     <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
       <div className="content-head">
-        <div className="z-label">Search</div>
+        <h2 className="z-label">Search</h2>
         <span className="search-head-actions">
           <IconButton
             icon="refresh-cw"
@@ -164,6 +164,7 @@ export default function SearchPanel({ hidden }: PanelProps) {
         <IconButton
           icon={options.replacing ? 'chevron-down' : 'chevron-right'}
           label={options.replacing ? 'Hide replace' : 'Show replace'}
+          name="Show replace"
           expanded={options.replacing}
           onClick={() => change({ replacing: !options.replacing })}
         />

@@ -25,8 +25,9 @@ interface MenuItem {
    */
   group?: string;
   /**
-   * One of a set of alternatives, and the one that currently holds — a cell's type. Drawn with the
-   * row fill `.is-selected`, which is what the surface already uses for "this is the one".
+   * One of a set of alternatives — a cell's type — and whether it is the one that currently holds.
+   * Drawn with the row fill `.is-selected`, which is what the surface already uses for "this is the
+   * one". A row that sets it at all is a `menuitemradio`, so `false` is not the same as leaving it out.
    */
   selected?: boolean;
   /**
@@ -55,11 +56,20 @@ interface ContextMenuProps {
   yPos: number;
   items: MenuItem[];
   onClose: () => void;
+  /** The menu's accessible name: what it acts on, such as the file's name or "Cell 3". */
+  label: string;
   /** What the items act on, for the file tree. A menu of commands has none. */
   path?: string;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, path = '' }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({
+  xPos,
+  yPos,
+  items,
+  onClose,
+  label,
+  path = '',
+}) => {
   const menu = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: yPos, left: xPos });
 
@@ -111,7 +121,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
 
   return (
     <div className="z-overlay z-menu context-menu" ref={menu} style={position}>
-      <ul className="z-overlay-list" role="menu" {...menuKeys}>
+      <ul className="z-overlay-list" role="menu" aria-label={label} {...menuKeys}>
         {items.map((item, index) => (
           <React.Fragment key={index}>
             {index === firstApart && index > 0 && (
@@ -126,7 +136,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ xPos, yPos, items, onClose, p
             <li className={rowClassName(item)} role="none">
               <button
                 type="button"
-                role="menuitem"
+                role={item.selected === undefined ? 'menuitem' : 'menuitemradio'}
+                aria-checked={item.selected}
                 className="panel-row-name"
                 disabled={item.disabled === true}
                 onClick={() => handleClick(item.action)}

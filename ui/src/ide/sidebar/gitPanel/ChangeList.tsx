@@ -51,10 +51,11 @@ export default function ChangeList(props: ChangeListProps) {
 
   return (
     <>
-      <h2 className="z-label panel-section-head change-list-head">
-        <span>
+      {/* The heading is the title alone: around the buttons too, Stage all was part of its name. */}
+      <div className="z-label panel-section-head change-list-head">
+        <h3>
           {props.title} <span className="panel-section-count">{changes.length}</span>
-        </span>
+        </h3>
         <span className="panel-row-actions">
           {actions.map((action) => (
             <IconButton
@@ -68,7 +69,7 @@ export default function ChangeList(props: ChangeListProps) {
             />
           ))}
         </span>
-      </h2>
+      </div>
 
       <ul className="change-list z-list-plain noborder-list">
         {changes.map((change) => (

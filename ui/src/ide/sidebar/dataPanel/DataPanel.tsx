@@ -78,7 +78,7 @@ export default function DataPanel({ hidden }: PanelProps) {
   return (
     <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
       <div className="content-head">
-        <div className="z-label">Data</div>
+        <h2 className="z-label">Data</h2>
         <IconButton icon="plus" label="Add a connection" onClick={() => openConnectionDialog()} />
         <IconButton icon="refresh-cw" label="Refresh" onClick={() => setRefreshes((n) => n + 1)} />
       </div>
@@ -260,6 +260,7 @@ function ConnectionNode({
           xPos={menu.xPos}
           yPos={menu.yPos}
           items={menuItems}
+          label={connection.name}
           onClose={() => setMenu(null)}
         />
       )}

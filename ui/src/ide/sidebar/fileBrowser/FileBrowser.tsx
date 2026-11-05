@@ -3,6 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
+import { baseName } from '@/paths';
 import { terminalsAvailableAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import ContextMenu from '../contextMenu/ContextMenu';
@@ -108,7 +109,7 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
     <>
       <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
         <div className="content-head">
-          <div className="z-label">File explorer</div>
+          <h2 className="z-label">File explorer</h2>
           {/* The watcher misses whatever its exclusion list covers — anything with `test`, `dist`
               or `tmp` anywhere in its path — so there has to be a way to ask. */}
           <IconButton icon="refresh-cw" label="Refresh" onClick={() => refresh()} />
@@ -213,6 +214,7 @@ export default function FileBrowser({ hidden, reloadCount }: FileBrowserProps) {
           xPos={menuPosition.xPos}
           yPos={menuPosition.yPos}
           items={rootMenuItems}
+          label={baseName(root) || 'Project'}
           path={root}
           onClose={() => setMenuPosition(null)}
         />

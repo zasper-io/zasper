@@ -18,7 +18,7 @@ const checkForUpdates = vi.fn();
 vi.mock('@/api', () => ({
   modifyConfig: (key: string, value: string) => modifyConfig(key, value),
   saveEditorSettings: (settings: unknown) => modifyConfig('editor', JSON.stringify(settings)),
-  logApiError: () => () => {},
+
   getInterpreters: () => getInterpreters(),
   checkForUpdates: () => checkForUpdates(),
   apiErrorMessage: (error: unknown) => String(error),

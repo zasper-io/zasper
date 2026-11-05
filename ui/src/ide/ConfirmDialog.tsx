@@ -42,8 +42,9 @@ export default function ConfirmDialog(props: ConfirmDialogProps) {
     <div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} {...modal}>
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
-          <div className="modal-head" id={titleId}>
-            {title}
+          <div className="modal-head">
+            {/* The title alone names the dialog: the whole head would add "Close". */}
+            <span id={titleId}>{title}</span>
             <button
               type="button"
               className="z-icon-button on-chrome modal-btn-close"

@@ -91,7 +91,13 @@ export const NOTEBOOK_COMMANDS = defineCommands({
   'notebook:delete-cell': { ...NOTEBOOK, label: 'Delete Cell', keys: ['Ctrl-Shift-d'] },
   // The two answers to a cell that printed more than anyone wants to scroll past. `.inner-text`
   // caps the height of an output area; this pair is how you see all of it, or get rid of it.
-  'notebook:toggle-output-height': { ...NOTEBOOK, label: 'Expand or Collapse Output' },
+  // Command mode's, as JupyterLab's own Shift-O for output scrolling is: a bare letter in a cell's
+  // editor is typing.
+  'notebook:toggle-output-height': {
+    ...COMMAND_MODE,
+    label: 'Expand or Collapse Output',
+    keys: ['Shift-o'],
+  },
   'notebook:clear-cell-outputs': { ...NOTEBOOK, label: 'Clear Cell Output' },
   'notebook:clear-all-outputs': { ...NOTEBOOK, label: 'Clear All Outputs' },
   'notebook:cut-cell': { ...NOTEBOOK, label: 'Cut Cell' },

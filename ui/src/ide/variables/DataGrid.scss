@@ -54,7 +54,12 @@
 
   // With the keyboard in the grid, the selected cell is where its keys go, so it wears the app's ring;
   // the 1px accent above is under 3:1 against a dark cell.
-  .dataGrid-scroll:focus-visible td.is-selected {
+  // The table itself wears no ring: it is the selected cell's.
+  table.dataframe:focus-visible {
+    outline: none;
+  }
+
+  table.dataframe:focus-visible td.is-selected {
     outline: 2px solid var(--z-focus-ring);
     outline-offset: -2px;
   }

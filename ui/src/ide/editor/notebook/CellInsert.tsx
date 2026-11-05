@@ -41,7 +41,14 @@ function CellInsert(props: CellInsertProps) {
   const { addCellAt } = useNotebookEditor();
 
   return (
-    <div className={props.isEnd === true ? 'cell-insert is-end' : 'cell-insert'}>
+    // Named for where it adds, so "Code" down a notebook is not the same button every time.
+    <div
+      className={props.isEnd === true ? 'cell-insert is-end' : 'cell-insert'}
+      role="group"
+      aria-label={
+        props.isEnd === true ? 'Add a cell at the end' : `Add a cell before cell ${props.index + 1}`
+      }
+    >
       {KINDS.map(({ kind, label }) => (
         <button
           key={kind}

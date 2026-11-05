@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { search } from '@codemirror/search';
 import { EditorView } from '@codemirror/view';
 import { useAtom, useAtomValue } from 'jotai';
@@ -20,7 +20,9 @@ import DiskChangeBand from '../DiskChangeBand';
 import { CellConflict, CellHeld, NotebookDiskBand } from './DiskNotices';
 import { useNotebookDisk } from './useNotebookDisk';
 import { saveAs } from '@/browser';
+import { announce } from '@/ide/announce';
 import { Icon } from '@/ide/icons';
+import { baseName } from '@/paths';
 import { FileTab } from '@/store/tabState';
 import { useUnsavedChanges } from '@/store/unsavedState';
 import { useEditorSettings } from '@/store/editorSettingsActions';
@@ -605,7 +607,9 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     // A keystroke has nowhere to report a failed save, so it goes to the console; the close prompt
     // awaits the same promise and shows the reason instead.
     saveNotebook: () => {
-      saveNotebookToDisk().catch(logSaveFailure);
+      saveNotebookToDisk()
+        .then(() => announce(`Saved ${baseName(data.path)}`))
+        .catch(logSaveFailure);
     },
     openFind,
     toggleContents: () => setShowContents((shown) => !shown),
@@ -658,6 +662,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
     submitPrompt: useStableCallback(submitPrompt),
     toggleShowPrompt: useStableCallback(kernel.toggleShowPrompt),
   };
+  const cellHintId = useId();
   const cellContext = useMemo<NotebookEditorContextValue>(
     () => ({
       ...stable,
@@ -680,6 +685,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       widgets: kernel.widgets,
       kernelId: kernel.session?.kernel.id,
       notebookPath: data.path,
+      cellHintId,
     }),
     // `stable`'s members never change identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -703,6 +709,7 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
       kernel.widgets,
       kernel.session?.kernel.id,
       data.path,
+      cellHintId,
     ]
   );
 
@@ -773,6 +780,10 @@ export default function NotebookEditor({ data }: NotebookEditorProps) {
           <div className="z-visually-hidden" role="status">
             {announcement}
           </div>
+          <p id={cellHintId} hidden>
+            Escape leaves the cell. The arrows then move between cells, and F6 to the next part of
+            the window.
+          </p>
           <div className="notebook-split">
             <div className="notebook-body" ref={notebookBody}>
               {restartIntent !== null && (

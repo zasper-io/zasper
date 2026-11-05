@@ -9,7 +9,7 @@ const saveEditorSettings = vi.fn();
 
 vi.mock('@/api', () => ({
   saveEditorSettings: (settings: unknown) => saveEditorSettings(settings),
-  logApiError: () => () => {},
+  apiErrorMessage: (error: unknown) => String(error),
 }));
 
 describe('useEditorSettings', () => {

@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 // fixes /login, which rendered a ToastContainer in a chunk that carried none of this CSS.
 import 'react-toastify/dist/ReactToastify.css';
 import './styles/index.scss';
+import './toasts';
 import App from './App';
 import { applyTheme, storedTheme } from './themes';
 import { applyZoom, storedZoomLevel } from './zoom';

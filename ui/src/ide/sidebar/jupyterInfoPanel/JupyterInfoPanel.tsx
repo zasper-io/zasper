@@ -86,7 +86,7 @@ export default function JupyterInfoPanel({ hidden }: PanelProps) {
   return (
     <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
       <div className="content-head">
-        <div className="z-label">Jupyter info</div>
+        <h2 className="z-label">Jupyter info</h2>
         {/* The list is polled while the panel is open, but a shutdown from a terminal is worth being
             able to confirm without waiting for the next tick. */}
         <IconButton icon="refresh-cw" label="Refresh" onClick={refresh} />

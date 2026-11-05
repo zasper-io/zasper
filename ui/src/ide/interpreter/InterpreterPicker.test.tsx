@@ -45,7 +45,7 @@ describe('the interpreter picker', () => {
 
   it('lists automatic, saying what it means here, then every Python found', () => {
     renderIn(picker());
-    const rows = screen.getAllByRole('listitem').map((row) => row.textContent);
+    const rows = screen.getAllByRole('option').map((row) => row.textContent);
     expect(rows).toEqual([
       'Automaticthis project’s .venv · 3.12',
       'Python 3.12.venv · /p/.venv/bin/python3',
@@ -58,7 +58,7 @@ describe('the interpreter picker', () => {
     renderIn(picker(onClose));
     const field = screen.getByLabelText('Python');
     fireEvent.change(field, { target: { value: 'homebrew' } });
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getAllByRole('option')).toHaveLength(1);
 
     fireEvent.keyDown(field, { key: 'Enter' });
     expect(modifyConfig).toHaveBeenCalledWith('python_interpreter', '/opt/homebrew/bin/python3');
@@ -96,8 +96,8 @@ describe('the status bar item', () => {
     expect(item).toHaveTextContent('3.13 · Homebrew');
 
     fireEvent.click(item);
-    const list = screen.getByRole('list');
-    expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+    const list = screen.getByRole('listbox');
+    expect(within(list).getAllByRole('option')).toHaveLength(3);
   });
 
   it('says python3 when there is nothing chosen and no project environment', () => {

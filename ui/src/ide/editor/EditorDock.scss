@@ -17,6 +17,19 @@
   color: var(--z-fg-muted);
 }
 
+// What a tab shows, filling the rest of the dock as its list did before it had a pane.
+.editorDock-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+
+  // `display: flex` outranks the browser's own `[hidden] { display: none }`.
+  &[hidden] {
+    display: none;
+  }
+}
+
 .editorDock-tabs {
   display: flex;
   gap: 2px;

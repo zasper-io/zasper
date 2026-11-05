@@ -246,8 +246,8 @@ describe('FileBrowser', () => {
           vi.advanceTimersByTime(ROW_TOOLTIP_DELAY_MS);
         });
 
-        expect(screen.getAllByRole('tooltip')).toHaveLength(1);
-        expect(screen.getByRole('tooltip').textContent).toContain('src/main.py');
+        expect(screen.getAllByRole('tooltip', { hidden: true })).toHaveLength(1);
+        expect(screen.getByRole('tooltip', { hidden: true }).textContent).toContain('src/main.py');
       } finally {
         vi.useRealTimers();
       }
@@ -270,13 +270,13 @@ describe('FileBrowser', () => {
           await act(async () => {
             vi.advanceTimersByTime(1000);
           });
-          expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+          expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
         }
 
         await act(async () => {
           vi.advanceTimersByTime(ROW_TOOLTIP_DELAY_MS);
         });
-        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+        expect(screen.getByRole('tooltip', { hidden: true })).toBeInTheDocument();
       } finally {
         vi.useRealTimers();
       }
@@ -295,7 +295,7 @@ describe('FileBrowser', () => {
           vi.advanceTimersByTime(ROW_TOOLTIP_DELAY_MS);
         });
 
-        expect(screen.getByRole('tooltip')).toHaveClass('z-tooltip-oneline');
+        expect(screen.getByRole('tooltip', { hidden: true })).toHaveClass('z-tooltip-oneline');
       } finally {
         vi.useRealTimers();
       }
@@ -312,7 +312,7 @@ describe('FileBrowser', () => {
       fireEvent.focus(item);
 
       // The row's bottom edge plus the 4px gap, not the subtree's.
-      expect(screen.getByRole('tooltip')).toHaveStyle({ top: '34px' });
+      expect(screen.getByRole('tooltip', { hidden: true })).toHaveStyle({ top: '34px' });
     });
 
     it('says that an empty folder is empty rather than showing nothing', async () => {

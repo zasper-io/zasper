@@ -241,6 +241,12 @@
 .panelResizeHandle:focus-visible {
   background: var(--z-fg-accent);
   outline: none;
+
+  // Forced colours take the fill away, so the strip is drawn in the system's own selection colour.
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
 }
 
 // `.list-group-item` was here, giving Bootstrap's list rows the panel's surface. Nothing in the app

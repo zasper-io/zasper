@@ -55,6 +55,18 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
     },
   ];
 
+  const onTabKey = (event: React.KeyboardEvent) => {
+    const at = tabs.findIndex((each) => each.id === tab);
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (step === 0) {
+      return;
+    }
+    event.preventDefault();
+    const next = tabs[(at + step + tabs.length) % tabs.length].id;
+    setTab(next);
+    document.getElementById(`dock-tab-${next}`)?.focus();
+  };
+
   return (
     <section
       className="editorDock"
@@ -63,13 +75,18 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
       hidden={hidden}
     >
       <div className="editorDock-head">
-        <div className="editorDock-tabs" role="tablist" aria-label="Panel">
+        {/* As the editor's tab strip: one Tab stop, and Left and Right go along it. They bring the
+            tab forward as they go, since a list is cheap to show. */}
+        <div className="editorDock-tabs" role="tablist" aria-label="Panel" onKeyDown={onTabKey}>
           {tabs.map((each) => (
             <button
               key={each.id}
               type="button"
               role="tab"
+              id={`dock-tab-${each.id}`}
               aria-selected={tab === each.id}
+              aria-controls={`dock-panel-${each.id}`}
+              tabIndex={tab === each.id ? 0 : -1}
               className={tab === each.id ? 'editorDock-tab is-current' : 'editorDock-tab'}
               onClick={() => setTab(each.id)}
             >
@@ -94,16 +111,45 @@ export default function EditorDock({ hidden = false }: { hidden?: boolean }) {
         )}
         <IconButton icon="x" label="Close panel" onClick={() => setOpen(false)} />
       </div>
-      {tab === 'problems' && <ProblemsPanel />}
-      {tab === 'references' && <ReferencesList />}
-      {tab === 'variables' && <VariablesPanel />}
+      {tab === 'problems' && (
+        <DockPane id="problems">
+          <ProblemsPanel />
+        </DockPane>
+      )}
+      {tab === 'references' && (
+        <DockPane id="references">
+          <ReferencesList />
+        </DockPane>
+      )}
+      {tab === 'variables' && (
+        <DockPane id="variables">
+          <VariablesPanel />
+        </DockPane>
+      )}
       {/* Mounted whatever the panel is showing, and hidden rather than unmounted: a shell's life is its
           websocket, so switching to Problems and back would have handed you a new shell wearing the old
           one's name. `hidden`, not `display: none` on the pane, because xterm measures the element it is
           in and one with no layout box answers 100 pixels. */}
       {(tab === 'terminal' || Object.keys(terminals).length > 0) && (
-        <TerminalPanel hidden={tab !== 'terminal'} />
+        <DockPane id="terminal" hidden={tab !== 'terminal'}>
+          <TerminalPanel hidden={tab !== 'terminal'} />
+        </DockPane>
       )}
     </section>
+  );
+}
+
+/** The tab panel a dock tab controls. */
+function DockPane(props: { id: DockTab; hidden?: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      className="editorDock-pane"
+      role="tabpanel"
+      id={`dock-panel-${props.id}`}
+      aria-labelledby={`dock-tab-${props.id}`}
+      hidden={props.hidden}
+    >
+      {props.children}
+    </div>
   );
 }

@@ -3,7 +3,7 @@ import { useSetAtom } from 'jotai';
 
 import { zoomLevelAtom } from '@/zoom/atoms';
 import { clampZoomLevel } from '@/zoom';
-import { focusRegion } from '@/ide/regions';
+import { focusRegion, focusRegionNamed } from '@/ide/regions';
 import { defineCommands } from './define';
 import { Command } from './types';
 
@@ -34,6 +34,9 @@ export const APP_COMMANDS = defineCommands({
   // The way out of a terminal or an editor, which keep Tab for themselves. See ide/regions.ts.
   'view:next-region': { ...view, label: 'Focus Next Region', keys: ['F6'] },
   'view:previous-region': { ...view, label: 'Focus Previous Region', keys: ['Shift-F6'] },
+  'view:focus-explorer': { ...view, label: 'Focus File Explorer' },
+  'view:focus-editor': { ...view, label: 'Focus Editor' },
+  'view:focus-terminal': { ...view, label: 'Focus Terminal' },
   'data:add-connection': { category: 'Data', scope: 'app', label: 'Add a Data Connection' },
 });
 
@@ -60,6 +63,7 @@ export function useAppCommands(): Command[] {
       { ...APP_COMMANDS['view:zoom-reset'], execute: () => setZoomLevel(0) },
       { ...APP_COMMANDS['view:next-region'], execute: () => focusRegion(1) },
       { ...APP_COMMANDS['view:previous-region'], execute: () => focusRegion(-1) },
+      { ...APP_COMMANDS['view:focus-editor'], execute: () => focusRegionNamed('editor') },
     ],
     [setZoomLevel]
   );

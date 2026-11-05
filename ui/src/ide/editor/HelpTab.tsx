@@ -56,12 +56,35 @@ export default function HelpTab({ data }: HelpTabProps) {
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
+        {query.trim() === '' && <GettingAround />}
         <Shortcuts query={query} />
         <section ref={about} className="help-about" aria-label="About Zasper">
           <About />
         </section>
       </div>
     </div>
+  );
+}
+
+/**
+ * The two ways out that the list cannot say, since neither is one command: a terminal and a code cell
+ * keep Tab for themselves, so from inside one the keyboard otherwise has nowhere to go.
+ */
+function GettingAround() {
+  return (
+    <section className="help-around" aria-label="Getting around">
+      <h3 className="z-label help-group">Getting around</h3>
+      <p>
+        <kbd className="help-key">F6</kbd> and <kbd className="help-key">Shift</kbd>
+        <kbd className="help-key">F6</kbd> move to the next or previous part of the window — the
+        editor, the terminal, the agent, the rail and the sidebar — from anywhere, a terminal
+        included.
+      </p>
+      <p>
+        In a notebook, <kbd className="help-key">Esc</kbd> leaves a cell for the notebook, where the
+        arrows go from cell to cell and <kbd className="help-key">Enter</kbd> goes back into one.
+      </p>
+    </section>
   );
 }
 

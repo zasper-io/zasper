@@ -301,6 +301,19 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
     },
     ...(
       [
+        ['tab:next', 1],
+        ['tab:previous', -1],
+      ] as const
+    ).map(([id, step]) => ({
+      ...TAB_COMMANDS[id],
+      isEnabled: () => order.length > 1,
+      execute: () => {
+        const at = order.indexOf(activePath);
+        activateTab(order[(at + step + order.length) % order.length]);
+      },
+    })),
+    ...(
+      [
         ['tab:move-left', -1],
         ['tab:move-right', 1],
       ] as const
@@ -431,6 +444,7 @@ export default function TabIndex({ onShowFileBrowser }: TabIndexProps) {
           xPos={menu.xPos}
           yPos={menu.yPos}
           items={menuItems(menu.key)}
+          label={fileTabsState[menu.key].name}
           onClose={() => setMenu(null)}
         />
       )}

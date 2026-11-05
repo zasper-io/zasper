@@ -7,6 +7,7 @@ import { useTooltip } from '@/ide/overlays';
 import Tooltip from '@/ide/Tooltip';
 import ContextMenu from '@/ide/sidebar/contextMenu/ContextMenu';
 import KernelStatusDot, { kernelStatusWord } from '@/ide/KernelStatusDot';
+import { useToolbarKeys } from '@/ide/useToolbarKeys';
 
 interface NbButtonsProps {
   /** Dispatches a command by id — see notebookCommands.ts for the ids. */
@@ -88,6 +89,7 @@ function NbButtons(props: NbButtonsProps) {
   const isEnabled = useCommandEnabled();
   const exportButton = useRef<HTMLButtonElement>(null);
   const [menuAt, setMenuAt] = useState<{ xPos: number; yPos: number } | null>(null);
+  const toolbar = useToolbarKeys();
 
   // Off the button's own box rather than the pointer, as CellButtons does: this menu opens from a
   // control, so it has to land in the same place when the button is reached by keyboard. Right-
@@ -114,7 +116,7 @@ function NbButtons(props: NbButtonsProps) {
   ];
 
   return (
-    <div className="text-editor-tool">
+    <div className="text-editor-tool" aria-label="Notebook" {...toolbar}>
       {TOOLBAR_GROUPS.map((group, index) => (
         <React.Fragment key={group[0].id}>
           {index > 0 && <span className="sep" />}
@@ -206,6 +208,7 @@ function NbButtons(props: NbButtonsProps) {
           xPos={menuAt.xPos}
           yPos={menuAt.yPos}
           items={exportItems}
+          label="Export"
           onClose={() => setMenuAt(null)}
         />
       )}

@@ -40,6 +40,7 @@ import { lineDiff } from '@/ide/editor/notebookDiff/cellDiff';
 import { relativeDate } from '@/ide/sidebar/dates';
 import { ChatItem, PlanEntry, terminalText, ToolCall, ToolDiff } from './chatLog';
 import { useAgentChat } from './useAgentChat';
+import { useChatAnnouncer } from './useChatAnnouncer';
 import './AgentPanel.scss';
 
 const MarkdownRenderer = lazy(() => import('@/ide/editor/notebook/MarkdownRenderer'));
@@ -419,6 +420,7 @@ function Picker(props: {
 
 function Conversation({ chat }: { chat: AgentChat }) {
   const { view, connected, prompt, cancel, answer, setMode } = useAgentChat(chat.id);
+  const announcement = useChatAnnouncer(view);
   const [draft, setDraft] = useState('');
   const [mentions, setMentions] = useAtom(composerMentionsAtom);
   const [picking, setPicking] = useState<string | null>(null);
@@ -483,7 +485,10 @@ function Conversation({ chat }: { chat: AgentChat }) {
           <option value="all">Allow edits and commands</option>
         </select>
       </div>
-      <div className="agentChat" aria-live="polite">
+      <div className="z-visually-hidden" role="status">
+        {announcement}
+      </div>
+      <div className="agentChat">
         {view.items.map((item, index) => (
           <Item chatId={chat.id} key={index} item={item} onAnswer={answer} />
         ))}

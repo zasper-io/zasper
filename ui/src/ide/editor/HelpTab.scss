@@ -54,6 +54,12 @@
   }
 }
 
+// Prose, at the rows' inset, on the editor's surface.
+.help-around p {
+  margin: 4px 16px 0;
+  line-height: 1.6;
+}
+
 // `.z-note` has no side padding, and the measure does not indent.
 .help-empty {
   padding: 0 16px;

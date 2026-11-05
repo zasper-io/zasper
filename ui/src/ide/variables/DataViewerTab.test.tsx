@@ -135,12 +135,15 @@ describe('DataViewerTab', () => {
     const { container } = renderTab();
     fireEvent.click(await screen.findByText('row 3'));
 
-    const scroller = container.querySelector('.dataGrid-scroll') as HTMLElement;
-    fireEvent.keyDown(scroller, { key: 'ArrowRight' });
-    fireEvent.keyDown(scroller, { key: 'ArrowUp' });
+    const grid = screen.getByRole('grid');
+    fireEvent.keyDown(grid, { key: 'ArrowRight' });
+    fireEvent.keyDown(grid, { key: 'ArrowUp' });
     expect(container.querySelector('td.is-selected')?.textContent).toBe('row 2');
+    // What a screen reader is told is the selected cell, since the focus stays on the grid.
+    const active = grid.getAttribute('aria-activedescendant') ?? '';
+    expect(container.ownerDocument.getElementById(active)?.textContent).toBe('row 2');
 
-    fireEvent.keyDown(scroller, { key: 'c', metaKey: true });
+    fireEvent.keyDown(grid, { key: 'c', metaKey: true });
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('row 2'));
   });
 
@@ -222,7 +225,7 @@ describe('DataViewerTab', () => {
     const { container } = renderTab();
     await screen.findByText('row 1');
 
-    act(() => (container.querySelector('.dataGrid-scroll') as HTMLElement).focus());
+    act(() => screen.getByRole('grid').focus());
 
     expect(container.querySelector('td.is-selected')?.textContent).toBe('0');
   });

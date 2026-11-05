@@ -186,8 +186,12 @@ describe('useNotebookCommands', () => {
   });
 
   // Shift plus a letter is a character someone is trying to type, so it can never be a binding.
+  // Except in command mode, which fires only while a cell's box holds the keyboard, never in its editor.
   it('never binds a chord that is just a shifted character', () => {
     for (const command of build().commands) {
+      if (command.scope === 'command-mode') {
+        continue;
+      }
       for (const binding of command.keys ?? []) {
         const chord = parseChord(binding);
         const typable = chord.key.length === 1 && !chord.meta && !chord.ctrl && !chord.alt;
@@ -335,6 +339,7 @@ describe('useNotebookCommands', () => {
       'notebook:select-next-cell',
       'notebook:select-previous-cell',
       'notebook:edit-cell',
+      'notebook:toggle-output-height',
     ];
     for (const id of commandMode) {
       expect(byId(commands, id).scope, id).toBe('command-mode');

@@ -52,6 +52,11 @@
         font-size: 12px;
         margin-left: 15px;
       }
+
+      // The panel's title, which is the heading its sections sit under.
+      h2 {
+        margin: 0;
+      }
     }
 
     // Identity, not a section label: this strip names the thing the panel is a view of,
@@ -662,8 +667,10 @@
 .search-file {
   padding-left: 8px;
 
-  .panel-section-count {
-    margin-left: 4px;
+  // At the row's right end, inside the button that is the row's name. Three classes, to beat the
+  // sidebar's own `.panel-section-count` margin.
+  .panel-row-name .panel-section-count {
+    margin-left: auto;
   }
 }
 

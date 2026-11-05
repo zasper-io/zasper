@@ -14,9 +14,8 @@ at that row's handlers too. Which is where the port found this family's only beh
 tree's own Escape stopped the event before the window ever saw it, so a delete confirmation could not
 be dismissed by keyboard at all (see useTreeKeys, which now leaves a dialog's and a menu's keys alone).
 
-There is no registry deciding which overlay is topmost. With eight dialogs and three menus the cases
-where two are open at once are countable, and the outer one steps back by passing `active: false` —
-BranchMenu does exactly that while its delete dialog is up.
+Escape goes to the overlay that became active last, and only to it: a tooltip on a dialog's button
+closes before the dialog does, and a second press closes the dialog. Before, one press closed both.
 */
 import {
   FocusEventHandler,
@@ -30,14 +29,24 @@ import {
   useState,
 } from 'react';
 
+// Every active overlay's dismissal, oldest first. One window listener for all of them, so an overlay
+// added or removed while a press is being handled cannot lose that press.
+const escapeStack: { current: () => void }[] = [];
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      escapeStack[escapeStack.length - 1]?.current();
+    }
+  });
+}
+
 /**
- * Escape, while `active`. A dialog passes `false` while its write is in flight: the request has already
- * gone, and taking the dialog away would only hide the thing it is waiting for.
+ * Escape, while `active`, if this is the overlay that became active last. A dialog passes `false` while
+ * its write is in flight: the request has already gone, and taking the dialog away would only hide the
+ * thing it is waiting for. An outer overlay that passes `false` steps out of the stack, so the one
+ * under it gets the press.
  *
- * The callback is read through a ref, so a caller passing a new one every render keeps one listener.
- * Re-adding it each render lost an Escape: a row's tooltip listened first, its hiding re-rendered the
- * row and swapped the row's menu listener out mid-dispatch, and a listener removed during a dispatch is
- * not called — so a menu opened from the keyboard took two presses to close.
+ * The callback is read through a ref, so a caller passing a new one every render keeps its place.
  */
 export function useDismissOnEscape(onDismiss: () => void, active = true): void {
   const latest = useRef(onDismiss);
@@ -49,13 +58,11 @@ export function useDismissOnEscape(onDismiss: () => void, active = true): void {
     if (!active) {
       return;
     }
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        latest.current();
-      }
+    const entry = latest;
+    escapeStack.push(entry);
+    return () => {
+      escapeStack.splice(escapeStack.lastIndexOf(entry), 1);
     };
-    window.addEventListener('keydown', dismiss);
-    return () => window.removeEventListener('keydown', dismiss);
   }, [active]);
 }
 

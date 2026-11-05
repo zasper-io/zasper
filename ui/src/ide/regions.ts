@@ -78,6 +78,24 @@ export function focusRegion(step: 1 | -1): void {
   focusIn(shown[(next + shown.length) % shown.length]);
 }
 
+/**
+ * Moves the focus into the region `name`, once it is on screen: what has just shown it, such as the
+ * sidebar's toggle, has not been drawn yet. Nothing happens if it never shows.
+ */
+export function focusRegionNamed(name: Region): void {
+  requestAnimationFrame(() => {
+    const region = regionElement(name);
+    if (region !== null && isShown(region)) {
+      focusIn(region);
+    }
+  });
+}
+
+/** Whether the focus is in the region `name`, so that hiding it would drop the focus to the page. */
+export function hasFocusIn(name: Region): boolean {
+  return document.activeElement?.closest(`[data-region="${name}"]`) != null;
+}
+
 /** Remembers, per region, what last had the focus in it. Mounted once, in IDE.tsx. */
 export function useRegionMemory(): void {
   useEffect(() => {

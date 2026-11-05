@@ -15,6 +15,8 @@ interface CellButtonsProps {
   run: (id: string) => void;
   /** The cell's type, so the menu can mark which of the three it currently is. */
   cellType: NotebookCell['cell_type'];
+  /** The cell's place in the notebook, from 0, which names the bar and its menu. */
+  index: number;
   /**
    * Whether this is the cell with the focus. Only its buttons are in the Tab order: three per cell down
    * a notebook was most of what Tab had to walk through, and arrowing to a cell brings its own in.
@@ -123,14 +125,16 @@ function CellButtons(props: CellButtonsProps) {
     group: entry.group,
     keys: chords.get(entry.id),
     // A cell is one of the three types; the row saying which one is not a thing to press again.
-    selected: entry.type !== undefined && entry.type === props.cellType,
+    selected: entry.type === undefined ? undefined : entry.type === props.cellType,
     disabled: !isEnabled(entry.id) || entry.type === props.cellType,
     danger: entry.danger,
     action: () => props.run(entry.id),
   }));
 
+  const name = `Cell ${props.index + 1}`;
   return (
-    <div className="cellOptions">
+    // Named, so the same Move Cell Up down a notebook says which cell it moves.
+    <div className="cellOptions" role="group" aria-label={`${name} actions`}>
       {CELL_BUTTONS.map((button) => (
         <IconButton
           key={button.id}
@@ -161,6 +165,7 @@ function CellButtons(props: CellButtonsProps) {
           xPos={menuAt.xPos}
           yPos={menuAt.yPos}
           items={items}
+          label={name}
           onClose={() => setMenuAt(null)}
         />
       )}

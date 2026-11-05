@@ -105,7 +105,7 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
   return (
     <div className={hidden ? 'nav-content is-hidden' : 'nav-content'}>
       <div className="content-head">
-        <div className="z-label">Source control</div>
+        <h2 className="z-label">Source control</h2>
         <div className="git-head-actions">
           <IconButton
             icon="refresh-cw"
@@ -256,7 +256,7 @@ export default function GitPanel({ hidden, reveal }: GitPanelProps) {
           </>
         )}
 
-        <h2 className="z-label panel-section-head">History</h2>
+        <h3 className="z-label panel-section-head">History</h3>
         <div className="panel-section-body">
           <History hidden={hidden} reloadKey={historyKey} />
         </div>

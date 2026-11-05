@@ -9,7 +9,6 @@ import {
   forgetTrustedFolder,
   getLanguageServers,
   LanguageServerSettings,
-  logApiError,
   modifyConfig,
   setTrustAll,
   TrustState,
@@ -29,6 +28,13 @@ import { FileTab } from '@/store/tabState';
 import { setEnabled, track } from '@/telemetry';
 import { themes } from '@/themes';
 import './SettingsTab.scss';
+
+/** A failed request, said where the change was made rather than in the console, where nobody looks. */
+function reportFailure(what: string) {
+  return (error: unknown) => {
+    toast.error(`${what}: ${apiErrorMessage(error)}`);
+  };
+}
 
 const TAB_SIZES = [2, 4, 8];
 
@@ -93,7 +99,9 @@ export default function SettingsTab({ data }: SettingsTabProps) {
                 <label className="settings-tab-name" htmlFor={setting.id}>
                   {setting.name}
                 </label>
-                <p className="z-form-help">{setting.help}</p>
+                <p className="z-form-help" id={`${setting.id}-help`}>
+                  {setting.help}
+                </p>
               </div>
               {setting.control}
             </div>
@@ -157,12 +165,12 @@ function useSettings(openDataPanel: () => void): Setting[] {
             : list.servers.map((server) => server.language);
         restarted.forEach(restartLanguageServer);
       })
-      .catch(logApiError('Error saving the language server settings:'));
+      .catch(reportFailure('Could not save the language server settings'));
   };
 
   const changeTheme = (id: string) => {
     setTheme(id);
-    modifyConfig('theme', id).catch(logApiError('Error saving theme:'));
+    modifyConfig('theme', id).catch(reportFailure('Could not save the theme'));
     track('theme_changed', { theme_id: id });
   };
 
@@ -176,27 +184,27 @@ function useSettings(openDataPanel: () => void): Setting[] {
         setEnabled(settings.enabled);
         setTelemetry(settings);
       })
-      .catch(logApiError('Error saving the usage data setting:'));
+      .catch(reportFailure('Could not save the usage data setting'));
   };
 
   const resetTrackingId = () => {
     setTelemetrySettings({ reset_id: true })
       .then(() => toast.success('A new anonymous ID was generated.'))
-      .catch(logApiError('Error resetting the anonymous ID:'));
+      .catch(reportFailure('Could not reset the anonymous ID'));
   };
 
   const checkNow = () => {
     setChecking(true);
     checkForUpdates()
       .then(setUpdates)
-      .catch(logApiError('Error checking for updates:'))
+      .catch(reportFailure('Could not check for updates'))
       .finally(() => setChecking(false));
   };
 
   const changeWidgetCdn = (allowed: boolean) => {
     setWidgetCdn(allowed);
     modifyConfig('widget_cdn', allowed ? 'on' : 'off').catch(
-      logApiError('Error saving the widget setting:')
+      reportFailure('Could not save the widget setting')
     );
   };
 
@@ -214,7 +222,12 @@ function useSettings(openDataPanel: () => void): Setting[] {
       words: themes.map((option) => option.label).join(' '),
       control: (
         <div className="z-select">
-          <select id="settings-theme" value={theme} onChange={(e) => changeTheme(e.target.value)}>
+          <select
+            id="settings-theme"
+            aria-describedby="settings-theme-help"
+            value={theme}
+            onChange={(e) => changeTheme(e.target.value)}
+          >
             {themes.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.label}
@@ -233,6 +246,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <CommittedField
           id="settings-font-size"
+          aria-describedby="settings-font-size-help"
           shown={String(editor.font_size)}
           parse={parseFontSize}
           onCommit={(font_size) => changeEditor({ font_size })}
@@ -249,6 +263,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
         <div className="z-select">
           <select
             id="settings-tab-size"
+            aria-describedby="settings-tab-size-help"
             value={editor.tab_size}
             onChange={(e) => changeEditor({ tab_size: Number(e.target.value) })}
           >
@@ -271,6 +286,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
         <div className="z-select">
           <select
             id="settings-indent-with"
+            aria-describedby="settings-indent-with-help"
             value={editor.indent_with_tabs ? 'tabs' : 'spaces'}
             onChange={(e) => changeEditor({ indent_with_tabs: e.target.value === 'tabs' })}
           >
@@ -289,6 +305,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-word-wrap"
+          aria-describedby="settings-word-wrap-help"
           checked={editor.word_wrap}
           onChange={(word_wrap) => changeEditor({ word_wrap })}
         />
@@ -303,6 +320,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-line-numbers"
+          aria-describedby="settings-line-numbers-help"
           checked={editor.line_numbers}
           onChange={(line_numbers) => changeEditor({ line_numbers })}
         />
@@ -317,6 +335,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-show-whitespace"
+          aria-describedby="settings-show-whitespace-help"
           checked={editor.show_whitespace}
           onChange={(show_whitespace) => changeEditor({ show_whitespace })}
         />
@@ -331,6 +350,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <CommittedField
           id="settings-rulers"
+          aria-describedby="settings-rulers-help"
           shown={editor.rulers.join(', ')}
           parse={parseRulers}
           onCommit={(rulers) => changeEditor({ rulers })}
@@ -346,6 +366,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-trim-whitespace"
+          aria-describedby="settings-trim-whitespace-help"
           checked={editor.trim_trailing_whitespace}
           onChange={(trim_trailing_whitespace) => changeEditor({ trim_trailing_whitespace })}
         />
@@ -360,6 +381,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-final-newline"
+          aria-describedby="settings-final-newline-help"
           checked={editor.insert_final_newline}
           onChange={(insert_final_newline) => changeEditor({ insert_final_newline })}
         />
@@ -374,6 +396,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-auto-save"
+          aria-describedby="settings-auto-save-help"
           checked={editor.auto_save}
           onChange={(auto_save) => changeEditor({ auto_save })}
         />
@@ -388,6 +411,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-format-on-save"
+          aria-describedby="settings-format-on-save-help"
           checked={editor.format_on_save}
           onChange={(format_on_save) => changeEditor({ format_on_save })}
         />
@@ -402,6 +426,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-inlay-hints"
+          aria-describedby="settings-inlay-hints-help"
           checked={editor.inlay_hints}
           onChange={(inlay_hints) => changeEditor({ inlay_hints })}
         />
@@ -417,6 +442,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
         <div className="z-select">
           <select
             id="settings-keymap"
+            aria-describedby="settings-keymap-help"
             value={editor.keymap}
             onChange={(e) => changeEditor({ keymap: e.target.value as EditorSettings['keymap'] })}
           >
@@ -436,6 +462,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-notebook-contents"
+          aria-describedby="settings-notebook-contents-help"
           checked={editor.notebook_contents}
           onChange={(notebook_contents) => changeEditor({ notebook_contents })}
         />
@@ -450,6 +477,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-cell-tab-indents"
+          aria-describedby="settings-cell-tab-indents-help"
           checked={editor.cell_tab_indents}
           onChange={(cell_tab_indents) => changeEditor({ cell_tab_indents })}
         />
@@ -464,6 +492,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-record-timing"
+          aria-describedby="settings-record-timing-help"
           checked={editor.record_timing}
           onChange={(record_timing) => changeEditor({ record_timing })}
         />
@@ -478,6 +507,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <Checkbox
           id="settings-terminal-screen-reader"
+          aria-describedby="settings-terminal-screen-reader-help"
           checked={editor.terminal_screen_reader}
           onChange={(terminal_screen_reader) => changeEditor({ terminal_screen_reader })}
         />
@@ -506,6 +536,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
               <div className="z-select">
                 <select
                   id="settings-python-interpreter"
+                  aria-describedby="settings-python-interpreter-help"
                   value={interpreters.chosen}
                   onChange={(event) => choosePython(event.target.value)}
                 >
@@ -541,6 +572,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
             control: (
               <Checkbox
                 id="settings-language-servers"
+                aria-describedby="settings-language-servers-help"
                 checked={servers.enabled}
                 onChange={(enabled) => changeServers({ enabled })}
               />
@@ -556,6 +588,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
               <div className="z-select">
                 <select
                   id="settings-type-checking"
+                  aria-describedby="settings-type-checking-help"
                   value={servers.typeChecking || DEFAULT_TYPE_CHECKING}
                   onChange={(event) => changeServers({ typeChecking: event.target.value })}
                 >
@@ -620,7 +653,12 @@ function useSettings(openDataPanel: () => void): Setting[] {
       ),
       words: 'telemetry counts file names paths code privacy.md event',
       control: (
-        <Checkbox id="settings-telemetry" checked={telemetry.enabled} onChange={changeTelemetry} />
+        <Checkbox
+          id="settings-telemetry"
+          aria-describedby="settings-telemetry-help"
+          checked={telemetry.enabled}
+          onChange={changeTelemetry}
+        />
       ),
     },
     {
@@ -632,6 +670,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
       control: (
         <button
           id="settings-reset-id"
+          aria-describedby="settings-reset-id-help"
           type="button"
           className="z-button z-button-secondary"
           onClick={resetTrackingId}
@@ -646,7 +685,14 @@ function useSettings(openDataPanel: () => void): Setting[] {
       name: 'Load widget libraries from the internet',
       help: 'Widgets from outside ipywidgets, such as bqplot or ipyleaflet, get their code from cdn.jsdelivr.net. Turned off, those widgets are not shown.',
       words: 'cdn jsdelivr ipywidgets bqplot ipyleaflet',
-      control: <Checkbox id="settings-widget-cdn" checked={widgetCdn} onChange={changeWidgetCdn} />,
+      control: (
+        <Checkbox
+          id="settings-widget-cdn"
+          aria-describedby="settings-widget-cdn-help"
+          checked={widgetCdn}
+          onChange={changeWidgetCdn}
+        />
+      ),
     },
     ...connectionSettings(openDataPanel),
     ...trustSettings(trust, askTrust, changeTrust),
@@ -672,6 +718,7 @@ function useSettings(openDataPanel: () => void): Setting[] {
         updates?.checks === false ? null : (
           <button
             id="settings-check-updates"
+            aria-describedby="settings-check-updates-help"
             type="button"
             className="z-button z-button-secondary"
             aria-label="Check for updates"
@@ -698,6 +745,7 @@ function connectionSettings(openDataPanel: () => void): Setting[] {
       control: (
         <button
           id="settings-connections"
+          aria-describedby="settings-connections-help"
           type="button"
           className="z-button z-button-secondary"
           onClick={openDataPanel}
@@ -748,6 +796,7 @@ function trustSettings(
     control: trust.trusted ? null : (
       <button
         id="settings-trust-folder"
+        aria-describedby="settings-trust-folder-help"
         type="button"
         className="z-button"
         onClick={() => askTrust({ reason: 'open' })}
@@ -787,6 +836,7 @@ function trustSettings(
     control: (
       <Checkbox
         id="settings-trust-all"
+        aria-describedby="settings-trust-all-help"
         checked={trust.trust_all || trust.env}
         onChange={(checked) => change(() => setTrustAll(checked), 'Could not change the setting')}
       />
@@ -795,11 +845,17 @@ function trustSettings(
   return [folder, ...folders, all];
 }
 
-function Checkbox(props: { id: string; checked: boolean; onChange: (checked: boolean) => void }) {
+function Checkbox(props: {
+  id: string;
+  'aria-describedby'?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
   return (
     <label className="z-checkbox">
       <input
         id={props.id}
+        aria-describedby={props['aria-describedby']}
         type="checkbox"
         checked={props.checked}
         onChange={(event) => props.onChange(event.target.checked)}
@@ -810,6 +866,7 @@ function Checkbox(props: { id: string; checked: boolean; onChange: (checked: boo
 
 interface CommittedFieldProps<T> {
   id: string;
+  'aria-describedby'?: string;
   shown: string;
   placeholder?: string;
   className?: string;
@@ -821,6 +878,7 @@ interface CommittedFieldProps<T> {
 /** Saved on Enter or on leaving the field, not per keystroke: `1` on the way to `14` is not a size. */
 function CommittedField<T>({
   id,
+  'aria-describedby': describedBy,
   shown,
   placeholder,
   className,
@@ -843,6 +901,7 @@ function CommittedField<T>({
   return (
     <input
       id={id}
+      aria-describedby={describedBy}
       className={className === undefined ? 'z-field' : `z-field ${className}`}
       type="text"
       placeholder={placeholder}

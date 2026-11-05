@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
 
+import { isInside } from '@/paths';
+
 import { deleteRequestAtom, renameRequestAtom } from './atoms';
 import { useContentActions } from './useContentActions';
 import { useSelection } from './useSelection';
@@ -96,6 +98,27 @@ export interface RowDelete {
  * Deleting the rows an action applies to, which is never done without asking: there is no undo and no
  * trash. `path` is the row the dialog belongs to; `scope` is everything it would take.
  */
+/**
+ * The row the focus goes to once `scope` is deleted: the next one left in the tree, or the one before.
+ * Without it the focus went back to the row that had gone, which is the page.
+ */
+function rowAfterDelete(scope: string[]): HTMLElement | null {
+  const rows = [...document.querySelectorAll<HTMLElement>('[role="treeitem"][data-path]')];
+  const gone = (row: HTMLElement) => scope.some((path) => isInside(row.dataset.path ?? '', path));
+  const first = rows.findIndex(gone);
+  if (first === -1) {
+    return null;
+  }
+  return (
+    rows.slice(first).find((row) => !gone(row)) ??
+    rows
+      .slice(0, first)
+      .reverse()
+      .find((row) => !gone(row)) ??
+    null
+  );
+}
+
 export function useRowDelete(path: string, scope: string[]): RowDelete {
   const [asking, setAsking] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -119,10 +142,12 @@ export function useRowDelete(path: string, scope: string[]): RowDelete {
     cancel: () => setAsking(false),
     confirm: async () => {
       setDeleting(true);
+      const next = rowAfterDelete(scope);
       if (await remove(scope)) {
         // Nothing that was selected is still there to act on, and the rows have gone from the
         // listing, taking this component with them.
         selection.clear();
+        next?.focus();
         return;
       }
       setDeleting(false);

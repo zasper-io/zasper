@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
 
@@ -57,6 +57,14 @@ export default function LanguageStatus({ path, fileName }: LanguageStatusProps) 
     setSelected(0);
   }, [needle]);
 
+  // The combobox pattern, as the palette has it: the field keeps the focus and points at the row.
+  const listId = useId();
+  const optionId = (index: number) => `${listId}-${index}`;
+  useEffect(() => {
+    document.getElementById(optionId(selected))?.scrollIntoView?.({ block: 'nearest' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
   const choose = (name: string) => {
     setChosen((languages) => ({ ...languages, [path]: name }));
     close();
@@ -78,7 +86,7 @@ export default function LanguageStatus({ path, fileName }: LanguageStatusProps) 
         type="button"
         className="statusButton"
         aria-label={`Language: ${current}`}
-        aria-haspopup="menu"
+        aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
@@ -96,6 +104,11 @@ export default function LanguageStatus({ path, fileName }: LanguageStatusProps) 
             autoFocus
             placeholder="Filter languages"
             aria-label="Filter languages"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={shown.length > 0}
+            aria-controls={listId}
+            aria-activedescendant={shown[selected] === undefined ? undefined : optionId(selected)}
           />
           <div className="palette-list">
             <div className="z-overlay-group z-label">
@@ -107,10 +120,14 @@ export default function LanguageStatus({ path, fileName }: LanguageStatusProps) 
             {shown.length === 0 ? (
               <p className="z-note languagePicker-empty">No language matches “{query.trim()}”.</p>
             ) : (
-              <ul className="z-overlay-list">
+              <ul className="z-overlay-list" id={listId} role="listbox" aria-label="Language">
                 {shown.map((choice, index) => (
                   <li
                     key={choice.name}
+                    id={optionId(index)}
+                    role="option"
+                    aria-selected={index === selected}
+                    aria-current={choice.name === current}
                     className={index === selected ? 'panel-row is-selected' : 'panel-row'}
                     onClick={() => choose(choice.name)}
                   >

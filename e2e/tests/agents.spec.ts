@@ -39,7 +39,8 @@ test('an agent started from the panel changes a file, and the change is put back
 
   await field.fill('write');
   await field.press('Enter');
-  await expect(page.getByText('wrote notes.txt')).toBeVisible();
+  // In the transcript, and said again in the live region beside it once the turn is over.
+  await expect(page.locator('.agentChat').getByText('wrote notes.txt')).toBeVisible();
   await expect(page.getByText('1 file changed')).toBeVisible();
   expect(readFileSync(notes, 'utf8')).toBe('written by the agent\n');
 

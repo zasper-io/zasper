@@ -94,7 +94,7 @@ export function rowTooltip(name: string): string {
   const item = row(name).closest('li') as HTMLElement;
   item.focus();
   fireEvent.focusIn(item);
-  const text = screen.getByRole('tooltip').textContent ?? '';
+  const text = screen.getByRole('tooltip', { hidden: true }).textContent ?? '';
   fireEvent.focusOut(item);
   return text;
 }

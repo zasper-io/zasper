@@ -68,7 +68,10 @@ export default function CodeCell(props: CellProps) {
       cell.cell_type === 'code' && cell.execution_count !== -1 ? cell.execution_count : undefined
     )
   );
-  const editorName = useMemo(() => cellEditorName(props.index), [props.index]);
+  const editorName = useMemo(
+    () => cellEditorName(props.index, editor.cellHintId),
+    [props.index, editor.cellHintId]
+  );
   const [outputRef, outputScrolls] = useOverflows<HTMLDivElement>();
   const leaveCell = useLeaveCellKeymap(cell.id, false);
   // Taken once: @uiw/react-codemirror focuses the editor whenever `autoFocus` turns true, not only when
@@ -152,7 +155,12 @@ export default function CodeCell(props: CellProps) {
 
   return (
     <div {...box}>
-      <CellButtons run={editor.run} cellType={cell.cell_type} isFocused={isFocused} />
+      <CellButtons
+        run={editor.run}
+        cellType={cell.cell_type}
+        index={props.index}
+        isFocused={isFocused}
+      />
 
       <div className="inner-content">
         {/* The run button and the count, both always shown. While the kernel is on this cell the

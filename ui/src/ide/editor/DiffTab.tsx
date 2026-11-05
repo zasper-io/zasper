@@ -186,12 +186,14 @@ export default function DiffTab(props: DiffTabProps) {
               <IconButton
                 icon="image"
                 label={outputsOpen ? 'Close every output change' : 'Open every output change'}
+                name="Open every output change"
                 pressed={outputsOpen}
                 onClick={() => setOutputsOpen(!outputsOpen)}
               />
               <IconButton
                 icon="list-checks"
                 label={metadataOpen ? 'Close every metadata change' : 'Open every metadata change'}
+                name="Open every metadata change"
                 pressed={metadataOpen}
                 onClick={() => setMetadataOpen(!metadataOpen)}
               />

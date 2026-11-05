@@ -151,10 +151,14 @@ export function cellName(index: number, kind: string, count?: number | null): st
 
 /**
  * A cell's editor, named: CodeMirror's content is a textbox, and nine of them in a notebook were all
- * announced as "edit text". Memoized by the caller, since a new extension rebuilds the editor.
+ * announced as "edit text". Described by the notebook's one sentence on how to leave it, since Tab
+ * indents. Memoized by the caller, since a new extension rebuilds the editor.
  */
-export function cellEditorName(index: number) {
-  return EditorView.contentAttributes.of({ 'aria-label': `Source of cell ${index + 1}` });
+export function cellEditorName(index: number, hintId: string) {
+  return EditorView.contentAttributes.of({
+    'aria-label': `Source of cell ${index + 1}`,
+    'aria-describedby': hintId,
+  });
 }
 
 /**

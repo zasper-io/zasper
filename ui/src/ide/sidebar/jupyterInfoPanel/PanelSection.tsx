@@ -26,7 +26,7 @@ export default function PanelSection(props: PanelSectionProps) {
 
   return (
     <>
-      <h2 className="z-label panel-section-head">
+      <h3 className="z-label panel-section-head">
         <button
           type="button"
           className="panel-section-toggle"
@@ -45,7 +45,7 @@ export default function PanelSection(props: PanelSectionProps) {
             )}
           </span>
         </button>
-      </h2>
+      </h3>
       {open && children}
     </>
   );

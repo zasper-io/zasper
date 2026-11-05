@@ -152,6 +152,13 @@
   gap: 8px;
 }
 
+// The title, a heading inside the head beside its buttons, in the head's own type.
+.change-list-head h3 {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
 // The row, its name and its actions are `.panel-row*` in styles/_panel.scss: the Jupyter info panel
 // wants the same row, and a second copy of it is a second thing to keep in step. What stays here is
 // the part only a change has — git's letter.

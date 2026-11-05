@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 
 import {
@@ -113,6 +113,9 @@ export default function DataGrid(props: DataGridProps) {
   const [visible, setVisible] = useState(mode === 'tab');
   const root = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const grid = useRef<HTMLTableElement>(null);
+  const gridId = useId();
+  const cellId = (row: number, column: number) => `${gridId}-${row}-${column}`;
   // A tab's rows, by page, read as they scroll into view and let go of once far from it.
   const heldPages = useRef(new Map<number, { rows: RowsPage['rows']; index: string[] }>());
   const asked = useRef(new Set<number>());
@@ -345,7 +348,8 @@ export default function DataGrid(props: DataGridProps) {
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
-    if (selected === null || table === null) {
+    // A key on a header's own controls, such as the resize edge's arrows, is theirs.
+    if (selected === null || table === null || event.target !== event.currentTarget) {
       return;
     }
     // Text the reader selected with the pointer is the browser's to copy.
@@ -487,24 +491,36 @@ export default function DataGrid(props: DataGridProps) {
             className="dataGrid-scroll"
             ref={scroller}
             hidden={chart !== null}
-            // A Tab stop, and arriving by keyboard picks the first cell, so the arrows and Mod-C have a
-            // cell to start from; until now only a click could make one. Functional, because a click
-            // selects its cell and then focuses this, and that selection is the one to keep.
-            tabIndex={0}
-            onFocus={(event) => {
-              if (
-                event.target === event.currentTarget &&
-                event.currentTarget.matches(':focus-visible')
-              ) {
-                setSelected((current) => current ?? { row: 0, column: 0 });
-              }
-            }}
-            onKeyDown={onKeyDown}
             onScroll={mode === 'tab' ? onScroll : undefined}
           >
-            <table className="dataframe">
+            {/* The grid pattern: the table keeps the focus and says which cell is selected, so a
+                screen reader follows the arrows. A Tab stop, and arriving by keyboard picks the first
+                cell, so the arrows and Mod-C have a cell to start from. Functional, because a click
+                selects its cell and then focuses this, and that selection is the one to keep. The
+                counts are the whole table's, of which a tab draws only the rows in view. */}
+            <table
+              ref={grid}
+              className="dataframe"
+              role="grid"
+              aria-label={props.label}
+              aria-rowcount={(mode === 'cell' ? table.rows.length : table.matched_rows) + 1}
+              aria-colcount={shown.length + 1}
+              aria-activedescendant={
+                selected === null ? undefined : cellId(selected.row, selected.column)
+              }
+              tabIndex={0}
+              onFocus={(event) => {
+                if (
+                  event.target === event.currentTarget &&
+                  event.currentTarget.matches(':focus-visible')
+                ) {
+                  setSelected((current) => current ?? { row: 0, column: 0 });
+                }
+              }}
+              onKeyDown={onKeyDown}
+            >
               <thead>
-                <tr>
+                <tr aria-rowindex={1}>
                   <th />
                   {shown.map((index, place) => {
                     const column = table.columns[index];
@@ -558,7 +574,7 @@ export default function DataGrid(props: DataGridProps) {
                   const row = rowAt(rowIndex);
                   if (row === null) {
                     return (
-                      <tr key={rowIndex} className="dataGrid-pending">
+                      <tr key={rowIndex} className="dataGrid-pending" aria-rowindex={rowIndex + 2}>
                         <th>…</th>
                         <td colSpan={shown.length} />
                       </tr>
@@ -567,6 +583,7 @@ export default function DataGrid(props: DataGridProps) {
                   return (
                     <tr
                       key={rowIndex}
+                      aria-rowindex={rowIndex + 2}
                       ref={
                         rowIndex === firstInView && mode === 'tab'
                           ? (element) => {
@@ -599,12 +616,13 @@ export default function DataGrid(props: DataGridProps) {
                         return (
                           <td
                             key={columnIndex}
+                            id={cellId(rowIndex, columnIndex)}
                             className={classes || undefined}
                             style={sized}
                             aria-selected={isSelected || undefined}
                             onClick={() => {
                               setSelected({ row: rowIndex, column: columnIndex });
-                              scroller.current?.focus({ preventScroll: true });
+                              grid.current?.focus({ preventScroll: true });
                             }}
                           >
                             {typeof value === 'object' ? value.missing : displayValue(value)}

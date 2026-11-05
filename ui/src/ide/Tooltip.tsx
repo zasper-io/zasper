@@ -55,11 +55,15 @@ export default function Tooltip({ tip, label, oneLine = false }: TooltipProps) {
     return null;
   }
 
+  // Hidden from the tree, and still read: what it says reaches a screen reader as the anchor's
+  // description, which a hidden element can be. Drawn inside what it labels, it was otherwise part of
+  // that element's name too — a file's row said its size and date as its name.
   return (
     <div
       ref={box}
       id={tip.id}
       role="tooltip"
+      aria-hidden="true"
       className={oneLine ? 'z-overlay z-tooltip z-tooltip-oneline' : 'z-overlay z-tooltip'}
       style={at}
     >

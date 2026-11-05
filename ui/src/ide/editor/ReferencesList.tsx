@@ -86,22 +86,20 @@ export default function ReferencesList() {
         const folder = parentDirOf(file.path);
         return (
           <li key={file.path}>
-            <div
-              className="panel-row search-file"
-              role="button"
-              tabIndex={0}
-              aria-expanded={open}
-              title={file.path}
-              onClick={() => toggle(file.path)}
-              onKeyDown={(event) => event.key === 'Enter' && toggle(file.path)}
-            >
-              <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
-              <FileMark name={file.path} />
-              <span className="panel-row-name">
+            <div className="panel-row search-file">
+              <button
+                type="button"
+                className="panel-row-name"
+                title={file.path}
+                aria-expanded={open}
+                onClick={() => toggle(file.path)}
+              >
+                <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
+                <FileMark name={file.path} />
                 <span className="panel-row-label">{baseName(file.path)}</span>
                 {folder !== '' && <span className="panel-row-meta">{folder}</span>}
-              </span>
-              <span className="panel-section-count">{file.places.length}</span>
+                <span className="panel-section-count">{file.places.length}</span>
+              </button>
             </div>
             {open && (
               <ul>
@@ -109,15 +107,12 @@ export default function ReferencesList() {
                   const { lead, mark, tail } = pieces(place);
                   const where = `${place.line + 1}:${place.character + 1}`;
                   return (
-                    <li
-                      key={`${place.line}:${place.character}`}
-                      className="panel-row search-match"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => go(file, place)}
-                      onKeyDown={(event) => event.key === 'Enter' && go(file, place)}
-                    >
-                      <span className="panel-row-name">
+                    <li key={`${place.line}:${place.character}`} className="panel-row search-match">
+                      <button
+                        type="button"
+                        className="panel-row-name"
+                        onClick={() => go(file, place)}
+                      >
                         <span className="panel-row-label">
                           {lead}
                           <mark>{mark}</mark>
@@ -126,7 +121,7 @@ export default function ReferencesList() {
                         <span className="panel-row-meta">
                           {place.definition ? `${where} · definition` : where}
                         </span>
-                      </span>
+                      </button>
                     </li>
                   );
                 })}

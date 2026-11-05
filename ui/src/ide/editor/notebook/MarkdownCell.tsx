@@ -32,7 +32,10 @@ export default function MarkdownCell(props: CellProps) {
   const theme = useTheme();
   const { keepView } = useCellView(cell.id);
   const box = useCellBox(cell.id, isFocused, cellName(props.index, 'markdown'));
-  const editorName = useMemo(() => cellEditorName(props.index), [props.index]);
+  const editorName = useMemo(
+    () => cellEditorName(props.index, editor.cellHintId),
+    [props.index, editor.cellHintId]
+  );
   const leaveCell = useLeaveCellKeymap(cell.id, true);
 
   const cellId = cell.id;
@@ -54,7 +57,12 @@ export default function MarkdownCell(props: CellProps) {
 
   return (
     <div {...box}>
-      <CellButtons run={editor.run} cellType={cell.cell_type} isFocused={isFocused} />
+      <CellButtons
+        run={editor.run}
+        cellType={cell.cell_type}
+        index={props.index}
+        isFocused={isFocused}
+      />
       {isEditing ? (
         <div className="inner-content">
           {/* A markdown cell has no execution count, but it still needs the gutter a code cell's

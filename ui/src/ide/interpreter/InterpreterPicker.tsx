@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import './InterpreterPicker.scss';
 
@@ -66,6 +66,14 @@ export default function InterpreterPicker({
     }
   }, [needle]);
 
+  // The combobox pattern, as the palette has it: the field keeps the focus and points at the row.
+  const listId = useId();
+  const optionId = (index: number) => `${listId}-${index}`;
+  useEffect(() => {
+    document.getElementById(optionId(selected))?.scrollIntoView?.({ block: 'nearest' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
   const pick = (row: Row) => {
     if (row.path !== choice?.chosen) {
       choose(row.path);
@@ -94,16 +102,24 @@ export default function InterpreterPicker({
         autoFocus
         placeholder={placeholder}
         aria-label={placeholder}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={shown.length > 0}
+        aria-controls={listId}
+        aria-activedescendant={shown[selected] === undefined ? undefined : optionId(selected)}
       />
       <div className="palette-list">
         <div className="z-overlay-group z-label">
           <span>{title}</span>
           <span className="panel-section-count">{shown.length}</span>
         </div>
-        <ul className="z-overlay-list">
+        <ul className="z-overlay-list" id={listId} role="listbox" aria-label={title}>
           {shown.map((row, index) => (
             <li
               key={row.path}
+              id={optionId(index)}
+              role="option"
+              aria-selected={index === selected}
               className={index === selected ? 'panel-row is-selected' : 'panel-row'}
               aria-current={row.path === (choice?.chosen ?? '')}
               onClick={() => pick(row)}

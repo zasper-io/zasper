@@ -27,6 +27,7 @@ import {
   saveFile,
 } from '@/api';
 import { saveAs } from '@/browser';
+import { announce } from '@/ide/announce';
 import { Icon, IconName } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { useCommandEnabled, useRegisterCommands, useRunCommand } from '@/commands/registry';
@@ -295,12 +296,14 @@ export default function FileEditor(props: FileEditorProps) {
   const save = useRef(() => {});
   save.current = () => {
     if (canSave) {
-      saveFileToDisk().catch((failure: unknown) => {
-        // Said in the band, not the console.
-        if (!isSaveConflict(failure)) {
-          logApiError('Error saving file:')(failure);
-        }
-      });
+      saveFileToDisk()
+        .then(() => announce(`Saved ${name}`))
+        .catch((failure: unknown) => {
+          // Said in the band, not the console.
+          if (!isSaveConflict(failure)) {
+            logApiError('Error saving file:')(failure);
+          }
+        });
     }
   };
   const saveKeymap = useMemo(

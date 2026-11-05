@@ -20,6 +20,9 @@ export const TAB_COMMANDS = defineCommands({
   'tab:reopen': { ...TAB, label: 'Reopen Closed Tab', keys: ['Alt-Shift-t'] },
   'tab:copy-path': { ...TAB, label: 'Copy Path' },
   'tab:reveal': { ...TAB, label: 'Reveal in File Explorer' },
+  // A browser takes both chords before the page is asked, so they reach this only in the desktop app.
+  'tab:next': { ...TAB, label: 'Next Tab', keys: ['Ctrl-PageDown'] },
+  'tab:previous': { ...TAB, label: 'Previous Tab', keys: ['Ctrl-PageUp'] },
   // No chord: Alt-Shift with an arrow selects by word in every editor.
   'tab:move-left': { ...TAB, label: 'Move Tab Left' },
   'tab:move-right': { ...TAB, label: 'Move Tab Right' },

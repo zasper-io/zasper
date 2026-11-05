@@ -111,6 +111,8 @@ export default function Topbar({
     // A three-part flex row, not a 12-column grid: the two side groups flex equally, so the
     // search box is centred on the window rather than on whatever the columns leave.
     <header className="topBar">
+      {/* The page's one h1, which the panels' headings sit under; the wordmark beside it is a picture. */}
+      <h1 className="z-visually-hidden">Zasper</h1>
       <div className="topBar-side">
         {/* Not an <img>: which wordmark file to use depends on whether the topbar is
             dark or light, which comes from --z-logo so that no component has to branch

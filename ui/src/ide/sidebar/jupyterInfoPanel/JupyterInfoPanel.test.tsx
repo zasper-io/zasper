@@ -312,7 +312,7 @@ describe('JupyterInfoPanel', () => {
     const row = screen.getByText('Python 3').closest('button') as HTMLElement;
     row.focus();
     fireEvent.focusIn(row);
-    const tip = screen.getByRole('tooltip');
+    const tip = screen.getByRole('tooltip', { hidden: true });
     expect(tip).toHaveTextContent('src/demo.ipynb');
     expect(tip).toHaveTextContent('Kernel is idle');
     expect(tip).toHaveTextContent('1 client attached');
@@ -358,7 +358,7 @@ describe('JupyterInfoPanel', () => {
       .closest('button');
     (row as HTMLElement).focus();
     fireEvent.focusIn(row as HTMLElement);
-    const tip = screen.getByRole('tooltip');
+    const tip = screen.getByRole('tooltip', { hidden: true });
     expect(tip).toHaveTextContent('Memory 5.1 GB — the kernel and 4 processes it started');
     expect(tip).toHaveTextContent('GPU 0: 17.9 GB');
   });

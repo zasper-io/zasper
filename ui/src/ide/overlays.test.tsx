@@ -293,10 +293,10 @@ describe('useTooltip', () => {
 
     fireEvent.pointerEnter(anchor());
     settle(399);
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
 
     settle(1);
-    expect(screen.getByRole('tooltip')).toHaveTextContent('first line');
+    expect(screen.getByRole('tooltip', { hidden: true })).toHaveTextContent('first line');
   });
 
   // The half a native `title` never had: a pointer that pauses is asking a question, a keyboard
@@ -306,9 +306,11 @@ describe('useTooltip', () => {
 
     tabTo(anchor());
 
-    const tip = screen.getByRole('tooltip');
+    const tip = screen.getByRole('tooltip', { hidden: true });
     expect(tip).toHaveTextContent('second line');
     expect(anchor()).toHaveAttribute('aria-describedby', tip.id);
+    // Hidden from the tree, so it is no part of a name, and still the anchor's description.
+    expect(anchor()).toHaveAccessibleDescription(/second line/);
   });
 
   // Clicking a control focuses it too, and a box that opens on a click is in the way of whatever the
@@ -318,7 +320,7 @@ describe('useTooltip', () => {
 
     fireEvent.focusIn(anchor());
 
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
   });
 
   it('goes on the way out, and describes nothing once it has', () => {
@@ -327,7 +329,7 @@ describe('useTooltip', () => {
 
     fireEvent.blur(anchor());
 
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
     expect(anchor()).not.toHaveAttribute('aria-describedby');
   });
 
@@ -340,13 +342,13 @@ describe('useTooltip', () => {
     settle(200);
     fireEvent.pointerDown(anchor());
     settle(2000);
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
 
     // Leaving is what makes it a new question.
     fireEvent.pointerLeave(anchor());
     fireEvent.pointerEnter(anchor());
     settle(400);
-    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    expect(screen.getByRole('tooltip', { hidden: true })).toBeInTheDocument();
   });
 
   // The suppression above is the pointer's alone: a keyboard arriving on a control it just clicked is
@@ -358,7 +360,7 @@ describe('useTooltip', () => {
     fireEvent.pointerDown(anchor());
     tabTo(anchor());
 
-    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    expect(screen.getByRole('tooltip', { hidden: true })).toBeInTheDocument();
   });
 
   // Nothing is dragged out of a tooltip, so a pointer leaving before the delay is up is a pointer that
@@ -371,7 +373,7 @@ describe('useTooltip', () => {
     fireEvent.pointerLeave(anchor());
     settle(400);
 
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
   });
 
   // The family's rule, reaching the one member that is not a surface.
@@ -381,7 +383,7 @@ describe('useTooltip', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
 
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
   });
 
   // It is placed against a box measured when it opened, so a panel scrolling under it leaves it
@@ -392,7 +394,7 @@ describe('useTooltip', () => {
 
     fireEvent.scroll(window);
 
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
   });
 
   it('stands down while inactive', () => {
@@ -402,6 +404,6 @@ describe('useTooltip', () => {
     fireEvent.pointerEnter(anchor());
     settle(400);
 
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
   });
 });

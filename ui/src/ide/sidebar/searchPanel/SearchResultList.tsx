@@ -26,13 +26,6 @@ function baseOf(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
 }
 
-function stop(action: () => void) {
-  return (event: React.MouseEvent) => {
-    event.stopPropagation();
-    action();
-  };
-}
-
 /** Where a notebook row is, which says as much about the row as its text: `cell 3`, or `output 3`. */
 function whereIn(line: SearchLine): string {
   if (line.cell === undefined) {
@@ -73,34 +66,34 @@ export default function SearchResultList(props: SearchResultListProps) {
 
         return (
           <li key={file.path}>
-            <div
-              className="panel-row search-file"
-              role="button"
-              tabIndex={0}
-              aria-expanded={open}
-              title={file.path}
-              onClick={() => toggle(file.path)}
-              onKeyDown={(event) => event.key === 'Enter' && toggle(file.path)}
-            >
-              <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
-              <FileMark name={file.path} />
-              <span className="panel-row-name">
+            {/* The row's name is one button and its actions are others beside it: a row that was
+                itself a button made the buttons inside it presentational. */}
+            <div className="panel-row search-file">
+              <button
+                type="button"
+                className="panel-row-name"
+                title={file.path}
+                aria-expanded={open}
+                onClick={() => toggle(file.path)}
+              >
+                <Icon name={open ? 'chevron-down' : 'chevron-right'} size={12} />
+                <FileMark name={file.path} />
                 <span className="panel-row-label">{baseOf(file.path)}</span>
                 {folder !== '' && <span className="panel-row-meta">{folder}</span>}
-              </span>
-              <span className="panel-section-count">{count}</span>
+                <span className="panel-section-count">{count}</span>
+              </button>
               <span className="panel-row-actions search-row-actions">
                 {props.replacing && (
                   <IconButton
                     icon="check"
                     label="Replace in this file"
-                    onClick={stop(() => props.onReplaceFile(file))}
+                    onClick={() => props.onReplaceFile(file)}
                   />
                 )}
                 <IconButton
                   icon="x"
                   label="Leave this file out"
-                  onClick={stop(() => props.onLeaveOutFile(file))}
+                  onClick={() => props.onLeaveOutFile(file)}
                 />
               </span>
             </div>
@@ -118,14 +111,12 @@ export default function SearchResultList(props: SearchResultListProps) {
                           ? 'panel-row search-match is-output'
                           : 'panel-row search-match'
                       }
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => props.onOpen(file, line, line.ranges[0])}
-                      onKeyDown={(event) =>
-                        event.key === 'Enter' && props.onOpen(file, line, line.ranges[0])
-                      }
                     >
-                      <span className="panel-row-name">
+                      <button
+                        type="button"
+                        className="panel-row-name"
+                        onClick={() => props.onOpen(file, line, line.ranges[0])}
+                      >
                         <span className="panel-row-label">
                           {cut && '…'}
                           {pieces.map((piece, index) => {
@@ -144,19 +135,19 @@ export default function SearchResultList(props: SearchResultListProps) {
                           })}
                         </span>
                         {where !== '' && <span className="panel-row-meta">{where}</span>}
-                      </span>
+                      </button>
                       <span className="panel-row-actions search-row-actions">
                         {props.replacing && line.output !== true && (
                           <IconButton
                             icon="check"
                             label="Replace"
-                            onClick={stop(() => props.onReplaceMatch(file, line, line.ranges[0]))}
+                            onClick={() => props.onReplaceMatch(file, line, line.ranges[0])}
                           />
                         )}
                         <IconButton
                           icon="x"
                           label="Leave this out"
-                          onClick={stop(() => props.onLeaveOutMatch(file, line, line.ranges[0]))}
+                          onClick={() => props.onLeaveOutMatch(file, line, line.ranges[0])}
                         />
                       </span>
                     </li>,

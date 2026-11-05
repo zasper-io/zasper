@@ -114,18 +114,24 @@ async function search(pattern: string) {
   await screen.findByText(/results? in/);
 }
 
-/** A match row, by the text of its line. */
-function row(text: string): HTMLElement {
+/** The button that opens a match, by the text of its line. */
+function opener(text: string): HTMLElement {
   const found = screen
     .getAllByRole('button')
     .find(
       (candidate) =>
-        candidate.classList.contains('search-match') && candidate.textContent?.includes(text)
+        candidate.parentElement?.classList.contains('search-match') === true &&
+        candidate.textContent?.includes(text) === true
     );
   if (found === undefined) {
     throw new Error(`no row for ${text}`);
   }
   return found;
+}
+
+/** A match row, its actions included. */
+function row(text: string): HTMLElement {
+  return opener(text).parentElement as HTMLElement;
 }
 
 beforeEach(() => {
@@ -186,7 +192,7 @@ describe('SearchPanel', () => {
     renderPanel();
     await search('frame');
 
-    fireEvent.click(row('dropna'));
+    fireEvent.click(opener('dropna'));
 
     expect(seen.active).toBe('src/prepare.py');
     expect(seen.reveal).toMatchObject({
@@ -216,10 +222,10 @@ describe('SearchPanel', () => {
     await search('frame');
     fireEvent.click(screen.getByLabelText('Show replace'));
 
-    fireEvent.click(row('dropna'));
+    fireEvent.click(opener('dropna'));
     expect(seen.tabs).toContain('search-preview:src/prepare.py');
 
-    fireEvent.click(row('head()'));
+    fireEvent.click(opener('head()'));
     expect(seen.active).toBe('analysis.ipynb');
     expect(seen.reveal).toMatchObject({ path: 'analysis.ipynb', cell: 1 });
   });

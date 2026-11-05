@@ -71,8 +71,8 @@ function KernelSwitcher(props: ModalProps) {
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           {/* Red-headed when this was raised by a failure rather than asked for. */}
-          <div className={hasError ? 'modal-head error-head' : 'modal-head'} id="kernelSwitchTitle">
-            {title}
+          <div className={hasError ? 'modal-head error-head' : 'modal-head'}>
+            <span id="kernelSwitchTitle">{title}</span>
             <button
               type="button"
               className="z-icon-button on-chrome modal-btn-close"

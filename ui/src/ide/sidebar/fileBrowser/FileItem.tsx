@@ -119,6 +119,7 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
       ref={focusRow.ref}
       className="fileItem"
       role="treeitem"
+      data-path={path}
       aria-selected={selection.isSelected(path)}
       tabIndex={focusRow.tabIndex}
       {...tip.focusProps}
@@ -170,6 +171,7 @@ const FileItem = ({ parentDir, content, isFirstRow = false, onOpen }: FileItemPr
           xPos={menuPosition.xPos}
           yPos={menuPosition.yPos}
           items={menuItems}
+          label={name}
           path={path}
           onClose={() => setMenuPosition(null)}
         />

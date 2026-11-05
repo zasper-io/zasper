@@ -88,6 +88,7 @@ export default function FindControls(props: FindControlsProps) {
         <IconButton
           icon="chevron-right"
           label={replacing ? 'Hide replace' : 'Show replace'}
+          name="Show replace"
           pressed={replacing}
           onClick={() => setReplacing(!replacing)}
         />
