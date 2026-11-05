@@ -215,6 +215,7 @@
   padding-left: 10px;
   border-radius: 4px;
   background-color: var(--z-bg-code);
+  --z-fg-subtle: var(--z-fg-muted);
 
   // Wrapped rather than cut: the panel is narrower than most install commands. At the chrome's small
   // size, which a code-sized line would tower over in a 300px panel.
@@ -338,6 +339,7 @@
   border: 1px solid var(--z-border);
   border-radius: 3px;
   background: var(--z-bg-cell);
+  --z-fg-subtle: var(--z-fg-muted);
 
   pre {
     margin: 0;
@@ -604,6 +606,7 @@
 
     &[aria-selected='true'] {
       background: var(--z-bg-row-selected);
+      --z-fg-subtle: var(--z-fg-muted);
 
       @media (forced-colors: active) {
         forced-color-adjust: none;

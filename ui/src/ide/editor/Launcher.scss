@@ -255,6 +255,7 @@ $launcher-gutter: 32px;
     padding: 8px 10px;
     border-radius: 4px;
     background-color: var(--z-bg-code);
+    --z-fg-subtle: var(--z-fg-muted);
     font-family: var(--z-mono-font-family);
     // The name for code, not the chrome's: the same 13px today, and not if the code scale moves.
     font-size: var(--z-font-size-code);

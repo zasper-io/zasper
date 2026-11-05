@@ -51,6 +51,7 @@
 
       &:hover {
         background: var(--z-bg-row-selected);
+        --z-fg-subtle: var(--z-fg-muted);
         color: var(--z-fg-accent);
       }
     }

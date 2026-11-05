@@ -298,13 +298,13 @@ test('a change opens as a diff of what the file was against what it is', async (
    * And a change is the colour this panel says a change is. @codemirror/merge answers that itself, in a
    * green and a red of its own that no token in the app reaches, so a file listed as `M` in the panel
    * used to open into a diff in a second palette. The gutter strip takes --z-git-added solid — the
-   * suite's default theme is teal-light, where that is #1a7f37 — and the line under it takes
+   * suite's default theme is teal-light, where that is #1a7537 — and the line under it takes
    * --z-bg-diff-added, which is the same token at 14%; the package's was 8% of something else.
    */
   const changed = body.locator('.cm-merge-b .cm-changedLine').first();
   await expect(body.locator('.cm-merge-b .cm-changedLineGutter').first()).toHaveCSS(
     'background-color',
-    'rgb(26, 127, 55)'
+    'rgb(26, 117, 55)'
   );
   expect(await changed.evaluate((node) => getComputedStyle(node).backgroundColor)).toContain(
     '0.14'

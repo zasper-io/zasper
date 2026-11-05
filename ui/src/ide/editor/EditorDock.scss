@@ -31,6 +31,7 @@
   padding: 0 5px;
   border-radius: 8px;
   background: var(--z-bg-code);
+  --z-fg-subtle: var(--z-fg-muted);
   color: var(--z-fg-muted);
 }
 
@@ -51,10 +52,12 @@
 
   &:hover {
     background: var(--z-bg-row-selected);
+    --z-fg-subtle: var(--z-fg-muted);
   }
 
   &.is-current {
     background: var(--z-bg-row-selected);
+    --z-fg-subtle: var(--z-fg-muted);
     color: var(--z-fg-default);
   }
 }

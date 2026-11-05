@@ -429,12 +429,12 @@ $shape-fix: "%3Cpath d='M8.5 13.5a5 5 0 1 1 7 0c-0.8 0.9-1.2 1.6-1.4 2.5h-4.2c-0
   }
 }
 
-// A hint in the line, which is chrome rather than code: the subtle ink on a quiet ground, and no part of
-// what a save writes.
+// A hint in the line, which is chrome rather than code: the muted ink on a quiet ground, and no part of
+// what a save writes. Not subtle, which is under 4.5:1 on code.
 .cm-editor .cm-inlayHint {
   padding: 0 2px;
   border-radius: 2px;
   background: var(--z-bg-code);
-  color: var(--z-fg-subtle);
+  color: var(--z-fg-muted);
   font-style: normal;
 }

@@ -141,7 +141,7 @@ body {
   margin: 0 0 0.8em;
   padding-left: 12px;
   border-left: 3px solid var(--z-border, #d8d8d8);
-  color: var(--z-fg-muted, #6d6d6d);
+  color: var(--z-fg-muted, #666666);
 }
 .zasper-markdown table { border-collapse: collapse; }
 .zasper-markdown th, .zasper-markdown td { padding: 4px 8px; border: 1px solid var(--z-border-subtle, #e4e6e9); }

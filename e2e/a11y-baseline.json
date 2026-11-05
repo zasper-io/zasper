@@ -50,7 +50,6 @@
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-dark palette": [
-    "color-contrast  #palette-options-0 > .panel-row-meta",
     "color-contrast  .file-mark-notebook",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",
@@ -128,7 +127,6 @@
     "target-size  button[aria-label=\"New notebook\"]"
   ],
   "teal-light palette": [
-    "color-contrast  #palette-options-0 > .panel-row-meta",
     "color-contrast  .file-mark-notebook",
     "page-has-heading-one  html",
     "target-size  button[aria-label=\"New file\"]",

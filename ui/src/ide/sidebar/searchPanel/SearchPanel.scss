@@ -101,6 +101,7 @@
   display: none;
   padding-left: 4px;
   background: var(--z-bg-row-selected);
+  --z-fg-subtle: var(--z-fg-muted);
 }
 
 .search-file:hover,

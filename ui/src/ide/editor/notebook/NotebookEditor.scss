@@ -54,6 +54,7 @@ $cell-gutter: 64px;
 // panel row the same ink reads correctly, which is why nothing had noticed.
 .text-editor-tool .z-icon-button[aria-pressed='true'] {
   background: var(--z-bg-row-selected);
+  --z-fg-subtle: var(--z-fg-muted);
 }
 
 // What separates the groups: save · edit a cell · run it · what the cell is and what it runs on.
@@ -127,6 +128,7 @@ $cell-gutter: 64px;
   border: 1px solid var(--z-border-divider);
   border-radius: 4px;
   background: var(--z-bg-cell);
+  --z-fg-subtle: var(--z-fg-muted);
   color: var(--z-fg-muted);
   box-shadow: var(--z-shadow-low);
   // Hidden at rest, dimmed under the pointer, full when the cell holds the keyboard. Before this the
@@ -576,6 +578,7 @@ $cell-gutter: 64px;
   border-left: 2px solid var(--z-border);
   border-radius: 4px;
   background: var(--z-bg-cell);
+  --z-fg-subtle: var(--z-fg-muted);
 }
 
 // The fold gutter, which is the only gutter a cell has — `lineNumbers: false` in Cell.tsx. It carries
@@ -606,6 +609,7 @@ $cell-gutter: 64px;
   border-left: 2px solid var(--z-border);
   border-radius: 4px;
   background: var(--z-bg-cell);
+  --z-fg-subtle: var(--z-fg-muted);
 
   .cm-editor {
     border: 0;
@@ -835,6 +839,7 @@ table.dataframe tbody tr {
 
 table.dataframe tbody tr:hover {
   background: var(--z-bg-row-selected);
+  --z-fg-subtle: var(--z-fg-muted);
 }
 
 // A table in a cell's output is scanned, not read: 12px on a 22px row, the grid's density, and pandas'

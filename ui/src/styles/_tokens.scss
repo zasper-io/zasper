@@ -199,12 +199,16 @@
   // --- Foreground ---------------------------------------------------------
   --z-fg-default: #393939;
   --z-fg-editor: #000000;
-  // Darkened from #747474, which was 4.16:1 on the tinted cell-output background.
-  --z-fg-muted: #6d6d6d;
+  // Darkened from #747474, 4.16:1 on the tinted cell-output background, and from #6d6d6d, 4.06 on a
+  // selected row.
+  --z-fg-muted: #666666;
   // Darkened from #c4c4c4, which was 1.74:1 on white — well under WCAG AA's
   // 4.5:1. Every foreground token now clears AA against the surface it is used
   // on; keep it that way when adding a theme.
   --z-fg-subtle: #767676;
+  // Subtle is under 4.5:1 on a tinted fill — a selected row, code, a cell — in both polarities, and
+  // a step darker would make it muted. So every rule that paints one of those restates it as muted,
+  // which is what reaches whatever sits on it.
   // A field's hint. Muted, not subtle: subtle is under 4.5:1 on a field's fill in both polarities.
   --z-fg-placeholder: var(--z-fg-muted);
   --z-fg-on-accent: #ffffff;
@@ -231,12 +235,12 @@
   // The launcher row's edge. Accent-derived in every theme (_accents.scss); this is the fallback
   // that shows only before a theme has been applied.
   --z-border-launcher-tile: #cfcbdd;
-  --z-border-strong: #969696;
+  --z-border-strong: #949494;
   --z-border-subtle: #f3f2f6;
   --z-border-divider: #cccccc;
   --z-border-breadcrumb: #e8e1fd;
   --z-border-kernel-status: #1f1f1f;
-  --z-border-field: #d0d0d0;
+  --z-border-field: #949494;
   --z-border-indent-guide: #dcdcdc;
 
   // --- Accent -------------------------------------------------------------
@@ -299,8 +303,8 @@
 
   // The status letter beside a changed file in the source control panel. Not the kernel-status
   // tokens: those are a running/stopped traffic light and would tie a red D to a dead kernel.
-  --z-git-modified: #a06000;
-  --z-git-added: #1a7f37;
+  --z-git-modified: #965600;
+  --z-git-added: #1a7537;
   --z-git-deleted: #aa1a1a;
   --z-git-conflict: #9a3412;
 
@@ -488,7 +492,7 @@
   // The panel's value, which is the whole point of the name: the `#181818` this replaces was two steps
   // below the editor it floated over, so a menu in the dark theme read as a hole rather than as a card.
   --z-bg-overlay: #272727;
-  --z-bg-menu-hover: #515151;
+  --z-bg-menu-hover: #3d3d3d;
   --z-bg-hover-on-chrome: rgba(255, 255, 255, 0.16);
 
   --z-bg-topbar: #303030;
@@ -517,12 +521,12 @@
   --z-fg-field: #e2e2e2;
 
   --z-border: #4f4f4f;
-  --z-border-strong: #636262;
+  --z-border-strong: #717070;
   --z-border-subtle: #89888b;
   --z-border-divider: #444444;
   --z-border-breadcrumb: #636262;
   --z-border-kernel-status: #636262;
-  --z-border-field: #4f4f4f;
+  --z-border-field: #707070;
   --z-border-indent-guide: #3f3f3f;
   --z-fg-serial-no: #e2e2e2;
 
@@ -536,7 +540,7 @@
 
   --z-git-modified: #e2b341;
   --z-git-added: #4ac26b;
-  --z-git-deleted: #e5534b;
+  --z-git-deleted: #e5655d;
   --z-git-conflict: #f0883e;
 
   // The one kernel-status colour this theme has to override, and the only one: `:root`'s #aa1a1a is

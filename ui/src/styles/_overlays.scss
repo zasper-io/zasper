@@ -72,6 +72,7 @@
 
 .z-overlay .panel-row.is-selected {
   background: var(--z-bg-row-selected);
+  --z-fg-subtle: var(--z-fg-muted);
 
   @media (forced-colors: active) {
     forced-color-adjust: none;

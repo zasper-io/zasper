@@ -219,6 +219,7 @@
   // thing the outline was already saying, 1px further out.
   &.is-drop-target {
     background: var(--z-bg-row-selected);
+    --z-fg-subtle: var(--z-fg-muted);
   }
 }
 

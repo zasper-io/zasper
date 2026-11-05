@@ -280,6 +280,7 @@
       // pointer, both still need to show through a selection.
       .file-list li a.is-selected {
         background: var(--z-bg-row-selected);
+        --z-fg-subtle: var(--z-fg-muted);
 
         @media (forced-colors: active) {
           forced-color-adjust: none;
@@ -294,6 +295,7 @@
 
       .file-list li a:hover {
         background: var(--z-bg-row-selected);
+        --z-fg-subtle: var(--z-fg-muted);
         cursor: pointer;
       }
 
@@ -461,6 +463,7 @@
 
   &:hover {
     background: var(--z-bg-row-selected);
+    --z-fg-subtle: var(--z-fg-muted);
   }
 }
 

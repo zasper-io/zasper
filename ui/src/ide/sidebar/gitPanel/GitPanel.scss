@@ -212,6 +212,7 @@
 
   &:hover {
     background: var(--z-bg-row-selected);
+    --z-fg-subtle: var(--z-fg-muted);
   }
 
   // The row is open, and the file list below belongs to it.
@@ -292,6 +293,7 @@
   // there is to aim at.
   &:hover {
     background: var(--z-bg-row-selected);
+    --z-fg-subtle: var(--z-fg-muted);
   }
 }
 

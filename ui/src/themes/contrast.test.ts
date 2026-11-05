@@ -38,9 +38,8 @@ const PAIRS: Record<string, [string, string, number]> = {
   'muted on modal': ['--z-fg-muted', '--z-bg-modal', TEXT],
   'subtle on panel': ['--z-fg-subtle', '--z-bg-panel', TEXT],
   'subtle on overlay': ['--z-fg-subtle', '--z-bg-overlay', TEXT],
-  'subtle on code': ['--z-fg-subtle', '--z-bg-code', TEXT],
-  'subtle on selected row': ['--z-fg-subtle', '--z-bg-row-selected', TEXT],
-  'subtle on cell': ['--z-fg-subtle', '--z-bg-cell', TEXT],
+  // Subtle on a selected row, code and a cell is restated as muted (styles/_tokens.scss).
+  'muted on code': ['--z-fg-muted', '--z-bg-code', TEXT],
   'link on panel': ['--z-fg-accent', '--z-bg-panel', TEXT],
   'link on editor': ['--z-fg-accent', '--z-bg-editor', TEXT],
   'link on output': ['--z-fg-accent', '--z-bg-cell-output', TEXT],
@@ -117,19 +116,7 @@ const CHROME_HUES = [
 
 /** Measured on 4 November 2026. Each is in todos/accessibility.md, Phase 4. */
 const KNOWN: Record<string, string[] | typeof ALL> = {
-  'muted on notice': LIGHT,
-  'muted on selected row': LIGHT,
-  'muted on menu hover': DARK,
-  'subtle on code': ALL,
-  'subtle on selected row': ALL,
-  'subtle on cell': ALL,
   'link on selected row': ['orange-light'],
-  'git deleted on panel': DARK,
-  'git added on selected row': LIGHT,
-  'git modified on selected row': LIGHT,
-  'field border on panel': ALL,
-  'field border on modal': ALL,
-  'strong border on panel': ALL,
   'accent on panel': DARK,
   'accent on cell': DARK,
   'kernel idle on statusbar': CHROME_HUES,

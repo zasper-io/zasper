@@ -34,6 +34,7 @@
   &:hover,
   &[aria-expanded='true'] {
     background: var(--z-bg-row-selected);
+    --z-fg-subtle: var(--z-fg-muted);
   }
 
   // A name the notebook gives that no connection here has: a colleague's, not yet added.
