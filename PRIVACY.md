@@ -47,7 +47,7 @@ Go library adds its own name and version, the Go version Zasper was built with, 
 | `agent_mode_changed` | A chat's permission mode is changed | `mode` |
 | `agent_conversation_reopened` | A past conversation is opened again | `agent` |
 | `agent_changes_undone` | A turn's changes are undone | `scope` |
-| `mcp_tool_called` | An agent calls one of Zasper's MCP tools | `tool` |
+| `agent_tool_called` | An agent calls one of Zasper's MCP tools | `tool` |
 | `folder_trust_changed` | A folder is trusted, or no longer | `trusted` |
 | `sql_cell_run` | A SQL cell is run | `connection_type` |
 | `chart_created` | A data grid is drawn as a chart | `kind` |

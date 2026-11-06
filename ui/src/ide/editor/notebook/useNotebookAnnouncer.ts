@@ -69,12 +69,21 @@ export function useNotebookAnnouncer(
   // restart here is a new session, and the kernel answers the new connection's first request (busy,
   // idle) before anything else.
   const settling = useRef(UNSETTLED.includes(kernelStatus));
+  // The new kernel reports starting as it boots, and whether that arrives depends on how soon the
+  // new socket connects; either way it is the restart already said.
+  const restarting = useRef(false);
   useEffect(() => {
     if (UNSETTLED.includes(kernelStatus)) {
       settling.current = true;
     } else if (kernelStatus === 'idle' && settling.current) {
       settling.current = false;
+      restarting.current = false;
       say('Kernel ready');
+      return;
+    }
+    if (kernelStatus === 'restarting' || kernelStatus === 'autorestarting') {
+      restarting.current = true;
+    } else if (kernelStatus === 'starting' && restarting.current) {
       return;
     }
     const news = kernelNews(kernelStatus);

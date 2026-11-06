@@ -106,7 +106,7 @@ func TestNothingIdentifyingReachesTheWire(t *testing.T) {
 	Track(EventAgentTurnEnded, map[string]interface{}{
 		"agent": AgentKind("claude-code"), "stop_reason": "end_turn", "files_changed": Bucket(4), "mentions": Bucket(2),
 	})
-	Track(EventMCPToolCalled, map[string]interface{}{"tool": MCPTool("acme_forecast_lookup")})
+	Track(EventAgentToolCalled, map[string]interface{}{"tool": MCPTool("acme_forecast_lookup")})
 	Track(EventSQLCellRun, map[string]interface{}{"connection_type": ConnectionType("anna-acme-warehouse")})
 	Track(EventAgentChangesUndone, map[string]interface{}{"scope": "file"})
 

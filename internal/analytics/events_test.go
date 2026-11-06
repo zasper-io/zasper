@@ -112,7 +112,7 @@ func TestValidateAcceptsTheCatalogue(t *testing.T) {
 		{EventAgentModeChanged, map[string]interface{}{"mode": "edits"}},
 		{EventAgentConversationReopened, map[string]interface{}{"agent": "codex"}},
 		{EventAgentChangesUndone, map[string]interface{}{"scope": "cell"}},
-		{EventMCPToolCalled, map[string]interface{}{"tool": "run_cell"}},
+		{EventAgentToolCalled, map[string]interface{}{"tool": "run_cell"}},
 		{EventFolderTrustChanged, map[string]interface{}{"trusted": false}},
 		{EventSQLCellRun, map[string]interface{}{"connection_type": "duckdb"}},
 		{EventChartCreated, map[string]interface{}{"kind": "scatter"}},

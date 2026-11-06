@@ -35,7 +35,9 @@ const (
 	EventAgentModeChanged          EventType = "agent_mode_changed"
 	EventAgentConversationReopened EventType = "agent_conversation_reopened"
 	EventAgentChangesUndone        EventType = "agent_changes_undone"
-	EventMCPToolCalled             EventType = "mcp_tool_called"
+	// Not mcp_tool_called: PostHog labels that name as its own retired event in every project and
+	// hides it from PostHog AI.
+	EventAgentToolCalled EventType = "agent_tool_called"
 
 	EventFolderTrustChanged EventType = "folder_trust_changed"
 	EventSQLCellRun         EventType = "sql_cell_run"
@@ -180,7 +182,7 @@ var eventRegistry = map[EventType]map[string]propSpec{
 	EventAgentModeChanged:          {"mode": enum("ask", "edits", "all")},
 	EventAgentConversationReopened: {"agent": agentKinds},
 	EventAgentChangesUndone:        {"scope": enum("turn", "file", "block", "cell")},
-	EventMCPToolCalled:             {"tool": mcpTools},
+	EventAgentToolCalled:           {"tool": mcpTools},
 
 	EventFolderTrustChanged: {"trusted": {kind: propBool}},
 	EventSQLCellRun:         {"connection_type": connectionTypes},

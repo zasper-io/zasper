@@ -112,7 +112,7 @@ func New(deps Deps) *mcp.Server {
 func countToolCalls(next mcp.MethodHandler) mcp.MethodHandler {
 	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 		if call, ok := req.(*mcp.CallToolRequest); ok && call.Params != nil {
-			analytics.Track(analytics.EventMCPToolCalled, map[string]interface{}{"tool": analytics.MCPTool(call.Params.Name)})
+			analytics.Track(analytics.EventAgentToolCalled, map[string]interface{}{"tool": analytics.MCPTool(call.Params.Name)})
 		}
 		return next(ctx, method, req)
 	}

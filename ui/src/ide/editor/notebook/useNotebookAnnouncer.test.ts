@@ -71,6 +71,19 @@ describe('useNotebookAnnouncer', () => {
     expect(result.current).toBe('Kernel died');
   });
 
+  it('does not say the new kernel starting after a restart', () => {
+    const cells = [cell('a')];
+    const { result, rerender } = announcer(cells, new Set());
+    rerender({ cells, running: new Set(), status: 'restarting' });
+    rerender({ cells, running: new Set(), status: 'starting' });
+    expect(result.current).toBe('Kernel restarting');
+    rerender({ cells, running: new Set(), status: 'idle' });
+    expect(result.current).toBe('Kernel ready');
+
+    rerender({ cells, running: new Set(), status: 'starting' });
+    expect(result.current).toBe('Kernel starting');
+  });
+
   // Zasper restarts by starting a new session: the socket closes, a new one connects, then idle.
   it('says the kernel is ready again after a restart that is a new session', () => {
     const cells = [cell('a')];
