@@ -1,6 +1,6 @@
 # Hosting agents
 
-Zasper can run a coding agent the user already has — Claude Code, Gemini CLI, Codex — inside the project,
+Zasper can run a coding agent the user already has — Claude Code, Codex, Antigravity CLI — inside the project,
 and hold the conversation with it, over the [Agent Client Protocol](https://agentclientprotocol.com).
 The agent is the user's own, signed in with their own account; Zasper stores nothing of it and sends
 nothing anywhere. For an agent that runs on its own and only uses Zasper's tools, see [MCP.md](MCP.md).
@@ -59,9 +59,13 @@ servers no longer running. A project not snapshotted for 30 days has its store r
 | Agent | Started as | When it is not found |
 |---|---|---|
 | Claude Code | `claude-agent-acp`, or `npx -y @agentclientprotocol/claude-agent-acp` when `npx` and `claude` are installed | `npm install -g @agentclientprotocol/claude-agent-acp`, and sign in once by running `claude` |
-| Gemini CLI | `gemini --experimental-acp` | `npm install -g @google/gemini-cli` |
-| Codex | `codex-acp` | install `codex-acp` beside the `codex` CLI |
+| Codex | `codex-acp` | `npm install -g @agentclientprotocol/codex-acp` beside the `codex` CLI, and sign in once by running `codex` |
+| Antigravity CLI | `agy acp` | Google's install script (`curl -fsSL https://antigravity.google/cli/install.sh \| bash`, or `install.ps1` on Windows), and sign in once by running `agy` |
 | Any other | the command line given | |
+
+Gemini CLI is not listed: since 18 June 2026 it no longer serves personal Google accounts, and
+Antigravity CLI signs in with those, a Gemini API key or a business account alike. It still starts as
+any other agent, by its command line (`gemini --experimental-acp`).
 
 Claude Code is the one checked by hand so far. The first start through `npx` downloads the adapter and
 takes a minute or two.
