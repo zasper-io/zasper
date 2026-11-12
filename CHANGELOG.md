@@ -4,6 +4,67 @@ All notable changes to Zasper are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Zasper follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] — 2026-11-12
+
+2.2.0 makes Zasper usable from the keyboard alone and with a screen reader: F6 moves between the
+window's parts, every menu, dialog, tab strip and grid has its keyboard, and cells say what they hold
+and when they finish. Zasper can also be served under a path behind a hub, kernel outputs' scripts run
+in a sandbox rather than in the page, and Antigravity CLI takes Gemini CLI's place in the agent panel.
+
+### Upgrading from 2.1.0
+
+- **Gemini CLI is no longer listed in the agent panel.** Since 18 June 2026 it no longer serves
+  personal Google accounts; Antigravity CLI (`agy acp`) takes its place and signs in with those, a
+  Gemini API key or a business account. Gemini CLI still starts as any other agent, by its command
+  line (`gemini --experimental-acp`). Codex's adapter is now `@agentclientprotocol/codex-acp`.
+- **An output's scripts run in a sandboxed frame.** HTML and SVG output that runs scripts now runs
+  them in a frame with no access to the page, its cookies or its storage. A script that reached into
+  Zasper's page will no longer find it. Output with nothing to run is drawn in the page as before.
+- **A Python kernel is reached through Unix sockets** in `~/.zasper/runtime` on macOS and Linux, so
+  other accounts on the machine can no longer read its traffic. Other kernels, and Windows, keep TCP.
+- **Building from source needs Go 1.26.10** or later.
+
+### Added
+
+**Accessibility**
+
+- **F6 moves between the window's parts**, out of a terminal included, and the parts are landmarks a
+  screen reader can jump between.
+- **Every menu, dialog, tab strip and tree has its keyboard.** Dialogs keep focus inside and give it
+  back after, the tab strip is a tab list the arrows walk along, the command palette is a combobox,
+  and only the focused cell's controls are in the Tab order.
+- **Cells, editors and the window are named after what they hold**, and a screen reader hears when a
+  cell finishes or fails, and what the kernel is doing.
+- **The data grid, its column edges and a long output** can be reached from the keyboard.
+- **One focus ring**, visible on every surface, and selection, state and dialogs that stay visible
+  under forced colours.
+- **A screen reader mode for the terminal**, in Settings.
+
+**And**
+
+- **`--base-url`** serves Zasper under a path, such as `/user/prasun/` behind a hub. Pages, API,
+  websockets, sign-in and the session cookie all stay under it. `ZASPER_BASE_URL` sets it too.
+- **Bokeh's `output_notebook()` and `show()`** draw in the notebook.
+- **Reorder tabs by dragging.** The front tab stays in view and a mouse wheel scrolls the strip.
+- **SQL connections are added, edited and removed in the Data panel**, from a dialog over the tab.
+
+### Fixed
+
+- A SQL connection's password pasted as part of its URL goes to the keychain, not `connections.json`.
+- An output's frame can download, open windows and prompt, as Vega's and Bokeh's menus need, and takes
+  its content's height.
+- `input()`'s reply box is labelled with its prompt, and `getpass()` is masked.
+- An image output is described by its `text/plain`.
+- Text, field edges and git colours meet WCAG AA contrast on every surface; prose links are underlined.
+- The active cell is marked by its left edge, its output included.
+- Dollar amounts in an agent's answer are shown as money, not maths.
+- Icons are centred in a row's name, and the export dialog's choices are inset from its header.
+
+### Security
+
+- Patched dompurify, sanitize-html, vite, klauspost/compress (GO-2026-6865), andybalholm/brotli
+  (GO-2026-6888) and the Go toolchain, which cleared 29 reachable standard library vulnerabilities.
+
 ## [2.1.0] — 2026-10-16
 
 2.1.0 brings coding agents into Zasper. The agent you already use — Claude Code, Gemini CLI or Codex —
@@ -397,6 +458,8 @@ Pre-release.
 
 First public pre-release.
 
+[2.2.0]: https://github.com/zasper-io/zasper/releases/tag/v2.2.0
+[2.1.0]: https://github.com/zasper-io/zasper/releases/tag/v2.1.0
 [2.0.0]: https://github.com/zasper-io/zasper/releases/tag/v2.0.0
 [1.1.0]: https://github.com/zasper-io/zasper/releases/tag/v1.1.0
 [1.0.0]: https://github.com/zasper-io/zasper/releases/tag/v1.0.0

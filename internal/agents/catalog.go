@@ -8,6 +8,7 @@ package agents
 
 import (
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -57,25 +58,35 @@ var Known = []Agent{
 		},
 	},
 	{
-		ID:      "gemini",
-		Name:    "Gemini CLI",
-		Vendor:  "Google",
-		Install: "npm install -g @google/gemini-cli",
-		Then:    "Sign in once by running gemini in a terminal.",
-		command: func() ([]string, bool) {
-			return []string{"gemini", "--experimental-acp"}, found("gemini")
-		},
-	},
-	{
 		ID:      "codex",
 		Name:    "Codex",
 		Vendor:  "OpenAI",
-		Install: "npm install -g @zed-industries/codex-acp",
+		Install: "npm install -g @agentclientprotocol/codex-acp",
 		Then:    "Sign in once by running codex in a terminal.",
 		command: func() ([]string, bool) {
 			return []string{"codex-acp"}, found("codex-acp")
 		},
 	},
+	// Gemini CLI's successor: since 18 June 2026 Gemini CLI no longer serves personal accounts, and
+	// agy signs in with those, a Gemini API key or a business account alike.
+	{
+		ID:      "antigravity",
+		Name:    "Antigravity CLI",
+		Vendor:  "Google",
+		Install: antigravityInstall(),
+		Then:    "Sign in once by running agy in a terminal.",
+		command: func() ([]string, bool) {
+			return []string{"agy", "acp"}, found("agy")
+		},
+	},
+}
+
+// Google ships agy by an install script, one per shell.
+func antigravityInstall() string {
+	if runtime.GOOS == "windows" {
+		return "irm https://antigravity.google/cli/install.ps1 | iex"
+	}
+	return "curl -fsSL https://antigravity.google/cli/install.sh | bash"
 }
 
 // Catalogue lists the known agents and whether each is installed.

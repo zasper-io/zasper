@@ -68,8 +68,8 @@ And the values those properties may take:
 - **`command_id`** — the command's own id, such as `notebook:run-cell-and-advance`. These are
   identifiers written in Zasper's source, never anything you typed.
 - **`theme_id`** — one of the eight themes that ship with Zasper.
-- **`agent`** — `claude-code`, `gemini`, `codex`, or `other` for an agent started by its own command
-  line, which is never sent.
+- **`agent`** — `claude-code`, `codex`, `antigravity`, or `other` for an agent started by its own
+  command line, which is never sent.
 - **`reason`** — `not_installed`, `cancelled` or `failed`.
 - **`stop_reason`** — how a turn ended, as the agent says: `end_turn`, `cancelled`, `max_tokens`,
   `max_turn_requests`, `refusal`, `error`, or `other`.
@@ -102,8 +102,8 @@ be shown.
 
 ## Coding agents
 
-The agent panel runs a coding agent you already have, such as Claude Code, Gemini CLI or Codex. It is
-yours, not Zasper's: it is signed in with your own account, uses your own subscription or key, and
+The agent panel runs a coding agent you already have, such as Claude Code, Codex or Antigravity CLI.
+It is yours, not Zasper's: it is signed in with your own account, uses your own subscription or key, and
 sends what you give it to its own provider under that provider's terms. Zasper is not a party to that,
 holds no key, and stores no copy of the conversation.
 

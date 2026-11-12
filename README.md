@@ -35,7 +35,7 @@ browser, on your own machine or on a server you share.
 
 - **Notebooks** on any Jupyter kernel, with Plotly, ipywidgets, HTML and Markdown with LaTeX
   rendered inline. A save is byte-for-byte what Jupyter would have written.
-- **Coding agents** in a panel beside your notebooks: Claude Code, Gemini CLI, Codex or any agent
+- **Coding agents** in a panel beside your notebooks: Claude Code, Codex, Antigravity CLI or any agent
   that speaks the Agent Client Protocol, with Zasper's tools to read, edit and run notebooks, and
   every change it makes reviewed and undone from the panel. See [Coding agents](#coding-agents).
 - **Data**: a variables panel for the running kernel, DataFrames as a grid that becomes a chart,
@@ -111,7 +111,7 @@ The methodology and full results are in the
 
 ## Installation
 
-Current release version: `v2.1.0`
+Current release version: `v2.2.0`
 
 | Platform | Support |
 | --- | --- |
@@ -349,7 +349,7 @@ and what to do when a correct line is squiggled.
 ## Coding agents
 
 The agent panel, on the right of the editor (the bot in the top bar), runs a coding agent you
-already have: Claude Code, Gemini CLI, Codex, or any other that speaks the
+already have: Claude Code, Codex, Antigravity CLI, or any other that speaks the
 [Agent Client Protocol](https://agentclientprotocol.com). It is signed in with your own account and
 uses your own subscription; Zasper holds no key and sends nothing anywhere.
 

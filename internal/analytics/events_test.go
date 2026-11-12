@@ -106,7 +106,7 @@ func TestValidateAcceptsTheCatalogue(t *testing.T) {
 		{EventAgentChatStarted, map[string]interface{}{"agent": "claude-code"}},
 		{EventAgentStartFailed, map[string]interface{}{"agent": "other", "reason": "cancelled"}},
 		{EventAgentTurnEnded, map[string]interface{}{
-			"agent": "gemini", "stop_reason": "end_turn", "files_changed": Bucket(3), "mentions": Bucket(0),
+			"agent": "antigravity", "stop_reason": "end_turn", "files_changed": Bucket(3), "mentions": Bucket(0),
 		}},
 		{EventAgentPermissionAnswered, map[string]interface{}{"answered_by": "mode", "allowed": true}},
 		{EventAgentModeChanged, map[string]interface{}{"mode": "edits"}},
