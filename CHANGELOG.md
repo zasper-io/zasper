@@ -62,8 +62,8 @@ in a sandbox rather than in the page, and Antigravity CLI takes Gemini CLI's pla
 
 ### Security
 
-- Patched dompurify, sanitize-html, vite, klauspost/compress (GO-2026-6865) and the Go toolchain,
-  which cleared 29 reachable standard library vulnerabilities.
+- Patched dompurify, sanitize-html, vite, klauspost/compress (GO-2026-6865), andybalholm/brotli
+  (GO-2026-6888) and the Go toolchain, which cleared 29 reachable standard library vulnerabilities.
 
 ## [2.1.0] — 2026-10-16
 
