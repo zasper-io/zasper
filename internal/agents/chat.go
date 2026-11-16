@@ -39,6 +39,7 @@ Event is one entry in a chat's log, in the order things happened.
 	permission  the agent asks before doing something; answered by an `answered` with the same ID
 	answered    the option chosen, or none when the question was withdrawn; Auto when the chat's mode chose
 	mode        the chat's permission mode changed, to Text
+	settings    the agent's own settings for the session, the whole set, in Settings
 	terminal    what a command the agent runs in Zasper printed, and how it ended, in Terminal
 	changes     the files the turn that has just ended changed, in Changes
 	undone      the files a turn changed were put back, the turn in Changes
@@ -56,7 +57,8 @@ type Event struct {
 	Terminal   *TerminalOutput `json:"terminal,omitempty"`
 	Changes    *TurnChanges    `json:"changes,omitempty"`
 	// On a `user` event, what the message mentions.
-	Mentions []Mention `json:"mentions,omitempty"`
+	Mentions []Mention                 `json:"mentions,omitempty"`
+	Settings []acp.SessionConfigOption `json:"settings,omitempty"`
 }
 
 // Permission is a question the agent asks before acting, and its answer once there is one.
@@ -125,6 +127,9 @@ type Chat struct {
 	servers []acp.McpServer
 	// The agent takes a resource's contents in a message, rather than only a link to it.
 	embedded bool
+	settings []acp.SessionConfigOption
+	// The agent has modes of its own, which replace the chat's.
+	ownModes bool
 }
 
 // record appends an event and passes it to everyone watching, without waiting on any of them.
@@ -243,6 +248,10 @@ func (c *Chat) SetMode(mode string) error {
 		return fmt.Errorf("no such mode %q", mode)
 	}
 	c.mu.Lock()
+	if c.ownModes {
+		c.mu.Unlock()
+		return errors.New("this agent has modes of its own")
+	}
 	c.Mode = mode
 	c.mu.Unlock()
 	c.record(Event{Type: "mode", Text: mode})
@@ -275,6 +284,13 @@ func (c *Chat) mode() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.Mode
+}
+
+// answersFor says whether the chat's mode lets a tool of kind go on without asking the reader.
+func (c *Chat) answersFor(kind acp.ToolKind) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return !c.ownModes && allows(c.Mode, kind)
 }
 
 // close stops the agent's process and everything it started. A launcher like npx hands off to children
@@ -367,6 +383,7 @@ func start(asked context.Context, argv []string, agent, root string, files Files
 		return nil, fmt.Errorf("%s could not start a session: %w", argv[0], err)
 	}
 	chat.session = session.SessionId
+	chat.setSettings(session.ConfigOptions)
 	// The first snapshot of a project reads every file in it, which is better done before the first turn.
 	go chat.snapshot("")
 	log.Debug().Str("chat", chat.ID).Strs("argv", argv).Msg("agent started")

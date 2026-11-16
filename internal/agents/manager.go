@@ -272,8 +272,9 @@ var upgrader = websocket.Upgrader{CheckOrigin: httpx.SameOrigin}
 
 /*
 SocketHandler serves /ws/agents/chats/{chatId}: the chat's log from the start, then each event as it
-happens. The client sends {"type": "prompt", "text", "mentions"}, {"type": "cancel"}, or {"type": "answer", "id",
-"option_id"}; a message that cannot be carried out is answered with an `error` event to that client.
+happens. The client sends {"type": "prompt", "text", "mentions"}, {"type": "cancel"}, {"type": "answer", "id",
+"option_id"}, {"type": "mode", "mode"}, or {"type": "setting", "id", "value"}; a message that cannot be carried
+out is answered with an `error` event to that client.
 */
 func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 	chat, ok := m.get(mux.Vars(req)["chatId"])
@@ -320,6 +321,7 @@ func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 			OptionID string    `json:"option_id"`
 			Mode     string    `json:"mode"`
 			Mentions []Mention `json:"mentions"`
+			Value    any       `json:"value"`
 		}
 		if err := conn.ReadJSON(&message); err != nil {
 			return
@@ -334,6 +336,13 @@ func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 			err = chat.Answer(message.ID, message.OptionID)
 		case "mode":
 			err = chat.SetMode(message.Mode)
+		case "setting":
+			// The agent may take its time, and the socket goes on carrying a Stop meanwhile.
+			go func() {
+				if err := chat.SetSetting(message.ID, message.Value); err != nil {
+					send(Event{Type: "error", Text: err.Error()})
+				}
+			}()
 		default:
 			err = errors.New("unknown message " + message.Type)
 		}

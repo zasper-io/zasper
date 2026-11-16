@@ -5,7 +5,7 @@ import type { ChatItem, ChatView } from './chatLog';
 import { useChatAnnouncer } from './useChatAnnouncer';
 
 function view(items: ChatItem[], answering: boolean): ChatView {
-  return { items, plan: [], answering, exited: false, mode: 'ask' };
+  return { items, plan: [], answering, exited: false, mode: 'ask', settings: [] };
 }
 
 const asked: ChatItem = { kind: 'user', text: 'What is 2 + 2?', mentions: [] };

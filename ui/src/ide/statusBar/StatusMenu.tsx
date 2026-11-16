@@ -60,11 +60,13 @@ export function MenuSeparator() {
 
 interface MenuChoiceProps {
   label: string;
+  /** A note after the label, quieter. */
+  meta?: string;
   checked: boolean;
   onSelect: () => void;
 }
 
-export function MenuChoice({ label, checked, onSelect }: MenuChoiceProps) {
+export function MenuChoice({ label, meta, checked, onSelect }: MenuChoiceProps) {
   return (
     <li className={checked ? 'panel-row is-selected' : 'panel-row'} role="none">
       <button
@@ -77,6 +79,7 @@ export function MenuChoice({ label, checked, onSelect }: MenuChoiceProps) {
         {/* The tick's place is held whether or not there is one, so the names line up. */}
         <span className="menuTick">{checked && <Icon name="check" size={12} />}</span>
         <span className="panel-row-label">{label}</span>
+        {meta !== undefined && <span className="panel-row-meta">{meta}</span>}
       </button>
     </li>
   );

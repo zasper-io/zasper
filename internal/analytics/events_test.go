@@ -110,6 +110,7 @@ func TestValidateAcceptsTheCatalogue(t *testing.T) {
 		}},
 		{EventAgentPermissionAnswered, map[string]interface{}{"answered_by": "mode", "allowed": true}},
 		{EventAgentModeChanged, map[string]interface{}{"mode": "edits"}},
+		{EventAgentSettingChanged, map[string]interface{}{"agent": "claude-code", "category": "thought_level"}},
 		{EventAgentConversationReopened, map[string]interface{}{"agent": "codex"}},
 		{EventAgentChangesUndone, map[string]interface{}{"scope": "cell"}},
 		{EventAgentToolCalled, map[string]interface{}{"tool": "run_cell"}},

@@ -82,6 +82,7 @@ import {
   ScrollText,
   Search,
   Settings,
+  SlidersHorizontal,
   Square,
   Terminal,
   Trash2,
@@ -230,6 +231,8 @@ export const ICONS = {
   // A cell an agent ran.
   bot: Bot,
   history: History,
+  // An agent's settings that have no chip of their own.
+  'sliders-horizontal': SlidersHorizontal,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

@@ -30,6 +30,8 @@ import {
 } from '@/api';
 import IconButton from '@/ide/IconButton';
 import { Icon, IconName } from '@/ide/icons';
+import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
+import { MenuSeparator } from '@/ide/statusBar/StatusMenu';
 import { agentChatAtom, composerMentionsAtom } from '@/store/agents';
 import { useFileMatches } from '@/ide/topBar/palette/useFileMatches';
 import { fileMention } from './mentions';
@@ -38,6 +40,7 @@ import { useTabActions } from '@/store/tabActions';
 import { useAskTrust } from '@/store/trust';
 import { lineDiff } from '@/ide/editor/notebookDiff/cellDiff';
 import { relativeDate } from '@/ide/sidebar/dates';
+import AgentSettings from './AgentSettings';
 import { ChatItem, PlanEntry, terminalText, ToolCall, ToolDiff } from './chatLog';
 import { useAgentChat } from './useAgentChat';
 import { useChatAnnouncer } from './useChatAnnouncer';
@@ -68,6 +71,10 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   const [starting, setStarting] = useState<{ name: string; abort: AbortController } | null>(null);
   const [error, setError] = useState('');
   const [browsing, setBrowsing] = useState(false);
+  const historyAnchor = useRef<HTMLSpanElement>(null);
+  const closeHistory = useCallback(() => setBrowsing(false), []);
+  useDismissOnEscape(closeHistory, browsing);
+  useDismissOnPressOutside(historyAnchor, closeHistory, browsing);
   const askTrust = useAskTrust();
 
   const findAgents = useCallback(() => {
@@ -139,20 +146,22 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
         {chat && (
           <span className="agentPanel-actions">
             {chat.history && (
-              <IconButton
-                icon="history"
-                label="Past conversations"
-                pressed={browsing}
-                onClick={() => setBrowsing((open) => !open)}
-              />
+              <span className="agentHistory-anchor" ref={historyAnchor}>
+                <IconButton
+                  icon="history"
+                  label="Past conversations"
+                  pressed={browsing}
+                  expanded={browsing}
+                  onClick={() => setBrowsing((open) => !open)}
+                />
+                {browsing && <History chatId={chat.id} onClose={closeHistory} />}
+              </span>
             )}
             <IconButton icon="plus" label="New chat" onClick={newChat} />
           </span>
         )}
       </div>
-      {chat && browsing ? (
-        <History chatId={chat.id} onOpened={() => setBrowsing(false)} />
-      ) : chat ? (
+      {chat ? (
         <Conversation chat={chat} />
       ) : (
         <Picker
@@ -178,18 +187,37 @@ function commandName(command: string): string {
   return program.split('/').pop() || program;
 }
 
-/** The agent's past conversations in the project; picking one goes on in it. */
-function History({ chatId, onOpened }: { chatId: string; onOpened: () => void }) {
+/**
+ * The agent's past conversations in the project, as a menu over the conversation; picking one goes on in
+ * it. The list is fetched each time the menu opens, since the agent keeps it.
+ */
+function History({ chatId, onClose }: { chatId: string; onClose: () => void }) {
   const [past, setPast] = useState<PastChat[] | null>(null);
   const [next, setNext] = useState('');
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const list = useRef<HTMLUListElement | null>(null);
+  // Where the focus goes once more have come: Show more, which had it, is gone.
+  const [focusFrom, setFocusFrom] = useState<number | null>(null);
+  const menuKeys = useMenuKeys(onClose);
+  const menuRef = menuKeys.ref;
+  const listRef = useCallback(
+    (element: HTMLUListElement | null) => {
+      list.current = element;
+      menuRef(element);
+    },
+    [menuRef]
+  );
 
   const load = useCallback(
     (cursor: string) =>
       listPastChats(chatId, cursor)
         .then((page) => {
-          setPast((previous) => [...(cursor ? (previous ?? []) : []), ...page.chats]);
+          setPast((previous) => {
+            const kept = cursor ? (previous ?? []) : [];
+            if (cursor) setFocusFrom(kept.length);
+            return [...kept, ...page.chats];
+          });
           setNext(page.next);
         })
         .catch((failure: unknown) => setError(apiErrorMessage(failure))),
@@ -200,12 +228,18 @@ function History({ chatId, onOpened }: { chatId: string; onOpened: () => void })
     void load('');
   }, [load]);
 
+  useEffect(() => {
+    if (focusFrom === null) return;
+    list.current?.querySelectorAll<HTMLElement>('[role="menuitem"]')[focusFrom]?.focus();
+    setFocusFrom(null);
+  }, [focusFrom, past]);
+
   const open = async (id: string) => {
     setOpening(id);
     setError('');
     try {
       await openPastChat(chatId, id);
-      onOpened();
+      onClose();
     } catch (failure) {
       setError(apiErrorMessage(failure));
     } finally {
@@ -214,7 +248,7 @@ function History({ chatId, onOpened }: { chatId: string; onOpened: () => void })
   };
 
   return (
-    <div className="agentPanel-empty">
+    <div className="z-overlay z-menu agentHistory">
       {error && (
         <div className="z-notice z-notice-error">
           <Icon name="circle-alert" size={14} />
@@ -222,41 +256,64 @@ function History({ chatId, onOpened }: { chatId: string; onOpened: () => void })
         </div>
       )}
       {past === null && !error && <span className="z-spinner" role="status" aria-label="Loading" />}
-      {past?.length === 0 && <p>No past conversations in this project.</p>}
-      {past !== null && past.length > 0 && (
-        <div className="agentPanel-agents agentHistory" aria-label="Past conversations">
-          {past.map((chat) => (
-            <button
-              type="button"
-              key={chat.id}
-              className="panel-row"
-              disabled={chat.current || opening !== null}
-              title={[chat.title, chat.updated && new Date(chat.updated).toLocaleString()]
-                .filter(Boolean)
-                .join(' · ')}
-              onClick={() => void open(chat.id)}
-            >
-              {opening === chat.id ? (
-                <span className="z-spinner" role="status" aria-label="Opening" />
-              ) : (
-                <Icon name="history" />
-              )}
-              <span className="panel-row-name">{chat.title || 'Untitled'}</span>
-              <span className="panel-row-meta">
-                {chat.current ? 'open now' : chat.updated ? relativeDate(chat.updated) : ''}
-              </span>
-            </button>
-          ))}
-        </div>
+      {past?.length === 0 && (
+        <p className="agentHistory-empty">No past conversations in this project.</p>
       )}
-      {next && (
-        <button
-          type="button"
-          className="z-button z-button-secondary"
-          onClick={() => void load(next)}
+      {past !== null && past.length > 0 && (
+        <ul
+          className="z-overlay-list"
+          role="menu"
+          aria-label="Past conversations"
+          {...menuKeys}
+          ref={listRef}
         >
-          Show more
-        </button>
+          {past.map((chat) => (
+            <li
+              key={chat.id}
+              className={chat.current ? 'panel-row is-selected' : 'panel-row'}
+              role="none"
+            >
+              <button
+                type="button"
+                className="panel-row-name"
+                role="menuitem"
+                disabled={chat.current || opening !== null}
+                title={[chat.title, chat.updated && new Date(chat.updated).toLocaleString()]
+                  .filter(Boolean)
+                  .join(' · ')}
+                onClick={() => void open(chat.id)}
+              >
+                {opening === chat.id ? (
+                  <span className="z-spinner" role="status" aria-label="Opening" />
+                ) : (
+                  <Icon name="history" />
+                )}
+                <span className="panel-row-label">{chat.title || 'Untitled'}</span>
+                <span className="panel-row-meta">
+                  {chat.current ? 'open now' : chat.updated ? relativeDate(chat.updated) : ''}
+                </span>
+              </button>
+            </li>
+          ))}
+          {next && (
+            <>
+              <MenuSeparator />
+              {/* A row like the conversations', its chevron where their clocks are. */}
+              <li className="panel-row" role="none">
+                <button
+                  type="button"
+                  className="panel-row-name"
+                  role="menuitem"
+                  disabled={opening !== null}
+                  onClick={() => void load(next)}
+                >
+                  <Icon name="chevron-down" />
+                  <span className="panel-row-label">Show more</span>
+                </button>
+              </li>
+            </>
+          )}
+        </ul>
       )}
     </div>
   );
@@ -419,7 +476,8 @@ function Picker(props: {
 }
 
 function Conversation({ chat }: { chat: AgentChat }) {
-  const { view, connected, prompt, cancel, answer, setMode } = useAgentChat(chat.id);
+  const { view, connected, prompt, cancel, answer, setMode, setSetting } = useAgentChat(chat.id);
+  const [settingOpen, setSettingOpen] = useState<string | null>(null);
   const announcement = useChatAnnouncer(view);
   const [draft, setDraft] = useState('');
   const [mentions, setMentions] = useAtom(composerMentionsAtom);
@@ -474,17 +532,6 @@ function Conversation({ chat }: { chat: AgentChat }) {
 
   return (
     <>
-      <div className="agentPanel-mode z-select">
-        <select
-          aria-label="What the agent may do without asking"
-          value={view.mode}
-          onChange={(event) => setMode(event.target.value)}
-        >
-          <option value="ask">Ask every time</option>
-          <option value="edits">Allow edits</option>
-          <option value="all">Allow edits and commands</option>
-        </select>
-      </div>
       <div className="z-visually-hidden" role="status">
         {announcement}
       </div>
@@ -537,7 +584,20 @@ function Conversation({ chat }: { chat: AgentChat }) {
           onBlur={() => setPicking(null)}
         />
         <div className="agentComposer-foot">
-          <span>{connected ? 'Your own agent, your own subscription' : 'Connecting…'}</span>
+          {connected ? (
+            <AgentSettings
+              agent={chat.agent}
+              settings={view.settings}
+              mode={view.mode}
+              disabled={view.exited}
+              open={settingOpen}
+              onOpen={setSettingOpen}
+              onSet={setSetting}
+              onSetMode={setMode}
+            />
+          ) : (
+            <span>Connecting…</span>
+          )}
           {view.answering ? (
             <button type="button" className="z-button z-button-secondary" onClick={cancel}>
               <Icon name="circle-stop" size={14} /> Stop

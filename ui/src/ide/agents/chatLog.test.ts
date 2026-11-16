@@ -386,6 +386,54 @@ describe('foldChat', () => {
     expect(status([...answered, { type: 'turn_end', stop_reason: 'cancelled' }])).toBe('pending');
   });
 
+  it('keeps the agent’s settings as it last sent them, a group’s values in one list', () => {
+    const view = foldChat([
+      {
+        type: 'settings',
+        settings: [{ id: 'model', name: 'Model', type: 'select', currentValue: 'a', options: [] }],
+      },
+      {
+        type: 'settings',
+        settings: [
+          {
+            id: 'model',
+            name: 'Model',
+            category: 'model',
+            type: 'select',
+            currentValue: 'b',
+            options: [
+              { group: 'fast', name: 'Fast', options: [{ value: 'b', name: 'B' }] },
+              { group: 'slow', name: 'Slow', options: [{ value: 'c', name: 'C' }] },
+            ],
+          },
+          { id: 'ultra', name: 'Ultra', description: 'More', type: 'boolean', currentValue: true },
+        ],
+      },
+    ]);
+
+    expect(view.settings).toEqual([
+      {
+        kind: 'choice',
+        id: 'model',
+        name: 'Model',
+        category: 'model',
+        value: 'b',
+        values: [
+          { value: 'b', name: 'B' },
+          { value: 'c', name: 'C' },
+        ],
+      },
+      {
+        kind: 'switch',
+        id: 'ultra',
+        name: 'Ultra',
+        description: 'More',
+        category: '',
+        value: true,
+      },
+    ]);
+  });
+
   it('reads a command’s output without its colours, and a redrawn line as it was left', () => {
     expect(terminalText('\x1b[32mok\x1b[0m\r\n10%\r50%\r100%\n\x1b]0;title\x07done')).toBe(
       'ok\n100%\ndone'
