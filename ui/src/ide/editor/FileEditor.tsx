@@ -141,9 +141,11 @@ export default function FileEditor(props: FileEditorProps) {
    * CodeMirror's own document rather than of a copy of it made on every keystroke.
    */
   const savedDoc = useRef(Text.empty);
-  /** The last version seen on disk, so a change already answered is not asked about again. */
-  const diskDoc = useRef(Text.empty);
-  /** That version's hash, which a save hands back so that it never writes over one it has not seen. */
+  /**
+   * The hash of the version last seen on disk, which the server serves with every read. A save hands it
+   * back so that it never writes over a version it has not seen, and a change already answered is not
+   * asked about again.
+   */
   const diskHash = useRef('');
   /** A change on disk reported while this tab was in the background, to be looked at once it is not. */
   const changedWhileHidden = useRef(false);
@@ -204,9 +206,8 @@ export default function FileEditor(props: FileEditorProps) {
         diskHash.current = '';
         return true;
       }
-      diskDoc.current = documentOf(file.content);
       diskHash.current = file.hash;
-      if (diskDoc.current.eq(written)) {
+      if (documentOf(file.content).eq(written)) {
         return true;
       }
       setRefused(true);
@@ -250,7 +251,6 @@ export default function FileEditor(props: FileEditorProps) {
     }
     diskHash.current = hash;
     savedDoc.current = written;
-    diskDoc.current = written;
     savedEol.current = writtenEol;
     // A save made while the band is up keeps the reader's version.
     setConflict(null);
@@ -444,7 +444,6 @@ export default function FileEditor(props: FileEditorProps) {
       const text = file.format === 'text' ? file.content : '';
       setNotText(file.format !== 'text');
       savedDoc.current = documentOf(text);
-      diskDoc.current = savedDoc.current;
       diskHash.current = file.hash;
       if (file.format === 'text') {
         const opened = formatFor(text, settingsRef.current, editorConfig);
@@ -514,12 +513,17 @@ export default function FileEditor(props: FileEditorProps) {
     if (editor === null || file.format !== 'text') {
       return;
     }
-    const onDisk = documentOf(file.content);
+    /*
+     * Whether this is a version the editor has not seen is the server's answer, not the editor's: two
+     * documents compare equal when only their line endings differ, so a file turned from LF to CRLF on
+     * disk used to read as unchanged, and the next save turned it back without a word.
+     */
+    const seen = diskHash.current;
     diskHash.current = file.hash;
-    if (onDisk.eq(diskDoc.current)) {
+    if (file.hash !== '' && file.hash === seen) {
       return;
     }
-    diskDoc.current = onDisk;
+    const onDisk = documentOf(file.content);
     const doc = editor.state.doc;
 
     if (!isDirty(doc)) {

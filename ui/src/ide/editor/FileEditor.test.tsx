@@ -430,6 +430,20 @@ describe('FileEditor', () => {
       });
     });
 
+    it('takes in a change of line endings alone, which the text by itself cannot tell apart', async () => {
+      await renderEditor();
+      getFileContent.mockResolvedValue(text('first line\r\n'));
+
+      await changedOnDisk();
+      type('first line\nmore\n');
+      fireEvent.click(screen.getByText('save it'));
+
+      await waitFor(() => expect(unsavedPaths()).toBe(''));
+      expect(saveFile).toHaveBeenLastCalledWith('notes.txt', 'first line\r\nmore\r\n');
+      // Over the version it took in, so the save is not refused as one over a version it has not seen.
+      expect(savedOver).toHaveBeenLastCalledWith('hash of first line\r\n');
+    });
+
     it('does nothing when what is on disk is what it last read or saved', async () => {
       await renderEditor();
       type('first line\nsaved\n');
