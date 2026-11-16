@@ -482,6 +482,43 @@ describe('AgentPanel', () => {
       expect(fold).not.toHaveAttribute('open');
     });
 
+    it('draws a subagent’s calls under its row, and a command left running as such', async () => {
+      const socket = await connect();
+      const update = (update: object) => socket.push({ type: 'update', update });
+      update({
+        sessionUpdate: 'tool_call',
+        toolCallId: 'task',
+        title: 'Explore',
+        kind: 'think',
+        status: 'in_progress',
+      });
+      update({
+        sessionUpdate: 'tool_call',
+        toolCallId: 'g',
+        title: 'grep calibrat',
+        kind: 'search',
+        status: 'completed',
+        _meta: { claudeCode: { parentToolUseId: 'task' } },
+      });
+      update({
+        sessionUpdate: 'tool_call',
+        toolCallId: 'bg',
+        title: 'python load_raw.py --all',
+        kind: 'execute',
+        status: 'completed',
+        rawInput: { run_in_background: true },
+      });
+
+      const task = screen.getByText('Explore').closest('button');
+      const grep = screen.getByText('grep calibrat').closest('button');
+      expect(task).not.toHaveClass('is-nested');
+      expect(grep).toHaveClass('is-nested');
+      expect(task!.compareDocumentPosition(grep!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.getByText('python load_raw.py --all').closest('button')).toHaveTextContent(
+        'in the background'
+      );
+    });
+
     it('draws a sent command in the face it is typed in', async () => {
       const socket = await connect();
       socket.push({ type: 'user', text: '/review 42' });

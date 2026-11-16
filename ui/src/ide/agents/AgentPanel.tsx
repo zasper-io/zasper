@@ -1041,38 +1041,40 @@ function Tools({ calls }: { calls: ToolCall[] }) {
       return next;
     });
 
-  return (
-    <div className="agentTools">
-      {calls.map((call) => {
-        const hasOutput =
-          call.output !== '' || call.diffs.length > 0 || (call.terminal?.output ?? '') !== '';
-        const expanded = open.has(call.id);
-        const status = statusOf(call);
-        return (
-          <div key={call.id}>
-            <button
-              type="button"
-              className="panel-row"
-              disabled={!hasOutput && call.locations.length === 0}
-              aria-expanded={hasOutput ? expanded : undefined}
-              title={call.locations[0] ?? call.title}
-              onClick={() =>
-                hasOutput ? toggle(call.id) : call.locations[0] && openFile(call.locations[0])
-              }
-            >
-              <Icon name={TOOL_ICONS[call.kind] ?? 'bot'} />
-              <span className="panel-row-name">{call.title}</span>
-              <span className={`agentTools-status is-${status.tone}`}>{status.label}</span>
-              {hasOutput && (
-                <Icon name={expanded ? 'chevron-down' : 'chevron-right'} className="z-icon-sm" />
-              )}
-            </button>
-            {expanded && <ToolOutput call={call} openFile={openFile} />}
-          </div>
-        );
-      })}
-    </div>
-  );
+  // A subagent's calls follow the call that started it, indented under it.
+  const row = (call: ToolCall, nested: boolean): React.ReactNode => {
+    const hasOutput =
+      call.output !== '' || call.diffs.length > 0 || (call.terminal?.output ?? '') !== '';
+    const expanded = open.has(call.id);
+    const status = statusOf(call);
+    return (
+      <React.Fragment key={call.id}>
+        <div>
+          <button
+            type="button"
+            className={nested ? 'panel-row is-nested' : 'panel-row'}
+            disabled={!hasOutput && call.locations.length === 0}
+            aria-expanded={hasOutput ? expanded : undefined}
+            title={call.locations[0] ?? call.title}
+            onClick={() =>
+              hasOutput ? toggle(call.id) : call.locations[0] && openFile(call.locations[0])
+            }
+          >
+            <Icon name={call.calls.length > 0 ? 'bot' : (TOOL_ICONS[call.kind] ?? 'bot')} />
+            <span className="panel-row-name">{call.title}</span>
+            <span className={`agentTools-status is-${status.tone}`}>{status.label}</span>
+            {hasOutput && (
+              <Icon name={expanded ? 'chevron-down' : 'chevron-right'} className="z-icon-sm" />
+            )}
+          </button>
+          {expanded && <ToolOutput call={call} openFile={openFile} />}
+        </div>
+        {call.calls.map((child) => row(child, true))}
+      </React.Fragment>
+    );
+  };
+
+  return <div className="agentTools">{calls.map((call) => row(call, false))}</div>;
 }
 
 function ToolOutput({ call, openFile }: { call: ToolCall; openFile: (path: string) => void }) {
@@ -1141,6 +1143,10 @@ function statusOf(call: ToolCall): { label: string; tone: string } {
   }
   if (exit?.code) {
     return { label: `exit ${exit.code}`, tone: 'failed' };
+  }
+  // The call has answered, and the command goes on without the agent.
+  if (call.background && call.status !== 'failed' && call.terminal?.exit === undefined) {
+    return { label: 'in the background', tone: 'in_progress' };
   }
   switch (call.status) {
     case 'completed':

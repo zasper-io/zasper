@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ChatEvent } from '@/api';
-import { foldChat, terminalText } from './chatLog';
+import { foldChat, terminalText, ToolCall } from './chatLog';
 
 const said = (text: string): ChatEvent => ({
   type: 'update',
@@ -59,6 +59,7 @@ describe('foldChat', () => {
           locations: [],
           output: '',
           diffs: [],
+          calls: [],
         },
         {
           id: 't2',
@@ -68,6 +69,7 @@ describe('foldChat', () => {
           locations: ['/p/a.py'],
           output: '',
           diffs: [],
+          calls: [],
         },
       ],
     });
@@ -588,6 +590,88 @@ describe('foldChat', () => {
       ]);
       expect(notices([usage(100000)])).toEqual([]);
     });
+  });
+
+  it('puts what a subagent does under the call that started it, and keeps its words out of the reply', () => {
+    const under = (parent: string) => ({ _meta: { claudeCode: { parentToolUseId: parent } } });
+    const view = foldChat([
+      { type: 'user', text: 'why does sensor 4 drift?' },
+      {
+        type: 'update',
+        update: { sessionUpdate: 'tool_call', toolCallId: 'task', title: 'Explore', kind: 'think' },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'g',
+          title: 'grep calibrat',
+          kind: 'search',
+          ...under('task'),
+        },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'looking' },
+          ...under('task'),
+        },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'g',
+          status: 'completed',
+          ...under('task'),
+        },
+      },
+      said('It is the calibration.'),
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'lost',
+          title: 'read',
+          kind: 'read',
+          ...under('unseen'),
+        },
+      },
+    ]);
+
+    const tools = view.items.filter((item) => item.kind === 'tools');
+    expect(tools).toHaveLength(2);
+    const task = (tools[0] as { calls: ToolCall[] }).calls[0];
+    expect(task.calls.map((call) => [call.id, call.status])).toEqual([['g', 'completed']]);
+    expect(view.items.filter((item) => item.kind === 'agent')).toEqual([
+      { kind: 'agent', text: 'It is the calibration.' },
+    ]);
+    // Under a call never seen, a call stands on its own rather than being lost.
+    expect((tools[1] as { calls: ToolCall[] }).calls[0].id).toBe('lost');
+  });
+
+  it('marks a command the agent left running while it went on', () => {
+    const view = foldChat([
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'b',
+          title: 'python load_raw.py --all',
+          kind: 'execute',
+          rawInput: { command: 'python load_raw.py --all', run_in_background: true },
+        },
+      },
+      {
+        type: 'update',
+        update: { sessionUpdate: 'tool_call_update', toolCallId: 'b', status: 'completed' },
+      },
+    ]);
+
+    const call = (view.items[0] as { calls: ToolCall[] }).calls[0];
+    expect(call.background).toBe(true);
+    expect(call.status).toBe('completed');
   });
 
   it('reads a command’s output without its colours, and a redrawn line as it was left', () => {
