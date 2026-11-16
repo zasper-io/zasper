@@ -434,6 +434,34 @@ describe('foldChat', () => {
     ]);
   });
 
+  it('keeps the chat’s title and how full its context is, as the agent last said', () => {
+    const update = (update: object): ChatEvent => ({ type: 'update', update });
+    const view = foldChat([
+      update({ sessionUpdate: 'session_info_update', title: 'Sensor drift' }),
+      update({ sessionUpdate: 'session_info_update', updatedAt: '2026-11-16T09:00:00Z' }),
+      update({ sessionUpdate: 'usage_update', used: 1000, size: 200000 }),
+      update({
+        sessionUpdate: 'usage_update',
+        used: 76000,
+        size: 200000,
+        cost: { amount: 1.92, currency: 'USD' },
+      }),
+    ]);
+
+    expect(view.title).toBe('Sensor drift');
+    expect(view.usage).toEqual({
+      used: 76000,
+      size: 200000,
+      cost: { amount: 1.92, currency: 'USD' },
+    });
+    expect(
+      foldChat([
+        update({ sessionUpdate: 'session_info_update', title: 'A' }),
+        update({ sessionUpdate: 'session_info_update', title: null }),
+      ]).title
+    ).toBeUndefined();
+  });
+
   it('reads a command’s output without its colours, and a redrawn line as it was left', () => {
     expect(terminalText('\x1b[32mok\x1b[0m\r\n10%\r50%\r100%\n\x1b]0;title\x07done')).toBe(
       'ok\n100%\ndone'

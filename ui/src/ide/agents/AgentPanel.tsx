@@ -41,7 +41,8 @@ import { useAskTrust } from '@/store/trust';
 import { lineDiff } from '@/ide/editor/notebookDiff/cellDiff';
 import { relativeDate } from '@/ide/sidebar/dates';
 import AgentSettings from './AgentSettings';
-import { ChatItem, PlanEntry, terminalText, ToolCall, ToolDiff } from './chatLog';
+import { AgentSetting, ChatItem, PlanEntry, terminalText, ToolCall, ToolDiff } from './chatLog';
+import ContextMeter from './ContextMeter';
 import { useAgentChat } from './useAgentChat';
 import { useChatAnnouncer } from './useChatAnnouncer';
 import './AgentPanel.scss';
@@ -76,6 +77,9 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   useDismissOnEscape(closeHistory, browsing);
   useDismissOnPressOutside(historyAnchor, closeHistory, browsing);
   const askTrust = useAskTrust();
+  // Here rather than in the conversation, so the head can draw the chat's title and how full it is.
+  const live = useAgentChat(chat?.id ?? null);
+  const { title, usage } = live.view;
 
   const findAgents = useCallback(() => {
     listAgents()
@@ -142,9 +146,12 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   return (
     <aside className="agentPanel" data-region="agent" hidden={hidden} aria-label="Agent">
       <div className="agentPanel-title">
-        <span className="z-label">{chat ? nameOf(chat, agents) : (starting?.name ?? 'Agent')}</span>
+        <span className="z-label agentPanel-name" title={title}>
+          {chat ? (title ?? nameOf(chat, agents)) : (starting?.name ?? 'Agent')}
+        </span>
         {chat && (
           <span className="agentPanel-actions">
+            {usage && <ContextMeter usage={usage} model={modelName(live.view.settings)} />}
             {chat.history && (
               <span className="agentHistory-anchor" ref={historyAnchor}>
                 <IconButton
@@ -162,7 +169,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
         )}
       </div>
       {chat ? (
-        <Conversation chat={chat} />
+        <Conversation chat={chat} live={live} />
       ) : (
         <Picker
           agents={agents}
@@ -175,6 +182,13 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
       )}
     </aside>
   );
+}
+
+/** The model the agent is on, by the name it gives it. */
+function modelName(settings: AgentSetting[]): string | undefined {
+  const model = settings.find((setting) => setting.category === 'model');
+  if (model?.kind !== 'choice') return undefined;
+  return model.values.find((value) => value.value === model.value)?.name ?? model.value;
 }
 
 function nameOf(chat: AgentChat, agents: AgentInfo[] | null): string {
@@ -475,8 +489,8 @@ function Picker(props: {
   );
 }
 
-function Conversation({ chat }: { chat: AgentChat }) {
-  const { view, connected, prompt, cancel, answer, setMode, setSetting } = useAgentChat(chat.id);
+function Conversation({ chat, live }: { chat: AgentChat; live: ReturnType<typeof useAgentChat> }) {
+  const { view, connected, prompt, cancel, answer, setMode, setSetting } = live;
   const [settingOpen, setSettingOpen] = useState<string | null>(null);
   const announcement = useChatAnnouncer(view);
   const [draft, setDraft] = useState('');

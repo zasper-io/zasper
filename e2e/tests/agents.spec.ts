@@ -109,3 +109,27 @@ test('past conversations drop over the conversation, and the one picked is repla
   await expect(menu).toHaveCount(0);
   await expect(page.locator('.agentChat').getByText('what is 2 + 2?')).toBeVisible();
 });
+
+test('the head takes the chat’s title, and shows how full its context is', async ({ page }) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(`${fakeAgentBinary} --settings`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+
+  await field.fill('name');
+  await field.press('Enter');
+  await expect(page.locator('.agentPanel-title').getByText('Sensor drift model')).toBeVisible();
+  const meter = page.getByRole('button', { name: 'Context: 91% full' });
+  await expect(meter).toBeVisible();
+
+  await meter.click();
+  const detail = page.getByRole('dialog', { name: 'Context and cost' });
+  await expect(detail).toBeInViewport();
+  await expect(detail).toContainText('182k of 200k tokens');
+  await expect(detail).toContainText('$1.92');
+  await expect(detail).toContainText('Large');
+  await page.keyboard.press('Escape');
+  await expect(detail).toHaveCount(0);
+});
