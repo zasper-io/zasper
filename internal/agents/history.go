@@ -89,6 +89,7 @@ func (c *Chat) Load(id string) error {
 		close(subscriber)
 	}
 	mode := c.Mode
+	settings := c.settings
 	c.mu.Unlock()
 	// Before any turn of the conversation opened, which numbers its turns from 1 again.
 	c.releaseTurns()
@@ -98,7 +99,7 @@ func (c *Chat) Load(id string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), loadBudget)
 	defer cancel()
-	_, err := c.conn.LoadSession(ctx, acp.LoadSessionRequest{SessionId: acp.SessionId(id), Cwd: c.root, McpServers: c.servers})
+	loaded, err := c.conn.LoadSession(ctx, acp.LoadSessionRequest{SessionId: acp.SessionId(id), Cwd: c.root, McpServers: c.servers})
 	c.mu.Lock()
 	c.answering = false
 	if err == nil {
@@ -106,9 +107,11 @@ func (c *Chat) Load(id string) error {
 	}
 	c.mu.Unlock()
 	if err != nil {
+		c.setSettings(settings)
 		c.record(Event{Type: "error", Text: fmt.Sprintf("could not open that conversation: %v", err)})
 		return err
 	}
+	c.setSettings(loaded.ConfigOptions)
 	analytics.Track(analytics.EventAgentConversationReopened, map[string]interface{}{"agent": analytics.AgentKind(c.Agent)})
 	return nil
 }

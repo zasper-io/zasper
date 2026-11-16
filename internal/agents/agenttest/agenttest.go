@@ -12,6 +12,9 @@ pipes with no agent installed.
 	(history: it lists this session and "earlier", and loading "earlier" replays a question and its answer)
 	(a message with more than its text says what else came with it, a line a block)
 	run …  runs the rest of the line in a terminal of the editor's, and says how it ended and what it printed
+	build  leaves plan mode, as an agent does when its plan is accepted, and says so
+	(settings: with ZASPER_FAKE_AGENT_SETTINGS set, a model, an effort only the first model has, a mode and a
+	switch of no category; a session opened or loaded says them, and a change answers the whole set)
 
 At the start of a session it writes the names of the MCP servers it was given to mcp-servers.txt.
 */
@@ -41,6 +44,8 @@ func Serve() {
 type agent struct {
 	conn *acp.AgentSideConnection
 	cwd  string
+	// The settings' values, by id, when the agent has settings.
+	values map[string]string
 }
 
 func (a *agent) Initialize(context.Context, acp.InitializeRequest) (acp.InitializeResponse, error) {
@@ -67,7 +72,10 @@ func (a *agent) NewSession(_ context.Context, request acp.NewSessionRequest) (ac
 		}
 	}
 	os.WriteFile(filepath.Join(request.Cwd, "mcp-servers.txt"), []byte(strings.Join(names, ",")), 0o644)
-	return acp.NewSessionResponse{SessionId: "fake-session"}, nil
+	if os.Getenv("ZASPER_FAKE_AGENT_SETTINGS") != "" {
+		a.values = map[string]string{"model": "large", "effort": "high", "mode": "plan", "fast": "off"}
+	}
+	return acp.NewSessionResponse{SessionId: "fake-session", ConfigOptions: a.settings()}, nil
 }
 
 func (a *agent) say(ctx context.Context, session acp.SessionId, text string) {
@@ -137,6 +145,14 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 		default:
 			a.say(ctx, session, "the question was withdrawn")
 		}
+	case "build":
+		if a.values != nil {
+			a.values["mode"] = "default"
+			a.conn.SessionUpdate(ctx, acp.SessionNotification{SessionId: session, Update: acp.SessionUpdate{
+				ConfigOptionUpdate: &acp.SessionConfigOptionUpdate{SessionUpdate: "config_option_update", ConfigOptions: a.settings()},
+			}})
+		}
+		a.say(ctx, session, "building")
 	case "wait":
 		a.say(ctx, session, "waiting")
 		<-ctx.Done()
@@ -180,15 +196,51 @@ func (a *agent) LoadSession(ctx context.Context, request acp.LoadSessionRequest)
 	}
 	a.conn.SessionUpdate(ctx, acp.SessionNotification{SessionId: request.SessionId, Update: acp.UpdateUserMessageText("what is 2 + 2?")})
 	a.say(ctx, request.SessionId, "4")
-	return acp.LoadSessionResponse{}, nil
+	return acp.LoadSessionResponse{ConfigOptions: a.settings()}, nil
 }
 
 func (a *agent) ResumeSession(context.Context, acp.ResumeSessionRequest) (acp.ResumeSessionResponse, error) {
 	return acp.ResumeSessionResponse{}, nil
 }
 
-func (a *agent) SetSessionConfigOption(context.Context, acp.SetSessionConfigOptionRequest) (acp.SetSessionConfigOptionResponse, error) {
-	return acp.SetSessionConfigOptionResponse{}, nil
+func (a *agent) SetSessionConfigOption(_ context.Context, request acp.SetSessionConfigOptionRequest) (acp.SetSessionConfigOptionResponse, error) {
+	if request.ValueId == nil {
+		return acp.SetSessionConfigOptionResponse{}, fmt.Errorf("only choices here")
+	}
+	id, value := string(request.ValueId.ConfigId), string(request.ValueId.Value)
+	if _, ok := a.values[id]; !ok {
+		return acp.SetSessionConfigOptionResponse{}, fmt.Errorf("unknown config option: %s", id)
+	}
+	a.values[id] = value
+	return acp.SetSessionConfigOptionResponse{ConfigOptions: a.settings()}, nil
+}
+
+// settings is the agent's settings as they stand: the small model has no effort.
+func (a *agent) settings() []acp.SessionConfigOption {
+	if a.values == nil {
+		return nil
+	}
+	choice := func(id, name string, category acp.SessionConfigOptionCategory, values ...string) acp.SessionConfigOption {
+		options := acp.SessionConfigSelectOptionsUngrouped{}
+		for _, value := range values {
+			description := "The " + value + " one"
+			options = append(options, acp.SessionConfigSelectOption{Value: acp.SessionConfigValueId(value), Name: strings.ToUpper(value[:1]) + value[1:], Description: &description})
+		}
+		option := acp.NewSessionConfigOptionSelect(acp.SessionConfigValueId(a.values[id]), acp.SessionConfigSelectOptions{Ungrouped: &options})
+		option.Select.Id, option.Select.Name = acp.SessionConfigId(id), name
+		if category != "" {
+			option.Select.Category = &category
+		}
+		return option
+	}
+	settings := []acp.SessionConfigOption{
+		choice("mode", "Mode", acp.SessionConfigOptionCategoryMode, "default", "plan"),
+		choice("model", "Model", acp.SessionConfigOptionCategoryModel, "large", "small"),
+	}
+	if a.values["model"] == "large" {
+		settings = append(settings, choice("effort", "Effort", acp.SessionConfigOptionCategoryThoughtLevel, "low", "high"))
+	}
+	return append(settings, choice("fast", "Fast mode", "", "off", "on"))
 }
 
 func (a *agent) SetSessionMode(context.Context, acp.SetSessionModeRequest) (acp.SetSessionModeResponse, error) {

@@ -63,6 +63,9 @@ class FakeSocket {
 
 vi.stubGlobal('WebSocket', FakeSocket);
 
+// Zasper's own mode, the one setting a chat with an agent that sends none has: there once connected.
+const ZASPER_MODE = 'What the agent may do without asking: Ask every time';
+
 const said = (text: string) => ({
   type: 'update',
   update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } },
@@ -193,7 +196,7 @@ describe('AgentPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
     await waitFor(() => expect(FakeSocket.latest?.url).toContain('/ws/agents/chats/chat-1'));
     // Connected: until then the server has not sent the log, and opening starts it again.
-    await screen.findByText('Your own agent, your own subscription');
+    await screen.findByRole('button', { name: ZASPER_MODE });
 
     const socket = FakeSocket.latest;
     socket.push({ type: 'user', text: 'Change THRESHOLD' });
@@ -230,6 +233,107 @@ describe('AgentPanel', () => {
     expect(socket.sent).toContainEqual({ type: 'prompt', text: 'thanks', mentions: [] });
   });
 
+  describe('the agent’s settings', () => {
+    const choice = (id: string, category: string | null, current: string, ...values: string[]) => ({
+      id,
+      name: id[0].toUpperCase() + id.slice(1),
+      category,
+      type: 'select',
+      currentValue: current,
+      options: values.map((value) => ({
+        value,
+        name: value[0].toUpperCase() + value.slice(1),
+        description: `The ${value} one`,
+      })),
+    });
+    const settings = {
+      type: 'settings',
+      settings: [
+        choice('mode', 'mode', 'plan', 'default', 'plan'),
+        choice('model', 'model', 'large', 'large', 'small'),
+        choice('effort', 'thought_level', 'high', 'low', 'high'),
+        choice('fast', null, 'off', 'off', 'on'),
+      ],
+    };
+
+    const connect = async () => {
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+      return FakeSocket.latest;
+    };
+
+    it('draws a chip for the model, the effort and the mode, in that order, and the rest under More', async () => {
+      const socket = await connect();
+      socket.push(settings);
+
+      const chips = screen
+        .getAllByRole('button', { name: /^(Model|Effort|Mode):/ })
+        .map((chip) => chip.getAttribute('aria-label'));
+      expect(chips).toEqual(['Model: Large', 'Effort: High', 'Mode: Plan']);
+      expect(screen.queryByRole('button', { name: ZASPER_MODE })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'More settings for claude-code' }));
+      const more = screen.getByRole('menu', { name: 'More settings for claude-code' });
+      expect(more).toHaveTextContent('Fast');
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'On' }));
+      expect(socket.sent).toContainEqual({ type: 'setting', id: 'fast', value: 'on' });
+    });
+
+    it('sends the value picked, and shows what the agent answers', async () => {
+      const socket = await connect();
+      socket.push(settings);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Model: Large' }));
+      expect(
+        screen.getByRole('menuitemradio', { name: 'Small The small one' })
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Small The small one' }));
+      expect(socket.sent).toContainEqual({ type: 'setting', id: 'model', value: 'small' });
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      // Not until the agent says so.
+      expect(screen.getByRole('button', { name: 'Model: Large' })).toBeInTheDocument();
+
+      socket.push({
+        type: 'settings',
+        settings: [
+          choice('mode', 'mode', 'plan', 'default', 'plan'),
+          choice('model', 'model', 'small', 'large', 'small'),
+        ],
+      });
+      expect(screen.getByRole('button', { name: 'Model: Small' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Effort/ })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'More settings for claude-code' })
+      ).not.toBeInTheDocument();
+    });
+
+    it('says what the chosen mode does, in the agent’s words', async () => {
+      const socket = await connect();
+      socket.push(settings);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mode: Plan' }));
+
+      expect(screen.getByRole('menu', { name: 'Mode' }).parentElement).toHaveTextContent(
+        'The plan one'
+      );
+      expect(screen.getByRole('button', { name: 'Mode: Plan' })).toHaveClass('is-plan');
+    });
+
+    it('keeps Zasper’s own mode for an agent with none of its own', async () => {
+      const socket = await connect();
+
+      fireEvent.click(screen.getByRole('button', { name: ZASPER_MODE }));
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Allow edits' }));
+
+      expect(socket.sent).toContainEqual({ type: 'mode', mode: 'edits' });
+    });
+  });
+
   it('keeps what was typed until the chat is connected', async () => {
     render(
       <Provider>
@@ -254,7 +358,7 @@ describe('AgentPanel', () => {
       </Provider>
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
-    await screen.findByText('Your own agent, your own subscription');
+    await screen.findByRole('button', { name: ZASPER_MODE });
     const socket = FakeSocket.latest;
     socket.push({
       type: 'update',
@@ -307,27 +411,50 @@ describe('AgentPanel', () => {
       );
       fireEvent.click(await screen.findByRole('button', { name: 'Past conversations' }));
 
-      expect(await screen.findByRole('button', { name: /This one/ })).toBeDisabled();
-      expect(screen.getByRole('button', { name: /Plot the results/ })).toBeEnabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Show more' }));
+      expect(await screen.findByRole('menuitem', { name: /This one/ })).toBeDisabled();
+      expect(screen.getByRole('menuitem', { name: /Plot the results/ })).toBeEnabled();
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Show more' }));
 
-      expect(await screen.findByRole('button', { name: /Fix the loader/ })).toBeInTheDocument();
+      expect(await screen.findByRole('menuitem', { name: /Fix the loader/ })).toBeInTheDocument();
       expect(listPastChats).toHaveBeenLastCalledWith('chat-1', 'page-2');
-      expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Show more' })).not.toBeInTheDocument();
     });
 
-    it('goes on in the one picked, back in the conversation', async () => {
+    it('drops over the conversation, which stays, and goes on in the one picked', async () => {
       render(
         <Provider>
           <AgentPanel hidden={false} />
         </Provider>
       );
-      fireEvent.click(await screen.findByRole('button', { name: 'Past conversations' }));
+      const clock = await screen.findByRole('button', { name: 'Past conversations' });
+      fireEvent.click(clock);
 
-      fireEvent.click(await screen.findByRole('button', { name: /Plot the results/ }));
+      expect(clock).toHaveAttribute('aria-expanded', 'true');
+      expect(await screen.findByRole('menu', { name: 'Past conversations' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Message to the agent')).toBeInTheDocument();
+      fireEvent.click(await screen.findByRole('menuitem', { name: /Plot the results/ }));
 
-      await screen.findByPlaceholderText('Ask the agent — @ for a file');
+      await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
       expect(openPastChat).toHaveBeenCalledWith('chat-1', 'earlier');
+    });
+
+    it('closes on Escape and on a press outside it', async () => {
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      const clock = await screen.findByRole('button', { name: 'Past conversations' });
+
+      fireEvent.click(clock);
+      await screen.findByRole('menu', { name: 'Past conversations' });
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+      fireEvent.click(clock);
+      await screen.findByRole('menu', { name: 'Past conversations' });
+      fireEvent.mouseDown(screen.getByLabelText('Message to the agent'));
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
     it('is not offered for an agent that cannot open its past conversations', async () => {
@@ -351,7 +478,7 @@ describe('AgentPanel', () => {
           <AgentPanel hidden={false} />
         </Provider>
       );
-      await screen.findByText('Your own agent, your own subscription');
+      await screen.findByRole('button', { name: ZASPER_MODE });
       FakeSocket.latest.push({ type: 'user', text: 'tidy it' });
       FakeSocket.latest.push({
         type: 'changes',
@@ -421,7 +548,7 @@ describe('AgentPanel', () => {
           <AgentPanel hidden={false} />
         </Provider>
       );
-      await screen.findByText('Your own agent, your own subscription');
+      await screen.findByRole('button', { name: ZASPER_MODE });
       return screen.getByLabelText('Message to the agent') as HTMLTextAreaElement;
     }
 

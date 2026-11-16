@@ -33,6 +33,7 @@ const (
 	EventAgentTurnEnded            EventType = "agent_turn_ended"
 	EventAgentPermissionAnswered   EventType = "agent_permission_answered"
 	EventAgentModeChanged          EventType = "agent_mode_changed"
+	EventAgentSettingChanged       EventType = "agent_setting_changed"
 	EventAgentConversationReopened EventType = "agent_conversation_reopened"
 	EventAgentChangesUndone        EventType = "agent_changes_undone"
 	// Not mcp_tool_called: PostHog labels that name as its own retired event in every project and
@@ -179,7 +180,11 @@ var eventRegistry = map[EventType]map[string]propSpec{
 		"answered_by": enum("reader", "mode"),
 		"allowed":     {kind: propBool},
 	},
-	EventAgentModeChanged:          {"mode": enum("ask", "edits", "all")},
+	EventAgentModeChanged: {"mode": enum("ask", "edits", "all")},
+	EventAgentSettingChanged: {
+		"agent":    agentKinds,
+		"category": enum("model", "thought_level", "mode", "other"),
+	},
 	EventAgentConversationReopened: {"agent": agentKinds},
 	EventAgentChangesUndone:        {"scope": enum("turn", "file", "block", "cell")},
 	EventAgentToolCalled:           {"tool": mcpTools},

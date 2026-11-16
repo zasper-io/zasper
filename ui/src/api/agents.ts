@@ -56,6 +56,26 @@ export interface PastChat {
 /** ask: everything is asked; edits: file changes are allowed; all: and commands. */
 export type AgentMode = 'ask' | 'edits' | 'all';
 
+/** A value one of the agent's settings can take, as ACP's session config options word it. */
+export interface AgentSettingValue {
+  value: string;
+  name: string;
+  description?: string | null;
+}
+
+/** One of the agent's settings for the session, as ACP's session config options have it. */
+export interface AgentSettingOption {
+  id: string;
+  name: string;
+  description?: string | null;
+  /** model, thought_level or mode; anything else, or none, is the agent's own. */
+  category?: string | null;
+  type: 'select' | 'boolean';
+  currentValue: string | boolean;
+  /** For a select: its values, or groups of them. */
+  options?: (AgentSettingValue | { group: string; name: string; options: AgentSettingValue[] })[];
+}
+
 /** One entry in a chat's log, as the server keeps it. See docs/AGENTS.md. */
 export interface ChatEvent {
   seq?: number;
@@ -68,6 +88,7 @@ export interface ChatEvent {
     | 'error'
     | 'exited'
     | 'mode'
+    | 'settings'
     | 'terminal'
     | 'changes'
     | 'undone';
@@ -99,6 +120,8 @@ export interface ChatEvent {
     /** Not all of it was sent: `output` is the end of it alone. */
     cut?: boolean;
   };
+  /** On `settings`, the agent's settings, the whole set. */
+  settings?: AgentSettingOption[];
 }
 
 export function listAgents(): Promise<AgentInfo[]> {

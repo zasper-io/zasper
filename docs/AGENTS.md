@@ -80,12 +80,17 @@ Every agent is given Zasper's own MCP server as `zasper`, so it can read and run
 
 | What the agent asks | What Zasper does |
 |---|---|
-| `session/request_permission` | Asks the reader, and waits for the answer or for the turn to be cancelled — unless the chat's mode covers it: *Allow edits* answers edits, moves and deletes, *Allow edits and commands* commands as well, each with the agent's allow-once option. |
+| `session/request_permission` | Asks the reader, and waits for the answer or for the turn to be cancelled — unless the chat's mode covers it: *Allow edits* answers edits, moves and deletes, *Allow edits and commands* commands as well, each with the agent's allow-once option. An agent with modes of its own decides what it asks, so the chat's mode then answers nothing. |
 | `fs/read_text_file` | What a tab holds of the file when it has unsaved edits there, so the agent sees what the reader sees; otherwise the file on disk. |
 | `fs/write_text_file` | Writes it as a save does, and open tabs say the agent wrote it. |
 | `terminal/*` | Runs the command in the project, its output and errors together, and streams what it prints to its row in the panel as it comes, then how it ended. A command still running when the chat ends is stopped. |
 
 Paths outside the project are refused.
+
+The agent's own settings for the session, such as its model, effort and mode, are ACP's session config
+options. Zasper keeps the set the agent last sent, at `session/new`, `session/load`, a
+`config_option_update` or the answer to `session/set_config_option`, and draws them as the agent words
+them. A setting lasts for the session: a new chat starts with the agent's own defaults.
 
 Claude Code runs its commands itself rather than asking for a terminal. Zasper tells it that it shows
 terminal output (`_meta.terminal_output`), so it sends a command's output and exit code beside the call,
@@ -110,11 +115,13 @@ streamed, exactly as ACP's `session/update` has it, in `update`), `permission` (
 and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `turn_end` (with
 ACP's `stop_reason`), `error`, `exited`, `changes` (the files the turn that has just ended changed, `changes.turn` and
 `changes.files` with each `path` and `status` A, M or D), `undone` (a turn taken back, `changes.turn`),
-and `terminal`: what a command run for the agent printed since
+`settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
+logs none), and `terminal`: what a command run for the agent printed since
 the last, in `terminal.output` under its `terminal.id`. The last has `exited`, with `exit_code` or
 `signal`; past 256 KB the rest is not streamed, and the last has `cut` with the output's end alone.
 
 The client sends `{"type": "prompt", "text", "mentions"}` (each mention a `kind` — `file`, `cell` or
 `output` — a project `path`, a `label`, and for a cell or output its `cell_id` and `text`), `{"type": "cancel"}`, and
-`{"type": "answer", "id", "option_id"}`, and `{"type": "mode", "mode"}` with `ask`, `edits` or `all`, which
-every tab is told of as a `mode` event.
+`{"type": "answer", "id", "option_id"}`, `{"type": "mode", "mode"}` with `ask`, `edits` or `all`, which
+every tab is told of as a `mode` event, and `{"type": "setting", "id", "value"}`, a value id for a choice or
+`true`/`false` for a switch, which every tab is told of as a `settings` event once the agent answers.

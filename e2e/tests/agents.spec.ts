@@ -60,3 +60,52 @@ test('a slow start is shown, and Cancel goes back to the list', async ({ page })
   await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('heading', { name: 'Work with an agent' })).toBeVisible();
 });
+
+test('the agent’s own settings are chips under the field, as the agent answers them', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(`${fakeAgentBinary} --settings`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+
+  const model = page.getByRole('button', { name: 'Model: Large' });
+  await expect(model).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Effort: High' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mode: Plan' })).toBeVisible();
+  // The agent's mode replaces Zasper's.
+  await expect(page.getByRole('button', { name: /^What the agent may do/ })).toHaveCount(0);
+
+  await model.click();
+  const menu = page.getByRole('menu', { name: 'Model' });
+  await expect(menu).toBeInViewport();
+  await menu.getByRole('menuitemradio', { name: /^Small/ }).click();
+
+  // The small model has no effort: the agent's answer takes the chip away.
+  await expect(page.getByRole('button', { name: 'Model: Small' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Effort/ })).toHaveCount(0);
+});
+
+test('past conversations drop over the conversation, and the one picked is replayed', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(fakeAgentBinary);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+
+  await page.getByRole('button', { name: 'Past conversations' }).click();
+  const menu = page.getByRole('menu', { name: 'Past conversations' });
+  await expect(menu).toBeInViewport();
+  await expect(menu.getByRole('menuitem', { name: /This chat/ })).toBeDisabled();
+  // The conversation is still there, under the menu.
+  await expect(field).toBeVisible();
+
+  await menu.getByRole('menuitem', { name: 'Show more' }).click();
+  await menu.getByRole('menuitem', { name: /An earlier chat/ }).click();
+
+  await expect(menu).toHaveCount(0);
+  await expect(page.locator('.agentChat').getByText('what is 2 + 2?')).toBeVisible();
+});

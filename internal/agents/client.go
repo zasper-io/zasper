@@ -19,6 +19,10 @@ type chatClient struct{ chat *Chat }
 var _ acp.Client = chatClient{}
 
 func (c chatClient) SessionUpdate(_ context.Context, notification acp.SessionNotification) error {
+	if settings := notification.Update.ConfigOptionUpdate; settings != nil {
+		c.chat.setSettings(settings.ConfigOptions)
+		return nil
+	}
 	update, err := json.Marshal(notification.Update)
 	if err != nil {
 		return err
@@ -32,7 +36,7 @@ func (c chatClient) RequestPermission(ctx context.Context, request acp.RequestPe
 	id := uuid.New().String()
 	// Allowed by the chat's mode: once, so that changing the mode back is not undone by the agent
 	// remembering an "always".
-	if kind := request.ToolCall.Kind; kind != nil && allows(c.chat.mode(), *kind) {
+	if kind := request.ToolCall.Kind; kind != nil && c.chat.answersFor(*kind) {
 		for _, option := range request.Options {
 			if option.Kind == acp.PermissionOptionKindAllowOnce {
 				c.chat.record(Event{Type: "permission", Permission: &Permission{ID: id, Request: &request}})

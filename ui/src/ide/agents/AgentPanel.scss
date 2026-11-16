@@ -15,6 +15,7 @@
 }
 
 .agentPanel-title {
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -24,19 +25,49 @@
   border-bottom: 1px solid var(--z-border);
 }
 
-// The time is kept whole: a long title gives way instead.
-.agentHistory .panel-row-meta {
-  flex-shrink: 0;
+// Not positioned, so the menu takes its place from the title rather than from the clock.
+.agentHistory-anchor {
+  display: inline-flex;
+}
+
+// Past conversations: a menu that drops from the title over the conversation, which stays behind it.
+.agentHistory {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 6px;
+  width: 300px;
+  max-width: calc(100% - 12px);
+
+  .z-overlay-list {
+    max-height: 360px;
+    overflow: auto;
+  }
+
+  > .z-spinner {
+    margin: 10px;
+  }
+
+  > .z-notice {
+    margin: 6px;
+  }
+
+  // The time is kept whole at the row's right edge: a long title gives way instead.
+  .panel-row-meta {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+}
+
+.agentHistory-empty {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
 }
 
 .agentPanel-actions {
   display: flex;
   gap: 2px;
-}
-
-.agentPanel-mode {
-  flex: 0 0 auto;
-  margin: 8px 10px 0;
 }
 
 .agentPanel-empty {
@@ -247,8 +278,6 @@
   }
 }
 
-// Past conversations: tree rows, so one is picked as a file is.
-.agentPanel-agents,
 .agentTools {
   border: 1px solid var(--z-border);
   border-radius: 4px;
@@ -472,6 +501,7 @@
 
 // The composer, pinned under the conversation. Its button is Send, and Stop while the agent works.
 .agentComposer {
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
@@ -494,11 +524,111 @@
   font-size: var(--z-ui-font-size-sm);
 
   .z-button {
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     gap: 4px;
     margin-left: auto;
   }
+}
+
+// The agent's settings, from zasper-prototype's story-agent-session.css (story 45): at the left of the
+// composer's foot, where the hand is when the next message is written.
+.agentComposer-settings {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+// Not positioned, so a chip's menu takes its place from the composer rather than from the chip.
+.agentSetting-anchor {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 0;
+
+  // When the foot is short of room the model gives way first: it comes first and has the long values.
+  &:first-child {
+    flex-shrink: 1;
+  }
+}
+
+// One setting: its current value and a chevron, no border, quiet until pointed at.
+.agentSetting {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 22px;
+  padding: 0 4px 0 6px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--z-fg-muted);
+  font: inherit;
+  font-size: var(--z-ui-font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+
+  .z-icon {
+    flex: 0 0 auto;
+  }
+
+  &:hover:not(:disabled),
+  &.is-open {
+    background: var(--z-bg-menu-hover);
+    color: var(--z-fg-default);
+  }
+
+  &:disabled {
+    color: var(--z-fg-subtle);
+    cursor: default;
+  }
+
+  // Plan changes what the agent does, not only what it may do: the reader should not forget it.
+  &.is-plan {
+    color: var(--z-fg-accent);
+  }
+}
+
+.agentSetting-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// A setting's menu opens upward from the foot, over the conversation.
+.agentMenu {
+  position: absolute;
+  left: 10px;
+  bottom: 40px;
+  width: 280px;
+  max-width: calc(100% - 20px);
+
+  &.is-right {
+    left: auto;
+    right: 10px;
+  }
+
+  .z-overlay-list {
+    max-height: 320px;
+    overflow: auto;
+  }
+
+  // A model's name is kept whole and its description gives way: "Opus …" says nothing.
+  .panel-row-label {
+    flex-shrink: 0;
+    max-width: 70%;
+  }
+}
+
+// What the selected value does, in the agent's words: a row's meta would clip it.
+.agentMenu-help {
+  margin: 0;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--z-border-subtle);
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
 }
 
 // The files a turn changed, under its answer.

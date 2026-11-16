@@ -1,0 +1,250 @@
+import React, { ReactNode, useRef } from 'react';
+
+import { AgentMode } from '@/api';
+import { Icon } from '@/ide/icons';
+import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
+import { MenuChoice, MenuGroup, MenuSeparator } from '@/ide/statusBar/StatusMenu';
+import { AgentSetting } from './chatLog';
+
+// The settings that get a chip of their own, in this order. Every other one is under More.
+const CHIPS = ['model', 'thought_level', 'mode'];
+
+const ZASPER_MODES: { value: AgentMode; name: string; help: string }[] = [
+  { value: 'ask', name: 'Ask every time', help: 'Every question the agent asks is put to you.' },
+  {
+    value: 'edits',
+    name: 'Allow edits',
+    help: 'Edits, moves and deletes go ahead without asking.',
+  },
+  {
+    value: 'all',
+    name: 'Allow edits and commands',
+    help: 'Edits and commands go ahead without asking.',
+  },
+];
+
+interface Props {
+  agent: string;
+  settings: AgentSetting[];
+  mode: AgentMode;
+  disabled: boolean;
+  open: string | null;
+  onOpen: (id: string | null) => void;
+  onSet: (id: string, value: string | boolean) => void;
+  onSetMode: (mode: AgentMode) => void;
+}
+
+/**
+ * The agent's settings for the session, under the composer: a chip for its model, effort and mode, and
+ * the rest under More, all as the agent words them. An agent with no mode of its own gets Zasper's,
+ * which answers the agent's questions for the reader.
+ */
+export default function AgentSettings(props: Props) {
+  const { settings, open, onOpen } = props;
+  const chips = CHIPS.flatMap((category) =>
+    settings.filter((setting) => setting.category === category)
+  );
+  const rest = settings.filter((setting) => !CHIPS.includes(setting.category));
+  const close = () => onOpen(null);
+
+  return (
+    <span className="agentComposer-settings">
+      {chips.map((setting) =>
+        setting.kind === 'choice' ? (
+          <Chip
+            key={setting.id}
+            label={setting.name}
+            value={nameOf(setting)}
+            plan={setting.category === 'mode' && setting.value === 'plan'}
+            open={open === setting.id}
+            disabled={props.disabled}
+            onToggle={() => onOpen(open === setting.id ? null : setting.id)}
+            onClose={close}
+            help={setting.category === 'model' ? undefined : helpOf(setting)}
+          >
+            {setting.values.map((value) => (
+              <MenuChoice
+                key={value.value}
+                label={value.name}
+                meta={setting.category === 'model' ? (value.description ?? undefined) : undefined}
+                checked={value.value === setting.value}
+                onSelect={() => {
+                  close();
+                  if (value.value !== setting.value) props.onSet(setting.id, value.value);
+                }}
+              />
+            ))}
+          </Chip>
+        ) : null
+      )}
+      {!settings.some((setting) => setting.category === 'mode') && (
+        <Chip
+          label="What the agent may do without asking"
+          value={ZASPER_MODES.find((mode) => mode.value === props.mode)?.name ?? props.mode}
+          open={open === ':mode'}
+          disabled={props.disabled}
+          onToggle={() => onOpen(open === ':mode' ? null : ':mode')}
+          onClose={close}
+          help={ZASPER_MODES.find((mode) => mode.value === props.mode)?.help}
+        >
+          {ZASPER_MODES.map((mode) => (
+            <MenuChoice
+              key={mode.value}
+              label={mode.name}
+              checked={mode.value === props.mode}
+              onSelect={() => {
+                close();
+                props.onSetMode(mode.value);
+              }}
+            />
+          ))}
+        </Chip>
+      )}
+      {rest.length > 0 && (
+        <More
+          agent={props.agent}
+          settings={rest}
+          open={open === ':more'}
+          disabled={props.disabled}
+          onToggle={() => onOpen(open === ':more' ? null : ':more')}
+          onClose={close}
+          onSet={props.onSet}
+        />
+      )}
+    </span>
+  );
+}
+
+function nameOf(setting: AgentSetting & { kind: 'choice' }): string {
+  return setting.values.find((value) => value.value === setting.value)?.name ?? setting.value;
+}
+
+// What the selected value does, in the agent's words, or else what the setting is.
+function helpOf(setting: AgentSetting & { kind: 'choice' }): string | undefined {
+  const selected = setting.values.find((value) => value.value === setting.value);
+  return selected?.description ?? setting.description;
+}
+
+function Chip(props: {
+  label: string;
+  value: string;
+  plan?: boolean;
+  open: boolean;
+  disabled: boolean;
+  help?: string;
+  onToggle: () => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const within = useRef<HTMLSpanElement>(null);
+  useDismissOnEscape(props.onClose, props.open);
+  useDismissOnPressOutside(within, props.onClose, props.open);
+  const menuKeys = useMenuKeys(props.onClose);
+  const classes = ['agentSetting', props.plan && 'is-plan', props.open && 'is-open'];
+
+  return (
+    <span className="agentSetting-anchor" ref={within}>
+      <button
+        type="button"
+        className={classes.filter(Boolean).join(' ')}
+        title={`${props.label}: ${props.value}`}
+        aria-label={`${props.label}: ${props.value}`}
+        aria-haspopup="menu"
+        aria-expanded={props.open}
+        disabled={props.disabled}
+        onClick={props.onToggle}
+      >
+        <span className="agentSetting-value">{props.value}</span>
+        <Icon name="chevron-down" size={12} />
+      </button>
+      {props.open && (
+        <div className="z-overlay z-menu agentMenu">
+          <ul className="z-overlay-list" role="menu" aria-label={props.label} {...menuKeys}>
+            {props.children}
+          </ul>
+          {props.help && <p className="agentMenu-help">{props.help}</p>}
+        </div>
+      )}
+    </span>
+  );
+}
+
+function More(props: {
+  agent: string;
+  settings: AgentSetting[];
+  open: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onSet: (id: string, value: string | boolean) => void;
+}) {
+  const within = useRef<HTMLSpanElement>(null);
+  useDismissOnEscape(props.onClose, props.open);
+  useDismissOnPressOutside(within, props.onClose, props.open);
+  const menuKeys = useMenuKeys(props.onClose);
+  const label = `More settings for ${props.agent}`;
+
+  return (
+    <span className="agentSetting-anchor" ref={within}>
+      <button
+        type="button"
+        className="z-icon-button"
+        title={label}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={props.open}
+        aria-pressed={props.open}
+        disabled={props.disabled}
+        onClick={props.onToggle}
+      >
+        <Icon name="sliders-horizontal" />
+      </button>
+      {props.open && (
+        <div className="z-overlay z-menu agentMenu is-right">
+          <ul className="z-overlay-list" role="menu" aria-label={label} {...menuKeys}>
+            {props.settings.map((setting, index) => (
+              <React.Fragment key={setting.id}>
+                {index > 0 && <MenuSeparator />}
+                {setting.kind === 'switch' ? (
+                  <li className="panel-row" role="none">
+                    <button
+                      type="button"
+                      className="panel-row-name"
+                      role="menuitemcheckbox"
+                      aria-checked={setting.value}
+                      title={setting.description}
+                      onClick={() => {
+                        props.onClose();
+                        props.onSet(setting.id, !setting.value);
+                      }}
+                    >
+                      <span className="menuTick">
+                        {setting.value && <Icon name="check" size={12} />}
+                      </span>
+                      <span className="panel-row-label">{setting.name}</span>
+                    </button>
+                  </li>
+                ) : (
+                  <>
+                    <MenuGroup label={setting.name} />
+                    {setting.values.map((value) => (
+                      <MenuChoice
+                        key={value.value}
+                        label={value.name}
+                        checked={value.value === setting.value}
+                        onSelect={() => {
+                          props.onClose();
+                          if (value.value !== setting.value) props.onSet(setting.id, value.value);
+                        }}
+                      />
+                    ))}
+                  </>
+                )}
+              </React.Fragment>
+            ))}
+          </ul>
+        </div>
+      )}
+    </span>
+  );
+}

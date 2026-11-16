@@ -1,4 +1,11 @@
-import { AgentMode, ChatEvent, Mention, TurnFile } from '@/api';
+import {
+  AgentMode,
+  AgentSettingOption,
+  AgentSettingValue,
+  ChatEvent,
+  Mention,
+  TurnFile,
+} from '@/api';
 
 /** A tool the agent called, as its calls and their updates have it so far. */
 export interface ToolCall {
@@ -68,6 +75,26 @@ export interface PlanEntry {
   status: string;
 }
 
+/** One of the agent's settings: a choice of values, or a switch. */
+export type AgentSetting =
+  | {
+      kind: 'choice';
+      id: string;
+      name: string;
+      description?: string;
+      category: string;
+      value: string;
+      values: AgentSettingValue[];
+    }
+  | {
+      kind: 'switch';
+      id: string;
+      name: string;
+      description?: string;
+      category: string;
+      value: boolean;
+    };
+
 export interface ChatView {
   items: ChatItem[];
   plan: PlanEntry[];
@@ -76,6 +103,27 @@ export interface ChatView {
   /** The agent's process has ended, and nothing more can be sent. */
   exited: boolean;
   mode: AgentMode;
+  /** The agent's own settings, as it last sent them. */
+  settings: AgentSetting[];
+}
+
+function settingOf(option: AgentSettingOption): AgentSetting | undefined {
+  const common = {
+    id: option.id,
+    name: option.name,
+    category: option.category ?? '',
+    ...(option.description ? { description: option.description } : {}),
+  };
+  if (option.type === 'boolean' && typeof option.currentValue === 'boolean') {
+    return { kind: 'switch', ...common, value: option.currentValue };
+  }
+  if (typeof option.currentValue !== 'string') {
+    return undefined;
+  }
+  const values = (option.options ?? []).flatMap((entry) =>
+    'group' in entry ? entry.options : [entry]
+  );
+  return { kind: 'choice', ...common, value: option.currentValue, values };
 }
 
 function textOf(content: unknown): string {
@@ -158,6 +206,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let answering = false;
   let exited = false;
   let mode: AgentMode = 'ask';
+  let settings: AgentSetting[] = [];
   const last = () => items[items.length - 1];
   const terminals = new Map<string, Terminal>();
   /** The calls a question is open on, by the question's id. */
@@ -307,6 +356,11 @@ export function foldChat(events: ChatEvent[]): ChatView {
       case 'mode':
         mode = (event.text as AgentMode) ?? 'ask';
         break;
+      case 'settings':
+        settings = (event.settings ?? [])
+          .map(settingOf)
+          .filter((setting): setting is AgentSetting => setting !== undefined);
+        break;
       case 'changes':
         if (event.changes) {
           items.push({
@@ -383,7 +437,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
     }
   }
-  return { items, plan, answering, exited, mode };
+  return { items, plan, answering, exited, mode, settings };
 }
 
 function stopNote(reason: string): string {
