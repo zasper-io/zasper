@@ -6,6 +6,7 @@ import {
   Mention,
   TurnFile,
 } from '@/api';
+import { NEARLY_FULL } from '@/ide/resources/memory';
 
 /** A tool the agent called, as its calls and their updates have it so far. */
 export interface ToolCall {
@@ -66,6 +67,18 @@ export type ChatItem =
       auto?: boolean;
     }
   | { kind: 'note'; text: string; failed: boolean }
+  /** Something the agent, or the panel, says about the session rather than in the conversation. */
+  | { kind: 'notice'; severity: 'info' | 'warning' | 'error'; title: string; description?: string }
+  /** The conversation summarised to free the context: tokens before and after, when the agent said. */
+  | {
+      kind: 'compaction';
+      id: string;
+      /** in_progress, completed, failed or cancelled. */
+      status: string;
+      summary: string;
+      before?: number;
+      after?: number;
+    }
   /** The files a turn changed, once it has ended; `undone` once they were put back. */
   | { kind: 'changes'; turn: number; files: TurnFile[]; undone: boolean };
 
@@ -232,6 +245,13 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let title: string | undefined;
   let usage: ContextUsage | undefined;
   let commands: AgentCommand[] = [];
+  // Whether the context was at least nearly full when last heard of, so the warning is said once a crossing.
+  let nearlyFull = false;
+  const compaction = (id: unknown) =>
+    items.find(
+      (item): item is ChatItem & { kind: 'compaction' } =>
+        item.kind === 'compaction' && item.id === id
+    );
   const last = () => items[items.length - 1];
   const terminals = new Map<string, Terminal>();
   /** The calls a question is open on, by the question's id. */
@@ -362,6 +382,44 @@ export function foldChat(events: ChatEvent[]): ChatView {
                 })
               );
             break;
+          case 'notice':
+            if (typeof update.title === 'string') {
+              items.push({
+                kind: 'notice',
+                severity: ['info', 'warning', 'error'].includes(update.severity)
+                  ? update.severity
+                  : 'info',
+                title: update.title,
+                ...(typeof update.description === 'string'
+                  ? { description: update.description }
+                  : {}),
+              });
+            }
+            break;
+          case 'compaction_update': {
+            const found = compaction(update.compactionId);
+            const summary = Array.isArray(update.summary)
+              ? update.summary.map(textOf).join('')
+              : undefined;
+            if (found) {
+              found.status = update.status ?? found.status;
+              found.summary = summary ?? found.summary;
+            } else {
+              items.push({
+                kind: 'compaction',
+                id: update.compactionId,
+                status: update.status ?? 'in_progress',
+                summary: summary ?? '',
+                ...(usage ? { before: usage.used } : {}),
+              });
+            }
+            break;
+          }
+          case 'compaction_summary_chunk': {
+            const found = compaction(update.compactionId);
+            if (found) found.summary += textOf(update.content);
+            break;
+          }
           case 'usage_update':
             if (typeof update.used === 'number' && typeof update.size === 'number') {
               usage = {
@@ -373,6 +431,28 @@ export function foldChat(events: ChatEvent[]): ChatView {
                     }
                   : {}),
               };
+              for (const item of items) {
+                if (
+                  item.kind === 'compaction' &&
+                  item.status === 'completed' &&
+                  item.after === undefined
+                ) {
+                  item.after = update.used;
+                }
+              }
+              const full = update.size > 0 && update.used / update.size >= NEARLY_FULL;
+              if (full && !nearlyFull) {
+                const percent = Math.round((update.used / update.size) * 100);
+                items.push({
+                  kind: 'notice',
+                  severity: 'warning',
+                  title: `The context is ${percent}% full.`,
+                  ...(commands.some((command) => command.name === 'compact')
+                    ? { description: '/compact summarises the conversation so far.' }
+                    : {}),
+                });
+              }
+              nearlyFull = full;
             }
             break;
           case 'plan':

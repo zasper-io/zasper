@@ -92,6 +92,11 @@ options. Zasper keeps the set the agent last sent, at `session/new`, `session/lo
 `config_option_update` or the answer to `session/set_config_option`, and draws them as the agent words
 them. A setting lasts for the session: a new chat starts with the agent's own defaults.
 
+Zasper's `initialize` also asks for what it draws beyond ACP's schema, which the Go SDK has no field for:
+`session.compaction`, `session.notices` and `session.configOptions.boolean`. So Claude Code sends a
+compaction as `compaction_update`, a notice as `notice` and an on-or-off setting as a switch, rather than
+as tool calls, text and On/Off choices.
+
 Claude Code runs its commands itself rather than asking for a terminal. Zasper tells it that it shows
 terminal output (`_meta.terminal_output`), so it sends a command's output and exit code beside the call,
 and the row shows them as it does for a command run here.
@@ -111,7 +116,8 @@ and the row shows them as it does for a command run here.
 | `GET` | `/ws/agents/chats/{id}` | **WebSocket.** The chat's log from the start, then each event as it happens. |
 
 Each event has a `seq` and a `type`: `user` (the reader's message, in `text`), `update` (what the agent
-streamed, exactly as ACP's `session/update` has it, in `update`), `permission` (a question, with an `id`
+streamed, in `update`, exactly as the agent sent it: kinds ACP's schema does not have, such as Claude
+Code's `compaction_update` and `notice`, are kept as they are), `permission` (a question, with an `id`
 and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `turn_end` (with
 ACP's `stop_reason`), `error`, `exited`, `changes` (the files the turn that has just ended changed, `changes.turn` and
 `changes.files` with each `path` and `status` A, M or D), `undone` (a turn taken back, `changes.turn`),

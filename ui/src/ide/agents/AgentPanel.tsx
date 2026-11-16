@@ -51,7 +51,7 @@ import {
   ToolDiff,
 } from './chatLog';
 import CommandPicker from './CommandPicker';
-import ContextMeter from './ContextMeter';
+import ContextMeter, { tokens } from './ContextMeter';
 import { usePickerKeys } from './usePickerKeys';
 import { useAgentChat } from './useAgentChat';
 import { useChatAnnouncer } from './useChatAnnouncer';
@@ -734,12 +734,64 @@ function Item({
       );
     case 'note':
       return <p className={item.failed ? 'agentNote is-failed' : 'agentNote'}>{item.text}</p>;
+    case 'notice':
+      return (
+        <p className={item.severity === 'error' ? 'agentNotice is-error' : 'agentNotice'}>
+          <Icon name={NOTICE_ICONS[item.severity]} size={12} />
+          <span>
+            {item.title}
+            {item.description && (
+              <>
+                {' '}
+                <UserText text={item.description} mentions={[]} />
+              </>
+            )}
+          </span>
+        </p>
+      );
+    case 'compaction': {
+      const counted =
+        item.before !== undefined && item.after !== undefined
+          ? ` · ${tokens(item.before)} → ${tokens(item.after)} tokens`
+          : '';
+      const line = (
+        <>
+          <Icon name="scroll-text" size={12} />
+          <span>
+            {COMPACTION_SAID[item.status] ?? 'Conversation compacted'}
+            {counted}
+          </span>
+        </>
+      );
+      // Folded, as a thought is: the summary is the agent's, and long.
+      return item.summary ? (
+        <details className="agentFold">
+          <summary>{line}</summary>
+          <p>{item.summary}</p>
+        </details>
+      ) : (
+        <p className="agentNotice">{line}</p>
+      );
+    }
     case 'changes':
       return (
         <TurnChanges chatId={chatId} turn={item.turn} files={item.files} undone={item.undone} />
       );
   }
 }
+
+const NOTICE_ICONS: Record<'info' | 'warning' | 'error', IconName> = {
+  info: 'info',
+  warning: 'triangle-alert',
+  error: 'circle-alert',
+};
+
+const COMPACTION_SAID: Record<string, string> = {
+  in_progress: 'Compacting the conversation…',
+  completed: 'Conversation compacted',
+  failed: 'The conversation could not be compacted',
+  cancelled: 'Compacting was stopped',
+};
 
 const MENTION_ICONS: Record<Mention['kind'], IconName> = {
   file: 'file',

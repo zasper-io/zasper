@@ -2,7 +2,6 @@ package agents
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -18,16 +17,9 @@ type chatClient struct{ chat *Chat }
 
 var _ acp.Client = chatClient{}
 
-func (c chatClient) SessionUpdate(_ context.Context, notification acp.SessionNotification) error {
-	if settings := notification.Update.ConfigOptionUpdate; settings != nil {
-		c.chat.setSettings(settings.ConfigOptions)
-		return nil
-	}
-	update, err := json.Marshal(notification.Update)
-	if err != nil {
-		return err
-	}
-	c.chat.record(Event{Type: "update", Update: update})
+// SessionUpdate does nothing: an update is logged as the agent sent it, before the SDK decodes it (see
+// tapUpdates).
+func (c chatClient) SessionUpdate(context.Context, acp.SessionNotification) error {
 	return nil
 }
 

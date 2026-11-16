@@ -432,6 +432,56 @@ describe('AgentPanel', () => {
       expect(socket.sent).toContainEqual({ type: 'prompt', text: '/context', mentions: [] });
     });
 
+    it('draws a notice as one quiet line, and a compaction folded with its summary inside', async () => {
+      const socket = await connect();
+      socket.push(commands);
+      socket.push({
+        type: 'update',
+        update: {
+          sessionUpdate: 'notice',
+          severity: 'warning',
+          title: 'Auto mode is not available',
+          description: 'The chat is in Manual.',
+        },
+      });
+      socket.push({
+        type: 'update',
+        update: { sessionUpdate: 'usage_update', used: 182000, size: 200000 },
+      });
+      socket.push({
+        type: 'update',
+        update: { sessionUpdate: 'compaction_update', compactionId: 'c1', status: 'in_progress' },
+      });
+      expect(screen.getByText('Compacting the conversation…')).toBeInTheDocument();
+      socket.push({
+        type: 'update',
+        update: {
+          sessionUpdate: 'compaction_update',
+          compactionId: 'c1',
+          status: 'completed',
+          summary: [{ type: 'text', text: 'Fitted a drift per sensor.' }],
+        },
+      });
+      socket.push({
+        type: 'update',
+        update: { sessionUpdate: 'usage_update', used: 18000, size: 200000 },
+      });
+
+      expect(
+        screen.getByText('Auto mode is not available The chat is in Manual.').closest('p')
+      ).toHaveClass('agentNotice');
+      expect(
+        screen.getByText(/The context is 91% full\./).closest('.agentNotice')
+      ).toHaveTextContent('The context is 91% full. /compact summarises the conversation so far.');
+      expect(
+        screen.getByText('/compact', { selector: '.agentNotice .agentCommand' })
+      ).toBeInTheDocument();
+      const fold = screen.getByText(/Conversation compacted/).closest('details');
+      expect(fold).toHaveTextContent('Conversation compacted · 182k → 18k tokens');
+      expect(fold).toHaveTextContent('Fitted a drift per sensor.');
+      expect(fold).not.toHaveAttribute('open');
+    });
+
     it('draws a sent command in the face it is typed in', async () => {
       const socket = await connect();
       socket.push({ type: 'user', text: '/review 42' });
