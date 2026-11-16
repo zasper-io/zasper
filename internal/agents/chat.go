@@ -339,7 +339,7 @@ func start(asked context.Context, argv []string, agent, root string, files Files
 		files:       files,
 		root:        root,
 	}
-	chat.conn = acp.NewClientSideConnection(chatClient{chat}, process.Stdin, process.Stdout)
+	chat.conn = acp.NewClientSideConnection(chatClient{chat}, advertise(process.Stdin), chat.tapUpdates(process.Stdout))
 	go func() {
 		select {
 		case <-process.Done():

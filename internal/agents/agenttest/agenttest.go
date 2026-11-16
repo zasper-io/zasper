@@ -15,6 +15,8 @@ pipes with no agent installed.
 	build  leaves plan mode, as an agent does when its plan is accepted, and says so
 	name   names the chat "Sensor drift model", says the context is 91% full and cost $1.92, and says so
 	/echo  says back what follows it, "echoed: …"
+	/compact  compacts the conversation, 182k to 18k tokens, as Claude Code's compaction_update has it
+	notice  sends a warning notice, as Claude Code does
 	(commands: with ZASPER_FAKE_AGENT_COMMANDS set, a session lists /echo and /compact as it opens)
 	(settings: with ZASPER_FAKE_AGENT_SETTINGS set, a model, an effort only the first model has, a mode and a
 	switch of no category; a session opened or loaded says them, and a change answers the whole set)
@@ -24,11 +26,15 @@ At the start of a session it writes the names of the MCP servers it was given to
 package agenttest
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	acp "github.com/coder/acp-go-sdk"
@@ -39,13 +45,44 @@ func Requested() bool { return os.Getenv("ZASPER_FAKE_AGENT") == "1" }
 
 // Serve is the agent, on stdin and stdout, until its client goes.
 func Serve() {
-	a := &agent{}
-	a.conn = acp.NewAgentSideConnection(a, os.Stdout, os.Stdin)
+	a := &agent{out: &lines{to: os.Stdout}}
+	a.conn = acp.NewAgentSideConnection(a, a.out, os.Stdin)
 	<-a.conn.Done()
+}
+
+// lines writes whole lines, so that an update the SDK has no type for can be sent beside its own.
+type lines struct {
+	mu      sync.Mutex
+	to      io.Writer
+	pending []byte
+}
+
+func (l *lines) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.pending = append(l.pending, p...)
+	if end := bytes.LastIndexByte(l.pending, '\n'); end >= 0 {
+		if _, err := l.to.Write(l.pending[:end+1]); err != nil {
+			return 0, err
+		}
+		l.pending = append([]byte(nil), l.pending[end+1:]...)
+	}
+	return len(p), nil
+}
+
+// raw sends a session/update the SDK has no type for, as the agent writes it.
+func (a *agent) raw(session acp.SessionId, update map[string]any) {
+	line, _ := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"method":  acp.ClientMethodSessionUpdate,
+		"params":  map[string]any{"sessionId": session, "update": update},
+	})
+	a.out.Write(append(line, '\n'))
 }
 
 type agent struct {
 	conn *acp.AgentSideConnection
+	out  *lines
 	cwd  string
 	// The settings' values, by id, when the agent has settings.
 	values map[string]string
@@ -105,6 +142,10 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 	}
 	if said, ok := strings.CutPrefix(text, "/echo"); ok {
 		a.say(ctx, session, "echoed:"+said)
+		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
+	}
+	if text == "/compact" {
+		a.compact(ctx, session)
 		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
 	}
 	if command, ok := strings.CutPrefix(text, "run "); ok {
@@ -177,6 +218,9 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 			UsageUpdate: &acp.SessionUsageUpdate{SessionUpdate: "usage_update", Used: 182000, Size: 200000, Cost: &acp.Cost{Amount: 1.92, Currency: "USD"}},
 		}})
 		a.say(ctx, session, "named")
+	case "notice":
+		a.raw(session, map[string]any{"sessionUpdate": "notice", "severity": "warning", "title": "Auto mode is not available", "description": "The chat is in Manual."})
+		a.say(ctx, session, "noticed")
 	case "wait":
 		a.say(ctx, session, "waiting")
 		<-ctx.Done()
@@ -237,6 +281,24 @@ func (a *agent) SetSessionConfigOption(_ context.Context, request acp.SetSession
 	}
 	a.values[id] = value
 	return acp.SetSessionConfigOptionResponse{ConfigOptions: a.settings()}, nil
+}
+
+// compact compacts the conversation as Claude Code does: the context nearly full, the summary streamed,
+// and the context small again.
+func (a *agent) compact(ctx context.Context, session acp.SessionId) {
+	usage := func(used int) {
+		a.conn.SessionUpdate(ctx, acp.SessionNotification{SessionId: session, Update: acp.SessionUpdate{
+			UsageUpdate: &acp.SessionUsageUpdate{SessionUpdate: "usage_update", Used: used, Size: 200000},
+		}})
+	}
+	usage(182000)
+	a.raw(session, map[string]any{"sessionUpdate": "compaction_update", "compactionId": "c1", "status": "in_progress"})
+	for _, chunk := range []string{"Fitted a drift ", "per sensor."} {
+		a.raw(session, map[string]any{"sessionUpdate": "compaction_summary_chunk", "compactionId": "c1", "content": map[string]any{"type": "text", "text": chunk}})
+	}
+	a.raw(session, map[string]any{"sessionUpdate": "compaction_update", "compactionId": "c1", "status": "completed",
+		"summary": []any{map[string]any{"type": "text", "text": "Fitted a drift per sensor."}}})
+	usage(18000)
 }
 
 // settings is the agent's settings as they stand: the small model has no effort.

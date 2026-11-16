@@ -158,3 +158,34 @@ test('a / at the start of a message lists the agent’s commands, and one runs',
   await expect(page.locator('.agentChat').getByText('echoed: hello')).toBeVisible();
   await expect(page.locator('.agentChat .agentCommand')).toHaveText('/echo');
 });
+
+test('a notice is one quiet line, and a compaction folds with its summary inside', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(`${fakeAgentBinary} --commands`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+  const chat = page.locator('.agentChat');
+
+  await field.fill('notice');
+  await field.press('Enter');
+  await expect(chat.locator('.agentNotice')).toHaveText(
+    'Auto mode is not available The chat is in Manual.'
+  );
+  // The turn is over before the next message: one sent during it is not taken.
+  await expect(chat.getByText('noticed')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send' })).toBeVisible();
+
+  await field.fill('/compact');
+  await field.press('Escape');
+  await field.press('Enter');
+  await expect(chat.getByText(/The context is 91% full\./)).toBeVisible();
+  const fold = chat.locator('details.agentFold');
+  await expect(fold).toContainText('Conversation compacted · 182k → 18k tokens');
+  await expect(fold.getByText('Fitted a drift per sensor.')).toBeHidden();
+  await fold.locator('summary').click();
+  await expect(fold.getByText('Fitted a drift per sensor.')).toBeVisible();
+});

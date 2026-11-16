@@ -482,6 +482,99 @@ describe('foldChat', () => {
     ]);
   });
 
+  describe('what the agent says about the session', () => {
+    const update = (update: object): ChatEvent => ({ type: 'update', update });
+    const usage = (used: number) => update({ sessionUpdate: 'usage_update', used, size: 200000 });
+
+    it('keeps a notice, its severity one it knows', () => {
+      const view = foldChat([
+        update({
+          sessionUpdate: 'notice',
+          severity: 'warning',
+          title: 'Auto mode is not available',
+          description: 'The chat is in Manual.',
+        }),
+        update({ sessionUpdate: 'notice', severity: 'shrug', title: 'Plain' }),
+        update({ sessionUpdate: 'notice', severity: 'info' }),
+      ]);
+
+      expect(view.items).toEqual([
+        {
+          kind: 'notice',
+          severity: 'warning',
+          title: 'Auto mode is not available',
+          description: 'The chat is in Manual.',
+        },
+        { kind: 'notice', severity: 'info', title: 'Plain' },
+      ]);
+    });
+
+    it('folds a compaction into one item: its summary as streamed, then as sent, and the tokens either side', () => {
+      const view = foldChat([
+        usage(182000),
+        update({ sessionUpdate: 'compaction_update', compactionId: 'c1', status: 'in_progress' }),
+        update({
+          sessionUpdate: 'compaction_summary_chunk',
+          compactionId: 'c1',
+          content: { type: 'text', text: 'Fitted ' },
+        }),
+        update({
+          sessionUpdate: 'compaction_summary_chunk',
+          compactionId: 'c1',
+          content: { type: 'text', text: 'a drift' },
+        }),
+        update({
+          sessionUpdate: 'compaction_update',
+          compactionId: 'c1',
+          status: 'completed',
+          summary: [{ type: 'text', text: 'Fitted a drift per sensor.' }],
+        }),
+        usage(18000),
+        usage(20000),
+      ]);
+
+      const compactions = view.items.filter((item) => item.kind === 'compaction');
+      expect(compactions).toEqual([
+        {
+          kind: 'compaction',
+          id: 'c1',
+          status: 'completed',
+          summary: 'Fitted a drift per sensor.',
+          before: 182000,
+          after: 18000,
+        },
+      ]);
+    });
+
+    it('says once a crossing that the context is nearly full, offering /compact when the agent has it', () => {
+      const commands = update({
+        sessionUpdate: 'available_commands_update',
+        availableCommands: [{ name: 'compact', description: 'Summarise' }],
+      });
+      const notices = (events: ChatEvent[]) =>
+        foldChat(events).items.filter((item) => item.kind === 'notice');
+
+      expect(notices([usage(182000), usage(184000)])).toEqual([
+        { kind: 'notice', severity: 'warning', title: 'The context is 91% full.' },
+      ]);
+      expect(notices([commands, usage(182000), usage(18000), usage(190000)])).toEqual([
+        {
+          kind: 'notice',
+          severity: 'warning',
+          title: 'The context is 91% full.',
+          description: '/compact summarises the conversation so far.',
+        },
+        {
+          kind: 'notice',
+          severity: 'warning',
+          title: 'The context is 95% full.',
+          description: '/compact summarises the conversation so far.',
+        },
+      ]);
+      expect(notices([usage(100000)])).toEqual([]);
+    });
+  });
+
   it('reads a command’s output without its colours, and a redrawn line as it was left', () => {
     expect(terminalText('\x1b[32mok\x1b[0m\r\n10%\r50%\r100%\n\x1b]0;title\x07done')).toBe(
       'ok\n100%\ndone'
