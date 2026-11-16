@@ -268,3 +268,19 @@ func TestGivingUpOnAStartStopsTheAgent(t *testing.T) {
 	assert.Empty(t, manager.chats)
 	manager.mu.Unlock()
 }
+
+func TestTheCommandsAnAgentListsAreInTheLog(t *testing.T) {
+	t.Setenv("ZASPER_FAKE_AGENT_COMMANDS", "1")
+	_, chat, _ := fakeChat(t)
+
+	events := waitFor(t, chat, func(event Event) bool {
+		return strings.Contains(string(event.Update), "available_commands_update")
+	})
+	var listed acp.SessionUpdate
+	require.NoError(t, json.Unmarshal(events[len(events)-1].Update, &listed))
+	require.NotNil(t, listed.AvailableCommandsUpdate)
+	assert.Equal(t, "echo", listed.AvailableCommandsUpdate.AvailableCommands[0].Name)
+
+	require.NoError(t, chat.Prompt("/echo hi"))
+	assert.Equal(t, "echoed: hi", agentText(waitFor(t, chat, turnEnded)))
+}

@@ -831,6 +831,13 @@
   }
 }
 
+// A command's name, in the face it is typed in: in the `/` list, and at the start of a sent message.
+.agentCommand {
+  flex: 0 0 auto;
+  font-family: var(--z-mono-font-family);
+  font-size: var(--z-ui-font-size-sm);
+}
+
 .agentPicker-hint {
   margin: 0;
   padding: 4px 8px;

@@ -109,6 +109,16 @@ export interface ChatView {
   title?: string;
   /** How full the context window is, once the agent has said. */
   usage?: ContextUsage;
+  /** The commands the agent takes at the start of a message, as it last listed them. */
+  commands: AgentCommand[];
+}
+
+export interface AgentCommand {
+  /** Without its slash. */
+  name: string;
+  description: string;
+  /** What to type after it, when it takes something. */
+  hint?: string;
 }
 
 export interface ContextUsage {
@@ -221,6 +231,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let settings: AgentSetting[] = [];
   let title: string | undefined;
   let usage: ContextUsage | undefined;
+  let commands: AgentCommand[] = [];
   const last = () => items[items.length - 1];
   const terminals = new Map<string, Terminal>();
   /** The calls a question is open on, by the question's id. */
@@ -339,6 +350,17 @@ export function foldChat(events: ChatEvent[]): ChatView {
             if ('title' in update) {
               title = update.title || undefined;
             }
+            break;
+          case 'available_commands_update':
+            commands = (update.availableCommands ?? [])
+              .filter((command: { name?: unknown }) => typeof command?.name === 'string')
+              .map(
+                (command: { name: string; description?: string; input?: { hint?: string } }) => ({
+                  name: command.name.replace(/^\//, ''),
+                  description: command.description ?? '',
+                  ...(command.input?.hint ? { hint: command.input.hint } : {}),
+                })
+              );
             break;
           case 'usage_update':
             if (typeof update.used === 'number' && typeof update.size === 'number') {
@@ -470,7 +492,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
     }
   }
-  return { items, plan, answering, exited, mode, settings, title, usage };
+  return { items, plan, answering, exited, mode, settings, title, usage, commands };
 }
 
 function stopNote(reason: string): string {

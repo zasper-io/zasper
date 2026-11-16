@@ -14,6 +14,8 @@ pipes with no agent installed.
 	run …  runs the rest of the line in a terminal of the editor's, and says how it ended and what it printed
 	build  leaves plan mode, as an agent does when its plan is accepted, and says so
 	name   names the chat "Sensor drift model", says the context is 91% full and cost $1.92, and says so
+	/echo  says back what follows it, "echoed: …"
+	(commands: with ZASPER_FAKE_AGENT_COMMANDS set, a session lists /echo and /compact as it opens)
 	(settings: with ZASPER_FAKE_AGENT_SETTINGS set, a model, an effort only the first model has, a mode and a
 	switch of no category; a session opened or loaded says them, and a change answers the whole set)
 
@@ -76,6 +78,14 @@ func (a *agent) NewSession(_ context.Context, request acp.NewSessionRequest) (ac
 	if os.Getenv("ZASPER_FAKE_AGENT_SETTINGS") != "" {
 		a.values = map[string]string{"model": "large", "effort": "high", "mode": "plan", "fast": "off"}
 	}
+	if os.Getenv("ZASPER_FAKE_AGENT_COMMANDS") != "" {
+		a.conn.SessionUpdate(context.Background(), acp.SessionNotification{SessionId: "fake-session", Update: acp.SessionUpdate{
+			AvailableCommandsUpdate: &acp.SessionAvailableCommandsUpdate{SessionUpdate: "available_commands_update", AvailableCommands: []acp.AvailableCommand{
+				{Name: "echo", Description: "Say it back", Input: &acp.AvailableCommandInput{Unstructured: &acp.UnstructuredCommandInput{Hint: "what to say"}}},
+				{Name: "compact", Description: "Summarise the conversation so far"},
+			}},
+		}})
+	}
 	return acp.NewSessionResponse{SessionId: "fake-session", ConfigOptions: a.settings()}, nil
 }
 
@@ -91,6 +101,10 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 	session := request.SessionId
 	if len(request.Prompt) > 1 {
 		a.say(ctx, session, describe(request.Prompt[1:]))
+		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
+	}
+	if said, ok := strings.CutPrefix(text, "/echo"); ok {
+		a.say(ctx, session, "echoed:"+said)
 		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
 	}
 	if command, ok := strings.CutPrefix(text, "run "); ok {

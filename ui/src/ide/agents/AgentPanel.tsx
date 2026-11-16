@@ -41,8 +41,18 @@ import { useAskTrust } from '@/store/trust';
 import { lineDiff } from '@/ide/editor/notebookDiff/cellDiff';
 import { relativeDate } from '@/ide/sidebar/dates';
 import AgentSettings from './AgentSettings';
-import { AgentSetting, ChatItem, PlanEntry, terminalText, ToolCall, ToolDiff } from './chatLog';
+import {
+  AgentCommand,
+  AgentSetting,
+  ChatItem,
+  PlanEntry,
+  terminalText,
+  ToolCall,
+  ToolDiff,
+} from './chatLog';
+import CommandPicker from './CommandPicker';
 import ContextMeter from './ContextMeter';
+import { usePickerKeys } from './usePickerKeys';
 import { useAgentChat } from './useAgentChat';
 import { useChatAnnouncer } from './useChatAnnouncer';
 import './AgentPanel.scss';
@@ -495,7 +505,8 @@ function Conversation({ chat, live }: { chat: AgentChat; live: ReturnType<typeof
   const announcement = useChatAnnouncer(view);
   const [draft, setDraft] = useState('');
   const [mentions, setMentions] = useAtom(composerMentionsAtom);
-  const [picking, setPicking] = useState<string | null>(null);
+  // What is being looked for in a list above the field: a file after an @, a command after a / at the start.
+  const [picking, setPicking] = useState<{ kind: 'file' | 'command'; query: string } | null>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -514,10 +525,15 @@ function Conversation({ chat, live }: { chat: AgentChat; live: ReturnType<typeof
     setMentions([]);
   };
 
-  // A word being typed after an @ is a file to find.
+  // A word being typed after an @ is a file to find; one after a / that starts the message, a command.
   const typed = (text: string, caret: number) => {
+    const command = /^\/(\S*)$/.exec(text.slice(0, caret));
+    if (command && view.commands.length > 0) {
+      setPicking({ kind: 'command', query: command[1] });
+      return;
+    }
     const word = /(?:^|\s)@([^\s@]*)$/.exec(text.slice(0, caret));
-    setPicking(word ? word[1] : null);
+    setPicking(word ? { kind: 'file', query: word[1] } : null);
   };
 
   const pick = (path: string) => {
@@ -528,6 +544,14 @@ function Conversation({ chat, live }: { chat: AgentChat; live: ReturnType<typeof
       ...current.filter((each) => each.path !== path || each.kind !== 'file'),
       fileMention(path),
     ]);
+    setPicking(null);
+    field.current?.focus();
+  };
+
+  // In the field rather than sent, so what it takes can follow.
+  const pickCommand = (command: AgentCommand) => {
+    const caret = field.current?.selectionStart ?? draft.length;
+    setDraft(`/${command.name} ${draft.slice(caret).trimStart()}`);
     setPicking(null);
     field.current?.focus();
   };
@@ -573,11 +597,14 @@ function Conversation({ chat, live }: { chat: AgentChat; live: ReturnType<typeof
             ))}
           </div>
         )}
-        {picking !== null && (
-          <FilePicker
-            query={picking}
-            onPick={pick}
-            onClose={() => setPicking(null)}
+        {picking?.kind === 'file' && (
+          <FilePicker query={picking.query} onPick={pick} field={field} />
+        )}
+        {picking?.kind === 'command' && (
+          <CommandPicker
+            commands={view.commands}
+            query={picking.query}
+            onPick={pickCommand}
             field={field}
           />
         )}
@@ -587,7 +614,11 @@ function Conversation({ chat, live }: { chat: AgentChat; live: ReturnType<typeof
           value={draft}
           disabled={view.exited}
           placeholder={
-            view.exited ? 'The agent has stopped: start a new chat' : 'Ask the agent — @ for a file'
+            view.exited
+              ? 'The agent has stopped: start a new chat'
+              : view.commands.length > 0
+                ? 'Ask the agent — @ for a file, / for a command'
+                : 'Ask the agent — @ for a file'
           }
           aria-label="Message to the agent"
           onChange={(event) => {
@@ -739,9 +770,12 @@ function UserText({ text, mentions }: { text: string; mentions: Mention[] }) {
     mentions.filter((each) => each.kind === 'file').map((each) => [each.path, each])
   );
   const apart = mentions.filter((each) => each.kind !== 'file' || !text.includes(`@${each.path}`));
-  const parts = text.split(/(@[^\s@]+)/);
+  // A command the message starts with, in the face it is typed in.
+  const command = /^\/[\w:.-]+(?=\s|$)/.exec(text)?.[0];
+  const parts = text.slice(command?.length ?? 0).split(/(@[^\s@]+)/);
   return (
     <>
+      {command && <span className="agentCommand">{command}</span>}
       {apart.length > 0 && (
         <span className="agentMsg-refs">
           {apart.map((mention) => (
@@ -766,38 +800,16 @@ const PICKER_SIZE = 8;
 function FilePicker(props: {
   query: string;
   onPick: (path: string) => void;
-  onClose: () => void;
   field: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   const matches = useFileMatches(props.query, true, true).slice(0, PICKER_SIZE);
-  const [chosen, setChosen] = useState(0);
-  const { onPick, onClose } = props;
-
-  useEffect(() => setChosen(0), [props.query]);
-
-  // The field keeps the keyboard; the keys that move through the list are taken from it.
-  useEffect(() => {
-    const element = props.field.current;
-    if (element === null) {
-      return;
-    }
-    const onKey = (event: globalThis.KeyboardEvent) => {
-      if (matches.length === 0) {
-        return;
-      }
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        event.preventDefault();
-        const step = event.key === 'ArrowDown' ? 1 : -1;
-        setChosen((current) => (current + step + matches.length) % matches.length);
-      } else if (event.key === 'Enter' || event.key === 'Tab') {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        onPick(matches[chosen].path);
-      }
-    };
-    element.addEventListener('keydown', onKey, { capture: true });
-    return () => element.removeEventListener('keydown', onKey, { capture: true });
-  }, [props.field, matches, chosen, onPick, onClose]);
+  const { onPick } = props;
+  const chosen = usePickerKeys(
+    props.field,
+    matches.length,
+    (index) => onPick(matches[index].path),
+    props.query
+  );
 
   return (
     <div className="agentPicker" role="listbox" aria-label="Files to mention">
