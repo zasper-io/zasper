@@ -105,6 +105,18 @@ export interface ChatView {
   mode: AgentMode;
   /** The agent's own settings, as it last sent them. */
   settings: AgentSetting[];
+  /** The chat's title, once the agent has named it. */
+  title?: string;
+  /** How full the context window is, once the agent has said. */
+  usage?: ContextUsage;
+}
+
+export interface ContextUsage {
+  /** Tokens in the context window. */
+  used: number;
+  size: number;
+  /** What the session has cost so far, by the agent's own count. */
+  cost?: { amount: number; currency: string };
 }
 
 function settingOf(option: AgentSettingOption): AgentSetting | undefined {
@@ -207,6 +219,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let exited = false;
   let mode: AgentMode = 'ask';
   let settings: AgentSetting[] = [];
+  let title: string | undefined;
+  let usage: ContextUsage | undefined;
   const last = () => items[items.length - 1];
   const terminals = new Map<string, Terminal>();
   /** The calls a question is open on, by the question's id. */
@@ -320,6 +334,25 @@ export function foldChat(events: ChatEvent[]): ChatView {
             fromMeta(call, update._meta);
             break;
           }
+          // Left out, the title stands; null takes it away.
+          case 'session_info_update':
+            if ('title' in update) {
+              title = update.title || undefined;
+            }
+            break;
+          case 'usage_update':
+            if (typeof update.used === 'number' && typeof update.size === 'number') {
+              usage = {
+                used: update.used,
+                size: update.size,
+                ...(typeof update.cost?.amount === 'number'
+                  ? {
+                      cost: { amount: update.cost.amount, currency: update.cost.currency ?? 'USD' },
+                    }
+                  : {}),
+              };
+            }
+            break;
           case 'plan':
             plan = (update.entries ?? []).map((entry: PlanEntry) => ({
               content: entry.content,
@@ -437,7 +470,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
     }
   }
-  return { items, plan, answering, exited, mode, settings };
+  return { items, plan, answering, exited, mode, settings, title, usage };
 }
 
 function stopNote(reason: string): string {

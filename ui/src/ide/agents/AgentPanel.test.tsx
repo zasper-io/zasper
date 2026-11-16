@@ -332,6 +332,52 @@ describe('AgentPanel', () => {
 
       expect(socket.sent).toContainEqual({ type: 'mode', mode: 'edits' });
     });
+
+    it('heads the panel with the chat’s title once the agent names it', async () => {
+      const socket = await connect();
+      expect(screen.getByText('Claude Code', { selector: '.z-label' })).toBeInTheDocument();
+
+      socket.push({
+        type: 'update',
+        update: { sessionUpdate: 'session_info_update', title: 'Sensor drift model' },
+      });
+
+      expect(screen.getByText('Sensor drift model', { selector: '.z-label' })).toBeInTheDocument();
+    });
+
+    it('shows how full the context is, and opens what it is made of', async () => {
+      const socket = await connect();
+      expect(screen.queryByRole('button', { name: /^Context:/ })).not.toBeInTheDocument();
+      socket.push(settings);
+
+      socket.push({
+        type: 'update',
+        update: { sessionUpdate: 'usage_update', used: 76000, size: 200000 },
+      });
+      const meter = screen.getByRole('button', { name: 'Context: 38% full' });
+      expect(meter).not.toHaveClass('is-high');
+      fireEvent.click(meter);
+      const detail = screen.getByRole('dialog', { name: 'Context' });
+      expect(detail).toHaveTextContent('76k of 200k tokens');
+      expect(detail).toHaveTextContent('ModelLarge');
+      expect(detail).not.toHaveTextContent('Cost');
+
+      socket.push({
+        type: 'update',
+        update: {
+          sessionUpdate: 'usage_update',
+          used: 182000,
+          size: 200000,
+          cost: { amount: 1.92, currency: 'USD' },
+        },
+      });
+      expect(screen.getByRole('button', { name: 'Context: 91% full' })).toHaveClass('is-high');
+      expect(screen.getByRole('dialog', { name: 'Context and cost' })).toHaveTextContent(
+        'Cost of this chat$1.92'
+      );
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   it('keeps what was typed until the chat is connected', async () => {

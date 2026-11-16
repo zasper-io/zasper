@@ -25,6 +25,81 @@
   border-bottom: 1px solid var(--z-border);
 }
 
+// The chat's title, once the agent names it: a long one gives way to the buttons beside it.
+.agentPanel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// How much of the context window the conversation uses, from zasper-prototype's
+// story-agent-session.css (story 45). A button, because it opens the breakdown; the figure beside the
+// meter, so the number is read rather than estimated from a bar.
+.agentUsage-anchor {
+  display: inline-flex;
+}
+
+.agentUsage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  margin-right: 4px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--z-fg-subtle);
+  font: inherit;
+  font-size: var(--z-ui-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+
+  .z-meter {
+    width: 36px;
+  }
+
+  &:hover,
+  &.is-open {
+    background: var(--z-bg-menu-hover);
+    color: var(--z-fg-default);
+  }
+
+  // From 90%, as `.z-meter.is-high` already says: the ink follows the fill.
+  &.is-high {
+    color: var(--z-git-modified);
+  }
+}
+
+// The breakdown hangs from the head's right edge, over the conversation.
+.agentUsage-menu {
+  position: absolute;
+  top: 100%;
+  right: 8px;
+  width: 240px;
+}
+
+// Label and amount, two columns.
+.agentUsage-detail {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: var(--z-ui-font-size-sm);
+  font-variant-numeric: tabular-nums;
+
+  dt {
+    color: var(--z-fg-subtle);
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+  }
+}
+
 // Not positioned, so the menu takes its place from the title rather than from the clock.
 .agentHistory-anchor {
   display: inline-flex;

@@ -13,6 +13,7 @@ pipes with no agent installed.
 	(a message with more than its text says what else came with it, a line a block)
 	run …  runs the rest of the line in a terminal of the editor's, and says how it ended and what it printed
 	build  leaves plan mode, as an agent does when its plan is accepted, and says so
+	name   names the chat "Sensor drift model", says the context is 91% full and cost $1.92, and says so
 	(settings: with ZASPER_FAKE_AGENT_SETTINGS set, a model, an effort only the first model has, a mode and a
 	switch of no category; a session opened or loaded says them, and a change answers the whole set)
 
@@ -153,6 +154,15 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 			}})
 		}
 		a.say(ctx, session, "building")
+	case "name":
+		title := "Sensor drift model"
+		a.conn.SessionUpdate(ctx, acp.SessionNotification{SessionId: session, Update: acp.SessionUpdate{
+			SessionInfoUpdate: &acp.SessionSessionInfoUpdate{SessionUpdate: "session_info_update", Title: &title},
+		}})
+		a.conn.SessionUpdate(ctx, acp.SessionNotification{SessionId: session, Update: acp.SessionUpdate{
+			UsageUpdate: &acp.SessionUsageUpdate{SessionUpdate: "usage_update", Used: 182000, Size: 200000, Cost: &acp.Cost{Amount: 1.92, Currency: "USD"}},
+		}})
+		a.say(ctx, session, "named")
 	case "wait":
 		a.say(ctx, session, "waiting")
 		<-ctx.Done()
