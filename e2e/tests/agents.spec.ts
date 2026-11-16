@@ -191,3 +191,32 @@ test('a notice is one quiet line, and a compaction folds with its summary inside
   await fold.locator('summary').click();
   await expect(fold.getByText('Fitted a drift per sensor.')).toBeVisible();
 });
+
+test('a subagent’s calls are under its row, and a command left running says so', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(fakeAgentBinary);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+
+  await field.fill('explore');
+  await field.press('Enter');
+  const chat = page.locator('.agentChat');
+  await expect(chat.getByText('explored')).toBeVisible();
+
+  const task = chat.getByRole('button', { name: /Explore where readings are calibrated/ });
+  const grep = chat.getByRole('button', { name: /grep calibrat/ });
+  await expect(grep).toHaveClass(/is-nested/);
+  await expect(task).not.toHaveClass(/is-nested/);
+  const [above, below] = [await task.boundingBox(), await grep.boundingBox()];
+  expect(below!.y).toBeGreaterThan(above!.y);
+  expect(below!.x + 1).toBeGreaterThanOrEqual(above!.x);
+  // The subagent's own words are not the reply.
+  await expect(chat.getByText('the subagent thinking aloud')).toHaveCount(0);
+  await expect(chat.getByRole('button', { name: /python load_raw\.py/ })).toContainText(
+    'in the background'
+  );
+});

@@ -17,6 +17,8 @@ pipes with no agent installed.
 	/echo  says back what follows it, "echoed: …"
 	/compact  compacts the conversation, 182k to 18k tokens, as Claude Code's compaction_update has it
 	notice  sends a warning notice, as Claude Code does
+	explore  starts a subagent that greps and talks, tagged with its call as Claude Code tags them, and
+	         leaves a command running in the background
 	(commands: with ZASPER_FAKE_AGENT_COMMANDS set, a session lists /echo and /compact as it opens)
 	(settings: with ZASPER_FAKE_AGENT_SETTINGS set, a model, an effort only the first model has, a mode and a
 	switch of no category; a session opened or loaded says them, and a change answers the whole set)
@@ -218,6 +220,15 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 			UsageUpdate: &acp.SessionUsageUpdate{SessionUpdate: "usage_update", Used: 182000, Size: 200000, Cost: &acp.Cost{Amount: 1.92, Currency: "USD"}},
 		}})
 		a.say(ctx, session, "named")
+	case "explore":
+		under := map[string]any{"claudeCode": map[string]any{"parentToolUseId": "task-1"}}
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "task-1", "title": "Explore where readings are calibrated", "kind": "think", "status": "in_progress"})
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "grep-1", "title": "grep calibrat", "kind": "search", "status": "completed", "_meta": under})
+		a.raw(session, map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "the subagent thinking aloud"}, "_meta": under})
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "task-1", "status": "completed"})
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "bg-1", "title": "python load_raw.py --all", "kind": "execute", "status": "completed",
+			"rawInput": map[string]any{"command": "python load_raw.py --all", "run_in_background": true}})
+		a.say(ctx, session, "explored")
 	case "notice":
 		a.raw(session, map[string]any{"sessionUpdate": "notice", "severity": "warning", "title": "Auto mode is not available", "description": "The chat is in Manual."})
 		a.say(ctx, session, "noticed")

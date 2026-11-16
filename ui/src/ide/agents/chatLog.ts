@@ -27,6 +27,29 @@ export interface ToolCall {
   terminal?: Terminal;
   /** How long it has been running, as the agent last said. */
   elapsedSeconds?: number;
+  /** What a subagent this call started did, its own calls in order. */
+  calls: ToolCall[];
+  /** A command the agent left running while it went on. */
+  background?: boolean;
+}
+
+/** Every call, those a subagent made under the call that started it included. */
+function allCalls(calls: ToolCall[]): ToolCall[] {
+  return calls.flatMap((call) => [call, ...allCalls(call.calls)]);
+}
+
+/**
+ * The call a subagent's update belongs under. Claude Code tags all a subagent does, calls and words
+ * alike, with the call that started it.
+ */
+function parentOf(update: { _meta?: any }): string | undefined {
+  const parent = update._meta?.claudeCode?.parentToolUseId;
+  return typeof parent === 'string' ? parent : undefined;
+}
+
+// A command the agent started and went on without, as Claude Code's Bash has it.
+function inBackground(update: { rawInput?: any }): boolean {
+  return update.rawInput?.run_in_background === true;
 }
 
 export interface Terminal {
@@ -169,7 +192,7 @@ function textOf(content: unknown): string {
 function findCall(items: ChatItem[], id: string): ToolCall | undefined {
   for (const item of items) {
     if (item.kind === 'tools') {
-      const call = item.calls.find((each) => each.id === id);
+      const call = allCalls(item.calls).find((each) => each.id === id);
       if (call) return call;
     }
   }
@@ -322,6 +345,10 @@ export function foldChat(events: ChatEvent[]): ChatView {
           }
           case 'agent_message_chunk':
           case 'agent_thought_chunk': {
+            // A subagent's words are its own: what it hands back is its call's output.
+            if (parentOf(update) && findCall(items, parentOf(update)!)) {
+              break;
+            }
             const kind = update.sessionUpdate === 'agent_message_chunk' ? 'agent' : 'thought';
             const text = textOf(update.content);
             const previous = last();
@@ -340,10 +367,15 @@ export function foldChat(events: ChatEvent[]): ChatView {
               status: update.status ?? 'pending',
               locations: locationsOf(update) ?? [],
               ...(contentOf(update.content) ?? { output: '', diffs: [] }),
+              calls: [],
+              ...(inBackground(update) ? { background: true } : {}),
             };
             fromMeta(call, update._meta);
+            const parent = parentOf(update) && findCall(items, parentOf(update)!);
             const previous = last();
-            if (previous?.kind === 'tools') {
+            if (parent) {
+              parent.calls.push(call);
+            } else if (previous?.kind === 'tools') {
               previous.calls.push(call);
             } else {
               items.push({ kind: 'tools', calls: [call] });
@@ -357,6 +389,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
               call.kind = update.kind ?? call.kind;
               call.status = update.status ?? call.status;
               call.locations = locationsOf(update) ?? call.locations;
+              call.background = call.background || inBackground(update) || undefined;
               const content = contentOf(update.content);
               if (content) {
                 call.output = content.output;
@@ -558,7 +591,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
   }
   for (const item of items) {
     if (item.kind === 'tools') {
-      for (const call of item.calls) {
+      for (const call of allCalls(item.calls)) {
         if (call.terminalId !== undefined) {
           call.terminal = terminals.get(call.terminalId);
         }

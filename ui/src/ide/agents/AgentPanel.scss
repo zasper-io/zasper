@@ -486,6 +486,11 @@
   }
 }
 
+// A call a subagent made, under the call that started it.
+.agentTools .panel-row.is-nested {
+  padding-left: 34px;
+}
+
 .agentTools-status {
   margin-left: auto;
   color: var(--z-fg-subtle);
