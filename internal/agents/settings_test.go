@@ -87,7 +87,7 @@ func TestALoadedConversationHasTheSettingsTheAgentLoadsItWith(t *testing.T) {
 	chat := settingsChat(t)
 	require.NoError(t, chat.SetSetting("model", "small"))
 
-	require.NoError(t, chat.Load("earlier"))
+	require.NoError(t, chat.Load("earlier", ""))
 
 	assert.Equal(t, "small", lastSettings(t, chat)["model"])
 }
@@ -95,7 +95,7 @@ func TestALoadedConversationHasTheSettingsTheAgentLoadsItWith(t *testing.T) {
 func TestAConversationThatCannotBeOpenedKeepsTheSettings(t *testing.T) {
 	chat := settingsChat(t)
 
-	assert.Error(t, chat.Load("missing"))
+	assert.Error(t, chat.Load("missing", ""))
 
 	assert.Equal(t, "large", lastSettings(t, chat)["model"])
 }

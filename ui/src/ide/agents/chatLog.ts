@@ -243,6 +243,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let mode: AgentMode = 'ask';
   let settings: AgentSetting[] = [];
   let title: string | undefined;
+  // A reopened conversation's title as the agent listed it, until the agent sends one of its own.
+  let listedTitle: string | undefined;
   let usage: ContextUsage | undefined;
   let commands: AgentCommand[] = [];
   // Whether the context was at least nearly full when last heard of, so the warning is said once a crossing.
@@ -488,6 +490,9 @@ export function foldChat(events: ChatEvent[]): ChatView {
         }
         break;
       }
+      case 'title':
+        listedTitle = event.text || undefined;
+        break;
       case 'mode':
         mode = (event.text as AgentMode) ?? 'ask';
         break;
@@ -572,7 +577,17 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
     }
   }
-  return { items, plan, answering, exited, mode, settings, title, usage, commands };
+  return {
+    items,
+    plan,
+    answering,
+    exited,
+    mode,
+    settings,
+    title: title ?? listedTitle,
+    usage,
+    commands,
+  };
 }
 
 function stopNote(reason: string): string {

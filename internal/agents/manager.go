@@ -184,8 +184,8 @@ func (m *Manager) HistoryHandler(w http.ResponseWriter, req *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, map[string]any{"chats": past, "next": next})
 }
 
-// LoadHandler answers POST /api/agents/chats/{chatId}/load with {"id"}: the chat goes on in that past
-// conversation. 409 while the agent is answering.
+// LoadHandler answers POST /api/agents/chats/{chatId}/load with {"id", "title"}: the chat goes on in that
+// past conversation, headed by its title until the agent sends one. 409 while the agent is answering.
 func (m *Manager) LoadHandler(w http.ResponseWriter, req *http.Request) {
 	chat, ok := m.get(mux.Vars(req)["chatId"])
 	if !ok {
@@ -193,13 +193,14 @@ func (m *Manager) LoadHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var body struct {
-		ID string `json:"id"`
+		ID    string `json:"id"`
+		Title string `json:"title"`
 	}
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil || body.ID == "" {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, "Name the conversation to open")
 		return
 	}
-	if err := chat.Load(body.ID); err != nil {
+	if err := chat.Load(body.ID, body.Title); err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, ErrBusy) {
 			status = http.StatusConflict

@@ -89,6 +89,7 @@ export interface ChatEvent {
     | 'exited'
     | 'mode'
     | 'settings'
+    | 'title'
     | 'terminal'
     | 'changes'
     | 'undone';
@@ -157,10 +158,11 @@ export function listPastChats(
 }
 
 /** Goes on in a past conversation; the chat's log starts again with the agent's replay of it. */
-export function openPastChat(chatId: string, id: string): Promise<void> {
+/** Goes on in a past conversation, headed by `title`, as the list gave it, until the agent sends its own. */
+export function openPastChat(chatId: string, id: string, title?: string): Promise<void> {
   return requestEmpty(`/api/agents/chats/${encodeURIComponent(chatId)}/load`, {
     method: 'POST',
-    body: { id },
+    body: { id, title: title ?? '' },
   });
 }
 

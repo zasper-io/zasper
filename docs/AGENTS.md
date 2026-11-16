@@ -110,7 +110,7 @@ and the row shows them as it does for a command run here.
 | `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. |
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |
 | `GET` | `/api/agents/chats/{id}/history?cursor=` | A page of the agent's past conversations in the project: `{"chats": [{id, title, updated, current}], "next"}`, through ACP's `session/list`. `400` for an agent that cannot. |
-| `POST` | `/api/agents/chats/{id}/load` | Go on in a past conversation, `{"id"}`, through `session/load`. The chat's log starts again with the replay, and every tab's socket is closed so it reconnects to the new log. `409` while the agent is answering. |
+| `POST` | `/api/agents/chats/{id}/load` | Go on in a past conversation, `{"id", "title"}`, through `session/load`, with `title` as the list gave it. The chat's log starts again with the replay, and every tab's socket is closed so it reconnects to the new log. `409` while the agent is answering. |
 | `GET` | `/api/agents/chats/{id}/turns/{turn}/diff?path=` | A file a turn changed, before the turn against the file now, in the shape of `/api/git/diff`, with `hash` (the file now, as a save is checked against) and `changedSince` (it changed after the turn). |
 | `POST` | `/api/agents/chats/{id}/turns/{turn}/undo` | Put back the files the turn changed, those in `paths` or else all of them. `409` with `changed`, the files changed since, unless `{"anyway": true}`. The `undone` event names the files put back. |
 | `GET` | `/ws/agents/chats/{id}` | **WebSocket.** The chat's log from the start, then each event as it happens. |
@@ -121,7 +121,7 @@ Code's `compaction_update` and `notice`, are kept as they are), `permission` (a 
 and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `turn_end` (with
 ACP's `stop_reason`), `error`, `exited`, `changes` (the files the turn that has just ended changed, `changes.turn` and
 `changes.files` with each `path` and `status` A, M or D), `undone` (a turn taken back, `changes.turn`),
-`settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
+`title` (a reopened conversation's title as the agent listed it, in `text`, which heads the chat until the agent sends a `session_info_update` with its own: Claude Code does not send it again when it replays one), `settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
 logs none), and `terminal`: what a command run for the agent printed since
 the last, in `terminal.output` under its `terminal.id`. The last has `exited`, with `exit_code` or
 `signal`; past 256 KB the rest is not streamed, and the last has `cut` with the output's end alone.

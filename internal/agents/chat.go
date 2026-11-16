@@ -40,6 +40,7 @@ Event is one entry in a chat's log, in the order things happened.
 	answered    the option chosen, or none when the question was withdrawn; Auto when the chat's mode chose
 	mode        the chat's permission mode changed, to Text
 	settings    the agent's own settings for the session, the whole set, in Settings
+	title       a reopened conversation's title as the agent listed it, in Text, until it sends its own
 	terminal    what a command the agent runs in Zasper printed, and how it ended, in Terminal
 	changes     the files the turn that has just ended changed, in Changes
 	undone      the files a turn changed were put back, the turn in Changes
@@ -130,6 +131,18 @@ type Chat struct {
 	settings []acp.SessionConfigOption
 	// The agent has modes of its own, which replace the chat's.
 	ownModes bool
+	// The conversation's title, as the agent last sent it or listed it.
+	title string
+}
+
+// setTitle logs a title the agent listed for the conversation, and remembers it.
+func (c *Chat) setTitle(title string) {
+	c.mu.Lock()
+	c.title = title
+	c.mu.Unlock()
+	if title != "" {
+		c.record(Event{Type: "title", Text: title})
+	}
 }
 
 // record appends an event and passes it to everyone watching, without waiting on any of them.
