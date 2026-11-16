@@ -108,6 +108,8 @@ test('past conversations drop over the conversation, and the one picked is repla
 
   await expect(menu).toHaveCount(0);
   await expect(page.locator('.agentChat').getByText('what is 2 + 2?')).toBeVisible();
+  // The agent does not name it again as it replays it: the title the list gave heads the panel.
+  await expect(page.locator('.agentPanel-title')).toContainText('An earlier chat');
 });
 
 test('the head takes the chat’s title, and shows how full its context is', async ({ page }) => {

@@ -67,8 +67,11 @@ func (c *Chat) Past(ctx context.Context, cursor string) ([]PastChat, string, err
 Load opens one of the agent's past conversations in this chat, in place of the one it is in. The log
 starts again with what the agent replays of it, and every tab is sent the new log: it is closed on them,
 and reconnecting gives them the whole of it. A failed load leaves the agent where it was.
+
+title is the conversation's title as the agent listed it, which heads the chat until the agent sends
+one: an agent need not send it again when it replays the conversation, and Claude Code does not.
 */
-func (c *Chat) Load(id string) error {
+func (c *Chat) Load(id, title string) error {
 	c.mu.Lock()
 	switch {
 	case !c.History:
@@ -90,6 +93,7 @@ func (c *Chat) Load(id string) error {
 	}
 	mode := c.Mode
 	settings := c.settings
+	before := c.title
 	c.mu.Unlock()
 	// Before any turn of the conversation opened, which numbers its turns from 1 again.
 	c.releaseTurns()
@@ -108,10 +112,12 @@ func (c *Chat) Load(id string) error {
 	c.mu.Unlock()
 	if err != nil {
 		c.setSettings(settings)
+		c.setTitle(before)
 		c.record(Event{Type: "error", Text: fmt.Sprintf("could not open that conversation: %v", err)})
 		return err
 	}
 	c.setSettings(loaded.ConfigOptions)
+	c.setTitle(title)
 	analytics.Track(analytics.EventAgentConversationReopened, map[string]interface{}{"agent": analytics.AgentKind(c.Agent)})
 	return nil
 }

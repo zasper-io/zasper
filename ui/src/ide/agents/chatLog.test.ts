@@ -462,6 +462,21 @@ describe('foldChat', () => {
     ).toBeUndefined();
   });
 
+  it('heads a reopened conversation with its listed title until the agent sends one', () => {
+    const named = (title: string): ChatEvent => ({
+      type: 'update',
+      update: { sessionUpdate: 'session_info_update', title },
+    });
+
+    expect(foldChat([{ type: 'title', text: 'Plot the results' }]).title).toBe('Plot the results');
+    expect(
+      foldChat([{ type: 'title', text: 'Plot the results' }, named('Plot the drift')]).title
+    ).toBe('Plot the drift');
+    expect(foldChat([named('Plot the drift'), { type: 'title', text: 'Listed' }]).title).toBe(
+      'Plot the drift'
+    );
+  });
+
   it('keeps the agent’s commands as it last listed them, without their slashes', () => {
     const listed = (availableCommands: object[]): ChatEvent => ({
       type: 'update',

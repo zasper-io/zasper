@@ -31,7 +31,7 @@ func TestLoadingAPastConversationStartsTheLogAgainWithIt(t *testing.T) {
 	waitFor(t, chat, turnEnded)
 	_, before, _ := chat.Subscribe()
 
-	require.NoError(t, chat.Load("earlier"))
+	require.NoError(t, chat.Load("earlier", ""))
 
 	_, open := <-before
 	assert.False(t, open, "a tab was left on the old log")
@@ -54,7 +54,7 @@ func TestLoadingAPastConversationStartsTheLogAgainWithIt(t *testing.T) {
 func TestAConversationThatCannotBeOpenedLeavesTheChatWhereItWas(t *testing.T) {
 	_, chat, _ := fakeChat(t)
 
-	assert.Error(t, chat.Load("missing"))
+	assert.Error(t, chat.Load("missing", ""))
 
 	assert.Equal(t, "error", chatEvents(chat)[0].Type)
 	require.NoError(t, chat.Prompt("hello"))
@@ -65,7 +65,27 @@ func TestAConversationIsNotOpenedWhileTheAgentIsAnswering(t *testing.T) {
 	_, chat, _ := fakeChat(t)
 	require.NoError(t, chat.Prompt("wait"))
 
-	assert.ErrorIs(t, chat.Load("earlier"), ErrBusy)
+	assert.ErrorIs(t, chat.Load("earlier", ""), ErrBusy)
 
 	require.NoError(t, chat.Cancel())
+}
+
+func TestAReopenedConversationIsHeadedByTheTitleItWasListedWith(t *testing.T) {
+	_, chat, _ := fakeChat(t)
+
+	require.NoError(t, chat.Load("earlier", "An earlier chat"))
+
+	titles := []string{}
+	for _, event := range chatEvents(chat) {
+		if event.Type == "title" {
+			titles = append(titles, event.Text)
+		}
+	}
+	assert.Equal(t, []string{"An earlier chat"}, titles)
+
+	// A conversation that cannot be opened leaves the chat where it was, title and all.
+	assert.Error(t, chat.Load("missing", "Missing"))
+	events := chatEvents(chat)
+	assert.Equal(t, Event{Seq: 1, Type: "title", Text: "An earlier chat"}, events[0])
+	assert.Equal(t, "error", events[1].Type)
 }

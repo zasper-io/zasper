@@ -258,11 +258,11 @@ function History({ chatId, onClose }: { chatId: string; onClose: () => void }) {
     setFocusFrom(null);
   }, [focusFrom, past]);
 
-  const open = async (id: string) => {
+  const open = async (id: string, title?: string) => {
     setOpening(id);
     setError('');
     try {
-      await openPastChat(chatId, id);
+      await openPastChat(chatId, id, title);
       onClose();
     } catch (failure) {
       setError(apiErrorMessage(failure));
@@ -305,7 +305,7 @@ function History({ chatId, onClose }: { chatId: string; onClose: () => void }) {
                 title={[chat.title, chat.updated && new Date(chat.updated).toLocaleString()]
                   .filter(Boolean)
                   .join(' · ')}
-                onClick={() => void open(chat.id)}
+                onClick={() => void open(chat.id, chat.title)}
               >
                 {opening === chat.id ? (
                   <span className="z-spinner" role="status" aria-label="Opening" />

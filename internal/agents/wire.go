@@ -68,6 +68,16 @@ func (c *Chat) noteUpdate(line []byte) {
 		SessionUpdate string `json:"sessionUpdate"`
 	}
 	json.Unmarshal(message.Params.Update, &kind)
+	if kind.SessionUpdate == "session_info_update" {
+		var info struct {
+			Title *string `json:"title"`
+		}
+		if json.Unmarshal(message.Params.Update, &info) == nil && info.Title != nil {
+			c.mu.Lock()
+			c.title = *info.Title
+			c.mu.Unlock()
+		}
+	}
 	if kind.SessionUpdate == "config_option_update" {
 		var settings acp.SessionConfigOptionUpdate
 		if json.Unmarshal(message.Params.Update, &settings) == nil {

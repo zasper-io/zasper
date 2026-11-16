@@ -24,7 +24,7 @@ vi.mock('@/api', async (importOriginal) => ({
   startCommand: (command: string) => startCommand(command),
   stopChat: () => Promise.resolve(),
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
-  openPastChat: (chatId: string, id: string) => openPastChat(chatId, id),
+  openPastChat: (chatId: string, id: string, title?: string) => openPastChat(chatId, id, title),
   undoTurn: (chatId: string, turn: number, anyway?: boolean, paths?: string[]) =>
     undoTurn(chatId, turn, anyway, paths),
   searchFiles: (query: string, ignored?: boolean, inPaths?: boolean) =>
@@ -601,7 +601,7 @@ describe('AgentPanel', () => {
       fireEvent.click(await screen.findByRole('menuitem', { name: /Plot the results/ }));
 
       await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
-      expect(openPastChat).toHaveBeenCalledWith('chat-1', 'earlier');
+      expect(openPastChat).toHaveBeenCalledWith('chat-1', 'earlier', 'Plot the results');
     });
 
     it('closes on Escape and on a press outside it', async () => {
