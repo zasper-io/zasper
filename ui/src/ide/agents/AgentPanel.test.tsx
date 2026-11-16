@@ -380,6 +380,76 @@ describe('AgentPanel', () => {
     });
   });
 
+  describe('the agent’s commands', () => {
+    const commands = {
+      type: 'update',
+      update: {
+        sessionUpdate: 'available_commands_update',
+        availableCommands: [
+          { name: 'compact', description: 'Summarise the conversation so far' },
+          { name: 'context', description: 'What is using the context' },
+          { name: 'review', description: 'Review a pull request' },
+        ],
+      },
+    };
+
+    const connect = async () => {
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+      return FakeSocket.latest;
+    };
+    const type = (text: string) => {
+      const field = screen.getByLabelText('Message to the agent') as HTMLTextAreaElement;
+      fireEvent.change(field, { target: { value: text, selectionStart: text.length } });
+      return field;
+    };
+
+    it('lists them after a / that starts the message, and puts the one picked in the field', async () => {
+      const socket = await connect();
+      socket.push(commands);
+      expect(screen.getByLabelText('Message to the agent')).toHaveAttribute(
+        'placeholder',
+        'Ask the agent — @ for a file, / for a command'
+      );
+
+      const field = type('/con');
+      screen.getByRole('listbox', { name: 'Commands' });
+      expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+        '/contextWhat is using the context',
+      ]);
+
+      fireEvent.keyDown(field, { key: 'Enter' });
+      expect(field.value).toBe('/context ');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(socket.sent.filter((message) => message.type === 'prompt')).toEqual([]);
+
+      fireEvent.keyDown(field, { key: 'Enter' });
+      expect(socket.sent).toContainEqual({ type: 'prompt', text: '/context', mentions: [] });
+    });
+
+    it('draws a sent command in the face it is typed in', async () => {
+      const socket = await connect();
+      socket.push({ type: 'user', text: '/review 42' });
+
+      expect(screen.getByText('/review')).toHaveClass('agentCommand');
+    });
+
+    it('opens no list for an agent with none, nor for a / later in the message', async () => {
+      const socket = await connect();
+      type('/');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+
+      socket.push(commands);
+      type('see /com');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+  });
+
   it('keeps what was typed until the chat is connected', async () => {
     render(
       <Provider>

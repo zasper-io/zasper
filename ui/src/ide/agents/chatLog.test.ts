@@ -462,6 +462,26 @@ describe('foldChat', () => {
     ).toBeUndefined();
   });
 
+  it('keeps the agent’s commands as it last listed them, without their slashes', () => {
+    const listed = (availableCommands: object[]): ChatEvent => ({
+      type: 'update',
+      update: { sessionUpdate: 'available_commands_update', availableCommands },
+    });
+    const view = foldChat([
+      listed([{ name: 'old', description: 'Gone' }]),
+      listed([
+        { name: 'compact', description: 'Summarise the conversation so far' },
+        { name: '/review', description: 'Review a pull request', input: { hint: 'PR number' } },
+        { description: 'no name' },
+      ]),
+    ]);
+
+    expect(view.commands).toEqual([
+      { name: 'compact', description: 'Summarise the conversation so far' },
+      { name: 'review', description: 'Review a pull request', hint: 'PR number' },
+    ]);
+  });
+
   it('reads a command’s output without its colours, and a redrawn line as it was left', () => {
     expect(terminalText('\x1b[32mok\x1b[0m\r\n10%\r50%\r100%\n\x1b]0;title\x07done')).toBe(
       'ok\n100%\ndone'

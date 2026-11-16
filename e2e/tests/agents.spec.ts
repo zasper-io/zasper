@@ -133,3 +133,28 @@ test('the head takes the chat’s title, and shows how full its context is', asy
   await page.keyboard.press('Escape');
   await expect(detail).toHaveCount(0);
 });
+
+test('a / at the start of a message lists the agent’s commands, and one runs', async ({ page }) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(`${fakeAgentBinary} --commands`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toHaveAttribute(
+    'placeholder',
+    'Ask the agent — @ for a file, / for a command'
+  );
+
+  await field.pressSequentially('/ec');
+  const list = page.getByRole('listbox', { name: 'Commands' });
+  await expect(list).toBeVisible();
+  await expect(list.getByRole('option')).toHaveCount(1);
+  await field.press('Tab');
+  await expect(field).toHaveValue('/echo ');
+  await expect(list).toHaveCount(0);
+
+  await field.pressSequentially('hello');
+  await field.press('Enter');
+  await expect(page.locator('.agentChat').getByText('echoed: hello')).toBeVisible();
+  await expect(page.locator('.agentChat .agentCommand')).toHaveText('/echo');
+});
