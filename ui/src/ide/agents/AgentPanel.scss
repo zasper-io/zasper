@@ -335,6 +335,32 @@
   }
 }
 
+// Signing an agent in, from zasper-prototype's story-agent-sign-in.css (story 46). Try again and the
+// other way out, side by side under the command, each as wide as its words.
+.agentSignIn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+// Back sits under the ways, as Check again does under the agents to install.
+.agentSignIn-back {
+  align-self: flex-start;
+}
+
+// Who the agent is signed in as, in the More menu: a row that says, not one that does.
+.agentAccount {
+  cursor: default;
+
+  &:hover {
+    background: none;
+  }
+
+  .panel-row-meta {
+    margin-left: auto;
+  }
+}
+
 .agentStart-other {
   summary {
     color: var(--z-fg-accent);

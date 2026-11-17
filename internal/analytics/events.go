@@ -34,6 +34,7 @@ const (
 	EventAgentPermissionAnswered   EventType = "agent_permission_answered"
 	EventAgentModeChanged          EventType = "agent_mode_changed"
 	EventAgentSettingChanged       EventType = "agent_setting_changed"
+	EventAgentSignedOut            EventType = "agent_signed_out"
 	EventAgentConversationReopened EventType = "agent_conversation_reopened"
 	EventAgentChangesUndone        EventType = "agent_changes_undone"
 	// Not mcp_tool_called: PostHog labels that name as its own retired event in every project and
@@ -168,7 +169,7 @@ var eventRegistry = map[EventType]map[string]propSpec{
 	EventAgentChatStarted: {"agent": agentKinds},
 	EventAgentStartFailed: {
 		"agent":  agentKinds,
-		"reason": enum("not_installed", "cancelled", "failed"),
+		"reason": enum("not_installed", "cancelled", "failed", "sign_in"),
 	},
 	EventAgentTurnEnded: {
 		"agent":         agentKinds,
@@ -186,6 +187,7 @@ var eventRegistry = map[EventType]map[string]propSpec{
 		"category": enum("model", "thought_level", "mode", "other"),
 	},
 	EventAgentConversationReopened: {"agent": agentKinds},
+	EventAgentSignedOut:            {"agent": agentKinds},
 	EventAgentChangesUndone:        {"scope": enum("turn", "file", "block", "cell")},
 	EventAgentToolCalled:           {"tool": mcpTools},
 

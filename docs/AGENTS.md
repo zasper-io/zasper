@@ -87,6 +87,23 @@ Every agent is given Zasper's own MCP server as `zasper`, so it can read and run
 
 Paths outside the project are refused.
 
+### Signing an agent in
+
+An agent that is installed and not signed in refuses to open a session with ACP's `Authentication
+required` (-32000). Zasper says in `initialize` that it can run a terminal sign-in (`auth.terminal`),
+so the agent answers its ways of signing in in `authMethods`. Each terminal way is the agent's own
+program with arguments of its choosing: the panel offers them in the agent's words, and the one picked
+opens a Zasper terminal in the project with that command typed in, where the reader finishes, often in
+the browser. Try again then starts the chat. A sign-in that runs out during a chat ends the chat the
+same way. The sign-in is the agent's, kept where it keeps it: Zasper stores none of it.
+
+Claude Code offers two, both signing in through its CLI: Claude Subscription (`--cli auth login
+--claudeai`) and Anthropic Console (`--console`). It says who is signed in with `auth/status_update`,
+which the panel shows under More as the account's label, such as the plan; the address is never kept.
+It can be signed out from there (ACP's `logout`), which signs it out everywhere on the computer, and is
+asked about first. Other kinds of sign-in method, the agent signing itself in and an API key in the
+environment, are not offered yet.
+
 The agent's own settings for the session, such as its model, effort and mode, are ACP's session config
 options. Zasper keeps the set the agent last sent, at `session/new`, `session/load`, a
 `config_option_update` or the answer to `session/set_config_option`, and draws them as the agent words
@@ -107,9 +124,10 @@ and the row shows them as it does for a command run here.
 |---|---|---|
 | `GET` | `/api/agents` | The agents Zasper knows: `id`, `name`, `vendor`, `installed`, and `install` (the command that installs one) with `then` (what to do after). |
 | `GET` | `/api/agents/chats` | The chats running, each with `history` when its agent can list and open past conversations. |
-| `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. |
+| `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. `403` (`sign_in_required`) with `methods` when the agent will not start until someone signs in. |
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |
 | `GET` | `/api/agents/chats/{id}/history?cursor=` | A page of the agent's past conversations in the project: `{"chats": [{id, title, updated, current}], "next"}`, through ACP's `session/list`. `400` for an agent that cannot. |
+| `POST` | `/api/agents/chats/{id}/sign-out` | Sign the agent out, through ACP's `logout`, for an agent whose chat has `can_sign_out`. Answers `{"methods"}`, the ways to sign in again; the chat is left for the client to end. |
 | `POST` | `/api/agents/chats/{id}/load` | Go on in a past conversation, `{"id", "title"}`, through `session/load`, with `title` as the list gave it. The chat's log starts again with the replay, and every tab's socket is closed so it reconnects to the new log. `409` while the agent is answering. |
 | `GET` | `/api/agents/chats/{id}/turns/{turn}/diff?path=` | A file a turn changed, before the turn against the file now, in the shape of `/api/git/diff`, with `hash` (the file now, as a save is checked against) and `changedSince` (it changed after the turn). |
 | `POST` | `/api/agents/chats/{id}/turns/{turn}/undo` | Put back the files the turn changed, those in `paths` or else all of them. `409` with `changed`, the files changed since, unless `{"anyway": true}`. The `undone` event names the files put back. |
@@ -121,7 +139,7 @@ Code's `compaction_update` and `notice`, are kept as they are), `permission` (a 
 and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `turn_end` (with
 ACP's `stop_reason`), `error`, `exited`, `changes` (the files the turn that has just ended changed, `changes.turn` and
 `changes.files` with each `path` and `status` A, M or D), `undone` (a turn taken back, `changes.turn`),
-`title` (a reopened conversation's title as the agent listed it, in `text`, which heads the chat until the agent sends a `session_info_update` with its own: Claude Code does not send it again when it replays one), `settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
+`account` (who the agent says it is signed in as: `account.signed_in` and its `label`), `sign_in` (the agent will not go on until someone signs in, with the ways it offers in `sign_in`, each an `id`, `name`, `description` and the `command` that signs in), `title` (a reopened conversation's title as the agent listed it, in `text`, which heads the chat until the agent sends a `session_info_update` with its own: Claude Code does not send it again when it replays one), `settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
 logs none), and `terminal`: what a command run for the agent printed since
 the last, in `terminal.output` under its `terminal.id`. The last has `exited`, with `exit_code` or
 `signal`; past 256 KB the rest is not streamed, and the last has `cut` with the output's end alone.

@@ -47,6 +47,8 @@ Event is one entry in a chat's log, in the order things happened.
 	turn_end    the agent has finished answering, with ACP's stop reason
 	error       something went wrong, in Text
 	exited      the agent's process has ended
+	sign_in     the agent will not go on until someone signs in; the ways it offers, in SignIn
+	account     who the agent says it is signed in as, in Account
 */
 type Event struct {
 	Seq        int             `json:"seq"`
@@ -60,6 +62,8 @@ type Event struct {
 	// On a `user` event, what the message mentions.
 	Mentions []Mention                 `json:"mentions,omitempty"`
 	Settings []acp.SessionConfigOption `json:"settings,omitempty"`
+	SignIn   []SignInMethod            `json:"sign_in,omitempty"`
+	Account  *Account                  `json:"account,omitempty"`
 }
 
 // Permission is a question the agent asks before acting, and its answer once there is one.
@@ -103,6 +107,8 @@ type Chat struct {
 	Mode string `json:"mode"`
 	// The agent can list its past conversations in the project, and open one again.
 	History bool `json:"history"`
+	// The agent can be signed out from the panel.
+	CanSignOut bool `json:"can_sign_out"`
 
 	mu          sync.Mutex
 	events      []Event
@@ -131,6 +137,8 @@ type Chat struct {
 	settings []acp.SessionConfigOption
 	// The agent has modes of its own, which replace the chat's.
 	ownModes bool
+	// The ways the agent offers to be signed in, for when it says it must be.
+	signIn []SignInMethod
 	// The conversation's title, as the agent last sent it or listed it.
 	title string
 }
@@ -219,6 +227,11 @@ func (c *Chat) Prompt(text string, mentions ...Mention) error {
 			stopReason = string(answer.StopReason)
 		}
 		c.trackTurn(stopReason, changed, len(mentions))
+		if err != nil && isAuthRequired(err) && len(c.signIn) > 0 {
+			// Signed out since the chat started, by the reader or by the sign-in running out.
+			c.record(Event{Type: "sign_in", SignIn: c.signIn})
+			return
+		}
 		if err != nil {
 			c.record(Event{Type: "error", Text: err.Error()})
 			return
@@ -372,7 +385,9 @@ func start(asked context.Context, argv []string, agent, root string, files Files
 	initialized, err := chat.conn.Initialize(ctx, acp.InitializeRequest{
 		ProtocolVersion: acp.ProtocolVersionNumber,
 		ClientCapabilities: acp.ClientCapabilities{
-			Fs:       acp.FileSystemCapabilities{ReadTextFile: true, WriteTextFile: true},
+			Fs: acp.FileSystemCapabilities{ReadTextFile: true, WriteTextFile: true},
+			// An agent's own sign-in, run in a terminal of the reader's: see signin.go.
+			Auth:     acp.AuthCapabilities{Terminal: true},
 			Terminal: true,
 			// Claude Code runs its commands itself, and with this sends their output and exit code apart
 			// from the rest of the call, as it does for an editor that draws a terminal.
@@ -385,6 +400,8 @@ func start(asked context.Context, argv []string, agent, root string, files Files
 	}
 	capabilities := initialized.AgentCapabilities
 	chat.History = capabilities.LoadSession && capabilities.SessionCapabilities.List != nil
+	chat.CanSignOut = capabilities.Auth.Logout != nil
+	chat.signIn = signInMethods(argv, initialized.AuthMethods)
 	chat.embedded = capabilities.PromptCapabilities.EmbeddedContext
 	if mcpServers == nil {
 		mcpServers = []acp.McpServer{}
@@ -393,6 +410,9 @@ func start(asked context.Context, argv []string, agent, root string, files Files
 	session, err := chat.conn.NewSession(ctx, acp.NewSessionRequest{Cwd: root, McpServers: mcpServers})
 	if err != nil {
 		chat.close()
+		if isAuthRequired(err) && len(chat.signIn) > 0 {
+			return nil, &SignInRequired{Agent: agent, Methods: chat.signIn, message: fmt.Sprintf("%s needs to be signed in", argv[0])}
+		}
 		return nil, fmt.Errorf("%s could not start a session: %w", argv[0], err)
 	}
 	chat.session = session.SessionId

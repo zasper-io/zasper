@@ -64,21 +64,26 @@ export const terminalInputAtom = atom<Record<string, string[]>>({});
 export const RUN_TERMINAL = 'Run';
 
 /**
- * Types a line into the Run terminal and brings it forward, opening it first when it is not. Into a
- * shell rather than as a process of its own, so what the program printed stays, and the line can be
- * run again with the up arrow.
+ * Types a line into the shell called `name` and brings it forward, opening it first when it is not.
+ * Into a shell rather than as a process of its own, so what the program printed stays, and the line can
+ * be run again with the up arrow.
  */
-export const runInTerminalAtom = atom(null, (get, set, line: string) => {
-  const terminals = get(terminalsAtom);
-  if (terminals[RUN_TERMINAL] === undefined) {
-    set(terminalsAtom, { ...terminals, [RUN_TERMINAL]: { id: RUN_TERMINAL, name: RUN_TERMINAL } });
+export const typeInTerminalAtom = atom(
+  null,
+  (get, set, { name, line }: { name: string; line: string }) => {
+    const terminals = get(terminalsAtom);
+    if (terminals[name] === undefined) {
+      set(terminalsAtom, { ...terminals, [name]: { id: name, name } });
+    }
+    const pending = get(terminalInputAtom);
+    set(terminalInputAtom, { ...pending, [name]: [...(pending[name] ?? []), `${line}\r`] });
+    set(currentTerminalAtom, name);
+    set(dockTabAtom, 'terminal');
+    set(dockOpenAtom, true);
   }
-  const pending = get(terminalInputAtom);
-  set(terminalInputAtom, {
-    ...pending,
-    [RUN_TERMINAL]: [...(pending[RUN_TERMINAL] ?? []), `${line}\r`],
-  });
-  set(currentTerminalAtom, RUN_TERMINAL);
-  set(dockTabAtom, 'terminal');
-  set(dockOpenAtom, true);
-});
+);
+
+/** Types a line into the Run terminal: see typeInTerminalAtom. */
+export const runInTerminalAtom = atom(null, (_get, set, line: string) =>
+  set(typeInTerminalAtom, { name: RUN_TERMINAL, line })
+);

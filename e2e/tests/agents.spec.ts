@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { expect, Page } from '@playwright/test';
 
-import { fakeAgentBinary, projectDir } from '../paths';
+import { fakeAgentBinary, homeDir, projectDir } from '../paths';
 import { openApp, test } from './helpers';
 
 const notes = join(projectDir, 'notes.txt');
@@ -22,6 +22,8 @@ test.afterEach(async ({ request }) => {
     await request.delete(`/api/agents/chats/${chat.id}`);
   }
   rmSync(join(projectDir, 'mcp-servers.txt'), { force: true });
+  // Where the scripted agent keeps its sign-in, as a real one keeps its own.
+  rmSync(join(homeDir, '.zasper-fake-agent-signed-in'), { force: true });
 });
 
 test('an agent started from the panel changes a file, and the change is put back', async ({
@@ -219,4 +221,40 @@ test('a subagent’s calls are under its row, and a command left running says so
   await expect(chat.getByRole('button', { name: /python load_raw\.py/ })).toContainText(
     'in the background'
   );
+});
+
+test('an agent not signed in is signed in from a terminal, says who it is, and signs out', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page
+    .getByLabel('The command that starts the agent')
+    .fill(`${fakeAgentBinary} --needs-sign-in`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Sign in to fake-agent' })).toBeVisible();
+  await page.getByRole('button', { name: 'Sign in with Fake Account' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Finish signing in in the terminal' })
+  ).toBeVisible();
+
+  // The agent's own program, run in a Zasper terminal: its sign-in is what the next start finds.
+  const terminal = page.locator('.xterm-rows');
+  await expect(terminal).toContainText('Signed in to the fake agent.', { timeout: 15000 });
+
+  await page.getByRole('button', { name: 'Try again' }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+
+  await page.getByRole('button', { name: /^More settings for / }).click();
+  await expect(page.getByRole('menu', { name: /^More settings for / })).toContainText('Fake Pro');
+  await page.getByRole('menuitem', { name: 'Sign out of fake-agent' }).click();
+  await page
+    .getByRole('dialog', { name: 'Sign out of fake-agent?' })
+    .getByRole('button', { name: 'Sign out' })
+    .click();
+
+  await expect(page.getByText('Signed out of fake-agent.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in with Fake Account' })).toBeVisible();
 });

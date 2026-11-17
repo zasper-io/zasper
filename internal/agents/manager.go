@@ -58,8 +58,11 @@ func (m *Manager) Start(ctx context.Context, id, custom string) (*Chat, error) {
 	chat, err := start(ctx, argv, agent, m.root, m.files, servers, m.checkpoints())
 	if err != nil {
 		reason := "failed"
+		var signIn *SignInRequired
 		if ctx.Err() != nil {
 			reason = "cancelled"
+		} else if errors.As(err, &signIn) {
+			reason = "sign_in"
 		}
 		analytics.Track(analytics.EventAgentStartFailed, map[string]interface{}{
 			"agent": analytics.AgentKind(agent), "reason": reason,
@@ -152,11 +155,34 @@ func (m *Manager) StartHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	chat, err := m.Start(req.Context(), body.Agent, body.Command)
+	var signIn *SignInRequired
+	if errors.As(err, &signIn) {
+		httpx.SendJSON(w, http.StatusForbidden, map[string]any{"error": "sign_in_required", "message": err.Error(), "methods": signIn.Methods})
+		return
+	}
 	if err != nil {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	httpx.SendJSON(w, http.StatusCreated, chat)
+}
+
+// SignOutHandler answers POST /api/agents/chats/{chatId}/sign-out: the agent is signed out, everywhere
+// it is used on this computer, and the answer is the ways it offers to be signed in again. The chat
+// is left for the client to end.
+func (m *Manager) SignOutHandler(w http.ResponseWriter, req *http.Request) {
+	chat, ok := m.get(mux.Vars(req)["chatId"])
+	if !ok {
+		httpx.SendErrorResponse(w, http.StatusNotFound, "No such chat")
+		return
+	}
+	methods, err := chat.SignOut()
+	if err != nil {
+		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	analytics.Track(analytics.EventAgentSignedOut, map[string]interface{}{"agent": analytics.AgentKind(chat.Agent)})
+	httpx.SendJSON(w, http.StatusOK, map[string]any{"methods": methods})
 }
 
 // StopHandler answers DELETE /api/agents/chats/{chatId}.

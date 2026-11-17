@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 
 import {
   AgentChat,
@@ -22,12 +22,16 @@ import {
   listPastChats,
   openPastChat,
   PastChat,
+  SignInMethod,
+  signInMethodsOf,
+  signOutChat,
   startChat,
   startCommand,
   stopChat,
   TurnFile,
   undoTurn,
 } from '@/api';
+import ConfirmDialog from '@/ide/ConfirmDialog';
 import IconButton from '@/ide/IconButton';
 import { Icon, IconName } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
@@ -38,6 +42,8 @@ import { fileMention } from './mentions';
 import { projectDirAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
 import { useAskTrust } from '@/store/trust';
+import { dockOpenAtom, dockTabAtom } from '@/store/languageServers';
+import { currentTerminalAtom, typeInTerminalAtom } from '@/store/terminals';
 import { lineDiff } from '@/ide/editor/notebookDiff/cellDiff';
 import { relativeDate } from '@/ide/sidebar/dates';
 import AgentSettings from './AgentSettings';
@@ -52,12 +58,23 @@ import {
 } from './chatLog';
 import CommandPicker from './CommandPicker';
 import ContextMeter, { tokens } from './ContextMeter';
+import SignIn from './SignIn';
 import { usePickerKeys } from './usePickerKeys';
 import { useAgentChat } from './useAgentChat';
 import { useChatAnnouncer } from './useChatAnnouncer';
 import './AgentPanel.scss';
 
 const MarkdownRenderer = lazy(() => import('@/ide/editor/notebook/MarkdownRenderer'));
+
+/** An agent waiting to be signed in, how it was asked to start, and how far the reader has got. */
+interface SignInState {
+  target: AgentInfo | string;
+  name: string;
+  methods: SignInMethod[];
+  /** The way being finished in the terminal; none while one is chosen. */
+  method?: SignInMethod;
+  notice?: { text: string; failed: boolean };
+}
 
 const TOOL_ICONS: Record<string, IconName> = {
   read: 'file',
@@ -90,6 +107,15 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   // Here rather than in the conversation, so the head can draw the chat's title and how full it is.
   const live = useAgentChat(chat?.id ?? null);
   const { title, usage } = live.view;
+  const [signIn, setSignIn] = useState<SignInState | null>(null);
+  const [signingOut, setSigningOut] = useState<'asking' | 'busy' | null>(null);
+  const [signOutError, setSignOutError] = useState('');
+  // How the chat open now was started, so a sign-in it asks for can start it again.
+  const startedWith = useRef<AgentInfo | string | null>(null);
+  const typeInTerminal = useSetAtom(typeInTerminalAtom);
+  const setCurrentTerminal = useSetAtom(currentTerminalAtom);
+  const setDockTab = useSetAtom(dockTabAtom);
+  const setDockOpen = useSetAtom(dockOpenAtom);
 
   const findAgents = useCallback(() => {
     listAgents()
@@ -116,7 +142,11 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
     return () => window.removeEventListener('focus', rejoin);
   }, [hidden, hasChat, setChat]);
 
-  /** Starts a known agent, or any other by its command line. */
+  /**
+   * Starts a known agent, or any other by its command line. An agent that will not start until someone
+   * signs in answers how it signs in, which takes the panel; one tried again from there says so when it
+   * is still not signed in.
+   */
   const start = async (target: AgentInfo | string) => {
     const name = typeof target === 'string' ? commandName(target) : target.name;
     const abort = new AbortController();
@@ -128,9 +158,24 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
           ? startCommand(target, abort.signal)
           : startChat(target.id, abort.signal))
       );
+      startedWith.current = target;
+      setSignIn(null);
     } catch (failure) {
+      const methods = signInMethodsOf(failure);
       if (abort.signal.aborted) {
         // Given up on: back to the list, with nothing to say about it.
+      } else if (methods !== null) {
+        setSignIn((current) =>
+          current?.method
+            ? {
+                ...current,
+                notice: {
+                  text: `${name} is still not signed in. Finish in the terminal, then try again.`,
+                  failed: true,
+                },
+              }
+            : { target, name, methods, notice: current?.notice }
+        );
       } else if (isUntrusted(failure)) {
         askTrust({
           reason: 'other',
@@ -153,11 +198,67 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
     setBrowsing(false);
   };
 
+  /** Ends the chat, and puts the agent's ways of signing in in its place. */
+  const toSignIn = useCallback(
+    (methods: SignInMethod[], notice: string) => {
+      if (chat === null) return;
+      const target =
+        startedWith.current ?? agents?.find((agent) => agent.id === chat.agent) ?? chat.agent;
+      void stopChat(chat.id).catch(() => {});
+      setChat(null);
+      setBrowsing(false);
+      setSignIn({
+        target,
+        name: nameOf(chat, agents),
+        methods,
+        notice: { text: notice, failed: false },
+      });
+    },
+    [chat, agents, setChat]
+  );
+
+  // Signed out since the chat started, here or anywhere else: the agent will not go on until it is
+  // signed in again.
+  const needsSignIn = live.view.signIn;
+  useEffect(() => {
+    if (needsSignIn !== undefined && chat !== null) {
+      toSignIn(needsSignIn, `${nameOf(chat, agents)} needs to be signed in again.`);
+    }
+  }, [needsSignIn, chat, agents, toSignIn]);
+
+  const signOut = async () => {
+    if (chat === null) return;
+    setSigningOut('busy');
+    setSignOutError('');
+    try {
+      const methods = await signOutChat(chat.id);
+      setSigningOut(null);
+      toSignIn(methods, `Signed out of ${nameOf(chat, agents)}.`);
+    } catch (failure) {
+      setSignOutError(apiErrorMessage(failure));
+      setSigningOut('asking');
+    }
+  };
+
+  /** Runs one of the agent's ways of signing in, in a terminal named for it, with its command typed in. */
+  const runSignIn = (method: SignInMethod) => {
+    if (signIn === null) return;
+    typeInTerminal({ name: `Sign in to ${signIn.name}`, line: method.command });
+    setSignIn({ ...signIn, method, notice: undefined });
+  };
+
+  const showSignInTerminal = () => {
+    if (signIn === null) return;
+    setCurrentTerminal(`Sign in to ${signIn.name}`);
+    setDockTab('terminal');
+    setDockOpen(true);
+  };
+
   return (
     <aside className="agentPanel" data-region="agent" hidden={hidden} aria-label="Agent">
       <div className="agentPanel-title">
         <span className="z-label agentPanel-name" title={title}>
-          {chat ? (title ?? nameOf(chat, agents)) : (starting?.name ?? 'Agent')}
+          {chat ? (title ?? nameOf(chat, agents)) : (starting?.name ?? signIn?.name ?? 'Agent')}
         </span>
         {chat && (
           <span className="agentPanel-actions">
@@ -179,7 +280,24 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
         )}
       </div>
       {chat ? (
-        <Conversation chat={chat} live={live} />
+        <Conversation
+          chat={chat}
+          live={live}
+          agentName={nameOf(chat, agents)}
+          onSignOut={() => setSigningOut('asking')}
+        />
+      ) : signIn && !starting ? (
+        <SignIn
+          name={signIn.name}
+          methods={signIn.methods}
+          method={signIn.method}
+          notice={signIn.notice}
+          onSignIn={runSignIn}
+          onShowTerminal={showSignInTerminal}
+          onTryAgain={() => void start(signIn.target)}
+          onChooseAnother={() => setSignIn({ ...signIn, method: undefined, notice: undefined })}
+          onBack={() => setSignIn(null)}
+        />
       ) : (
         <Picker
           agents={agents}
@@ -189,6 +307,25 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
           onStart={(target) => void start(target)}
           onCheckAgain={findAgents}
         />
+      )}
+      {signingOut !== null && chat !== null && (
+        <ConfirmDialog
+          title={`Sign out of ${nameOf(chat, agents)}?`}
+          confirmLabel="Sign out"
+          busyLabel="Signing out…"
+          busy={signingOut === 'busy'}
+          onConfirm={() => void signOut()}
+          onCancel={() => {
+            setSigningOut(null);
+            setSignOutError('');
+          }}
+        >
+          {signOutError && <p className="z-notice-error">{signOutError}</p>}
+          <p>
+            This signs {nameOf(chat, agents)} out everywhere on this computer, not only here, and
+            ends this chat. You can sign in again from the panel.
+          </p>
+        </ConfirmDialog>
       )}
     </aside>
   );
@@ -499,7 +636,17 @@ function Picker(props: {
   );
 }
 
-function Conversation({ chat, live }: { chat: AgentChat; live: ReturnType<typeof useAgentChat> }) {
+function Conversation({
+  chat,
+  live,
+  agentName,
+  onSignOut,
+}: {
+  chat: AgentChat;
+  live: ReturnType<typeof useAgentChat>;
+  agentName: string;
+  onSignOut: () => void;
+}) {
   const { view, connected, prompt, cancel, answer, setMode, setSetting } = live;
   const [settingOpen, setSettingOpen] = useState<string | null>(null);
   const announcement = useChatAnnouncer(view);
@@ -639,6 +786,10 @@ function Conversation({ chat, live }: { chat: AgentChat; live: ReturnType<typeof
               onOpen={setSettingOpen}
               onSet={setSetting}
               onSetMode={setMode}
+              agentName={agentName}
+              account={view.account}
+              canSignOut={chat.can_sign_out === true}
+              onSignOut={onSignOut}
             />
           ) : (
             <span>Connecting…</span>

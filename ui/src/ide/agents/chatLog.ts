@@ -2,7 +2,9 @@ import {
   AgentMode,
   AgentSettingOption,
   AgentSettingValue,
+  AgentAccount,
   ChatEvent,
+  SignInMethod,
   Mention,
   TurnFile,
 } from '@/api';
@@ -147,6 +149,10 @@ export interface ChatView {
   usage?: ContextUsage;
   /** The commands the agent takes at the start of a message, as it last listed them. */
   commands: AgentCommand[];
+  /** Who the agent last said it is signed in as. */
+  account?: AgentAccount;
+  /** The agent will not go on until someone signs in: the ways it offers. */
+  signIn?: SignInMethod[];
 }
 
 export interface AgentCommand {
@@ -270,6 +276,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let listedTitle: string | undefined;
   let usage: ContextUsage | undefined;
   let commands: AgentCommand[] = [];
+  let account: AgentAccount | undefined;
+  let signIn: SignInMethod[] | undefined;
   // Whether the context was at least nearly full when last heard of, so the warning is said once a crossing.
   let nearlyFull = false;
   const compaction = (id: unknown) =>
@@ -523,6 +531,13 @@ export function foldChat(events: ChatEvent[]): ChatView {
         }
         break;
       }
+      case 'account':
+        account = event.account;
+        break;
+      case 'sign_in':
+        answering = false;
+        signIn = event.sign_in ?? [];
+        break;
       case 'title':
         listedTitle = event.text || undefined;
         break;
@@ -620,6 +635,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
     title: title ?? listedTitle,
     usage,
     commands,
+    account,
+    signIn,
   };
 }
 
