@@ -47,6 +47,7 @@ Go library adds its own name and version, the Go version Zasper was built with, 
 | `agent_mode_changed` | A chat's permission mode is changed | `mode` |
 | `agent_setting_changed` | One of the agent's own settings, such as its model, is changed | `agent`, `category` |
 | `agent_conversation_reopened` | A past conversation is opened again | `agent` |
+| `agent_signed_out` | An agent is signed out from the panel | `agent` |
 | `agent_changes_undone` | A turn's changes are undone | `scope` |
 | `agent_tool_called` | An agent calls one of Zasper's MCP tools | `tool` |
 | `folder_trust_changed` | A folder is trusted, or no longer | `trusted` |

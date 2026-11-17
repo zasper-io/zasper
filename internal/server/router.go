@@ -234,6 +234,7 @@ func (s *Server) Router(spa http.Handler) *mux.Router {
 	apiRouter.HandleFunc("/agents/chats/{chatId}", s.agents.StopHandler).Methods("DELETE")
 	apiRouter.HandleFunc("/agents/chats/{chatId}/history", s.agents.HistoryHandler).Methods("GET")
 	apiRouter.HandleFunc("/agents/chats/{chatId}/load", s.agents.LoadHandler).Methods("POST")
+	apiRouter.HandleFunc("/agents/chats/{chatId}/sign-out", s.agents.SignOutHandler).Methods("POST")
 	apiRouter.HandleFunc("/agents/chats/{chatId}/turns/{turn}/diff", s.agents.DiffHandler).Methods("GET")
 	apiRouter.HandleFunc("/agents/chats/{chatId}/turns/{turn}/undo", s.agents.UndoHandler).Methods("POST")
 	apiRouter.HandleFunc("/terminals", s.terminals.ListHandler).Methods("GET")

@@ -17,6 +17,10 @@ pipes with no agent installed.
 	/echo  says back what follows it, "echoed: …"
 	/compact  compacts the conversation, 182k to 18k tokens, as Claude Code's compaction_update has it
 	notice  sends a warning notice, as Claude Code does
+	(sign-in: with ZASPER_FAKE_AGENT_SIGN_IN set, it offers one terminal way to sign in, its own program
+	with `login`, which leaves SignedInMarker in HOME; until then a session or a prompt is refused as
+	Authentication required, and logout takes the marker away. It says who is signed in as
+	auth/status_update, as Claude Code does)
 	explore  starts a subagent that greps and talks, tagged with its call as Claude Code tags them, and
 	         leaves a command running in the background
 	(commands: with ZASPER_FAKE_AGENT_COMMANDS set, a session lists /echo and /compact as it opens)
@@ -41,6 +45,43 @@ import (
 
 	acp "github.com/coder/acp-go-sdk"
 )
+
+// SignedInMarker is the file in HOME that says the fake agent is signed in.
+const SignedInMarker = ".zasper-fake-agent-signed-in"
+
+func markerPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, SignedInMarker)
+}
+
+// SignIn is the fake agent's terminal sign-in: it leaves the marker, as a real agent stores its login.
+func SignIn() error {
+	return os.WriteFile(markerPath(), []byte("signed in\n"), 0o600)
+}
+
+func signsIn() bool { return os.Getenv("ZASPER_FAKE_AGENT_SIGN_IN") != "" }
+
+func signedIn() bool {
+	_, err := os.Stat(markerPath())
+	return !signsIn() || err == nil
+}
+
+// notify sends a notification the SDK has no type for, as the agent writes it.
+func (a *agent) notify(method string, params any) {
+	line, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": method, "params": params})
+	a.out.Write(append(line, '\n'))
+}
+
+// sayWhoIsSignedIn sends auth/status_update as Claude Code does, the address with it.
+func (a *agent) sayWhoIsSignedIn() {
+	if signedIn() {
+		a.notify("auth/status_update", map[string]any{"state": "authenticated", "accounts": []any{
+			map[string]any{"label": "Fake Pro", "active": true, "email": "someone@example.com"},
+		}})
+		return
+	}
+	a.notify("auth/status_update", map[string]any{"state": "unauthenticated", "accounts": []any{}})
+}
 
 // Requested says whether this process was started to be the agent.
 func Requested() bool { return os.Getenv("ZASPER_FAKE_AGENT") == "1" }
@@ -95,14 +136,26 @@ func (a *agent) Initialize(context.Context, acp.InitializeRequest) (acp.Initiali
 		// An agent npx is still downloading: it says nothing for a long while.
 		time.Sleep(time.Minute)
 	}
-	return acp.InitializeResponse{ProtocolVersion: acp.ProtocolVersionNumber, AgentCapabilities: acp.AgentCapabilities{
+	response := acp.InitializeResponse{ProtocolVersion: acp.ProtocolVersionNumber, AgentCapabilities: acp.AgentCapabilities{
 		LoadSession:         true,
 		SessionCapabilities: acp.SessionCapabilities{List: &acp.SessionListCapabilities{}},
 		PromptCapabilities:  acp.PromptCapabilities{EmbeddedContext: os.Getenv("ZASPER_FAKE_AGENT_PLAIN") == ""},
-	}}, nil
+	}}
+	if signsIn() {
+		description := "Use a fake account "
+		response.AuthMethods = []acp.AuthMethod{{Terminal: &acp.AuthMethodTerminalInline{
+			Id: "fake-login", Name: "Fake Account", Description: &description, Type: "terminal", Args: []string{"login"},
+		}}}
+		response.AgentCapabilities.Auth.Logout = &acp.LogoutCapabilities{}
+		a.sayWhoIsSignedIn()
+	}
+	return response, nil
 }
 
 func (a *agent) NewSession(_ context.Context, request acp.NewSessionRequest) (acp.NewSessionResponse, error) {
+	if !signedIn() {
+		return acp.NewSessionResponse{}, acp.NewAuthRequired(nil)
+	}
 	a.cwd = request.Cwd
 	names := make([]string, 0, len(request.McpServers))
 	for _, server := range request.McpServers {
@@ -138,6 +191,9 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 		text = request.Prompt[0].Text.Text
 	}
 	session := request.SessionId
+	if !signedIn() {
+		return acp.PromptResponse{}, acp.NewAuthRequired(nil)
+	}
 	if len(request.Prompt) > 1 {
 		a.say(ctx, session, describe(request.Prompt[1:]))
 		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
@@ -247,6 +303,8 @@ func (a *agent) Authenticate(context.Context, acp.AuthenticateRequest) (acp.Auth
 }
 
 func (a *agent) Logout(context.Context, acp.LogoutRequest) (acp.LogoutResponse, error) {
+	os.Remove(markerPath())
+	a.sayWhoIsSignedIn()
 	return acp.LogoutResponse{}, nil
 }
 

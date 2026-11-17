@@ -37,6 +37,10 @@ func (c *Chat) tapUpdates(from io.Reader) io.Reader {
 		lines := bufio.NewReaderSize(from, 64<<10)
 		for {
 			line, err := lines.ReadBytes('\n')
+			if len(line) > 0 && c.noteAccount(line) {
+				// Not the SDK's to answer: it knows no such method, and says so in the log.
+				continue
+			}
 			if len(line) > 0 {
 				c.noteUpdate(line)
 				if _, failed := in.Write(line); failed != nil {
@@ -50,6 +54,46 @@ func (c *Chat) tapUpdates(from io.Reader) io.Reader {
 		}
 	}()
 	return out
+}
+
+/*
+noteAccount logs who the agent says it is signed in as, when the line says, and answers whether it was
+such a line. Claude Code sends `auth/status_update` (and its own `_auth/status_update`, which says the
+same) whenever that changes. The active account's label is kept, such as the plan; its address is not.
+*/
+func (c *Chat) noteAccount(line []byte) bool {
+	var message struct {
+		ID     json.RawMessage `json:"id"`
+		Method string          `json:"method"`
+		Params struct {
+			State    string `json:"state"`
+			Accounts []struct {
+				Label  string `json:"label"`
+				Active bool   `json:"active"`
+			} `json:"accounts"`
+		} `json:"params"`
+	}
+	if json.Unmarshal(line, &message) != nil || len(message.ID) > 0 {
+		return false
+	}
+	switch message.Method {
+	case "_auth/status_update":
+		return true
+	case "auth/status_update":
+	default:
+		return false
+	}
+	account := Account{SignedIn: message.Params.State == "authenticated"}
+	for _, each := range message.Params.Accounts {
+		if each.Active || account.Label == "" {
+			account.Label = each.Label
+		}
+	}
+	if !account.SignedIn {
+		account.Label = ""
+	}
+	c.record(Event{Type: "account", Account: &account})
+	return true
 }
 
 // noteUpdate logs the update in a line from the agent, when the line is one. Settings change the chat

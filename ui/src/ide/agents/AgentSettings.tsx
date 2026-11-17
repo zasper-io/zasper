@@ -1,9 +1,9 @@
 import React, { ReactNode, useRef } from 'react';
 
-import { AgentMode } from '@/api';
+import { AgentAccount, AgentMode } from '@/api';
 import { Icon } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
-import { MenuChoice, MenuGroup, MenuSeparator } from '@/ide/statusBar/StatusMenu';
+import { MenuAction, MenuChoice, MenuGroup, MenuSeparator } from '@/ide/statusBar/StatusMenu';
 import { AgentSetting } from './chatLog';
 
 // The settings that get a chip of their own, in this order. Every other one is under More.
@@ -32,6 +32,12 @@ interface Props {
   onOpen: (id: string | null) => void;
   onSet: (id: string, value: string | boolean) => void;
   onSetMode: (mode: AgentMode) => void;
+  /** The agent's name, as the panel shows it. */
+  agentName?: string;
+  /** Who the agent says it is signed in as. */
+  account?: AgentAccount;
+  canSignOut?: boolean;
+  onSignOut?: () => void;
 }
 
 /**
@@ -45,6 +51,7 @@ export default function AgentSettings(props: Props) {
     settings.filter((setting) => setting.category === category)
   );
   const rest = settings.filter((setting) => !CHIPS.includes(setting.category));
+  const signedInAs = props.account?.signed_in ? props.account.label : undefined;
   const close = () => onOpen(null);
 
   return (
@@ -100,7 +107,7 @@ export default function AgentSettings(props: Props) {
           ))}
         </Chip>
       )}
-      {rest.length > 0 && (
+      {(rest.length > 0 || signedInAs !== undefined || props.canSignOut) && (
         <More
           agent={props.agent}
           settings={rest}
@@ -109,6 +116,11 @@ export default function AgentSettings(props: Props) {
           onToggle={() => onOpen(open === ':more' ? null : ':more')}
           onClose={close}
           onSet={props.onSet}
+          account={signedInAs}
+          signOutLabel={
+            props.canSignOut ? `Sign out of ${props.agentName ?? props.agent}` : undefined
+          }
+          onSignOut={props.onSignOut}
         />
       )}
     </span>
@@ -177,6 +189,10 @@ function More(props: {
   onToggle: () => void;
   onClose: () => void;
   onSet: (id: string, value: string | boolean) => void;
+  /** Who the agent is signed in as, and how to sign it out: the menu's last group. */
+  account?: string;
+  signOutLabel?: string;
+  onSignOut?: () => void;
 }) {
   const within = useRef<HTMLSpanElement>(null);
   useDismissOnEscape(props.onClose, props.open);
@@ -242,6 +258,34 @@ function More(props: {
                 )}
               </React.Fragment>
             ))}
+            {(props.account !== undefined || props.signOutLabel !== undefined) && (
+              <>
+                {props.settings.length > 0 && <MenuSeparator />}
+                <MenuGroup label="Account" />
+                {props.account !== undefined && (
+                  // Says rather than does, so not an item: a reader moving through the menu skips it.
+                  <li className="panel-row agentAccount" role="presentation">
+                    <span className="panel-row-name">
+                      <span className="menuTick">
+                        <Icon name="circle-check" size={12} />
+                      </span>
+                      <span className="panel-row-label">{props.account}</span>
+                      <span className="panel-row-meta">signed in</span>
+                    </span>
+                  </li>
+                )}
+                {props.signOutLabel !== undefined && (
+                  <MenuAction
+                    label={props.signOutLabel}
+                    icon="log-out"
+                    onSelect={() => {
+                      props.onClose();
+                      props.onSignOut?.();
+                    }}
+                  />
+                )}
+              </>
+            )}
           </ul>
         </div>
       )}

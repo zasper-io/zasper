@@ -1,4 +1,4 @@
-import { requestEmpty, requestJson } from './client';
+import { ApiError, requestEmpty, requestJson } from './client';
 
 /** A coding agent Zasper knows how to start, and whether it is installed here. */
 export interface AgentInfo {
@@ -19,6 +19,35 @@ export interface AgentChat {
   mode?: AgentMode;
   /** The agent can list its past conversations in the project, and open one again. */
   history?: boolean;
+  /** The agent can be signed out from the panel. */
+  can_sign_out?: boolean;
+}
+
+/** A way the agent offers to be signed in: its own program, run in a terminal with `command` typed in. */
+export interface SignInMethod {
+  id: string;
+  name: string;
+  description?: string;
+  command: string;
+}
+
+/** Who the agent says it is signed in as: its own label, such as a plan. */
+export interface AgentAccount {
+  signed_in: boolean;
+  label?: string;
+}
+
+/** The ways to sign in, when a start was refused for want of a sign-in; otherwise null. */
+export function signInMethodsOf(failure: unknown): SignInMethod[] | null {
+  if (!(failure instanceof ApiError) || failure.status !== 403) {
+    return null;
+  }
+  try {
+    const body = JSON.parse(failure.body) as { error?: string; methods?: SignInMethod[] };
+    return body.error === 'sign_in_required' ? (body.methods ?? []) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -90,6 +119,8 @@ export interface ChatEvent {
     | 'mode'
     | 'settings'
     | 'title'
+    | 'sign_in'
+    | 'account'
     | 'terminal'
     | 'changes'
     | 'undone';
@@ -123,6 +154,10 @@ export interface ChatEvent {
   };
   /** On `settings`, the agent's settings, the whole set. */
   settings?: AgentSettingOption[];
+  /** On `sign_in`, the ways the agent offers to be signed in again. */
+  sign_in?: SignInMethod[];
+  /** On `account`, who the agent says it is signed in as. */
+  account?: AgentAccount;
 }
 
 export function listAgents(): Promise<AgentInfo[]> {
@@ -146,6 +181,18 @@ export function startCommand(command: string, signal?: AbortSignal): Promise<Age
 
 export function stopChat(id: string): Promise<void> {
   return requestEmpty(`/api/agents/chats/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+/**
+ * Signs the agent out, everywhere it is used on this computer, and answers the ways it offers to be
+ * signed in again. The chat is the caller's to end.
+ */
+export async function signOutChat(id: string): Promise<SignInMethod[]> {
+  const answer = await requestJson<{ methods?: SignInMethod[] }>(
+    `/api/agents/chats/${encodeURIComponent(id)}/sign-out`,
+    { method: 'POST' }
+  );
+  return answer.methods ?? [];
 }
 
 /** A page of the agent's past conversations in the project, newest first, and the cursor of the next. */

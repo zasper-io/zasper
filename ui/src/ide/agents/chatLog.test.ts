@@ -674,6 +674,21 @@ describe('foldChat', () => {
     expect(call.status).toBe('completed');
   });
 
+  it('keeps who is signed in, and that the agent will not go on until someone signs in', () => {
+    const ways = [{ id: 'login', name: 'Fake Account', command: 'fake login' }];
+    const view = foldChat([
+      { type: 'account', account: { signed_in: true, label: 'Fake Pro' } },
+      { type: 'user', text: 'hello' },
+      { type: 'account', account: { signed_in: false } },
+      { type: 'sign_in', sign_in: ways },
+    ]);
+
+    expect(view.account).toEqual({ signed_in: false });
+    expect(view.signIn).toEqual(ways);
+    expect(view.answering).toBe(false);
+    expect(foldChat([{ type: 'user', text: 'hi' }]).signIn).toBeUndefined();
+  });
+
   it('reads a command’s output without its colours, and a redrawn line as it was left', () => {
     expect(terminalText('\x1b[32mok\x1b[0m\r\n10%\r50%\r100%\n\x1b]0;title\x07done')).toBe(
       'ok\n100%\ndone'

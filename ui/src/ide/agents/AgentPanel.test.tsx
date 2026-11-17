@@ -6,6 +6,8 @@ import { ApiError } from '@/api';
 import { Provider } from '@/testing/Provider';
 import AgentPanel from './AgentPanel';
 import { cellMention, useAddMention } from './mentions';
+import { useAtomValue } from 'jotai';
+import { terminalInputAtom } from '@/store/terminals';
 
 const listAgents = vi.fn();
 const listChats = vi.fn();
@@ -15,6 +17,7 @@ const listPastChats = vi.fn();
 const openPastChat = vi.fn();
 const undoTurn = vi.fn();
 const searchFiles = vi.fn();
+const signOutChat = vi.fn();
 
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api')>()),
@@ -29,7 +32,13 @@ vi.mock('@/api', async (importOriginal) => ({
     undoTurn(chatId, turn, anyway, paths),
   searchFiles: (query: string, ignored?: boolean, inPaths?: boolean) =>
     searchFiles(query, ignored, inPaths),
+  signOutChat: (id: string) => signOutChat(id),
 }));
+
+/** What is waiting to be typed into each terminal. */
+function Pending() {
+  return <pre data-testid="pending">{JSON.stringify(useAtomValue(terminalInputAtom))}</pre>;
+}
 
 vi.mock('@/ide/editor/notebook/MarkdownRenderer', () => ({
   default: ({ source }: { source: string }) => <p>{source}</p>,
@@ -534,6 +543,116 @@ describe('AgentPanel', () => {
       socket.push(commands);
       type('see /com');
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('signing in', () => {
+    const WAYS = [
+      {
+        id: 'claude-ai-login',
+        name: 'Claude Subscription',
+        description: 'Use Claude subscription',
+        command: 'claude-agent-acp --cli auth login --claudeai',
+      },
+      {
+        id: 'console-login',
+        name: 'Anthropic Console',
+        description: 'Use Anthropic Console (API usage billing)',
+        command: 'claude-agent-acp --cli auth login --console',
+      },
+    ];
+    const refused = () =>
+      new ApiError(
+        'POST',
+        '/api/agents/chats',
+        403,
+        JSON.stringify({ error: 'sign_in_required', message: 'needs signing in', methods: WAYS })
+      );
+
+    it('offers the agent’s ways, runs one in a terminal, and says so when it is still not done', async () => {
+      startChat.mockRejectedValueOnce(refused()).mockRejectedValueOnce(refused());
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+          <Pending />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+
+      expect(
+        await screen.findByRole('heading', { name: 'Sign in to Claude Code' })
+      ).toBeInTheDocument();
+      const ways = screen.getByRole('region', { name: 'Ways to sign in' });
+      expect(ways).toHaveTextContent('Claude SubscriptionUse Claude subscription');
+      expect(ways).toHaveTextContent('Anthropic ConsoleUse Anthropic Console (API usage billing)');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in with Claude Subscription' }));
+      expect(JSON.parse(screen.getByTestId('pending').textContent!)).toEqual({
+        'Sign in to Claude Code': ['claude-agent-acp --cli auth login --claudeai\r'],
+      });
+      expect(
+        screen.getByRole('heading', { name: 'Finish signing in in the terminal' })
+      ).toBeInTheDocument();
+      expect(screen.getByText('claude-agent-acp --cli auth login --claudeai')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(
+        await screen.findByText(
+          'Claude Code is still not signed in. Finish in the terminal, then try again.'
+        )
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(await screen.findByRole('button', { name: ZASPER_MODE })).toBeInTheDocument();
+    });
+
+    it('goes back to the ways when the agent asks again in the middle of a chat', async () => {
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+
+      FakeSocket.latest.push({ type: 'sign_in', sign_in: WAYS });
+
+      expect(
+        await screen.findByText('Claude Code needs to be signed in again.')
+      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Sign in to Claude Code' })).toBeInTheDocument();
+    });
+
+    it('shows who is signed in under More, and signs out once asked', async () => {
+      startChat.mockResolvedValueOnce({ id: 'chat-1', agent: 'claude-code', can_sign_out: true });
+      signOutChat.mockResolvedValue(WAYS);
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+      FakeSocket.latest.push({
+        type: 'account',
+        account: { signed_in: true, label: 'Claude Pro' },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'More settings for claude-code' }));
+      const menu = screen.getByRole('menu', { name: 'More settings for claude-code' });
+      expect(menu).toHaveTextContent('Claude Prosigned in');
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out of Claude Code' }));
+
+      const ask = screen.getByRole('dialog', { name: 'Sign out of Claude Code?' });
+      expect(ask).toHaveTextContent('everywhere on this computer');
+      expect(signOutChat).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+      expect(await screen.findByText('Signed out of Claude Code.')).toBeInTheDocument();
+      expect(signOutChat).toHaveBeenCalledWith('chat-1');
+      expect(
+        screen.getByRole('button', { name: 'Sign in with Claude Subscription' })
+      ).toBeInTheDocument();
     });
   });
 
