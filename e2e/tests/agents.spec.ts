@@ -258,3 +258,29 @@ test('an agent not signed in is signed in from a terminal, says who it is, and s
   await expect(page.getByText('Signed out of fake-agent.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign in with Fake Account' })).toBeVisible();
 });
+
+test('an agent signs itself in when asked, after one way it refuses, and names its plan', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page
+    .getByLabel('The command that starts the agent')
+    .fill(`${fakeAgentBinary} --needs-sign-in --tier`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Sign in with Fake Key' }).click();
+  await expect(
+    page.getByText('Fake Key did not sign fake-agent in: FAKE_KEY is not set.')
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Sign in with Fake Browser' }).click();
+  await expect(page.getByRole('status', { name: 'Signing in to fake-agent' })).toBeVisible();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+
+  await page.getByRole('button', { name: 'More settings for fake-agent' }).click();
+  await expect(page.getByRole('menu', { name: 'More settings for fake-agent' })).toContainText(
+    'Fake Tiersigned in'
+  );
+});

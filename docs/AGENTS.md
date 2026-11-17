@@ -67,8 +67,8 @@ Gemini CLI is not listed: since 18 June 2026 it no longer serves personal Google
 Antigravity CLI signs in with those, a Gemini API key or a business account alike. It still starts as
 any other agent, by its command line (`gemini --experimental-acp`).
 
-Claude Code is the one checked by hand so far. The first start through `npx` downloads the adapter and
-takes a minute or two.
+Claude Code and Antigravity CLI are checked by hand; Antigravity without a turn yet. The first start of
+Claude Code through `npx` downloads the adapter and takes a minute or two.
 
 ## A chat
 
@@ -91,18 +91,32 @@ Paths outside the project are refused.
 
 An agent that is installed and not signed in refuses to open a session with ACP's `Authentication
 required` (-32000). Zasper says in `initialize` that it can run a terminal sign-in (`auth.terminal`),
-so the agent answers its ways of signing in in `authMethods`. Each terminal way is the agent's own
-program with arguments of its choosing: the panel offers them in the agent's words, and the one picked
-opens a Zasper terminal in the project with that command typed in, where the reader finishes, often in
-the browser. Try again then starts the chat. A sign-in that runs out during a chat ends the chat the
-same way. The sign-in is the agent's, kept where it keeps it: Zasper stores none of it.
+so the agent answers its ways of signing in in `authMethods`, which the panel offers in the agent's
+order and words. They are of two kinds. A terminal way is the agent's own program with arguments of its
+choosing: the one picked opens a Zasper terminal in the project with that command typed in, where the
+reader finishes, often in the browser, and Try again then starts the chat. A way of the agent kind (no
+`type`) the agent carries out itself: the chat is started with it, and Zasper calls `authenticate`
+between `initialize` and `session/new`, waiting up to ten minutes as the agent may wait on the reader in
+the browser; Cancel stops the agent. When the agent refuses, its reason is shown above the ways. A
+sign-in that runs out during a chat ends the chat the same way. The sign-in is the agent's, kept where it
+keeps it: Zasper stores none of it.
 
 Claude Code offers two, both signing in through its CLI: Claude Subscription (`--cli auth login
 --claudeai`) and Anthropic Console (`--console`). It says who is signed in with `auth/status_update`,
 which the panel shows under More as the account's label, such as the plan; the address is never kept.
 It can be signed out from there (ACP's `logout`), which signs it out everywhere on the computer, and is
-asked about first. Other kinds of sign-in method, the agent signing itself in and an API key in the
-environment, are not offered yet.
+asked about first.
+
+Antigravity CLI offers five: four it carries out itself, Log in with Google (it opens the browser, and
+waits on a local address for Google to send it back), Log in with Gemini Enterprise, Gemini API key and
+Gemini Enterprise Agent Platform, and Log in from the terminal (`agy acp --login`). Agent Platform refuses
+without a Google Cloud project and location. The API key way takes the key in `authenticate`'s
+`_meta.apiKey`, and agy holds it only while it runs, so its card asks for the key and Zasper keeps it in
+the keychain (a 0600 file where there is none, as for a data connection's password), giving it back when
+agy next asks to be signed in; Sign out forgets it. Which way takes a key is in Zasper's list of agents. It names the plan, such as "Google AI Pro", in `session/new`'s
+`_meta.antigravity.tier.name` rather than in `auth/status_update`, and the panel shows that as the
+account. ACP's third kind, a key from the reader passed in the agent's environment (`env_var`), is not
+offered yet.
 
 The agent's own settings for the session, such as its model, effort and mode, are ACP's session config
 options. Zasper keeps the set the agent last sent, at `session/new`, `session/load`, a
@@ -124,7 +138,7 @@ and the row shows them as it does for a command run here.
 |---|---|---|
 | `GET` | `/api/agents` | The agents Zasper knows: `id`, `name`, `vendor`, `installed`, and `install` (the command that installs one) with `then` (what to do after). |
 | `GET` | `/api/agents/chats` | The chats running, each with `history` when its agent can list and open past conversations. |
-| `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. `403` (`sign_in_required`) with `methods` when the agent will not start until someone signs in. |
+| `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other, and `"sign_in"`, the id of a way the agent carries out itself, to sign it in first, with `"key"` for a way that takes one, which is then kept. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. `403` (`sign_in_required`) with `methods` when the agent will not start until someone signs in, and `refused`, the agent's reason, when the way asked for failed. |
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |
 | `GET` | `/api/agents/chats/{id}/history?cursor=` | A page of the agent's past conversations in the project: `{"chats": [{id, title, updated, current}], "next"}`, through ACP's `session/list`. `400` for an agent that cannot. |
 | `POST` | `/api/agents/chats/{id}/sign-out` | Sign the agent out, through ACP's `logout`, for an agent whose chat has `can_sign_out`. Answers `{"methods"}`, the ways to sign in again; the chat is left for the client to end. |
@@ -139,7 +153,7 @@ Code's `compaction_update` and `notice`, are kept as they are), `permission` (a 
 and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `turn_end` (with
 ACP's `stop_reason`), `error`, `exited`, `changes` (the files the turn that has just ended changed, `changes.turn` and
 `changes.files` with each `path` and `status` A, M or D), `undone` (a turn taken back, `changes.turn`),
-`account` (who the agent says it is signed in as: `account.signed_in` and its `label`), `sign_in` (the agent will not go on until someone signs in, with the ways it offers in `sign_in`, each an `id`, `name`, `description` and the `command` that signs in), `title` (a reopened conversation's title as the agent listed it, in `text`, which heads the chat until the agent sends a `session_info_update` with its own: Claude Code does not send it again when it replays one), `settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
+`account` (who the agent says it is signed in as: `account.signed_in` and its `label`), `sign_in` (the agent will not go on until someone signs in, with the ways it offers in `sign_in`, each an `id`, `name`, `description`, its `kind`, `terminal` or `agent`, `takes_key` for a way that wants a key, and for a terminal way the `command` that signs in), `title` (a reopened conversation's title as the agent listed it, in `text`, which heads the chat until the agent sends a `session_info_update` with its own: Claude Code does not send it again when it replays one), `settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
 logs none), and `terminal`: what a command run for the agent printed since
 the last, in `terminal.output` under its `terminal.id`. The last has `exited`, with `exit_code` or
 `signal`; past 256 KB the rest is not streamed, and the last has `cut` with the output's end alone.

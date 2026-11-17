@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/zasper-io/zasper/internal/analytics"
 	"github.com/zasper-io/zasper/internal/checkpoint"
 	"github.com/zasper-io/zasper/internal/httpx"
+	"github.com/zasper-io/zasper/internal/secrets"
 )
 
 // Manager holds the project's chats, for as long as the server runs.
@@ -26,6 +28,8 @@ type Manager struct {
 	files Files
 	// The MCP servers a chat's agent is given, so it has Zasper's notebook tools with no setup.
 	tools func(chatID, agent string) []acp.McpServer
+	// Where a key the reader gives an agent's sign-in is kept: the keychain, where there is one.
+	secrets secrets.Store
 
 	mu    sync.Mutex
 	chats map[string]*Chat
@@ -33,7 +37,7 @@ type Manager struct {
 
 // New hosts agents in the project at root.
 func New(root string, files Files) *Manager {
-	return &Manager{root: root, files: files, chats: map[string]*Chat{}}
+	return &Manager{root: root, files: files, chats: map[string]*Chat{}, secrets: secrets.Default()}
 }
 
 // GiveTools sets the MCP servers each new chat's agent is given.
@@ -42,8 +46,10 @@ func (m *Manager) GiveTools(tools func(chatID, agent string) []acp.McpServer) {
 }
 
 // Start starts an agent, the known one id or the custom command line, in a chat of its own. Cancelling
-// ctx, as a reader who gives up on a slow start does, stops the agent before its session opens.
-func (m *Manager) Start(ctx context.Context, id, custom string) (*Chat, error) {
+// ctx, as a reader who gives up on a slow start does, stops the agent before its session opens. With
+// signInWith, a way the agent offered of signing itself in, it is signed in first, with key when the way
+// takes one; that key is kept, and given back when the agent next asks to be signed in.
+func (m *Manager) Start(ctx context.Context, id, custom, signInWith, key string) (*Chat, error) {
 	argv, agent, ok := commandFor(id, custom)
 	if !ok {
 		analytics.Track(analytics.EventAgentStartFailed, map[string]interface{}{
@@ -55,7 +61,14 @@ func (m *Manager) Start(ctx context.Context, id, custom string) (*Chat, error) {
 	if m.tools != nil {
 		servers = m.tools("", agent)
 	}
-	chat, err := start(ctx, argv, agent, m.root, m.files, servers, m.checkpoints())
+	signing := signingIn{With: signInWith, Key: key, KeyWays: keyWaysOf(agent)}
+	if len(signing.KeyWays) > 0 {
+		signing.Kept = func(way string) (string, bool) {
+			kept, err := m.secrets.Get(keySecret(agent, way))
+			return kept, err == nil && kept != ""
+		}
+	}
+	chat, err := start(ctx, argv, agent, m.root, signing, m.files, servers, m.checkpoints())
 	if err != nil {
 		reason := "failed"
 		var signIn *SignInRequired
@@ -69,11 +82,37 @@ func (m *Manager) Start(ctx context.Context, id, custom string) (*Chat, error) {
 		})
 		return nil, err
 	}
+	if chat.keyed != "" {
+		chat.KeptKey = chat.keyed
+		if key != "" {
+			if err := m.secrets.Set(keySecret(agent, signInWith), strings.TrimSpace(key)); err != nil {
+				log.Warn().Err(err).Str("agent", agent).Msg("the agent's key could not be kept; the next chat asks for it again")
+				chat.KeptKey = ""
+			}
+		}
+	}
 	analytics.Track(analytics.EventAgentChatStarted, map[string]interface{}{"agent": analytics.AgentKind(agent)})
 	m.mu.Lock()
 	m.chats[chat.ID] = chat
 	m.mu.Unlock()
 	return chat, nil
+}
+
+// keySecret names the key kept for one of an agent's ways of signing in.
+func keySecret(agent, way string) string {
+	return "agent-key:" + agent + ":" + way
+}
+
+// forgetKeys drops the keys kept for the agent's ways, as signing it out asks.
+func (m *Manager) forgetKeys(agent string, ways []SignInMethod) {
+	for _, way := range ways {
+		if !way.TakesKey {
+			continue
+		}
+		if err := m.secrets.Delete(keySecret(agent, way.ID)); err != nil && !errors.Is(err, secrets.ErrNotFound) {
+			log.Warn().Err(err).Str("agent", agent).Msg("the agent's key could not be forgotten")
+		}
+	}
 }
 
 func (m *Manager) get(id string) (*Chat, bool) {
@@ -144,20 +183,28 @@ func (m *Manager) ListHandler(w http.ResponseWriter, _ *http.Request) {
 	httpx.SendJSON(w, http.StatusOK, chats)
 }
 
-// StartHandler answers POST /api/agents/chats with {"agent"} or {"command"}.
+// StartHandler answers POST /api/agents/chats with {"agent"} or {"command"}, and {"sign_in"} to have the
+// agent sign itself in first. A start refused for want of a sign-in answers 403 with the ways it offers.
 func (m *Manager) StartHandler(w http.ResponseWriter, req *http.Request) {
 	var body struct {
 		Agent   string `json:"agent"`
 		Command string `json:"command"`
+		// A way the agent offered of signing itself in, to carry out first, and the key it takes.
+		SignIn string `json:"sign_in"`
+		Key    string `json:"key"`
 	}
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
-	chat, err := m.Start(req.Context(), body.Agent, body.Command)
+	chat, err := m.Start(req.Context(), body.Agent, body.Command, body.SignIn, body.Key)
 	var signIn *SignInRequired
 	if errors.As(err, &signIn) {
-		httpx.SendJSON(w, http.StatusForbidden, map[string]any{"error": "sign_in_required", "message": err.Error(), "methods": signIn.Methods})
+		answer := map[string]any{"error": "sign_in_required", "message": err.Error(), "methods": signIn.Methods}
+		if signIn.Refused != "" {
+			answer["refused"] = signIn.Refused
+		}
+		httpx.SendJSON(w, http.StatusForbidden, answer)
 		return
 	}
 	if err != nil {
@@ -181,6 +228,7 @@ func (m *Manager) SignOutHandler(w http.ResponseWriter, req *http.Request) {
 		httpx.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	m.forgetKeys(chat.Agent, methods)
 	analytics.Track(analytics.EventAgentSignedOut, map[string]interface{}{"agent": analytics.AgentKind(chat.Agent)})
 	httpx.SendJSON(w, http.StatusOK, map[string]any{"methods": methods})
 }

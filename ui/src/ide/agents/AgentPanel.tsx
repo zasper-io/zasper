@@ -23,7 +23,7 @@ import {
   openPastChat,
   PastChat,
   SignInMethod,
-  signInMethodsOf,
+  signInRequiredOf,
   signOutChat,
   startChat,
   startCommand,
@@ -95,8 +95,12 @@ const TOOL_ICONS: Record<string, IconName> = {
 export default function AgentPanel({ hidden }: { hidden: boolean }) {
   const [chat, setChat] = useAtom(agentChatAtom);
   const [agents, setAgents] = useState<AgentInfo[] | null>(null);
-  /** The agent starting, and how to give up on it. */
-  const [starting, setStarting] = useState<{ name: string; abort: AbortController } | null>(null);
+  /** The agent starting, how to give up on it, and the way it is signing itself in with, if any. */
+  const [starting, setStarting] = useState<{
+    name: string;
+    abort: AbortController;
+    signingIn?: string;
+  } | null>(null);
   const [error, setError] = useState('');
   const [browsing, setBrowsing] = useState(false);
   const historyAnchor = useRef<HTMLSpanElement>(null);
@@ -145,26 +149,39 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   /**
    * Starts a known agent, or any other by its command line. An agent that will not start until someone
    * signs in answers how it signs in, which takes the panel; one tried again from there says so when it
-   * is still not signed in.
+   * is still not signed in. With `way`, one the agent carries out itself, it signs in first, with `key`
+   * when the way takes one.
    */
-  const start = async (target: AgentInfo | string) => {
+  const start = async (target: AgentInfo | string, way?: SignInMethod, key?: string) => {
     const name = typeof target === 'string' ? commandName(target) : target.name;
     const abort = new AbortController();
-    setStarting({ name, abort });
+    setStarting({ name, abort, signingIn: way?.name });
     setError('');
     try {
       setChat(
         await (typeof target === 'string'
-          ? startCommand(target, abort.signal)
-          : startChat(target.id, abort.signal))
+          ? startCommand(target, abort.signal, way?.id, key)
+          : startChat(target.id, abort.signal, way?.id, key))
       );
       startedWith.current = target;
       setSignIn(null);
     } catch (failure) {
-      const methods = signInMethodsOf(failure);
+      const required = signInRequiredOf(failure);
       if (abort.signal.aborted) {
-        // Given up on: back to the list, with nothing to say about it.
-      } else if (methods !== null) {
+        // Given up on: back to where it was asked from, with nothing to say about it.
+      } else if (required !== null && way) {
+        setSignIn({
+          target,
+          name,
+          methods: required.methods,
+          notice: {
+            text: required.refused
+              ? `${way.name} did not sign ${name} in: ${required.refused}`
+              : `${name} is still not signed in.`,
+            failed: true,
+          },
+        });
+      } else if (required !== null) {
         setSignIn((current) =>
           current?.method
             ? {
@@ -174,7 +191,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
                   failed: true,
                 },
               }
-            : { target, name, methods, notice: current?.notice }
+            : { target, name, methods: required.methods, notice: current?.notice }
         );
       } else if (isUntrusted(failure)) {
         askTrust({
@@ -240,9 +257,16 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
     }
   };
 
-  /** Runs one of the agent's ways of signing in, in a terminal named for it, with its command typed in. */
-  const runSignIn = (method: SignInMethod) => {
+  /**
+   * Runs one of the agent's ways of signing in: one it carries out itself as the chat starts, a terminal
+   * way in a terminal named for it, with its command typed in.
+   */
+  const runSignIn = (method: SignInMethod, key?: string) => {
     if (signIn === null) return;
+    if (method.kind === 'agent' || !method.command) {
+      void start(signIn.target, method, key);
+      return;
+    }
     typeInTerminal({ name: `Sign in to ${signIn.name}`, line: method.command });
     setSignIn({ ...signIn, method, notice: undefined });
   };
@@ -302,6 +326,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
         <Picker
           agents={agents}
           starting={starting?.name ?? null}
+          signingIn={starting?.signingIn}
           onCancel={() => starting?.abort.abort()}
           error={error}
           onStart={(target) => void start(target)}
@@ -323,7 +348,9 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
           {signOutError && <p className="z-notice-error">{signOutError}</p>}
           <p>
             This signs {nameOf(chat, agents)} out everywhere on this computer, not only here, and
-            ends this chat. You can sign in again from the panel.
+            ends this chat.
+            {chat.kept_key && ` Zasper forgets the ${chat.kept_key} it kept.`} You can sign in again
+            from the panel.
           </p>
         </ConfirmDialog>
       )}
@@ -483,8 +510,19 @@ function History({ chatId, onClose }: { chatId: string; onClose: () => void }) {
 // After this long a start is worth explaining: an agent fetched by npx downloads itself the first time.
 const SLOW_START_SECONDS = 5;
 
-/** An agent on its way up: the server says nothing until it is, so this counts the time rather than steps. */
-function Starting({ name, onCancel }: { name: string; onCancel: () => void }) {
+/**
+ * An agent on its way up: the server says nothing until it is, so this counts the time rather than steps.
+ * One signing itself in with `signingIn` may be waiting on the reader in the browser.
+ */
+function Starting({
+  name,
+  signingIn,
+  onCancel,
+}: {
+  name: string;
+  signingIn?: string;
+  onCancel: () => void;
+}) {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     const began = Date.now();
@@ -494,6 +532,26 @@ function Starting({ name, onCancel }: { name: string; onCancel: () => void }) {
     );
     return () => window.clearInterval(tick);
   }, []);
+
+  if (signingIn) {
+    return (
+      <div className="agentStarting" role="status" aria-label={`Signing in to ${name}`}>
+        <span className="agentStarting-mark">
+          <Icon name="key-round" size={20} />
+        </span>
+        <h3 className="z-subheading">Signing in to {name}</h3>
+        <div className="z-meter is-indeterminate agentStarting-meter">
+          <span />
+        </div>
+        <p className="agentStarting-why">
+          {signingIn} may continue in your browser. The chat starts here when it is done.
+        </p>
+        <button type="button" className="z-button z-button-secondary" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="agentStarting" role="status" aria-label={`Starting ${name}`}>
@@ -524,6 +582,8 @@ function Picker(props: {
   agents: AgentInfo[] | null;
   /** The name of the agent starting. */
   starting: string | null;
+  /** The way it is signing itself in with, if any. */
+  signingIn?: string;
   error: string;
   onStart: (target: AgentInfo | string) => void;
   onCheckAgain: () => void;
@@ -531,7 +591,7 @@ function Picker(props: {
 }) {
   const [command, setCommand] = useState('');
   if (props.starting) {
-    return <Starting name={props.starting} onCancel={props.onCancel} />;
+    return <Starting name={props.starting} signingIn={props.signingIn} onCancel={props.onCancel} />;
   }
   const ready = (props.agents ?? []).filter((agent) => agent.installed);
   const missing = (props.agents ?? []).filter((agent) => !agent.installed);

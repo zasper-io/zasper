@@ -296,6 +296,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+
+  // Its button keeps its one line; the description beside it wraps instead.
+  .z-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
 }
 
 .agentCard-name {
