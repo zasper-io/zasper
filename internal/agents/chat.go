@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -50,6 +51,9 @@ Event is one entry in a chat's log, in the order things happened.
 	exited      the agent's process has ended
 	sign_in     the agent will not go on until someone signs in; the ways it offers, in SignIn
 	account     who the agent says it is signed in as, in Account
+	question    the agent asks the reader to fill in a form, in Question; answered by a `replied` with the
+	            same ID
+	replied     the reader's reply to a question, or cancel when it was withdrawn, in Question
 */
 type Event struct {
 	Seq        int             `json:"seq"`
@@ -65,6 +69,7 @@ type Event struct {
 	Settings []acp.SessionConfigOption `json:"settings,omitempty"`
 	SignIn   []SignInMethod            `json:"sign_in,omitempty"`
 	Account  *Account                  `json:"account,omitempty"`
+	Question *Question                 `json:"question,omitempty"`
 }
 
 // Permission is a question the agent asks before acting, and its answer once there is one.
@@ -117,6 +122,7 @@ type Chat struct {
 	events      []Event
 	subscribers map[chan Event]struct{}
 	pending     map[string]chan string
+	questions   map[string]chan reply
 	answering   bool
 	exited      bool
 	terminals   map[string]*agentTerminal
@@ -128,7 +134,9 @@ type Chat struct {
 	closing      bool
 	lifetime     context.Context
 
-	conn    *acp.ClientSideConnection
+	conn *acp.ClientSideConnection
+	// The agent's stdin, for an answer Zasper writes beside the SDK.
+	toAgent io.Writer
 	session acp.SessionId
 	process *launcher.Process
 	stop    context.CancelFunc
@@ -253,6 +261,10 @@ func (c *Chat) Cancel() error {
 		close(answer)
 		delete(c.pending, id)
 	}
+	for id, answer := range c.questions {
+		close(answer)
+		delete(c.questions, id)
+	}
 	c.mu.Unlock()
 	return c.conn.Cancel(context.Background(), acp.CancelNotification{SessionId: c.session})
 }
@@ -362,6 +374,7 @@ func start(asked context.Context, argv []string, agent, root string, signing sig
 		Mode:        ModeAsk,
 		subscribers: map[chan Event]struct{}{},
 		pending:     map[string]chan string{},
+		questions:   map[string]chan reply{},
 		terminals:   map[string]*agentTerminal{},
 		turns:       map[int]*turn{},
 		checkpoints: checkpoints,
@@ -371,7 +384,8 @@ func start(asked context.Context, argv []string, agent, root string, signing sig
 		files:       files,
 		root:        root,
 	}
-	chat.conn = acp.NewClientSideConnection(chatClient{chat}, advertise(process.Stdin), chat.tapUpdates(process.Stdout))
+	chat.toAgent = advertise(process.Stdin)
+	chat.conn = acp.NewClientSideConnection(chatClient{chat}, chat.toAgent, chat.tapUpdates(process.Stdout))
 	go func() {
 		select {
 		case <-process.Done():
@@ -399,6 +413,8 @@ func start(asked context.Context, argv []string, agent, root string, signing sig
 			// An agent's own sign-in, run in a terminal of the reader's: see signin.go.
 			Auth:     acp.AuthCapabilities{Terminal: true},
 			Terminal: true,
+			// A question the agent asks, drawn as a form: see questions.go.
+			Elicitation: &acp.ElicitationCapabilities{Form: &acp.ElicitationFormCapabilities{}},
 			// Claude Code runs its commands itself, and with this sends their output and exit code apart
 			// from the rest of the call, as it does for an editor that draws a terminal.
 			Meta: map[string]any{"terminal_output": true},

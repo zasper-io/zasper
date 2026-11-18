@@ -1,4 +1,5 @@
 import React, {
+  ComponentProps,
   createContext,
   KeyboardEvent,
   lazy,
@@ -68,6 +69,7 @@ import {
 } from './chatLog';
 import CommandPicker from './CommandPicker';
 import ContextMeter, { tokens } from './ContextMeter';
+import QuestionForm from './QuestionForm';
 import SignIn from './SignIn';
 import { usePickerKeys } from './usePickerKeys';
 import { useAgentChat } from './useAgentChat';
@@ -717,7 +719,7 @@ function Conversation({
   agentName: string;
   onSignOut: () => void;
 }) {
-  const { view, connected, prompt, cancel, answer, setMode, setSetting } = live;
+  const { view, connected, prompt, cancel, answer, reply, setMode, setSetting } = live;
   const [settingOpen, setSettingOpen] = useState<string | null>(null);
   const docs = useChatDocs(chat.id, agentName, view.docs);
   const announcement = useChatAnnouncer(view);
@@ -793,7 +795,7 @@ function Conversation({
       </div>
       <div className="agentChat">
         {view.items.map((item, index) => (
-          <Item chatId={chat.id} key={index} item={item} onAnswer={answer} />
+          <Item chatId={chat.id} key={index} item={item} onAnswer={answer} onReply={reply} />
         ))}
         {view.plan.length > 0 && <Plan entries={view.plan} />}
         {view.answering && (
@@ -934,10 +936,12 @@ function Item({
   chatId,
   item,
   onAnswer,
+  onReply,
 }: {
   chatId: string;
   item: ChatItem;
   onAnswer: (id: string, option: string) => void;
+  onReply: ComponentProps<typeof QuestionForm>['onReply'];
 }) {
   const followLink = useFollowLink(useContext(DocsContext).open);
   switch (item.kind) {
@@ -1002,6 +1006,8 @@ function Item({
           )}
         </div>
       );
+    case 'question':
+      return <QuestionForm item={item} onReply={onReply} />;
     case 'note':
       return <p className={item.failed ? 'agentNote is-failed' : 'agentNote'}>{item.text}</p>;
     case 'notice':

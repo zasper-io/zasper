@@ -70,6 +70,11 @@ export function useAgentChat(chatId: string | null) {
       (id: string, optionId: string) => send({ type: 'answer', id, option_id: optionId }),
       [send]
     ),
+    reply: useCallback(
+      (id: string, action: 'accept' | 'decline', content?: Record<string, unknown>) =>
+        send({ type: 'reply', id, action, content }),
+      [send]
+    ),
     setMode: useCallback((mode: string) => send({ type: 'mode', mode }), [send]),
     setSetting: useCallback(
       (id: string, value: string | boolean) => send({ type: 'setting', id, value }),

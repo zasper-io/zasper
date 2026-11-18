@@ -119,6 +119,36 @@ describe('foldChat', () => {
     ]);
   });
 
+  it('draws the agent’s form as questions under the call that asks, and its reply beside it', () => {
+    const fields = [
+      {
+        name: 'q1',
+        schema: { type: 'string', title: 'Which?', oneOf: [{ const: '1', title: 'a' }] },
+      },
+    ];
+    const view = foldChat([
+      {
+        type: 'question',
+        question: { id: 'f1', tool_call_id: 'ask-1', message: 'The agent has a question.', fields },
+      },
+      { type: 'question', question: { id: 'f2', fields } },
+      { type: 'replied', question: { id: 'f1', action: 'accept', content: { q1: '1' } } },
+    ]);
+
+    const [first, second] = view.items;
+    expect(first).toMatchObject({
+      kind: 'question',
+      id: 'f1',
+      message: 'The agent has a question.',
+      reply: { action: 'accept', content: { q1: '1' } },
+    });
+    expect(first.kind === 'question' && first.inputs.map((input) => input.label)).toEqual([
+      'Which?',
+    ]);
+    expect(second).toMatchObject({ kind: 'question', id: 'f2' });
+    expect(second.kind === 'question' && second.reply).toBeUndefined();
+  });
+
   it('ends the turn, and says why when it did not end normally', () => {
     const view = foldChat([
       { type: 'user', text: 'go' },

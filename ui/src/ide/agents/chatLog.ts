@@ -9,6 +9,7 @@ import {
   TurnFile,
 } from '@/api';
 import { NEARLY_FULL } from '@/ide/resources/memory';
+import { QuestionField, QuestionInput, questionInputs } from './questions';
 
 /** A tool the agent called, as its calls and their updates have it so far. */
 export interface ToolCall {
@@ -149,7 +150,16 @@ export type ChatItem =
       after?: number;
     }
   /** The files a turn changed, once it has ended; `undone` once they were put back. */
-  | { kind: 'changes'; turn: number; files: TurnFile[]; undone: boolean };
+  | { kind: 'changes'; turn: number; files: TurnFile[]; undone: boolean }
+  /** A form the agent asks the reader to fill in. */
+  | {
+      kind: 'question';
+      id: string;
+      message?: string;
+      inputs: QuestionInput[];
+      /** accept with what was filled in, decline, or cancel once withdrawn; undefined while it waits. */
+      reply?: { action: string; content?: Record<string, unknown> };
+    };
 
 export interface PlanEntry {
   content: string;
@@ -590,6 +600,35 @@ export function foldChat(events: ChatEvent[]): ChatView {
           options: request?.options ?? [],
           diffs: content?.diffs ?? [],
         });
+        break;
+      }
+      case 'question': {
+        const question = event.question;
+        if (question?.tool_call_id) {
+          asking.set(question.id, question.tool_call_id);
+        }
+        items.push({
+          kind: 'question',
+          id: question?.id ?? '',
+          message: question?.message || undefined,
+          inputs: questionInputs(
+            (question?.fields ?? []) as QuestionField[],
+            question?.required ?? []
+          ),
+        });
+        break;
+      }
+      case 'replied': {
+        const question = items.find(
+          (item) => item.kind === 'question' && item.id === event.question?.id
+        );
+        asking.delete(event.question?.id ?? '');
+        if (question?.kind === 'question') {
+          question.reply = {
+            action: event.question?.action ?? 'cancel',
+            content: event.question?.content,
+          };
+        }
         break;
       }
       case 'answered': {

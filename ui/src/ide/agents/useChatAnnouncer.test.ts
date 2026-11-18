@@ -44,6 +44,14 @@ describe('useChatAnnouncer', () => {
     };
     rerender({ v: view([asked, permission], true) });
     expect(result.current).toBe('The agent asks: Run ls');
+
+    const form: ChatItem = {
+      kind: 'question',
+      id: 'f',
+      inputs: [{ kind: 'switch', name: 'tag', label: 'Tag the commit', initial: false }],
+    };
+    rerender({ v: view([asked, permission, form], true) });
+    expect(result.current).toBe('The agent asks: Tag the commit');
   });
 
   it('says nothing of a conversation it opened onto', () => {

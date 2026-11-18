@@ -81,6 +81,7 @@ Every agent is given Zasper's own MCP server as `zasper`, so it can read and run
 | What the agent asks | What Zasper does |
 |---|---|
 | `session/request_permission` | Asks the reader, and waits for the answer or for the turn to be cancelled — unless the chat's mode covers it: *Allow edits* answers edits, moves and deletes, *Allow edits and commands* commands as well, each with the agent's allow-once option. An agent with modes of its own decides what it asks, so the chat's mode then answers nothing. |
+| `elicitation/create` | A question as a form (Zasper says it can show one, `elicitation.form`, and no link to open): drawn in the chat, under the call that asks when the agent names it, and answered with the reader's reply, Skip as `decline`, and `cancel` when the turn is stopped. Antigravity CLI asks this way from its `ask_question` tool. |
 | `fs/read_text_file` | What a tab holds of the file when it has unsaved edits there, so the agent sees what the reader sees; otherwise the file on disk. |
 | `fs/write_text_file` | Writes it as a save does, and open tabs say the agent wrote it. |
 | `terminal/*` | Runs the command in the project, its output and errors together, and streams what it prints to its row in the panel as it comes, then how it ended. A command still running when the chat ends is stopped. |
@@ -150,7 +151,7 @@ and the row shows them as it does for a command run here.
 Each event has a `seq` and a `type`: `user` (the reader's message, in `text`), `update` (what the agent
 streamed, in `update`, exactly as the agent sent it: kinds ACP's schema does not have, such as Claude
 Code's `compaction_update` and `notice`, are kept as they are), `permission` (a question, with an `id`
-and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `turn_end` (with
+and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `question` (a form the agent asks the reader to fill in, in `question`: an `id`, its `tool_call_id` when the agent named one, `message`, and `fields`, each a `name` and its JSON `schema`, in the agent's order, and `required`), `replied` (the reply to it, `question.action` `accept` with `question.content`, `decline`, or `cancel` when withdrawn), `turn_end` (with
 ACP's `stop_reason`), `error`, `exited`, `changes` (the files the turn that has just ended changed, `changes.turn` and
 `changes.files` with each `path` and `status` A, M or D), `undone` (a turn taken back, `changes.turn`),
 `account` (who the agent says it is signed in as: `account.signed_in` and its `label`), `sign_in` (the agent will not go on until someone signs in, with the ways it offers in `sign_in`, each an `id`, `name`, `description`, its `kind`, `terminal` or `agent`, `takes_key` for a way that wants a key, and for a terminal way the `command` that signs in), `title` (a reopened conversation's title as the agent listed it, in `text`, which heads the chat until the agent sends a `session_info_update` with its own: Claude Code does not send it again when it replays one), `settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
@@ -160,6 +161,6 @@ the last, in `terminal.output` under its `terminal.id`. The last has `exited`, w
 
 The client sends `{"type": "prompt", "text", "mentions"}` (each mention a `kind` — `file`, `cell` or
 `output` — a project `path`, a `label`, and for a cell or output its `cell_id` and `text`), `{"type": "cancel"}`, and
-`{"type": "answer", "id", "option_id"}`, `{"type": "mode", "mode"}` with `ask`, `edits` or `all`, which
+`{"type": "answer", "id", "option_id"}`, `{"type": "reply", "id", "action", "content"}` to a `question`, `action` `accept` or `decline`, `{"type": "mode", "mode"}` with `ask`, `edits` or `all`, which
 every tab is told of as a `mode` event, and `{"type": "setting", "id", "value"}`, a value id for a choice or
 `true`/`false` for a switch, which every tab is told of as a `settings` event once the agent answers.

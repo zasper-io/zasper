@@ -29,6 +29,9 @@ export function useChatAnnouncer(view: ChatView): string {
     for (const item of arrived) {
       if (item.kind === 'permission' && item.answer === undefined && item.auto !== true) {
         news.push(`The agent asks: ${item.title}`);
+      } else if (item.kind === 'question' && item.reply === undefined) {
+        const asked = item.inputs.map((input) => input.label).join('; ');
+        news.push(`The agent asks: ${asked || item.message || 'a question'}`);
       } else if (item.kind === 'note' && item.failed) {
         news.push(item.text);
       }

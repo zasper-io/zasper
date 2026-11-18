@@ -314,3 +314,30 @@ test('a plan the agent writes outside the project opens from the chat as a read-
   await expect(page.locator('.tabName', { hasText: 'plan.md' })).toHaveCount(1);
   expect(page.url()).toBe(url);
 });
+
+test('the agent’s questions are a form the reader answers in the chat', async ({ page }) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(fakeAgentBinary);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+  const chat = page.locator('.agentChat');
+
+  await field.fill('question');
+  await field.press('Enter');
+  const form = chat.getByRole('form', { name: "The agent's question" });
+  await expect(form.getByText('The agent has a question.')).toBeVisible();
+  await expect(chat.getByText('Run ask_question')).toBeVisible();
+  await form.getByRole('radio', { name: 'hi' }).check();
+  await form.getByRole('checkbox', { name: 'type hints' }).check();
+  await form.getByRole('textbox', { name: 'Other answer to Which extras?' }).fill('a test');
+  await form.getByRole('button', { name: 'Answer' }).click();
+
+  await expect(form).toHaveCount(0);
+  await expect(chat.locator('.agentQuestion-answers')).toContainText('hi');
+  await expect(chat.locator('.agentQuestion-answers')).toContainText('type hints, a test');
+  await expect(chat).toContainText(
+    'replied {"action":"accept","content":{"q1":"2","q2":["2"],"q2_other":"a test"}}'
+  );
+});
