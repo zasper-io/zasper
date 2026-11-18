@@ -150,7 +150,8 @@ export interface ChatEvent {
   permission?: {
     id: string;
     request?: {
-      toolCall?: { title?: string; toolCallId?: string };
+      /** The call it asks about, as an update to it: its content can carry the change asked for. */
+      toolCall?: { title?: string; toolCallId?: string; content?: unknown };
       options: { optionId: string; name: string; kind: string }[];
     };
     option_id?: string;
