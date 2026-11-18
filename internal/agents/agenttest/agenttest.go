@@ -17,6 +17,7 @@ pipes with no agent installed.
 	/echo  says back what follows it, "echoed: …"
 	/compact  compacts the conversation, 182k to 18k tokens, as Claude Code's compaction_update has it
 	notice  sends a warning notice, as Claude Code does
+	plan   writes a plan for the reader outside the project, as Antigravity's Plan mode does, and links it
 	(sign-in: with ZASPER_FAKE_AGENT_SIGN_IN set, it offers three ways to sign in: its own program with
 	`login` in a terminal; Fake Browser, which it carries out itself after a moment; and Fake Key, which
 	takes a key in _meta.apiKey and holds it only while it runs, as Antigravity does, refusing without. Signing in leaves SignedInMarker in HOME; until then a session or a
@@ -300,6 +301,13 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 	case "notice":
 		a.raw(session, map[string]any{"sessionUpdate": "notice", "severity": "warning", "title": "Auto mode is not available", "description": "The chat is in Manual."})
 		a.say(ctx, session, "noticed")
+	case "plan":
+		// A plan written for the reader outside the project, as Antigravity's Plan mode writes one.
+		plan := filepath.Join(os.TempDir(), "zasper-fake-agent-brain", "plan.md")
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "plan-1", "title": "File ../../../.." + plan, "kind": "edit", "status": "completed",
+			"locations": []any{map[string]any{"path": plan}},
+			"rawInput":  map[string]any{"Path": plan, "Content": "# The plan\n\n1. Smooth the readings.", "ArtifactMetadata": map[string]any{"UserFacing": true}}})
+		a.say(ctx, session, "Here is [plan.md](file://"+plan+").")
 	case "wait":
 		a.say(ctx, session, "waiting")
 		<-ctx.Done()

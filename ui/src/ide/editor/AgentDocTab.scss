@@ -1,0 +1,29 @@
+// A document an agent wrote for the reader, from zasper-prototype's story-agent-plan.css: the band over a
+// Markdown preview.
+
+// A tab pane: the band stays, the document scrolls.
+.agentDocTab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--z-bg-editor);
+  color: var(--z-fg-default);
+}
+
+.agentDocTab-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 24px;
+
+  > * {
+    max-width: 760px;
+  }
+}
+
+.agentDocTab-gone {
+  margin: 0;
+  padding: 24px;
+  color: var(--z-fg-subtle);
+}

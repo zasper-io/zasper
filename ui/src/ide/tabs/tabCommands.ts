@@ -89,7 +89,9 @@ export function tabFilePath(tab: FileTab): string | null {
     tab.type === 'settings' ||
     tab.type === 'whats-new' ||
     tab.type === 'lsp-log' ||
-    tab.type === 'data-viewer'
+    tab.type === 'data-viewer' ||
+    // The agent's file, outside the project as often as not.
+    tab.type === 'agent-doc'
   ) {
     return null;
   }

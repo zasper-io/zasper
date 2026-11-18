@@ -424,6 +424,36 @@ describe('foldChat', () => {
     });
   });
 
+  it('keeps a document written for the reader, as last written, and names its row by the file', () => {
+    const plan = '/home/u/.gemini/brain/s/plan.md';
+    const write = (id: string, content: string, userFacing: boolean): ChatEvent => ({
+      type: 'update',
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: id,
+        title: `File ../../../${plan.slice(1)}`,
+        kind: 'edit',
+        locations: [{ path: plan }],
+        rawInput: { Path: plan, Content: content, ArtifactMetadata: { UserFacing: userFacing } },
+      },
+    });
+
+    const view = foldChat([
+      write('a', '# One', true),
+      write('b', '# Two', true),
+      write('c', '# Not for the reader', false),
+    ]);
+
+    const calls = (view.items[0] as { calls: { title: string; doc?: unknown }[] }).calls;
+    expect(calls.map((call) => call.title)).toEqual([
+      'File plan.md',
+      'File plan.md',
+      'File plan.md',
+    ]);
+    expect(calls[2].doc).toBeUndefined();
+    expect(view.docs).toEqual([{ path: plan, name: 'plan.md', text: '# Two' }]);
+  });
+
   it('keeps the agent’s settings as it last sent them, a group’s values in one list', () => {
     const view = foldChat([
       {

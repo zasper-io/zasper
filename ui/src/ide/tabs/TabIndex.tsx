@@ -55,6 +55,10 @@ function TabMark({ tab }: { tab: FileTab }) {
   if (tab.type === 'data-viewer') {
     return <Icon name="table" className="tabIcon" />;
   }
+  // An agent's document is named for its file, which says what kind it is.
+  if (tab.type === 'agent-doc') {
+    return <FileMark name={tab.name} className="tabIcon" />;
+  }
   // The file's own name for a diff: its tab is named `notes.txt (diff)`, whose extension is
   // `txt (diff)` and which would therefore get the mark for an unknown type.
   const file =
@@ -514,11 +518,13 @@ function Tab({
     tab.type === 'lsp-log' ||
     tab.type === 'data-viewer'
       ? tab.name
-      : tab.type === 'disk-diff'
-        ? diskComparePath(tab.path)
-        : tab.type === 'search-preview'
-          ? searchPreviewPath(tab.path)
-          : tab.path,
+      : tab.type === 'agent-doc'
+        ? `${tab.name}, read-only`
+        : tab.type === 'disk-diff'
+          ? diskComparePath(tab.path)
+          : tab.type === 'search-preview'
+            ? searchPreviewPath(tab.path)
+            : tab.path,
   ];
   if (isDirty) {
     label.push('Unsaved changes');
@@ -578,6 +584,7 @@ function Tab({
             a bare text node makes the tab read as `txtnotes.txt` to anything matching on
             text, and `.panel-row-name` in the sidebar's rows is the same idea. */}
         <span className="tabName">{tab.name}</span>
+        {tab.type === 'agent-doc' && <Icon name="lock" size={12} className="tabReadOnly" />}
         {/* Unsaved, said as a dot rather than in the name: the name is already fighting an
             ellipsis for room, and until now nothing on the strip said it at all — the first a
             tab told anyone was the dialog that opens when it is closed. */}

@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 
+import AgentDocTab from './AgentDocTab';
 import DiffTab from './DiffTab';
 import DiskCompareTab from './DiskCompareTab';
 import FileEditor from './FileEditor';
@@ -50,6 +51,9 @@ export default function Editor(props: EditorProps) {
   }
   if (props.data.type === 'data-viewer') {
     return <DataViewerTab data={props.data} />;
+  }
+  if (props.data.type === 'agent-doc') {
+    return <AgentDocTab data={props.data} />;
   }
   if (props.data.type === 'search-preview') {
     return <SearchPreviewTab data={props.data} />;
