@@ -23,7 +23,12 @@ vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api')>()),
   listAgents: () => listAgents(),
   listChats: () => listChats(),
-  startChat: (agent: string, signal?: AbortSignal) => startChat(agent, signal),
+  startChat: (agent: string, signal?: AbortSignal, signIn?: string, key?: string) =>
+    signIn === undefined
+      ? startChat(agent, signal)
+      : key === undefined
+        ? startChat(agent, signal, signIn)
+        : startChat(agent, signal, signIn, key),
   startCommand: (command: string) => startCommand(command),
   stopChat: () => Promise.resolve(),
   listPastChats: (chatId: string, cursor?: string) => listPastChats(chatId, cursor),
@@ -286,8 +291,8 @@ describe('AgentPanel', () => {
       expect(chips).toEqual(['Model: Large', 'Effort: High', 'Mode: Plan']);
       expect(screen.queryByRole('button', { name: ZASPER_MODE })).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: 'More settings for claude-code' }));
-      const more = screen.getByRole('menu', { name: 'More settings for claude-code' });
+      fireEvent.click(screen.getByRole('button', { name: 'More settings for Claude Code' }));
+      const more = screen.getByRole('menu', { name: 'More settings for Claude Code' });
       expect(more).toHaveTextContent('Fast');
       fireEvent.click(screen.getByRole('menuitemradio', { name: 'On' }));
       expect(socket.sent).toContainEqual({ type: 'setting', id: 'fast', value: 'on' });
@@ -317,7 +322,7 @@ describe('AgentPanel', () => {
       expect(screen.getByRole('button', { name: 'Model: Small' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /^Effort/ })).not.toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: 'More settings for claude-code' })
+        screen.queryByRole('button', { name: 'More settings for Claude Code' })
       ).not.toBeInTheDocument();
     });
 
@@ -552,22 +557,168 @@ describe('AgentPanel', () => {
         id: 'claude-ai-login',
         name: 'Claude Subscription',
         description: 'Use Claude subscription',
+        kind: 'terminal',
         command: 'claude-agent-acp --cli auth login --claudeai',
       },
       {
         id: 'console-login',
         name: 'Anthropic Console',
         description: 'Use Anthropic Console (API usage billing)',
+        kind: 'terminal',
         command: 'claude-agent-acp --cli auth login --console',
       },
     ];
-    const refused = () =>
+    const refused = (methods: object[] = WAYS, refusal?: string) =>
       new ApiError(
         'POST',
         '/api/agents/chats',
         403,
-        JSON.stringify({ error: 'sign_in_required', message: 'needs signing in', methods: WAYS })
+        JSON.stringify({
+          error: 'sign_in_required',
+          message: 'needs signing in',
+          methods,
+          refused: refusal,
+        })
       );
+    const BY_AGENT = [
+      { id: 'oauth-personal', name: 'Log in with Google', kind: 'agent' },
+      { id: 'gemini-api-key', name: 'Gemini API key', kind: 'agent' },
+    ];
+
+    it('starts the chat with a way the agent carries out, waiting on it as it signs in', async () => {
+      let signedIn: (chat: object) => void = () => {};
+      startChat
+        .mockRejectedValueOnce(refused(BY_AGENT))
+        .mockImplementationOnce(() => new Promise((resolve) => (signedIn = resolve)));
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+          <Pending />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Sign in with Log in with Google' })
+      );
+
+      const waiting = await screen.findByRole('status', { name: 'Signing in to Claude Code' });
+      expect(waiting).toHaveTextContent('Log in with Google may continue in your browser.');
+      expect(startChat).toHaveBeenLastCalledWith(
+        'claude-code',
+        expect.anything(),
+        'oauth-personal'
+      );
+      expect(JSON.parse(screen.getByTestId('pending').textContent!)).toEqual({});
+
+      signedIn({ id: 'chat-1', agent: 'claude-code' });
+      expect(await screen.findByRole('button', { name: ZASPER_MODE })).toBeInTheDocument();
+    });
+
+    it('says why the agent did not sign itself in, and offers the ways again', async () => {
+      startChat
+        .mockRejectedValueOnce(refused(BY_AGENT))
+        .mockRejectedValueOnce(refused(BY_AGENT, 'GEMINI_API_KEY is not set.'));
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Sign in with Gemini API key' }));
+
+      expect(
+        await screen.findByText(
+          'Gemini API key did not sign Claude Code in: GEMINI_API_KEY is not set.'
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Sign in with Log in with Google' })
+      ).toBeInTheDocument();
+    });
+
+    it('asks for the key in the card of a way that takes one, and starts with it', async () => {
+      startChat
+        .mockRejectedValueOnce(
+          refused([...BY_AGENT.slice(0, 1), { ...BY_AGENT[1], takes_key: true }])
+        )
+        .mockResolvedValueOnce({ id: 'chat-1', agent: 'claude-code', kept_key: 'Gemini API key' });
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+
+      const way = await screen.findByRole('button', { name: 'Sign in with Gemini API key' });
+      const calls = startChat.mock.calls.length;
+      fireEvent.click(way);
+      expect(startChat).toHaveBeenCalledTimes(calls);
+      const field = screen.getByLabelText('Key');
+      expect(field).toHaveAttribute('type', 'password');
+      expect(
+        screen.getByText('Stored in the machine’s keychain, where there is one.')
+      ).toBeInTheDocument();
+      const go = screen.getByRole('button', { name: 'Sign in with Gemini API key' });
+      expect(go).toBeDisabled();
+
+      fireEvent.change(field, { target: { value: ' a-key ' } });
+      fireEvent.click(go);
+
+      expect(await screen.findByRole('button', { name: ZASPER_MODE })).toBeInTheDocument();
+      expect(startChat).toHaveBeenLastCalledWith(
+        'claude-code',
+        expect.anything(),
+        'gemini-api-key',
+        'a-key'
+      );
+    });
+
+    it('closes the key field on Cancel, with nothing sent', async () => {
+      startChat.mockRejectedValueOnce(refused([{ ...BY_AGENT[1], takes_key: true }]));
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      const way = await screen.findByRole('button', { name: 'Sign in with Gemini API key' });
+      const calls = startChat.mock.calls.length;
+      fireEvent.click(way);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByLabelText('Key')).not.toBeInTheDocument();
+      expect(startChat).toHaveBeenCalledTimes(calls);
+    });
+
+    it('goes back to the ways when a sign-in by the agent is given up on', async () => {
+      startChat
+        .mockRejectedValueOnce(refused(BY_AGENT))
+        .mockImplementationOnce(
+          (_agent: string, signal: AbortSignal) =>
+            new Promise((_resolve, reject) =>
+              signal.addEventListener('abort', () => reject(new Error('aborted')))
+            )
+        );
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Sign in with Log in with Google' })
+      );
+      await screen.findByRole('status', { name: 'Signing in to Claude Code' });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(
+        await screen.findByRole('heading', { name: 'Sign in to Claude Code' })
+      ).toBeInTheDocument();
+    });
 
     it('offers the agent’s ways, runs one in a terminal, and says so when it is still not done', async () => {
       startChat.mockRejectedValueOnce(refused()).mockRejectedValueOnce(refused());
@@ -623,6 +774,29 @@ describe('AgentPanel', () => {
       expect(screen.getByRole('heading', { name: 'Sign in to Claude Code' })).toBeInTheDocument();
     });
 
+    it('says signing out forgets the key Zasper kept', async () => {
+      startChat.mockResolvedValueOnce({
+        id: 'chat-1',
+        agent: 'claude-code',
+        can_sign_out: true,
+        kept_key: 'Gemini API key',
+      });
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+
+      fireEvent.click(screen.getByRole('button', { name: 'More settings for Claude Code' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out of Claude Code' }));
+
+      expect(screen.getByRole('dialog', { name: 'Sign out of Claude Code?' })).toHaveTextContent(
+        'ends this chat. Zasper forgets the Gemini API key it kept. You can sign in again'
+      );
+    });
+
     it('shows who is signed in under More, and signs out once asked', async () => {
       startChat.mockResolvedValueOnce({ id: 'chat-1', agent: 'claude-code', can_sign_out: true });
       signOutChat.mockResolvedValue(WAYS);
@@ -638,8 +812,8 @@ describe('AgentPanel', () => {
         account: { signed_in: true, label: 'Claude Pro' },
       });
 
-      fireEvent.click(screen.getByRole('button', { name: 'More settings for claude-code' }));
-      const menu = screen.getByRole('menu', { name: 'More settings for claude-code' });
+      fireEvent.click(screen.getByRole('button', { name: 'More settings for Claude Code' }));
+      const menu = screen.getByRole('menu', { name: 'More settings for Claude Code' });
       expect(menu).toHaveTextContent('Claude Prosigned in');
       fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out of Claude Code' }));
 

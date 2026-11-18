@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -109,6 +110,8 @@ type Chat struct {
 	History bool `json:"history"`
 	// The agent can be signed out from the panel.
 	CanSignOut bool `json:"can_sign_out"`
+	// The way whose key Zasper keeps for the agent, which signing out forgets.
+	KeptKey string `json:"kept_key,omitempty"`
 
 	mu          sync.Mutex
 	events      []Event
@@ -139,6 +142,8 @@ type Chat struct {
 	ownModes bool
 	// The ways the agent offers to be signed in, for when it says it must be.
 	signIn []SignInMethod
+	// The name of the way the agent was signed in with a key at the start, if it was.
+	keyed string
 	// The conversation's title, as the agent last sent it or listed it.
 	title string
 }
@@ -344,7 +349,8 @@ func (c *Chat) close() {
 }
 
 // start launches the agent in root and opens its session, with mcpServers as the tools it is given.
-func start(asked context.Context, argv []string, agent, root string, files Files, mcpServers []acp.McpServer, checkpoints *checkpoint.Store) (*Chat, error) {
+// signing says how the agent is signed in when it has to be: see signingIn.
+func start(asked context.Context, argv []string, agent, root string, signing signingIn, files Files, mcpServers []acp.McpServer, checkpoints *checkpoint.Store) (*Chat, error) {
 	process, err := launcher.Launch(launcher.Spec{Argv: argv, Env: os.Environ(), Dir: root, KeepStdio: true})
 	if err != nil {
 		return nil, fmt.Errorf("could not start %s: %w", argv[0], err)
@@ -377,7 +383,11 @@ func start(asked context.Context, argv []string, agent, root string, files Files
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(lifetime, startBudget)
+	budget := startBudget
+	if signing.With != "" {
+		budget += signInBudget
+	}
+	ctx, cancel := context.WithTimeout(lifetime, budget)
 	defer cancel()
 	// Whoever asked for the start may give up on it; the handshake then ends, and the agent with it.
 	stopAsking := context.AfterFunc(asked, cancel)
@@ -401,13 +411,44 @@ func start(asked context.Context, argv []string, agent, root string, files Files
 	capabilities := initialized.AgentCapabilities
 	chat.History = capabilities.LoadSession && capabilities.SessionCapabilities.List != nil
 	chat.CanSignOut = capabilities.Auth.Logout != nil
-	chat.signIn = signInMethods(argv, initialized.AuthMethods)
+	chat.signIn = signInMethods(argv, initialized.AuthMethods, signing.KeyWays)
 	chat.embedded = capabilities.PromptCapabilities.EmbeddedContext
 	if mcpServers == nil {
 		mcpServers = []acp.McpServer{}
 	}
 	chat.servers = mcpServers
+	// The way the agent was signed in with a key, which names the account when the agent names none.
+	keyed := ""
+	if signing.With != "" {
+		way, ok := byAgent(chat.signIn, signing.With)
+		if !ok {
+			chat.close()
+			return nil, fmt.Errorf("%s offers no way %q of signing itself in", argv[0], signing.With)
+		}
+		if way.TakesKey && strings.TrimSpace(signing.Key) == "" {
+			chat.close()
+			return nil, &SignInRequired{Agent: agent, Methods: chat.signIn, Refused: "No key was given.", message: fmt.Sprintf("%s did not sign in", argv[0])}
+		}
+		if err := chat.authenticate(ctx, way, strings.TrimSpace(signing.Key)); err != nil {
+			gaveUp := ctx.Err() != nil
+			chat.close()
+			if gaveUp {
+				return nil, fmt.Errorf("%s did not finish signing in: %w", argv[0], err)
+			}
+			return nil, &SignInRequired{Agent: agent, Methods: chat.signIn, Refused: refusal(err), message: fmt.Sprintf("%s did not sign in", argv[0])}
+		}
+		if way.TakesKey {
+			keyed = way.Name
+		}
+	}
 	session, err := chat.conn.NewSession(ctx, acp.NewSessionRequest{Cwd: root, McpServers: mcpServers})
+	if isAuthRequired(err) && signing.With == "" {
+		// A key kept from an earlier sign-in, as the agent holds one only while it runs.
+		if name, ok := chat.signInWithKept(ctx, signing.Kept); ok {
+			keyed = name
+			session, err = chat.conn.NewSession(ctx, acp.NewSessionRequest{Cwd: root, McpServers: mcpServers})
+		}
+	}
 	if err != nil {
 		chat.close()
 		if isAuthRequired(err) && len(chat.signIn) > 0 {
@@ -417,6 +458,12 @@ func start(asked context.Context, argv []string, agent, root string, files Files
 	}
 	chat.session = session.SessionId
 	chat.setSettings(session.ConfigOptions)
+	if plan := planOf(session.Meta); plan != "" {
+		chat.record(Event{Type: "account", Account: &Account{SignedIn: true, Label: plan}})
+	} else if keyed != "" {
+		chat.record(Event{Type: "account", Account: &Account{SignedIn: true, Label: keyed}})
+	}
+	chat.keyed = keyed
 	// The first snapshot of a project reads every file in it, which is better done before the first turn.
 	go chat.snapshot("")
 	log.Debug().Str("chat", chat.ID).Strs("argv", argv).Msg("agent started")

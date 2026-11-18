@@ -21,14 +21,22 @@ export interface AgentChat {
   history?: boolean;
   /** The agent can be signed out from the panel. */
   can_sign_out?: boolean;
+  /** The way whose key Zasper keeps for the agent, which signing out forgets. */
+  kept_key?: string;
 }
 
-/** A way the agent offers to be signed in: its own program, run in a terminal with `command` typed in. */
+/**
+ * A way the agent offers to be signed in: its own program, run in a terminal with `command` typed in, or
+ * one the agent carries out itself when the chat is started with it.
+ */
 export interface SignInMethod {
   id: string;
   name: string;
   description?: string;
-  command: string;
+  kind: 'terminal' | 'agent';
+  command?: string;
+  /** A way the agent carries out with a key from the reader, which Zasper keeps for it. */
+  takes_key?: boolean;
 }
 
 /** Who the agent says it is signed in as: its own label, such as a plan. */
@@ -37,14 +45,26 @@ export interface AgentAccount {
   label?: string;
 }
 
+export interface SignInRequired {
+  methods: SignInMethod[];
+  /** Why the agent did not sign itself in, in its words, when it was asked to. */
+  refused?: string;
+}
+
 /** The ways to sign in, when a start was refused for want of a sign-in; otherwise null. */
-export function signInMethodsOf(failure: unknown): SignInMethod[] | null {
+export function signInRequiredOf(failure: unknown): SignInRequired | null {
   if (!(failure instanceof ApiError) || failure.status !== 403) {
     return null;
   }
   try {
-    const body = JSON.parse(failure.body) as { error?: string; methods?: SignInMethod[] };
-    return body.error === 'sign_in_required' ? (body.methods ?? []) : null;
+    const body = JSON.parse(failure.body) as {
+      error?: string;
+      methods?: SignInMethod[];
+      refused?: string;
+    };
+    return body.error === 'sign_in_required'
+      ? { methods: body.methods ?? [], refused: body.refused }
+      : null;
   } catch {
     return null;
   }
@@ -168,15 +188,37 @@ export function listChats(): Promise<AgentChat[]> {
   return requestJson<AgentChat[]>('/api/agents/chats');
 }
 
-/** Starts an agent in a chat of its own. The first start of one fetched by npx can take minutes. */
-/** Aborting `signal` gives up on the start, and the server stops the agent. */
-export function startChat(agent: string, signal?: AbortSignal): Promise<AgentChat> {
-  return requestJson<AgentChat>('/api/agents/chats', { method: 'POST', body: { agent }, signal });
+/**
+ * Starts an agent in a chat of its own. The first start of one fetched by npx can take minutes. Aborting
+ * `signal` gives up on the start, and the server stops the agent. With `signIn`, the id of a way the
+ * agent carries out itself, it signs in first, which can wait on the reader in the browser; `key` is for
+ * a way that takes one, and the server keeps it.
+ */
+export function startChat(
+  agent: string,
+  signal?: AbortSignal,
+  signIn?: string,
+  key?: string
+): Promise<AgentChat> {
+  return requestJson<AgentChat>('/api/agents/chats', {
+    method: 'POST',
+    body: { agent, sign_in: signIn, key },
+    signal,
+  });
 }
 
 /** Starts any other agent that speaks ACP, by the command line that runs it. */
-export function startCommand(command: string, signal?: AbortSignal): Promise<AgentChat> {
-  return requestJson<AgentChat>('/api/agents/chats', { method: 'POST', body: { command }, signal });
+export function startCommand(
+  command: string,
+  signal?: AbortSignal,
+  signIn?: string,
+  key?: string
+): Promise<AgentChat> {
+  return requestJson<AgentChat>('/api/agents/chats', {
+    method: 'POST',
+    body: { command, sign_in: signIn, key },
+    signal,
+  });
 }
 
 export function stopChat(id: string): Promise<void> {

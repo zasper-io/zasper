@@ -43,7 +43,7 @@ func fakeChat(t *testing.T) (*Manager, *Chat, *projectFiles) {
 	root := t.TempDir()
 	files := &projectFiles{root: root, writers: map[string]string{}}
 	manager := New(root, files)
-	chat, err := manager.Start(context.Background(), "", os.Args[0]+" -test.run=^$")
+	chat, err := manager.Start(context.Background(), "", os.Args[0]+" -test.run=^$", "", "")
 	require.NoError(t, err)
 	t.Cleanup(manager.StopAll)
 	return manager, chat, files
@@ -210,7 +210,7 @@ func TestStoppingAChatStopsItsAgent(t *testing.T) {
 func TestAnAgentThatIsNotInstalledSaysSo(t *testing.T) {
 	manager := New(t.TempDir(), &projectFiles{writers: map[string]string{}})
 
-	_, err := manager.Start(context.Background(), "no-such-agent", "")
+	_, err := manager.Start(context.Background(), "no-such-agent", "", "", "")
 
 	assert.ErrorContains(t, err, "not installed")
 }
@@ -260,7 +260,7 @@ func TestGivingUpOnAStartStopsTheAgent(t *testing.T) {
 	time.AfterFunc(300*time.Millisecond, giveUp)
 
 	began := time.Now()
-	_, err := manager.Start(ctx, "", os.Args[0]+" -test.run=^$")
+	_, err := manager.Start(ctx, "", os.Args[0]+" -test.run=^$", "", "")
 
 	assert.Error(t, err)
 	assert.Less(t, time.Since(began), 10*time.Second, "the start went on after it was given up")

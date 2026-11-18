@@ -675,7 +675,9 @@ describe('foldChat', () => {
   });
 
   it('keeps who is signed in, and that the agent will not go on until someone signs in', () => {
-    const ways = [{ id: 'login', name: 'Fake Account', command: 'fake login' }];
+    const ways = [
+      { id: 'login', name: 'Fake Account', kind: 'terminal' as const, command: 'fake login' },
+    ];
     const view = foldChat([
       { type: 'account', account: { signed_in: true, label: 'Fake Pro' } },
       { type: 'user', text: 'hello' },

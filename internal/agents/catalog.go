@@ -22,6 +22,9 @@ type Agent struct {
 	Then    string `json:"then"`
 	// Answers the command that starts it in ACP mode, and false when it is not installed.
 	command func() ([]string, bool)
+	// The ids of its ways of signing in that take a key from the reader, in authenticate's
+	// `_meta.apiKey`. The agent holds such a key only while it runs, so Zasper keeps it.
+	keyWays []string
 }
 
 // Info is an agent as the panel lists it.
@@ -78,6 +81,7 @@ var Known = []Agent{
 		command: func() ([]string, bool) {
 			return []string{"agy", "acp"}, found("agy")
 		},
+		keyWays: []string{"gemini-api-key"},
 	},
 }
 
@@ -100,6 +104,16 @@ func Catalogue() []Info {
 }
 
 // commandFor is how to start the agent id, or a custom command line, split on spaces.
+// keyWaysOf is the ways of signing in that take a key, for a known agent; none for any other.
+func keyWaysOf(agent string) []string {
+	for _, known := range Known {
+		if known.ID == agent {
+			return known.keyWays
+		}
+	}
+	return nil
+}
+
 func commandFor(id, custom string) ([]string, string, bool) {
 	if argv := strings.Fields(custom); len(argv) > 0 {
 		return argv, argv[0], true

@@ -17,10 +17,12 @@ pipes with no agent installed.
 	/echo  says back what follows it, "echoed: …"
 	/compact  compacts the conversation, 182k to 18k tokens, as Claude Code's compaction_update has it
 	notice  sends a warning notice, as Claude Code does
-	(sign-in: with ZASPER_FAKE_AGENT_SIGN_IN set, it offers one terminal way to sign in, its own program
-	with `login`, which leaves SignedInMarker in HOME; until then a session or a prompt is refused as
-	Authentication required, and logout takes the marker away. It says who is signed in as
-	auth/status_update, as Claude Code does)
+	(sign-in: with ZASPER_FAKE_AGENT_SIGN_IN set, it offers three ways to sign in: its own program with
+	`login` in a terminal; Fake Browser, which it carries out itself after a moment; and Fake Key, which
+	takes a key in _meta.apiKey and holds it only while it runs, as Antigravity does, refusing without. Signing in leaves SignedInMarker in HOME; until then a session or a
+	prompt is refused as Authentication required, and logout takes the marker away. It says who is
+	signed in as auth/status_update, as Claude Code does, or with ZASPER_FAKE_AGENT_TIER set as
+	Antigravity does, naming its plan in the session's _meta)
 	explore  starts a subagent that greps and talks, tagged with its call as Claude Code tags them, and
 	         leaves a command running in the background
 	(commands: with ZASPER_FAKE_AGENT_COMMANDS set, a session lists /echo and /compact as it opens)
@@ -60,6 +62,8 @@ func SignIn() error {
 }
 
 func signsIn() bool { return os.Getenv("ZASPER_FAKE_AGENT_SIGN_IN") != "" }
+
+func saysPlan() bool { return os.Getenv("ZASPER_FAKE_AGENT_TIER") != "" }
 
 func signedIn() bool {
 	_, err := os.Stat(markerPath())
@@ -129,6 +133,8 @@ type agent struct {
 	cwd  string
 	// The settings' values, by id, when the agent has settings.
 	values map[string]string
+	// Signed in with a key, for as long as this process runs.
+	keyed bool
 }
 
 func (a *agent) Initialize(context.Context, acp.InitializeRequest) (acp.InitializeResponse, error) {
@@ -145,15 +151,17 @@ func (a *agent) Initialize(context.Context, acp.InitializeRequest) (acp.Initiali
 		description := "Use a fake account "
 		response.AuthMethods = []acp.AuthMethod{{Terminal: &acp.AuthMethodTerminalInline{
 			Id: "fake-login", Name: "Fake Account", Description: &description, Type: "terminal", Args: []string{"login"},
-		}}}
+		}}, {Agent: &acp.AuthMethodAgent{Id: "fake-browser", Name: "Fake Browser"}}, {Agent: &acp.AuthMethodAgent{Id: "fake-key", Name: "Fake Key"}}}
 		response.AgentCapabilities.Auth.Logout = &acp.LogoutCapabilities{}
-		a.sayWhoIsSignedIn()
+		if !saysPlan() {
+			a.sayWhoIsSignedIn()
+		}
 	}
 	return response, nil
 }
 
 func (a *agent) NewSession(_ context.Context, request acp.NewSessionRequest) (acp.NewSessionResponse, error) {
-	if !signedIn() {
+	if !signedIn() && !a.keyed {
 		return acp.NewSessionResponse{}, acp.NewAuthRequired(nil)
 	}
 	a.cwd = request.Cwd
@@ -178,7 +186,11 @@ func (a *agent) NewSession(_ context.Context, request acp.NewSessionRequest) (ac
 			}},
 		}})
 	}
-	return acp.NewSessionResponse{SessionId: "fake-session", ConfigOptions: a.settings()}, nil
+	response := acp.NewSessionResponse{SessionId: "fake-session", ConfigOptions: a.settings()}
+	if saysPlan() {
+		response.Meta = map[string]any{"antigravity": map[string]any{"tier": map[string]any{"name": "Fake Tier", "id": "fake-tier"}}}
+	}
+	return response, nil
 }
 
 func (a *agent) say(ctx context.Context, session acp.SessionId, text string) {
@@ -191,7 +203,7 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 		text = request.Prompt[0].Text.Text
 	}
 	session := request.SessionId
-	if !signedIn() {
+	if !signedIn() && !a.keyed {
 		return acp.PromptResponse{}, acp.NewAuthRequired(nil)
 	}
 	if len(request.Prompt) > 1 {
@@ -298,8 +310,20 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 
 func (a *agent) Cancel(context.Context, acp.CancelNotification) error { return nil }
 
-func (a *agent) Authenticate(context.Context, acp.AuthenticateRequest) (acp.AuthenticateResponse, error) {
-	return acp.AuthenticateResponse{}, nil
+func (a *agent) Authenticate(_ context.Context, request acp.AuthenticateRequest) (acp.AuthenticateResponse, error) {
+	switch request.MethodId {
+	case "fake-browser":
+		// The reader finishing in the browser.
+		time.Sleep(500 * time.Millisecond)
+		return acp.AuthenticateResponse{}, SignIn()
+	case "fake-key":
+		if key, _ := request.Meta["apiKey"].(string); key != "" {
+			a.keyed = true
+			return acp.AuthenticateResponse{}, nil
+		}
+		return acp.AuthenticateResponse{}, &acp.RequestError{Code: -32602, Message: "FAKE_KEY is not set."}
+	}
+	return acp.AuthenticateResponse{}, acp.NewInvalidParams(map[string]any{"methodId": request.MethodId})
 }
 
 func (a *agent) Logout(context.Context, acp.LogoutRequest) (acp.LogoutResponse, error) {

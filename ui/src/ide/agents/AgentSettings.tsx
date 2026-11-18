@@ -109,7 +109,7 @@ export default function AgentSettings(props: Props) {
       )}
       {(rest.length > 0 || signedInAs !== undefined || props.canSignOut) && (
         <More
-          agent={props.agent}
+          agent={props.agentName ?? props.agent}
           settings={rest}
           open={open === ':more'}
           disabled={props.disabled}
@@ -182,6 +182,7 @@ function Chip(props: {
 }
 
 function More(props: {
+  /** The agent's name, as the panel shows it. */
   agent: string;
   settings: AgentSetting[];
   open: boolean;
