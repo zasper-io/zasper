@@ -26,7 +26,10 @@ func signInManager(t *testing.T) *Manager {
 	t.Helper()
 	t.Setenv("ZASPER_FAKE_AGENT", "1")
 	t.Setenv("ZASPER_FAKE_AGENT_SIGN_IN", "1")
-	t.Setenv("HOME", t.TempDir())
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	// Where os.UserHomeDir looks on Windows, and so where the agent keeps its sign-in there.
+	t.Setenv("USERPROFILE", home)
 	root := t.TempDir()
 	manager := New(root, &projectFiles{root: root, writers: map[string]string{}})
 	t.Cleanup(manager.StopAll)
@@ -65,7 +68,8 @@ func TestAWayTheAgentCarriesOutSignsItInAndTheChatStarts(t *testing.T) {
 	chat, err := startSigningIn(manager, "fake-browser")
 	require.NoError(t, err)
 
-	_, err = os.Stat(filepath.Join(os.Getenv("HOME"), agenttest.SignedInMarker))
+	home, _ := os.UserHomeDir()
+	_, err = os.Stat(filepath.Join(home, agenttest.SignedInMarker))
 	assert.NoError(t, err, "the agent kept its sign-in")
 	require.NoError(t, chat.Prompt("hello"))
 	assert.Equal(t, "Hello there", agentText(waitFor(t, chat, turnEnded)))
