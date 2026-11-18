@@ -284,3 +284,33 @@ test('an agent signs itself in when asked, after one way it refuses, and names i
     'Fake Tiersigned in'
   );
 });
+
+test('a plan the agent writes outside the project opens from the chat as a read-only tab', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(fakeAgentBinary);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+  const chat = page.locator('.agentChat');
+
+  await field.fill('plan');
+  await field.press('Enter');
+  await expect(chat.getByText('File plan.md')).toBeVisible();
+  await page.getByRole('button', { name: 'Open plan.md' }).click();
+
+  const tab = page.locator('.agentDocTab');
+  await expect(tab.getByRole('note')).toContainText(
+    'plan.md, read-only. To change it, reply in the chat'
+  );
+  await expect(tab.getByRole('heading', { name: 'The plan' })).toBeVisible();
+  await expect(tab.locator('[contenteditable], textarea')).toHaveCount(0);
+
+  // The agent's own link to it goes to the same tab, and the page stays where it is.
+  const url = page.url();
+  await chat.getByRole('link', { name: 'plan.md' }).click();
+  await expect(page.locator('.tabName', { hasText: 'plan.md' })).toHaveCount(1);
+  expect(page.url()).toBe(url);
+});

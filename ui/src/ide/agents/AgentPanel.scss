@@ -413,6 +413,42 @@
   }
 }
 
+// A document the agent wrote for the reader, as one row under the calls: its name and Open, which opens
+// it in a tab. From zasper-prototype's story-agent-plan.css (`.chatDocLink`).
+.agentDocLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--z-border);
+  border-radius: 4px;
+  background: none;
+  color: var(--z-fg-muted);
+  font: inherit;
+  font-size: var(--z-ui-font-size-sm);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--z-bg-row-selected);
+  }
+}
+
+.agentDocLink-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--z-fg-default);
+  font-family: var(--z-mono-font-family);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentDocLink-open {
+  margin-left: auto;
+  color: var(--z-fg-accent);
+}
+
 // The conversation, the one part of the panel that scrolls.
 .agentChat {
   flex: 1 1 auto;

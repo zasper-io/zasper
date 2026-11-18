@@ -93,6 +93,7 @@ const NOT_FILES = new Set([
   'diff',
   'disk-diff',
   'search-preview',
+  'agent-doc',
   'lsp-log',
   'data-viewer',
 ]);

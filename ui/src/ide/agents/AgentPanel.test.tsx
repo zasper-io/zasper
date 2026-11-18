@@ -8,6 +8,7 @@ import AgentPanel from './AgentPanel';
 import { cellMention, useAddMention } from './mentions';
 import { useAtomValue } from 'jotai';
 import { terminalInputAtom } from '@/store/terminals';
+import { fileTabsAtom } from '@/store/tabState';
 
 const listAgents = vi.fn();
 const listChats = vi.fn();
@@ -45,9 +46,33 @@ function Pending() {
   return <pre data-testid="pending">{JSON.stringify(useAtomValue(terminalInputAtom))}</pre>;
 }
 
+// Plain text, with a Markdown link drawn as the link it renders as, so a press on one can be tested.
 vi.mock('@/ide/editor/notebook/MarkdownRenderer', () => ({
-  default: ({ source }: { source: string }) => <p>{source}</p>,
+  default: ({ source }: { source: string }) => (
+    <p>
+      {source.split(/(\[[^\]]+\]\([^)]+\))/).map((part, index) => {
+        const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
+        return link ? (
+          <a key={index} href={link[2]}>
+            {link[1]}
+          </a>
+        ) : (
+          part
+        );
+      })}
+    </p>
+  ),
 }));
+
+/** The tabs open, as type and name. */
+function OpenTabs() {
+  const tabs = useAtomValue(fileTabsAtom);
+  return (
+    <pre data-testid="tabs">
+      {JSON.stringify(Object.values(tabs).map((tab) => `${tab.type}:${tab.name}`))}
+    </pre>
+  );
+}
 
 /** The chat's socket: what the server sends is pushed by hand, and what the panel sends is kept. */
 class FakeSocket {
@@ -245,6 +270,69 @@ describe('AgentPanel', () => {
     });
     fireEvent.keyDown(screen.getByLabelText('Message to the agent'), { key: 'Enter' });
     expect(socket.sent).toContainEqual({ type: 'prompt', text: 'thanks', mentions: [] });
+  });
+
+  describe('a document the agent wrote for the reader', () => {
+    const PLAN = '/home/u/.gemini/antigravity-cli/brain/s1/plan.md';
+    const written = {
+      type: 'update',
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'w',
+        title: `File ../../../../${PLAN.slice(1)}`,
+        kind: 'edit',
+        status: 'completed',
+        locations: [{ path: PLAN }],
+        rawInput: {
+          Path: PLAN,
+          Content: '# Plan\n\n1. Change greet.',
+          ArtifactMetadata: { UserFacing: true, RequestFeedback: true },
+        },
+      },
+    };
+    const tabs = () => JSON.parse(screen.getByTestId('tabs').textContent!);
+
+    async function wrote(answer: string) {
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+          <OpenTabs />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+      const socket = FakeSocket.latest;
+      socket.push({ type: 'user', text: 'plan it' });
+      socket.push(written);
+      socket.push(said(answer));
+      socket.push({ type: 'turn_end', stop_reason: 'end_turn' });
+      await screen.findByRole('button', { name: 'Open plan.md' });
+    }
+
+    it('is a link under the write, which opens it in a read-only tab', async () => {
+      await wrote('Here is the plan.');
+
+      expect(screen.getByText('File plan.md')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Open plan.md' }));
+
+      expect(tabs()).toContain('agent-doc:plan.md');
+    });
+
+    it('opens from the agent’s own link to it, and a link to a web page leaves for a new tab', async () => {
+      const opened = vi.spyOn(window, 'open').mockReturnValue(null);
+      await wrote(`See [plan.md](file://${PLAN}) and [the docs](https://example.com/docs).`);
+
+      fireEvent.click(screen.getByRole('link', { name: 'plan.md' }));
+      expect(tabs()).toContain('agent-doc:plan.md');
+
+      fireEvent.click(screen.getByRole('link', { name: 'the docs' }));
+      expect(opened).toHaveBeenCalledWith(
+        'https://example.com/docs',
+        '_blank',
+        'noopener,noreferrer'
+      );
+      opened.mockRestore();
+    });
   });
 
   it('shows the change an edit asks to make until it is answered', async () => {

@@ -1,8 +1,10 @@
 import React, {
+  createContext,
   KeyboardEvent,
   lazy,
   Suspense,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -36,8 +38,15 @@ import IconButton from '@/ide/IconButton';
 import { Icon, IconName } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
 import { MenuSeparator } from '@/ide/statusBar/StatusMenu';
-import { agentChatAtom, composerMentionsAtom } from '@/store/agents';
+import {
+  agentChatAtom,
+  agentDocsAtom,
+  agentDocTabKey,
+  composerMentionsAtom,
+  OpenedAgentDoc,
+} from '@/store/agents';
 import { useFileMatches } from '@/ide/topBar/palette/useFileMatches';
+import { useFollowLink, useOpenProjectFile } from './links';
 import { fileMention } from './mentions';
 import { projectDirAtom } from '@/store/serverInfo';
 import { useTabActions } from '@/store/tabActions';
@@ -49,6 +58,7 @@ import { relativeDate } from '@/ide/sidebar/dates';
 import AgentSettings from './AgentSettings';
 import {
   AgentCommand,
+  AgentDoc,
   AgentSetting,
   ChatItem,
   PlanEntry,
@@ -709,6 +719,7 @@ function Conversation({
 }) {
   const { view, connected, prompt, cancel, answer, setMode, setSetting } = live;
   const [settingOpen, setSettingOpen] = useState<string | null>(null);
+  const docs = useChatDocs(chat.id, agentName, view.docs);
   const announcement = useChatAnnouncer(view);
   const [draft, setDraft] = useState('');
   const [mentions, setMentions] = useAtom(composerMentionsAtom);
@@ -776,7 +787,7 @@ function Conversation({
   };
 
   return (
-    <>
+    <DocsContext.Provider value={docs}>
       <div className="z-visually-hidden" role="status">
         {announcement}
       </div>
@@ -871,8 +882,52 @@ function Conversation({
           )}
         </div>
       </div>
-    </>
+    </DocsContext.Provider>
   );
+}
+
+/** The documents the agent wrote for the reader in this chat, and how to open one in its tab. */
+interface ChatDocs {
+  docs: AgentDoc[];
+  /** Opens the document at this path in its tab; false when the agent wrote none there. */
+  open: (path: string) => boolean;
+}
+
+const DocsContext = createContext<ChatDocs>({ docs: [], open: () => false });
+
+/**
+ * The chat's documents, kept in agentDocsAtom for their tabs as the agent writes them again, and a way to
+ * open one. A tab reads the text from there: the file is the agent's, outside the project.
+ */
+function useChatDocs(chatId: string, agent: string, docs: AgentDoc[]): ChatDocs {
+  const setDocs = useSetAtom(agentDocsAtom);
+  const { openTab } = useTabActions();
+  useEffect(() => {
+    setDocs((previous) => {
+      const changed = docs.filter((doc) => {
+        const kept = previous[agentDocTabKey(chatId, doc.path)];
+        return kept?.text !== doc.text || kept.agent !== agent;
+      });
+      if (changed.length === 0) {
+        return previous;
+      }
+      const next: Record<string, OpenedAgentDoc> = { ...previous };
+      for (const doc of changed) {
+        next[agentDocTabKey(chatId, doc.path)] = { agent, name: doc.name, text: doc.text };
+      }
+      return next;
+    });
+  }, [chatId, agent, docs, setDocs]);
+  return {
+    docs,
+    open: (path: string) => {
+      const doc = docs.find((candidate) => candidate.path === path);
+      if (doc !== undefined) {
+        openTab({ name: doc.name, path: agentDocTabKey(chatId, path), type: 'agent-doc' });
+      }
+      return doc !== undefined;
+    },
+  };
 }
 
 function Item({
@@ -884,6 +939,7 @@ function Item({
   item: ChatItem;
   onAnswer: (id: string, option: string) => void;
 }) {
+  const followLink = useFollowLink(useContext(DocsContext).open);
   switch (item.kind) {
     case 'user':
       return (
@@ -893,10 +949,11 @@ function Item({
       );
     case 'agent':
       return (
-        <div className="agentMsg">
+        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- the links inside are what is pressed, and Enter on one is a click that reaches here
+        <div className="agentMsg" onClick={followLink}>
           <Suspense fallback={<p>{item.text}</p>}>
             {/* An answer about fares quotes prices; single dollars are money here, not maths. */}
-            <MarkdownRenderer source={item.text} singleDollarMath={false} />
+            <MarkdownRenderer source={item.text} singleDollarMath={false} fileLinks />
           </Suspense>
         </div>
       );
@@ -1232,21 +1289,6 @@ function changedIn(failure: ApiError): string[] | null {
   }
 }
 
-/** Opens a file the agent names by its absolute path, when it is in the project. */
-function useOpenProjectFile() {
-  const { openTab } = useTabActions();
-  const projectDir = useAtomValue(projectDirAtom);
-  return (path: string) => {
-    const root = projectDir.endsWith('/') ? projectDir : `${projectDir}/`;
-    if (!path.startsWith(root)) {
-      return;
-    }
-    const relative = path.slice(root.length);
-    const name = relative.split('/').pop() ?? relative;
-    openTab({ name, path: relative, type: name.endsWith('.ipynb') ? 'notebook' : 'file' });
-  };
-}
-
 /** The change a permission prompt asks to make, drawn as a tool's diff is. */
 function AskedChange({ diffs }: { diffs: ToolDiff[] }) {
   const openFile = useOpenProjectFile();
@@ -1261,6 +1303,8 @@ function AskedChange({ diffs }: { diffs: ToolDiff[] }) {
 
 function Tools({ calls }: { calls: ToolCall[] }) {
   const openFile = useOpenProjectFile();
+  const { open: openDoc } = useContext(DocsContext);
+  const written = allCallsOf(calls).filter((call) => call.doc !== undefined);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
 
   const toggle = (id: string) =>
@@ -1283,16 +1327,20 @@ function Tools({ calls }: { calls: ToolCall[] }) {
             type="button"
             className={nested ? 'panel-row is-nested' : 'panel-row'}
             disabled={!hasOutput && call.locations.length === 0}
-            aria-expanded={hasOutput ? expanded : undefined}
+            aria-expanded={hasOutput && !call.doc ? expanded : undefined}
             title={call.locations[0] ?? call.title}
             onClick={() =>
-              hasOutput ? toggle(call.id) : call.locations[0] && openFile(call.locations[0])
+              call.doc
+                ? openDoc(call.doc.path)
+                : hasOutput
+                  ? toggle(call.id)
+                  : call.locations[0] && openFile(call.locations[0])
             }
           >
             <Icon name={call.calls.length > 0 ? 'bot' : (TOOL_ICONS[call.kind] ?? 'bot')} />
             <span className="panel-row-name">{call.title}</span>
             <span className={`agentTools-status is-${status.tone}`}>{status.label}</span>
-            {hasOutput && (
+            {hasOutput && !call.doc && (
               <Icon name={expanded ? 'chevron-down' : 'chevron-right'} className="z-icon-sm" />
             )}
           </button>
@@ -1303,7 +1351,30 @@ function Tools({ calls }: { calls: ToolCall[] }) {
     );
   };
 
-  return <div className="agentTools">{calls.map((call) => row(call, false))}</div>;
+  return (
+    <>
+      <div className="agentTools">{calls.map((call) => row(call, false))}</div>
+      {/* A document written for the reader, by its name, opened in a tab of its own. */}
+      {written.map((call) => (
+        <button
+          type="button"
+          key={call.id}
+          className="agentDocLink"
+          aria-label={`Open ${call.doc!.name}`}
+          onClick={() => openDoc(call.doc!.path)}
+        >
+          <Icon name="scroll-text" size={14} />
+          <span className="agentDocLink-name">{call.doc!.name}</span>
+          <span className="agentDocLink-open">Open</span>
+        </button>
+      ))}
+    </>
+  );
+}
+
+/** Every call, those a subagent made under the call that started it included. */
+function allCallsOf(calls: ToolCall[]): ToolCall[] {
+  return calls.flatMap((call) => [call, ...allCallsOf(call.calls)]);
 }
 
 function ToolOutput({ call, openFile }: { call: ToolCall; openFile: (path: string) => void }) {

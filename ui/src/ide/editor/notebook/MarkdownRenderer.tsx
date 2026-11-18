@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import Markdown from 'react-markdown';
+import Markdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -31,6 +31,17 @@ const schema: SanitizeSchema = {
   },
 };
 
+// The same, keeping `file://` links: an agent links the files it means by address, and the panel
+// decides what a press on one opens. Elsewhere a `file:` link is dropped, as GitHub's schema has it.
+// react-markdown blanks it first, so its own check is told too.
+const schemaWithFileLinks: SanitizeSchema = {
+  ...schema,
+  protocols: {
+    ...schema.protocols,
+    href: [...(schema.protocols?.href ?? []), 'file'],
+  },
+};
+
 export interface MarkdownRendererProps {
   source: string;
   /**
@@ -44,12 +55,17 @@ export interface MarkdownRendererProps {
    * prices as one formula. `$$x$$`, `\\(x\\)` and `\\[x\\]` stay maths either way.
    */
   singleDollarMath?: boolean;
+  /** Keep `file://` links, for a caller that handles a press on one itself (the agent panel). */
+  fileLinks?: boolean;
 }
+
+const keepFileLinks = (url: string) => (url.startsWith('file:') ? url : defaultUrlTransform(url));
 
 const MarkdownRenderer = ({
   source,
   katexOutput,
   singleDollarMath = true,
+  fileLinks = false,
 }: MarkdownRendererProps) => {
   // `remark-math` reads `$x$` and nothing else; Jupyter's notebooks are full of `\\(x\\)`.
   const text = useMemo(
@@ -61,10 +77,11 @@ const MarkdownRenderer = ({
     // The styling hook: markdown emits h1/table/blockquote with no classes for NotebookEditor.scss.
     <div className="zasper-markdown">
       <Markdown
+        urlTransform={fileLinks ? keepFileLinks : defaultUrlTransform}
         remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: singleDollarMath }]]}
         rehypePlugins={[
           rehypeRaw,
-          [rehypeSanitize, schema],
+          [rehypeSanitize, fileLinks ? schemaWithFileLinks : schema],
           [rehypeKatex, { output: katexOutput ?? 'htmlAndMathml' }],
         ]}
       >

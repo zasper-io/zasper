@@ -75,6 +75,22 @@ describe('MarkdownRenderer', () => {
   });
 
   // An agent's answer about fares: two prices on one line must stay prices, not one formula between them.
+  it('keeps a file link only where it is asked for, and still drops a script one', () => {
+    const source = '[plan.md](file:///home/u/plan.md) and [x](javascript:alert(1))';
+    const hrefs = (fileLinks: boolean) =>
+      [
+        ...render(
+          <MarkdownRenderer source={source} fileLinks={fileLinks} />
+        ).container.querySelectorAll('a'),
+      ].map((link) => link.getAttribute('href'));
+
+    expect(hrefs(true)[0]).toBe('file:///home/u/plan.md');
+    expect(hrefs(false)[0]).toBeFalsy();
+    expect(
+      [...hrefs(true), ...hrefs(false)].filter((href) => href?.startsWith('javascript'))
+    ).toEqual([]);
+  });
+
   it('reads single dollars as money when single-dollar maths is off', () => {
     const answer =
       "Staten Island's $60.16 average comes from 67 trips; a $4.50 fare moves it a lot.";

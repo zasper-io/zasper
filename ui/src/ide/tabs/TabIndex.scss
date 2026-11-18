@@ -123,6 +123,12 @@
   white-space: nowrap;
 }
 
+// A tab that cannot be edited, such as an agent's document: the tab's own ink, as the dirty dot is.
+.tabReadOnly {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
 // 6px of `currentColor`, so it is the tab's own ink at any weight: a dot is not a second colour on a
 // strip that has no room for one.
 .tab-dirty {

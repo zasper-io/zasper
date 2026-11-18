@@ -33,6 +33,48 @@ export interface ToolCall {
   calls: ToolCall[];
   /** A command the agent left running while it went on. */
   background?: boolean;
+  /** A document it wrote for the reader, such as a plan, to open in a tab of its own. */
+  doc?: AgentDoc;
+}
+
+/** A document an agent wrote for the reader: its file, and its text as written. */
+export interface AgentDoc {
+  /** Absolute: the agent keeps it where it likes, outside the project as often as not. */
+  path: string;
+  name: string;
+  text: string;
+}
+
+const baseName = (path: string) => path.split('/').pop() ?? path;
+
+/**
+ * The document a call wrote for the reader, if it did. Antigravity marks such a write's input with
+ * `ArtifactMetadata.UserFacing`, a plan in Plan mode among them; its text is the write's diff, or the
+ * input's `Content` before the diff has come.
+ */
+function docOf(update: { rawInput?: any }, call: ToolCall): AgentDoc | undefined {
+  const input = update.rawInput;
+  if (input?.ArtifactMetadata?.UserFacing !== true) {
+    return call.doc;
+  }
+  const path = typeof input.Path === 'string' ? input.Path : call.locations[0];
+  if (!path) {
+    return call.doc;
+  }
+  const written = call.diffs.find((diff) => diff.path === path)?.newText;
+  const text = written ?? (typeof input.Content === 'string' ? input.Content : undefined);
+  return text === undefined ? call.doc : { path, name: baseName(path), text };
+}
+
+/**
+ * A call's title as the reader reads it. An agent that names a file outside the project by its path
+ * from the project gets `File ../../../../Users/…/plan.md`; the file's own name says as much.
+ */
+function titleOf(title: string, locations: string[]): string {
+  const outside = /(?:\.\.\/)+\S+/;
+  return locations.length > 0 && outside.test(title)
+    ? title.replace(outside, baseName(locations[0]))
+    : title;
 }
 
 /** Every call, those a subagent made under the call that started it included. */
@@ -155,6 +197,8 @@ export interface ChatView {
   account?: AgentAccount;
   /** The agent will not go on until someone signs in: the ways it offers. */
   signIn?: SignInMethod[];
+  /** The documents the agent wrote for the reader, each as last written. */
+  docs: AgentDoc[];
 }
 
 export interface AgentCommand {
@@ -280,6 +324,13 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let commands: AgentCommand[] = [];
   let account: AgentAccount | undefined;
   let signIn: SignInMethod[] | undefined;
+  // By path, so a document written again is the one document at its latest.
+  const docs = new Map<string, AgentDoc>();
+  const noteDoc = (doc: AgentDoc | undefined) => {
+    if (doc) {
+      docs.set(doc.path, doc);
+    }
+  };
   // Whether the context was at least nearly full when last heard of, so the warning is said once a crossing.
   let nearlyFull = false;
   const compaction = (id: unknown) =>
@@ -372,7 +423,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
           case 'tool_call': {
             const call: ToolCall = {
               id: update.toolCallId,
-              title: update.title ?? 'Tool',
+              title: titleOf(update.title ?? 'Tool', locationsOf(update) ?? []),
               kind: update.kind ?? 'other',
               status: update.status ?? 'pending',
               locations: locationsOf(update) ?? [],
@@ -380,6 +431,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
               calls: [],
               ...(inBackground(update) ? { background: true } : {}),
             };
+            call.doc = docOf(update, call);
+            noteDoc(call.doc);
             fromMeta(call, update._meta);
             const parent = parentOf(update) && findCall(items, parentOf(update)!);
             const previous = last();
@@ -395,10 +448,10 @@ export function foldChat(events: ChatEvent[]): ChatView {
           case 'tool_call_update': {
             const call = findCall(items, update.toolCallId);
             if (call) {
-              call.title = update.title ?? call.title;
+              call.locations = locationsOf(update) ?? call.locations;
+              call.title = update.title ? titleOf(update.title, call.locations) : call.title;
               call.kind = update.kind ?? call.kind;
               call.status = update.status ?? call.status;
-              call.locations = locationsOf(update) ?? call.locations;
               call.background = call.background || inBackground(update) || undefined;
               const content = contentOf(update.content);
               if (content) {
@@ -406,6 +459,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
                 call.diffs = content.diffs;
                 call.terminalId = content.terminalId ?? call.terminalId;
               }
+              call.doc = docOf(update, call);
+              noteDoc(call.doc);
             }
             fromMeta(call, update._meta);
             break;
@@ -520,7 +575,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
         // The request's tool call updates the call it asks about, as ACP has it. Antigravity sends an
         // edit's diff only here, so without this the change is never seen.
         if (call) {
-          call.title = asked?.title ?? call.title;
+          call.title = asked?.title ? titleOf(asked.title, call.locations) : call.title;
           if (content?.diffs.length) {
             call.diffs = content.diffs;
           }
@@ -654,6 +709,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
     commands,
     account,
     signIn,
+    docs: [...docs.values()],
   };
 }
 
