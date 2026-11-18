@@ -390,13 +390,15 @@ func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 
 	for {
 		var message struct {
-			Type     string    `json:"type"`
-			Text     string    `json:"text"`
-			ID       string    `json:"id"`
-			OptionID string    `json:"option_id"`
-			Mode     string    `json:"mode"`
-			Mentions []Mention `json:"mentions"`
-			Value    any       `json:"value"`
+			Type     string         `json:"type"`
+			Text     string         `json:"text"`
+			ID       string         `json:"id"`
+			OptionID string         `json:"option_id"`
+			Mode     string         `json:"mode"`
+			Mentions []Mention      `json:"mentions"`
+			Value    any            `json:"value"`
+			Action   string         `json:"action"`
+			Content  map[string]any `json:"content"`
 		}
 		if err := conn.ReadJSON(&message); err != nil {
 			return
@@ -409,6 +411,8 @@ func (m *Manager) SocketHandler(w http.ResponseWriter, req *http.Request) {
 			err = chat.Cancel()
 		case "answer":
 			err = chat.Answer(message.ID, message.OptionID)
+		case "reply":
+			err = chat.Reply(message.ID, message.Action, message.Content)
 		case "mode":
 			err = chat.SetMode(message.Mode)
 		case "setting":

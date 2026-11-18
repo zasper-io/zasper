@@ -18,6 +18,8 @@ pipes with no agent installed.
 	/compact  compacts the conversation, 182k to 18k tokens, as Claude Code's compaction_update has it
 	notice  sends a warning notice, as Claude Code does
 	plan   writes a plan for the reader outside the project, as Antigravity's Plan mode does, and links it
+	question  asks two questions as one form, as Antigravity's ask_question does, and says the reply as
+	          it came; to a client that cannot show a form, it writes the questions as text instead
 	(sign-in: with ZASPER_FAKE_AGENT_SIGN_IN set, it offers three ways to sign in: its own program with
 	`login` in a terminal; Fake Browser, which it carries out itself after a moment; and Fake Key, which
 	takes a key in _meta.apiKey and holds it only while it runs, as Antigravity does, refusing without. Signing in leaves SignedInMarker in HOME; until then a session or a
@@ -35,6 +37,7 @@ At the start of a session it writes the names of the MCP servers it was given to
 package agenttest
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -93,8 +96,8 @@ func Requested() bool { return os.Getenv("ZASPER_FAKE_AGENT") == "1" }
 
 // Serve is the agent, on stdin and stdout, until its client goes.
 func Serve() {
-	a := &agent{out: &lines{to: os.Stdout}}
-	a.conn = acp.NewAgentSideConnection(a, a.out, os.Stdin)
+	a := &agent{out: &lines{to: os.Stdout}, replies: make(chan json.RawMessage, 1)}
+	a.conn = acp.NewAgentSideConnection(a, a.out, a.catchReplies(os.Stdin))
 	<-a.conn.Done()
 }
 
@@ -136,9 +139,44 @@ type agent struct {
 	values map[string]string
 	// Signed in with a key, for as long as this process runs.
 	keyed bool
+	// The client can show a question as a form.
+	forms bool
+	// The client's answers to the questions this agent asks itself, beside the SDK.
+	replies chan json.RawMessage
 }
 
-func (a *agent) Initialize(context.Context, acp.InitializeRequest) (acp.InitializeResponse, error) {
+// The id of the question the agent asks, its answer caught before the SDK, which did not ask it.
+const questionID = "fake-question"
+
+// catchReplies passes what the client writes on to the SDK, keeping back the answer to the question.
+func (a *agent) catchReplies(from io.Reader) io.Reader {
+	out, in := io.Pipe()
+	go func() {
+		lines := bufio.NewReader(from)
+		for {
+			line, err := lines.ReadBytes('\n')
+			var message struct {
+				ID     string          `json:"id"`
+				Result json.RawMessage `json:"result"`
+			}
+			if json.Unmarshal(line, &message) == nil && message.ID == questionID {
+				a.replies <- message.Result
+			} else if len(line) > 0 {
+				in.Write(line)
+			}
+			if err != nil {
+				in.CloseWithError(err)
+				return
+			}
+		}
+	}()
+	return out
+}
+
+func (a *agent) Initialize(_ context.Context, request acp.InitializeRequest) (acp.InitializeResponse, error) {
+	if forms := request.ClientCapabilities.Elicitation; forms != nil && forms.Form != nil {
+		a.forms = true
+	}
 	if os.Getenv("ZASPER_FAKE_AGENT_SLOW") != "" {
 		// An agent npx is still downloading: it says nothing for a long while.
 		time.Sleep(time.Minute)
@@ -308,6 +346,8 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 			"locations": []any{map[string]any{"path": plan}},
 			"rawInput":  map[string]any{"Path": plan, "Content": "# The plan\n\n1. Smooth the readings.", "ArtifactMetadata": map[string]any{"UserFacing": true}}})
 		a.say(ctx, session, "Here is [plan.md](file://"+plan+").")
+	case "question":
+		return a.question(ctx, session)
 	case "wait":
 		a.say(ctx, session, "waiting")
 		<-ctx.Done()
@@ -487,4 +527,37 @@ func describe(blocks []acp.ContentBlock) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// question asks as Antigravity's ask_question does: a single choice and a multiple one, each with Other,
+// in one form tied to the call that asks. The properties are written out so their order is the agent's.
+func (a *agent) question(ctx context.Context, session acp.SessionId) (acp.PromptResponse, error) {
+	asked := map[string]any{"questions": []any{
+		map[string]any{"question": "Which greeting word?", "options": []string{"(Recommended) hello", "hi", "hey"}, "is_multi_select": false},
+		map[string]any{"question": "Which extras?", "options": []string{"a docstring", "type hints"}, "is_multi_select": true},
+	}}
+	a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "ask-1", "title": "Run ask_question", "kind": "other", "status": "in_progress", "rawInput": asked})
+	a.raw(session, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "ask-1", "status": "pending"})
+	if !a.forms {
+		a.say(ctx, session, "Which greeting word?\n- [1] (Recommended) hello\n- [2] hi\n- [3] hey")
+		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
+	}
+	properties := `{
+		"q1": {"type": "string", "title": "Which greeting word?", "oneOf": [{"const": "1", "title": "(Recommended) hello"}, {"const": "2", "title": "hi"}, {"const": "3", "title": "hey"}]},
+		"q1_other": {"type": "string", "title": "Other", "description": "Optional free-form answer to: Which greeting word?"},
+		"q2": {"type": "array", "title": "Which extras?", "items": {"anyOf": [{"const": "1", "title": "a docstring"}, {"const": "2", "title": "type hints"}]}},
+		"q2_other": {"type": "string", "title": "Other", "description": "Optional free-form answer to: Which extras?"}
+	}`
+	line := `{"jsonrpc":"2.0","id":"` + questionID + `","method":"elicitation/create","params":{"sessionId":"` + string(session) +
+		`","toolCallId":"ask-1","mode":"form","message":"The agent has a question.","requestedSchema":{"type":"object","properties":` +
+		strings.Join(strings.Fields(properties), " ") + `}}}`
+	a.out.Write([]byte(line + "\n"))
+	select {
+	case reply := <-a.replies:
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "ask-1", "status": "completed"})
+		a.say(ctx, session, "replied "+string(reply))
+		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
+	case <-ctx.Done():
+		return acp.PromptResponse{StopReason: acp.StopReasonCancelled}, nil
+	}
 }

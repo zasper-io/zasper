@@ -143,7 +143,9 @@ export interface ChatEvent {
     | 'account'
     | 'terminal'
     | 'changes'
-    | 'undone';
+    | 'undone'
+    | 'question'
+    | 'replied';
   text?: string;
   /** ACP's session/update, as the agent sent it. */
   update?: any;
@@ -179,6 +181,19 @@ export interface ChatEvent {
   sign_in?: SignInMethod[];
   /** On `account`, who the agent says it is signed in as. */
   account?: AgentAccount;
+  /**
+   * On `question`, a form the agent asks the reader to fill in, its fields' JSON Schemas in its order;
+   * on `replied`, the reply: accept with what was filled in, decline, or cancel when it was withdrawn.
+   */
+  question?: {
+    id: string;
+    tool_call_id?: string;
+    message?: string;
+    fields?: { name: string; schema: unknown }[];
+    required?: string[];
+    action?: string;
+    content?: Record<string, unknown>;
+  };
 }
 
 export function listAgents(): Promise<AgentInfo[]> {

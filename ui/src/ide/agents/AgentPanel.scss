@@ -642,6 +642,63 @@
   color: var(--z-fg-subtle);
 }
 
+// A question the agent asks as a form, in the permission prompt's box: one group to a question, its
+// options as `.z-checkbox`, and Other's field beside the last. From zasper-prototype's
+// story-agent-question.css.
+.agentQuestion-message {
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+.agentQuestion-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+
+  legend {
+    margin-bottom: 2px;
+    padding: 0;
+    color: var(--z-fg-default);
+    font-weight: 500;
+  }
+}
+
+// `.z-checkbox input` sizes the box, and would size this field to it too.
+.agentQuestion-other .z-field {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: var(--z-ui-control-height);
+}
+
+.agentQuestion-required {
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+}
+
+// The answers once given, under the call that asked, as the permission prompt's answer is.
+.agentQuestion-answers {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--z-border);
+  color: var(--z-fg-subtle);
+  font-size: var(--z-ui-font-size-sm);
+  overflow-wrap: anywhere;
+
+  dd {
+    margin: 0 0 4px;
+    color: var(--z-fg-default);
+  }
+
+  dd:last-child {
+    margin-bottom: 0;
+  }
+}
+
 // Something said about the session rather than in the conversation: a notice from the agent, the context
 // nearly full. One quiet line, from zasper-prototype's story-agent-session.css (`.chatNotice`).
 .agentNotice {

@@ -41,6 +41,9 @@ func (c *Chat) tapUpdates(from io.Reader) io.Reader {
 				// Not the SDK's to answer: it knows no such method, and says so in the log.
 				continue
 			}
+			if len(line) > 0 && c.noteQuestion(line) {
+				continue
+			}
 			if len(line) > 0 {
 				c.noteUpdate(line)
 				if _, failed := in.Write(line); failed != nil {
