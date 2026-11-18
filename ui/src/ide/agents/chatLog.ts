@@ -663,6 +663,10 @@ export function foldChat(events: ChatEvent[]): ChatView {
         answering = false;
         if (event.stop_reason && event.stop_reason !== 'end_turn') {
           items.push({ kind: 'note', text: stopNote(event.stop_reason), failed: false });
+        } else if (last()?.kind === 'user') {
+          // Nothing came back: Antigravity answers `/compact` with only the turn's end. Said, so the
+          // reader is not left watching their own message.
+          items.push({ kind: 'note', text: 'Done, with no reply.', failed: false });
         }
         break;
       case 'error':

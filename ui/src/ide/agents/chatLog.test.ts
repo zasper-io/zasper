@@ -454,6 +454,29 @@ describe('foldChat', () => {
     expect(view.docs).toEqual([{ path: plan, name: 'plan.md', text: '# Two' }]);
   });
 
+  it('says a turn ended with nothing from the agent, and says nothing when something came', () => {
+    const notes = (events: ChatEvent[]) =>
+      foldChat(events)
+        .items.filter((item) => item.kind === 'note')
+        .map((item) => (item as { text: string }).text);
+    const end: ChatEvent = { type: 'turn_end', stop_reason: 'end_turn' };
+
+    expect(notes([{ type: 'user', text: '/compact' }, end])).toEqual(['Done, with no reply.']);
+    expect(
+      notes([
+        { type: 'user', text: 'hi' },
+        {
+          type: 'update',
+          update: {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: 'Hello' },
+          },
+        },
+        end,
+      ])
+    ).toEqual([]);
+  });
+
   it('keeps the agent’s settings as it last sent them, a group’s values in one list', () => {
     const view = foldChat([
       {
