@@ -388,6 +388,42 @@ describe('foldChat', () => {
     expect(status([...answered, { type: 'turn_end', stop_reason: 'cancelled' }])).toBe('pending');
   });
 
+  it('takes the change an edit asks to make from the request, as Antigravity sends it only there', () => {
+    const change = {
+      type: 'diff',
+      path: '/p/hello.py',
+      oldText: 'print(1)',
+      newText: 'print(1)\nprint(2)',
+    };
+    const view = foldChat([
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'c',
+          title: 'File hello.py',
+          kind: 'edit',
+          status: 'pending',
+        },
+      },
+      {
+        type: 'permission',
+        permission: {
+          id: 'q',
+          request: { toolCall: { toolCallId: 'c', content: [change] }, options: [] },
+        },
+      },
+    ]);
+
+    const diff = { path: '/p/hello.py', oldText: 'print(1)', newText: 'print(1)\nprint(2)' };
+    expect((view.items[0] as { calls: { diffs: unknown[] }[] }).calls[0].diffs).toEqual([diff]);
+    expect(view.items[1]).toMatchObject({
+      kind: 'permission',
+      title: 'File hello.py',
+      diffs: [diff],
+    });
+  });
+
   it('keeps the agent’s settings as it last sent them, a group’s values in one list', () => {
     const view = foldChat([
       {

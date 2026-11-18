@@ -26,7 +26,13 @@ describe('useChatAnnouncer', () => {
     const { result, rerender } = renderHook(({ v }) => useChatAnnouncer(v), {
       initialProps: { v: view([asked], true) },
     });
-    const permission: ChatItem = { kind: 'permission', id: 'p', title: 'Run ls', options: [] };
+    const permission: ChatItem = {
+      kind: 'permission',
+      id: 'p',
+      title: 'Run ls',
+      options: [],
+      diffs: [],
+    };
     rerender({ v: view([asked, permission], true) });
     expect(result.current).toBe('The agent asks: Run ls');
   });

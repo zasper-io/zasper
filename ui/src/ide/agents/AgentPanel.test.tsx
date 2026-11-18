@@ -247,6 +247,50 @@ describe('AgentPanel', () => {
     expect(socket.sent).toContainEqual({ type: 'prompt', text: 'thanks', mentions: [] });
   });
 
+  it('shows the change an edit asks to make until it is answered', async () => {
+    render(
+      <Provider>
+        <AgentPanel hidden={false} />
+      </Provider>
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+    await screen.findByRole('button', { name: ZASPER_MODE });
+    const socket = FakeSocket.latest;
+    socket.push({ type: 'user', text: 'add a line' });
+    socket.push({
+      type: 'permission',
+      permission: {
+        id: 'q1',
+        request: {
+          toolCall: {
+            title: 'File hello.py',
+            content: [
+              {
+                type: 'diff',
+                path: '/p/hello.py',
+                oldText: 'print("world")',
+                newText: 'print("world")\nprint("zasper")',
+              },
+            ],
+          },
+          options: [
+            { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
+            { optionId: 'deny', name: 'Deny', kind: 'reject_once' },
+          ],
+        },
+      },
+    });
+
+    const ask = await screen.findByText('File hello.py', { selector: 'strong' });
+    const prompt = ask.closest('.agentAsk') as HTMLElement;
+    expect(prompt).toHaveTextContent('hello.py+ print("zasper")');
+    expect(prompt.querySelector('.agentDiff-line.is-added')).toHaveTextContent('+ print("zasper")');
+
+    socket.push({ type: 'answered', permission: { id: 'q1', option_id: 'allow' } });
+    await waitFor(() => expect(prompt).toHaveTextContent('Allow.'));
+    expect(prompt.querySelector('.agentDiff')).toBeNull();
+  });
+
   describe('the agent’s settings', () => {
     const choice = (id: string, category: string | null, current: string, ...values: string[]) => ({
       id,

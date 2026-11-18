@@ -915,6 +915,8 @@ function Item({
           <p>
             <strong>{item.title}</strong>
           </p>
+          {/* The change asked for, while it is still the reader's to allow; after, its row has it. */}
+          {item.answer === undefined && item.diffs.length > 0 && <AskedChange diffs={item.diffs} />}
           {item.answer === undefined ? (
             <div className="agentAsk-actions">
               {item.options.map((option) => (
@@ -1230,12 +1232,11 @@ function changedIn(failure: ApiError): string[] | null {
   }
 }
 
-function Tools({ calls }: { calls: ToolCall[] }) {
+/** Opens a file the agent names by its absolute path, when it is in the project. */
+function useOpenProjectFile() {
   const { openTab } = useTabActions();
   const projectDir = useAtomValue(projectDirAtom);
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-
-  const openFile = (path: string) => {
+  return (path: string) => {
     const root = projectDir.endsWith('/') ? projectDir : `${projectDir}/`;
     if (!path.startsWith(root)) {
       return;
@@ -1244,6 +1245,23 @@ function Tools({ calls }: { calls: ToolCall[] }) {
     const name = relative.split('/').pop() ?? relative;
     openTab({ name, path: relative, type: name.endsWith('.ipynb') ? 'notebook' : 'file' });
   };
+}
+
+/** The change a permission prompt asks to make, drawn as a tool's diff is. */
+function AskedChange({ diffs }: { diffs: ToolDiff[] }) {
+  const openFile = useOpenProjectFile();
+  return (
+    <div className="agentTools-output is-asked">
+      {diffs.map((diff) => (
+        <Diff key={diff.path} diff={diff} onOpen={() => openFile(diff.path)} />
+      ))}
+    </div>
+  );
+}
+
+function Tools({ calls }: { calls: ToolCall[] }) {
+  const openFile = useOpenProjectFile();
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
 
   const toggle = (id: string) =>
     setOpen((previous) => {

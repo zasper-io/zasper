@@ -477,6 +477,11 @@
   background: var(--z-bg-cell);
   --z-fg-subtle: var(--z-fg-muted);
 
+  // In a permission prompt, the change asked for: the prompt's own width, above its answers.
+  &.is-asked {
+    margin: 0 0 8px;
+  }
+
   pre {
     margin: 0;
     padding: 6px 8px;

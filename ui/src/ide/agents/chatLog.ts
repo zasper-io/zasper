@@ -86,6 +86,8 @@ export type ChatItem =
       id: string;
       title: string;
       options: PermissionOption[];
+      /** The change it asks to make, when the agent says. */
+      diffs: ToolDiff[];
       /** The option chosen; null once withdrawn; undefined while it waits. */
       answer?: string | null;
       /** The chat's mode answered it. */
@@ -509,14 +511,29 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
       case 'permission': {
         const request = event.permission?.request;
-        if (request?.toolCall?.toolCallId) {
-          asking.set(event.permission?.id ?? '', request.toolCall.toolCallId);
+        const asked = request?.toolCall;
+        const content = contentOf(asked?.content);
+        const call = asked?.toolCallId ? findCall(items, asked.toolCallId) : undefined;
+        if (asked?.toolCallId) {
+          asking.set(event.permission?.id ?? '', asked.toolCallId);
+        }
+        // The request's tool call updates the call it asks about, as ACP has it. Antigravity sends an
+        // edit's diff only here, so without this the change is never seen.
+        if (call) {
+          call.title = asked?.title ?? call.title;
+          if (content?.diffs.length) {
+            call.diffs = content.diffs;
+          }
+          if (content?.output) {
+            call.output = content.output;
+          }
         }
         items.push({
           kind: 'permission',
           id: event.permission?.id ?? '',
-          title: request?.toolCall?.title ?? 'The agent asks to go on',
+          title: asked?.title ?? call?.title ?? 'The agent asks to go on',
           options: request?.options ?? [],
+          diffs: content?.diffs ?? [],
         });
         break;
       }
