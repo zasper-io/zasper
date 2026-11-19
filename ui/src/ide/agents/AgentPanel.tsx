@@ -734,10 +734,12 @@ function Conversation({
     bottom.current?.scrollIntoView?.({ block: 'end' });
   }, [view]);
 
+  const steers = chat.steers === true;
   const send = () => {
     const text = draft.trim();
-    // Not before the chat's socket is open: what was typed would go nowhere.
-    if (text === '' || view.answering || view.exited || !connected) {
+    // Not before the chat's socket is open: what was typed would go nowhere. While the agent works,
+    // only to one that takes it into the turn it is on.
+    if (text === '' || (view.answering && !steers) || view.exited || !connected) {
       return;
     }
     prompt(text, mentions);
@@ -867,21 +869,39 @@ function Conversation({
           ) : (
             <span>Connecting…</span>
           )}
-          {view.answering ? (
-            <button type="button" className="z-button z-button-secondary" onClick={cancel}>
-              <Icon name="circle-stop" size={14} /> Stop
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="z-button"
-              aria-label="Send"
-              disabled={draft.trim() === '' || view.exited || !connected}
-              onClick={send}
-            >
-              <Icon name="arrow-up" size={14} />
-            </button>
-          )}
+          <span
+            className={
+              view.answering && steers ? 'agentComposer-actions is-pair' : 'agentComposer-actions'
+            }
+          >
+            {view.answering &&
+              (steers ? (
+                <button
+                  type="button"
+                  className="z-button z-button-secondary"
+                  aria-label="Stop"
+                  title="Stop"
+                  onClick={cancel}
+                >
+                  <Icon name="circle-stop" size={14} />
+                </button>
+              ) : (
+                <button type="button" className="z-button z-button-secondary" onClick={cancel}>
+                  <Icon name="circle-stop" size={14} /> Stop
+                </button>
+              ))}
+            {(!view.answering || steers) && (
+              <button
+                type="button"
+                className="z-button"
+                aria-label="Send"
+                disabled={draft.trim() === '' || view.exited || !connected}
+                onClick={send}
+              >
+                <Icon name="arrow-up" size={14} />
+              </button>
+            )}
+          </span>
         </div>
       </div>
     </DocsContext.Provider>

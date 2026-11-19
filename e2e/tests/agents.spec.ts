@@ -341,3 +341,26 @@ test('the agent’s questions are a form the reader answers in the chat', async 
     'replied {"action":"accept","content":{"q1":"2","q2":["2"],"q2_other":"a test"}}'
   );
 });
+
+test('a message sent while an agent that steers works goes into the turn it is on', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(`${fakeAgentBinary} --steers`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+  const chat = page.locator('.agentChat');
+
+  await field.fill('story');
+  await field.press('Enter');
+  await expect(chat).toContainText('Once upon a time');
+  await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
+  await field.fill('make it shorter');
+  await page.getByRole('button', { name: 'Send' }).click();
+
+  await expect(chat).toContainText('steered: make it shorter');
+  await expect(chat.locator('.agentMsg.is-user')).toHaveText(['story', 'make it shorter']);
+  await expect(page.getByRole('button', { name: 'Stop' })).toHaveCount(0);
+});
