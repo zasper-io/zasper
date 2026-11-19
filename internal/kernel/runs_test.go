@@ -141,6 +141,29 @@ func TestOnlyARunThatEndsWithNobodyAttachedIsReportedFinished(t *testing.T) {
 	assert.Equal(t, "x", finished[0].Outputs[0]["text"])
 }
 
+// An agent's run shows in the open tab, which did not ask for it and so never saves it: the file is written.
+func TestARunAskedForThroughTheServerIsReportedFinishedWithATabWatching(t *testing.T) {
+	km := journalKernel()
+	var finished []Run
+	km.feed.finished = func(run Run) { finished = append(finished, run) }
+	watching := km.Subscribe()
+
+	km.beginRun("agent", "cell-1", "claude-code", "plot()", fromServer)
+	publishAll(km,
+		iopub(t, "agent", "display_data", map[string]interface{}{"data": map[string]interface{}{"image/png": "iVBOR"}}),
+		idle(t, "agent"),
+	)
+	km.beginRun("look", "", "claude-code", "df.shape", scratchRun)
+	km.publish(idle(t, "look"))
+	km.Unsubscribe(watching)
+
+	require.Len(t, finished, 1)
+	assert.Equal(t, "agent", finished[0].MsgID)
+	assert.Equal(t, "cell-1", finished[0].CellID)
+	assert.Len(t, finished[0].Outputs, 1)
+	assert.Empty(t, km.Subscribe().Replay.Runs, "the tab saw it end")
+}
+
 // IRkernel aborts what is queued behind an error with a reply and no idle: the run still ends.
 func TestARunTheKernelAbortedEndsWithoutAnIdle(t *testing.T) {
 	km := journalKernel()

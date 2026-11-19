@@ -114,10 +114,10 @@ told the run's execute_reply. It waits for the sockets to be dialled, which is f
 for as long as the kernel lives.
 */
 func (km *KernelManager) Execute(request Message, cellID, client string, reply func([]byte)) error {
-	return km.execute(request, cellID, client, reply, false)
+	return km.execute(request, cellID, client, reply, fromTab)
 }
 
-func (km *KernelManager) execute(request Message, cellID, client string, reply func([]byte), scratch bool) error {
+func (km *KernelManager) execute(request Message, cellID, client string, reply func([]byte), kind runKind) error {
 	sockets := km.runSockets()
 	select {
 	case <-sockets.ready:
@@ -127,7 +127,7 @@ func (km *KernelManager) execute(request Message, cellID, client string, reply f
 	content, _ := request.Content.(map[string]interface{})
 	if silent, _ := content["silent"].(bool); !silent {
 		code, _ := content["code"].(string)
-		km.beginRun(request.Header.MsgID, cellID, client, code, scratch)
+		km.beginRun(request.Header.MsgID, cellID, client, code, kind)
 	}
 	sockets.mu.Lock()
 	if reply != nil {

@@ -184,7 +184,7 @@ See [TRUST.md](TRUST.md).
 | `GET` | `/api/sessions` | List sessions. |
 | `POST` | `/api/sessions` | Create a session, starting a kernel. `403` with `{"error": "untrusted"}` when it would start one in a folder that is not trusted; rejoining a running kernel is not refused. |
 | `DELETE` | `/api/sessions/{sessionId}` | End a session and stop its kernel. |
-| `POST` | `/api/runs` | Run a notebook's code cell with no tab open. See below. |
+| `POST` | `/api/runs` | Run a notebook's code cell with no tab needed. See below. |
 | `GET` | `/api/kernels` | List running kernels. |
 | `GET` | `/api/kernels/resources` | What every running kernel holds, read at most once a second. `kernels` by id: `memory` (bytes, the footprint of the kernel and every process it started), `processes`, and `gpus` (`index`, `memory`) it holds memory on. `memory`: the machine's or its container's `used`, `total` and `limit` (`machine` or `container`), `null` on Windows. `gpus`: each NVIDIA device's `index`, `name`, `utilization` (percent, or `null`), `memory_used`, `memory_total`, and `unattributed`, memory held by processes the server cannot see. See [KERNEL-RESOURCES.md](KERNEL-RESOURCES.md). |
 | `GET` | `/api/kernels/{kernelId}` | Read one kernel. |
@@ -235,7 +235,8 @@ started for it from the kernel its `metadata.kernelspec` names. It answers the r
 — `outputs`, `execution_count`, `execution` — once it has finished, or `202` once
 `wait` seconds (60 by default, 10 minutes at most) have passed, in which case it
 carries on. An open tab shows the run in the cell as it happens, named for
-`client`; with no tab open its outputs are written into the notebook when it ends.
+`client`, and its outputs are written into the notebook when it ends, whether or
+not a tab is open.
 `404` for a cell the notebook does not have or that is not code, and `403`
 (`untrusted`) in a folder that is not trusted. An `input()` fails at once, since
 there may be nobody to answer it.

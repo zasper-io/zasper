@@ -23,7 +23,8 @@ type Kernels struct {
 	// Told when a kernel stops, by what depends on it and cannot be imported from here: its sessions and
 	// its client sockets. Registered before the server serves anything.
 	disconnectHandlers []func(kernelId string)
-	// Told when a run finishes with no client attached, so its output can reach the notebook's file.
+	// Told when a run finishes whose output is to reach the notebook's file: one no client saw end, or one
+	// asked for through the server.
 	runFinishedHandlers []func(kernelId string, run Run)
 	// Reads what each kernel holds, for /api/kernels/resources.
 	resources *resources.Sampler
@@ -82,7 +83,7 @@ func (k *Kernels) OnDisconnect(handler func(kernelId string)) {
 	k.disconnectHandlers = append(k.disconnectHandlers, handler)
 }
 
-// OnRunFinished registers a handler for a run that finished while no client was attached.
+// OnRunFinished registers a handler for a run that finished whose output is to be written into the notebook.
 func (k *Kernels) OnRunFinished(handler func(kernelId string, run Run)) {
 	k.runFinishedHandlers = append(k.runFinishedHandlers, handler)
 }

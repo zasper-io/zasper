@@ -86,7 +86,8 @@ func New(app core.Application) *Server {
 	// client told its socket has closed finds no session left to rejoin.
 	kernels.OnDisconnect(func(kernelId string) { sessions.DeleteForKernel(kernelId) })
 	kernels.OnDisconnect(s.kernelSockets.CloseConnections)
-	// A run that ends with no tab open on it would otherwise leave its output only in memory.
+	// A run that ends with no tab open on it would otherwise leave its output only in memory, and one an agent
+	// asked for only in a tab that did not ask for it, and so never saves it.
 	kernels.OnRunFinished(func(kernelId string, run kernel.Run) {
 		path, ok := sessions.PathForKernel(kernelId)
 		if !ok {
