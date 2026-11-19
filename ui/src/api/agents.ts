@@ -21,6 +21,8 @@ export interface AgentChat {
   history?: boolean;
   /** The agent can be signed out from the panel. */
   can_sign_out?: boolean;
+  /** The agent takes a message while it works, into the turn it is on, as Antigravity CLI does. */
+  steers?: boolean;
   /** The way whose key Zasper keeps for the agent, which signing out forgets. */
   kept_key?: string;
 }

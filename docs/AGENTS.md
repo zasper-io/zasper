@@ -133,6 +133,12 @@ Claude Code runs its commands itself rather than asking for a terminal. Zasper t
 terminal output (`_meta.terminal_output`), so it sends a command's output and exit code beside the call,
 and the row shows them as it does for a command run here.
 
+Antigravity CLI takes a message while it is working, into the turn it is on: a second `session/prompt`,
+which it answers along with the turn, having answered the first with `end_turn` the moment the second came.
+It says so in no capability, so Zasper knows it by the name `initialize`'s `agentInfo` gives ("Antigravity
+ACP Server"), and the chat has `steers`. For such a chat a message sent meanwhile is sent at once rather
+than refused, and the turn ends when every message in it is answered. The panel shows Send beside Stop.
+
 ## API
 
 | Method | Path | Purpose |

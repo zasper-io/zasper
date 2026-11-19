@@ -115,6 +115,8 @@ type Chat struct {
 	History bool `json:"history"`
 	// The agent can be signed out from the panel.
 	CanSignOut bool `json:"can_sign_out"`
+	// The agent takes a message while it works, into the turn it is on: see steering.
+	Steers bool `json:"steers"`
 	// The way whose key Zasper keeps for the agent, which signing out forgets.
 	KeptKey string `json:"kept_key,omitempty"`
 
@@ -124,8 +126,10 @@ type Chat struct {
 	pending     map[string]chan string
 	questions   map[string]chan reply
 	answering   bool
-	exited      bool
-	terminals   map[string]*agentTerminal
+	// The turn on its way, while its prompts are being answered.
+	flight    *inFlight
+	exited    bool
+	terminals map[string]*agentTerminal
 	// What each turn changed, by its number from 1; nil when no snapshot could be taken.
 	turns       map[int]*turn
 	checkpoints *checkpoint.Store
@@ -216,21 +220,37 @@ func (c *Chat) Prompt(text string, mentions ...Mention) error {
 		return errors.New("the agent has stopped; start a new chat")
 	}
 	if c.answering {
+		flight := c.flight
+		if !c.Steers || flight == nil {
+			c.mu.Unlock()
+			return ErrBusy
+		}
+		flight.outstanding++
 		c.mu.Unlock()
-		return ErrBusy
+		c.record(Event{Type: "user", Text: text, Mentions: logged(mentions)})
+		go func() {
+			// After the turn's first message, which the agent has to have before this one.
+			<-flight.sent
+			c.send(flight, blocks)
+		}()
+		return nil
 	}
 	c.answering = true
 	number := len(c.turns) + 1
 	c.turns[number] = nil
+	flight := &inFlight{outstanding: 1, sent: make(chan struct{}), done: make(chan struct{})}
+	c.flight = flight
 	c.mu.Unlock()
 
 	c.record(Event{Type: "user", Text: text, Mentions: logged(mentions)})
 	go func() {
 		before := c.snapshot(fmt.Sprintf("%d/before", number))
-		answer, err := c.conn.Prompt(context.Background(), acp.PromptRequest{
-			SessionId: c.session,
-			Prompt:    blocks,
-		})
+		close(flight.sent)
+		c.send(flight, blocks)
+		<-flight.done
+		c.mu.Lock()
+		answer, err := flight.answer, flight.err
+		c.mu.Unlock()
 		changed := c.endTurn(number, before)
 		c.mu.Lock()
 		c.answering = false
@@ -252,6 +272,43 @@ func (c *Chat) Prompt(text string, mentions ...Mention) error {
 		c.record(Event{Type: "turn_end", StopReason: string(answer.StopReason)})
 	}()
 	return nil
+}
+
+/*
+steering names the agents that take a message while they work, folding it into the turn they are on, by
+the name they give in `initialize`'s agentInfo: none says so in its capabilities. Antigravity CLI takes
+it as a second session/prompt, answers the first at once with end_turn, and goes on with the turn; the
+last prompt's answer comes when the turn is over.
+*/
+var steering = map[string]bool{"Antigravity ACP Server": true}
+
+// inFlight is a turn on its way: how many of the prompts sent in it are unanswered, and the answer to
+// the last to be answered, which is the turn's.
+type inFlight struct {
+	outstanding int
+	answer      acp.PromptResponse
+	err         error
+	// Closed once the turn's first prompt is on its way, and once every prompt is answered.
+	sent chan struct{}
+	done chan struct{}
+}
+
+// send prompts the agent within the turn on its way.
+func (c *Chat) send(flight *inFlight, blocks []acp.ContentBlock) {
+	answer, err := c.conn.Prompt(context.Background(), acp.PromptRequest{SessionId: c.session, Prompt: blocks})
+	c.mu.Lock()
+	flight.answer, flight.err = answer, err
+	flight.outstanding--
+	last := flight.outstanding == 0
+	if last {
+		// A message sent after this is too late for the turn, and waits for the next.
+		c.flight = nil
+		close(flight.done)
+	}
+	c.mu.Unlock()
+	if err != nil && !last {
+		c.record(Event{Type: "error", Text: "The agent did not take the message: " + err.Error()})
+	}
 }
 
 // Cancel asks the agent to stop the turn it is on, and withdraws any question it is waiting on.
@@ -427,6 +484,7 @@ func start(asked context.Context, argv []string, agent, root string, signing sig
 	capabilities := initialized.AgentCapabilities
 	chat.History = capabilities.LoadSession && capabilities.SessionCapabilities.List != nil
 	chat.CanSignOut = capabilities.Auth.Logout != nil
+	chat.Steers = initialized.AgentInfo != nil && steering[initialized.AgentInfo.Name]
 	chat.signIn = signInMethods(argv, initialized.AuthMethods, signing.KeyWays)
 	chat.embedded = capabilities.PromptCapabilities.EmbeddedContext
 	if mcpServers == nil {

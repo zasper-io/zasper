@@ -779,7 +779,24 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    margin-left: auto;
+  }
+}
+
+// Stop, and Send at the end, where it is between turns: beside Stop while an agent that steers works.
+// From zasper-prototype's story-agent-steering.css.
+.agentComposer-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+
+  // Both at once, each its icon alone in a square: at the panel's default width that is the room agy's
+  // model needs to keep its whole name.
+  &.is-pair {
+    gap: 4px;
+
+    .z-button {
+      padding: 4px 6px;
+    }
   }
 }
 

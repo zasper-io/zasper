@@ -18,6 +18,9 @@ pipes with no agent installed.
 	/compact  compacts the conversation, 182k to 18k tokens, as Claude Code's compaction_update has it
 	notice  sends a warning notice, as Claude Code does
 	plan   writes a plan for the reader outside the project, as Antigravity's Plan mode does, and links it
+	story  tells a story slowly, done in ten seconds; with ZASPER_FAKE_AGENT_STEERS set it says it is
+	       Antigravity, and a message sent meanwhile is taken into the turn as Antigravity takes one: the
+	       story's prompt is answered at once, and the turn goes on to say "steered: …"
 	question  asks two questions as one form, as Antigravity's ask_question does, and says the reply as
 	          it came; to a client that cannot show a form, it writes the questions as text instead
 	(sign-in: with ZASPER_FAKE_AGENT_SIGN_IN set, it offers three ways to sign in: its own program with
@@ -143,7 +146,14 @@ type agent struct {
 	forms bool
 	// The client's answers to the questions this agent asks itself, beside the SDK.
 	replies chan json.RawMessage
+	mu      sync.Mutex
+	// Closed when a message steers the story being told; nil when none is.
+	steered chan struct{}
+	// Stops the prompts being answered, as session/cancel stops them all.
+	stops map[*context.CancelFunc]struct{}
 }
+
+func steers() bool { return os.Getenv("ZASPER_FAKE_AGENT_STEERS") != "" }
 
 // The id of the question the agent asks, its answer caught before the SDK, which did not ask it.
 const questionID = "fake-question"
@@ -173,15 +183,21 @@ func (a *agent) catchReplies(from io.Reader) io.Reader {
 	return out
 }
 
-func (a *agent) Initialize(_ context.Context, request acp.InitializeRequest) (acp.InitializeResponse, error) {
+func (a *agent) Initialize(_ context.Context, request acp.InitializeRequest) (response acp.InitializeResponse, err error) {
 	if forms := request.ClientCapabilities.Elicitation; forms != nil && forms.Form != nil {
 		a.forms = true
 	}
+	defer func() {
+		if steers() {
+			// As Antigravity names itself, which is how Zasper knows it takes a message mid-turn.
+			response.AgentInfo = &acp.Implementation{Name: "Antigravity ACP Server", Version: "fake"}
+		}
+	}()
 	if os.Getenv("ZASPER_FAKE_AGENT_SLOW") != "" {
 		// An agent npx is still downloading: it says nothing for a long while.
 		time.Sleep(time.Minute)
 	}
-	response := acp.InitializeResponse{ProtocolVersion: acp.ProtocolVersionNumber, AgentCapabilities: acp.AgentCapabilities{
+	response = acp.InitializeResponse{ProtocolVersion: acp.ProtocolVersionNumber, AgentCapabilities: acp.AgentCapabilities{
 		LoadSession:         true,
 		SessionCapabilities: acp.SessionCapabilities{List: &acp.SessionListCapabilities{}},
 		PromptCapabilities:  acp.PromptCapabilities{EmbeddedContext: os.Getenv("ZASPER_FAKE_AGENT_PLAIN") == ""},
@@ -244,6 +260,30 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 	session := request.SessionId
 	if !signedIn() && !a.keyed {
 		return acp.PromptResponse{}, acp.NewAuthRequired(nil)
+	}
+	ctx, stop := context.WithCancel(ctx)
+	a.mu.Lock()
+	if a.stops == nil {
+		a.stops = map[*context.CancelFunc]struct{}{}
+	}
+	a.stops[&stop] = struct{}{}
+	a.mu.Unlock()
+	defer func() {
+		a.mu.Lock()
+		delete(a.stops, &stop)
+		a.mu.Unlock()
+		stop()
+	}()
+	a.mu.Lock()
+	steered := a.steered
+	if steered != nil {
+		a.steered = nil
+		close(steered)
+	}
+	a.mu.Unlock()
+	if steered != nil {
+		a.say(ctx, session, " steered: "+text)
+		return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
 	}
 	if len(request.Prompt) > 1 {
 		a.say(ctx, session, describe(request.Prompt[1:]))
@@ -348,6 +388,35 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 		a.say(ctx, session, "Here is [plan.md](file://"+plan+").")
 	case "question":
 		return a.question(ctx, session)
+	case "story":
+		var steered chan struct{}
+		if steers() {
+			steered = make(chan struct{})
+			a.mu.Lock()
+			a.steered = steered
+			a.mu.Unlock()
+		}
+		a.say(ctx, session, "Once upon a time")
+		select {
+		case <-steered:
+			// Antigravity answers the turn's first prompt the moment another comes, and goes on with it.
+		case <-ctx.Done():
+			// The SDK cancels a session's prompt as another comes for it, before that one's handler runs:
+			// a steer is told from a Stop by whether the steer follows.
+			if steered != nil {
+				select {
+				case <-steered:
+					return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
+				case <-time.After(time.Second):
+				}
+			}
+			return acp.PromptResponse{StopReason: acp.StopReasonCancelled}, nil
+		case <-time.After(10 * time.Second):
+			a.mu.Lock()
+			a.steered = nil
+			a.mu.Unlock()
+			a.say(ctx, session, ", the end.")
+		}
 	case "wait":
 		a.say(ctx, session, "waiting")
 		<-ctx.Done()
@@ -356,7 +425,14 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 	return acp.PromptResponse{StopReason: acp.StopReasonEndTurn}, nil
 }
 
-func (a *agent) Cancel(context.Context, acp.CancelNotification) error { return nil }
+func (a *agent) Cancel(context.Context, acp.CancelNotification) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for stop := range a.stops {
+		(*stop)()
+	}
+	return nil
+}
 
 func (a *agent) Authenticate(_ context.Context, request acp.AuthenticateRequest) (acp.AuthenticateResponse, error) {
 	switch request.MethodId {

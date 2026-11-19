@@ -272,6 +272,49 @@ describe('AgentPanel', () => {
     expect(socket.sent).toContainEqual({ type: 'prompt', text: 'thanks', mentions: [] });
   });
 
+  describe('a message while the agent works', () => {
+    async function working(chat: { id: string; agent: string; steers?: boolean }) {
+      startChat.mockResolvedValueOnce(chat);
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await waitFor(() => expect(FakeSocket.latest?.url).toContain(`/ws/agents/chats/${chat.id}`));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+      const socket = FakeSocket.latest;
+      socket.push({ type: 'user', text: 'Write a story' });
+      socket.push(said('Once upon a time'));
+      await screen.findByRole('button', { name: 'Stop' });
+      fireEvent.change(screen.getByLabelText('Message to the agent'), {
+        target: { value: 'make it shorter' },
+      });
+      return socket;
+    }
+
+    it('goes to an agent that steers, with Send beside Stop', async () => {
+      const socket = await working({ id: 'chat-s', agent: 'antigravity', steers: true });
+
+      expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
+      fireEvent.keyDown(screen.getByLabelText('Message to the agent'), { key: 'Enter' });
+
+      expect(socket.sent).toContainEqual({ type: 'prompt', text: 'make it shorter', mentions: [] });
+      expect(screen.getByLabelText('Message to the agent')).toHaveValue('');
+      expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    });
+
+    it('waits for the turn to end with one that does not', async () => {
+      const socket = await working({ id: 'chat-n', agent: 'claude-code' });
+
+      expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
+      fireEvent.keyDown(screen.getByLabelText('Message to the agent'), { key: 'Enter' });
+
+      expect(socket.sent.filter((message: any) => message.type === 'prompt')).toEqual([]);
+      expect(screen.getByLabelText('Message to the agent')).toHaveValue('make it shorter');
+    });
+  });
+
   describe('a document the agent wrote for the reader', () => {
     const PLAN = '/home/u/.gemini/antigravity-cli/brain/s1/plan.md';
     const written = {
