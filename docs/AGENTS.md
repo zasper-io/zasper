@@ -61,6 +61,7 @@ servers no longer running. A project not snapshotted for 30 days has its store r
 | Claude Code | `claude-agent-acp`, or `npx -y @agentclientprotocol/claude-agent-acp` when `npx` and `claude` are installed | `npm install -g @agentclientprotocol/claude-agent-acp`, and sign in once by running `claude` |
 | Codex | `codex-acp` | `npm install -g @agentclientprotocol/codex-acp` beside the `codex` CLI, and sign in once by running `codex` |
 | Antigravity CLI | `agy acp` | Google's install script (`curl -fsSL https://antigravity.google/cli/install.sh \| bash`, or `install.ps1` on Windows), and sign in once by running `agy` |
+| OpenCode | `opencode acp`, from PATH, else `~/.opencode/bin/opencode` (where its install script puts it), else the desktop app's own `opencode-cli` on a Mac | `curl -fsSL https://opencode.ai/v2/install \| bash` (its docs' download on Windows). Its free models need no sign-in; `opencode auth login` connects a provider's |
 | Any other | the command line given | |
 
 Gemini CLI is not listed: since 18 June 2026 it no longer serves personal Google accounts, and
@@ -136,7 +137,8 @@ and the row shows them as it does for a command run here.
 Antigravity CLI takes a message while it is working, into the turn it is on: a second `session/prompt`,
 which it answers along with the turn, having answered the first with `end_turn` the moment the second came.
 It says so in no capability, so Zasper knows it by the name `initialize`'s `agentInfo` gives ("Antigravity
-ACP Server"), and the chat has `steers`. For such a chat a message sent meanwhile is sent at once rather
+ACP Server"). OpenCode says it in `initialize`'s `_meta` (`steering.supported`). Either gives the chat
+`steers`. For such a chat a message sent meanwhile is sent at once rather
 than refused, and the turn ends when every message in it is answered. The panel shows Send beside Stop.
 
 ## API
@@ -144,7 +146,7 @@ than refused, and the turn ends when every message in it is answered. The panel 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/agents` | The agents Zasper knows: `id`, `name`, `vendor`, `installed`, and `install` (the command that installs one) with `then` (what to do after). |
-| `GET` | `/api/agents/chats` | The chats running, each with `history` when its agent can list and open past conversations. |
+| `GET` | `/api/agents/chats` | The chats running, each with `history` when its agent can list and open past conversations, `steers` when it takes a message mid-turn, and `sign_in_ways`, the ways its agent offers to be signed in, which the panel offers under More for an agent that names no account and cannot be signed out, as OpenCode, whose free models need no sign-in. |
 | `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other, and `"sign_in"`, the id of a way the agent carries out itself, to sign it in first, with `"key"` for a way that takes one, which is then kept. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. `403` (`sign_in_required`) with `methods` when the agent will not start until someone signs in, and `refused`, the agent's reason, when the way asked for failed. |
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |
 | `GET` | `/api/agents/chats/{id}/history?cursor=` | A page of the agent's past conversations in the project: `{"chats": [{id, title, updated, current}], "next"}`, through ACP's `session/list`. `400` for an agent that cannot. |

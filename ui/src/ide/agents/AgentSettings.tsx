@@ -1,10 +1,10 @@
 import React, { ReactNode, useRef } from 'react';
 
-import { AgentAccount, AgentMode } from '@/api';
+import { AgentAccount, AgentMode, SignInMethod } from '@/api';
 import { Icon } from '@/ide/icons';
 import { useDismissOnEscape, useDismissOnPressOutside, useMenuKeys } from '@/ide/overlays';
 import { MenuAction, MenuChoice, MenuGroup, MenuSeparator } from '@/ide/statusBar/StatusMenu';
-import { AgentSetting } from './chatLog';
+import { AgentChoiceValue, AgentSetting } from './chatLog';
 
 // The settings that get a chip of their own, in this order. Every other one is under More.
 const CHIPS = ['model', 'thought_level', 'mode'];
@@ -38,6 +38,9 @@ interface Props {
   account?: AgentAccount;
   canSignOut?: boolean;
   onSignOut?: () => void;
+  /** The agent's terminal ways of signing in, for one that names no account and has no Sign out. */
+  signInWays?: SignInMethod[];
+  onSignInWith?: (way: SignInMethod) => void;
 }
 
 /**
@@ -52,6 +55,11 @@ export default function AgentSettings(props: Props) {
   );
   const rest = settings.filter((setting) => !CHIPS.includes(setting.category));
   const signedInAs = props.account?.signed_in ? props.account.label : undefined;
+  // An agent that opens a session without signing in never asks for it, so it is offered here.
+  const ways =
+    signedInAs === undefined && !props.canSignOut
+      ? (props.signInWays ?? []).filter((way) => way.kind === 'terminal' && way.command)
+      : [];
   const close = () => onOpen(null);
 
   return (
@@ -69,7 +77,7 @@ export default function AgentSettings(props: Props) {
             onClose={close}
             help={setting.category === 'model' ? undefined : helpOf(setting)}
           >
-            {setting.values.map((value) => (
+            {grouped(setting.values, (value) => (
               <MenuChoice
                 key={value.value}
                 label={value.name}
@@ -107,7 +115,7 @@ export default function AgentSettings(props: Props) {
           ))}
         </Chip>
       )}
-      {(rest.length > 0 || signedInAs !== undefined || props.canSignOut) && (
+      {(rest.length > 0 || signedInAs !== undefined || props.canSignOut || ways.length > 0) && (
         <More
           agent={props.agentName ?? props.agent}
           settings={rest}
@@ -121,10 +129,31 @@ export default function AgentSettings(props: Props) {
             props.canSignOut ? `Sign out of ${props.agentName ?? props.agent}` : undefined
           }
           onSignOut={props.onSignOut}
+          signInWays={ways}
+          onSignInWith={props.onSignInWith}
         />
       )}
     </span>
   );
+}
+
+/** A choice's values, under a heading for each group once there is more than one. */
+function grouped(
+  values: AgentChoiceValue[],
+  draw: (value: AgentChoiceValue) => ReactNode
+): ReactNode {
+  const groups = new Set(values.map((value) => value.group));
+  if (groups.size < 2) return values.map(draw);
+  return values.map((value, index) => {
+    const starts = index === 0 || values[index - 1].group !== value.group;
+    return (
+      <React.Fragment key={value.value}>
+        {starts && index > 0 && <MenuSeparator />}
+        {starts && <MenuGroup label={value.group ?? ''} />}
+        {draw(value)}
+      </React.Fragment>
+    );
+  });
 }
 
 function nameOf(setting: AgentSetting & { kind: 'choice' }): string {
@@ -194,6 +223,8 @@ function More(props: {
   account?: string;
   signOutLabel?: string;
   onSignOut?: () => void;
+  signInWays: SignInMethod[];
+  onSignInWith?: (way: SignInMethod) => void;
 }) {
   const within = useRef<HTMLSpanElement>(null);
   useDismissOnEscape(props.onClose, props.open);
@@ -259,7 +290,9 @@ function More(props: {
                 )}
               </React.Fragment>
             ))}
-            {(props.account !== undefined || props.signOutLabel !== undefined) && (
+            {(props.account !== undefined ||
+              props.signOutLabel !== undefined ||
+              props.signInWays.length > 0) && (
               <>
                 {props.settings.length > 0 && <MenuSeparator />}
                 <MenuGroup label="Account" />
@@ -275,6 +308,17 @@ function More(props: {
                     </span>
                   </li>
                 )}
+                {props.signInWays.map((way) => (
+                  <MenuAction
+                    key={way.id}
+                    label={`${way.name} in a terminal`}
+                    icon="terminal"
+                    onSelect={() => {
+                      props.onClose();
+                      props.onSignInWith?.(way);
+                    }}
+                  />
+                ))}
                 {props.signOutLabel !== undefined && (
                   <MenuAction
                     label={props.signOutLabel}

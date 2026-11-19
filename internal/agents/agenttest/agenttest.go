@@ -32,6 +32,8 @@ pipes with no agent installed.
 	explore  starts a subagent that greps and talks, tagged with its call as Claude Code tags them, and
 	         leaves a command running in the background
 	(commands: with ZASPER_FAKE_AGENT_COMMANDS set, a session lists /echo and /compact as it opens)
+	(OpenCode: with ZASPER_FAKE_AGENT_OPENCODE set it answers as OpenCode does: no sign-in needed, though a
+	terminal way is offered, steering said in _meta, and its models named with their provider first)
 	(settings: with ZASPER_FAKE_AGENT_SETTINGS set, a model, an effort only the first model has, a mode and a
 	switch of no category; a session opened or loaded says them, and a change answers the whole set)
 
@@ -153,7 +155,11 @@ type agent struct {
 	stops map[*context.CancelFunc]struct{}
 }
 
-func steers() bool { return os.Getenv("ZASPER_FAKE_AGENT_STEERS") != "" }
+func steers() bool { return os.Getenv("ZASPER_FAKE_AGENT_STEERS") != "" || likeOpenCode() }
+
+// likeOpenCode is whether it answers as OpenCode does: a session with no sign-in, a terminal way offered
+// all the same, steering said in _meta, and models named with their provider first.
+func likeOpenCode() bool { return os.Getenv("ZASPER_FAKE_AGENT_OPENCODE") != "" }
 
 // The id of the question the agent asks, its answer caught before the SDK, which did not ask it.
 const questionID = "fake-question"
@@ -188,6 +194,14 @@ func (a *agent) Initialize(_ context.Context, request acp.InitializeRequest) (re
 		a.forms = true
 	}
 	defer func() {
+		if likeOpenCode() {
+			response.AgentInfo = &acp.Implementation{Name: "OpenCode", Version: "fake"}
+			response.Meta = map[string]any{"steering": map[string]any{"supported": true}}
+			response.AuthMethods = []acp.AuthMethod{{Terminal: &acp.AuthMethodTerminalInline{
+				Id: "fake-login", Name: "Login with fake", Type: "terminal", Args: []string{"login"},
+			}}}
+			return
+		}
 		if steers() {
 			// As Antigravity names itself, which is how Zasper knows it takes a message mid-turn.
 			response.AgentInfo = &acp.Implementation{Name: "Antigravity ACP Server", Version: "fake"}
@@ -520,6 +534,16 @@ func (a *agent) compact(ctx context.Context, session acp.SessionId) {
 
 // settings is the agent's settings as they stand: the small model has no effort.
 func (a *agent) settings() []acp.SessionConfigOption {
+	if likeOpenCode() {
+		options := acp.SessionConfigSelectOptionsUngrouped{}
+		for _, name := range []string{"fake/Large", "fake/Small", "other/Huge"} {
+			options = append(options, acp.SessionConfigSelectOption{Value: acp.SessionConfigValueId(strings.ToLower(name)), Name: name})
+		}
+		model := acp.NewSessionConfigOptionSelect("fake/large", acp.SessionConfigSelectOptions{Ungrouped: &options})
+		category := acp.SessionConfigOptionCategoryModel
+		model.Select.Id, model.Select.Name, model.Select.Category = "model", "Model", &category
+		return []acp.SessionConfigOption{model}
+	}
 	if a.values == nil {
 		return nil
 	}

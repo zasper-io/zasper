@@ -321,6 +321,14 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
           live={live}
           agentName={nameOf(chat, agents)}
           onSignOut={() => setSigningOut('asking')}
+          onSignInWith={(way) => {
+            // As the sign-in screen's terminal way: the command typed in, the terminal shown.
+            const name = `Sign in to ${nameOf(chat, agents)}`;
+            typeInTerminal({ name, line: way.command! });
+            setCurrentTerminal(name);
+            setDockTab('terminal');
+            setDockOpen(true);
+          }}
         />
       ) : signIn && !starting ? (
         <SignIn
@@ -713,11 +721,13 @@ function Conversation({
   live,
   agentName,
   onSignOut,
+  onSignInWith,
 }: {
   chat: AgentChat;
   live: ReturnType<typeof useAgentChat>;
   agentName: string;
   onSignOut: () => void;
+  onSignInWith: (way: SignInMethod) => void;
 }) {
   const { view, connected, prompt, cancel, answer, reply, setMode, setSetting } = live;
   const [settingOpen, setSettingOpen] = useState<string | null>(null);
@@ -865,6 +875,8 @@ function Conversation({
               account={view.account}
               canSignOut={chat.can_sign_out === true}
               onSignOut={onSignOut}
+              signInWays={chat.sign_in_ways}
+              onSignInWith={onSignInWith}
             />
           ) : (
             <span>Connecting…</span>
