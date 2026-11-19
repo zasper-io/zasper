@@ -7,7 +7,9 @@ nothing of it. See docs/AGENTS.md.
 package agents
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -83,6 +85,55 @@ var Known = []Agent{
 		},
 		keyWays: []string{"gemini-api-key"},
 	},
+	// Open source, with any provider's models; its own free ones need no sign-in.
+	{
+		ID:      "opencode",
+		Name:    "OpenCode",
+		Vendor:  "Open source",
+		Install: opencodeInstall(),
+		Then:    "Free models need no sign-in; to use your own, run opencode auth login.",
+		command: func() ([]string, bool) {
+			path, ok := opencodePath()
+			return []string{path, "acp"}, ok
+		},
+	},
+}
+
+// OpenCode's install script, which Windows has no counterpart to: its docs offer a download there.
+func opencodeInstall() string {
+	if runtime.GOOS == "windows" {
+		return "https://opencode.ai/docs"
+	}
+	return "curl -fsSL https://opencode.ai/v2/install | bash"
+}
+
+// opencodePath finds OpenCode where it may be installed: on PATH; where its install script puts it, which
+// is on PATH only in a shell that has read the profile the script added it to; or inside the desktop app,
+// which keeps its command to itself.
+func opencodePath() (string, bool) {
+	if path, err := exec.LookPath("opencode"); err == nil {
+		return path, true
+	}
+	var places []string
+	if home, err := os.UserHomeDir(); err == nil {
+		name := "opencode"
+		if runtime.GOOS == "windows" {
+			name = "opencode.exe"
+		}
+		places = append(places, filepath.Join(home, ".opencode", "bin", name))
+		if runtime.GOOS == "darwin" {
+			places = append(places, filepath.Join(home, "Applications", "OpenCode.app", "Contents", "Resources", "opencode-cli"))
+		}
+	}
+	if runtime.GOOS == "darwin" {
+		places = append(places, "/Applications/OpenCode.app/Contents/Resources/opencode-cli")
+	}
+	for _, place := range places {
+		if info, err := os.Stat(place); err == nil && !info.IsDir() {
+			return place, true
+		}
+	}
+	return "opencode", false
 }
 
 // Google ships agy by an install script, one per shell.

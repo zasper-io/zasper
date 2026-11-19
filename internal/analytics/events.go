@@ -122,7 +122,7 @@ var fileExtensions = enum(
 
 // The agents Zasper knows by id, and "other" for any started by its own command line, which is the
 // user's and never travels.
-var agentKinds = enum("claude-code", "codex", "antigravity", "other")
+var agentKinds = enum("claude-code", "codex", "antigravity", "opencode", "other")
 
 // ACP's stop reasons, and "error" for a turn the agent failed.
 var agentStopReasons = enum("end_turn", "cancelled", "max_tokens", "max_turn_requests", "refusal", "error", "other")

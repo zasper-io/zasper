@@ -63,7 +63,7 @@ describe('foldChat', () => {
         },
         {
           id: 't2',
-          title: 'Edit',
+          title: 'Edit a.py',
           kind: 'edit',
           status: 'pending',
           locations: ['/p/a.py'],
@@ -117,6 +117,72 @@ describe('foldChat', () => {
       null,
       undefined,
     ]);
+  });
+
+  it('names a call by its tool and its file, when the agent names it by the tool alone', () => {
+    const view = foldChat([
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'r',
+          title: 'read',
+          kind: 'read',
+          status: 'pending',
+          locations: [],
+        },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'r',
+          title: 'read',
+          status: 'in_progress',
+          locations: [{ path: '/p/src/hello.py' }],
+        },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'g',
+          title: 'grep',
+          kind: 'search',
+          status: 'completed',
+          locations: [{ path: '/p/a.py' }, { path: '/p/b.py' }],
+        },
+      },
+    ]);
+
+    const tools = view.items[0];
+    expect(tools.kind === 'tools' && tools.calls.map((call) => call.title)).toEqual([
+      'read hello.py',
+      'grep',
+    ]);
+
+    // Its permission request names the call by the file alone, which says it already.
+    const asked = foldChat([
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'e',
+          title: 'edit',
+          kind: 'edit',
+          locations: [{ path: '/p/hello.py' }],
+        },
+      },
+      {
+        type: 'permission',
+        permission: {
+          id: 'q',
+          request: { toolCall: { toolCallId: 'e', title: 'hello.py' }, options: [] },
+        },
+      },
+    ]);
+    const edit = asked.items[0];
+    expect(edit.kind === 'tools' && edit.calls[0].title).toBe('hello.py');
   });
 
   it('draws the agent’s form as questions under the call that asks, and its reply beside it', () => {
@@ -507,7 +573,7 @@ describe('foldChat', () => {
     ).toEqual([]);
   });
 
-  it('keeps the agent’s settings as it last sent them, a group’s values in one list', () => {
+  it('keeps the agent’s settings as it last sent them, each value with its group', () => {
     const view = foldChat([
       {
         type: 'settings',
@@ -540,8 +606,8 @@ describe('foldChat', () => {
         category: 'model',
         value: 'b',
         values: [
-          { value: 'b', name: 'B' },
-          { value: 'c', name: 'C' },
+          { value: 'b', name: 'B', group: 'Fast' },
+          { value: 'c', name: 'C', group: 'Slow' },
         ],
       },
       {

@@ -69,13 +69,19 @@ function docOf(update: { rawInput?: any }, call: ToolCall): AgentDoc | undefined
 
 /**
  * A call's title as the reader reads it. An agent that names a file outside the project by its path
- * from the project gets `File ../../../../Users/…/plan.md`; the file's own name says as much.
+ * from the project gets `File ../../../../Users/…/plan.md`; the file's own name says as much. OpenCode
+ * names a call by its tool alone, `read`, the file in its locations: the two together say what it did.
  */
 function titleOf(title: string, locations: string[]): string {
   const outside = /(?:\.\.\/)+\S+/;
-  return locations.length > 0 && outside.test(title)
-    ? title.replace(outside, baseName(locations[0]))
-    : title;
+  if (locations.length > 0 && outside.test(title)) {
+    return title.replace(outside, baseName(locations[0]));
+  }
+  const file = locations.length === 1 ? baseName(locations[0]) : '';
+  if (file && /^\S+$/.test(title) && !title.includes(file)) {
+    return `${title} ${file}`;
+  }
+  return title;
 }
 
 /** Every call, those a subagent made under the call that started it included. */
@@ -167,6 +173,9 @@ export interface PlanEntry {
   status: string;
 }
 
+/** One value of a choice, with the group it is listed under, when it has one. */
+export type AgentChoiceValue = AgentSettingValue & { group?: string };
+
 /** One of the agent's settings: a choice of values, or a switch. */
 export type AgentSetting =
   | {
@@ -176,7 +185,7 @@ export type AgentSetting =
       description?: string;
       category: string;
       value: string;
-      values: AgentSettingValue[];
+      values: AgentChoiceValue[];
     }
   | {
       kind: 'switch';
@@ -240,10 +249,21 @@ function settingOf(option: AgentSettingOption): AgentSetting | undefined {
   if (typeof option.currentValue !== 'string') {
     return undefined;
   }
-  const values = (option.options ?? []).flatMap((entry) =>
-    'group' in entry ? entry.options : [entry]
+  const values = (option.options ?? []).flatMap((entry): AgentChoiceValue[] =>
+    'group' in entry
+      ? entry.options.map((value) => ({ ...value, group: entry.name }))
+      : [providerOf(entry, option.category)]
   );
   return { kind: 'choice', ...common, value: option.currentValue, values };
+}
+
+/**
+ * A model OpenCode names with its provider first, `opencode/Big Pickle`, by its own name under its
+ * provider. zasper-prototype's story-agent-opencode.html draws it.
+ */
+function providerOf(value: AgentSettingValue, category?: string | null): AgentChoiceValue {
+  const named = category === 'model' ? /^([^/\s]+)\/(.+)$/.exec(value.name) : null;
+  return named ? { ...value, name: named[2], group: named[1] } : value;
 }
 
 function textOf(content: unknown): string {

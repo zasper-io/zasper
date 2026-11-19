@@ -364,3 +364,28 @@ test('a message sent while an agent that steers works goes into the turn it is o
   await expect(chat.locator('.agentMsg.is-user')).toHaveText(['story', 'make it shorter']);
   await expect(page.getByRole('button', { name: 'Stop' })).toHaveCount(0);
 });
+
+test('an agent that needs no sign-in names its models by provider, and offers its sign-in under More', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(`${fakeAgentBinary} --opencode`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(page.getByLabel('Message to the agent')).toBeEditable();
+
+  await page.getByRole('button', { name: 'Model: Large' }).click();
+  const models = page.getByRole('menu', { name: 'Model' });
+  await expect(models.getByText('fake', { exact: true })).toBeVisible();
+  await expect(models.getByText('other', { exact: true })).toBeVisible();
+  await expect(models.getByRole('menuitemradio', { name: 'Huge' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: /^More settings for / }).click();
+  await page.getByRole('menuitem', { name: 'Login with fake in a terminal' }).click();
+  await expect(page.locator('.xterm-rows')).toContainText('Signed in to the fake agent.', {
+    timeout: 15000,
+  });
+  // The marker its login leaves would sign in the agents the journeys after this one start signed out.
+  rmSync(join(homeDir, '.zasper-fake-agent-signed-in'), { force: true });
+});

@@ -70,7 +70,7 @@ And the values those properties may take:
 - **`command_id`** — the command's own id, such as `notebook:run-cell-and-advance`. These are
   identifiers written in Zasper's source, never anything you typed.
 - **`theme_id`** — one of the eight themes that ship with Zasper.
-- **`agent`** — `claude-code`, `codex`, `antigravity`, or `other` for an agent started by its own
+- **`agent`** — `claude-code`, `codex`, `antigravity`, `opencode`, or `other` for an agent started by its own
   command line, which is never sent.
 - **`reason`** — `not_installed`, `cancelled` or `failed`.
 - **`stop_reason`** — how a turn ended, as the agent says: `end_turn`, `cancelled`, `max_tokens`,

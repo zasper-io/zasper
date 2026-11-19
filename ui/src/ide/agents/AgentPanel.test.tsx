@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/api';
@@ -455,6 +455,73 @@ describe('AgentPanel', () => {
       await screen.findByRole('button', { name: ZASPER_MODE });
       return FakeSocket.latest;
     };
+
+    it('names a model by its own name, under its provider once there is more than one', async () => {
+      const socket = await connect();
+      const models = (...names: string[]) => ({
+        type: 'settings',
+        settings: [
+          {
+            id: 'model',
+            name: 'Model',
+            category: 'model',
+            type: 'select',
+            currentValue: 'opencode/big-pickle',
+            options: names.map((name) => ({ value: name.toLowerCase().replace(/ /g, '-'), name })),
+          },
+        ],
+      });
+
+      socket.push(models('opencode/Beam Free', 'opencode/Big Pickle'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Model: Big Pickle' }));
+      let menu = screen.getByRole('menu', { name: 'Model' });
+      expect(
+        within(menu)
+          .getAllByRole('menuitemradio')
+          .map((item) => item.textContent)
+      ).toEqual(['Beam Free', 'Big Pickle']);
+      expect(within(menu).queryByText('opencode')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Model: Big Pickle' }));
+
+      socket.push(models('opencode/Big Pickle', 'anthropic/Claude Sonnet 5.5'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Model: Big Pickle' }));
+      menu = screen.getByRole('menu', { name: 'Model' });
+      expect(within(menu).getByText('opencode')).toBeInTheDocument();
+      expect(within(menu).getByText('anthropic')).toBeInTheDocument();
+      expect(
+        within(menu).getByRole('menuitemradio', { name: 'Claude Sonnet 5.5' })
+      ).toBeInTheDocument();
+    });
+
+    it('offers an agent’s sign-in under More when it opens a session without one', async () => {
+      startChat.mockResolvedValueOnce({
+        id: 'chat-1',
+        agent: 'opencode',
+        sign_in_ways: [
+          {
+            id: 'opencode-login',
+            name: 'Login with opencode',
+            kind: 'terminal',
+            command: 'opencode acp --login',
+          },
+        ],
+      });
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+          <Pending />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+
+      fireEvent.click(screen.getByRole('button', { name: /^More settings for/ }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Login with opencode in a terminal' }));
+
+      expect(Object.values(JSON.parse(screen.getByTestId('pending').textContent!))).toEqual([
+        ['opencode acp --login\r'],
+      ]);
+    });
 
     it('draws a chip for the model, the effort and the mode, in that order, and the rest under More', async () => {
       const socket = await connect();

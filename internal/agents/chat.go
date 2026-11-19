@@ -117,6 +117,9 @@ type Chat struct {
 	CanSignOut bool `json:"can_sign_out"`
 	// The agent takes a message while it works, into the turn it is on: see steering.
 	Steers bool `json:"steers"`
+	// The ways the agent offers to be signed in, for one that never needs it to open a session and so
+	// never asks: OpenCode, whose own free models need none.
+	SignInWays []SignInMethod `json:"sign_in_ways,omitempty"`
 	// The way whose key Zasper keeps for the agent, which signing out forgets.
 	KeptKey string `json:"kept_key,omitempty"`
 
@@ -276,11 +279,19 @@ func (c *Chat) Prompt(text string, mentions ...Mention) error {
 
 /*
 steering names the agents that take a message while they work, folding it into the turn they are on, by
-the name they give in `initialize`'s agentInfo: none says so in its capabilities. Antigravity CLI takes
+the name they give in `initialize`'s agentInfo, as Antigravity says so nowhere, or by what `initialize`'s
+_meta says (`steering.supported`), as OpenCode says it. Antigravity CLI takes
 it as a second session/prompt, answers the first at once with end_turn, and goes on with the turn; the
 last prompt's answer comes when the turn is over.
 */
 var steering = map[string]bool{"Antigravity ACP Server": true}
+
+// saysItSteers is whether `initialize`'s _meta says the agent steers, as OpenCode's does.
+func saysItSteers(meta map[string]any) bool {
+	steering, _ := meta["steering"].(map[string]any)
+	supported, _ := steering["supported"].(bool)
+	return supported
+}
 
 // inFlight is a turn on its way: how many of the prompts sent in it are unanswered, and the answer to
 // the last to be answered, which is the turn's.
@@ -484,8 +495,9 @@ func start(asked context.Context, argv []string, agent, root string, signing sig
 	capabilities := initialized.AgentCapabilities
 	chat.History = capabilities.LoadSession && capabilities.SessionCapabilities.List != nil
 	chat.CanSignOut = capabilities.Auth.Logout != nil
-	chat.Steers = initialized.AgentInfo != nil && steering[initialized.AgentInfo.Name]
+	chat.Steers = initialized.AgentInfo != nil && steering[initialized.AgentInfo.Name] || saysItSteers(initialized.Meta)
 	chat.signIn = signInMethods(argv, initialized.AuthMethods, signing.KeyWays)
+	chat.SignInWays = chat.signIn
 	chat.embedded = capabilities.PromptCapabilities.EmbeddedContext
 	if mcpServers == nil {
 		mcpServers = []acp.McpServer{}
