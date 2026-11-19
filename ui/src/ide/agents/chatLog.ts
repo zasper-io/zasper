@@ -36,6 +36,22 @@ export interface ToolCall {
   background?: boolean;
   /** A document it wrote for the reader, such as a plan, to open in a tab of its own. */
   doc?: AgentDoc;
+  /** The subagent it sent off to work in the background, as OpenCode does. */
+  subagent?: Subagent;
+}
+
+/** A subagent working in a session of its own, which goes on after the call that started it. */
+export interface Subagent {
+  /** Its session, once the agent has said. */
+  session?: string;
+  /** Its kind, as the agent names it: explore. */
+  agent: string;
+  task: string;
+  /** created, running, completed, failed or interrupted, once it has reported. */
+  status?: string;
+  error?: string;
+  /** What it said after its last call, which is what it hands back. */
+  report: string;
 }
 
 /** A document an agent wrote for the reader: its file, and its text as written. */
@@ -72,10 +88,14 @@ function docOf(update: { rawInput?: any }, call: ToolCall): AgentDoc | undefined
  * from the project gets `File ../../../../Users/…/plan.md`; the file's own name says as much. OpenCode
  * names a call by its tool alone, `read`, the file in its locations: the two together say what it did.
  */
-function titleOf(title: string, locations: string[]): string {
+function titleOf(title: string, locations: string[], input?: any): string {
   const outside = /(?:\.\.\/)+\S+/;
   if (locations.length > 0 && outside.test(title)) {
     return title.replace(outside, baseName(locations[0]));
+  }
+  // A search OpenCode names by its tool alone, its place the folder searched: what it looked for says more.
+  if (/^\S+$/.test(title) && typeof input?.pattern === 'string') {
+    return `${title} ${input.pattern}`;
   }
   const file = locations.length === 1 ? baseName(locations[0]) : '';
   if (file && /^\S+$/.test(title) && !title.includes(file)) {
@@ -96,6 +116,82 @@ function allCalls(calls: ToolCall[]): ToolCall[] {
 function parentOf(update: { _meta?: any }): string | undefined {
   const parent = update._meta?.claudeCode?.parentToolUseId;
   return typeof parent === 'string' ? parent : undefined;
+}
+
+/** A subagent's kind as a name: explore is Explore. */
+export function subagentName(subagent: Subagent): string {
+  return subagent.agent.charAt(0).toUpperCase() + subagent.agent.slice(1);
+}
+
+/**
+ * The subagent an OpenCode `subagent` call sends off: its input names it and its task, and once the call
+ * has answered, its output names its session.
+ */
+function subagentOf(
+  update: { rawInput?: any; rawOutput?: any },
+  call: ToolCall
+): Subagent | undefined {
+  const input = update.rawInput;
+  let found = call.subagent;
+  if (
+    found === undefined &&
+    typeof input?.agent === 'string' &&
+    typeof input?.description === 'string'
+  ) {
+    found = { agent: input.agent, task: input.description, report: '' };
+  }
+  const session = update.rawOutput?.metadata?.sessionID;
+  if (found !== undefined && typeof session === 'string') {
+    found.session = session;
+  }
+  return found;
+}
+
+/**
+ * Names a call that sends a subagent off by the subagent and its task, and shows what it hands back, not
+ * the agent's note to itself that it is working.
+ */
+function nameSubagent(call: ToolCall, update: { rawInput?: any; rawOutput?: any }) {
+  const subagent = subagentOf(update, call);
+  if (subagent === undefined) {
+    return;
+  }
+  call.subagent = subagent;
+  call.title = `${subagentName(subagent)} · ${subagent.task}`;
+  call.output = subagent.report;
+}
+
+/** The subagent session an update is from, as OpenCode marks one, with the task it was given. */
+function childOf(update: { _meta?: any }): { id: string; title?: string } | undefined {
+  const child = update._meta?.['opencode/child-session'];
+  if (typeof child?.id !== 'string') {
+    return undefined;
+  }
+  return { id: child.id, ...(typeof child.title === 'string' ? { title: child.title } : {}) };
+}
+
+/**
+ * The call that sent the subagent off: by its session, or before the call has said it, by its task.
+ */
+function subagentCall(items: ChatItem[], session: string, task?: string): ToolCall | undefined {
+  const calls = items.flatMap((item) => (item.kind === 'tools' ? allCalls(item.calls) : []));
+  const found =
+    calls.find((call) => call.subagent?.session === session) ??
+    calls.find(
+      (call) => call.subagent && call.subagent.session === undefined && call.subagent.task === task
+    );
+  if (found?.subagent) {
+    found.subagent.session = session;
+  }
+  return found;
+}
+
+/** A subagent's call as named without the task OpenCode puts before it: `grep`, not `Find calls: grep`. */
+function ownTitle(update: { title?: string; _meta?: any }): string | undefined {
+  const task = childOf(update)?.title;
+  return task && update.title?.startsWith(`${task}: `)
+    ? update.title.slice(task.length + 2)
+    : update.title;
 }
 
 // A command the agent started and went on without, as Claude Code's Bash has it.
@@ -369,6 +465,17 @@ export function foldChat(events: ChatEvent[]): ChatView {
         item.kind === 'compaction' && item.id === id
     );
   const last = () => items[items.length - 1];
+  // A turn has just ended: what the agent says next is a message of its own, never run on from the last.
+  let ended = false;
+  /** The call a subagent's update belongs under, as Claude Code tags it or OpenCode marks it. */
+  const parentCall = (update: { _meta?: any }): ToolCall | undefined => {
+    const tagged = parentOf(update);
+    if (tagged) {
+      return findCall(items, tagged);
+    }
+    const child = childOf(update);
+    return child && subagentCall(items, child.id, child.title);
+  };
   const terminals = new Map<string, Terminal>();
   /** The calls a question is open on, by the question's id. */
   const asking = new Map<string, string>();
@@ -437,23 +544,36 @@ export function foldChat(events: ChatEvent[]): ChatView {
           case 'agent_message_chunk':
           case 'agent_thought_chunk': {
             // A subagent's words are its own: what it hands back is its call's output.
-            if (parentOf(update) && findCall(items, parentOf(update)!)) {
+            const parent = parentCall(update);
+            if (parent) {
+              if (parent.subagent && update.sessionUpdate === 'agent_message_chunk') {
+                parent.subagent.report += textOf(update.content);
+                parent.output = parent.subagent.report;
+              }
+              break;
+            }
+            if (childOf(update)) {
               break;
             }
             const kind = update.sessionUpdate === 'agent_message_chunk' ? 'agent' : 'thought';
             const text = textOf(update.content);
             const previous = last();
-            if (previous?.kind === kind) {
+            if (previous?.kind === kind && !ended) {
               previous.text += text;
             } else if (text !== '') {
               items.push({ kind, text });
             }
+            ended = false;
             break;
           }
           case 'tool_call': {
             const call: ToolCall = {
               id: update.toolCallId,
-              title: titleOf(update.title ?? 'Tool', locationsOf(update) ?? []),
+              title: titleOf(
+                ownTitle(update) ?? 'Tool',
+                locationsOf(update) ?? [],
+                update.rawInput
+              ),
               kind: update.kind ?? 'other',
               status: update.status ?? 'pending',
               locations: locationsOf(update) ?? [],
@@ -464,10 +584,15 @@ export function foldChat(events: ChatEvent[]): ChatView {
             call.doc = docOf(update, call);
             noteDoc(call.doc);
             fromMeta(call, update._meta);
-            const parent = parentOf(update) && findCall(items, parentOf(update)!);
+            nameSubagent(call, update);
+            const parent = parentCall(update);
             const previous = last();
             if (parent) {
               parent.calls.push(call);
+              if (parent.subagent) {
+                // What it hands back is what it says after its last call.
+                parent.subagent.report = '';
+              }
             } else if (previous?.kind === 'tools') {
               previous.calls.push(call);
             } else {
@@ -479,7 +604,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
             const call = findCall(items, update.toolCallId);
             if (call) {
               call.locations = locationsOf(update) ?? call.locations;
-              call.title = update.title ? titleOf(update.title, call.locations) : call.title;
+              const title = ownTitle(update);
+              call.title = title ? titleOf(title, call.locations, update.rawInput) : call.title;
               call.kind = update.kind ?? call.kind;
               call.status = update.status ?? call.status;
               call.background = call.background || inBackground(update) || undefined;
@@ -491,6 +617,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
               }
               call.doc = docOf(update, call);
               noteDoc(call.doc);
+              nameSubagent(call, update);
             }
             fromMeta(call, update._meta);
             break;
@@ -720,6 +847,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
       case 'turn_end':
         answering = false;
+        ended = true;
         if (event.stop_reason && event.stop_reason !== 'end_turn') {
           items.push({ kind: 'note', text: stopNote(event.stop_reason), failed: false });
         } else if (last()?.kind === 'user') {
@@ -732,6 +860,29 @@ export function foldChat(events: ChatEvent[]): ChatView {
         answering = false;
         items.push({ kind: 'note', text: event.text ?? 'Something went wrong.', failed: true });
         break;
+      case 'subagent': {
+        const reported = event.subagent;
+        const call = reported && subagentCall(items, reported.id, reported.title);
+        if (!reported || !call?.subagent) {
+          break;
+        }
+        call.subagent.status = reported.status;
+        call.subagent.error = reported.error || undefined;
+        // Done after its turn, the agent takes the conversation up again by itself: said, so the reader
+        // knows why it speaks.
+        if (!answering) {
+          const name = subagentName(call.subagent);
+          if (reported.status === 'completed') {
+            items.push({ kind: 'note', text: `${name} reported back`, failed: false });
+          } else if (reported.status === 'failed') {
+            const why = reported.error ? `: ${reported.error}` : '';
+            items.push({ kind: 'note', text: `${name} failed${why}`, failed: true });
+          } else if (reported.status === 'interrupted') {
+            items.push({ kind: 'note', text: `${name} stopped`, failed: false });
+          }
+        }
+        break;
+      }
       case 'exited':
         answering = false;
         exited = true;

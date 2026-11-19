@@ -146,6 +146,8 @@ type agent struct {
 	keyed bool
 	// The client can show a question as a form.
 	forms bool
+	// The client asked for all a subagent does, as OpenCode lets it.
+	children bool
 	// The client's answers to the questions this agent asks itself, beside the SDK.
 	replies chan json.RawMessage
 	mu      sync.Mutex
@@ -193,6 +195,7 @@ func (a *agent) Initialize(_ context.Context, request acp.InitializeRequest) (re
 	if forms := request.ClientCapabilities.Elicitation; forms != nil && forms.Form != nil {
 		a.forms = true
 	}
+	a.children, _ = request.ClientCapabilities.Meta["opencode/child-session-updates"].(bool)
 	defer func() {
 		if likeOpenCode() {
 			response.AgentInfo = &acp.Implementation{Name: "OpenCode", Version: "fake"}
@@ -402,6 +405,8 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 		a.say(ctx, session, "Here is [plan.md](file://"+plan+").")
 	case "question":
 		return a.question(ctx, session)
+	case "subagent":
+		a.subagent(ctx, session)
 	case "story":
 		var steered chan struct{}
 		if steers() {
@@ -660,4 +665,55 @@ func (a *agent) question(ctx context.Context, session acp.SessionId) (acp.Prompt
 	case <-ctx.Done():
 		return acp.PromptResponse{StopReason: acp.StopReasonCancelled}, nil
 	}
+}
+
+/*
+subagent sends an explore subagent off as OpenCode does: the call that starts it answers at once and the
+turn ends; the subagent's work comes after, to a client that asked for it, and then the agent takes the
+conversation up again by itself.
+*/
+func (a *agent) subagent(ctx context.Context, session acp.SessionId) {
+	const child = "ses_fakechild"
+	input := map[string]any{"agent": "explore", "description": "Find greet calls", "prompt": "Find every call to greet."}
+	a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "call_sub", "title": "subagent", "kind": "think", "status": "pending", "rawInput": map[string]any{}})
+	a.raw(session, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "call_sub", "title": "subagent", "kind": "think", "status": "in_progress", "rawInput": input})
+	a.raw(session, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "call_sub", "status": "completed",
+		"content":   []any{map[string]any{"type": "content", "content": map[string]any{"type": "text", "text": "The subagent is working in the background (sessionID: " + child + ")."}}},
+		"rawOutput": map[string]any{"metadata": map[string]any{"sessionID": child, "status": "running"}}})
+	a.say(ctx, session, "I have sent an explore subagent.")
+	if !a.children {
+		return
+	}
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		about := map[string]any{"rootSessionId": session, "childSessionId": child, "parentSessionId": session, "depth": 1, "title": "Find greet calls"}
+		with := func(extra map[string]any) map[string]any {
+			params := map[string]any{}
+			for key, value := range about {
+				params[key] = value
+			}
+			for key, value := range extra {
+				params[key] = value
+			}
+			return params
+		}
+		marked := map[string]any{"opencode/child-session": map[string]any{"id": child, "parentID": session, "depth": 1, "title": "Find greet calls"}}
+		update := func(update map[string]any) {
+			update["_meta"] = marked
+			a.notify("opencode/session/child_update", with(map[string]any{"type": "update", "update": update}))
+		}
+		a.notify("opencode/session/child_update", with(map[string]any{"type": "status", "status": "created"}))
+		a.notify("opencode/session/child_update", with(map[string]any{"type": "status", "status": "running"}))
+		update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "Let me search."}})
+		update(map[string]any{"sessionUpdate": "tool_call", "toolCallId": child + ":call_grep", "title": "Find greet calls: grep", "kind": "search", "status": "pending", "rawInput": map[string]any{}})
+		update(map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": child + ":call_grep", "title": "Find greet calls: grep", "kind": "search", "status": "in_progress",
+			"rawInput": map[string]any{"pattern": "greet\\(", "path": a.cwd}, "locations": []any{map[string]any{"path": a.cwd}}})
+		update(map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": child + ":call_grep", "status": "completed",
+			"content": []any{map[string]any{"type": "content", "content": map[string]any{"type": "text", "text": "Found 1 match"}}}})
+		update(map[string]any{"sessionUpdate": "usage_update", "used": 1000, "size": 200000})
+		time.Sleep(700 * time.Millisecond)
+		update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "One call: main.py line 3."}})
+		a.notify("opencode/session/child_update", with(map[string]any{"type": "status", "status": "completed"}))
+		a.say(context.Background(), session, "The subagent found one call to greet.")
+	}()
 }

@@ -1375,7 +1375,11 @@ function Tools({ calls }: { calls: ToolCall[] }) {
                   : call.locations[0] && openFile(call.locations[0])
             }
           >
-            <Icon name={call.calls.length > 0 ? 'bot' : (TOOL_ICONS[call.kind] ?? 'bot')} />
+            <Icon
+              name={
+                call.calls.length > 0 || call.subagent ? 'bot' : (TOOL_ICONS[call.kind] ?? 'bot')
+              }
+            />
             <span className="panel-row-name">{call.title}</span>
             <span className={`agentTools-status is-${status.tone}`}>{status.label}</span>
             {hasOutput && !call.doc && (
@@ -1475,6 +1479,18 @@ function Diff({ diff, onOpen }: { diff: ToolDiff; onOpen: () => void }) {
 
 /** What a row says of its call, and the colour it says it in: a command says how it ended. */
 function statusOf(call: ToolCall): { label: string; tone: string } {
+  // A subagent goes on after the call that sent it off has answered, and says how it is doing itself.
+  switch (call.subagent?.status) {
+    case 'created':
+    case 'running':
+      return call.status === 'completed'
+        ? { label: 'in the background', tone: 'in_progress' }
+        : { label: 'running', tone: 'in_progress' };
+    case 'failed':
+      return { label: 'failed', tone: 'failed' };
+    case 'interrupted':
+      return { label: 'stopped', tone: 'failed' };
+  }
   const exit = call.terminal?.exit;
   if (exit?.signal) {
     return { label: `stopped (${exit.signal})`, tone: 'failed' };
