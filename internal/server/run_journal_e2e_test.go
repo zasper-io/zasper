@@ -204,6 +204,32 @@ func TestACellRunWithNoTabOpenAnswersItsOutputAndWritesItIntoTheNotebook(t *test
 	}, 10*time.Second, 100*time.Millisecond, "the output was not written into the notebook")
 }
 
+// The tab shows an agent's run but did not ask for it, so would never save it: the server writes it.
+func TestACellRunThroughTheServerIsWrittenIntoTheNotebookWithATabOpen(t *testing.T) {
+	srv, project := testServer(t)
+	kernelName := requireKernel(t)
+	created := startSession(t, srv, project, kernelName, "notes.ipynb")
+	notebook := `{"cells": [{"cell_type": "code", "id": "c1", "metadata": {}, "source": "print('from the agent')", "outputs": [], "execution_count": null}],
+	 "metadata": {"kernelspec": {"name": "` + kernelName + `", "display_name": "Python"}}, "nbformat": 4, "nbformat_minor": 5}`
+	require.NoError(t, os.WriteFile(filepath.Join(project, "notes.ipynb"), []byte(notebook), 0o644))
+
+	tab, _, err := websocket.DefaultDialer.Dial(
+		wsURL(t, srv, "/ws/kernels/"+created.Kernel.Id+"/channels")+"?session_id="+created.Id, nil)
+	require.NoError(t, err)
+	defer tab.Close()
+	awaitReplay(t, tab)
+
+	status, body := call(t, srv, http.MethodPost, "/api/runs", map[string]any{
+		"path": "notes.ipynb", "cell_id": "c1", "client": "claude-code", "wait": 60,
+	})
+	require.Equal(t, http.StatusOK, status, "body was %s", body)
+
+	assert.Eventually(t, func() bool {
+		data, err := os.ReadFile(filepath.Join(project, "notes.ipynb"))
+		return err == nil && strings.Contains(string(data), "from the agent")
+	}, 10*time.Second, 100*time.Millisecond, "the output was not written into the notebook")
+}
+
 func TestARunOfACellTheNotebookDoesNotHaveIsNotFound(t *testing.T) {
 	srv, project := testServer(t)
 	require.NoError(t, os.WriteFile(filepath.Join(project, "notes.ipynb"),

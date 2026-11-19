@@ -127,6 +127,46 @@ describe('mergeFromDisk', () => {
     expect(mergeFromDisk(base, base, theirs, null)!.notebook.cells[0].outputs).toEqual([output]);
   });
 
+  // An agent's run, which this tab showed but did not send, so never saw the start of.
+  it('takes the file’s times for a run it wrote with the outputs this tab shows', () => {
+    const plot = [{ output_type: 'display_data', data: { 'image/png': 'iVBOR' }, metadata: {} }];
+    const shown = cell('c', 'plot()', plot);
+    shown.metadata = { tags: ['figure'], execution: { 'shell.execute_reply': '08:53' } };
+    const written = cell('c', 'plot()', plot);
+    written.metadata = {
+      tags: ['figure'],
+      execution: { 'iopub.status.busy': '09:25', 'shell.execute_reply': '09:26' },
+    };
+
+    const merged = mergeFromDisk(
+      base,
+      notebook(base.cells[0], base.cells[1], shown),
+      notebook(base.cells[0], base.cells[1], written),
+      null
+    )!;
+
+    expect(merged.notebook.cells[2].metadata).toEqual(written.metadata);
+    expect(merged.notebook.cells[2].outputs).toEqual(plot);
+  });
+
+  it('keeps its own run when the file’s outputs for the cell are not the ones it shows', () => {
+    const shown = cell('c', 'plot()', [{ output_type: 'stream', name: 'stdout', text: 'mine' }]);
+    shown.metadata = { execution: { 'shell.execute_reply': '10:00' } };
+    const written = cell('c', 'plot()', [
+      { output_type: 'stream', name: 'stdout', text: 'theirs' },
+    ]);
+    written.metadata = { execution: { 'shell.execute_reply': '09:00' } };
+
+    const merged = mergeFromDisk(
+      base,
+      notebook(base.cells[0], base.cells[1], shown),
+      notebook(base.cells[0], base.cells[1], written),
+      null
+    )!;
+
+    expect(merged.notebook.cells[2]).toBe(shown);
+  });
+
   describe('the cell holding the cursor', () => {
     const theirs = notebook(cell('a', 'load()'), cell('b', 'fit(folds=3)'), cell('c', 'plot()'));
 

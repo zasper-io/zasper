@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Provider } from 'jotai';
+import { createStore, Provider } from 'jotai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EditorState } from '@codemirror/state';
@@ -8,6 +8,7 @@ import { EditorState } from '@codemirror/state';
 import DiffTab from './DiffTab';
 import type { DiffTarget } from '@/api';
 import { FileTab } from '@/store/tabState';
+import { unsavedTabsAtom } from '@/store/unsavedState';
 
 const getDiff = vi.fn();
 
@@ -55,9 +56,9 @@ const tab: FileTab = {
   kernelspec: 'none',
 };
 
-function renderDiff(target: DiffTarget = { path: 'src/notes.txt' }) {
+function renderDiff(target: DiffTarget = { path: 'src/notes.txt' }, store = createStore()) {
   return render(
-    <Provider>
+    <Provider store={store}>
       <DiffTab data={tab} target={target} />
     </Provider>
   );
@@ -153,5 +154,32 @@ describe('DiffTab', () => {
     await waitFor(() => expect(views).toHaveLength(2));
     expect(views[1].b.doc).toBe('three\n');
     expect(destroyed).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the file has unsaved changes, and reads it again once they are saved', async () => {
+    const store = createStore();
+    const save = vi.fn(async () => store.set(unsavedTabsAtom, {}));
+    store.set(unsavedTabsAtom, { 'src/notes.txt': save });
+    renderDiff({ path: 'src/notes.txt', turn: { chat: 'c1', turn: 2 } }, store);
+    await waitFor(() => expect(views).toHaveLength(1));
+
+    // A notebook run since it was saved has its outputs in the tab, and the diff reads the file.
+    expect(
+      screen.getByText('notes.txt has unsaved changes, so Now is the file as last saved.')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save and compare' }));
+
+    await waitFor(() => expect(getDiff).toHaveBeenCalledTimes(2));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/unsaved changes/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing of unsaved changes when neither side is the file on disk', async () => {
+    const store = createStore();
+    store.set(unsavedTabsAtom, { 'src/notes.txt': vi.fn() });
+    renderDiff({ path: 'src/notes.txt', staged: true }, store);
+    await waitFor(() => expect(views).toHaveLength(1));
+
+    expect(screen.queryByText(/unsaved changes/)).not.toBeInTheDocument();
   });
 });

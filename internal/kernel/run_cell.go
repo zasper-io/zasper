@@ -13,12 +13,12 @@ var ErrKernelNotReady = errors.New("the kernel did not answer in time")
 
 /*
 Run runs code as the cell cellID on behalf of client, as a tab's run does, with no tab needed: it is in
-the run journal before it is sent, so every attached tab shows it in its cell and, with none attached,
-its outputs are written into the notebook. It answers the run once the kernel is idle again, or ctx's
+the run journal before it is sent, so every attached tab shows it in its cell, and its outputs are written
+into the notebook when it ends, whether or not a tab is attached. It answers the run once the kernel is idle again, or ctx's
 error, in which case the run carries on and is still journalled.
 */
 func (km *KernelManager) Run(ctx context.Context, cellID, client, code string) (Run, error) {
-	return km.run(ctx, cellID, client, code, false)
+	return km.run(ctx, cellID, client, code, fromServer)
 }
 
 /*
@@ -26,10 +26,10 @@ Evaluate runs code for client alone, to look at the kernel's state: its output i
 else, it is in no cell and no notebook, and it does not move the execution count or the history.
 */
 func (km *KernelManager) Evaluate(ctx context.Context, client, code string) (Run, error) {
-	return km.run(ctx, "", client, code, true)
+	return km.run(ctx, "", client, code, scratchRun)
 }
 
-func (km *KernelManager) run(ctx context.Context, cellID, client, code string, scratch bool) (Run, error) {
+func (km *KernelManager) run(ctx context.Context, cellID, client, code string, kind runKind) (Run, error) {
 	if !km.waitUp(ctx) {
 		return Run{}, ErrKernelNotReady
 	}
@@ -44,7 +44,7 @@ func (km *KernelManager) run(ctx context.Context, cellID, client, code string, s
 	request.Content = map[string]interface{}{
 		"code":             code,
 		"silent":           false,
-		"store_history":    !scratch,
+		"store_history":    kind != scratchRun,
 		"user_expressions": map[string]interface{}{},
 		// Nobody may be there to answer an input(): it fails at once rather than waiting forever.
 		"allow_stdin":   false,
@@ -57,7 +57,7 @@ func (km *KernelManager) run(ctx context.Context, cellID, client, code string, s
 	request.Metadata = metadata
 
 	done := km.awaitRun(request.Header.MsgID)
-	if err := km.execute(request, cellID, client, nil, scratch); err != nil {
+	if err := km.execute(request, cellID, client, nil, kind); err != nil {
 		km.stopAwaiting(request.Header.MsgID)
 		return Run{}, err
 	}

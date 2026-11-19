@@ -43,6 +43,9 @@ type Run struct {
 	// Code run for whoever asked and nobody else: not replayed, not written to the notebook, and marked so
 	// that a tab places it in no cell.
 	scratch bool
+	// Asked for through the server rather than by a tab, as an agent's run is: written into the notebook
+	// when it ends even with a tab open, since no tab saves what it did not ask for.
+	toFile bool
 
 	// Some of this run was published while no client was attached.
 	missed      bool
@@ -131,10 +134,19 @@ func (km *KernelManager) Unsubscribe(subscription *Subscription) {
 // BeginRun records an execute_request on its way to the kernel, so its output is kept whoever is
 // attached when it arrives, and every client can tell which cell it is for and who asked.
 func (km *KernelManager) BeginRun(msgID, cellID, client, code string) {
-	km.beginRun(msgID, cellID, client, code, false)
+	km.beginRun(msgID, cellID, client, code, fromTab)
 }
 
-func (km *KernelManager) beginRun(msgID, cellID, client, code string, scratch bool) {
+// runKind is who a run is for: a tab's, one the server was asked for, or code looked at and kept nowhere.
+type runKind int
+
+const (
+	fromTab runKind = iota
+	fromServer
+	scratchRun
+)
+
+func (km *KernelManager) beginRun(msgID, cellID, client, code string, kind runKind) {
 	if msgID == "" {
 		return
 	}
@@ -146,7 +158,10 @@ func (km *KernelManager) beginRun(msgID, cellID, client, code string, scratch bo
 	if _, ok := f.runs[msgID]; ok {
 		return
 	}
-	f.runs[msgID] = &Run{MsgID: msgID, CellID: cellID, Client: client, Code: code, Outputs: []map[string]interface{}{}, scratch: scratch}
+	f.runs[msgID] = &Run{
+		MsgID: msgID, CellID: cellID, Client: client, Code: code, Outputs: []map[string]interface{}{},
+		scratch: kind == scratchRun, toFile: kind == fromServer,
+	}
 	f.order = append(f.order, msgID)
 	if len(f.order) > maxRuns {
 		f.dropDisplays(f.order[0])
@@ -309,19 +324,24 @@ func (f *feed) fold(message *Message) *Run {
 	return nil
 }
 
-// finish ends a run, and answers it when it ended with nobody attached to see the end.
+// finish ends a run, and answers it when its outputs are to be written into the notebook: it ended with
+// nobody attached to see the end, or it was asked for through the server.
 func (f *feed) finish(run *Run) *Run {
 	run.Done = true
 	if waiter, ok := f.waiters[run.MsgID]; ok {
 		waiter <- run.snapshot()
 		delete(f.waiters, run.MsgID)
 	}
-	if !run.missed || run.scratch {
+	if run.scratch {
 		f.forget(run.MsgID)
 		return nil
 	}
-	if len(f.subscribers) == 0 {
-		finished := run.snapshot()
+	unseen := run.missed && len(f.subscribers) == 0
+	finished := run.snapshot()
+	if !run.missed {
+		f.forget(run.MsgID)
+	}
+	if unseen || run.toFile {
 		return &finished
 	}
 	return nil

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useAtomValue } from 'jotai';
 
 import {
   ApiError,
@@ -14,6 +15,7 @@ import {
 import { Icon } from '@/ide/icons';
 import IconButton from '@/ide/IconButton';
 import { FileTab } from '@/store/tabState';
+import { unsavedTabsAtom } from '@/store/unsavedState';
 import { track } from '@/telemetry/client';
 import BreadCrumb from './BreadCrumb';
 import NotebookDiff from './notebookDiff/NotebookDiff';
@@ -62,6 +64,33 @@ export default function DiffTab(props: DiffTabProps) {
   const [metadataOpen, setMetadataOpen] = useState(false);
   /** The comparison this tab has already read, so being brought forward again is not a re-read. */
   const lastRead = useRef<string>('');
+
+  /*
+   * The right side of a turn's or the working tree's diff is the file on disk, which is not what its
+   * own tab shows while that has unsaved changes: a notebook's cells run since it was saved, above all.
+   * Saved, the diff is read again.
+   */
+  const onDiskSide = turn !== undefined || (ref === undefined && staged !== true);
+  const saveTab = useAtomValue(unsavedTabsAtom)[path];
+  const unsaved = onDiskSide && saveTab !== undefined;
+  const wasUnsaved = useRef(unsaved);
+  useEffect(() => {
+    if (wasUnsaved.current && !unsaved) {
+      setReloads((count) => count + 1);
+    }
+    wasUnsaved.current = unsaved;
+  }, [unsaved]);
+  const [saving, setSaving] = useState(false);
+  const saveAndCompare = async () => {
+    setSaving(true);
+    try {
+      await saveTab!();
+    } catch (failure) {
+      setError(apiErrorMessage(failure));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // The parts of the comparison rather than the object holding them: the tab is rebuilt every time
   // another tab is activated, and re-reading a diff on every click of the tab strip is not a refresh.
@@ -210,6 +239,21 @@ export default function DiffTab(props: DiffTabProps) {
         {from !== undefined && (
           <div className="z-notice">
             <p>Renamed from {from}.</p>
+          </div>
+        )}
+        {unsaved && (
+          <div className="z-notice">
+            <p>
+              {path.split('/').pop()} has unsaved changes, so {right} is the file as last saved.
+            </p>
+            <button
+              type="button"
+              className="z-button z-button-secondary"
+              disabled={saving}
+              onClick={() => void saveAndCompare()}
+            >
+              Save and compare
+            </button>
           </div>
         )}
         {documents?.isNotebook === true && cells === undefined && (

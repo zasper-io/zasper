@@ -47,6 +47,16 @@ function fromDisk(
   return cell;
 }
 
+/**
+ * The file has written the run this tab showed, as it does for an agent's: its outputs, and its times,
+ * which a tab that did not send the run cannot see the start of.
+ */
+function withTimingOf(mine: NotebookCell, theirs: NotebookCell): NotebookCell {
+  const { execution: _, ...metadata } = mine.metadata ?? {};
+  const execution = theirs.metadata?.execution;
+  return { ...mine, metadata: execution === undefined ? metadata : { ...metadata, execution } };
+}
+
 function byId(cells: NotebookCell[]): Map<string, NotebookCell> {
   return new Map(cells.map((cell) => [cell.id, cell]));
 }
@@ -105,9 +115,17 @@ export function mergeFromDisk(
     const theirsChanged = baseCell === undefined || !sameSource(theirCell, baseCell);
     if (!theirsChanged) {
       cells.push(
-        sameOutputs(theirCell, baseCell) || !sameOutputs(mineCell, baseCell)
+        sameOutputs(theirCell, baseCell)
           ? mineCell
-          : { ...mineCell, outputs: theirCell.outputs, execution_count: theirCell.execution_count }
+          : !sameOutputs(mineCell, baseCell)
+            ? sameOutputs(mineCell, theirCell)
+              ? withTimingOf(mineCell, theirCell)
+              : mineCell
+            : {
+                ...mineCell,
+                outputs: theirCell.outputs,
+                execution_count: theirCell.execution_count,
+              }
       );
     } else if (!mineChanged) {
       if (mineCell.id === focusedCellId) {
