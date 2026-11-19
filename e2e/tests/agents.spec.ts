@@ -389,3 +389,28 @@ test('an agent that needs no sign-in names its models by provider, and offers it
   // The marker its login leaves would sign in the agents the journeys after this one start signed out.
   rmSync(join(homeDir, '.zasper-fake-agent-signed-in'), { force: true });
 });
+
+test('a subagent works on in the background after its turn, under its row, and the agent takes up what it found', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page.getByLabel('The command that starts the agent').fill(`${fakeAgentBinary} --opencode`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  const field = page.getByLabel('Message to the agent');
+  await expect(field).toBeEditable();
+
+  await field.fill('subagent');
+  await field.press('Enter');
+  const row = page.locator('.agentTools .panel-row', { hasText: 'Explore · Find greet calls' });
+  await expect(row).toContainText('in the background');
+  // The turn is over while it works: the chat is free.
+  await expect(page.getByRole('button', { name: 'Stop' })).toHaveCount(0);
+  await expect(page.locator('.agentTools .panel-row.is-nested')).toContainText('grep greet\\(');
+
+  await expect(page.getByText('Explore reported back')).toBeVisible();
+  await expect(row).toContainText('done');
+  await expect(page.getByText('The subagent found one call to greet.')).toBeVisible();
+  await row.click();
+  await expect(page.locator('.agentTools-output')).toContainText('One call: main.py line 3.');
+});

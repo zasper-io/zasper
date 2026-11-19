@@ -149,7 +149,8 @@ export interface ChatEvent {
     | 'changes'
     | 'undone'
     | 'question'
-    | 'replied';
+    | 'replied'
+    | 'subagent';
   text?: string;
   /** ACP's session/update, as the agent sent it. */
   update?: any;
@@ -197,6 +198,18 @@ export interface ChatEvent {
     required?: string[];
     action?: string;
     content?: Record<string, unknown>;
+  };
+  /** On `subagent`, a subagent the agent started, as it last reported it. */
+  subagent?: {
+    id: string;
+    /** The session that started it. */
+    parent?: string;
+    /** Its task, as the call that started it describes it. */
+    title?: string;
+    depth?: number;
+    /** created, running, completed, failed or interrupted. */
+    status: string;
+    error?: string;
   };
 }
 

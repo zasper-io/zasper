@@ -1,6 +1,9 @@
 package agents
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -67,4 +70,24 @@ func TestAChatCarriesTheWaysItsAgentOffersToSignIn(t *testing.T) {
 	}
 	assert.Equal(t, []string{"fake-login", "fake-browser", "fake-key"}, ids)
 	assert.NotEmpty(t, chat.SignInWays[0].Command, "a terminal way says what to type")
+}
+
+// A panel opened again draws the chat from the list: Send beside Stop, and the sign-in under More.
+func TestTheChatListSaysWhatAStartAnswers(t *testing.T) {
+	t.Setenv("ZASPER_FAKE_AGENT_OPENCODE", "1")
+	manager, chat, _ := fakeChat(t)
+
+	recorder := httptest.NewRecorder()
+	manager.ListHandler(recorder, httptest.NewRequest(http.MethodGet, "/api/agents/chats", nil))
+
+	var listed []map[string]any
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &listed))
+	require.Len(t, listed, 1)
+	started, err := json.Marshal(chat)
+	require.NoError(t, err)
+	var answered map[string]any
+	require.NoError(t, json.Unmarshal(started, &answered))
+	assert.Equal(t, answered, listed[0])
+	assert.Equal(t, true, listed[0]["steers"])
+	assert.NotEmpty(t, listed[0]["sign_in_ways"])
 }

@@ -141,12 +141,23 @@ ACP Server"). OpenCode says it in `initialize`'s `_meta` (`steering.supported`).
 `steers`. For such a chat a message sent meanwhile is sent at once rather
 than refused, and the turn ends when every message in it is answered. The panel shows Send beside Stop.
 
+OpenCode's subagents work in the background: the `subagent` call that sends one off answers at once with
+the subagent's session (`rawOutput.metadata.sessionID`), the turn ends, and when the subagent is done
+OpenCode takes up the conversation by itself, with no prompt. Zasper asks for all a subagent does with
+`_meta["opencode/child-session-updates"]` in `initialize`, which OpenCode then sends as an
+`opencode/session/child_update` notification whatever the turn: a status, logged as a `subagent` event,
+or one of its updates, logged as an `update` marked `_meta["opencode/child-session"]`. Only its messages,
+thoughts and calls are logged; its title, settings, usage and plan are its own session's. The panel puts
+its calls under the row that sent it off, named by the subagent and its task, *in the background* until it
+reports, and says "Explore reported back" before what the agent says next. `session/cancel` cannot reach a
+subagent after its turn.
+
 ## API
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/agents` | The agents Zasper knows: `id`, `name`, `vendor`, `installed`, and `install` (the command that installs one) with `then` (what to do after). |
-| `GET` | `/api/agents/chats` | The chats running, each with `history` when its agent can list and open past conversations, `steers` when it takes a message mid-turn, and `sign_in_ways`, the ways its agent offers to be signed in, which the panel offers under More for an agent that names no account and cannot be signed out, as OpenCode, whose free models need no sign-in. |
+| `GET` | `/api/agents/chats` | The chats running, each as a start answers it: with `history` when its agent can list and open past conversations, `can_sign_out`, `steers` when it takes a message mid-turn, `kept_key`, and `sign_in_ways`, the ways its agent offers to be signed in, which the panel offers under More for an agent that names no account and cannot be signed out, as OpenCode, whose free models need no sign-in. |
 | `POST` | `/api/agents/chats` | Start a chat with `{"agent": "claude-code"}`, or `{"command": "..."}` for any other, and `"sign_in"`, the id of a way the agent carries out itself, to sign it in first, with `"key"` for a way that takes one, which is then kept. `403` (`untrusted`) in a folder that is not trusted: an agent acts in the project. `403` (`sign_in_required`) with `methods` when the agent will not start until someone signs in, and `refused`, the agent's reason, when the way asked for failed. |
 | `DELETE` | `/api/agents/chats/{id}` | End a chat and its agent. |
 | `GET` | `/api/agents/chats/{id}/history?cursor=` | A page of the agent's past conversations in the project: `{"chats": [{id, title, updated, current}], "next"}`, through ACP's `session/list`. `400` for an agent that cannot. |
@@ -162,6 +173,9 @@ Code's `compaction_update` and `notice`, are kept as they are), `permission` (a 
 and the agent's `request`), `answered` (its answer's `option_id`, empty when withdrawn), `question` (a form the agent asks the reader to fill in, in `question`: an `id`, its `tool_call_id` when the agent named one, `message`, and `fields`, each a `name` and its JSON `schema`, in the agent's order, and `required`), `replied` (the reply to it, `question.action` `accept` with `question.content`, `decline`, or `cancel` when withdrawn), `turn_end` (with
 ACP's `stop_reason`), `error`, `exited`, `changes` (the files the turn that has just ended changed, `changes.turn` and
 `changes.files` with each `path` and `status` A, M or D), `undone` (a turn taken back, `changes.turn`),
+`subagent` (a subagent the agent sent off, as it last reported it, in `subagent`: its session `id`, the
+`parent` session, its task as `title`, `depth`, `status` `created`, `running`, `completed`, `failed` or
+`interrupted`, and an `error`),
 `account` (who the agent says it is signed in as: `account.signed_in` and its `label`), `sign_in` (the agent will not go on until someone signs in, with the ways it offers in `sign_in`, each an `id`, `name`, `description`, its `kind`, `terminal` or `agent`, `takes_key` for a way that wants a key, and for a terminal way the `command` that signs in), `title` (a reopened conversation's title as the agent listed it, in `text`, which heads the chat until the agent sends a `session_info_update` with its own: Claude Code does not send it again when it replays one), `settings` (the agent's settings, the whole set, as ACP's `configOptions` in `settings`; an agent with none
 logs none), and `terminal`: what a command run for the agent printed since
 the last, in `terminal.output` under its `terminal.id`. The last has `exited`, with `exit_code` or

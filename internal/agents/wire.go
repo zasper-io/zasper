@@ -44,6 +44,9 @@ func (c *Chat) tapUpdates(from io.Reader) io.Reader {
 			if len(line) > 0 && c.noteQuestion(line) {
 				continue
 			}
+			if len(line) > 0 && c.noteChild(line) {
+				continue
+			}
 			if len(line) > 0 {
 				c.noteUpdate(line)
 				if _, failed := in.Write(line); failed != nil {

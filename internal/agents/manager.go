@@ -168,16 +168,24 @@ func (m *Manager) CatalogueHandler(w http.ResponseWriter, _ *http.Request) {
 
 // ListHandler answers GET /api/agents/chats.
 func (m *Manager) ListHandler(w http.ResponseWriter, _ *http.Request) {
+	// What a start answers, so that a panel opened again draws the chat as the one that started it did.
 	type listed struct {
-		ID      string `json:"id"`
-		Agent   string `json:"agent"`
-		Mode    string `json:"mode"`
-		History bool   `json:"history"`
+		ID         string         `json:"id"`
+		Agent      string         `json:"agent"`
+		Mode       string         `json:"mode"`
+		History    bool           `json:"history"`
+		CanSignOut bool           `json:"can_sign_out"`
+		Steers     bool           `json:"steers"`
+		SignInWays []SignInMethod `json:"sign_in_ways,omitempty"`
+		KeptKey    string         `json:"kept_key,omitempty"`
 	}
 	m.mu.Lock()
 	chats := make([]listed, 0, len(m.chats))
 	for _, chat := range m.chats {
-		chats = append(chats, listed{ID: chat.ID, Agent: chat.Agent, Mode: chat.mode(), History: chat.History})
+		chats = append(chats, listed{
+			ID: chat.ID, Agent: chat.Agent, Mode: chat.mode(), History: chat.History,
+			CanSignOut: chat.CanSignOut, Steers: chat.Steers, SignInWays: chat.SignInWays, KeptKey: chat.KeptKey,
+		})
 	}
 	m.mu.Unlock()
 	httpx.SendJSON(w, http.StatusOK, chats)

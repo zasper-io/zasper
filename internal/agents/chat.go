@@ -54,6 +54,7 @@ Event is one entry in a chat's log, in the order things happened.
 	question    the agent asks the reader to fill in a form, in Question; answered by a `replied` with the
 	            same ID
 	replied     the reader's reply to a question, or cancel when it was withdrawn, in Question
+	subagent    a subagent the agent started, as it last reported it, in Subagent
 */
 type Event struct {
 	Seq        int             `json:"seq"`
@@ -70,6 +71,7 @@ type Event struct {
 	SignIn   []SignInMethod            `json:"sign_in,omitempty"`
 	Account  *Account                  `json:"account,omitempty"`
 	Question *Question                 `json:"question,omitempty"`
+	Subagent *Subagent                 `json:"subagent,omitempty"`
 }
 
 // Permission is a question the agent asks before acting, and its answer once there is one.
@@ -484,8 +486,9 @@ func start(asked context.Context, argv []string, agent, root string, signing sig
 			// A question the agent asks, drawn as a form: see questions.go.
 			Elicitation: &acp.ElicitationCapabilities{Form: &acp.ElicitationFormCapabilities{}},
 			// Claude Code runs its commands itself, and with this sends their output and exit code apart
-			// from the rest of the call, as it does for an editor that draws a terminal.
-			Meta: map[string]any{"terminal_output": true},
+			// from the rest of the call, as it does for an editor that draws a terminal. OpenCode sends all
+			// a subagent does: see subagents.go.
+			Meta: map[string]any{"terminal_output": true, childUpdates: true},
 		},
 	})
 	if err != nil {

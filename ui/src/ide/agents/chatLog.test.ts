@@ -881,4 +881,163 @@ describe('foldChat', () => {
       'ok\n100%\ndone'
     );
   });
+
+  describe('an OpenCode subagent, which works on after its turn', () => {
+    const child = 'ses_child';
+    const task = 'Find greet calls';
+    const marked = { _meta: { 'opencode/child-session': { id: child, depth: 1, title: task } } };
+    const input = { agent: 'explore', description: task, prompt: 'Find every call to greet.' };
+    const sentOff: ChatEvent[] = [
+      { type: 'user', text: 'find the calls to greet' },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'sub',
+          title: 'subagent',
+          kind: 'think',
+          rawInput: {},
+        },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'sub',
+          title: 'subagent',
+          status: 'in_progress',
+          rawInput: input,
+        },
+      },
+      { type: 'subagent', subagent: { id: child, title: task, status: 'created' } },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'sub',
+          status: 'completed',
+          content: [
+            {
+              type: 'content',
+              content: { type: 'text', text: 'The subagent is working in the background.' },
+            },
+          ],
+          rawOutput: { metadata: { sessionID: child, status: 'running' } },
+        },
+      },
+      said('I have sent an explore subagent.'),
+      { type: 'turn_end', stop_reason: 'end_turn' },
+      { type: 'subagent', subagent: { id: child, title: task, status: 'running' } },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'Let me search.' },
+          ...marked,
+        },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: `${child}:grep`,
+          title: `${task}: grep`,
+          kind: 'search',
+          status: 'pending',
+          ...marked,
+        },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: `${child}:grep`,
+          title: `${task}: grep`,
+          status: 'completed',
+          rawInput: { pattern: 'greet\\(' },
+          locations: [{ path: '/project' }],
+          ...marked,
+        },
+      },
+    ];
+    const reportedBack: ChatEvent[] = [
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: 'One call: main.py line 3.' },
+          ...marked,
+        },
+      },
+      { type: 'subagent', subagent: { id: child, title: task, status: 'completed' } },
+      said('It found one call.'),
+    ];
+    const callOf = (events: ChatEvent[]) =>
+      (foldChat(events).items.find((item) => item.kind === 'tools') as { calls: ToolCall[] })
+        .calls[0];
+
+    it('names the row by the subagent and its task, its calls under it by what they did', () => {
+      const call = callOf(sentOff);
+
+      expect(call.title).toBe('Explore · Find greet calls');
+      expect(call.subagent).toMatchObject({ session: child, status: 'running' });
+      expect(call.calls.map((each) => each.title)).toEqual(['grep greet\\(']);
+      // Its words before its last call are working notes, and the agent's note to itself is not shown.
+      expect(call.output).toBe('Let me search.');
+    });
+
+    it('keeps its words out of the conversation', () => {
+      const texts = foldChat(sentOff)
+        .items.filter((item) => item.kind === 'agent')
+        .map((item) => (item as { text: string }).text);
+
+      expect(texts).toEqual(['I have sent an explore subagent.']);
+    });
+
+    it('says it reported back, and what the agent says then is a message of its own', () => {
+      const view = foldChat([...sentOff, ...reportedBack]);
+
+      expect(callOf([...sentOff, ...reportedBack]).output).toBe('One call: main.py line 3.');
+      expect(view.items.slice(-2)).toEqual([
+        { kind: 'note', text: 'Explore reported back', failed: false },
+        { kind: 'agent', text: 'It found one call.' },
+      ]);
+    });
+
+    it('says why a subagent failed', () => {
+      const view = foldChat([
+        ...sentOff,
+        {
+          type: 'subagent',
+          subagent: { id: child, title: task, status: 'failed', error: 'no model' },
+        },
+      ]);
+
+      expect(view.items[view.items.length - 1]).toEqual({
+        kind: 'note',
+        text: 'Explore failed: no model',
+        failed: true,
+      });
+    });
+
+    it('notes nothing for a subagent done while its turn is still going', () => {
+      const view = foldChat([sentOff[0], ...sentOff.slice(1, 5), ...reportedBack]);
+
+      expect(view.items.some((item) => item.kind === 'note')).toBe(false);
+    });
+  });
+
+  it('never runs what the agent says after a turn onto what it said in it', () => {
+    const view = foldChat([
+      { type: 'user', text: 'go' },
+      said('Sent it off.'),
+      { type: 'turn_end', stop_reason: 'end_turn' },
+      said('It came back.'),
+    ]);
+
+    expect(view.items.slice(1)).toEqual([
+      { kind: 'agent', text: 'Sent it off.' },
+      { kind: 'agent', text: 'It came back.' },
+    ]);
+  });
 });
