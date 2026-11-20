@@ -58,6 +58,25 @@ func TestAStartRefusedForWantOfASignInAnswersTheWaysToSignIn(t *testing.T) {
 	assert.Empty(t, signIn.Refused)
 }
 
+// Claude Code's adapter opens a session signed out, saying so only once the session is answered.
+func TestAnAgentThatOpensASessionSignedOutIsRefusedAtTheStartAsOneThatWillNot(t *testing.T) {
+	manager := signInManager(t)
+	t.Setenv("ZASPER_FAKE_AGENT_OPENS_SIGNED_OUT", "1")
+
+	_, err := startFake(manager)
+
+	var signIn *SignInRequired
+	require.True(t, errors.As(err, &signIn), "got %v", err)
+	assert.Len(t, signIn.Methods, 3)
+	assert.Empty(t, manager.chats, "no chat is left behind")
+
+	require.NoError(t, agenttest.SignIn())
+	chat, err := startFake(manager)
+	require.NoError(t, err, "signed in, it starts")
+	require.NoError(t, chat.Prompt("hello"))
+	assert.Equal(t, "Hello there", agentText(waitFor(t, chat, turnEnded)))
+}
+
 func startSigningIn(manager *Manager, way string) (*Chat, error) {
 	return manager.Start(context.Background(), "", os.Args[0]+" -test.run=^$", way, "")
 }

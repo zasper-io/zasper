@@ -259,6 +259,35 @@ test('an agent not signed in is signed in from a terminal, says who it is, and s
   await expect(page.getByRole('button', { name: 'Sign in with Fake Account' })).toBeVisible();
 });
 
+test('an agent that opens a session signed out goes to signing in, not to a chat', async ({
+  page,
+}) => {
+  await openPanel(page);
+  await page.getByText('Use another ACP agent').click();
+  await page
+    .getByLabel('The command that starts the agent')
+    .fill(`${fakeAgentBinary} --needs-sign-in --opens-signed-out`);
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Sign in to fake-agent' })).toBeVisible();
+  await expect(page.getByLabel('Message to the agent')).toHaveCount(0);
+  await expect(page.locator('.agentStart .z-notice')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Sign in with Fake Account' }).click();
+  await expect(page.locator('.xterm-rows')).toContainText('Signed in to the fake agent.', {
+    timeout: 15000,
+  });
+
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByLabel('Message to the agent')).toBeEditable();
+  await page.getByRole('button', { name: /^More settings for / }).click();
+  await page.getByRole('menuitem', { name: 'Sign out of fake-agent' }).click();
+  await page
+    .getByRole('dialog', { name: 'Sign out of fake-agent?' })
+    .getByRole('button', { name: 'Sign out' })
+    .click();
+  await expect(page.getByText('Signed out of fake-agent.')).toBeVisible();
+});
+
 test('an agent signs itself in when asked, after one way it refuses, and names its plan', async ({
   page,
 }) => {

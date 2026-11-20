@@ -28,7 +28,9 @@ pipes with no agent installed.
 	takes a key in _meta.apiKey and holds it only while it runs, as Antigravity does, refusing without. Signing in leaves SignedInMarker in HOME; until then a session or a
 	prompt is refused as Authentication required, and logout takes the marker away. It says who is
 	signed in as auth/status_update, as Claude Code does, or with ZASPER_FAKE_AGENT_TIER set as
-	Antigravity does, naming its plan in the session's _meta)
+	Antigravity does, naming its plan in the session's _meta; with ZASPER_FAKE_AGENT_OPENS_SIGNED_OUT set
+	too, as Claude Code's adapter does from 0.109: it says it sends who is signed in, in _meta.authStatus,
+	says so only after the session it is asked for is answered, and opens one signed out)
 	explore  starts a subagent that greps and talks, tagged with its call as Claude Code tags them, and
 	         leaves a command running in the background
 	(commands: with ZASPER_FAKE_AGENT_COMMANDS set, a session lists /echo and /compact as it opens)
@@ -74,6 +76,8 @@ func signsIn() bool { return os.Getenv("ZASPER_FAKE_AGENT_SIGN_IN") != "" }
 
 func saysPlan() bool { return os.Getenv("ZASPER_FAKE_AGENT_TIER") != "" }
 
+func opensSignedOut() bool { return os.Getenv("ZASPER_FAKE_AGENT_OPENS_SIGNED_OUT") != "" }
+
 func signedIn() bool {
 	_, err := os.Stat(markerPath())
 	return !signsIn() || err == nil
@@ -87,7 +91,7 @@ func (a *agent) notify(method string, params any) {
 
 // sayWhoIsSignedIn sends auth/status_update as Claude Code does, the address with it.
 func (a *agent) sayWhoIsSignedIn() {
-	if signedIn() {
+	if signedIn() || a.keyed {
 		a.notify("auth/status_update", map[string]any{"state": "authenticated", "accounts": []any{
 			map[string]any{"label": "Fake Pro", "active": true, "email": "someone@example.com"},
 		}})
@@ -225,7 +229,13 @@ func (a *agent) Initialize(_ context.Context, request acp.InitializeRequest) (re
 			Id: "fake-login", Name: "Fake Account", Description: &description, Type: "terminal", Args: []string{"login"},
 		}}, {Agent: &acp.AuthMethodAgent{Id: "fake-browser", Name: "Fake Browser"}}, {Agent: &acp.AuthMethodAgent{Id: "fake-key", Name: "Fake Key"}}}
 		response.AgentCapabilities.Auth.Logout = &acp.LogoutCapabilities{}
-		if !saysPlan() {
+		if opensSignedOut() {
+			response.AgentCapabilities.Meta = map[string]any{"authStatus": map[string]any{}}
+			go func() {
+				time.Sleep(300 * time.Millisecond)
+				a.sayWhoIsSignedIn()
+			}()
+		} else if !saysPlan() {
 			a.sayWhoIsSignedIn()
 		}
 	}
@@ -233,7 +243,7 @@ func (a *agent) Initialize(_ context.Context, request acp.InitializeRequest) (re
 }
 
 func (a *agent) NewSession(_ context.Context, request acp.NewSessionRequest) (acp.NewSessionResponse, error) {
-	if !signedIn() && !a.keyed {
+	if !signedIn() && !a.keyed && !opensSignedOut() {
 		return acp.NewSessionResponse{}, acp.NewAuthRequired(nil)
 	}
 	a.cwd = request.Cwd
@@ -458,10 +468,13 @@ func (a *agent) Authenticate(_ context.Context, request acp.AuthenticateRequest)
 	case "fake-browser":
 		// The reader finishing in the browser.
 		time.Sleep(500 * time.Millisecond)
-		return acp.AuthenticateResponse{}, SignIn()
+		err := SignIn()
+		a.sayWhoIsSignedIn()
+		return acp.AuthenticateResponse{}, err
 	case "fake-key":
 		if key, _ := request.Meta["apiKey"].(string); key != "" {
 			a.keyed = true
+			a.sayWhoIsSignedIn()
 			return acp.AuthenticateResponse{}, nil
 		}
 		return acp.AuthenticateResponse{}, &acp.RequestError{Code: -32602, Message: "FAKE_KEY is not set."}

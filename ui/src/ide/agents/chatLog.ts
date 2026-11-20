@@ -312,6 +312,10 @@ export interface ChatView {
   account?: AgentAccount;
   /** The agent will not go on until someone signs in: the ways it offers. */
   signIn?: SignInMethod[];
+  /** With `signIn`, the message the agent would not take for want of it. */
+  refused?: string;
+  /** The agent has said it is signed in, so a sign-in it asks for is a second one. */
+  wasSignedIn: boolean;
   /** The documents the agent wrote for the reader, each as last written. */
   docs: AgentDoc[];
 }
@@ -450,6 +454,9 @@ export function foldChat(events: ChatEvent[]): ChatView {
   let commands: AgentCommand[] = [];
   let account: AgentAccount | undefined;
   let signIn: SignInMethod[] | undefined;
+  let refused: string | undefined;
+  let wasSignedIn = false;
+  let lastSent: string | undefined;
   // By path, so a document written again is the one document at its latest.
   const docs = new Map<string, AgentDoc>();
   const noteDoc = (doc: AgentDoc | undefined) => {
@@ -520,6 +527,7 @@ export function foldChat(events: ChatEvent[]): ChatView {
     switch (event.type) {
       case 'user':
         items.push({ kind: 'user', text: event.text ?? '', mentions: event.mentions ?? [] });
+        lastSent = event.text;
         answering = true;
         break;
       case 'update': {
@@ -791,10 +799,12 @@ export function foldChat(events: ChatEvent[]): ChatView {
       }
       case 'account':
         account = event.account;
+        wasSignedIn ||= account?.signed_in === true;
         break;
       case 'sign_in':
         answering = false;
         signIn = event.sign_in ?? [];
+        refused = lastSent;
         break;
       case 'title':
         listedTitle = event.text || undefined;
@@ -923,6 +933,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
     commands,
     account,
     signIn,
+    refused,
+    wasSignedIn,
     docs: [...docs.values()],
   };
 }

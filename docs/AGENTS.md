@@ -101,13 +101,16 @@ reader finishes, often in the browser, and Try again then starts the chat. A way
 between `initialize` and `session/new`, waiting up to ten minutes as the agent may wait on the reader in
 the browser; Cancel stops the agent. When the agent refuses, its reason is shown above the ways. A
 sign-in that runs out during a chat ends the chat the same way. The sign-in is the agent's, kept where it
-keeps it: Zasper stores none of it.
+keeps it: Zasper stores none of it. The message the agent refused is put in the field of the chat started
+once it is signed in.
 
 Claude Code offers two, both signing in through its CLI: Claude Subscription (`--cli auth login
 --claudeai`) and Anthropic Console (`--console`). It says who is signed in with `auth/status_update`,
 which the panel shows under More as the account's label, such as the plan; the address is never kept.
 It can be signed out from there (ACP's `logout`), which signs it out everywhere on the computer, and is
-asked about first.
+asked about first. Its adapter opens a session signed out and refuses only the first message, but says it
+is signed out just before or after: as it advertises `_meta.authStatus` in `initialize`, the start waits
+for that, up to five seconds, and answers as if the session had been refused.
 
 Antigravity CLI offers five: four it carries out itself, Log in with Google (it opens the browser, and
 waits on a local address for Google to send it back), Log in with Gemini Enterprise, Gemini API key and

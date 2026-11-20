@@ -161,6 +161,9 @@ type Chat struct {
 	signIn []SignInMethod
 	// The name of the way the agent was signed in with a key at the start, if it was.
 	keyed string
+	// Whether the agent last said it is signed in, once it has said; accountSaid is closed then.
+	signedIn    bool
+	accountSaid chan struct{}
 	// The conversation's title, as the agent last sent it or listed it.
 	title string
 }
@@ -447,6 +450,7 @@ func start(asked context.Context, argv []string, agent, root string, signing sig
 		questions:   map[string]chan reply{},
 		terminals:   map[string]*agentTerminal{},
 		turns:       map[int]*turn{},
+		accountSaid: make(chan struct{}),
 		checkpoints: checkpoints,
 		lifetime:    lifetime,
 		process:     process,
@@ -544,6 +548,10 @@ func start(asked context.Context, argv []string, agent, root string, signing sig
 			return nil, &SignInRequired{Agent: agent, Methods: chat.signIn, message: fmt.Sprintf("%s needs to be signed in", argv[0])}
 		}
 		return nil, fmt.Errorf("%s could not start a session: %w", argv[0], err)
+	}
+	if len(chat.signIn) > 0 && pushesAccount(capabilities.Meta) && chat.saysSignedOut(ctx) {
+		chat.close()
+		return nil, &SignInRequired{Agent: agent, Methods: chat.signIn, message: fmt.Sprintf("%s needs to be signed in", argv[0])}
 	}
 	chat.session = session.SessionId
 	chat.setSettings(session.ConfigOptions)

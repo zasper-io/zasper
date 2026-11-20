@@ -86,6 +86,8 @@ interface SignInState {
   /** The way being finished in the terminal; none while one is chosen. */
   method?: SignInMethod;
   notice?: { text: string; failed: boolean };
+  /** The message the agent would not take, for the field of the chat that starts once signed in. */
+  kept?: string;
 }
 
 const TOOL_ICONS: Record<string, IconName> = {
@@ -128,6 +130,8 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
   const [signOutError, setSignOutError] = useState('');
   // How the chat open now was started, so a sign-in it asks for can start it again.
   const startedWith = useRef<AgentInfo | string | null>(null);
+  // What the field of the chat just started begins with: the message refused for want of a sign-in.
+  const [firstDraft, setFirstDraft] = useState('');
   const typeInTerminal = useSetAtom(typeInTerminalAtom);
   const setCurrentTerminal = useSetAtom(currentTerminalAtom);
   const setDockTab = useSetAtom(dockTabAtom);
@@ -176,13 +180,14 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
           : startChat(target.id, abort.signal, way?.id, key))
       );
       startedWith.current = target;
+      setFirstDraft(signIn?.kept ?? '');
       setSignIn(null);
     } catch (failure) {
       const required = signInRequiredOf(failure);
       if (abort.signal.aborted) {
         // Given up on: back to where it was asked from, with nothing to say about it.
       } else if (required !== null && way) {
-        setSignIn({
+        setSignIn((current) => ({
           target,
           name,
           methods: required.methods,
@@ -192,7 +197,8 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
               : `${name} is still not signed in.`,
             failed: true,
           },
-        });
+          kept: current?.kept,
+        }));
       } else if (required !== null) {
         setSignIn((current) =>
           current?.method
@@ -203,7 +209,13 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
                   failed: true,
                 },
               }
-            : { target, name, methods: required.methods, notice: current?.notice }
+            : {
+                target,
+                name,
+                methods: required.methods,
+                notice: current?.notice,
+                kept: current?.kept,
+              }
         );
       } else if (isUntrusted(failure)) {
         askTrust({
@@ -229,7 +241,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
 
   /** Ends the chat, and puts the agent's ways of signing in in its place. */
   const toSignIn = useCallback(
-    (methods: SignInMethod[], notice: string) => {
+    (methods: SignInMethod[], notice: string, kept?: string) => {
       if (chat === null) return;
       const target =
         startedWith.current ?? agents?.find((agent) => agent.id === chat.agent) ?? chat.agent;
@@ -241,19 +253,28 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
         name: nameOf(chat, agents),
         methods,
         notice: { text: notice, failed: false },
+        kept,
       });
     },
     [chat, agents, setChat]
   );
 
-  // Signed out since the chat started, here or anywhere else: the agent will not go on until it is
-  // signed in again.
-  const needsSignIn = live.view.signIn;
+  // The agent will not go on until it is signed in: signed out since the chat started, here or anywhere
+  // else, or never signed in by an agent that opens a session all the same.
+  const { signIn: needsSignIn, refused, wasSignedIn } = live.view;
   useEffect(() => {
     if (needsSignIn !== undefined && chat !== null) {
-      toSignIn(needsSignIn, `${nameOf(chat, agents)} needs to be signed in again.`);
+      const name = nameOf(chat, agents);
+      toSignIn(
+        needsSignIn,
+        (wasSignedIn ? `${name} was signed out.` : `${name} needs to be signed in.`) +
+          (refused
+            ? ' Your last message was not sent: it will be in the field once you are signed in.'
+            : ''),
+        refused
+      );
     }
-  }, [needsSignIn, chat, agents, toSignIn]);
+  }, [needsSignIn, refused, wasSignedIn, chat, agents, toSignIn]);
 
   const signOut = async () => {
     if (chat === null) return;
@@ -320,6 +341,7 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
           chat={chat}
           live={live}
           agentName={nameOf(chat, agents)}
+          firstDraft={firstDraft}
           onSignOut={() => setSigningOut('asking')}
           onSignInWith={(way) => {
             // As the sign-in screen's terminal way: the command typed in, the terminal shown.
@@ -340,7 +362,10 @@ export default function AgentPanel({ hidden }: { hidden: boolean }) {
           onShowTerminal={showSignInTerminal}
           onTryAgain={() => void start(signIn.target)}
           onChooseAnother={() => setSignIn({ ...signIn, method: undefined, notice: undefined })}
-          onBack={() => setSignIn(null)}
+          onBack={() => {
+            setSignIn(null);
+            setFirstDraft('');
+          }}
         />
       ) : (
         <Picker
@@ -720,12 +745,14 @@ function Conversation({
   chat,
   live,
   agentName,
+  firstDraft,
   onSignOut,
   onSignInWith,
 }: {
   chat: AgentChat;
   live: ReturnType<typeof useAgentChat>;
   agentName: string;
+  firstDraft: string;
   onSignOut: () => void;
   onSignInWith: (way: SignInMethod) => void;
 }) {
@@ -733,7 +760,7 @@ function Conversation({
   const [settingOpen, setSettingOpen] = useState<string | null>(null);
   const docs = useChatDocs(chat.id, agentName, view.docs);
   const announcement = useChatAnnouncer(view);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(firstDraft);
   const [mentions, setMentions] = useAtom(composerMentionsAtom);
   // What is being looked for in a list above the field: a file after an @, a command after a / at the start.
   const [picking, setPicking] = useState<{ kind: 'file' | 'command'; query: string } | null>(null);
@@ -873,7 +900,7 @@ function Conversation({
               onSetMode={setMode}
               agentName={agentName}
               account={view.account}
-              canSignOut={chat.can_sign_out === true}
+              canSignOut={chat.can_sign_out === true && view.account?.signed_in !== false}
               onSignOut={onSignOut}
               signInWays={chat.sign_in_ways}
               onSignInWith={onSignInWith}
