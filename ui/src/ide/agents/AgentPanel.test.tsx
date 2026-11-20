@@ -1010,10 +1010,64 @@ describe('AgentPanel', () => {
 
       FakeSocket.latest.push({ type: 'sign_in', sign_in: WAYS });
 
-      expect(
-        await screen.findByText('Claude Code needs to be signed in again.')
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Claude Code needs to be signed in.')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Sign in to Claude Code' })).toBeInTheDocument();
+    });
+
+    it('keeps the message refused once signed out, for the chat that starts once signed in', async () => {
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+      FakeSocket.latest.push({
+        type: 'account',
+        account: { signed_in: true, label: 'Claude Pro' },
+      });
+      FakeSocket.latest.push({ type: 'user', text: 'Make greet take a greeting word.' });
+      FakeSocket.latest.push({ type: 'account', account: { signed_in: false } });
+      FakeSocket.latest.push({ type: 'sign_in', sign_in: WAYS });
+
+      expect(
+        await screen.findByText(
+          'Claude Code was signed out. Your last message was not sent: it will be in the field once you are signed in.'
+        )
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in with Claude Subscription' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+      await screen.findByRole('button', { name: ZASPER_MODE });
+      expect(screen.getByLabelText('Message to the agent')).toHaveValue(
+        'Make greet take a greeting word.'
+      );
+    });
+
+    it('offers no Sign out while the agent says it is not signed in', async () => {
+      startChat.mockResolvedValueOnce({
+        id: 'chat-1',
+        agent: 'claude-code',
+        can_sign_out: true,
+        sign_in_ways: WAYS,
+      });
+      render(
+        <Provider>
+          <AgentPanel hidden={false} />
+        </Provider>
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Start Claude Code' }));
+      await screen.findByRole('button', { name: ZASPER_MODE });
+      FakeSocket.latest.push({ type: 'account', account: { signed_in: false } });
+
+      fireEvent.click(screen.getByRole('button', { name: 'More settings for Claude Code' }));
+
+      expect(
+        screen.queryByRole('menuitem', { name: 'Sign out of Claude Code' })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: 'Claude Subscription in a terminal' })
+      ).toBeInTheDocument();
     });
 
     it('says signing out forgets the key Zasper kept', async () => {

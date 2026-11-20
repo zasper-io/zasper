@@ -3,9 +3,11 @@ package agents
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"sync"
+	"time"
 
 	acp "github.com/coder/acp-go-sdk"
 )
@@ -98,9 +100,53 @@ func (c *Chat) noteAccount(line []byte) bool {
 	if !account.SignedIn {
 		account.Label = ""
 	}
+	c.mu.Lock()
+	c.signedIn = account.SignedIn
+	select {
+	case <-c.accountSaid:
+	default:
+		close(c.accountSaid)
+	}
+	c.mu.Unlock()
 	c.record(Event{Type: "account", Account: &account})
 	return true
 }
+
+/*
+pushesAccount is whether `initialize`'s agent capabilities say the agent sends who it is signed in as
+(`_meta.authStatus`, Claude Code's), and says so as soon as it knows: silence is "cannot tell", never
+"signed out".
+*/
+func pushesAccount(meta map[string]any) bool {
+	_, ok := meta["authStatus"]
+	return ok
+}
+
+/*
+saysSignedOut is whether an agent that pushes who is signed in says it is not. Claude Code opens a
+session signed out and refuses only the first message, having said so already, from a read of its own
+that nothing waits for, so the session can be answered first: it is waited for, as long as Claude Code
+gives that read.
+*/
+func (c *Chat) saysSignedOut(ctx context.Context) bool {
+	wait, cancel := context.WithTimeout(ctx, accountWait)
+	defer cancel()
+	select {
+	case <-c.accountSaid:
+	case <-wait.Done():
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	select {
+	case <-c.accountSaid:
+		return !c.signedIn
+	default:
+		return false
+	}
+}
+
+// accountWait is how long Claude Code's adapter gives `claude auth status` to answer.
+var accountWait = 5 * time.Second
 
 // noteUpdate logs the update in a line from the agent, when the line is one. Settings change the chat
 // rather than going in the log as an update.

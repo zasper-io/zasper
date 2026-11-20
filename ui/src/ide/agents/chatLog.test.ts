@@ -872,8 +872,11 @@ describe('foldChat', () => {
 
     expect(view.account).toEqual({ signed_in: false });
     expect(view.signIn).toEqual(ways);
+    expect(view.refused).toBe('hello');
+    expect(view.wasSignedIn).toBe(true);
     expect(view.answering).toBe(false);
     expect(foldChat([{ type: 'user', text: 'hi' }]).signIn).toBeUndefined();
+    expect(foldChat([{ type: 'sign_in', sign_in: ways }])).toMatchObject({ wasSignedIn: false });
   });
 
   it('reads a command’s output without its colours, and a redrawn line as it was left', () => {

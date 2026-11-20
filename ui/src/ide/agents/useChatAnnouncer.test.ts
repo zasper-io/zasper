@@ -13,6 +13,7 @@ function view(items: ChatItem[], answering: boolean): ChatView {
     mode: 'ask',
     settings: [],
     commands: [],
+    wasSignedIn: false,
     docs: [],
   };
 }
