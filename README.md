@@ -125,6 +125,18 @@ need a modern browser, since Zasper serves its interface locally rather than bei
 desktop application. Without a kernel, Zasper still starts and the Launcher tells you what to
 install.
 
+### Install script (Linux and macOS)
+
+```sh
+curl -fsSL https://zasper.io/install.sh | sh
+```
+
+The script downloads the latest release for your machine, checks it against the release's checksums
+and installs it to `/usr/local/bin`. Without root or sudo, it installs to `~/.local/bin` instead. It
+asks nothing, so it also works in a cloud machine's user-data. Set `ZASPER_VERSION=2.1.0` to install
+a particular release, or `ZASPER_INSTALL_DIR` to choose the folder. Run it again to upgrade, and
+delete the binary to uninstall. The script is [scripts/install.sh](scripts/install.sh).
+
 ### Homebrew
 
 ```sh

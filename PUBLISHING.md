@@ -183,6 +183,17 @@ no GitHub Release and no Homebrew cask behind. Leave the tag where it is.
 
 Automatic, on tag. Nothing to do.
 
+### Install script
+
+`curl -fsSL https://zasper.io/install.sh | sh` installs the version named in `latest.json`, so step 6
+above is what moves it to a new release. Update `latest.json` only once the GitHub Release has
+its assets. Otherwise the script fails with "no release".
+
+The script is `scripts/install.sh`, and it is served from a copy at the root of
+[zasper-io.github.io](https://github.com/zasper-io/zasper-io.github.io). When the script changes,
+copy it there in the same release. `install-script.yml` tests it against a fake release and installs
+the real one on Ubuntu, Debian, Fedora, Amazon Linux and Alpine.
+
 ### Homebrew
 
 Automatic, on tag: GoReleaser writes the cask to

@@ -1,0 +1,54 @@
+name: Install script
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/install.sh'
+      - 'scripts/install_test.sh'
+      - '.github/workflows/install-script.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/install.sh'
+      - 'scripts/install_test.sh'
+      - '.github/workflows/install-script.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # Against a fake release on a local server: checksums, pinned versions, and the ways it can fail.
+  test:
+    name: Tests (${{ matrix.os }}, ${{ matrix.shell }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, shell: dash }
+          - { os: ubuntu-latest, shell: bash }
+          - { os: macos-latest, shell: sh }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: TEST_SHELL=${{ matrix.shell }} sh scripts/install_test.sh
+
+  # The real release, on the images people start cloud machines from. Through `docker run` rather
+  # than `container:`, since JavaScript actions such as checkout do not run in Alpine's musl.
+  install:
+    name: Install on ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: 'ubuntu:24.04', setup: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates' }
+          - { image: 'debian:stable-slim', setup: 'apt-get update -qq && apt-get install -y -qq curl ca-certificates' }
+          - { image: 'fedora:latest', setup: 'true' }
+          - { image: 'amazonlinux:2023', setup: 'dnf install -y -q tar gzip' }
+          - { image: 'alpine:latest', setup: 'true' }
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: |
+          docker run --rm -v "$PWD/scripts:/s:ro" "${{ matrix.image }}" sh -c \
+            '${{ matrix.setup }} >/dev/null && sh /s/install.sh && zasper --version'
