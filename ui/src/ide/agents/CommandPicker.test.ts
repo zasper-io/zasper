@@ -19,4 +19,13 @@ describe('matchCommands', () => {
     ]);
     expect(matchCommands(commands, '')).toHaveLength(4);
   });
+
+  it('puts the name typed in full first', () => {
+    const named = ['reviewer', 'review'].map((name) => ({ name, description: '' }));
+
+    expect(matchCommands(named, 'review').map((command) => command.name)).toEqual([
+      'review',
+      'reviewer',
+    ]);
+  });
 });

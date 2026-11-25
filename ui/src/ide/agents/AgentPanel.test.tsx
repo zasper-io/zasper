@@ -688,6 +688,23 @@ describe('AgentPanel', () => {
       expect(socket.sent).toContainEqual({ type: 'prompt', text: '/context', mentions: [] });
     });
 
+    it('sends a command typed in full on Enter, and completes it on Tab', async () => {
+      const socket = await connect();
+      socket.push(commands);
+
+      let field = type('/compact');
+      screen.getByRole('listbox', { name: 'Commands' });
+      fireEvent.keyDown(field, { key: 'Tab' });
+      expect(field.value).toBe('/compact ');
+      expect(socket.sent.filter((message) => message.type === 'prompt')).toEqual([]);
+
+      field = type('/compact');
+      fireEvent.keyDown(field, { key: 'Enter' });
+      expect(socket.sent).toContainEqual({ type: 'prompt', text: '/compact', mentions: [] });
+      expect(field.value).toBe('');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+
     it('draws a notice as one quiet line, and a compaction folded with its summary inside', async () => {
       const socket = await connect();
       socket.push(commands);

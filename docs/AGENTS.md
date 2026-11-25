@@ -155,6 +155,13 @@ its calls under the row that sent it off, named by the subagent and its task, *i
 reports, and says "Explore reported back" before what the agent says next. `session/cancel` cannot reach a
 subagent after its turn.
 
+Claude Code's subagents work within the turn, every update tagged with the call that started it
+(`_meta.claudeCode.parentToolUseId`). A subagent hands its report back with a call of its own,
+`SubagentHandback` (`_meta.claudeCode.toolName`), whose `rawInput.message` is the report; the call that
+started it then answers only that the report was delivered. The panel shows the report as that call's
+output and no handback row, unless the handback failed. A conversation reopened replays the call and that
+answer but not the subagent's calls, so the row says the report is not sent again.
+
 ## API
 
 | Method | Path | Purpose |
