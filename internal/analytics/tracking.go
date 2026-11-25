@@ -171,16 +171,10 @@ func SetUpPostHogClient(version string) error {
 
 	// Everything privacy-relevant is decided once, here, rather than at each call site.
 	//
-	//	$ip            empty tells PostHog to discard the source address instead of storing it or
-	//	               looking it up. It is the one identifier the transport hands over for free.
-	//	$geoip_disable the SDK already defaults this on for server-side use; set it so an SDK
-	//	               upgrade cannot quietly turn it off.
 	//	$process_person_profile
 	//	               events only. Without it PostHog builds a person record per distinct id and
 	//	               starts accumulating properties against it.
 	defaults := posthog.NewProperties().
-		Set("$ip", "").
-		Set("$geoip_disable", true).
 		Set("$process_person_profile", false).
 		Set("zasper_version", strings.TrimSpace(version)).
 		Set("os", runtime.GOOS).
@@ -188,8 +182,9 @@ func SetUpPostHogClient(version string) error {
 		Set("source", "web")
 
 	newClient, err := posthog.NewWithConfig(phAPIKey(), posthog.Config{
-		Endpoint:               endpoint,
-		DisableGeoIP:           posthog.Ptr(true),
+		Endpoint: endpoint,
+		// The SDK turns GeoIP off when this is left unset (from posthog-go 1.5.8).
+		DisableGeoIP:           posthog.Ptr(false),
 		DefaultEventProperties: defaults,
 	})
 	if err != nil {

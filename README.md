@@ -532,8 +532,8 @@ The server writes logs to standard output. Run it with `--debug` to raise the lo
 
 Zasper sends a small amount of anonymous usage data: counts of things like notebooks opened, cells
 run, terminals started and which kind of coding agent was used. It never sends file names, paths,
-code, project names, anything said to or by an agent, your username or your IP address, and there
-is no session recording or autocapture.
+code, project names, anything said to or by an agent or your username, and there is no session
+recording or autocapture.
 [PRIVACY.md](PRIVACY.md) lists every event and every property, and explains how the allowlist that
 enforces it works. To turn tracking off:
 

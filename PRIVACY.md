@@ -12,8 +12,6 @@ This document is the complete list. If something is not on it, Zasper does not s
 - The contents of any notebook, cell, file, or terminal
 - Git branch names, remote URLs, commit messages, or diffs
 - Kernel or environment names, which are often named after a person or a client
-- Your IP address — every event carries `$ip: ""` and `$geoip_disable: true`, which tells PostHog to
-  discard the source address rather than store it or look up a location from it
 
 There is no session recording, no autocapture and no tracking cookie. The one cookie is the session
 that keeps you signed in, which goes only to your own Zasper server. Nothing is read from your
@@ -24,6 +22,7 @@ browser's storage for this.
 Every event carries the same six properties: your anonymous ID, the Zasper version, your OS
 (`darwin`, `linux`, `windows`), your CPU architecture, `source: web`, and a timestamp. The PostHog
 Go library adds its own name and version, the Go version Zasper was built with, and the OS version.
+PostHog also records the IP address each event comes from, and looks up a rough location (country and city) from it.
 
 | Event | When | Properties |
 |---|---|---|
@@ -172,8 +171,9 @@ The first time Zasper runs, it says in a notice that this is happening.
 
 To PostHog Cloud (US region, `us.i.posthog.com`), under
 [PostHog's data processing agreement](https://posthog.com/dpa). PostHog acts as the processor; I am
-the controller. Because your IP is discarded on receipt and the ID is random, the data is not
-associated with an identifiable person.
+the controller. The ID is random, but PostHog stores the IP address each event comes from, which is
+personal data under GDPR. It is collected on the basis of legitimate interest, and turning tracking
+off stops it.
 
 ## How this is enforced
 

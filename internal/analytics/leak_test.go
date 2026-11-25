@@ -157,10 +157,12 @@ func TestNothingIdentifyingReachesTheWire(t *testing.T) {
 
 	// And the privacy defaults really are on the wire, rather than merely configured.
 	compact := strings.ReplaceAll(captured, " ", "")
-	for _, needle := range []string{`"$ip":""`, `"$geoip_disable":true`, `"$process_person_profile":false`} {
-		if !strings.Contains(compact, needle) {
-			t.Errorf("the payload is missing %s", needle)
-		}
+	if !strings.Contains(compact, `"$process_person_profile":false`) {
+		t.Errorf(`the payload is missing "$process_person_profile":false`)
+	}
+	// GeoIP is wanted, and the SDK turns it off unless told not to.
+	if strings.Contains(compact, `"$geoip_disable":true`) {
+		t.Errorf(`the payload turns GeoIP off with "$geoip_disable":true`)
 	}
 }
 
