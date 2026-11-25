@@ -192,10 +192,10 @@ func (ts *Terminals) HandleWebSocket(w http.ResponseWriter, req *http.Request) {
 		waiter.Done()
 		closeDone.Do(func() { close(done) })
 		// Out of the map here rather than in cleanupTTY, which runs only once all three have stopped:
-		// the shell is dead from the line below, and a terminal listed for as long as the keep-alive
-		// takes to notice is a row the panel offers to shut down twice.
-		ts.unregister(sessionID)
+		// a terminal listed for as long as the keep-alive takes to notice is a row the panel offers to
+		// shut down twice. Killed and reaped first, so a terminal gone from the list is a shell gone.
 		session.stop()
+		ts.unregister(sessionID)
 		connection.Close()
 	}
 
