@@ -782,6 +782,7 @@ function Conversation({
     prompt(text, mentions);
     setDraft('');
     setMentions([]);
+    setPicking(null);
   };
 
   // A word being typed after an @ is a file to find; one after a / that starts the message, a command.

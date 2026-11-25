@@ -38,6 +38,8 @@ export interface ToolCall {
   doc?: AgentDoc;
   /** The subagent it sent off to work in the background, as OpenCode does. */
   subagent?: Subagent;
+  /** The report its subagent handed back, as Claude Code's do: its output, whatever the call answers. */
+  handedBack?: string;
 }
 
 /** A subagent working in a session of its own, which goes on after the call that started it. */
@@ -192,6 +194,51 @@ function ownTitle(update: { title?: string; _meta?: any }): string | undefined {
   return task && update.title?.startsWith(`${task}: `)
     ? update.title.slice(task.length + 2)
     : update.title;
+}
+
+/*
+A Claude Code subagent hands its report back with a call of its own, whose input is the report; the call
+that started the subagent then answers only that it was delivered. The report is that call's output, and
+the handback is no row of its own, unless it failed.
+*/
+const HANDBACK = 'SubagentHandback';
+
+/*
+A conversation reopened has no handback: Claude Code replays the call that started the subagent, and its
+answer that the report was delivered by one, but not the subagent's calls.
+*/
+const NOT_REPLAYED =
+  'Its report went to Claude Code, which does not send it again in a conversation reopened.';
+
+function deliveredNote(output: string): boolean {
+  return /\bSubagentHandback\b/.test(output);
+}
+
+function isHandback(update: { _meta?: any }): boolean {
+  return update._meta?.claudeCode?.toolName === HANDBACK;
+}
+
+function handBack(
+  parent: ToolCall,
+  update: { toolCallId: string; status?: string; rawInput?: any }
+) {
+  const report = update.rawInput?.message;
+  if (typeof report === 'string' && report.trim() !== '') {
+    parent.handedBack = report;
+    parent.output = report;
+  }
+  if (update.status === 'failed' && !parent.calls.some((call) => call.id === update.toolCallId)) {
+    parent.calls.push({
+      id: update.toolCallId,
+      title: 'Hand back the report',
+      kind: 'other',
+      status: 'failed',
+      locations: [],
+      output: '',
+      diffs: [],
+      calls: [],
+    });
+  }
 }
 
 // A command the agent started and went on without, as Claude Code's Bash has it.
@@ -474,6 +521,8 @@ export function foldChat(events: ChatEvent[]): ChatView {
   const last = () => items[items.length - 1];
   // A turn has just ended: what the agent says next is a message of its own, never run on from the last.
   let ended = false;
+  // The handbacks seen, by their id, with the call each hands back to.
+  const handbacks = new Map<string, ToolCall>();
   /** The call a subagent's update belongs under, as Claude Code tags it or OpenCode marks it. */
   const parentCall = (update: { _meta?: any }): ToolCall | undefined => {
     const tagged = parentOf(update);
@@ -575,6 +624,12 @@ export function foldChat(events: ChatEvent[]): ChatView {
             break;
           }
           case 'tool_call': {
+            const handedTo = isHandback(update) ? parentCall(update) : undefined;
+            if (handedTo) {
+              handbacks.set(update.toolCallId, handedTo);
+              handBack(handedTo, update);
+              break;
+            }
             const call: ToolCall = {
               id: update.toolCallId,
               title: titleOf(
@@ -609,6 +664,11 @@ export function foldChat(events: ChatEvent[]): ChatView {
             break;
           }
           case 'tool_call_update': {
+            const handedTo = handbacks.get(update.toolCallId);
+            if (handedTo) {
+              handBack(handedTo, update);
+              break;
+            }
             const call = findCall(items, update.toolCallId);
             if (call) {
               call.locations = locationsOf(update) ?? call.locations;
@@ -619,7 +679,9 @@ export function foldChat(events: ChatEvent[]): ChatView {
               call.background = call.background || inBackground(update) || undefined;
               const content = contentOf(update.content);
               if (content) {
-                call.output = content.output;
+                call.output =
+                  call.handedBack ??
+                  (deliveredNote(content.output) ? NOT_REPLAYED : content.output);
                 call.diffs = content.diffs;
                 call.terminalId = content.terminalId ?? call.terminalId;
               }

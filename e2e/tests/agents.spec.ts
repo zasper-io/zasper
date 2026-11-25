@@ -183,8 +183,9 @@ test('a notice is one quiet line, and a compaction folds with its summary inside
   await expect(chat.getByText('noticed')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send' })).toBeVisible();
 
+  // Typed in full, Enter sends it rather than picking it from the list.
   await field.fill('/compact');
-  await field.press('Escape');
+  await expect(page.getByRole('listbox', { name: 'Commands' })).toBeVisible();
   await field.press('Enter');
   await expect(chat.getByText(/The context is 91% full\./)).toBeVisible();
   const fold = chat.locator('details.agentFold');
@@ -221,6 +222,11 @@ test('a subagent’s calls are under its row, and a command left running says so
   await expect(chat.getByRole('button', { name: /python load_raw\.py/ })).toContainText(
     'in the background'
   );
+  // Its report, handed back by a call of its own, is what its row shows; the handback is no row.
+  await expect(chat.getByText('SubagentHandback')).toHaveCount(0);
+  await task.click();
+  await expect(chat.getByText('Readings are calibrated in calibrate.py.')).toBeVisible();
+  await expect(chat.getByText(/was delivered to you/)).toHaveCount(0);
 });
 
 test('an agent not signed in is signed in from a terminal, says who it is, and signs out', async ({

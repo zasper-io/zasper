@@ -3,12 +3,18 @@ import React, { RefObject, useEffect, useRef } from 'react';
 import { AgentCommand } from './chatLog';
 import { usePickerKeys } from './usePickerKeys';
 
-/** The agent's commands whose names hold what was typed after the `/`, those that start with it first. */
+/**
+ * The agent's commands whose names hold what was typed after the `/`: the one typed in full first, then
+ * those that start with it.
+ */
 export function matchCommands(commands: AgentCommand[], query: string): AgentCommand[] {
   const typed = query.toLowerCase();
   const holding = commands.filter((command) => command.name.toLowerCase().includes(typed));
-  const starting = (command: AgentCommand) => command.name.toLowerCase().startsWith(typed);
-  return [...holding.filter(starting), ...holding.filter((command) => !starting(command))];
+  const rank = (command: AgentCommand) => {
+    const name = command.name.toLowerCase();
+    return name === typed ? 0 : name.startsWith(typed) ? 1 : 2;
+  };
+  return [0, 1, 2].flatMap((place) => holding.filter((command) => rank(command) === place));
 }
 
 /** The agent's commands, opened by a `/` at the start of a message, in the list `@` opens. */
@@ -20,11 +26,13 @@ export default function CommandPicker(props: {
 }) {
   const matches = matchCommands(props.commands, props.query);
   const { onPick } = props;
+  // Typed in full, Enter sends it as it is; Tab still completes it, to type what it takes after.
   const chosen = usePickerKeys(
     props.field,
     matches.length,
     (index) => onPick(matches[index]),
-    props.query
+    props.query,
+    (index) => matches[index].name.toLowerCase() === props.query.toLowerCase()
   );
   const list = useRef<HTMLDivElement>(null);
 

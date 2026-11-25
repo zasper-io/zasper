@@ -836,6 +836,81 @@ describe('foldChat', () => {
     expect((tools[1] as { calls: ToolCall[] }).calls[0].id).toBe('lost');
   });
 
+  describe('a Claude Code subagent that hands its report back', () => {
+    const handback = {
+      _meta: { claudeCode: { parentToolUseId: 'task', toolName: 'SubagentHandback' } },
+    };
+    const report = 'Readings are calibrated in calibrate.py.';
+    const started = {
+      type: 'update',
+      update: { sessionUpdate: 'tool_call', toolCallId: 'task', title: 'Explore', kind: 'think' },
+    } as const;
+    const handingBack = (status: string) => [
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'h',
+          title: 'SubagentHandback',
+          status: 'pending',
+          rawInput: {},
+          ...handback,
+        },
+      },
+      {
+        type: 'update',
+        update: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'h',
+          status,
+          rawInput: { message: report },
+          ...handback,
+        },
+      },
+    ];
+    const delivered = {
+      type: 'update',
+      update: {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'task',
+        status: 'completed',
+        content: [
+          {
+            type: 'content',
+            content: { type: 'text', text: 'Delivered by its SubagentHandback call.' },
+          },
+        ],
+      },
+    } as const;
+
+    it('shows the report as the output of the call that started it, the handback no row', () => {
+      const view = foldChat([started, ...handingBack('completed'), delivered] as ChatEvent[]);
+
+      const task = (view.items[0] as { calls: ToolCall[] }).calls[0];
+      expect(task.output).toBe(report);
+      expect(task.calls).toEqual([]);
+      expect(task.status).toBe('completed');
+    });
+
+    it('says the report is not replayed in a conversation reopened, rather than the note to itself', () => {
+      const view = foldChat([started, delivered] as ChatEvent[]);
+
+      const task = (view.items[0] as { calls: ToolCall[] }).calls[0];
+      expect(task.output).toBe(
+        'Its report went to Claude Code, which does not send it again in a conversation reopened.'
+      );
+    });
+
+    it('keeps a handback that failed, as a row that says so', () => {
+      const view = foldChat([started, ...handingBack('failed')] as ChatEvent[]);
+
+      const task = (view.items[0] as { calls: ToolCall[] }).calls[0];
+      expect(task.calls.map((call) => [call.title, call.status])).toEqual([
+        ['Hand back the report', 'failed'],
+      ]);
+    });
+  });
+
   it('marks a command the agent left running while it went on', () => {
     const view = foldChat([
       {

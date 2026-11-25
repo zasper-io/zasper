@@ -399,7 +399,14 @@ func (a *agent) Prompt(ctx context.Context, request acp.PromptRequest) (acp.Prom
 		a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "task-1", "title": "Explore where readings are calibrated", "kind": "think", "status": "in_progress"})
 		a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "grep-1", "title": "grep calibrat", "kind": "search", "status": "completed", "_meta": under})
 		a.raw(session, map[string]any{"sessionUpdate": "agent_message_chunk", "content": map[string]any{"type": "text", "text": "the subagent thinking aloud"}, "_meta": under})
-		a.raw(session, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "task-1", "status": "completed"})
+		// Its report, handed back as Claude Code's subagents hand theirs: a call whose input is the report,
+		// the call that started it then answering only that it was delivered.
+		handback := map[string]any{"claudeCode": map[string]any{"parentToolUseId": "task-1", "toolName": "SubagentHandback"}}
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "handback-1", "title": "SubagentHandback", "kind": "other", "status": "pending", "rawInput": map[string]any{}, "_meta": handback})
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "handback-1", "status": "completed",
+			"rawInput": map[string]any{"message": "Readings are calibrated in calibrate.py."}, "_meta": handback})
+		a.raw(session, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": "task-1", "status": "completed",
+			"content": []any{map[string]any{"type": "content", "content": map[string]any{"type": "text", "text": "This agent's report was delivered to you as a message (its SubagentHandback call)."}}}})
 		a.raw(session, map[string]any{"sessionUpdate": "tool_call", "toolCallId": "bg-1", "title": "python load_raw.py --all", "kind": "execute", "status": "completed",
 			"rawInput": map[string]any{"command": "python load_raw.py --all", "run_in_background": true}})
 		a.say(ctx, session, "explored")
