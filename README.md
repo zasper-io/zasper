@@ -404,18 +404,6 @@ markdown cells use. `image/svg+xml`, which graphviz and networkx produce and whi
 produces under `%config InlineBackend.figure_format = 'svg'`, is inlined rather than wrapped in an
 `<img>`, so a figure that sizes itself to the cell still can.
 
-### Known limitations
-
-- **Widget state is not written into the notebook.** Closing and reopening a tab is fine: the kernel
-  keeps running, and the widgets redraw from it. But the state lives only in the kernel, so once that
-  is gone — after the server restarts, or when the file is opened anywhere else, such as on GitHub —
-  the widget shows a placeholder until the cell is run again. JupyterLab can save widget state into
-  the file so it renders without a kernel; Zasper does not write it yet.
-- **A saved output does not run its scripts.** HTML and SVG read from a notebook are sanitised; only
-  output a running kernel sends runs its scripts, which is how Bokeh and HTML Plotly outputs draw
-  themselves, so after a notebook is reopened those cells have to be run again. Zasper does not
-  implement Jupyter's notebook signatures.
-
 ## Keyboard shortcuts
 
 Every action listed here is also in the command palette (`⇧⌘P` / `Ctrl+Shift+P`), which shows each
