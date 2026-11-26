@@ -380,6 +380,33 @@ test('the tab bar and the notebook toolbar stay inside the content area', async 
   }
 });
 
+// The fixture names no kernel, so the pill is given a real kernel's name, which has spaces to break at.
+test('a long kernel name stays on one line when the toolbar is short of room', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openApp(page);
+  await openNotebook(page);
+
+  const pill = page.locator('.text-editor-tool .kernel-pill');
+  await pill.evaluate((el) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.textContent?.trim() && !node.parentElement?.closest('.z-visually-hidden')) {
+        node.textContent = 'Python 3.12 (zasper-tutorials)';
+        return;
+      }
+    }
+  });
+  await page.keyboard.press('ControlOrMeta+=');
+  await page.keyboard.press('ControlOrMeta+=');
+  await expect(page.locator('#root')).toHaveCSS('zoom', '1.44');
+
+  expect(await pill.evaluate((el) => el.scrollHeight - el.clientHeight), 'pill wraps').toBe(0);
+  expect(
+    await overflow(page.locator('.text-editor-tool')),
+    'toolbar overflows'
+  ).toBeLessThanOrEqual(0);
+});
+
 /*
  * The cell the keyboard is in says so.
  *

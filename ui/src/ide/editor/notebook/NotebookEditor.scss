@@ -90,6 +90,16 @@ $cell-gutter: 64px;
   background: var(--z-bg-panel-alt);
   color: var(--z-fg-muted);
   font: inherit;
+  // The only thing in the strip that gives way when it is short of room, zoomed in or beside the agent
+  // panel: the name ends in an ellipsis rather than breaking onto a second line the 22px cannot hold.
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.kernel-pill-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kernel-pill:hover {

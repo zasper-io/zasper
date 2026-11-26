@@ -171,7 +171,7 @@ function NbButtons(props: NbButtonsProps) {
           {...kernelTip.anchorProps}
         >
           <KernelStatusDot state={props.kernelStatus} />
-          {props.kernelDisplayName ?? props.kernelName}
+          <span className="kernel-pill-name">{props.kernelDisplayName ?? props.kernelName}</span>
           <span className="z-visually-hidden">, {kernelStatusWord(props.kernelStatus)}</span>
         </button>
       )}
