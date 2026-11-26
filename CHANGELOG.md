@@ -4,6 +4,61 @@ All notable changes to Zasper are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Zasper follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] — 2026-11-26
+
+2.3.0 grows the agent panel. OpenCode joins it, an agent is signed in from the panel, its settings,
+commands, plans and questions live in the chat, and a subagent's work nests under the row that sent it
+off. Zasper can also be installed on Linux and macOS with one line.
+
+### Upgrading from 2.2.0
+
+- **Analytics record a country and city again**, as 0.1 and 0.2 did. PostHog keeps the IP address it
+  receives and looks up its location; `PRIVACY.md` now says so. `zasper --tracking=false` still turns
+  analytics off entirely.
+
+### Added
+
+**Agents**
+
+- **OpenCode is offered in the Agents panel**, found on `PATH`, in `~/.opencode/bin` or inside its
+  desktop app, and its subagents are followed in the background.
+- **Sign an agent in from the panel.** Its terminal sign-in runs in a Zasper terminal, and the account
+  and Sign out are under More. Antigravity offers every way it signs in, an API key included.
+- **The agent's own settings are chips**: model, effort and mode. Past conversations are a menu.
+- **The panel's head shows the chat's title and how full its context is.**
+- **A `/` that starts a message lists the agent's commands.**
+- **A subagent's calls nest under the row that sent it off**, and its report is that row's output. A
+  command left running says so.
+- **An agent's plan opens from the chat as a read-only tab.** Links in an answer open the document, a
+  project file or a new browser tab.
+- **An agent's questions are a form in the chat**, answered or skipped in place.
+- **Send Antigravity a message while it works.** It joins the turn already under way.
+- **Compactions and notices are drawn in the chat**, and updates are kept as the agent sent them.
+- **A run an agent asks for is saved to the notebook**, even with its tab open. A diff of a file with
+  unsaved changes says so, and offers to save.
+
+**And**
+
+- **A one-line install for Linux and macOS:** `curl -fsSL https://zasper.io/install.sh | sh`. It
+  installs the current release and checks it against the release's checksums.
+
+### Fixed
+
+- An edit's permission prompt shows the change it asks to make.
+- A turn that ends with no reply says so, rather than leaving the chat on your message.
+- A reopened conversation is headed by its title.
+- Claude Code is signed in when it opens a session signed out, and a message refused for want of a
+  sign-in waits in the next chat's field.
+- Enter sends a command typed in full; Tab still completes it.
+- A file whose line endings alone changed on disk counts as changed, so the next save no longer turns
+  them back.
+- A closed terminal's shell is stopped before the terminal leaves the list.
+
+### Security
+
+- Patched gorilla/websocket's weak mask key (GO-2026-6278), pinned to the commit that fixes it until a
+  tagged release has it.
+
 ## [2.2.0] — 2026-11-12
 
 2.2.0 makes Zasper usable from the keyboard alone and with a screen reader: F6 moves between the
@@ -458,6 +513,7 @@ Pre-release.
 
 First public pre-release.
 
+[2.3.0]: https://github.com/zasper-io/zasper/releases/tag/v2.3.0
 [2.2.0]: https://github.com/zasper-io/zasper/releases/tag/v2.2.0
 [2.1.0]: https://github.com/zasper-io/zasper/releases/tag/v2.1.0
 [2.0.0]: https://github.com/zasper-io/zasper/releases/tag/v2.0.0
